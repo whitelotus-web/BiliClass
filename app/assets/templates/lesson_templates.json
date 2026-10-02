@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "canvas": {"width": 1280, "height": 720, "font": "Arial"},
+  "presets": [
+    {"id":"standard","label":"Chuẩn lớp học","name":"Standard Classroom","description":"Khái niệm rõ ràng, cặp Việt–Anh dễ đối chiếu. Phù hợp bài giảng đa môn.","background":"#F7F9FD","accent":"#0869F9","ink":"#112650","muted":"#667997","sequence":["title","goal","vocabulary","concept","explanation","example","practice","check","summary"]},
+    {"id":"visual","label":"Trực quan","name":"Visual Explain","description":"Ưu tiên hình từ tài liệu, giải thích và so sánh. Có thể dùng khối chữ khi chưa có hình.","background":"#F4FAF8","accent":"#087F70","ink":"#123C37","muted":"#5E7D76","sequence":["title","warmup","visual","concept","explanation","compare","question","check","summary"]},
+    {"id":"practice","label":"Luyện tập & tương tác","name":"Practice & Interaction","description":"Công thức, ví dụ, bài tập và câu hỏi. Giáo viên chuẩn bị lời giải và quiz riêng.","background":"#FFFAF2","accent":"#B85B14","ink":"#422D1A","muted":"#8B725A","sequence":["title","warmup","formula","example","practice","question","check","summary"]}
+  ],
+  "blocks": [
+    {"id":"title","label":"Tên bài","en":"Lesson title","composition":"hero","font_size":52,"align":"left","vi":"[Tên bài học]\n[Chủ đề của tiết học]","sample_en":"[Lesson title]\n[Topic of the lesson]"},
+    {"id":"goal","label":"Mục tiêu","en":"Learning goals","composition":"reading","font_size":34,"align":"left","vi":"[Điều học sinh cần hiểu]\n[Điều học sinh cần làm được]","sample_en":"[What students should understand]\n[What students should be able to do]"},
+    {"id":"warmup","label":"Khởi động","en":"Warm-up","composition":"prompt","font_size":40,"align":"left","vi":"[Câu hỏi mở đầu từ bài học]\n[Thông tin để học sinh quan sát]","sample_en":"[Opening question from the lesson]\n[Information for students to observe]"},
+    {"id":"vocabulary","label":"Từ khóa song ngữ","en":"Key vocabulary","composition":"reading","font_size":34,"align":"left","vi":"[Thuật ngữ thứ nhất]\n[Thuật ngữ thứ hai]\n[Thuật ngữ thứ ba]","sample_en":"[First term]\n[Second term]\n[Third term]"},
+    {"id":"concept","label":"Khái niệm","en":"Concept","composition":"reading","font_size":34,"align":"left","vi":"[Tên khái niệm]\n[Định nghĩa lấy từ tài liệu đã kiểm tra]","sample_en":"[Concept name]\n[Definition from the checked source]"},
+    {"id":"explanation","label":"Giải thích","en":"Explanation","composition":"reading","font_size":32,"align":"left","vi":"[Ý chính cần giải thích]\n[Mối liên hệ trong nội dung bài học]","sample_en":"[Main idea to explain]\n[Relationship within the lesson content]"},
+    {"id":"visual","label":"Hình và chú thích","en":"Visual explanation","composition":"visual","font_size":30,"align":"left","vi":"[Điều cần quan sát trong hình]\n[Chú thích từ tài liệu nguồn]","sample_en":"[What to observe in the image]\n[Caption from the source document]"},
+    {"id":"compare","label":"So sánh","en":"Comparison","composition":"reading","font_size":32,"align":"left","vi":"[Tiêu chí so sánh]\n[Điểm giống nhau]\n[Điểm khác nhau]","sample_en":"[Comparison criterion]\n[Similarities]\n[Differences]"},
+    {"id":"formula","label":"Công thức / quy tắc","en":"Formula / rule","composition":"focus","font_size":42,"align":"center","vi":"[Công thức hoặc quy tắc]\n[Điều kiện áp dụng]","sample_en":"[Formula or rule]\n[Conditions of use]"},
+    {"id":"example","label":"Ví dụ theo bước","en":"Worked example","composition":"reading","font_size":32,"align":"left","vi":"[Dữ kiện của ví dụ]\n[Bước giải đã kiểm tra]\n[Kết quả và đơn vị]","sample_en":"[Example information]\n[Checked solution step]\n[Result and unit]"},
+    {"id":"practice","label":"Luyện tập","en":"Practice","composition":"reading","font_size":34,"align":"left","vi":"[Yêu cầu của bài tập]\n[Dữ kiện được cung cấp]\n[Cách học sinh trình bày kết quả]","sample_en":"[Task instructions]\n[Given information]\n[How students present their results]"},
+    {"id":"question","label":"Hỏi lớp","en":"Ask the class","composition":"prompt","font_size":40,"align":"left","vi":"[Câu hỏi cho cả lớp]\n[Điều học sinh cần giải thích]","sample_en":"[Question for the class]\n[What students should explain]"},
+    {"id":"check","label":"Kiểm tra hiểu bài","en":"Check understanding","composition":"reading","font_size":34,"align":"left","vi":"[Câu hỏi kiểm tra]\n[Nội dung học sinh cần trả lời]","sample_en":"[Check question]\n[What students should answer]"},
+    {"id":"summary","label":"Tổng kết / cuối tiết","en":"Summary / exit ticket","composition":"reading","font_size":34,"align":"left","vi":"[Ý chính cần ghi nhớ]\n[Điều học sinh cần giải thích cuối tiết]","sample_en":"[Key idea to remember]\n[What students should explain at the end]"}
+  ]
+}

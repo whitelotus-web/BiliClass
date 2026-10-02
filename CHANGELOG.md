@@ -1,5 +1,13 @@
 # Changelog
 
+## Mã nguồn đang phát triển — 02/10/2026
+
+- Thêm ba bộ mẫu Chuẩn lớp học, Trực quan và Luyện tập & tương tác, mỗi bộ có 14 slide PowerPoint tham khảo sửa được.
+- Thêm hộp xem mẫu và lựa chọn loại slide trong màn soạn bài. Xem trước, trình chiếu và xuất PPTX dùng chung bố cục mẫu; cặp Việt–Anh dài được phân trang cùng nhau.
+- Đổi loại slide giữ nội dung và trạng thái duyệt, nhưng yêu cầu chuẩn bị lại bài. Gói bài chia sẻ giữ lựa chọn mẫu và loại slide.
+- Mẫu chỉ bố trí nội dung do giáo viên cung cấp; chưa tự tạo mục tiêu, lời giải hoặc quiz. Xem [hướng dẫn mẫu bài giảng](docs/TEMPLATES.md).
+- Đã kiểm tra 138 bài kiểm thử, Qt smoke và hiển thị 42 slide mẫu. Các thay đổi này chưa nằm trong bản phát hành rc12.
+
 ## 1.0.0rc12 — 02/10/2026 — bản thử public
 
 - Thêm kiểm tra phiên bản và cập nhật tự động từ GitHub Releases cho bản Windows đóng gói.

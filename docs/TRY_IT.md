@@ -1,5 +1,7 @@
 # Dùng thử BiliClass 1.0 RC10
 
+Trong bản mã nguồn mới: mở **Tạo bài học mới → Xem mẫu bài giảng** hoặc mở bài rồi bấm **Mẫu** để xem ba bộ mẫu và 14 loại slide. Chọn **Loại slide** cho từng đoạn, bấm **Xem trước** và xuất **PPTX** sau khi duyệt nội dung. Chi tiết: [TEMPLATES.md](TEMPLATES.md).
+
 Đóng BiliClass đang mở, rồi chạy `dist/rc10/BiliClass/BiliClass.exe`. Trong **Cài đặt → Chung**, nhập tên/trường/nhiều bộ môn, tải logo ngay bên dưới và bấm **Lưu thông tin**; ô xem trước phản ánh hồ sơ đã lưu. Tab **Song ngữ** giải thích các level cùng bốn kiểu hiển thị, không lưu một mức chung. Trong **Giọng đọc**, nghe thử giọng English Kokoro và giọng Việt VieNeu, hoặc chọn nhanh một bộ giọng Việt–Anh. VieNeu có thể mất khoảng nửa phút để nạp lần đầu; nên dùng **Chuẩn bị âm thanh** trước giờ dạy. Ở tab **Mascot**, bấm **Lưu cài đặt Mascot** khi bật **Hiện khi dạy** để thấy ngay nhân vật nổi không khung; nhấp mascot để mở nút trợ giảng, nhấp lại để thu gọn. Nút mascot ở thanh bên mở lại nếu đã ẩn. Ở **Bài giảng mới**, chọn môn bất kỳ, khối 10–12, L0–L4 và kiểu trình bày cho chính bài đó; dán đoạn tiếng Việt hoặc chọn tài liệu. Dịch, sửa rồi duyệt cặp Việt–Anh. Dùng **Chuẩn bị lên lớp** và **Xem trước** để thử bố cục, âm thanh và trợ giảng. Tên lớp chỉ nhập khi bắt đầu tiết.
 
 Muốn thử tương tác: soạn/duyệt câu hỏi trong **Trợ giảng & Quiz**, mở **Lớp học**, chọn đúng địa chỉ LAN và quét QR bằng điện thoại cùng mạng. Xem **Báo cáo** sau khi kết thúc.

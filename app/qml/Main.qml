@@ -23,13 +23,16 @@ ApplicationWindow {
     property string selectedFileName: ""
     property bool rescue: false
     property var presentationContent: bridge.presentationContent(rescue)
-    onRescueChanged: presentationContent = bridge.presentationContent(rescue)
+    onRescueChanged: { presentationContent = bridge.presentationContent(rescue); refreshTemplate() }
     property string translationSource: "vi"
     property var teaching: bridge.teachingContext
     property var classroom: bridge.classroomContext
     property string profileLabel: [bridge.settings.teacher, bridge.settings.school].filter(function(value) { return !!value }).join("  ·  ")
     readonly property var layoutKeys: ["keyword_overlay", "line_pair", "split_view", "english_rescue"]
     readonly property var levels: ["L0 · Làm quen", "L1 · Tiếp xúc", "L2 · Cầu nối", "L3 · Kết hợp", "L4 · Ưu tiên English"]
+    property var templatePages: bridge.templatePages(rescue)
+    property int templatePageIndex: 0
+    function refreshTemplate() { templatePages = bridge.templatePages(rescue); templatePageIndex = 0 }
 
     function statusLabel(value) {
         return value === "READY_TO_TEACH" ? "Đã duyệt văn bản" : value === "REVIEW_REQUIRED" ? "Chờ duyệt" : "Bản nháp"
@@ -78,7 +81,7 @@ ApplicationWindow {
         function onProjectClassroomRequested() { projector.quiz = true; bridge.showProjector(projector, bridge.screens.length > 1 ? 1 : 0) }
         function onNavigate(destination) { root.page = destination; root.loadFields(); titleInput.text = ""; subjectInput.text = ""; pasteInput.text = ""; root.selectedFile = ""; root.selectedFileName = "" }
         function onSelectionChanged() { root.loadFields() }
-        function onChanged() { root.presentationContent = bridge.presentationContent(root.rescue) }
+        function onChanged() { root.presentationContent = bridge.presentationContent(root.rescue); root.refreshTemplate() }
         function onMemoryChoicesAvailable() { memoryDialog.open() }
         function onCloseMemoryChoicesRequested() { memoryDialog.close() }
         function onMascotPreferencesSaved(visible) {
@@ -310,7 +313,7 @@ ApplicationWindow {
                     anchors.fill: parent; anchors.margins: 30; visible: root.page === "new"; clip: true; contentWidth: availableWidth
                     ColumnLayout {
                         width: parent.width; spacing: 21
-                        RowLayout { Heading { text: "Tạo bài học mới" } Item { Layout.fillWidth: true } Action { text: "Quay lại thư viện"; iconName: "back"; subtle: true; onClicked: root.go("library") } }
+                        RowLayout { Heading { text: "Tạo bài học mới" } Item { Layout.fillWidth: true } Action { objectName: "creationTemplatesButton"; text: "Xem mẫu bài giảng"; onClicked: { templateGallery.forCreation = true; templateGallery.preset = ["standard", "visual", "practice"][creationPreset.currentIndex]; templateGallery.level = creationLevel.currentIndex; templateGallery.layout = root.layoutKeys[creationLayout.currentIndex]; templateGallery.open() } } Action { text: "Quay lại thư viện"; iconName: "back"; subtle: true; onClicked: root.go("library") } }
                         Copy { text: "Bắt đầu từ tài liệu quen thuộc. BiliClass giữ bản nguồn và tạo vùng biên tập song ngữ riêng."; Layout.fillWidth: true }
                         Surface {
                             Layout.fillWidth: true; implicitHeight: config.height + 42
@@ -381,6 +384,7 @@ ApplicationWindow {
                     RowLayout {
                         Layout.fillWidth: true; spacing: 12
                         Choice { id: presetChoice; objectName: "presetChoice"; model: ["Chuẩn lớp học", "Trực quan", "Luyện tập & tương tác"]; currentIndex: Math.max(0, ["standard", "visual", "practice"].indexOf(bridge.lesson.teaching_preset || "standard")); Layout.preferredWidth: 195; onActivated: bridge.setTeachingPreset(["standard", "visual", "practice"][currentIndex]) }
+                        Action { objectName: "editorTemplatesButton"; text: "Mẫu"; onClicked: root.requestAction(function() { templateGallery.forCreation = false; templateGallery.preset = bridge.lesson.teaching_preset || "standard"; templateGallery.level = bridge.lesson.level || 0; templateGallery.layout = bridge.lesson.layout || "line_pair"; templateGallery.open() }) }
                         Choice { id: levelChoice; model: bridge.lesson.level === 5 ? root.levels.concat(["L5 · Bài cũ"]) : root.levels; currentIndex: bridge.lesson.level === undefined ? 2 : bridge.lesson.level; Layout.preferredWidth: 194; onActivated: { if (currentIndex < 5) bridge.setPresentation(currentIndex, bridge.lesson.layout || "line_pair") } }
                         Choice { id: layoutChoice; model: ["Cùng dòng · từ khóa", "Hai dòng · EN in nghiêng", "Hai cột VI / EN", "English toàn phần"]; currentIndex: Math.max(0, root.layoutKeys.indexOf(bridge.lesson.layout)); Layout.preferredWidth: 200; onActivated: bridge.setPresentation(bridge.lesson.level, root.layoutKeys[currentIndex]) }
                         Action { text: "Trợ giảng & Quiz"; objectName: "teachingButton"; onClicked: root.requestAction(function() { teachingDialog.open() }) }
@@ -432,6 +436,10 @@ ApplicationWindow {
                                     Action { text: "Nguồn"; implicitHeight: 30; subtle: true; onClicked: sourceDialog.open() }
                                     Action { text: "Tách đoạn"; implicitHeight: 30; subtle: true; onClicked: splitDialog.open() }
                                     Item { Layout.fillWidth: true }
+                                }
+                                RowLayout { Layout.fillWidth: true
+                                    Caption { text: "Loại slide" }
+                                    Choice { objectName: "slideTypeChoice"; model: bridge.slideTypes; textRole: "label"; valueRole: "id"; Layout.fillWidth: true; currentIndex: Math.max(0, bridge.slideTypes.map(function(item) { return item.id }).indexOf(bridge.currentSlideType)); onActivated: { let selected = currentValue; root.requestAction(function() { bridge.setSlideType(selected) }) } }
                                 }
                                 RowLayout { Layout.fillWidth: true; Caption { text: "VI   Tiếng Việt" } Item { Layout.fillWidth: true } Action { objectName: "translateToViButton"; text: "Dịch Anh → Việt"; implicitHeight: 30; enabled: !bridge.busy && !lockedCheck.checked && enEdit.text.trim() !== ""; onClicked: root.prepareTranslation("en") } }
                                 ScrollView { Layout.fillWidth: true; Layout.fillHeight: true; Layout.minimumHeight: 56; clip: true
@@ -677,43 +685,43 @@ ApplicationWindow {
     TeachingDialog { id: teachingDialog; objectName: "teachingDialog"; teaching: root.teaching; bridge: root.bridgeRef }
     ProjectorWindow { id: projector; objectName: "projectorWindow"; bridge: root.bridgeRef }
     property var bridgeRef: bridge
+    TemplateGallery {
+        id: templateGallery; objectName: "templateGallery"
+        bridge: root.bridgeRef
+        onApplyPreset: function(preset) {
+            if (forCreation) creationPreset.currentIndex = ["standard", "visual", "practice"].indexOf(preset)
+            else bridge.setTeachingPreset(preset)
+        }
+    }
 
     Window {
         id: preview; objectName: "lessonPreview"; modality: Qt.NonModal; title: "BiliClass · Bàn điều khiển giảng dạy"; width: 1080; height: 730; minimumWidth: 800; minimumHeight: 600; color: "#f3f7fc"
+        property bool showTools: false
         onClosing: { bridge.stopSpeech(); if (bridge.busy) bridge.cancelJob() }
         Shortcut { sequence: "Escape"; onActivated: preview.close() }
         ColumnLayout {
             anchors.fill: parent; anchors.margins: 20; spacing: 12
-            RowLayout { Layout.fillWidth: true; Image { source: "book.svg"; sourceSize.width: 32; sourceSize.height: 32 } Caption { text: "BiliClass"; font.pixelSize: 21 } Item { Layout.fillWidth: true } Pill { text: "L" + bridge.policy.level + " · " + bridge.policy.name } Action { text: preview.visibility === Window.FullScreen ? "Thu nhỏ" : "Toàn màn hình"; onClicked: preview.visibility === Window.FullScreen ? preview.showNormal() : preview.showFullScreen() } Action { text: "Đóng  ×"; onClicked: preview.close() } }
+            RowLayout { Layout.fillWidth: true; Image { source: "book.svg"; sourceSize.width: 32; sourceSize.height: 32 } Caption { text: "BiliClass"; font.pixelSize: 21 } Item { Layout.fillWidth: true } Pill { text: "L" + bridge.policy.level + " · " + bridge.policy.name } Action { text: preview.showTools ? "Thu trợ giảng" : "Trợ giảng"; onClicked: preview.showTools = !preview.showTools } Action { text: preview.visibility === Window.FullScreen ? "Thu nhỏ" : "Toàn màn hình"; onClicked: preview.visibility === Window.FullScreen ? preview.showNormal() : preview.showFullScreen() } Action { text: "Đóng  ×"; onClicked: preview.close() } }
             Copy { text: bridge.segment.approved ? "Xem trước văn bản đã duyệt · " + (bridge.lesson.title || "") : "BẢN NHÁP CHƯA DUYỆT · Chỉ dùng để kiểm tra nội dung"; color: bridge.segment.approved ? root.muted : "#ad651d"; Layout.fillWidth: true }
             RowLayout { visible: bridge.settings.show_profile; Layout.fillWidth: true; spacing: 10
                 Image { objectName: "previewSchoolLogo"; visible: !!bridge.schoolLogoUrl; source: bridge.schoolLogoUrl; cache: false; fillMode: Image.PreserveAspectFit; Layout.preferredWidth: 50; Layout.preferredHeight: 50 }
                 Copy { text: root.profileLabel; Layout.fillWidth: true }
             }
-            Surface {
-                Layout.fillWidth: true; Layout.fillHeight: true
-                ScrollView { anchors.fill: parent; anchors.margins: 32; contentWidth: availableWidth; clip: true
-                    ColumnLayout {
-                        width: parent.width; spacing: 25
-                        Copy { text: bridge.segment.locator || ""; color: root.blue }
-                        GridLayout {
-                            Layout.fillWidth: true; columns: root.presentationContent.columns; columnSpacing: 35; rowSpacing: 24
-                            Label { visible: root.presentationContent.show_vi; text: root.presentationContent.vi; color: root.ink; font.pixelSize: 27; font.weight: Font.DemiBold; wrapMode: Text.WordWrap; Layout.fillWidth: true; Layout.preferredWidth: 1; textFormat: Text.PlainText }
-                            Label { visible: root.presentationContent.show_en; text: root.presentationContent.en || "Chưa có bản tiếng Anh cho đoạn này."; color: root.blue; font.pixelSize: 25; font.italic: bridge.lesson.layout === "line_pair"; wrapMode: Text.WordWrap; Layout.fillWidth: true; Layout.preferredWidth: 1; textFormat: Text.PlainText }
-                        }
-                        Label { visible: root.presentationContent.needs_keywords; text: "Chưa có từ khóa đã chuẩn bị khớp với đoạn này. Thêm thuật ngữ cho môn học trong trình biên tập."; color: root.muted; font.pixelSize: 16; wrapMode: Text.WordWrap; Layout.fillWidth: true }
-                    }
-                }
+            TemplateSlide { objectName: "lessonTemplatePreview"; Layout.fillWidth: true; Layout.fillHeight: true; plan: root.templatePages[root.templatePageIndex] || ({}) }
+            RowLayout { visible: root.templatePages.length > 1; Layout.fillWidth: true
+                Action { text: "Trang mẫu trước"; enabled: root.templatePageIndex > 0; onClicked: root.templatePageIndex-- }
+                Copy { text: (root.templatePageIndex + 1) + " / " + root.templatePages.length }
+                Action { text: "Trang mẫu tiếp"; enabled: root.templatePageIndex < root.templatePages.length - 1; onClicked: root.templatePageIndex++ }
             }
             Copy { visible: root.presentationContent.needs_easy_en; text: "L2: chưa có English đơn giản đã duyệt; đang xem bản dịch chính."; font.pixelSize: 11; Layout.fillWidth: true }
-            AssistantPanel { teaching: root.teaching; bridge: root.bridgeRef; Layout.fillWidth: true; Layout.preferredHeight: bridge.mascotSettings.visible ? Math.max(130, bridge.mascotSettings.size + 40) : 130 }
-            RowLayout { Layout.fillWidth: true
+            AssistantPanel { visible: preview.showTools; teaching: root.teaching; bridge: root.bridgeRef; Layout.fillWidth: true; Layout.preferredHeight: bridge.mascotSettings.visible ? Math.max(130, bridge.mascotSettings.size + 40) : 130 }
+            RowLayout { visible: preview.showTools; Layout.fillWidth: true
                 Choice { id: projectorScreen; model: bridge.screens; textRole: "name"; currentIndex: bridge.screens.length > 1 ? 1 : 0; Layout.fillWidth: true }
                 Action { text: "Mở màn hình lớp"; onClicked: { projector.quiz = false; bridge.showProjector(projector, projectorScreen.currentIndex) } }
                 Action { text: "Trợ giảng nổi"; onClicked: bridge.showCompanion(companion) }
                 Action { text: "VI Rescue trên màn hình lớp"; onClicked: projector.rescue = !projector.rescue }
             }
-            RowLayout { Layout.fillWidth: true; Item { Layout.fillWidth: true } Action { text: bridge.segment.approved ? "Đọc English" : "Nghe nháp EN"; enabled: !bridge.busy && !!bridge.audioAvailable.en && !!bridge.segment.en; onClicked: bridge.speakSegment("en") } Action { text: bridge.segment.approved ? "Đọc tiếng Việt" : "Nghe nháp VI"; enabled: !bridge.busy && !!bridge.audioAvailable.vi && !!bridge.segment.vi; onClicked: bridge.speakSegment("vi") } Action { text: "Dừng đọc"; onClicked: { bridge.stopSpeech(); if (bridge.busy) bridge.cancelJob() } } Item { Layout.fillWidth: true } }
+            RowLayout { visible: preview.showTools; Layout.fillWidth: true; Item { Layout.fillWidth: true } Action { text: bridge.segment.approved ? "Đọc English" : "Nghe nháp EN"; enabled: !bridge.busy && !!bridge.audioAvailable.en && !!bridge.segment.en; onClicked: bridge.speakSegment("en") } Action { text: bridge.segment.approved ? "Đọc tiếng Việt" : "Nghe nháp VI"; enabled: !bridge.busy && !!bridge.audioAvailable.vi && !!bridge.segment.vi; onClicked: bridge.speakSegment("vi") } Action { text: "Dừng đọc"; onClicked: { bridge.stopSpeech(); if (bridge.busy) bridge.cancelJob() } } Item { Layout.fillWidth: true } }
             RowLayout { Layout.fillWidth: true; Action { text: "←  Trước"; enabled: !bridge.busy && bridge.segmentIndex > 0; onClicked: { bridge.stopSpeech(); bridge.selectSegment(bridge.segmentIndex - 1); root.rescue = false } } Item { Layout.fillWidth: true } Copy { text: (bridge.segmentIndex + 1) + " / " + (bridge.lesson.segments || []).length } Item { Layout.fillWidth: true } Action { text: root.rescue ? "Ẩn tiếng Việt" : "VI Rescue"; onClicked: root.rescue = !root.rescue } Action { text: "Tiếp  →"; primary: true; enabled: !bridge.busy && bridge.segmentIndex < (bridge.lesson.segments || []).length - 1; onClicked: { bridge.stopSpeech(); bridge.selectSegment(bridge.segmentIndex + 1); root.rescue = false } } }
         }
     }

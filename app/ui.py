@@ -19,6 +19,7 @@ from . import speech
 from .classroom_ui import ClassroomBridge
 from .importers import extraction_warnings, parse_document
 from .knowledge import ensure_builtin_foundation, load_pack
+from .lesson_templates import block_type, catalog, example_plan, slide_pages, slide_plan, source_image
 from .library import Library, lesson_status
 from .pack import export_pack, import_pack
 from .paths import RESOURCE_ROOT, user_data
@@ -147,6 +148,58 @@ class Bridge(QObject):
     def presentationContent(self, rescue):
         from .presentation_policy import presentation_content
         return presentation_content(self.segment, self._lesson.get("level", 2), self._lesson.get("layout", "line_pair"), rescue, self.lessonTerms)
+
+    @Property("QVariantList", constant=True)
+    def slideTypes(self):
+        return [{"id": item["id"], "label": item["label"]} for item in catalog()["blocks"]]
+
+    @Property("QVariantList", constant=True)
+    def templatePresets(self):
+        return catalog()["presets"]
+
+    @Property(str, notify=changed)
+    def currentSlideType(self):
+        return block_type(self.segment.get("kind", "unknown"))["id"]
+
+    @Slot(str, str, int, str, result="QVariantMap")
+    def templateExample(self, preset, kind, level, layout):
+        return example_plan(preset, kind, level, layout)
+
+    @Slot(str)
+    def openTemplateSample(self, preset):
+        if preset not in {item["id"] for item in catalog()["presets"]}:
+            return
+        path = RESOURCE_ROOT / "assets/templates" / (preset + "-classroom.pptx")
+        if path.is_file():
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
+        else:
+            self.inform("Chưa có file PowerPoint mẫu trên máy này.", True)
+
+    @Slot(bool, result="QVariantList")
+    def templatePages(self, rescue):
+        image = None
+        try:
+            image = source_image(self._lesson, self.library.directory, self.segment)
+            return slide_pages(self._lesson, self.segment, terms=self.lessonTerms, rescue=rescue,
+                               image=QUrl.fromLocalFile(str(image)).toString() if image else "")
+        except ValueError as exc:
+            plan = slide_plan(self._lesson, self.segment, terms=self.lessonTerms, rescue=rescue,
+                              image=QUrl.fromLocalFile(str(image)).toString() if image else "")
+            plan["overflow"] = True
+            plan["error"] = str(exc)
+            return [plan]
+
+    @Slot(str)
+    def setSlideType(self, kind):
+        if not self._lesson:
+            return
+        try:
+            self._lesson = self.library.set_block_type(self._lesson["id"], self.segment["id"], kind)
+            self.changed.emit()
+            self.selectionChanged.emit()
+            self.inform("Đã đổi loại slide. Kiểm tra bố cục và chuẩn bị lại bài.")
+        except Exception as exc:
+            self.inform(str(exc), True)
 
     @Property(str, notify=changed)
     def status(self):

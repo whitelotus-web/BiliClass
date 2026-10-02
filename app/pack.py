@@ -115,6 +115,8 @@ def import_pack(library, path):
         segment["support"] = [validate_support(item, reset_review=True) for item in support]
         segment["approved"] = False  # imported content must be reviewed by this teacher
         segment["locked"] = bool(segment.get("locked", False))
+        from .lesson_templates import block_type
+        segment["kind"] = block_type(segment.get("kind", "unknown"))["id"]
         segment.setdefault("source_text", segment[lesson["source_language"]])
         if not isinstance(segment["source_text"], str) or len(segment["source_text"]) > 100_000:
             raise ValueError("Bản trích xuất nguồn không hợp lệ.")

@@ -2,7 +2,7 @@
 
 Ngày 01/10/2026. Đây là đánh giá và kế hoạch ban đầu. Đến 02/10/2026, mã nguồn đã triển khai một phần P0–P4: chốt bản chuẩn bị theo revision, chặn mở lớp mới khi chưa chốt, tách nhiều ý PPTX, giữ ảnh thường khi xuất, chọn bài tại Lớp học và nối báo cáo với bài gốc. Các mục còn lại trong bảng mốc vẫn là việc tiếp theo; xem [Changelog](../CHANGELOG.md) và [hướng dẫn thử hai máy](TEACHER_TESTING.md). Phạm vi đợt này: Trang chủ, Bài giảng, Thuật ngữ, Lớp học, trợ giảng khi dạy, Báo cáo và các luồng nhập/xuất/dữ liệu liên quan. Giữ nguyên toàn bộ tab Cài đặt, đặc biệt Chung, Song ngữ, Giọng đọc và Mascot vừa sửa.
 
-Bổ sung ngày 02/10/2026: xem [đề xuất nhập tài liệu, mẫu bài giảng và gói dữ liệu offline](UPGRADE_PROPOSAL_2026-10-02.md). Tài liệu bổ sung chi tiết P1, làm rõ hai cách trình chiếu và điều kiện nghiệm thu; vẫn là đề xuất, chưa triển khai chức năng.
+Bổ sung ngày 02/10/2026: xem [đề xuất nhập tài liệu, mẫu bài giảng và gói dữ liệu offline](UPGRADE_PROPOSAL_2026-10-02.md). Phần mẫu bài giảng đã có ba bộ tham khảo, 14 loại slide và bố cục dùng chung cho xem trước/xuất PPTX; xem [phạm vi đã triển khai](TEMPLATES.md). Các phần thiết kế lại tài liệu toàn diện và tự sắp trình tự bài trong đề xuất vẫn chưa triển khai.
 
 ## Mục tiêu
 

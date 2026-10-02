@@ -13,6 +13,17 @@ def classify_block(text):
     lowered = value.casefold()
     if not value:
         return "unknown"
+    for kind, prefixes in (
+        ("goal", ("mục tiêu", "yêu cầu cần đạt", "learning goal", "learning objective")),
+        ("warmup", ("khởi động", "warm-up", "warm up")),
+        ("vocabulary", ("từ khóa", "thuật ngữ", "vocabulary", "key words")),
+        ("visual", ("hình:", "sơ đồ:", "quan sát hình", "diagram:", "observe the image")),
+        ("compare", ("so sánh", "comparison", "compare")),
+        ("check", ("kiểm tra hiểu bài", "check understanding", "exit ticket")),
+        ("summary", ("tổng kết", "ghi nhớ", "summary")),
+    ):
+        if lowered.startswith(prefixes):
+            return kind
     if re.search(r"(?:[A-Za-z][\w²³]*|\d+)\s*[=≤≥≈]\s*\S+", value):
         return "formula"
     if lowered.startswith(("ví dụ", "example", "minh họa")):
@@ -23,7 +34,8 @@ def classify_block(text):
         return "concept"
     if value.rstrip().endswith("?"):
         return "question"
-    if len(value) <= 90 and "\n" not in value:
+    # Short length alone cannot tell a complete sentence from a heading.
+    if len(value) <= 90 and "\n" not in value and not value.endswith((".", "!", ";")):
         return "heading"
     return "explanation"
 

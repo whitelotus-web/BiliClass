@@ -3,9 +3,8 @@ import io
 import tempfile
 from pathlib import Path
 
-from .lesson_design import paired_pages
+from .lesson_templates import slide_pages, source_image
 from .powerpoint import slide_for_locator
-from .presentation_policy import presentation_content
 
 
 def export_deck(lesson, directory, destination, profile=None, terms=()):
@@ -76,49 +75,47 @@ def export_deck(lesson, directory, destination, profile=None, terms=()):
             while next_source_slide <= source_slide:
                 add_original_visual(next_source_slide)
                 next_source_slide += 1
-        layout = lesson.get("layout", "line_pair")
-        content = presentation_content(segment, lesson.get("level", 2), layout, terms=terms)
-        vi = content["vi"] if content["show_vi"] else ""
-        en = content["en"] if content["show_en"] else ""
-        try:
-            pages = paired_pages(vi, en, limit=340 if layout == "split_view" else 430)
-        except ValueError as exc:
-            raise ValueError(f"{segment['locator']}: {exc}") from exc
-        for index, (vi_text, en_text) in enumerate(pages):
+        image_path = source_image(lesson, directory, segment)
+        plans = slide_pages(lesson, segment, terms=terms, image=str(image_path) if image_path else "", profile=profile)
+        for plan in plans:
             slide = presentation.slides.add_slide(presentation.slide_layouts[6])
             slide.background.fill.solid()
-            slide.background.fill.fore_color.rgb = RGBColor.from_string(
-                {"standard": "F3F7FC", "visual": "F1FAFA", "practice": "FFF8EE"}[preset]
-            )
+            slide.background.fill.fore_color.rgb = RGBColor.from_string(plan["background"].lstrip("#"))
+            from pptx.enum.text import PP_ALIGN
+            from pptx.util import Emu
+            for item in plan["elements"]:
+                box = slide.shapes.add_textbox(*(Emu(int(item[key] * 9525)) for key in ("x", "y", "width", "height")))
+                frame = box.text_frame
+                frame.word_wrap = True
+                frame.margin_left = frame.margin_right = frame.margin_top = frame.margin_bottom = 0
+                for index, line in enumerate(item["text"].splitlines()):
+                    paragraph = frame.paragraphs[0] if index == 0 else frame.add_paragraph()
+                    paragraph.text = line
+                    paragraph.font.name = plan["font"]
+                    paragraph.font.size = Pt(item["size"] * .75)
+                    paragraph.font.bold, paragraph.font.italic = item["bold"], item["italic"]
+                    paragraph.font.color.rgb = RGBColor.from_string(item["color"].lstrip("#"))
+                    paragraph.alignment = PP_ALIGN.CENTER if item["align"] == "center" else PP_ALIGN.LEFT
+                    paragraph.space_before = paragraph.space_after = Pt(0)
+                    paragraph.line_spacing = 1.15
+            if image_path:
+                from PIL import Image
+                region = plan["image_box"]
+                with Image.open(image_path) as image:
+                    scale = min(region["width"] / image.width, region["height"] / image.height)
+                    width, height = image.width * scale, image.height * scale
+                slide.shapes.add_picture(str(image_path), Emu(int((region["x"] + (region["width"] - width) / 2) * 9525)),
+                                         Emu(int((region["y"] + (region["height"] - height) / 2) * 9525)),
+                                         width=Emu(int(width * 9525)), height=Emu(int(height * 9525)))
             logo_path = Path(directory) / "assets" / "school-logo.png"
-            header_x = .6
             if profile and profile.get("show_profile", True) and logo_path.is_file():
                 from PIL import Image
                 with Image.open(logo_path) as logo:
                     ratio = logo.width / logo.height
-                width, height = (.68, .68 / ratio) if ratio >= 1 else (.68 * ratio, .68)
-                slide.shapes.add_picture(str(logo_path), Inches(.6), Inches(.22), width=Inches(width), height=Inches(height))
-                header_x = 1.45
-            textbox(slide, "BiliClass  /  " + lesson["subject"] + "  /  Khối " + str(lesson.get("grade", "")), header_x, .35, 12 - header_x, .5, 16, "0869F9", True)
-            textbox(slide, lesson["title"][:100], .6, .95, 12, .9, 28, "112650", True)
-            if profile and profile.get("show_profile", True):
-                byline = " · ".join(filter(None, (
-                    profile.get("teacher", ""), profile.get("school", "")
-                )))
-                if byline:
-                    textbox(slide, byline[:150], .65, 1.69, 12, .28, 12, "667997")
-            if layout == "split_view":
-                textbox(slide, vi_text, .65, 2, 5.85, 4.5, 20, "112650")
-                textbox(slide, en_text, 6.85, 2, 5.85, 4.5, 20, "0869F9")
-            elif layout == "line_pair":
-                textbox(slide, vi_text, .65, 2, 12, 2.1, 23, "112650")
-                textbox(slide, en_text, .65, 4.3, 12, 2.1, 21, "0869F9", italic=True)
-            elif layout == "keyword_overlay":
-                textbox(slide, vi_text, .65, 2, 12, 4.5, 23, "112650")
-            else:
-                textbox(slide, en_text, .65, 2, 12, 4.5, 24, "0869F9")
-            textbox(slide, segment["locator"] + (f" · {index+1}/{len(pages)}" if len(pages) > 1 else ""), .65, 6.8, 12, .4, 12, "667997")
-            slide.notes_slide.notes_text_frame.text = "BiliClass: nội dung đã duyệt. Đoạn: " + segment["id"] + "\n" + segment["locator"]
+                width, height = (.35, .35 / ratio) if ratio >= 1 else (.35 * ratio, .35)
+                slide.shapes.add_picture(str(logo_path), Inches(12.55), Inches(.2), width=Inches(width), height=Inches(height))
+            slide.notes_slide.notes_text_frame.text = ("BiliClass: nội dung đã duyệt. Đoạn: " + segment["id"] + "\n" + segment["locator"]
+                                                      + "\nMẫu: " + preset + " / " + plan["kind"])
     if source_deck:
         while next_source_slide <= len(source_deck.slides):
             add_original_visual(next_source_slide)

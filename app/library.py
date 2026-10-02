@@ -333,6 +333,21 @@ class Library:
         self._write(lesson)
         return lesson
 
+    def set_block_type(self, lesson_id, segment_id, kind):
+        from .lesson_templates import catalog
+
+        if kind not in {item["id"] for item in catalog()["blocks"]}:
+            raise ValueError("Chọn một loại slide hợp lệ.")
+        lesson = self.get(lesson_id)
+        segment = next((item for item in lesson["segments"] if item["id"] == segment_id), None)
+        if segment is None:
+            raise ValueError("Không tìm thấy đoạn bài học.")
+        if segment.get("kind") != kind:
+            segment["kind"] = kind
+            lesson.update(revision=lesson["revision"] + 1, updated_at=now())
+            self._write(lesson)
+        return lesson
+
     def mark_prepared(self, lesson_id, expected_revision):
         from .readiness import text_readiness
 

@@ -13,8 +13,10 @@ Window {
         (!!bridge.teachingContext.response.available && bridge.teachingContext.response.action === "explanation" ? bridge.mascotSettings.show_explanation : true))
     property var classState: bridge.classroomContext.state
     property var content: bridge.presentationContent(rescue)
-    Connections { target: bridge; function onChanged() { projection.content = bridge.presentationContent(projection.rescue) } }
-    onRescueChanged: content = bridge.presentationContent(rescue)
+    property var templatePages: bridge.templatePages(rescue)
+    property int templatePageIndex: 0
+    Connections { target: bridge; function onChanged() { projection.content = bridge.presentationContent(projection.rescue); projection.templatePages = bridge.templatePages(projection.rescue); projection.templatePageIndex = 0 } }
+    onRescueChanged: { content = bridge.presentationContent(rescue); templatePages = bridge.templatePages(rescue); templatePageIndex = 0 }
     color: "#f3f7fc"
     title: "BiliClass · Màn hình lớp học"
     width: 1280; height: 720
@@ -29,16 +31,16 @@ Window {
             Image { objectName: "projectorSchoolLogo"; visible: !!bridge.schoolLogoUrl; source: bridge.schoolLogoUrl; cache: false; fillMode: Image.PreserveAspectFit; Layout.preferredWidth: 56; Layout.preferredHeight: 56 }
             Label { objectName: "projectorProfile"; text: [bridge.settings.teacher, bridge.settings.school].filter(function(value) { return !!value }).join("  ·  "); font.pixelSize: 16; color: "#667997"; Layout.fillWidth: true; elide: Text.ElideRight; textFormat: Text.PlainText }
         }
-        ScrollView { visible: !projection.quiz; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; contentWidth: availableWidth
-            ColumnLayout { width: parent.width; spacing: 25
+        ColumnLayout { visible: !projection.quiz; Layout.fillWidth: true; Layout.fillHeight: true; spacing: 16
                 Label { visible: !bridge.segment.approved; text: "Thầy cô đang chuẩn bị nội dung tiếp theo."; font.pixelSize: 27; color: "#667997"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
-                GridLayout { visible: !!bridge.segment.approved; columns: projection.content.columns; Layout.fillWidth: true; columnSpacing: 30; rowSpacing: 22
-                    Label { visible: projection.content.show_vi; text: projection.content.vi; color: "#112650"; font.pixelSize: 32; wrapMode: Text.WordWrap; Layout.fillWidth: true; Layout.preferredWidth: 1; textFormat: Text.PlainText }
-                    Label { visible: projection.content.show_en; text: projection.content.en; color: "#0869f9"; font.pixelSize: 30; font.italic: bridge.lesson.layout === "line_pair"; wrapMode: Text.WordWrap; Layout.fillWidth: true; Layout.preferredWidth: 1; textFormat: Text.PlainText }
+                TemplateSlide { visible: !!bridge.segment.approved; objectName: "projectorTemplateSlide"; Layout.fillWidth: true; Layout.fillHeight: true; plan: projection.templatePages[projection.templatePageIndex] || ({}) }
+                RowLayout { visible: !!bridge.segment.approved && projection.templatePages.length > 1; Layout.fillWidth: true
+                    ActionButton { text: "Trang trước"; enabled: projection.templatePageIndex > 0; onClicked: projection.templatePageIndex-- }
+                    Label { text: (projection.templatePageIndex + 1) + " / " + projection.templatePages.length; color: "#667997" }
+                    ActionButton { text: "Trang tiếp"; enabled: projection.templatePageIndex < projection.templatePages.length - 1; onClicked: projection.templatePageIndex++ }
                 }
                 Label { visible: !!bridge.segment.approved && projection.content.needs_keywords; text: "Chưa có từ khóa song ngữ khớp với đoạn này."; color: "#667997"; font.pixelSize: 20; Layout.fillWidth: true; wrapMode: Text.WordWrap }
                 Label { visible: !!bridge.segment.approved && !!bridge.teachingContext.response.available; text: bridge.teachingContext.response.text; font.pixelSize: 26; color: "#112650"; Layout.fillWidth: true; wrapMode: Text.WordWrap; textFormat: Text.PlainText }
-            }
         }
         ScrollView { visible: projection.quiz; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; contentWidth: availableWidth
             ColumnLayout { width: parent.width; spacing: 20
