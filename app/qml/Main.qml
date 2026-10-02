@@ -67,7 +67,9 @@ ApplicationWindow {
         else translateCurrent()
     }
     onClosing: function(close) {
-        if (bridge.busy) { close.accepted = false; busyDialog.open() }
+        if (bridge.updateApplying) { close.accepted = true }
+        else if (bridge.updateState.downloading) { close.accepted = false; updateBusyDialog.open() }
+        else if (bridge.busy) { close.accepted = false; busyDialog.open() }
         else if (dirty) { close.accepted = false; requestAction(function() { Qt.quit() }) }
     }
     Connections {
@@ -188,7 +190,8 @@ ApplicationWindow {
                     ColumnLayout { spacing: 3; Label { text: bridge.settings.teacher; color: root.ink; font.pixelSize: 12; elide: Text.ElideRight; Layout.maximumWidth: 110 } Copy { text: bridge.settings.school || "Giáo viên · Local"; font.pixelSize: 10; elide: Text.ElideRight; Layout.maximumWidth: 130 } }
                 }
                 Action { text: "Hướng dẫn · F1"; implicitHeight: 32; subtle: true; onClicked: helpDialog.open() }
-                Copy { text: bridge.developmentMode ? "Bản phát triển từ mã nguồn" : "Bản dùng thử · 1.0 RC10"; font.pixelSize: 9; Layout.topMargin: 12 }
+                Action { visible: !bridge.developmentMode; text: bridge.updateState.checking ? "Đang kiểm tra…" : "Kiểm tra cập nhật"; implicitHeight: 32; subtle: true; enabled: !bridge.updateState.checking && !bridge.updateState.downloading; onClicked: bridge.checkForUpdates(false) }
+                Copy { text: bridge.developmentMode ? "Bản phát triển từ mã nguồn" : "Bản dùng thử · " + bridge.appVersion; font.pixelSize: 9; Layout.topMargin: 12 }
             }
         }
         ColumnLayout {
@@ -235,6 +238,22 @@ ApplicationWindow {
                                     fillMode: Image.PreserveAspectFit; sourceSize.width: 420; sourceSize.height: 420
                                     Accessible.name: bridge.settings.mascot + " chào thầy cô"
                                 }
+                            }
+                        }
+                        Surface {
+                            objectName: "updateBanner"
+                            visible: root.page === "home" && bridge.updateState.available
+                            Layout.fillWidth: true; implicitHeight: bridge.updateState.downloading ? 114 : 85
+                            ColumnLayout { anchors.fill: parent; anchors.margins: 17; spacing: 8
+                                RowLayout { Layout.fillWidth: true; spacing: 12
+                                    ColumnLayout { Layout.fillWidth: true; spacing: 3
+                                        Caption { text: "Có BiliClass " + bridge.updateState.version + " mới"; font.pixelSize: 15 }
+                                        Copy { text: bridge.updateState.message; Layout.fillWidth: true }
+                                    }
+                                    Action { text: bridge.updateState.ready ? "Mở bản mới" : "Cập nhật"; primary: true; enabled: !bridge.updateState.downloading && !bridge.busy && !root.classroom.running; onClicked: bridge.updateState.ready ? bridge.applyDownloadedUpdate() : bridge.downloadUpdate() }
+                                    Action { visible: bridge.updateState.downloading; text: "Hủy tải"; onClicked: bridge.cancelUpdate() }
+                                }
+                                ProgressBar { visible: bridge.updateState.downloading; Layout.fillWidth: true; value: bridge.updateState.progress / 100 }
                             }
                         }
                         RowLayout {
@@ -552,6 +571,7 @@ ApplicationWindow {
         onAccepted: bridge.saveSegment(viEdit.text, enEdit.text, true, lockedCheck.checked)
     }
     Dialog { id: busyDialog; anchors.centerIn: parent; modal: true; title: "Đang xử lý bài học"; standardButtons: Dialog.Ok; Copy { text: "Hãy chờ tác vụ hiện tại hoàn tất trước khi đóng ứng dụng." } }
+    Dialog { id: updateBusyDialog; anchors.centerIn: parent; modal: true; title: "Đang tải bản cập nhật"; standardButtons: Dialog.Ok; Copy { text: "Chờ tải xong hoặc bấm Hủy tải ở Trang chủ trước khi đóng ứng dụng." } }
     Dialog { id: deleteTermDialog; property string termId: ""; anchors.centerIn: parent; modal: true; title: "Xóa thuật ngữ này?"; standardButtons: Dialog.Ok | Dialog.Cancel; onAccepted: bridge.deleteTerm(termId) }
     Dialog {
         id: readinessDialog; objectName: "readinessDialog"; anchors.centerIn: parent; modal: true; title: "Chuẩn bị bài giảng"; width: 730; height: Math.min(root.height - 50, 670)

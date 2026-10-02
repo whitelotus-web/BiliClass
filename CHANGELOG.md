@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.0rc12 — 02/10/2026 — bản thử public
+
+- Thêm kiểm tra phiên bản và cập nhật tự động từ GitHub Releases cho bản Windows đóng gói.
+- Gói cập nhật được kiểm tra kích thước, SHA-256, manifest và đường dẫn trước khi cài.
+- Cài phiên bản mới cạnh bản cũ, giữ thư viện bài học trong `%LOCALAPPDATA%/BiliClass` và tự mở bản mới.
+- Cập nhật hướng dẫn cài lần đầu, chia sẻ cho giáo viên thứ hai và quy trình phát triển nhanh từ mã nguồn.
+
 ## 1.0.0rc11 — 02/10/2026 — bản thử nội bộ
 
 - Một slide PowerPoint có nhiều khối chữ/bảng được nhập thành nhiều ý để giáo viên dịch và duyệt riêng; bản xuất giữ ảnh thường từ cả slide chỉ có hình. Cặp Việt–Anh được phân trang cùng nhau, đoạn quá dài yêu cầu tách trước khi xuất.

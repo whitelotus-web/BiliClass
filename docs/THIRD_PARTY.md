@@ -1,4 +1,4 @@
-# Thành phần bên thứ ba — bản thử 1.0 RC10
+# Thành phần bên thứ ba — bản thử 1.0 RC12
 
 Bản ứng dụng hiện tại dành để kiểm thử tại máy, chưa phải gói phát hành thương mại. Giữ nguyên thư mục `_internal`, các license kèm thư viện và thông tin gói model khi sao chép.
 

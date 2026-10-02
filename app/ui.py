@@ -28,6 +28,7 @@ from .storage import backup_library, configure_logging, restore_backup
 from .teaching import TeachingBridge
 from .text_quality import review_warnings
 from .translation import find_model, translate_draft
+from .updater import check_for_update, download_and_stage, launch_install
 
 
 class Job(QThread):
@@ -54,10 +55,26 @@ class Bridge(QObject):
     powerpointSlideChanged = Signal(int)
     mascotStateChanged = Signal()
     mascotPreferencesSaved = Signal(bool)
+    updateChanged = Signal()
+    updateProgress = Signal(int)
 
     @Property(bool, constant=True)
     def developmentMode(self):
         return not getattr(sys, "frozen", False)
+
+    @Property(str, constant=True)
+    def appVersion(self):
+        from . import __version__
+
+        return __version__
+
+    @Property("QVariantMap", notify=updateChanged)
+    def updateState(self):
+        return self._update_state
+
+    @Property(bool, notify=updateChanged)
+    def updateApplying(self):
+        return self._update_applying
 
     def __init__(self, library):
         super().__init__()
@@ -74,6 +91,14 @@ class Bridge(QObject):
         self._error = False
         self._logo_revision = 0
         self.worker = None
+        self.update_worker = None
+        self._update_release = None
+        self._update_package = None
+        self._update_applying = False
+        self._update_cancel = Event()
+        self._update_state = {"checking": False, "downloading": False, "available": False,
+                              "ready": False, "progress": 0, "version": "", "message": ""}
+        self.updateProgress.connect(self._on_update_progress)
         self.callback = None
         self.job_result = None
         self.cancel_event = Event()
@@ -339,6 +364,93 @@ class Bridge(QObject):
         if error:
             self.logger.warning("Operation reported an error")
         self.changed.emit()
+
+    def _set_update_state(self, **changes):
+        self._update_state = dict(self._update_state, **changes)
+        self.updateChanged.emit()
+
+    @Slot(int)
+    def _on_update_progress(self, value):
+        self._set_update_state(progress=value, message=f"Đang tải bản mới · {value}%")
+
+    @Slot(bool)
+    def checkForUpdates(self, silent=False):
+        if self.developmentMode:
+            if not silent:
+                self.inform("Bản mã nguồn được cập nhật bằng Git; cập nhật tự động dành cho bản Windows đóng gói.")
+            return
+        if self.update_worker and self.update_worker.isRunning():
+            return
+        self._set_update_state(checking=True, message="Đang kiểm tra phiên bản…")
+        self.update_worker = Job(check_for_update, self)
+
+        def completed(result, error):
+            if error:
+                self._set_update_state(checking=False, message="Chưa kiểm tra được bản mới. Thử lại khi có mạng.")
+                if not silent:
+                    self.inform("Chưa kiểm tra được cập nhật: " + error, True)
+            elif result:
+                self._update_release = result
+                self._set_update_state(checking=False, available=True, version=result["version"],
+                                       message="Đã có BiliClass " + result["version"])
+            else:
+                self._update_release = None
+                self._set_update_state(checking=False, available=False, message="Đang dùng bản mới nhất.")
+                if not silent:
+                    self.inform("BiliClass đang là bản mới nhất.")
+
+        self.update_worker.completed.connect(completed)
+        self.update_worker.finished.connect(self._update_job_finished)
+        self.update_worker.start()
+
+    @Slot()
+    def _update_job_finished(self):
+        self.update_worker = None
+
+    @Slot()
+    def downloadUpdate(self):
+        if (not self._update_release or self._update_package or self._busy or self.classroom.running
+                or (self.update_worker and self.update_worker.isRunning())):
+            self.inform("Đóng lớp và hoàn tất tác vụ trước khi cập nhật.", True)
+            return
+        self._update_cancel.clear()
+        self._set_update_state(downloading=True, progress=0, message="Đang tải bản mới…")
+        self.update_worker = Job(lambda: download_and_stage(
+            self._update_release, self.library.directory, self.updateProgress.emit, self._update_cancel), self)
+
+        def completed(result, error):
+            self._set_update_state(downloading=False)
+            if error:
+                self._set_update_state(message=error)
+                self.inform(error, True)
+                return
+            self._update_package = result
+            self._set_update_state(ready=True, progress=100, message="Đã tải và kiểm tra. Đang chuyển sang bản mới…")
+            self.applyDownloadedUpdate()
+
+        self.update_worker.completed.connect(completed)
+        self.update_worker.finished.connect(self._update_job_finished)
+        self.update_worker.start()
+
+    @Slot()
+    def cancelUpdate(self):
+        self._update_cancel.set()
+        self._set_update_state(message="Đang hủy tải bản cập nhật…")
+
+    @Slot()
+    def applyDownloadedUpdate(self):
+        if not self._update_package or self._busy or self.classroom.running:
+            self._set_update_state(message="Đóng lớp và hoàn tất tác vụ rồi bấm Cập nhật lần nữa.")
+            return
+        try:
+            launch_install(self._update_package, os.getpid())
+        except Exception as exc:
+            self._set_update_state(message="Chưa cài được bản mới: " + str(exc))
+            self.inform(str(exc), True)
+            return
+        self._update_applying = True
+        self.updateChanged.emit()
+        QTimer.singleShot(0, QGuiApplication.quit)
 
     def launch(self, action, callback):
         if self._busy:
@@ -1169,9 +1281,13 @@ def run(args):
     backup_job.completed.connect(lambda path, error: bridge.logger.warning("Automatic backup failed") if error else bridge.logger.info("Automatic backup finished"))
     if not args.smoke:
         QTimer.singleShot(1000, backup_job.start)
+        QTimer.singleShot(4000, lambda: bridge.checkForUpdates(True))
     result = app.exec()
     if backup_job.isRunning():
         backup_job.wait()
+    if bridge.update_worker and bridge.update_worker.isRunning():
+        bridge._update_cancel.set()
+        bridge.update_worker.wait()
     bridge.classroom.disconnect()
     if bridge.powerpoint_worker:
         bridge.stopPowerPoint()

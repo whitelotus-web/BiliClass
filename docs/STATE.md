@@ -1,6 +1,6 @@
 # Trạng thái BiliClass
 
-Cập nhật: 02/10/2026. Mã nguồn: **1.0.0rc11**; bản đóng gói mới cần kiểm thử riêng. Trọng tâm: chuẩn bị và dạy song ngữ Anh–Việt cho nhiều môn THPT, khối 10–12 và môn tự tạo. Các bài trong ảnh chỉ là ví dụ.
+Cập nhật: 02/10/2026. Mã nguồn: **1.0.0rc12**; bản đóng gói mới cần kiểm thử riêng. Trọng tâm: chuẩn bị và dạy song ngữ Anh–Việt cho nhiều môn THPT, khối 10–12 và môn tự tạo. Các bài trong ảnh chỉ là ví dụ.
 
 ## Đã triển khai trong ứng dụng
 
@@ -13,7 +13,7 @@ Cập nhật: 02/10/2026. Mã nguồn: **1.0.0rc11**; bản đóng gói mới c�
 - M7: OCR Windows chạy trong tiến trình cách ly, ảnh/PDF scan có giới hạn và báo thiếu ngôn ngữ; xuất deck song ngữ mới; asset mascot, nhãn môn dự phòng, hướng dẫn F1.
 - M8 phần phần mềm: build Windows độc lập, bộ cài theo tài khoản với checksum, gói dịch cài từ máy/USB, thu thập giấy phép, hướng dẫn sử dụng và bộ kiểm tra tích hợp.
 
-RC11 thêm việc tách nhiều ý trong một slide PowerPoint để duyệt, xuất VI/EN cùng trang và ảnh thường, chốt bản chuẩn bị theo revision, chọn bài ở Lớp học, nối báo cáo với bài gốc. Mẫu bài vẫn ở mức đầu tiên; chưa tái tạo đầy đủ bố cục/hiệu ứng của PowerPoint nguồn.
+RC12 thêm cập nhật tự động từ GitHub Releases, tải gói có checksum, cài phiên bản mới cạnh phiên bản cũ và giữ thư viện bài học. Các thay đổi nền tảng của RC11 vẫn gồm tách nhiều ý trong một slide PowerPoint để duyệt, xuất VI/EN cùng trang và ảnh thường, chốt bản chuẩn bị theo revision, chọn bài ở Lớp học, nối báo cáo với bài gốc. Mẫu bài vẫn ở mức đầu tiên; chưa tái tạo đầy đủ bố cục/hiệu ứng của PowerPoint nguồn.
 
 ## Bằng chứng và giới hạn
 
@@ -31,4 +31,4 @@ Model dịch không phải model sinh giáo án: giải thích/ví dụ/câu h�
 4. Giáo viên nhiều nhóm môn chấm bản dịch/thuật ngữ và thử trọn tiết; ghi thời gian chuẩn bị, sửa dịch và thao tác.
 5. Đánh giá giọng/OCR Việt khi máy được cài thành phần ngôn ngữ phù hợp.
 
-RC11 là bản thử nội bộ cần hai giáo viên kiểm tra thêm. Phiếu thao tác/bằng chứng cho các bước còn mở ở `FIELD_ACCEPTANCE.md`. **Chưa đánh dấu toàn bộ M0/M4/M5/M8 nghiệm thu hoàn tất**, vì kiểm tra trên máy phát triển không thay thế các bước trên. Không cần dịch vụ cloud hoặc tài khoản học sinh để thử chức năng hiện có.
+RC12 là bản thử nội bộ cần hai giáo viên kiểm tra thêm. Phiếu thao tác/bằng chứng cho các bước còn mở ở `FIELD_ACCEPTANCE.md`. **Chưa đánh dấu toàn bộ M0/M4/M5/M8 nghiệm thu hoàn tất**, vì kiểm tra trên máy phát triển không thay thế các bước trên. Không cần dịch vụ cloud hoặc tài khoản học sinh để thử chức năng hiện có.

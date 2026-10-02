@@ -1,9 +1,24 @@
 param(
     [string]$InstallRoot = (Join-Path $env:LOCALAPPDATA 'Programs\BiliClass'),
     [switch]$NoShortcuts,
-    [switch]$Uninstall
+    [switch]$Uninstall,
+    [int]$WaitForProcessId = 0,
+    [switch]$LaunchAfterInstall
 )
 $ErrorActionPreference = 'Stop'
+function Get-FileSha256([string]$Path) {
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $stream = [IO.File]::OpenRead($Path)
+        try { return ([BitConverter]::ToString($sha.ComputeHash($stream))).Replace('-', '').ToLowerInvariant() }
+        finally { $stream.Dispose() }
+    } finally { $sha.Dispose() }
+}
+if ($WaitForProcessId -gt 0) {
+    # The old version must finish before switching the shortcut to the new version.
+    Wait-Process -Id $WaitForProcessId -Timeout 120 -ErrorAction SilentlyContinue
+    if (Get-Process -Id $WaitForProcessId -ErrorAction SilentlyContinue) { throw 'Close BiliClass before installing the update.' }
+}
 $packageRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $installPath = [IO.Path]::GetFullPath($InstallRoot).TrimEnd('\')
 $markerPath = Join-Path $installPath '.biliclass-install.json'
@@ -33,7 +48,7 @@ $sourceRoot = [IO.Path]::GetFullPath((Join-Path $packageRoot 'BiliClass'))
 foreach ($entry in $manifest.files.PSObject.Properties) {
     $sourceFile = [IO.Path]::GetFullPath((Join-Path $sourceRoot $entry.Name))
     if (-not $sourceFile.StartsWith($sourceRoot + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Unsafe package path.' }
-    if ((Get-FileHash -LiteralPath $sourceFile -Algorithm SHA256).Hash.ToLowerInvariant() -ne $entry.Value) { throw ('Checksum mismatch: ' + $entry.Name) }
+    if ((Get-FileSha256 $sourceFile) -ne $entry.Value) { throw ('Checksum mismatch: ' + $entry.Name) }
 }
 $versionPath = Join-Path $installPath $manifest.version
 if (Test-Path -LiteralPath $versionPath) { throw 'This version is already installed. Uninstall or select a different install directory.' }
@@ -58,3 +73,6 @@ if (-not $NoShortcuts) {
 }
 Write-Output ('Installed BiliClass ' + $manifest.version + ' at ' + $versionPath)
 Write-Output 'Lesson data is preserved across installs. Start BiliClass from the Start menu.'
+if ($LaunchAfterInstall) {
+    Start-Process -FilePath (Join-Path $versionPath 'BiliClass.exe') -WorkingDirectory $versionPath
+}

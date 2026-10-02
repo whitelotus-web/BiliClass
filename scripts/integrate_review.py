@@ -98,7 +98,7 @@ append(
     "refs/README.md",
     "review-input.txt",
     """
-Tài liệu góp ý mới: `inputs/review-input.txt`, từ `C:/Users/Admin/.codex/attachments/bcf0e4f3-7594-499c-95b7-aab9c4698b30/Pasted text.txt`. Xem `docs/REVIEW_INTEGRATION.md` để phân biệt phần đã áp dụng và điểm phạm vi khác yêu cầu trực tiếp trước đó.
+Tài liệu góp ý mới được lưu tại `inputs/review-input.txt`. Xem `docs/REVIEW_INTEGRATION.md` để phân biệt phần đã áp dụng và điểm phạm vi khác yêu cầu trực tiếp trước đó.
 """,
 )
 print("Review integrated into project documents.")
