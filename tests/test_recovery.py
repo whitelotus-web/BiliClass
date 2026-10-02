@@ -114,5 +114,5 @@ def test_v1_library_migrates_without_losing_approval(tmp_path):
     assert recovered["source_language"] == "vi"
     assert recovered["segments"][0]["source_text"] == "Gốc"
     assert recovered["segments"][0]["approved"]
-    assert library.db.execute("PRAGMA user_version").fetchone()[0] == 2
+    assert library.db.execute("PRAGMA user_version").fetchone()[0] == 3
     library.close()

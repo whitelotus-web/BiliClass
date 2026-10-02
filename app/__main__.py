@@ -14,7 +14,7 @@ def main():
     parser.add_argument("--screenshot")
     parser.add_argument("--size", default="1366x850")
     parser.add_argument(
-        "--page", choices=["home", "library", "new", "editor", "glossary", "settings", "classroom", "reports"], default="home"
+        "--page", choices=["home", "library", "new", "editor", "glossary", "knowledge", "settings", "classroom", "reports"], default="home"
     )
     args = parser.parse_args()
     if args.self_test:

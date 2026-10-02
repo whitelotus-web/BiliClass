@@ -156,7 +156,7 @@ ApplicationWindow {
                 }
                 Copy { text: "CÙNG DẠY. CÙNG TIẾN XA."; font.pixelSize: 9; font.letterSpacing: 0.8; Layout.bottomMargin: 31 }
                 Repeater {
-                    model: [{key:"home", label:"Trang chủ", icon:"home"}, {key:"library", label:"Bài giảng", icon:"lessons"}, {key:"classroom", label:"Lớp học", icon:"classroom"}, {key:"reports", label:"Báo cáo", icon:"reports"}, {key:"glossary", label:"Thuật ngữ", icon:"glossary"}, {key:"settings", label:"Cài đặt", icon:"settings"}]
+                    model: [{key:"home", label:"Trang chủ", icon:"home"}, {key:"library", label:"Bài giảng", icon:"lessons"}, {key:"classroom", label:"Lớp học", icon:"classroom"}, {key:"reports", label:"Báo cáo", icon:"reports"}, {key:"glossary", label:"Thuật ngữ", icon:"glossary"}, {key:"knowledge", label:"Kho kiến thức", icon:"data"}, {key:"settings", label:"Cài đặt", icon:"settings"}]
                     delegate: Button {
                         required property var modelData
                         readonly property bool selected: root.page === modelData.key || (modelData.key === "library" && ["editor", "new"].indexOf(root.page) >= 0)
@@ -494,6 +494,59 @@ ApplicationWindow {
                     }
                 }
 
+                ScrollView {
+                    anchors.fill: parent; anchors.margins: 30; visible: root.page === "knowledge"; clip: true; contentWidth: availableWidth
+                    ColumnLayout {
+                        width: parent.width; spacing: 18
+                        RowLayout { Layout.fillWidth: true
+                            ColumnLayout { Layout.fillWidth: true; spacing: 6
+                                Heading { text: "Kho kiến thức có nguồn" }
+                                Copy { text: "Tra cứu nền tảng offline, xem nguồn chính thức và chọn từng thuật ngữ để đưa vào kho riêng của thầy cô."; Layout.fillWidth: true }
+                            }
+                            Action { text: "Cài gói kiến thức"; iconName: "upload"; primary: true; onClicked: knowledgeOpen.open() }
+                        }
+                        Surface { Layout.fillWidth: true; implicitHeight: knowledgeFilters.implicitHeight + 36
+                            RowLayout { id: knowledgeFilters; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 18; spacing: 10
+                                Field { id: knowledgeQuery; placeholderText: "Tìm thuật ngữ, môn học hoặc tiếng Anh"; Layout.fillWidth: true }
+                                Field { id: knowledgeSubject; placeholderText: "Lọc theo môn"; Layout.preferredWidth: 170 }
+                                Field { id: knowledgeGrade; placeholderText: "Khối/cấp"; Layout.preferredWidth: 120 }
+                            }
+                        }
+                        RowLayout { Layout.fillWidth: true; spacing: 10
+                            Pill { text: bridge.knowledgeStats.entries + " mục" }
+                            Pill { text: bridge.knowledgeStats.sources + " nguồn"; tone: "#168567" }
+                            Pill { text: bridge.knowledgeStats.packs + " gói"; tone: "#8a5a00" }
+                            Item { Layout.fillWidth: true }
+                        }
+                        Copy { text: "Ưu tiên: bản thầy cô đã duyệt → kiến thức nền → dữ liệu online có nguồn. Bản dịch từ kho nền vẫn cần duyệt. ‘Đưa vào kho riêng’ lưu cách dùng từ cho môn này."; Layout.fillWidth: true }
+                        Repeater { model: bridge.searchKnowledge(knowledgeQuery.text, knowledgeSubject.text, knowledgeGrade.text)
+                            delegate: Surface { required property var modelData; Layout.fillWidth: true; implicitHeight: knowledgeCard.implicitHeight + 30
+                                ColumnLayout { id: knowledgeCard; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 15; spacing: 7
+                                    RowLayout { Layout.fillWidth: true
+                                        Pill { text: modelData.subject; tone: root.blue; Layout.maximumWidth: 230 }
+                                        Pill { text: modelData.kind; tone: "#8a5a00" }
+                                        Item { Layout.fillWidth: true }
+                                        Action { text: "Đưa vào kho riêng"; iconName: "save"; subtle: true; onClicked: bridge.promoteKnowledgeTerm(modelData.id) }
+                                    }
+                                    RowLayout { Layout.fillWidth: true; spacing: 18
+                                        Label { text: modelData.vi; color: root.ink; font.pixelSize: 15; font.weight: Font.DemiBold; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                                        Label { text: modelData.en; color: root.blue; font.pixelSize: 15; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                                    }
+                                    Copy { visible: !!modelData.definition_vi; text: modelData.definition_vi; Layout.fillWidth: true }
+                                    Copy { visible: modelData.sources.length > 0; text: "Nguồn: " + modelData.sources[0].title; font.pixelSize: 11; Layout.fillWidth: true }
+                                }
+                            }
+                        }
+                        Copy { visible: bridge.searchKnowledge(knowledgeQuery.text, knowledgeSubject.text, knowledgeGrade.text).length === 0; text: "Chưa có mục phù hợp. Hãy thử bỏ bớt bộ lọc hoặc cài một gói kiến thức mới."; Layout.fillWidth: true }
+                        Caption { text: "Nguồn đã tích hợp"; font.pixelSize: 16 }
+                        Repeater { model: bridge.knowledgeSources
+                            delegate: Surface { required property var modelData; Layout.fillWidth: true; implicitHeight: sourceText.implicitHeight + 28
+                                Copy { id: sourceText; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 14; text: modelData.title + "\n" + modelData.document_no + " · " + modelData.source_url; font.pixelSize: 11; wrapMode: Text.WordWrap }
+                            }
+                        }
+                    }
+                }
+
                 SettingsPage {
                     anchors.fill: parent; anchors.margins: 26; visible: root.page === "settings"
                     bridge: root.bridgeRef
@@ -520,6 +573,7 @@ ApplicationWindow {
     FileDialog { id: deckSave; title: "Xuất PowerPoint song ngữ mới"; fileMode: FileDialog.SaveFile; defaultSuffix: "pptx"; nameFilters: ["PowerPoint (*.pptx)"]; onAccepted: bridge.exportPowerPoint(selectedFile.toString()) }
     FileDialog { id: packSave; title: "Xuất gói bài BiliClass"; fileMode: FileDialog.SaveFile; defaultSuffix: "biliclass"; nameFilters: ["BiliClass (*.biliclass)"]; onAccepted: bridge.exportPack(selectedFile.toString()) }
     FileDialog { id: modelOpen; title: "Cài gói dịch ngoại tuyến"; nameFilters: ["BiliClass Language (*.bclanguage)"]; onAccepted: bridge.installModel(selectedFile.toString()) }
+    FileDialog { id: knowledgeOpen; title: "Cài gói kiến thức có nguồn"; nameFilters: ["BiliClass Knowledge (*.biliknowledge)"]; onAccepted: bridge.installKnowledgePack(selectedFile.toString()) }
     FileDialog { id: backupOpen; title: "Khôi phục vào thư mục mới"; nameFilters: ["BiliClass Backup (*.bcbackup)"]; onAccepted: bridge.restoreLibrary(selectedFile.toString()) }
     FolderDialog { id: libraryOpen; title: "Chọn thư mục thư viện đã khôi phục"; onAccepted: root.requestAction(function() { bridge.openLibrary(libraryOpen.selectedFolder.toString()) }) }
     Dialog { id: metadataDialog; anchors.centerIn: parent; modal: true; title: "Thông tin bài học"; width: 500

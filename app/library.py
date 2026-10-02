@@ -42,11 +42,17 @@ class Library:
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.execute("PRAGMA busy_timeout=5000")
         version = self.db.execute("PRAGMA user_version").fetchone()[0]
-        if version > 2:
+        if version > 3:
             self.db.close()
             raise ValueError("Thư viện được tạo bằng phiên bản mới hơn. Hãy cập nhật BiliClass.")
         if version == 1:
             snapshot = self.directory / "backups" / "before-schema-2.db"
+            snapshot.parent.mkdir(exist_ok=True)
+            if not snapshot.exists():
+                with sqlite3.connect(snapshot) as backup:
+                    self.db.backup(backup)
+        if version == 2:
+            snapshot = self.directory / "backups" / "before-schema-3.db"
             snapshot.parent.mkdir(exist_ok=True)
             if not snapshot.exists():
                 with sqlite3.connect(snapshot) as backup:
@@ -66,7 +72,25 @@ class Library:
                   lesson_id TEXT NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
                   revision INTEGER NOT NULL, content TEXT NOT NULL, saved_at TEXT NOT NULL,
                   PRIMARY KEY(lesson_id,revision));
-                PRAGMA user_version=2;
+                CREATE TABLE IF NOT EXISTS knowledge_sources (
+                  id TEXT PRIMARY KEY, pack_id TEXT NOT NULL, pack_version TEXT NOT NULL,
+                  title TEXT NOT NULL, publisher TEXT NOT NULL, document_no TEXT NOT NULL,
+                  issued_at TEXT NOT NULL, effective_at TEXT NOT NULL, source_url TEXT NOT NULL,
+                  official INTEGER NOT NULL DEFAULT 0, source_type TEXT NOT NULL,
+                  retrieved_at TEXT NOT NULL, status TEXT NOT NULL, license TEXT NOT NULL,
+                  notes TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS knowledge_entries (
+                  id TEXT PRIMARY KEY, pack_id TEXT NOT NULL, pack_version TEXT NOT NULL,
+                  subject TEXT NOT NULL, grade TEXT NOT NULL, kind TEXT NOT NULL,
+                  vi TEXT NOT NULL, en TEXT NOT NULL, definition_vi TEXT NOT NULL,
+                  definition_en TEXT NOT NULL, aliases_json TEXT NOT NULL,
+                  source_ids_json TEXT NOT NULL, status TEXT NOT NULL,
+                  confidence TEXT NOT NULL, updated_at TEXT NOT NULL);
+                CREATE INDEX IF NOT EXISTS idx_knowledge_entries_subject
+                  ON knowledge_entries(subject, grade, kind);
+                CREATE INDEX IF NOT EXISTS idx_knowledge_entries_pack
+                  ON knowledge_entries(pack_id, pack_version);
+                PRAGMA user_version=3;
             """)
 
     def close(self):
@@ -423,6 +447,160 @@ class Library:
     def delete_term(self, term_id, teacher_id="local-teacher"):
         with self.db:
             self.db.execute("DELETE FROM glossary WHERE id=? AND teacher_id=?", (term_id, teacher_id))
+
+    def knowledge_pack(self, pack_id):
+        row = self.db.execute(
+            "SELECT pack_id,pack_version AS version,MAX(retrieved_at) AS retrieved_at "
+            "FROM knowledge_sources WHERE pack_id=? GROUP BY pack_id,pack_version",
+            (pack_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def install_knowledge_pack(self, pack):
+        """Replace one pack atomically; teacher glossary is deliberately untouched."""
+        from .knowledge import validate_pack
+
+        pack = validate_pack(pack)
+        manifest = pack["manifest"]
+        pack_id, pack_version = manifest["pack_id"], manifest["version"]
+        with self.db:
+            self.db.execute("DELETE FROM knowledge_entries WHERE pack_id=?", (pack_id,))
+            self.db.execute("DELETE FROM knowledge_sources WHERE pack_id=?", (pack_id,))
+            self.db.executemany(
+                """INSERT INTO knowledge_sources
+                (id,pack_id,pack_version,title,publisher,document_no,issued_at,effective_at,
+                 source_url,official,source_type,retrieved_at,status,license,notes)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                [
+                    (
+                        source["id"], pack_id, pack_version, source["title"], source["publisher"],
+                        source["document_no"], source["issued_at"], source["effective_at"],
+                        source["source_url"], int(source["official"]), source["source_type"],
+                        source["retrieved_at"], source["status"], source["license"], source["notes"],
+                    )
+                    for source in pack["sources"]
+                ],
+            )
+            self.db.executemany(
+                """INSERT INTO knowledge_entries
+                (id,pack_id,pack_version,subject,grade,kind,vi,en,definition_vi,definition_en,
+                 aliases_json,source_ids_json,status,confidence,updated_at)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                [
+                    (
+                        entry["id"], pack_id, pack_version, entry["subject"], entry["grade"],
+                        entry["kind"], entry["vi"], entry["en"], entry["definition_vi"],
+                        entry["definition_en"], json.dumps(entry["aliases"], ensure_ascii=False),
+                        json.dumps(entry["source_ids"], ensure_ascii=False), entry["status"],
+                        entry["confidence"], entry["updated_at"],
+                    )
+                    for entry in pack["entries"]
+                ],
+            )
+
+    def knowledge_sources(self):
+        rows = self.db.execute(
+            "SELECT * FROM knowledge_sources ORDER BY official DESC, issued_at DESC, title"
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+    def knowledge_entry(self, entry_id):
+        row = self.db.execute(
+            "SELECT * FROM knowledge_entries WHERE id=?", (entry_id,)
+        ).fetchone()
+        if not row:
+            return None
+        item = dict(row)
+        item["aliases"] = json.loads(item.pop("aliases_json"))
+        item["source_ids"] = json.loads(item.pop("source_ids_json"))
+        return item
+
+    def knowledge_entries(self, query="", subject="", grade="", limit=200):
+        query = " ".join(str(query).split()).casefold()
+        subject = str(subject or "").strip()
+        grade = str(grade or "").strip()
+        rows = self.db.execute(
+            "SELECT * FROM knowledge_entries WHERE (?='' OR subject=?) AND (?='' OR grade='' OR grade=?) "
+            "ORDER BY CASE kind WHEN 'term' THEN 0 WHEN 'subject' THEN 1 ELSE 2 END, vi",
+            (subject, subject, grade, grade),
+        ).fetchall()
+        result = []
+        for row in rows:
+            item = dict(row)
+            item["aliases"] = json.loads(item.pop("aliases_json"))
+            item["source_ids"] = json.loads(item.pop("source_ids_json"))
+            if query:
+                haystack = " ".join(
+                    [item["vi"], item["en"], item["subject"], item["kind"], *item["aliases"]]
+                ).casefold()
+                if query not in haystack:
+                    continue
+            source_rows = []
+            for source_id in item["source_ids"]:
+                source = self.db.execute(
+                    "SELECT id,title,source_url,document_no,official,source_type FROM knowledge_sources WHERE id=?",
+                    (source_id,),
+                ).fetchone()
+                if source:
+                    source_rows.append(dict(source))
+            item["sources"] = source_rows
+            result.append(item)
+            if len(result) >= max(1, min(int(limit), 50_000)):
+                break
+        return result
+
+    def knowledge_translation(self, subject, text, source_language="vi"):
+        """Resolve an exact pack term after teacher-approved memory.
+
+        Official/curated foundation entries win over entries marked as online.
+        Ambiguous alternatives are returned as no result so the UI can ask the
+        teacher instead of silently choosing a meaning across subjects.
+        """
+        if source_language not in ("vi", "en") or not subject.strip() or not text.strip():
+            return None
+        source, target = ("vi", "en") if source_language == "vi" else ("en", "vi")
+        matches = []
+        for entry in self.knowledge_entries(query=text, limit=50_000):
+            if entry["subject"] not in (subject.strip(), "Chung"):
+                continue
+            if entry[source].strip() != text.strip():
+                continue
+            source_types = {source_row["source_type"] for source_row in entry["sources"]}
+            online = bool(source_types) and all(source_type.startswith("online") for source_type in source_types)
+            matches.append({"text": entry[target], "online": online, "entry": entry})
+        if not matches:
+            return None
+        curated = {item["text"] for item in matches if not item["online"]}
+        online = {item["text"] for item in matches if item["online"]}
+        if len(curated) == 1:
+            return {"text": next(iter(curated)), "tier": "knowledge"}
+        if not curated and len(online) == 1:
+            return {"text": next(iter(online)), "tier": "online"}
+        return None
+
+    def knowledge_terms(self, subject, include_online=False):
+        """Return source-backed terms for model protection, without mutating glossary."""
+        if not subject.strip():
+            return []
+        result = []
+        for entry in self.knowledge_entries(limit=50_000):
+            if entry["subject"] not in (subject.strip(), "Chung"):
+                continue
+            source_types = {source_row["source_type"] for source_row in entry["sources"]}
+            online = bool(source_types) and all(source_type.startswith("online") for source_type in source_types)
+            if online and not include_online:
+                continue
+            result.append({"id": entry["id"], "subject": entry["subject"], "vi": entry["vi"],
+                           "en": entry["en"], "locked": True, "source": "online" if online else "knowledge"})
+        return result
+
+    def knowledge_stats(self):
+        packs = self.db.execute(
+            "SELECT COUNT(DISTINCT pack_id) FROM knowledge_sources"
+        ).fetchone()[0]
+        entries = self.db.execute("SELECT COUNT(*) FROM knowledge_entries").fetchone()[0]
+        sources = self.db.execute("SELECT COUNT(*) FROM knowledge_sources").fetchone()[0]
+        return {"packs": packs, "entries": entries, "sources": sources}
 
     def exact_translation(self, subject, text, teacher_id="local-teacher", source_language="vi"):
         source, target = ("vi", "en") if source_language == "vi" else ("en", "vi")

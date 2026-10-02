@@ -18,6 +18,7 @@ from biliclass_m0.paths import RESOURCES
 from . import speech
 from .classroom_ui import ClassroomBridge
 from .importers import extraction_warnings, parse_document
+from .knowledge import ensure_builtin_foundation, load_pack
 from .library import Library, lesson_status
 from .pack import export_pack, import_pack
 from .paths import RESOURCE_ROOT, user_data
@@ -80,6 +81,10 @@ class Bridge(QObject):
         super().__init__()
         self.library = library
         self.logger = configure_logging(library.directory)
+        try:
+            ensure_builtin_foundation(self.library)
+        except Exception as exc:
+            self.logger.warning("Could not install bundled knowledge foundation: %s", exc)
         self._lesson = {}
         self._segment_index = 0
         self._busy = False
@@ -162,6 +167,33 @@ class Bridge(QObject):
         text = (self.segment.get("vi", "") + " " + self.segment.get("en", "")).casefold()
         return [term for term in self.library.glossary(self._lesson["subject"])
                 if term["vi"].casefold() in text or term["en"].casefold() in text]
+
+    @Property("QVariantList", notify=changed)
+    def knowledgeSources(self):
+        return self.library.knowledge_sources()
+
+    @Property("QVariantMap", notify=changed)
+    def knowledgeStats(self):
+        return self.library.knowledge_stats()
+
+    @Slot(str, str, str, result="QVariantList")
+    def searchKnowledge(self, query="", subject="", grade=""):
+        return self.library.knowledge_entries(query, subject, grade)
+
+    @Slot(str)
+    def promoteKnowledgeTerm(self, entry_id):
+        try:
+            entry = self.library.knowledge_entry(entry_id)
+            if not entry:
+                raise ValueError("Không tìm thấy mục kiến thức.")
+            existing = [term for term in self.library.glossary(entry["subject"])
+                        if term["vi"] == entry["vi"]]
+            if existing:
+                raise ValueError("Thuật ngữ này đã có trong kho riêng. Mở Thuật ngữ để xem hoặc sửa bản đã lưu.")
+            self.library.save_term(entry["subject"], entry["vi"], entry["en"], True)
+            self.inform("Đã đưa thuật ngữ vào kho riêng của môn này.")
+        except Exception as exc:
+            self.inform(str(exc), True)
 
     @Property(QObject, constant=True)
     def teachingContext(self):
@@ -918,7 +950,12 @@ class Bridge(QObject):
             self.memoryChoicesAvailable.emit()
             self.inform("Có nhiều bản đã duyệt cho cùng đoạn. Hãy chọn cách diễn đạt phù hợp.")
         else:
-            self._translate_with_model(request)
+            knowledge = self.library.knowledge_translation(self._lesson["subject"], source_text, source_language)
+            if knowledge:
+                tier = "dữ liệu online có nguồn" if knowledge["tier"] == "online" else "kiến thức nền có nguồn"
+                self._apply_translation(request, knowledge["text"], f"Đã dùng {tier}; cần duyệt lại.")
+            else:
+                self._translate_with_model(request)
 
     def _apply_translation(self, request, translated, message):
         lesson_id, segment_id, revision, source_language, _ = request
@@ -936,6 +973,9 @@ class Bridge(QObject):
     def _translate_with_model(self, request):
         _, _, _, source_language, source_text = request
         terms = self.library.glossary(self._lesson["subject"])
+        teacher_words = {term[source_language] for term in terms}
+        terms += [term for term in self.library.knowledge_terms(self._lesson["subject"])
+                  if term[source_language] not in teacher_words]
         self.launch(
             lambda: translate_draft(source_text, source_language, terms),
             lambda translated: self._apply_translation(
@@ -1015,6 +1055,16 @@ class Bridge(QObject):
     def deleteTerm(self, term_id):
         self.library.delete_term(term_id)
         self.inform("Đã xóa thuật ngữ.")
+
+    @Slot(str)
+    def installKnowledgePack(self, url):
+        try:
+            pack = load_pack(QUrl(url).toLocalFile())
+            self.library.install_knowledge_pack(pack)
+            manifest = pack["manifest"]
+            self.inform(f"Đã cập nhật kho kiến thức: {manifest['title']} · v{manifest['version']}")
+        except Exception as exc:
+            self.inform(str(exc), True)
 
     @Slot(str, str, str, bool)
     def saveTeacherProfile(self, teacher, school, subjects_text, show_profile):
@@ -1131,6 +1181,10 @@ class Bridge(QObject):
             replacement = Library(directory)
             self.library.close()
             self.library = replacement
+            try:
+                ensure_builtin_foundation(self.library)
+            except Exception as exc:
+                self.logger.warning("Could not install bundled knowledge foundation: %s", exc)
             self._lesson = {}
             self._segment_index = 0
             self.dismissMemoryChoices()
