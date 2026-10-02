@@ -2,7 +2,7 @@
 
 ## Chia sẻ đúng thứ cần thử
 
-Kho GitHub công khai giữ mã nguồn, tài liệu và kiểm thử. Giáo viên có thể tải [bản RC12 mới nhất](https://github.com/whitelotus-web/BiliClass/releases/latest) mà không cần tài khoản GitHub. Tải `BiliClass-RC12-Windows.zip`, giải nén toàn bộ rồi chạy `Setup.cmd` để cài lần đầu; hoặc chạy `BiliClass/BiliClass.exe` để dùng portable. Sau khi mở app, RC12 tự kiểm tra bản mới và có nút **Kiểm tra cập nhật**. Khi có bản mới, bấm **Cập nhật**; app tải và xác minh gói, tự đóng/mở lại, còn thư viện bài học trong `%LOCALAPPDATA%/BiliClass` được giữ nguyên. Nếu dùng bộ cài, hai gói `.bclanguage` vẫn nằm ở cùng trang phát hành để nạp thủ công khi cần. Tải mã GitHub về sẽ không tự tạo ra `.exe` mới.
+Kho GitHub công khai giữ mã nguồn, tài liệu và kiểm thử. Giáo viên có thể tải [bản RC12](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc12) mà không cần tài khoản GitHub. Tải `BiliClass-RC12-Windows.zip`, giải nén toàn bộ rồi chạy `Setup.cmd` để cài lần đầu; hoặc chạy `BiliClass/BiliClass.exe` để dùng portable. Sau khi mở app, RC12 tự kiểm tra bản mới và có nút **Kiểm tra cập nhật**. Khi có bản mới, bấm **Cập nhật**; app tải và xác minh gói, tự đóng/mở lại, còn thư viện bài học trong `%LOCALAPPDATA%/BiliClass` được giữ nguyên. Nếu dùng bộ cài, hai gói `.bclanguage` vẫn nằm ở cùng trang phát hành để nạp thủ công khi cần. Tải mã GitHub về sẽ không tự tạo ra `.exe` mới.
 
 Chỉ phát hành sau khi kiểm thử từ mã nguồn qua một mốc. Mỗi bản phát hành ghi mã commit, ngày, thay đổi, gói model đi kèm và kết quả kiểm thử. Vì gói app và model lớn, để tệp phát hành ngoài lịch sử Git; không đưa `models/`, `dist/` hoặc bản sao thư viện lên Git.
 

@@ -4,7 +4,7 @@
 
 ## Dùng thử
 
-Tải bản mới nhất từ [GitHub Releases](https://github.com/whitelotus-web/BiliClass/releases/latest), giải nén toàn bộ rồi chạy `Setup.cmd` để cài lần đầu. Bản portable cũng có thể chạy `BiliClass/BiliClass.exe`; giữ nguyên cả thư mục, gồm `_internal` và `models`. Gói thử kèm model dịch, năm giọng English Kokoro và bốn giọng Việt VieNeu offline. Không cần Python. Sau khi cài, app tự kiểm tra GitHub khi mở và có nút **Kiểm tra cập nhật**; khi có bản mới, bấm **Cập nhật**, chờ app tự đóng/mở lại. Thư viện bài học nằm riêng và được giữ lại.
+Tải [BiliClass RC12](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc12) hoặc chọn bản phát hành mới nhất trong [GitHub Releases](https://github.com/whitelotus-web/BiliClass/releases), giải nén toàn bộ rồi chạy `Setup.cmd` để cài lần đầu. Bản portable cũng có thể chạy `BiliClass/BiliClass.exe`; giữ nguyên cả thư mục, gồm `_internal` và `models`. Gói thử kèm model dịch, năm giọng English Kokoro và bốn giọng Việt VieNeu offline. Không cần Python. Sau khi cài, app tự kiểm tra GitHub khi mở và có nút **Kiểm tra cập nhật**; khi có bản mới, bấm **Cập nhật**, chờ app tự đóng/mở lại. Thư viện bài học nằm riêng và được giữ lại.
 
 App dùng thư viện của người dùng trong `%LOCALAPPDATA%/BiliClass`, không tự chèn bài mẫu. `BILICLASS_DATA` đổi thư mục dữ liệu. Các kiểm thử dùng thư viện tạm riêng.
 
@@ -23,7 +23,7 @@ RC12 đã qua smoke test, kiểm thử updater và tự kiểm tra đóng gói t
 
 RC12 thêm kiểm tra phiên bản, tải gói có checksum, cài phiên bản mới cạnh phiên bản cũ và giữ thư viện bài học; tiếp tục tách nhiều ý trên một slide PowerPoint thành các đoạn để duyệt, xuất cặp Việt–Anh cùng trang, giữ ảnh thường từ slide gốc, cho chọn kiểu bài và yêu cầu **Chốt bản chuẩn bị** trước khi mở lớp mới. Biểu đồ, video và hiệu ứng PowerPoint vẫn cần đối chiếu hoặc trình chiếu bản gốc.
 
-Để hai giáo viên thử trên hai máy, xem [quy trình chia sẻ bản thử](docs/TEACHER_TESTING.md). Kho Git công khai chứa mã và tài liệu; dữ liệu bài học, báo cáo học sinh, model và bản `.exe` không nằm trong lịch sử Git. Tải bản cài tại [trang phát hành mới nhất](https://github.com/whitelotus-web/BiliClass/releases/latest).
+Để hai giáo viên thử trên hai máy, xem [quy trình chia sẻ bản thử](docs/TEACHER_TESTING.md). Kho Git công khai chứa mã và tài liệu; dữ liệu bài học, báo cáo học sinh, model và bản `.exe` không nằm trong lịch sử Git. Tải bản cài tại [Release RC12](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc12) hoặc xem [toàn bộ Releases](https://github.com/whitelotus-web/BiliClass/releases).
 
 ## Phát triển
 
