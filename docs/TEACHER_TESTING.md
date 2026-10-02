@@ -2,7 +2,7 @@
 
 ## Chia sẻ đúng thứ cần thử
 
-Kho GitHub riêng tư giữ mã nguồn, tài liệu và kiểm thử. Mỗi giáo viên cần quyền truy cập kho nếu muốn xem mã hoặc gửi lỗi qua Issues. Để **chạy ứng dụng** trên máy không có môi trường phát triển, chia sẻ **bản portable hoặc bộ cài cùng các gói model** của đúng mốc phát hành; tải mã GitHub về không tự tạo ra `.exe` mới. Bản RC10 trong `dist/rc10` có trước các thay đổi trong mã nguồn ngày 02/10/2026.
+Kho GitHub riêng tư giữ mã nguồn, tài liệu và kiểm thử. Mỗi giáo viên cần quyền truy cập kho để tải [bản RC11](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc11) hoặc gửi lỗi qua Issues. Tải `BiliClass-RC11-Windows.zip`, giải nén rồi chạy `BiliClass/BiliClass.exe` để dùng ngay, hoặc `Setup.cmd` để cài vào tài khoản Windows. Nếu cài đặt, tải thêm hai gói `.bclanguage` ở cùng trang phát hành và nạp trong Cài đặt. Chỉ tải mã GitHub về sẽ không tự tạo ra `.exe` mới. Bản RC11 trên máy phát triển nằm trong `dist/rc11`, đã qua tự kiểm tra đóng gói tại đây nhưng cần thử trên máy giáo viên thứ hai.
 
 Chỉ đóng gói sau khi kiểm thử từ mã nguồn qua một mốc. Mỗi bản phát hành ghi mã commit, ngày, thay đổi, các gói model đi kèm và kết quả kiểm thử. Vì gói app và model lớn, để tệp phát hành ngoài lịch sử Git; có thể dùng GitHub Release riêng tư nếu từng tệp đủ nhỏ, hoặc thư mục đám mây được chia sẻ riêng cho hai giáo viên. Không đưa `models/`, `dist/` hoặc bản sao thư viện lên Git.
 

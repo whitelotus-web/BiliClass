@@ -1,14 +1,14 @@
-# BiliClass 1.0 RC10 — hướng dẫn dùng thử
+# BiliClass 1.0 RC11 — hướng dẫn dùng thử
 
 Công cụ dạy học Anh–Việt ngoại tuyến, phục vụ các môn THPT và môn tự tạo. Các bài mẫu chỉ dùng để kiểm chứng công cụ.
 
 ## Mở và cài ứng dụng
 
-- Chạy ngay RC10: đóng BiliClass đang mở, rồi chạy `dist/rc10/BiliClass/BiliClass.exe`. Giữ nguyên cả thư mục BiliClass, gồm `_internal` và `models`. Không cần chạy Python hoặc mở terminal.
-- Cài vào tài khoản Windows: chạy `dist/rc10/Setup.cmd`. Bộ cài kiểm tra checksum, đặt chương trình trong `%LOCALAPPDATA%/Programs/BiliClass/<version>` và tạo mục Start menu. Không cần quyền quản trị. RC10 được đặt cạnh phiên bản cũ và dùng chung thư viện cá nhân.
+- Chạy ngay RC11: giải nén toàn bộ gói phát hành, đóng BiliClass đang mở, rồi chạy `BiliClass/BiliClass.exe`. Giữ nguyên cả thư mục BiliClass, gồm `_internal` và `models`. Trên máy phát triển, tệp nằm ở `dist/rc11/BiliClass/BiliClass.exe`. Không cần chạy Python hoặc mở terminal.
+- Cài vào tài khoản Windows: trong thư mục vừa giải nén, chạy `Setup.cmd`. Bộ cài kiểm tra checksum, đặt chương trình trong `%LOCALAPPDATA%/Programs/BiliClass/<version>` và tạo mục Start menu. Không cần quyền quản trị. RC11 được đặt cạnh phiên bản cũ và dùng chung thư viện cá nhân.
 - Bộ cài ứng dụng tách hai gói dịch. Trong Cài đặt → Cài gói dịch từ máy/USB, chọn `vi-en-1.9.bclanguage` và `en-vi-1.9.bclanguage`. Ứng dụng không tự tải model hoặc gửi bài lên Internet.
 - Gỡ: dùng PowerShell chạy `Install-BiliClass.ps1 -Uninstall` trong thư mục cài, hoặc bản cạnh Setup. Bài học và bản sao lưu giữ nguyên. Khi chỉ dùng bản portable, không cần bước cài/gỡ.
-- Đây là bản thử RC10 chưa ký số. Việc chạy được trên máy phát triển không thay thế kiểm thử cài sạch trên một máy Windows khác.
+- Đây là bản thử RC11 chưa ký số. Việc chạy được trên máy phát triển không thay thế kiểm thử cài sạch trên một máy Windows khác.
 
 ## Soạn bài
 
@@ -47,7 +47,7 @@ Máy kiểm thử có năm giọng Kokoro English, bốn giọng VieNeu tiếng 
 - **Xem trước** mở bàn điều khiển: chuyển đoạn, phát âm, gọi trợ giảng, VI Rescue, mở cửa sổ lớp.
 - Cửa sổ lớp chỉ trình bày đoạn đã duyệt. Không chứa ghi chú biên tập hoặc đáp án chưa công bố.
 - Với Extend, chọn màn hình phụ. Với Duplicate, Windows chiếu toàn bộ màn hình chính, vì vậy dùng cửa sổ lớp toàn màn hình và tránh mở bàn điều khiển khi đang chiếu. Ứng dụng không thể che riêng một cửa sổ khỏi chế độ Duplicate của Windows.
-- **Trợ giảng nổi** mặc định chỉ hiện Milo hoặc Lumi trên nền trong suốt, không có khung. Nhấp vào mascot để mở các nút trợ giảng; nhấp lại để thu gọn, bấm **Ẩn** trong bảng để đóng, hoặc mở lại bằng nút mascot ở thanh bên. Khi lưu tab Mascot với **Hiện khi dạy** bật, mascot hiện ngay. Tab Mascot cho xem trước khi dạy, đổi cỡ/vị trí và giảm chuyển động; tùy chọn giải thích/quiz áp dụng cho bối cảnh màn dạy. Nút nghe câu mẫu dùng giọng English đã chọn độc lập trong tab Giọng đọc. RC10 dùng bốn hình tư thế và nhịp nổi mượt; chưa phải hoạt hình có khớp riêng hoặc trang phục riêng từng môn.
+- **Trợ giảng nổi** mặc định chỉ hiện Milo hoặc Lumi trên nền trong suốt, không có khung. Nhấp vào mascot để mở các nút trợ giảng; nhấp lại để thu gọn, bấm **Ẩn** trong bảng để đóng, hoặc mở lại bằng nút mascot ở thanh bên. Khi lưu tab Mascot với **Hiện khi dạy** bật, mascot hiện ngay. Tab Mascot cho xem trước khi dạy, đổi cỡ/vị trí và giảm chuyển động; tùy chọn giải thích/quiz áp dụng cho bối cảnh màn dạy. Nút nghe câu mẫu dùng giọng English đã chọn độc lập trong tab Giọng đọc. RC11 dùng bốn hình tư thế và nhịp nổi mượt; chưa phải hoạt hình có khớp riêng hoặc trang phục riêng từng môn.
 - Với PPTX và PowerPoint đã cài: mở bản nguồn chỉ đọc; tiến/lùi/nhảy slide. Office xử lý animation khi tiến. Đoạn tự theo slide khi không có thay đổi chưa lưu; dùng **Theo slide hiện tại** hoặc chọn đoạn thủ công khi cần. BiliClass chỉ đóng bản trình chiếu do mình mở.
 - **Xuất PPTX** tạo deck song ngữ mới từ toàn bộ đoạn đã duyệt, chia phần dài thành các slide. Đây là mẫu mới có văn bản chỉnh sửa được, không sao chép animation/bố cục của nguồn. Tệp nguồn giữ nguyên.
 
@@ -76,4 +76,4 @@ Nếu không vào lớp: kiểm tra cùng mạng, địa chỉ IP, Firewall mạ
 
 ## Phạm vi cần thử tiếp
 
-RC10 đã có các nhóm chức năng trong kế hoạch, năm giọng Kokoro English, bốn giọng VieNeu tiếng Việt và bản xem trước Mascot theo bối cảnh. Nghiệm thu thực địa còn cần: Windows sạch không Python, laptop 8 GB, cấu hình PowerPoint/Presenter View ở trường, máy chiếu và DPI thật, Android/iPhone, Wi‑Fi/hotspot của lớp, OCR Việt khi cài gói tương ứng và đánh giá bản dịch, phát âm của giáo viên nhiều môn. Các kiểm thử tự động không thay cho những bước này.
+RC11 đã có các nhóm chức năng trong kế hoạch, năm giọng Kokoro English, bốn giọng VieNeu tiếng Việt và bản xem trước Mascot theo bối cảnh. PPTX nhập được tách nhiều ý thành đoạn để duyệt; bản xuất giữ cặp Việt–Anh trên cùng trang và ảnh thường từ slide nguồn. Trước khi mở lớp mới, cần kiểm tra nguồn, duyệt nội dung và chốt bản chuẩn bị. Nghiệm thu thực địa còn cần: Windows sạch không Python, laptop 8 GB, cấu hình PowerPoint/Presenter View ở trường, máy chiếu và DPI thật, Android/iPhone, Wi‑Fi/hotspot của lớp, OCR Việt khi cài gói tương ứng và đánh giá bản dịch, phát âm của giáo viên nhiều môn. Các kiểm thử tự động không thay cho những bước này.
