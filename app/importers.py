@@ -28,7 +28,7 @@ def extraction_warnings(path):
     if formula:
         result.append("Nguồn có công thức dạng đối tượng. Chúng chưa được chuyển đầy đủ sang văn bản; mở bản nguồn để đối chiếu và nhập lại công thức cần dạy (có thể đặt trong dấu $…$ để khóa khi dịch).")
     if objects:
-        result.append("Ảnh, biểu đồ, video và đối tượng nhúng vẫn có trong tệp nguồn; trình biên tập chỉ trích văn bản. Bản xuất mới chỉ sao chép ảnh thường từ slide PowerPoint, nên hãy đối chiếu với bản gốc trước khi dạy.")
+        result.append("Ảnh, biểu đồ, video và đối tượng nhúng vẫn có trong tệp nguồn. Chế độ giữ thiết kế PowerPoint sao chép các đối tượng này; chữ bên trong ảnh/biểu đồ và công thức nhúng chưa được dịch tự động. Hãy đối chiếu bản xuất trước khi dạy.")
     return result
 
 
@@ -53,25 +53,9 @@ def parse_document(path, language="vi", cancelled=None):
 
         inspect_zip(path)
         presentation = Presentation(path)
-        for index, slide in enumerate(presentation.slides, 1):
-            texts = []
-            def all_shapes(shapes):
-                for shape in shapes:
-                    if hasattr(shape, "shapes"):
-                        yield from all_shapes(shape.shapes)
-                    else:
-                        yield shape
-            for shape in sorted(all_shapes(slide.shapes), key=lambda item: (item.top, item.left)):
-                if shape.has_text_frame:
-                    if shape.text.strip():
-                        texts.append(shape.text.strip())
-                elif shape.has_table:
-                    rows = [" | ".join(cell.text for cell in row.cells) for row in shape.table.rows]
-                    if any(row.strip(" |") for row in rows):
-                        texts.append("\n".join(rows))
-            for part, text in enumerate(texts, 1):
-                locator = f"Slide {index}" if len(texts) == 1 else f"Slide {index} · ý {part}"
-                blocks.append((locator, text))
+        from .source_deck import text_blocks
+
+        blocks = [(unit["locator"], unit["text"]) for unit in text_blocks(presentation)]
     elif suffix == ".docx":
         from docx import Document
 

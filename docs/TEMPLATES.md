@@ -1,5 +1,7 @@
 # Mẫu bài giảng song ngữ
 
+Khi nhập PowerPoint, cách mặc định hiện tại là **giữ thiết kế gốc và thêm song ngữ**: xem [SOURCE_POWERPOINT.md](SOURCE_POWERPOINT.md). Bộ mẫu dưới đây dành cho văn bản/tài liệu khác, hoặc khi giáo viên bỏ **Giữ thiết kế gốc**. Các nút chọn mẫu và loại slide được ẩn khi giữ thiết kế PowerPoint.
+
 Bản mã nguồn có ba bộ mẫu: **Chuẩn lớp học**, **Trực quan**, **Luyện tập & tương tác**. Mỗi bộ có 14 slide tham khảo sửa được trong PowerPoint. Xem mẫu tại **Tạo bài học mới → Xem mẫu bài giảng**, hoặc mở bài rồi bấm **Mẫu**. **Dùng mẫu này** chọn kiểu dạy cho bài; **Mở PowerPoint mẫu** mở bộ tham khảo.
 
 Thư viện khối gồm tên bài, mục tiêu, khởi động, từ khóa, khái niệm, giải thích, hình và chú thích, so sánh, công thức/quy tắc, ví dụ theo bước, luyện tập, hỏi lớp, kiểm tra hiểu bài và tổng kết. Trong vùng biên tập, **Loại slide** cho chọn khối phù hợp với đoạn đang xem. Phân loại khi nhập chỉ là gợi ý theo dấu hiệu văn bản. Đổi loại slide giữ cặp dịch và trạng thái duyệt, nhưng làm hết hiệu lực bản chuẩn bị để kiểm tra lại bố cục.

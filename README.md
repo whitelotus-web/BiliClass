@@ -2,6 +2,8 @@
 
 Kho kiến thức có nguồn và bộ nhớ giáo viên đang được bổ sung trong bản mã nguồn: xem [cách vận hành](docs/KNOWLEDGE.md). Bản RC12 đóng gói chưa có tính năng này.
 
+Bản mã nguồn cũng đã thêm luồng **giữ thiết kế PowerPoint gốc**: nhập `.pptx`, dịch/duyệt, rồi mở bản song ngữ gồm slide Việt và Anh kế tiếp. Không cần chọn template. Xem [hướng dẫn](docs/SOURCE_POWERPOINT.md); tính năng này chưa nằm trong rc12.
+
 Ứng dụng Windows chuẩn bị và dạy **song ngữ Anh–Việt đa môn THPT**. Bản thử hiện tại: **1.0 RC12**, cập nhật 02/10/2026.
 
 ## Dùng thử

@@ -2,11 +2,15 @@
 
 ## Mã nguồn đang phát triển — 02/10/2026
 
+- Nhập PowerPoint mới mặc định giữ thiết kế gốc; ẩn chọn mẫu/loại slide để đơn giản hóa thao tác. Thêm xem và trình chiếu bản song ngữ gồm slide Việt/Anh kế tiếp, hoặc chỉ Anh/từ khóa.
+- Bản Anh giữ đối tượng, bảng, biểu đồ và hiệu ứng nguồn; sao chép riêng dữ liệu biểu đồ để PowerPoint mở được. Bản dịch quá dài hoặc không khớp ô nguồn được báo trước khi ghi file. Cache bản xem theo nội dung/cấu hình và kiểm tra hash.
+- Gói bài chia sẻ lưu cách trình bày; bài cũ giữ lựa chọn hiện tại. Trình chiếu song ngữ vẫn theo đúng đoạn của slide nguồn. Xem [hướng dẫn giữ thiết kế PowerPoint](docs/SOURCE_POWERPOINT.md).
 - Thêm ba bộ mẫu Chuẩn lớp học, Trực quan và Luyện tập & tương tác, mỗi bộ có 14 slide PowerPoint tham khảo sửa được.
 - Thêm hộp xem mẫu và lựa chọn loại slide trong màn soạn bài. Xem trước, trình chiếu và xuất PPTX dùng chung bố cục mẫu; cặp Việt–Anh dài được phân trang cùng nhau.
 - Đổi loại slide giữ nội dung và trạng thái duyệt, nhưng yêu cầu chuẩn bị lại bài. Gói bài chia sẻ giữ lựa chọn mẫu và loại slide.
 - Mẫu chỉ bố trí nội dung do giáo viên cung cấp; chưa tự tạo mục tiêu, lời giải hoặc quiz. Xem [hướng dẫn mẫu bài giảng](docs/TEMPLATES.md).
 - Đã kiểm tra 138 bài kiểm thử, Qt smoke và hiển thị 42 slide mẫu. Các thay đổi này chưa nằm trong bản phát hành rc12.
+- Sau khi thêm chế độ giữ PowerPoint: 143 bài kiểm thử và kiểm tra mã đều đạt; Qt smoke xác nhận luồng nhập/biên tập và liên kết slide song ngữ. Microsoft PowerPoint mở/render bộ thử 6 slide, với cả 3 slide Việt giống hệt render nguồn. Chữ trong ảnh/biểu đồ chưa tự dịch; cần kiểm tra bài thật trước khi dạy.
 
 ## 1.0.0rc12 — 02/10/2026 — bản thử public
 

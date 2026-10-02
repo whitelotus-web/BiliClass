@@ -44,6 +44,7 @@ def test_powerpoint_keeps_multiple_ideas_and_visual_in_export(tmp_path):
         for segment, english in zip(lesson["segments"], ("Concept", "Example: force"), strict=True):
             lesson = library.edit_segment(lesson["id"], segment["id"], segment["vi"], english, True)
         lesson = library.set_teaching_preset(lesson["id"], "visual")
+        lesson = library.set_presentation_style(lesson["id"], "template")
         lesson = library.mark_prepared(lesson["id"], lesson["revision"])
         exported = Presentation(export_deck(lesson, library.directory, tmp_path / "bilingual.pptx"))
         assert len(exported.slides) == 4

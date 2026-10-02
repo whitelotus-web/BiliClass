@@ -158,6 +158,10 @@ def import_pack(library, path):
         lesson["layout"] = "line_pair"
     if lesson.get("teaching_preset") not in ("standard", "visual", "practice"):
         lesson["teaching_preset"] = "standard"
+    if lesson.get("presentation_style") not in {"source", "template"}:
+        lesson["presentation_style"] = "template"
+    if lesson["presentation_style"] == "source" and not (lesson.get("source") or {}).get("file", "").lower().endswith(".pptx"):
+        raise ValueError("Chế độ giữ thiết kế gốc cần nguồn PowerPoint.")
     for record, data in audio:
         folder = library.directory / "audio"
         folder.mkdir(exist_ok=True)

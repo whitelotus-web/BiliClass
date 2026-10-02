@@ -163,6 +163,7 @@ class Library:
             "level": 2,
             "layout": "line_pair",
             "teaching_preset": "standard",
+            "presentation_style": "source" if source and source.get("file", "").lower().endswith(".pptx") else "template",
             "updated_at": now(),
         }
         self._write(lesson, new=True)
@@ -330,6 +331,18 @@ class Library:
         if lesson.get("teaching_preset", "standard") == preset:
             return lesson
         lesson.update(teaching_preset=preset, revision=lesson["revision"] + 1, updated_at=now())
+        self._write(lesson)
+        return lesson
+
+    def set_presentation_style(self, lesson_id, style):
+        if style not in {"source", "template"}:
+            raise ValueError("Chọn cách trình bày hợp lệ.")
+        lesson = self.get(lesson_id)
+        if style == "source" and not (lesson.get("source") or {}).get("file", "").lower().endswith(".pptx"):
+            raise ValueError("Giữ thiết kế gốc cần tài liệu PowerPoint.")
+        if lesson.get("presentation_style", "template") == style:
+            return lesson
+        lesson.update(presentation_style=style, revision=lesson["revision"] + 1, updated_at=now())
         self._write(lesson)
         return lesson
 

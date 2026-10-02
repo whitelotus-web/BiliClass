@@ -112,6 +112,7 @@ class Bridge(QObject):
         self._memory_request = None
         self.powerpoint_worker = None
         self._powerpoint_lesson_id = None
+        self._powerpoint_source_map = []
         self._powerpoint_state = {"active": False, "slide": 0, "total": 0, "message": ""}
         self._readiness = {"checks": [], "text_ready": False, "total": 0, "approved": 0}
         self.teaching = TeachingBridge(self)
@@ -789,25 +790,54 @@ class Bridge(QObject):
             return
         try:
             path = verified_presentation(self._lesson, self.library.directory)
-            initial = slide_for_locator(self.segment.get("locator", "")) or 1
-            worker = PowerPointSession(path, initial, self)
-            self.powerpoint_worker = worker
-            self._powerpoint_lesson_id = self._lesson["id"]
-            worker.stateChanged.connect(self._powerpoint_changed)
-            worker.failed.connect(self._powerpoint_failed)
-            worker.finished.connect(self._powerpoint_finished)
-            worker.start()
+            self._start_powerpoint_session(path)
             self.inform("Đang mở bản PowerPoint nguồn ở chế độ chỉ đọc…")
         except Exception as exc:
             self.inform(str(exc), True)
 
+    def _start_powerpoint_session(self, path, source_map=None):
+        initial = slide_for_locator(self.segment.get("locator", "")) or 1
+        self._powerpoint_source_map = source_map or []
+        if self._powerpoint_source_map:
+            initial = self._powerpoint_source_map.index(initial) + 1
+        worker = PowerPointSession(path, initial, self)
+        self.powerpoint_worker = worker
+        self._powerpoint_lesson_id = self._lesson["id"]
+        worker.stateChanged.connect(self._powerpoint_changed)
+        worker.failed.connect(self._powerpoint_failed)
+        worker.finished.connect(self._powerpoint_finished)
+        worker.start()
+
+    @Slot()
+    def startBilingualPowerPoint(self):
+        from .source_deck import prepare_source_deck
+
+        if not self._lesson or self._busy:
+            return
+        if self.powerpoint_worker is not None:
+            self.inform("PowerPoint đang mở hoặc đang đóng. Hãy chờ hoàn tất.")
+            return
+        lesson, directory = self._lesson, self.library.directory
+        terms = self.library.glossary(lesson.get("subject", ""))
+
+        def opened(result):
+            if self._lesson.get("id") != lesson["id"]:
+                return
+            self._start_powerpoint_session(result["path"], result["slide_map"])
+            self.inform("Đang trình chiếu bản song ngữ, giữ thiết kế PowerPoint gốc…")
+
+        self.launch(lambda: prepare_source_deck(lesson, directory, terms), opened)
+
     @Slot(object)
     def _powerpoint_changed(self, state):
         if self._powerpoint_lesson_id == self._lesson.get("id"):
-            previous = self._powerpoint_state.get("slide")
+            index = state.get("slide", 0)
+            source_slide = self._powerpoint_source_map[index - 1] if 0 < index <= len(self._powerpoint_source_map) else index
+            state = {**state, "source_slide": source_slide}
+            previous = self._powerpoint_state.get("source_slide", self._powerpoint_state.get("slide"))
             self._powerpoint_state = state
-            if state.get("active") and previous != state.get("slide"):
-                self.powerpointSlideChanged.emit(state["slide"])
+            if state.get("active") and previous != source_slide:
+                self.powerpointSlideChanged.emit(source_slide)
             self.changed.emit()
 
     @Slot(str)
@@ -821,12 +851,13 @@ class Bridge(QObject):
             worker.deleteLater()
         self.powerpoint_worker = None
         self._powerpoint_lesson_id = None
+        self._powerpoint_source_map = []
         self._powerpoint_state = {"active": False, "slide": 0, "total": 0, "message": ""}
         self.changed.emit()
 
     @Slot()
     def followPowerPoint(self):
-        current = self._powerpoint_state.get("slide")
+        current = self._powerpoint_state.get("source_slide", self._powerpoint_state.get("slide"))
         for index, segment in enumerate(self._lesson.get("segments", [])):
             if slide_for_locator(segment.get("locator", "")) == current:
                 self.stopSpeech()
@@ -844,6 +875,8 @@ class Bridge(QObject):
             if slide is None:
                 self.inform("Đoạn này không liên kết với slide trong nguồn PowerPoint.", True)
                 return
+            if self._powerpoint_source_map:
+                slide = self._powerpoint_source_map.index(slide) + 1
             self.powerpoint_worker.navigate("goto", slide)
         elif command in ("next", "previous"):
             self.powerpoint_worker.navigate(command)
@@ -900,6 +933,35 @@ class Bridge(QObject):
             self.inform("Đã lưu kiểu dạy cho bài này.")
         except Exception as exc:
             self.inform(str(exc), True)
+
+    @Slot(str)
+    def setPresentationStyle(self, style):
+        if not self._lesson:
+            return
+        try:
+            self._lesson = self.library.set_presentation_style(self._lesson["id"], style)
+            self.changed.emit()
+            self.selectionChanged.emit()
+            self.inform("Đã chọn giữ thiết kế PowerPoint gốc." if style == "source" else "Đã chọn bố cục của BiliClass.")
+        except Exception as exc:
+            self.inform(str(exc), True)
+
+    @Slot()
+    def previewSourcePowerPoint(self):
+        from .source_deck import prepare_source_deck
+
+        if not self._lesson or self._busy:
+            return
+        lesson, directory = self._lesson, self.library.directory
+        terms = self.library.glossary(lesson.get("subject", ""))
+
+        def opened(result):
+            if not QDesktopServices.openUrl(QUrl.fromLocalFile(result["path"])):
+                self.inform("Đã tạo bản song ngữ nhưng máy chưa có ứng dụng mở PowerPoint: " + result["path"], True)
+            else:
+                self.inform("Đã mở bản song ngữ cùng thiết kế gốc. Bản gốc được giữ riêng trong thư viện.")
+
+        self.launch(lambda: prepare_source_deck(lesson, directory, terms), opened)
 
     @Slot(str, str, bool, bool, result=bool)
     def saveSegment(self, vi, en, approve, locked):
