@@ -1,7 +1,11 @@
 import argparse
+import os
 
 
 def main():
+    # BiliClass uses no third-party Pydantic plugins. Avoid scanning every
+    # installed distribution before creating the desktop or classroom process.
+    os.environ.setdefault("PYDANTIC_DISABLE_PLUGINS", "__all__")
     from multiprocessing import freeze_support
 
     freeze_support()

@@ -7,3 +7,18 @@ Muốn thử tương tác: soạn/duyệt câu hỏi trong **Trợ giảng & Qui
 Hướng dẫn đầy đủ về cài đặt, OCR, PowerPoint, gói bài, gói dịch và khôi phục: [USER_GUIDE.md](USER_GUIDE.md). Trong app nhấn F1. Không cần nhập bài ví dụ cụ thể hoặc tạo tài khoản học sinh.
 
 Để thử tính năng đang phát triển (kéo mascot tự do), đóng RC10 rồi chạy `powershell -ExecutionPolicy Bypass -File scripts/run.ps1 --page settings` từ thư mục dự án. Cửa sổ sẽ ghi **Bản phát triển từ mã nguồn**. Kéo mascot rồi thả để lưu vị trí, nhấp nhanh để mở nút; **Về góc** đặt lại vị trí. Sau khi sửa mã, đóng cửa sổ và chạy lại lệnh. Tính năng mới chỉ có ở bản mã nguồn cho đến khi đóng gói `.exe` tiếp theo.
+
+Nếu mã nguồn và `.venv` nằm trên ổ cứng chậm, chuẩn bị thư viện khởi động trên ổ hệ thống một lần:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/prepare-dev-runtime.ps1
+```
+
+Sau đó `scripts/run.ps1` tự dùng cache trong `%LOCALAPPDATA%\BiliClass\dev-runtime`. Mã nguồn vẫn được đọc từ dự án; sửa mã chỉ cần đóng và mở lại app, không tạo lại `.exe`. Cache không chứa bài giảng, phản hồi học sinh hay model. Khi thay đổi bộ thư viện Python, chạy lại lệnh chuẩn bị; cache không khớp hoặc chưa hoàn tất sẽ không được sử dụng.
+
+Để thử kho kiến thức đang phát triển trên thư viện riêng, không nâng cấp thư viện cá nhân đang dùng với RC12:
+
+```powershell
+$env:BILICLASS_DATA = Join-Path (Get-Location) '.runtime\knowledge-test'
+powershell -ExecutionPolicy Bypass -File scripts/run.ps1 --page knowledge
+```
