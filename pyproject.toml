@@ -1,0 +1,56 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "biliclass"
+version = "1.0.0rc11"
+description = "BiliClass offline English-Vietnamese lesson workspace"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+  "PySide6-Essentials>=6.8,<7",
+  "pydantic>=2.10,<3",
+  "fastapi>=0.115,<1",
+  "uvicorn>=0.34,<1",
+  "websockets>=14,<17",
+  "httpx>=0.28,<1",
+  "psutil>=6,<8",
+  "pywin32>=308; sys_platform == 'win32'",
+  "sherpa-onnx==1.13.8; sys_platform == 'win32'",
+  "vieneu==3.8.3; sys_platform == 'win32'",
+  "ctranslate2>=4.5,<5",
+  "sentencepiece>=0.2,<1",
+  "python-pptx>=1,<2",
+  "python-docx>=1.1,<2",
+  "pypdf>=6,<7",
+  "qrcode[pil]>=8,<9",
+  "pypdfium2>=5,<6",
+  "winrt-Windows.Media.Ocr==3.2.1; sys_platform == 'win32'",
+  "winrt-Windows.Graphics.Imaging==3.2.1; sys_platform == 'win32'",
+  "winrt-Windows.Storage==3.2.1; sys_platform == 'win32'",
+  "winrt-Windows.Storage.Streams==3.2.1; sys_platform == 'win32'",
+  "winrt-Windows.Globalization==3.2.1; sys_platform == 'win32'",
+  "winrt-Windows.Foundation==3.2.1; sys_platform == 'win32'",
+  "winrt-Windows.Foundation.Collections==3.2.1; sys_platform == 'win32'",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10", "pyinstaller>=6.12,<7", "ruff>=0.11,<1"]
+
+[project.scripts]
+biliclass-m0 = "biliclass_m0.__main__:main"
+biliclass = "app.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["biliclass_m0", "app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]

@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" href="data:,">
+<title>BiliClass · Tham gia lớp</title><link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script></head>
+<body><main><header><strong>Bili<span>Class</span></strong><small>Học cùng nhau · Learn together</small></header>
+<div id="connection" role="status">Đang chuẩn bị kết nối…</div>
+<section id="join"><h1>Chào em!</h1><p>Vào lớp trên cùng mạng Wi-Fi với thầy cô.</p><form id="joinForm"><label>Mã tham gia<input id="joinCode" autocomplete="off" maxlength="100" required></label><label>Số chỗ (nếu thầy cô dùng chỗ ngồi)<input id="seat" type="number" min="1" max="200" inputmode="numeric"></label><details><summary>Vào lại bằng mã khôi phục</summary><label>Mã khôi phục của em<input id="recoveryInput" autocomplete="off" maxlength="100"></label></details><button type="submit">Vào lớp · Join</button></form></section>
+<section id="lesson" hidden><p id="lessonTitle"></p><div class="round-meta"><span id="roundStatus"></span><span id="timer"></span></div><h1 id="promptVi"></h1><h2 id="promptEn"></h2><div id="options"></div><p id="feedback" role="status"></p><div id="explanation" hidden></div></section>
+<details id="recovery" hidden><summary>Mã khôi phục cá nhân</summary><p>Lưu riêng mã này để vào lại đúng chỗ khi đổi mạng hoặc trình duyệt.</p><input id="recoveryCode" readonly aria-label="Mã khôi phục cá nhân"></details>
+<p id="error" role="alert"></p><footer>Không cần tài khoản · No account required</footer></main></body></html>

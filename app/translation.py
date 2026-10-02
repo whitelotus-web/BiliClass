@@ -1,0 +1,71 @@
+"""Local draft provider. No network access or automatic model installation."""
+
+import os
+import sys
+from pathlib import Path
+
+from biliclass_m0.probes.translation import decode_candidate, load_translator
+
+from .paths import user_data
+from .text_quality import protected_parts
+
+
+def model_directory():
+    configured = os.environ.get("BILICLASS_MODEL_DIR")
+    if configured:
+        return Path(configured)
+    portable = Path(sys.executable).parent / "models"
+    if getattr(sys, "frozen", False) and portable.is_dir():
+        return portable
+    return user_data() / "models"
+
+
+def find_model(source_language="vi"):
+    direction = "vi-en" if source_language == "vi" else "en-vi"
+    roots = [user_data() / "models", model_directory()]
+    for root in dict.fromkeys(roots):
+        for candidate in sorted(root.glob(direction + "-*"), reverse=True):
+            models = list(candidate.rglob("model.bin"))
+            tokenizers = list(candidate.rglob("sentencepiece.model"))
+            if models and tokenizers and (candidate / "provenance.json").exists():
+                return models[0].parent, tokenizers[0]
+    return None
+
+
+def translate_draft(text, source_language="vi", terms=()):
+    import ctranslate2
+    import sentencepiece
+
+    if source_language not in ("vi", "en") or not text.strip():
+        raise ValueError("Chọn hướng dịch hợp lệ và nhập nội dung nguồn.")
+    package = find_model(source_language)
+    if not package:
+        raise ValueError("Chưa cài gói dịch trên máy. Bạn vẫn có thể nhập và duyệt bản tiếng Anh.")
+    if len(text) > 2000:
+        raise ValueError("Dịch thử tối đa 2.000 ký tự mỗi đoạn. Hãy rút gọn hoặc nhập bản tiếng Anh.")
+    model, tokenizer_path = package
+    tokenizer = sentencepiece.SentencePieceProcessor(model_proto=tokenizer_path.read_bytes())
+    tokens = tokenizer.encode(text, out_type=str)
+    if len(tokens) > 350:
+        raise ValueError("Đoạn quá dài cho gói dịch thử. Hãy chia nhỏ để tránh mất nội dung.")
+    translator = load_translator(model, ctranslate2)
+    try:
+        chunks = protected_parts(text, terms, source_language)
+        pending = [(index, chunk["text"]) for index, chunk in enumerate(chunks)
+                   if not chunk["protected"] and any(character.isalpha() for character in chunk["text"])]
+        if pending:
+            results = translator.translate_batch(
+                [tokenizer.encode(value.strip(), out_type=str) for _, value in pending],
+                beam_size=4, max_decoding_length=512,
+            )
+            for (index, original), result in zip(pending, results, strict=True):
+                pieces = result.hypotheses[0]
+                if len(pieces) >= 512:
+                    raise ValueError("Bản dịch chạm giới hạn độ dài và chưa được lưu. Hãy chia nhỏ đoạn.")
+                decoded = decode_candidate(tokenizer, pieces).strip()
+                if not decoded:
+                    raise ValueError("Model trả về một phần rỗng; chưa áp dụng bản dịch.")
+                chunks[index]["text"] = (" " if original[:1].isspace() else "") + decoded + (" " if original[-1:].isspace() else "")
+        return "".join(chunk["text"] for chunk in chunks)
+    finally:
+        translator.unload_model()
