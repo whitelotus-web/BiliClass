@@ -1,5 +1,7 @@
 # Trạng thái BiliClass
 
+Ngày 03/10/2026, mã nguồn thêm tab **Browser AI** cho tài khoản ChatGPT và luồng tự gửi/chờ/tải PowerPoint qua web, chuẩn bị voice/mascot cục bộ. Không dùng API. Tự động hóa web đang thử nghiệm: Edge thực tế gặp HTTP 403/xác minh, chưa kiểm chứng trọn luồng với tài khoản đã đăng nhập. Có luồng thủ công và ngoại tuyến dự phòng. Xem [trạng thái Browser AI](BROWSER_AI.md). Release RC12 chưa có thay đổi này.
+
 Mã nguồn ngày 03/10/2026 có luồng **tài liệu → level → Chuyển đổi → xem trình chiếu → Dùng để dạy**. App tự đánh giá đầu vào, giữ cặp có sẵn, bổ sung phần thiếu và tạo PPTX; thầy cô xác nhận toàn bài một lần. Các tùy chọn bố cục, dịch từng đoạn, trợ giảng và quiz nằm trong phần mở rộng. Đã qua 178 kiểm thử, Ruff và Qt với model/PowerPoint thật; OCR vẫn sai một số dấu cần sửa. Xem [quy trình hiện tại](INPUT_WORKFLOW.md) và [thiết kế chuyển đổi nhanh](QUICK_CONVERSION.md). Các mục RC12 bên dưới mô tả bản đóng gói cũ, chưa bao gồm những thay đổi này.
 
 Cập nhật: 02/10/2026. Mã nguồn: **1.0.0rc12**; bản đóng gói mới cần kiểm thử riêng. Trọng tâm: chuẩn bị và dạy song ngữ Anh–Việt cho nhiều môn THPT, khối 10–12 và môn tự tạo. Các bài trong ảnh chỉ là ví dụ.

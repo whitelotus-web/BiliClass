@@ -83,7 +83,8 @@ Item {
                 model: [
                     {name: "Chung", icon: "settings"}, {name: "Song ngữ", icon: "bilingual"},
                     {name: "Giọng đọc", icon: "voice"}, {name: "Mascot", icon: "mascot"},
-                    {name: "Lớp học", icon: "classroom"}, {name: "Dữ liệu", icon: "data"}
+                    {name: "Lớp học", icon: "classroom"}, {name: "Dữ liệu", icon: "data"},
+                    {name: "Browser AI", icon: "bilingual"}
                 ]
                 Button {
                     id: tab
@@ -456,13 +457,72 @@ Item {
                     Hint { text: bridge.modelReady ? "● Việt → Anh: sẵn sàng" : "○ Việt → Anh: chưa cài"; color: bridge.modelReady ? "#168567" : page.muted }
                     Hint { text: bridge.reverseModelReady ? "● Anh → Việt: sẵn sàng" : "○ Anh → Việt: chưa cài"; color: bridge.reverseModelReady ? "#168567" : page.muted }
                     SoftButton { text: "Cài gói dịch từ máy / USB"; enabled: !bridge.busy; onClicked: page.requestModelPack() }
-                    Hint { text: "Ứng dụng không tự tải bài giảng lên Internet. Bản dịch máy luôn là nháp để thầy cô sửa và duyệt."; Layout.fillWidth: true }
+                    Hint { text: "Luồng ngoại tuyến xử lý tại máy. Browser AI gửi bài lên tài khoản ChatGPT đã chọn khi thầy cô bấm Chuyển đổi. Kết quả cần kiểm tra trước khi dạy."; Layout.fillWidth: true }
                 }
             }
             Card { Layout.fillWidth: true
                 ColumnLayout { width: parent.width; spacing: 8
                     Title { text: "Nhận dạng văn bản từ ảnh" }
                     Hint { text: bridge.ocrStatus; Layout.fillWidth: true }
+                }
+            }
+        }
+        ColumnLayout {
+            visible: page.activeTab === 6; Layout.fillWidth: true; spacing: 14
+            Card {
+                Layout.fillWidth: true
+                ColumnLayout { width: parent.width; spacing: 14
+                    Title { text: "Tài khoản ChatGPT" }
+                    Hint { text: "Mỗi hồ sơ mở một browser riêng. Đăng nhập trực tiếp trên web, kiểm tra rồi chọn tài khoản dùng để chuyển đổi bài."; Layout.fillWidth: true }
+                    RowLayout {
+                        Layout.fillWidth: true; spacing: 12
+                        Field { id: browserAccountLabel; objectName: "browserAccountLabel"; placeholderText: "Tên hồ sơ, ví dụ: ChatGPT của tôi"; maximumLength: 100; Layout.fillWidth: true }
+                        Choice { id: browserAccountChannel; objectName: "browserAccountChannel"; model: ["Microsoft Edge", "Google Chrome"]; Layout.preferredWidth: 180 }
+                        SaveButton { objectName: "browserAccountAdd"; text: "Thêm tài khoản"; enabled: !bridge.busy && !bridge.browserAI.loginBusy; onClicked: { bridge.browserAI.add(browserAccountLabel.text, browserAccountChannel.currentIndex ? "chrome" : "msedge"); browserAccountLabel.text = "" } }
+                    }
+                    Hint { visible: !bridge.browserAI.accounts.length; text: "Chưa có tài khoản. Thêm hồ sơ rồi bấm Đăng nhập."; Layout.fillWidth: true }
+                    Repeater {
+                        model: bridge.browserAI.accounts
+                        Rectangle {
+                            required property var modelData
+                            Layout.fillWidth: true; implicitHeight: accountRow.height + 26; radius: 10
+                            color: bridge.browserAI.activeId === modelData.id ? "#edf5ff" : "#fbfcfe"
+                            border.color: bridge.browserAI.activeId === modelData.id ? "#bcd5ff" : page.line
+                            RowLayout {
+                                id: accountRow; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 13; spacing: 10
+                                RadioButton { checked: bridge.browserAI.activeId === modelData.id; enabled: !bridge.busy; onClicked: bridge.browserAI.select(modelData.id); Accessible.name: "Chọn tài khoản " + modelData.label }
+                                ColumnLayout {
+                                    Layout.fillWidth: true; spacing: 4
+                                    Label { text: modelData.label; color: page.ink; font.pixelSize: 15; font.bold: true; Layout.fillWidth: true; elide: Text.ElideRight }
+                                    Hint { text: (modelData.channel === "chrome" ? "Chrome" : "Edge") + " · " + modelData.status; Layout.fillWidth: true }
+                                }
+                                SoftButton { text: "Đăng nhập / Kiểm tra"; enabled: !bridge.busy && !bridge.browserAI.loginBusy; onClicked: bridge.browserAI.signIn(modelData.id) }
+                                SoftButton { text: "Xóa"; iconName: "delete"; enabled: !bridge.busy && !bridge.browserAI.loginBusy; onClicked: bridge.browserAI.remove(modelData.id) }
+                            }
+                        }
+                    }
+                    RowLayout {
+                        visible: bridge.browserAI.loginBusy; Layout.fillWidth: true
+                        BusyIndicator { running: bridge.browserAI.loginBusy; implicitWidth: 28; implicitHeight: 28 }
+                        Hint { text: "Đăng nhập ở cửa sổ browser vừa mở, sau đó kiểm tra phiên tại đây."; Layout.fillWidth: true }
+                        SaveButton { objectName: "browserLoginFinish"; text: "Đã đăng nhập · Kiểm tra"; onClicked: bridge.browserAI.finishLogin() }
+                        SoftButton { objectName: "browserLoginStop"; text: "Đóng browser"; onClicked: bridge.browserAI.stopLogin() }
+                    }
+                    Hint { objectName: "browserAccountStatus"; text: bridge.browserAI.message; Layout.fillWidth: true; color: page.blue }
+                }
+            }
+            Card {
+                Layout.fillWidth: true
+                ColumnLayout { width: parent.width; spacing: 13
+                    Title { text: "Một lần bấm, chờ bài giảng" }
+                    CheckBox { id: browserAutomatic; objectName: "browserAutomatic"; text: "Tự gửi tài liệu, chờ và tải PowerPoint qua web ChatGPT"; checked: bridge.browserAI.automatic }
+                    CheckBox { id: browserAudio; objectName: "browserAudio"; text: "Chuẩn bị giọng đọc đã chọn và nội dung mascot theo slide"; checked: bridge.browserAI.audio }
+                    Hint { text: "Level 0–4, bố cục song ngữ và giữ thiết kế gốc/mẫu được chọn khi nhập bài. Prompt được tạo đầy đủ theo cấu hình này. Giọng đọc dùng cài đặt hiện tại, chỉ chuẩn bị âm thanh; chưa phát loa."; Layout.fillWidth: true }
+                    Hint { text: "Chạy ngầm đang thử nghiệm, phụ thuộc web chấp nhận phiên browser. Khi phiên hết hạn, cần xác minh hoặc web chưa trả file, tool dừng và giữ yêu cầu để tiếp tục."; Layout.fillWidth: true }
+                    RowLayout { Layout.fillWidth: true
+                        Hint { text: "Phiên đăng nhập lưu riêng trên máy, không đi theo GitHub hoặc gói bài. Xóa hồ sơ sẽ xóa phiên browser này."; Layout.fillWidth: true; font.pixelSize: 11 }
+                        SaveButton { objectName: "browserOptionsSave"; text: "Lưu Browser AI"; enabled: !bridge.busy; onClicked: bridge.browserAI.saveOptions(browserAutomatic.checked, browserAudio.checked) }
+                    }
                 }
             }
         }

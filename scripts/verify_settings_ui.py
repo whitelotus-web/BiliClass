@@ -1,4 +1,4 @@
-"""Exercise the six settings tabs with a disposable lesson library."""
+"""Exercise the existing six settings tabs with a disposable lesson library."""
 
 import json
 import tempfile
@@ -299,8 +299,9 @@ def main():
         control("creationLevel").setProperty("currentIndex", 4)
         control("creationLayout").setProperty("currentIndex", 2)
         control("creationGrade").setProperty("currentIndex", 2)
+        control("conversionProvider").setProperty("currentIndex", 1)
         click("createLessonButton")
-        until(lambda: bridge.lesson.get("title") == "Bài kiểm tra cấu hình")
+        until(lambda: not bridge.busy and bridge.lesson.get("title") == "Bài kiểm tra cấu hình")
         assert bridge.lesson["level"] == 4 and bridge.lesson["layout"] == "split_view" and bridge.lesson["grade"] == "12"
         checks.append("new grade-12 lesson stores its own L4 and two-column mode, ignoring old global defaults")
 

@@ -43,6 +43,7 @@ deck.save(source)
 deck.save(returned)
 digest = hashlib.sha256(returned.read_bytes()).hexdigest()
 bridge = Bridge(library)
+bridge.browserAI.saveOptions(False, False)  # Exercise the retained manual browser workflow.
 engine = QQmlApplicationEngine()
 warnings, failures, stages, opened = [], [], [], []
 engine.warnings.connect(lambda values: warnings.extend(map(str, values)))

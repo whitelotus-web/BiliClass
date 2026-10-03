@@ -6,7 +6,7 @@ Trạng thái: mã nguồn ngày 03/10/2026, chưa đóng trong release rc12. Ap
 
 1. Chọn tài liệu hoặc dán nội dung; tên bài được gợi ý từ tên tệp. Điền môn/khối, chọn L0–L4 (mặc định L2) và kiểu sắp xếp Việt–Anh.
 2. Với PPTX, chọn **Giữ PowerPoint gốc** hoặc **Theo mẫu BiliClass**. Tài liệu khác dùng mẫu; **Xem slide mẫu** có ví dụ với hình và từng loại slide.
-3. Chọn **ChatGPT trong browser** (mặc định) rồi **Chuẩn bị & mở ChatGPT**. Sao chép prompt, đính kèm tài liệu trong browser, gửi, tải PowerPoint và **Nhận PowerPoint từ ChatGPT**. Không dùng API, không đọc cookie/profile; app không tự tải tài liệu lên. Xem [hướng dẫn ChatGPT](CHATGPT_BROWSER.md).
+3. Thiết lập tài khoản một lần trong **Cài đặt → Browser AI**: thêm hồ sơ, đăng nhập trực tiếp trên web, bấm **Đã đăng nhập · Kiểm tra**. Chọn **Browser AI · ChatGPT** rồi **Chuyển đổi bằng ChatGPT**: app gửi prompt + tệp qua phiên browser riêng, chờ nhận PowerPoint, chuẩn bị giọng đọc và mascot. Không dùng API. Đây là luồng thử nghiệm; xác minh web/hết phiên sẽ dừng để xử lý trực tiếp rồi tiếp tục. Xem [Browser AI và giới hạn đã kiểm tra](BROWSER_AI.md). Tắt **Tự gửi tài liệu** trong Browser AI để dùng cách [gửi/tải thủ công](CHATGPT_BROWSER.md).
 4. Xem slide hoặc **Xem toàn bộ bài**. Kiểm tra nội dung, số liệu, công thức và bố cục.
 5. Bấm **Dùng để dạy** và xác nhận đã kiểm tra cả bài một lần. File nhận từ ChatGPT giữ nguyên byte; mascot chỉ đọc cặp Việt–Anh đã nhận diện và được xác nhận. Slide ảnh vẫn chiếu được, không bị ép chạy OCR/model để mở bài.
 

@@ -16,6 +16,7 @@ from biliclass_m0.contracts import LevelPolicy
 from biliclass_m0.paths import RESOURCES
 
 from . import speech
+from .browser_ai_ui import BrowserAI
 from .classroom_ui import ClassroomBridge
 from .input_analysis import analyze_document, assess_blocks
 from .knowledge import ensure_builtin_foundation, load_pack
@@ -119,6 +120,10 @@ class Bridge(QObject):
         self._comparison = {}
         self._quick_result = {}
         self._chatgpt_request = {}
+        self._browser_ai = BrowserAI(self)
+        self._browser_ai.progress.connect(self._on_browser_progress)
+        self._browser_state = {"running": False, "phase": "idle", "message": ""}
+        self._browser_running = False
         saved_request = self.library.setting("chatgpt_request_folder", "")
         if saved_request:
             try:
@@ -176,8 +181,35 @@ class Bridge(QObject):
     def chatgptRequest(self):
         return self._chatgpt_request
 
+    @Property(QObject, constant=True)
+    def browserAI(self):
+        return self._browser_ai
+
+    @Property("QVariantMap", notify=changed)
+    def browserState(self):
+        return self._browser_state
+
+    @Slot(str)
+    def _on_browser_progress(self, message):
+        self._browser_state.update(message=message)
+        self.inform(message)
+
     @Slot(str, str, str, str, str, str, int, str, str, str, str)
     def prepareChatGPT(self, title, subject, education, grade, text, file_url, level, layout, preset, style, mode):
+        self._prepareChatGPT(title, subject, education, grade, text, file_url, level, layout, preset, style, mode, False)
+
+    @Slot(str, str, str, str, str, str, int, str, str, str, str)
+    def convertBrowserAI(self, title, subject, education, grade, text, file_url, level, layout, preset, style, mode):
+        try:
+            self._browser_ai.store.get()
+            if self._browser_ai.loginBusy:
+                raise ValueError("Bấm Đã đăng nhập · Kiểm tra để đóng phiên đăng nhập trước khi chuyển đổi.")
+            self._prepareChatGPT(title, subject, education, grade, text, file_url, level, layout, preset, style, mode, True)
+        except Exception as exc:
+            self.inform(str(exc), True)
+            self.navigate.emit("browser-settings")
+
+    def _prepareChatGPT(self, title, subject, education, grade, text, file_url, level, layout, preset, style, mode, automatic):
         from .chatgpt_handoff import prepare_request
 
         if self._busy:
@@ -191,9 +223,57 @@ class Bridge(QObject):
             self.library.set_setting("chatgpt_request_folder", result["folder"])
             self.changed.emit()
             self.navigate.emit("chatgpt")
-            self.openChatGPT()
+            if automatic:
+                self.runBrowserAI()
+            else:
+                self._browser_state = {"running": False, "phase": "manual", "message": ""}
+                self.openChatGPT()
 
         self.launch(lambda: prepare_request(self.library.directory, config, path, text), prepared)
+
+    @Slot()
+    def runBrowserAI(self):
+        from .browser_audio import prepare_narration
+        from .browser_automation import convert
+        from .chatgpt_handoff import inspect_returned_deck, load_request
+
+        if self._busy or not self._chatgpt_request:
+            return
+        try:
+            account = self._browser_ai.store.get()
+            if self._browser_ai.loginBusy:
+                raise ValueError("Đóng phiên đăng nhập bằng nút Đã đăng nhập · Kiểm tra trước khi tiếp tục.")
+        except Exception as exc:
+            self.inform(str(exc), True)
+            return
+        folder = self._chatgpt_request["folder"]
+        voices, audio = dict(self.voiceSettings), self._browser_ai.audio
+        self._browser_running = True
+        self._browser_state = {"running": True, "phase": "working", "message": "Đang chuẩn bị Browser AI…"}
+
+        def work():
+            result = convert(account, self._browser_ai.store.root, folder, self.cancel_event,
+                             self._browser_ai.progress.emit)
+            self._browser_ai.progress.emit("Đang đọc nội dung slide cho mascot và lưu bài…")
+            config = load_request(folder)["config"]
+            source = self.library.store_source(Path(result["path"]))
+            inspection = inspect_returned_deck(self.library.directory / "sources" / source["file"])
+            narration = prepare_narration(inspection, voices, self.library.directory / "audio", self.cancel_event,
+                                          self._browser_ai.progress.emit) if audio else {}
+            return config, source, inspection, narration
+
+        def completed(result):
+            config, source, inspection, narration = result
+            lesson = self.library.create_external_lesson(config, source, inspection)
+            self._browser_running = False
+            self._browser_state.update(running=False, phase="completed", message="Đã nhận bài từ ChatGPT.", audio=narration)
+            self.openLesson(lesson["id"])
+            audio_message = f" Đã chuẩn bị {narration['complete']}/{narration['total']} đoạn giọng đọc." if narration else ""
+            if narration.get("failed") or narration.get("skipped"):
+                audio_message += " Một số đoạn chưa có audio; kiểm tra giọng đọc hoặc độ dài ghi chú."
+            self.inform("Đã nhận PowerPoint và liên kết mascot theo slide." + audio_message + " Xem bài rồi xác nhận để dạy.")
+
+        self.launch(work, completed)
 
     @Slot()
     def openChatGPT(self):
@@ -733,16 +813,25 @@ class Bridge(QObject):
         self.worker = self.callback = self.job_result = None
         try:
             if self.cancel_event.is_set():
+                if self._browser_running:
+                    self._browser_running = False
+                    self._browser_state.update(running=False, phase="cancelled", message="Đã dừng; có thể tiếp tục yêu cầu đã gửi.")
                 if self.classroom.runtime and not self.classroom.joinUrl:
                     self.classroom.disconnect()
                 self.inform(
                     "Đã dừng tác vụ. Kết quả mới chưa được áp dụng; âm thanh đã tạo có thể được dùng lại."
                 )
             elif error:
+                if self._browser_running:
+                    self._browser_running = False
+                    self._browser_state.update(running=False, phase="error", message=error)
                 self.inform(error, True)
             else:
                 callback(result)
         except Exception as exc:
+            if self._browser_running:
+                self._browser_running = False
+                self._browser_state.update(running=False, phase="error", message=str(exc))
             self.inform(str(exc), True)
         worker.deleteLater()
         self.changed.emit()
@@ -1830,7 +1919,9 @@ def run(args):
     window.resize(width, height)
     if args.page in {"editor", "result"} and library.list_lessons():
         bridge.openLesson(library.list_lessons()[0]["id"])
-    window.setProperty("page", args.page)
+    window.setProperty("page", "settings" if args.page == "browser-ai" else args.page)
+    if args.page == "browser-ai":
+        window.findChild(QObject, "settingsPage").setProperty("activeTab", 6)
 
     def capture():
         path = Path(args.screenshot or user_data() / "screenshot.png")
@@ -1860,6 +1951,7 @@ def run(args):
         QTimer.singleShot(1000, backup_job.start)
         QTimer.singleShot(4000, lambda: bridge.checkForUpdates(True))
     result = app.exec()
+    bridge.browserAI.shutdown()
     if backup_job.isRunning():
         backup_job.wait()
     if bridge.update_worker and bridge.update_worker.isRunning():

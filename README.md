@@ -2,7 +2,7 @@
 
 Kho kiến thức có nguồn và bộ nhớ giáo viên đang được bổ sung trong bản mã nguồn: xem [cách vận hành](docs/KNOWLEDGE.md). Bản RC12 đóng gói chưa có tính năng này.
 
-Bản mã nguồn ngày 03/10/2026 có luồng **nhập tài liệu → chọn L0–L4 + bố cục Việt–Anh → giữ PowerPoint gốc / mẫu BiliClass → chuyển đổi → xem trình chiếu → dùng để dạy**. Mặc định dùng **ChatGPT trong browser của giáo viên**, không dùng API: app chuẩn bị prompt + tài liệu, giáo viên gửi và tải `.pptx` về rồi nhận vào BiliClass. BiliClass giữ nguyên PowerPoint kết quả; mascot đọc cặp nhận diện được từ chữ/ghi chú. Có thể chọn **BiliClass ngoại tuyến** để dùng model trên máy. Mẫu có slide minh họa lớn và hình nhỏ để chọn. Xem [ChatGPT trong browser](docs/CHATGPT_BROWSER.md) và [quy trình nhập bài](docs/INPUT_WORKFLOW.md). Các thay đổi này chưa có trong release rc12.
+Bản mã nguồn ngày 03/10/2026 có luồng **nhập tài liệu → chọn L0–L4 + bố cục Việt–Anh → giữ PowerPoint gốc / mẫu BiliClass → chuyển đổi → xem trình chiếu → dùng để dạy**. Tab **Browser AI** thêm/xóa hồ sơ ChatGPT, đăng nhập trực tiếp trong browser riêng và chọn tài khoản. Luồng tự động thử nghiệm gửi prompt + tài liệu qua web, tải `.pptx` về, chuẩn bị giọng đọc và mascot; không dùng API. Truy cập thực tế trên máy hiện gặp xác minh HTTP 403, chưa kiểm chứng toàn bộ luồng với tài khoản đã đăng nhập. Có cách gửi/tải thủ công và **BiliClass ngoại tuyến**. BiliClass giữ nguyên PowerPoint kết quả, giáo viên xem và xác nhận trước khi dạy. Xem [Browser AI](docs/BROWSER_AI.md), [gửi thủ công](docs/CHATGPT_BROWSER.md) và [quy trình nhập bài](docs/INPUT_WORKFLOW.md). Các thay đổi này chưa có trong release rc12.
 
 Ứng dụng Windows chuẩn bị và dạy **song ngữ Anh–Việt đa môn THPT**. Bản thử hiện tại: **1.0 RC12**, cập nhật 02/10/2026.
 
@@ -20,7 +20,7 @@ App dùng thư viện của người dùng trong `%LOCALAPPDATA%/BiliClass`, kh�
 - Dịch offline Việt ↔ Anh; dịch phần còn thiếu theo loạt, giữ cặp sẵn có và đoạn duyệt/khóa. Ưu tiên thuật ngữ/memory giáo viên trước kho nền/model; bản nháp cần kiểm tra và duyệt.
 - Chuyển PPTX theo level: thêm panel ở vùng trống hoặc trang hỗ trợ; có lựa chọn giữ nguyên cùng trợ giảng và cặp slide kế tiếp. So sánh hai bản bằng Microsoft PowerPoint trên máy; template có lựa chọn Theo level L0–L4.
 - Chọn L0–L4 và một trong bốn kiểu trình bày cho từng bài, bài L5 cũ vẫn đọc được; nội dung trợ giảng được giáo viên chuẩn bị; năm giọng Kokoro English và bốn giọng VieNeu Việt chạy offline, cache WAV, VI Rescue, Milo/Lumi, PowerPoint companion và cửa sổ lớp riêng.
-- Sáu tab Cài đặt: Chung (tên, trường, nhiều bộ môn, logo), Song ngữ (hướng dẫn level/bố cục), Giọng đọc có nghe thử, Mascot có xem trước theo bối cảnh, Lớp học và Dữ liệu.
+- Bản mã nguồn có thêm tab Browser AI cho hồ sơ ChatGPT và luồng chuyển đổi qua web. Sáu tab hiện tại giữ nguyên: Chung (tên, trường, nhiều bộ môn, logo), Song ngữ (hướng dẫn level/bố cục), Giọng đọc có nghe thử, Mascot có xem trước theo bối cảnh, Lớp học và Dữ liệu.
 - QR/LAN, học sinh trả lời trên trình duyệt, ba loại câu hỏi, gửi lại/đổi đáp án/kết nối lại; kết quả chỉ công bố khi giáo viên chọn.
 - Báo cáo có mẫu số, recheck, gợi ý level có điều kiện, CSV; Lesson Pack kèm audio, deck song ngữ mới, sao lưu/khôi phục.
 

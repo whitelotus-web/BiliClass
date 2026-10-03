@@ -86,7 +86,7 @@ ApplicationWindow {
         target: bridge
         function onPowerpointSlideChanged(slide) { if (!root.dirty) bridge.followPowerPoint() }
         function onProjectClassroomRequested() { projector.quiz = true; bridge.showProjector(projector, bridge.screens.length > 1 ? 1 : 0) }
-        function onNavigate(destination) { root.page = destination; root.loadFields(); if (destination === "result" || destination === "editor") { titleInput.text = ""; subjectInput.text = ""; pasteInput.text = ""; root.selectedFile = ""; root.selectedFileName = "" } }
+        function onNavigate(destination) { root.page = destination === "browser-settings" ? "settings" : destination; if (destination === "browser-settings") settingsPanel.activeTab = 6; root.loadFields(); if (destination === "result" || destination === "editor") { titleInput.text = ""; subjectInput.text = ""; pasteInput.text = ""; root.selectedFile = ""; root.selectedFileName = "" } }
         function onSelectionChanged() { root.loadFields() }
         function onInputAssessmentChanged() { if (bridge.inputAssessment.recommended_mode) creationMode.currentIndex = bridge.inputAssessment.recommended_mode === "preserve" ? 1 : 0 }
         function onComparisonReady() { comparisonDialog.open() }
@@ -362,7 +362,7 @@ ApplicationWindow {
                                     Choice { id: creationLayout; objectName: "creationLayout"; Layout.columnSpan: 2; model: ["Cùng dòng · từ khóa", "Hai dòng · EN in nghiêng", "Hai cột VI / EN", "English chính · Việt hỗ trợ", "Tự sắp xếp theo level"]; currentIndex: 4; Layout.fillWidth: true }
                                     Caption { text: "Chuyển đổi theo"; Layout.columnSpan: 2 } Caption { text: "Thực hiện bằng"; Layout.columnSpan: 2 }
                                     Choice { id: creationWorkflow; objectName: "creationWorkflow"; model: root.creationPowerPoint ? ["Giữ PowerPoint gốc", "Theo mẫu BiliClass"] : ["Giữ PowerPoint gốc (cần PPTX)", "Theo mẫu BiliClass"]; currentIndex: 1; enabled: root.creationPowerPoint; Layout.columnSpan: 2; Layout.fillWidth: true }
-                                    Choice { id: conversionProvider; objectName: "conversionProvider"; model: ["ChatGPT trong browser", "BiliClass ngoại tuyến"]; Layout.columnSpan: 2; Layout.fillWidth: true; onActivated: { if (currentIndex === 1 && root.selectedFile) bridge.assessInput(root.selectedFile, sourceLanguage.currentIndex === 0 ? "vi" : "en"); else bridge.clearInputAssessment() } }
+                                    Choice { id: conversionProvider; objectName: "conversionProvider"; model: ["Browser AI · ChatGPT", "BiliClass ngoại tuyến"]; Layout.columnSpan: 2; Layout.fillWidth: true; onActivated: { if (currentIndex === 1 && root.selectedFile) bridge.assessInput(root.selectedFile, sourceLanguage.currentIndex === 0 ? "vi" : "en"); else bridge.clearInputAssessment() } }
                                 }
                                 RowLayout {
                                     visible: !root.creationKeepSource; Layout.fillWidth: true
@@ -387,12 +387,14 @@ ApplicationWindow {
                             Layout.fillWidth: true
                             Action { objectName: "advancedCreationButton"; text: root.advancedCreation ? "Thu gọn" : "Tùy chọn thêm"; subtle: true; enabled: !bridge.busy; onClicked: root.advancedCreation = !root.advancedCreation }
                             Item { Layout.fillWidth: true }
-                            Action { objectName: "createLessonButton"; text: bridge.busy ? "Đang chuẩn bị…" : conversionProvider.currentIndex === 0 ? "Chuẩn bị & mở ChatGPT" : "Chuyển đổi bài giảng"; primary: true; enabled: !bridge.busy; onClicked: {
-                                if (conversionProvider.currentIndex === 0) bridge.prepareChatGPT(titleInput.text, subjectInput.text, educationInput.editText, gradeInput.editText, pasteInput.text, root.selectedFile, creationLevel.currentIndex, root.layoutKeys[creationLayout.currentIndex], ["standard", "visual", "practice"][creationPreset.currentIndex], root.creationKeepSource ? "source" : "template", root.advancedCreation ? ["level", "preserve", "paired"][creationMode.currentIndex] : "level")
+                            Action { objectName: "createLessonButton"; text: bridge.busy ? "Đang chuẩn bị…" : conversionProvider.currentIndex === 0 ? (bridge.browserAI.automatic ? "Chuyển đổi bằng ChatGPT" : "Chuẩn bị & mở ChatGPT") : "Chuyển đổi bài giảng"; primary: true; enabled: !bridge.busy; onClicked: {
+                                if (conversionProvider.currentIndex === 0 && bridge.browserAI.automatic) bridge.convertBrowserAI(titleInput.text, subjectInput.text, educationInput.editText, gradeInput.editText, pasteInput.text, root.selectedFile, creationLevel.currentIndex, root.layoutKeys[creationLayout.currentIndex], ["standard", "visual", "practice"][creationPreset.currentIndex], root.creationKeepSource ? "source" : "template", root.advancedCreation ? ["level", "preserve", "paired"][creationMode.currentIndex] : "level")
+                                else if (conversionProvider.currentIndex === 0) bridge.prepareChatGPT(titleInput.text, subjectInput.text, educationInput.editText, gradeInput.editText, pasteInput.text, root.selectedFile, creationLevel.currentIndex, root.layoutKeys[creationLayout.currentIndex], ["standard", "visual", "practice"][creationPreset.currentIndex], root.creationKeepSource ? "source" : "template", root.advancedCreation ? ["level", "preserve", "paired"][creationMode.currentIndex] : "level")
                                 else bridge.convertLesson(titleInput.text, subjectInput.text, educationInput.editText, gradeInput.editText, pasteInput.text, root.selectedFile, sourceLanguage.currentIndex === 0 ? "vi" : "en", creationLevel.currentIndex, root.layoutKeys[creationLayout.currentIndex], ["standard", "visual", "practice"][creationPreset.currentIndex], root.creationKeepSource ? "source" : "template", root.advancedCreation ? ["level", "preserve", "paired"][creationMode.currentIndex] : "level")
                             } }
                         }
-                        Copy { text: conversionProvider.currentIndex === 0 ? "BiliClass tạo prompt và gói tài liệu tại máy. Thầy cô gửi trong ChatGPT, tải PowerPoint về rồi nhận vào tool. Không dùng API." : "Chuyển đổi tại máy bằng model đã cài. Xem bản trình chiếu rồi xác nhận cả bài một lần."; Layout.fillWidth: true; font.pixelSize: 12 }
+                        Copy { text: conversionProvider.currentIndex === 0 ? (bridge.browserAI.automatic ? "Khi bấm Chuyển đổi, tool gửi prompt và tài liệu lên tài khoản đã chọn trong Browser AI, chờ PPTX và chuẩn bị nội dung mascot/giọng đọc. Không dùng API." : "BiliClass tạo prompt và gói tài liệu tại máy. Thầy cô gửi trong ChatGPT, tải PowerPoint về rồi nhận vào tool. Không dùng API.") : "Chuyển đổi tại máy bằng model đã cài. Xem bản trình chiếu rồi xác nhận cả bài một lần."; Layout.fillWidth: true; font.pixelSize: 12 }
+                        Action { visible: conversionProvider.currentIndex === 0; text: "Tài khoản: " + bridge.browserAI.activeLabel + " · Browser AI"; subtle: true; onClicked: { root.go("settings"); settingsPanel.activeTab = 6 } }
                         Action { text: "Tiếp tục gói ChatGPT đã chuẩn bị"; visible: !!bridge.chatgptRequest.folder; subtle: true; onClicked: root.go("chatgpt") }
                     }
                 }
@@ -404,6 +406,27 @@ ApplicationWindow {
                         RowLayout { Heading { text: "Chuyển đổi với ChatGPT"; font.pixelSize: 28 } Item { Layout.fillWidth: true } Action { text: "Đổi cấu hình"; subtle: true; onClicked: root.go("new") } }
                         Copy { Layout.fillWidth: true; text: (bridge.chatgptRequest.config || {}).title || "Chuẩn bị tài liệu trước khi gửi"; color: root.ink; font.pixelSize: 17 }
                         Surface {
+                            visible: bridge.browserAI.automatic && bridge.browserState.phase !== "manual"
+                            Layout.fillWidth: true; implicitHeight: autoBrowserSteps.height + 42
+                            ColumnLayout {
+                                id: autoBrowserSteps; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 21; spacing: 14
+                                RowLayout { Layout.fillWidth: true
+                                    BusyIndicator { running: !!bridge.browserState.running; visible: running; implicitWidth: 34; implicitHeight: 34 }
+                                    Caption { text: bridge.browserState.running ? "Đang chuyển đổi qua web ChatGPT" : "Browser AI"; font.pixelSize: 18; Layout.fillWidth: true }
+                                }
+                                Copy { objectName: "browserConversionStatus"; text: bridge.browserState.message || "Yêu cầu đã chuẩn bị. Bấm Tiếp tục để gửi/chờ qua tài khoản đã chọn."; Layout.fillWidth: true; font.pixelSize: 15; color: root.ink }
+                                Copy { Layout.fillWidth: true; text: "Prompt → đính kèm tài liệu → ChatGPT tạo PPTX → tải kết quả → chuẩn bị giọng đọc và mascot → xem trình chiếu." }
+                                RowLayout { Layout.fillWidth: true
+                                    Action { objectName: "browserConversionResume"; text: "Tiếp tục yêu cầu"; primary: true; visible: !bridge.browserState.running; enabled: !bridge.busy && !!bridge.chatgptRequest.folder; onClicked: bridge.runBrowserAI() }
+                                    Action { objectName: "browserConversionCancel"; text: "Dừng"; visible: !!bridge.browserState.running; onClicked: bridge.cancelJob() }
+                                    Action { text: "Mở cuộc trò chuyện"; enabled: !bridge.busy && !bridge.browserAI.loginBusy; onClicked: bridge.browserAI.openConversation() }
+                                    Action { text: "Đăng nhập / Browser AI"; enabled: !bridge.busy; onClicked: { root.go("settings"); settingsPanel.activeTab = 6 } }
+                                }
+                                Copy { text: "Nếu web yêu cầu đăng nhập/xác minh, xử lý tại browser rồi tiếp tục cùng yêu cầu. App giữ địa chỉ cuộc trò chuyện để tránh gửi lại bài."; Layout.fillWidth: true; font.pixelSize: 12 }
+                            }
+                        }
+                        Surface {
+                            visible: !bridge.browserAI.automatic || bridge.browserState.phase === "manual"
                             Layout.fillWidth: true; implicitHeight: chatgptSteps.height + 42
                             ColumnLayout {
                                 id: chatgptSteps; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 21; spacing: 18
@@ -682,6 +705,7 @@ ApplicationWindow {
                 }
 
                 SettingsPage {
+                    id: settingsPanel
                     anchors.fill: parent; anchors.margins: 26; visible: root.page === "settings"
                     bridge: root.bridgeRef
                     onRequestModelPack: modelOpen.open()

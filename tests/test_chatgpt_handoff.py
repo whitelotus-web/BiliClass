@@ -13,6 +13,7 @@ from app.chatgpt_handoff import (
     load_request,
     make_prompt,
     prepare_request,
+    speaker_pair,
 )
 from app.library import Library, RevisionConflict
 from app.pack import export_pack, import_pack
@@ -83,6 +84,14 @@ def test_returned_notes_supply_mascot_pair_without_changing_presentation(tmp_pat
     assert path.read_bytes() == before and inspection["total"] == 2
     assert all(u["vi"] == "Diện tích bằng 12 cm²." and u["en"] == "The area is 12 cm²."
                for u in inspection["profile"]["units"])
+
+
+def test_narration_continuations_and_review_notes_are_kept_separate():
+    notes = "VI: Diện tích hình chữ nhật.\nChiều dài bằng 4 cm.\nEN: Area of the rectangle.\nThe length is 4 cm.\nCHECK: Kiểm tra hình gốc."
+    pair = speaker_pair(notes)
+    assert pair == {"vi": "Diện tích hình chữ nhật.\nChiều dài bằng 4 cm.",
+                    "en": "Area of the rectangle.\nThe length is 4 cm."}
+    assert not speaker_pair("VI: Chỉ có tiếng Việt.\nCHECK: Chưa có English.")
 
 
 @pytest.mark.parametrize("partial", [False, True])

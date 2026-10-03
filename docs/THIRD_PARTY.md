@@ -1,5 +1,10 @@
 # Thành phần bên thứ ba — bản thử 1.0 RC12
 
+## Browser AI trong mã nguồn ngày 03/10/2026
+
+- **Playwright 1.63.0**: điều khiển giao diện browser riêng và tải tệp; **pyee 13.0.1**, **greenlet 3.5.6** là phụ thuộc theo bản khóa trong `requirements-lock.txt`. Runtime được thu bằng `--collect-all playwright` khi build; metadata và notices được lấy bằng script thu giấy phép hiện có.
+- Edge/Chrome dùng bản đã cài trên máy; không đóng browser tải riêng trong gói ứng dụng. Hồ sơ đăng nhập và dữ liệu giáo viên không vào bản build. Tính năng hiện thử bằng mã nguồn, chưa kiểm chứng bản đóng gói mới.
+
 ## OCR trong mã nguồn ngày 03/10/2026
 
 - **RapidOCR 3.9.2** (Apache-2.0) qua **ONNX Runtime 1.30.0** (MIT). Wheel có bộ dò PP-OCRv6 và phân hướng PP-OCR; app dùng nhận dạng **Latin PP-OCRv5 mobile** tải riêng. Nguồn: [RapidOCR](https://github.com/RapidAI/RapidOCR), [danh sách model](https://github.com/RapidAI/RapidOCRDocs/blob/main/docs/model_list.md), [cấu hình model v3.9.2](https://github.com/RapidAI/RapidOCR/blob/v3.9.2/python/rapidocr/default_models.yaml).

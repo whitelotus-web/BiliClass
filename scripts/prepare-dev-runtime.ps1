@@ -26,7 +26,7 @@ New-Item -ItemType Directory -Force -Path $cacheRoot | Out-Null
 # Cache only libraries used at startup. Models and the teacher library stay in their existing folders.
 $packages = @('PySide6','shiboken6','pydantic','pydantic_core','psutil','annotated_types','typing_inspection',
               'fastapi','starlette','httpx','httpcore','h11','anyio','sniffio','uvicorn','click','certifi',
-              'annotated_doc','win32','win32com','win32comext','pywin32_system32')
+              'annotated_doc','win32','win32com','win32comext','pywin32_system32','playwright','pyee','greenlet')
 foreach ($packageName in $packages) {
     $source = Join-Path $sitePackages $packageName
     if (-not (Test-Path -LiteralPath $source)) { continue }

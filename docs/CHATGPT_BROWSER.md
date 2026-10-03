@@ -1,17 +1,19 @@
-# Chuyển đổi bằng tài khoản ChatGPT trong browser
+# Gửi và nhận PowerPoint thủ công trong browser
 
 Mã nguồn ngày 03/10/2026. Chưa đóng vào release rc12.
+
+Đây là cách gửi thủ công dự phòng. Luồng tự gửi/chờ/tải thử nghiệm và quản lý tài khoản nằm trong [Browser AI](BROWSER_AI.md). Trong Cài đặt → Browser AI, tắt **Tự gửi tài liệu, chờ và tải PowerPoint qua web ChatGPT**, rồi lưu để hiện các bước bên dưới.
 
 ## Sử dụng
 
 1. Nhập tài liệu, điền tên bài/môn/khối, chọn level 0–4 và sắp xếp song ngữ.
 2. PPTX: chọn giữ thiết kế gốc hoặc mẫu BiliClass. DOCX/PDF/TXT/ảnh: dùng mẫu BiliClass. Mở **Xem slide mẫu** để xem thiết kế bằng ví dụ và hình minh họa.
-3. Chọn **ChatGPT trong browser**, bấm **Chuẩn bị & mở ChatGPT**. Browser mặc định của Windows mở `chatgpt.com`; đăng nhập tài khoản của giáo viên nếu chưa có phiên đăng nhập.
+3. Chọn **Browser AI · ChatGPT**, bấm **Chuẩn bị & mở ChatGPT**. Browser mặc định của Windows mở `chatgpt.com`; đăng nhập tài khoản của giáo viên nếu chưa có phiên đăng nhập.
 4. Bấm **Sao chép prompt**, dán vào ChatGPT. Bấm **Mở thư mục tài liệu**, đính kèm `tai-lieu-goc.*` và `mau-biliclass.pptx` nếu có. Bấm Gửi tại ChatGPT. Gói ZIP chỉ để lưu/chia sẻ; có thể giải nén rồi đính kèm từng tệp.
 5. Tải `.pptx` kết quả về máy. Chọn **Nhận PowerPoint từ ChatGPT**, xem các slide hoặc mở toàn bộ bài.
 6. Kiểm tra nghĩa, thuật ngữ, số liệu/công thức, hình, hiệu ứng. Bấm **Dùng để dạy** và xác nhận. PowerPoint đã nhận mở nguyên trạng, cùng mascot khi cần.
 
-Các thao tác gửi/tải thực hiện trong browser của giáo viên. App không gọi API, không giữ mật khẩu, không đọc cookie, không tự đăng nhập hoặc tự bấm Gửi. Việc tạo PowerPoint và số lượt dùng phụ thuộc tính năng/hạn mức tài khoản. Có thể yêu cầu ChatGPT xuất tệp nếu chỉ nhận được dàn ý. [Hướng dẫn tạo slide của OpenAI](https://learn.chatgpt.com/use-cases/generate-slide-decks).
+Ở chế độ thủ công này, giáo viên thực hiện thao tác gửi/tải trong browser; app chỉ chuẩn bị và nhận tệp. App không gọi API hoặc thu thập mật khẩu. Browser AI tự động dùng hồ sơ đăng nhập riêng và bấm Gửi khi giáo viên chọn Chuyển đổi; không xuất cookie/token. Việc tạo PowerPoint và số lượt dùng phụ thuộc tính năng/hạn mức tài khoản. Có thể yêu cầu ChatGPT xuất tệp nếu chỉ nhận được dàn ý. [Hướng dẫn tạo slide của OpenAI](https://learn.chatgpt.com/use-cases/generate-slide-decks).
 
 Giữ thiết kế là yêu cầu đưa vào prompt, không phải đảm bảo ChatGPT giữ được mọi hiệu ứng/đối tượng. Nội dung hình nhúng trong PowerPoint có thể không được đọc qua cách trích xuất văn bản; khi cần đối chiếu, giáo viên đính kèm thêm ảnh slide quan trọng. [File Uploads FAQ](https://help.openai.com/en/articles/8555545-file-uploads-faq).
 
