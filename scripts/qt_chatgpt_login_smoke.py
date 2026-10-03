@@ -17,7 +17,7 @@ from PySide6.QtQuick import QQuickWindow
 from PySide6.QtQuickControls2 import QQuickStyle
 
 from app import browser_ai_ui
-from app.chatgpt_auth import PLAN_SCOPE, WORKSPACE_DENIED_MESSAGE, PlanError
+from app.chatgpt_auth import LOGIN_SESSION_MESSAGE, PLAN_SCOPE, WORKSPACE_DENIED_MESSAGE, PlanError
 from app.library import Library
 from app.paths import RESOURCE_ROOT
 from app.ui import RESOURCES, Bridge
@@ -40,9 +40,11 @@ class FixtureAuth:
         if len(attempts) == 1:
             raise PlanError(WORKSPACE_DENIED_MESSAGE, '3p_login_workspace_scope_denied')
         if len(attempts) == 2:
+            raise PlanError(LOGIN_SESSION_MESSAGE, 'browser_authentication_error')
+        if len(attempts) == 3:
             self.accounts.save_registration('oaiapp_fixture')
             raise PlanError('Mã đăng nhập đã hết hạn. Đăng nhập lại.', 'invalid_grant')
-        if len(attempts) == 5:
+        if len(attempts) == 6:
             assert _cancel.wait(5), 'Single button did not cancel sign-in'
             raise PlanError('Đã hủy đăng nhập.', 'cancelled')
         return self.accounts.connect({'sub': 'fixture', 'name': 'Cô giáo thử nghiệm', 'email': 'teacher@example.test'},
@@ -106,6 +108,13 @@ def step():
             capture('login-denied.png')
             stages.append('Closed browser and workspace rejection start fresh; failure shows no saved identity')
             click_login()
+            phase = 'session_failed'
+        elif phase == 'session_failed' and not bridge.browserAI.loginBusy:
+            assert bridge.browserAI.store.data['last_error']['code'] == 'browser_authentication_error'
+            assert bridge.browserAI.hasError and not bridge.browserAI.accountInfo
+            assert bridge.browserAI.message == LOGIN_SESSION_MESSAGE
+            stages.append('Authentication error ends waiting, preserves the one login action and shows a fresh-session recovery')
+            click_login()
             phase = 'exchange_failed'
         elif phase == 'exchange_failed' and not bridge.browserAI.loginBusy:
             assert bridge.browserAI.hasError and not bridge.browserAI.accountInfo
@@ -114,7 +123,7 @@ def step():
             phase = 'connected'
         elif phase == 'connected' and not bridge.browserAI.loginBusy:
             assert len(bridge.browserAI.accounts) == 1 and bridge.browserAI.store.get()['ready']
-            assert attempts == [('', False), ('', False), ('', True)]
+            assert attempts == [('', False), ('', False), ('', False), ('', True)]
             assert not bridge.browserAI.canResume and not bridge.browserAI.store.data['last_error']
             assert not bridge.browserAI.hasError
             assert bridge.browserAI.accountInfo['name'] == 'Cô giáo thử nghiệm'

@@ -8,7 +8,15 @@ from threading import Event
 from PySide6.QtCore import Property, QObject, QThread, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices
 
-from .chatgpt_auth import USAGE_URL, WORKSPACE_DENIED_MESSAGE, ChatGPTAuth, PlanAccounts, PlanError
+from .chatgpt_auth import (
+    LOGIN_EXCHANGE_MESSAGE,
+    LOGIN_SESSION_MESSAGE,
+    USAGE_URL,
+    WORKSPACE_DENIED_MESSAGE,
+    ChatGPTAuth,
+    PlanAccounts,
+    PlanError,
+)
 
 
 class LoginJob(QThread):
@@ -51,6 +59,10 @@ class BrowserAI(QObject):
             self._message = self.store.data["last_error"]["message"]
         if self.store.data.get("last_error", {}).get("code") == "3p_login_workspace_scope_denied":
             self._message = WORKSPACE_DENIED_MESSAGE
+        if self.store.data.get("last_error", {}).get("code") in {"invalid_state", "browser_authentication_error"}:
+            self._message = LOGIN_SESSION_MESSAGE
+        if self.store.data.get("last_error", {}).get("code") == "invalid_grant":
+            self._message = LOGIN_EXCHANGE_MESSAGE
         legacy = Path(bridge.library.directory) / "browser_ai/accounts.json"
         if legacy.is_file() and not self.store.path.exists():
             try:

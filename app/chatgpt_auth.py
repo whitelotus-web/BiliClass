@@ -5,8 +5,10 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import secrets
 import time
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
@@ -28,12 +30,15 @@ PLAN_SCOPE = "chatgpt.tokens.use.direct"
 USAGE_URL = "https://chatgpt.com/#settings/Usage"
 LOGIN_PAGE_TIMEOUT = 60
 WORKSPACE_DENIED_MESSAGE = "OpenAI chưa cho tài khoản/workspace này kết nối với BiliClass. Chưa lưu được tài khoản. Hãy đăng nhập bằng workspace có quyền dùng ứng dụng; nếu vẫn bị từ chối, cần chủ ứng dụng/workspace cấp quyền."
+LOGIN_SESSION_MESSAGE = "Phiên đăng nhập trên OpenAI không còn hợp lệ. Bấm Đăng nhập ChatGPT để bắt đầu phiên mới; không mở lại trang đăng nhập cũ."
+LOGIN_EXCHANGE_MESSAGE = "OpenAI không chấp nhận phiên hoặc mã đăng nhập. Bấm Đăng nhập ChatGPT để bắt đầu phiên mới."
 
 
 class PlanError(ValueError):
-    def __init__(self, message, code="", status=0):
+    def __init__(self, message, code="", status=0, request_id=""):
         super().__init__(message)
         self.code, self.status = code, status
+        self.request_id = request_id if re.fullmatch(r"[A-Za-z0-9_-]{1,160}", request_id) else ""
 
 
 def atomic_json(path, value):
@@ -197,7 +202,8 @@ def response_error(response):
         "subscription_sharing_usage_unavailable": "Chưa kiểm tra được hạn mức ChatGPT. Giữ yêu cầu và thử lại sau.",
         "subscription_sharing_unsupported_capability": "Model/kết nối chưa hỗ trợ cấu hình xử lý này. Chọn model phù hợp hoặc gửi/nhận thủ công.",
         "subscription_sharing_route_not_supported": "Kết nối ChatGPT chưa cho phép đường xử lý này.",
-        "invalid_grant": "Phiên ChatGPT hoặc mã đăng nhập đã hết hạn. Đăng nhập lại.",
+        "invalid_grant": LOGIN_EXCHANGE_MESSAGE,
+        "invalid_state": LOGIN_SESSION_MESSAGE,
         "access_denied": "Bạn chưa đồng ý cấp quyền kết nối ChatGPT.",
         "3p_login_workspace_scope_denied": WORKSPACE_DENIED_MESSAGE,
     }
@@ -207,7 +213,7 @@ def response_error(response):
         429: "Đã đạt hạn mức ChatGPT. Xem hạn mức và thử lại sau.",
         503: "Kết nối ChatGPT tạm chưa khả dụng. Bài đang làm được giữ lại.",
     }.get(response.status_code, f"Kết nối ChatGPT thất bại (HTTP {response.status_code})."))
-    return PlanError(message, code, response.status_code)
+    return PlanError(message, code, response.status_code, response.headers.get("x-request-id", ""))
 
 
 class ChatGPTAuth:
@@ -215,6 +221,24 @@ class ChatGPTAuth:
         self.accounts = accounts
         self.client = client or httpx.Client(timeout=httpx.Timeout(15, connect=5), follow_redirects=False)
         self._metadata = None
+
+    def login_event(self, stage, error=None):
+        """Phase/latency diagnostics only. Never store OAuth values or URLs."""
+        if not hasattr(self, "_login_diagnostic"):
+            return
+        value = {"stage": stage, "elapsed_ms": round((time.monotonic() - self._login_started) * 1000)}
+        if error:
+            value["status"] = error.status
+            value["code"] = error.code if re.fullmatch(r"[a-z0-9_]{1,80}", error.code) else ""
+            value["request_id"] = error.request_id
+        self._login_diagnostic["stage"] = stage
+        self._login_diagnostic["events"] = (self._login_diagnostic["events"] + [value])[-20:]
+        # An unavailable diagnostic folder must not invalidate an OAuth grant.
+        if stage in {"failed", "account_saved"}:
+            try:
+                atomic_json(self.accounts.root / "login-diagnostics.json", self._login_diagnostic)
+            except OSError:
+                pass
 
     def metadata(self):
         if self._metadata is None:
@@ -267,6 +291,9 @@ class ChatGPTAuth:
         return result
 
     def authorize(self, account_id="", cancel=None, progress=lambda _: None, opener=None, timeout=600, *, resume_pending=False):
+        self._login_started = time.monotonic()
+        self._login_diagnostic = {"version": 1, "attempt": str(uuid4()), "stage": "start", "events": []}
+        self.login_event("start")
         cancel = cancel or Event()
         registration = self.accounts.registration(account_id, resume_pending=resume_pending)
         client_id = registration["client_id"]
@@ -324,6 +351,11 @@ class ChatGPTAuth:
                 opener = browser.open
             if not opener(url):
                 raise PlanError("Chưa mở được phiên đăng nhập ChatGPT.")
+            self.login_event("browser_opened")
+            # Discovery runs while the teacher signs in. It must not delay the
+            # window opening or consume the authorization code's short lifetime.
+            metadata_pool = lifetime.enter_context(ThreadPoolExecutor(max_workers=1, thread_name_prefix="ChatGPT-discovery"))
+            metadata_future = metadata_pool.submit(self.metadata)
             progress("Đăng nhập trong cửa sổ riêng của BiliClass và cho phép dùng hạn mức ChatGPT. Cửa sổ tự đóng khi xong…")
             deadline = time.monotonic() + timeout
             loading_since, warned_loading = time.monotonic(), False
@@ -338,6 +370,8 @@ class ChatGPTAuth:
                     status = browser.status()
                     if status == "workspace_denied":
                         raise PlanError(WORKSPACE_DENIED_MESSAGE, "3p_login_workspace_scope_denied")
+                    if status == "authentication_error":
+                        raise PlanError(LOGIN_SESSION_MESSAGE, "browser_authentication_error")
                     if status == "loading":
                         elapsed = time.monotonic() - loading_since
                         if elapsed >= LOGIN_PAGE_TIMEOUT:
@@ -348,13 +382,29 @@ class ChatGPTAuth:
                     else:
                         loading_since = time.monotonic()
                 server.handle_request()
+            self.login_event("callback_received")
+            if cancel.is_set():
+                raise PlanError("Đã hủy đăng nhập.", "cancelled")
+            # Retain the browser and its profile lock through exchange and
+            # validation. Callback receipt alone is not a completed sign-in.
+            return self._complete_authorization(returned, client_id, account_id, nonce, verifier, redirect,
+                                                progress, cancel, metadata_future)
         except LoginBrowserError as exc:
-            raise PlanError(str(exc), "login_browser") from None
+            error = PlanError(str(exc), "login_browser")
+            self.login_event("failed", error)
+            raise error from None
+        except PlanError as exc:
+            self.login_event("failed", exc)
+            raise
+        except httpx.HTTPError:
+            error = PlanError("Mạng bị gián đoạn khi hoàn tất đăng nhập ChatGPT. Chưa lưu được kết nối; bấm Đăng nhập ChatGPT để thử phiên mới.", "network_error")
+            self.login_event("failed", error)
+            raise error from None
         finally:
             server.server_close()
             lifetime.close()
-        if cancel.is_set():
-            raise PlanError("Đã hủy đăng nhập.", "cancelled")
+
+    def _complete_authorization(self, returned, client_id, account_id, nonce, verifier, redirect, progress, cancel, metadata_future):
         if returned.get("error"):
             code = returned["error"]
             messages = {
@@ -362,6 +412,7 @@ class ChatGPTAuth:
                 "invalid_client": "ChatGPT chưa chấp nhận đăng ký ứng dụng BiliClass. Có thể dùng gửi/nhận thủ công.",
                 "subscription_sharing_user_not_eligible": "Tài khoản hoặc ứng dụng chưa đủ điều kiện dùng hạn mức ChatGPT. Có thể dùng gửi/nhận thủ công.",
                 "invalid_scope": "ChatGPT chưa chấp nhận quyền kết nối được yêu cầu. Có thể dùng gửi/nhận thủ công.",
+                "invalid_state": LOGIN_SESSION_MESSAGE,
                 "3p_login_workspace_scope_denied": WORKSPACE_DENIED_MESSAGE,
             }
             raise PlanError(messages.get(code, "ChatGPT chưa cho phép kết nối này. Thử lại hoặc dùng gửi/nhận thủ công."),
@@ -372,10 +423,23 @@ class ChatGPTAuth:
         if not account_id:
             self.accounts.save_registration(issued)
         progress("Đã nhận xác nhận từ trình duyệt. Đang kiểm tra và lưu kết nối ChatGPT…")
+        self.login_event("metadata_wait")
+        metadata_future.result()
+        if cancel.is_set():
+            raise PlanError("Đã hủy đăng nhập.", "cancelled")
+        self.login_event("exchange_started")
         tokens = self.token_exchange({"grant_type": "authorization_code", "client_id": issued, "code": returned["code"],
                                       "code_verifier": verifier, "redirect_uri": redirect, "resource": RESOURCE})
+        self.login_event("exchange_completed")
+        if cancel.is_set():
+            raise PlanError("Đã hủy đăng nhập.", "cancelled")
         claims = self.verify_identity(tokens["id_token"], issued, nonce)
-        return self.accounts.connect(claims, tokens, issued, account_id)
+        self.login_event("identity_verified")
+        if cancel.is_set():
+            raise PlanError("Đã hủy đăng nhập.", "cancelled")
+        account = self.accounts.connect(claims, tokens, issued, account_id)
+        self.login_event("account_saved")
+        return account
 
     def access_token(self, account_id):
         with profile_lock(self.accounts.root, account_id):

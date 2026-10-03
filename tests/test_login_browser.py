@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import sys
@@ -59,7 +60,35 @@ def test_login_profile_is_owned_and_rejects_foreign_login_url(tmp_path, monkeypa
     ([], "loading"), (["auth.openai.com/api/accounts/authorize"], "loading"),
     (["This account can't access this app - OpenAI"], "workspace_denied"),
     (["This account can’t access this app - OpenAI"], "workspace_denied"),
+    (["Authentication Error - OpenAI"], "authentication_error"),
     (["Log in - OpenAI"], "waiting"), (["Select a workspace - OpenAI"], "waiting"),
 ])
 def test_known_browser_window_titles(titles, status):
     assert login_window_status(titles) == status
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows Edge profile")
+@pytest.mark.parametrize("code", ["invalid_grant", "invalid_state", "browser_authentication_error"])
+def test_failed_session_uses_fresh_profile_without_erasing_host_or_registration(tmp_path, monkeypatch, code):
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "local-app-data"))
+    accounts = PlanAccounts(tmp_path)
+    accounts.save_registration("oaiapp_kept")
+    original = PrivateLoginBrowser(accounts).profile
+    original.mkdir(parents=True)
+    sentinel = original / "do-not-delete.txt"
+    sentinel.write_text("previous profile")
+    accounts.data["last_error"] = {"code": code}
+    accounts.save()
+    host = accounts.host_id
+    with PrivateLoginBrowser(accounts) as browser:
+        assert browser.profile != original and browser.profile.is_relative_to(browser.profile_root)
+        selected = browser.profile
+    assert sentinel.read_text() == "previous profile"
+    assert accounts.host_id == host
+    assert accounts.registration(resume_pending=True)["client_id"] == "oaiapp_kept"
+    # With a successful/cleared error, reuse this app's selected fresh profile.
+    accounts.data["last_error"] = {}
+    accounts.save()
+    with PrivateLoginBrowser(accounts) as browser:
+        assert browser.profile == selected
+    assert json.loads((accounts.root / "sign-in-browser.json").read_text())["profile_id"] in selected.name

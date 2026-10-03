@@ -5,10 +5,12 @@ Inference does not use this browser. Only the browser tree we create belongs
 to our Windows job; closing it cannot close the user's other windows.
 """
 
+import json
 import os
 import subprocess
 from pathlib import Path
 from urllib.parse import urlsplit
+from uuid import UUID, uuid4
 
 from .browser_accounts import profile_lock
 
@@ -22,6 +24,8 @@ def login_window_status(titles):
     values = [title.casefold().replace("’", "'").strip() for title in titles]
     if any(value.startswith("this account can't access this app") and value.endswith("openai") for value in values):
         return "workspace_denied"
+    if any(value.startswith("authentication error") and value.endswith("openai") for value in values):
+        return "authentication_error"
     if not values or all(not value or value in {"microsoft edge", "about:blank"}
                          or value.startswith("auth.openai.com") for value in values):
         return "loading"
@@ -124,7 +128,39 @@ class PrivateLoginBrowser:
             raise LoginBrowserError("Đường dẫn hồ sơ đăng nhập riêng không hợp lệ.")
         self.lock = profile_lock(self.root / "browser-lock", self.host_id)
         self.lock.__enter__()
-        return self
+        try:
+            self._select_profile()
+            return self
+        except Exception:
+            self.lock.__exit__(None, None, None)
+            self.lock = None
+            raise
+
+    def _select_profile(self):
+        from .chatgpt_auth import atomic_json
+
+        record_path = self.root / "sign-in-browser.json"
+        record = json.loads(record_path.read_text(encoding="utf-8")) if record_path.is_file() else {}
+        profile_id = record.get("profile_id", "")
+        if profile_id and str(UUID(profile_id)) != profile_id:
+            raise LoginBrowserError("Định danh hồ sơ đăng nhập không hợp lệ.")
+        code = self._last_error_code()
+        if code in {"invalid_grant", "invalid_state", "browser_authentication_error"}:
+            # Preserve the previous profile. Only this app's login browser gets
+            # a fresh folder; host/client registrations and credentials stay put.
+            profile_id = str(uuid4())
+            atomic_json(record_path, {"profile_id": profile_id})
+        target = self.profile_root / (self.host_id + "-" + profile_id if profile_id else self.host_id)
+        if target.is_symlink() or not target.resolve().is_relative_to(self.profile_root):
+            raise LoginBrowserError("Đường dẫn hồ sơ đăng nhập riêng không hợp lệ.")
+        self.profile = target
+
+    def _last_error_code(self):
+        # Read only our public error metadata, never a browser cookie database.
+        path = self.root / "accounts.json"
+        if not path.is_file():
+            return ""
+        return json.loads(path.read_text(encoding="utf-8")).get("last_error", {}).get("code", "")
 
     def open(self, url):
         parsed = urlsplit(url)

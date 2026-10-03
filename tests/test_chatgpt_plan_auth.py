@@ -159,7 +159,7 @@ def test_new_connection_never_reuses_a_pending_workspace_registration(service):
     assert json.loads(archives[0].read_text())["client_id"] == "oaiapp_other_workspace"
 
 
-@pytest.mark.parametrize("error", ["invalid_client", "access_denied", "subscription_sharing_user_not_eligible", "3p_login_workspace_scope_denied"])
+@pytest.mark.parametrize("error", ["invalid_client", "access_denied", "subscription_sharing_user_not_eligible", "3p_login_workspace_scope_denied", "invalid_state"])
 def test_authorization_errors_are_reported_without_creating_account(service, error):
     auth, accounts, _signed, _exchange, requests = service
     threads = []
@@ -182,7 +182,7 @@ def test_authorization_errors_are_reported_without_creating_account(service, err
     assert not accounts.data["accounts"] and not any(r.url.path == "/token" for r in requests)
 
 
-@pytest.mark.parametrize("reason", ["closed", "cancelled", "workspace_denied", "loading"])
+@pytest.mark.parametrize("reason", ["closed", "cancelled", "workspace_denied", "loading", "authentication_error"])
 def test_owned_login_browser_cleanup_when_closed_or_cancelled(service, monkeypatch, reason):
     from app import chatgpt_auth
 
@@ -217,9 +217,90 @@ def test_owned_login_browser_cleanup_when_closed_or_cancelled(service, monkeypat
     with pytest.raises(PlanError) as caught:
         auth.authorize(cancel=cancel, timeout=5)
     expected = {"closed": "browser_closed", "cancelled": "cancelled",
-                "workspace_denied": "3p_login_workspace_scope_denied", "loading": "login_page_timeout"}
+                "workspace_denied": "3p_login_workspace_scope_denied", "loading": "login_page_timeout",
+                "authentication_error": "browser_authentication_error"}
     assert caught.value.code == expected[reason]
     assert events == ["opened", "closed"] and not accounts.data["accounts"]
+
+
+@pytest.mark.parametrize("outcome", ["success", "exchange_rejected", "cancel_during_exchange"])
+def test_browser_and_profile_lock_survive_exchange_and_identity_validation(service, monkeypatch, outcome):
+    from app import chatgpt_auth
+    from app.browser_accounts import ProfileBusy, profile_lock
+
+    auth, accounts, _signed, exchange, _requests = service
+    cancel = threading.Event()
+    flags, threads = {"open": False, "closed": False}, []
+    original = auth.client
+
+    def route(request):
+        assert flags["open"] and not flags["closed"]
+        with pytest.raises(ProfileBusy):
+            with profile_lock(accounts.root / "browser-lock", accounts.host_id[9:]):
+                pass
+        if request.url.path == "/token":
+            if outcome == "exchange_rejected":
+                return httpx.Response(400, json={"error": {"code": "invalid_grant", "message": "DO-NOT-LOG"}},
+                                      headers={"x-request-id": "req_test_rejected"})
+            if outcome == "cancel_during_exchange":
+                cancel.set()
+        return original._transport.handle_request(request)
+
+    auth.client = httpx.Client(transport=httpx.MockTransport(route))
+
+    class Browser:
+        def __init__(self, store):
+            assert store is accounts
+
+        def __enter__(self):
+            self.lock = profile_lock(accounts.root / "browser-lock", accounts.host_id[9:])
+            self.lock.__enter__()
+            return self
+
+        def __exit__(self, *args):
+            flags["closed"] = True
+            self.lock.__exit__(*args)
+
+        def open(self, url):
+            flags["open"] = True
+            values = parse_qs(urlsplit(url).query)
+            exchange["nonce"] = values["nonce"][0]
+            callback = values["redirect_uri"][0] + "?" + urlencode({
+                "state": values["state"][0], "code": "test-code", "client_id": "oaiapp_test"})
+            thread = threading.Thread(target=lambda: httpx.get(callback))
+            thread.start()
+            threads.append(thread)
+            return True
+
+        def running(self):
+            return not flags["closed"]
+
+        def status(self):
+            return "waiting"
+
+    monkeypatch.setattr(chatgpt_auth, "PrivateLoginBrowser", Browser)
+    if outcome == "success":
+        assert auth.authorize(cancel=cancel, timeout=5)["ready"]
+    else:
+        with pytest.raises(PlanError) as caught:
+            auth.authorize(cancel=cancel, timeout=5)
+        assert caught.value.code == ("invalid_grant" if outcome == "exchange_rejected" else "cancelled")
+        assert not accounts.data["accounts"]
+    for thread in threads:
+        thread.join(5)
+    assert flags["closed"]
+    with profile_lock(accounts.root / "browser-lock", accounts.host_id[9:]):
+        pass
+    diagnostic = (accounts.root / "login-diagnostics.json").read_text(encoding="utf-8")
+    assert all(secret not in diagnostic for secret in ("test-code", "access-test", "refresh-new", "DO-NOT-LOG", exchange["nonce"]))
+    record = json.loads(diagnostic)
+    if outcome == "exchange_rejected":
+        assert record["events"][-2]["stage"] == "exchange_started"
+        assert record["events"][-1]["request_id"] == "req_test_rejected"
+    else:
+        assert record["stage"] == ("account_saved" if outcome == "success" else "failed")
+    auth.client.close()
+    original.close()
 
 
 def test_identity_only_does_not_authorize_inference(service):
