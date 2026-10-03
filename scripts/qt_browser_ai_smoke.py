@@ -4,6 +4,7 @@ ChatGPT web conversion is intercepted here; tests/test_browser_ai.py exercises
 the actual browser upload/download adapter against a routed fixture separately.
 """
 
+import faulthandler
 import hashlib
 import json
 import tempfile
@@ -19,13 +20,14 @@ from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuick import QQuickWindow
 from PySide6.QtQuickControls2 import QQuickStyle
 
-from app import browser_automation, speech
+from app import browser_ai_ui, browser_automation, speech
 from app.chatgpt_handoff import load_request
 from app.library import Library
 from app.paths import RESOURCE_ROOT
 from app.ui import Bridge
 
 app = QGuiApplication([])
+faulthandler.dump_traceback_later(60, repeat=True)
 QQuickStyle.setStyle("Basic")
 app.setFont(QFont("Arial", 10))
 reports = Path("reports/browser-ai")
@@ -51,7 +53,8 @@ window = engine.rootObjects()[0]
 window.setProperty("page", "settings")
 settings = window.findChild(QObject, "settingsPage")
 settings.setProperty("activeTab", 6)
-deadline = time.monotonic() + 180
+# First load of both native voice models can be slow on an external drive.
+deadline = time.monotonic() + 600
 
 
 def safe(action):
@@ -81,7 +84,7 @@ def wait_idle(action):
 
 def converted(account, root, folder, cancel, progress, **kwargs):
     request = load_request(folder)
-    assert account["label"] == "ChatGPT kiểm tra" and account["channel"] == "msedge"
+    assert account["label"] == "ChatGPT 1" and account["channel"] == "msedge"
     assert request["config"]["level"] == 3 and request["config"]["layout"] == "split_view"
     assert request["config"]["style"] == "source"
     assert "3.000" in request["prompt"] and "Giữ theme" in request["prompt"] and "CHECK:" in request["prompt"]
@@ -94,22 +97,54 @@ def converted(account, root, folder, cancel, progress, **kwargs):
 browser_automation.convert = converted
 
 
+def login_fixture(account, root, cancel, progress, url, *, auto_close):
+    assert auto_close and account["channel"] == "msedge"
+    progress("Đang đăng nhập · kiểm thử, không truy cập web")
+    cancel.wait(.25)
+    return {"ready": True, "plan": "plus" if account["label"] == "ChatGPT 1" else "free", "message": "Đã đăng nhập và tự lưu."}
+
+
+browser_ai_ui.login = login_fixture
+
+
+def wait_login(action):
+    assert time.monotonic() < deadline, "Login timed out"
+    if bridge.browserAI.loginBusy:
+        QTimer.singleShot(80, safe(lambda: wait_login(action)))
+    else:
+        action()
+
+
 def accounts():
-    window.findChild(QObject, "browserAccountLabel").setProperty("text", "ChatGPT kiểm tra")
+    assert not window.findChild(QObject, "browserAccountLabel")
+    assert not window.findChild(QObject, "browserAccountChannel")
+    assert not window.findChild(QObject, "browserOptionsSave")
+    assert not window.findChild(QObject, "browserLoginFinish")
     click("browserAccountAdd")
-    assert len(bridge.browserAI.accounts) == 1
-    first = bridge.browserAI.activeId
-    window.findChild(QObject, "browserAccountLabel").setProperty("text", "Hồ sơ phụ")
+    assert bridge.browserAI.loginBusy
+    QTimer.singleShot(350, safe(lambda: wait_login(second_account)))
+
+
+def second_account():
+    assert len(bridge.browserAI.accounts) == 1 and bridge.browserAI.accounts[0]["ready"]
     click("browserAccountAdd")
-    second = bridge.browserAI.activeId
+    QTimer.singleShot(350, safe(lambda: wait_login(accounts_ready)))
+
+
+def accounts_ready():
+    first, second = [a["id"] for a in bridge.browserAI.accounts]
     assert len(bridge.browserAI.accounts) == 2
-    bridge.browserAI.select(first)
+    assert bridge.browserAI.store.preferred()["id"] == first
+    resume = workspace / "resume"
+    resume.mkdir()
+    (resume / "browser-job.json").write_text(json.dumps({"account_id": second}), encoding="utf-8")
+    assert bridge.browserAI.conversionAccount(str(resume))["id"] == second
     bridge.browserAI.remove(second)
     assert len(bridge.browserAI.accounts) == 1 and bridge.browserAI.activeId == first
-    click("browserOptionsSave")
     assert bridge.browserAI.automatic and bridge.browserAI.audio
+    assert bridge.browserAI.accounts[0]["plan"] == "plus"
     assert QQuickWindow.grabWindow(window).save(str(reports / "accounts.png"))
-    stages.append("Browser AI tab: add/select/remove profiles, save automatic + audio; other tabs unchanged")
+    stages.append("Login-only tab: one button creates Edge profile, saves login automatically; Plus priority; no browser/options/save/finish controls")
     window.setProperty("page", "new")
     window.setProperty("selectedFileName", source.name)
     window.setProperty("selectedFile", QUrl.fromLocalFile(str(source)).toString())
@@ -158,6 +193,7 @@ def received():
 
 QTimer.singleShot(600, safe(accounts))
 code = app.exec()
+faulthandler.cancel_dump_traceback_later()
 if bridge.worker:
     bridge.cancel_event.set()
     bridge.worker.wait()

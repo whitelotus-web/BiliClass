@@ -379,6 +379,8 @@ ApplicationWindow {
                                     Caption { visible: conversionProvider.currentIndex === 1; text: "Ngôn ngữ OCR/dự phòng" }
                                     Choice { id: sourceLanguage; objectName: "sourceLanguage"; visible: conversionProvider.currentIndex === 1; model: ["Tiếng Việt", "English"]; Layout.fillWidth: true; onActivated: { if (root.selectedFile) bridge.assessInput(root.selectedFile, currentIndex === 0 ? "vi" : "en") } }
                                     Copy { visible: conversionProvider.currentIndex === 1; text: "OCR và giọng đọc cần gói model trên máy."; Layout.columnSpan: 2; Layout.fillWidth: true; font.pixelSize: 11 }
+                                    CheckBox { objectName: "creationManualChatGPT"; visible: conversionProvider.currentIndex === 0; text: "Gửi / nhận PowerPoint thủ công"; checked: !bridge.browserAI.automatic; Layout.columnSpan: 2; onClicked: bridge.browserAI.saveOptions(!checked, bridge.browserAI.audio) }
+                                    CheckBox { objectName: "creationBrowserAudio"; visible: conversionProvider.currentIndex === 0; text: "Chuẩn bị giọng đọc"; checked: bridge.browserAI.audio; Layout.columnSpan: 2; onClicked: bridge.browserAI.saveOptions(bridge.browserAI.automatic, checked) }
                                 }
                             }
                         }

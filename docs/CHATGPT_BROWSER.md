@@ -2,7 +2,7 @@
 
 Mã nguồn ngày 03/10/2026. Chưa đóng vào release rc12.
 
-Đây là cách gửi thủ công dự phòng. Luồng tự gửi/chờ/tải thử nghiệm và quản lý tài khoản nằm trong [Browser AI](BROWSER_AI.md). Trong Cài đặt → Browser AI, tắt **Tự gửi tài liệu, chờ và tải PowerPoint qua web ChatGPT**, rồi lưu để hiện các bước bên dưới.
+Đây là cách gửi thủ công dự phòng. Luồng tự gửi/chờ/tải thử nghiệm và quản lý tài khoản nằm trong [Browser AI](BROWSER_AI.md). Trong màn hình nhập bài → **Tùy chọn thêm**, chọn **Gửi/nhận PowerPoint thủ công** để hiện các bước bên dưới. Lựa chọn tự lưu, không cần mở Cài đặt.
 
 ## Sử dụng
 

@@ -201,9 +201,9 @@ class Bridge(QObject):
     @Slot(str, str, str, str, str, str, int, str, str, str, str)
     def convertBrowserAI(self, title, subject, education, grade, text, file_url, level, layout, preset, style, mode):
         try:
-            self._browser_ai.store.get()
+            self._browser_ai.store.preferred()
             if self._browser_ai.loginBusy:
-                raise ValueError("Bấm Đã đăng nhập · Kiểm tra để đóng phiên đăng nhập trước khi chuyển đổi.")
+                raise ValueError("Đăng nhập xong tool sẽ tự lưu và đóng browser; chờ phiên này kết thúc trước khi chuyển đổi.")
             self._prepareChatGPT(title, subject, education, grade, text, file_url, level, layout, preset, style, mode, True)
         except Exception as exc:
             self.inform(str(exc), True)
@@ -240,9 +240,9 @@ class Bridge(QObject):
         if self._busy or not self._chatgpt_request:
             return
         try:
-            account = self._browser_ai.store.get()
+            account = self._browser_ai.conversionAccount(self._chatgpt_request["folder"])
             if self._browser_ai.loginBusy:
-                raise ValueError("Đóng phiên đăng nhập bằng nút Đã đăng nhập · Kiểm tra trước khi tiếp tục.")
+                raise ValueError("Chờ đăng nhập tự lưu xong hoặc đóng browser đang mở trước khi tiếp tục.")
         except Exception as exc:
             self.inform(str(exc), True)
             return
@@ -253,7 +253,7 @@ class Bridge(QObject):
 
         def work():
             result = convert(account, self._browser_ai.store.root, folder, self.cancel_event,
-                             self._browser_ai.progress.emit)
+                             self._browser_ai.progress.emit, observed=self._browser_ai.observed.emit)
             self._browser_ai.progress.emit("Đang đọc nội dung slide cho mascot và lưu bài…")
             config = load_request(folder)["config"]
             source = self.library.store_source(Path(result["path"]))

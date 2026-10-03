@@ -49,14 +49,21 @@ class BrowserAccounts:
         account_id = self.data["active"] if account_id is None else account_id
         for item in self.data["accounts"]:
             if item["id"] == account_id:
-                return dict(item, profile=str(self.profile(account_id)))
-        raise ValueError("Thêm và chọn tài khoản trong Cài đặt → Browser AI.")
+                target = self.profile(account_id)
+                if item["channel"] == "chrome":
+                    # Keep old Chrome sessions intact; Edge signs in to a separate folder.
+                    edge = target / "edge"
+                    if edge.resolve().parent != target.resolve() or edge.is_symlink():
+                        raise ValueError("Đường dẫn hồ sơ Edge không hợp lệ.")
+                    target = edge
+                return dict(item, channel="msedge", profile=str(target))
+        raise ValueError("Đăng nhập ChatGPT trong Cài đặt → Browser AI.")
 
-    def add(self, label, channel):
+    def add(self, label, channel="msedge"):
         label = label.strip()
-        if not label or len(label) > 100 or channel not in {"msedge", "chrome"}:
-            raise ValueError("Nhập tên tài khoản (tối đa 100 ký tự) và chọn Edge hoặc Chrome.")
-        item = {"id": str(uuid4()), "label": label, "channel": channel, "status": "Chưa kiểm tra đăng nhập"}
+        if not label or len(label) > 100 or channel != "msedge":
+            raise ValueError("Hồ sơ ChatGPT dùng Microsoft Edge; tên tối đa 100 ký tự.")
+        item = {"id": str(uuid4()), "label": label, "channel": channel, "status": "Chưa đăng nhập", "plan": "unknown", "ready": False}
         self.profile(item["id"]).mkdir(parents=True)
         self.data["accounts"].append(item)
         if not self.data["active"]:
@@ -73,6 +80,23 @@ class BrowserAccounts:
         for account in self.data["accounts"]:
             if account["id"] == account_id:
                 account["status"] = status
+                self.save()
+                return
+
+    def preferred(self):
+        ready = [a for a in self.data["accounts"] if a.get("ready") or a.get("status") == "Đã kiểm tra đăng nhập"]
+        candidates = ready or self.data["accounts"]
+        if not candidates:
+            return self.get()
+        priority = {"plus": 3, "pro": 3, "business": 3, "enterprise": 3, "edu": 3, "go": 2, "free": 1}
+        chosen = max(candidates, key=lambda a: (priority.get(a.get("plan"), 0), a["id"] == self.data["active"]))
+        return self.get(chosen["id"])
+
+    def observe(self, account_id, plan, model=""):
+        for account in self.data["accounts"]:
+            if account["id"] == account_id:
+                account.update(plan=plan, model=model, ready=True, status="Đã đăng nhập · Tự lưu")
+                self.data["active"] = self.preferred()["id"]
                 self.save()
                 return
 

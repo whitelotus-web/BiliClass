@@ -1,5 +1,7 @@
 """Qt controls for account profiles and an interruptible manual login window."""
 
+import json
+from pathlib import Path
 from threading import Event
 
 from PySide6.QtCore import Property, QObject, QThread, Signal, Slot
@@ -12,15 +14,16 @@ class LoginJob(QThread):
     completed = Signal(object, str)
     progress = Signal(str)
 
-    def __init__(self, account, root, parent, url):
+    def __init__(self, account, root, parent, url, auto_close):
         super().__init__(parent)
         self.account, self.root, self.url = account, root, url
-        self.cancel, self.finish = Event(), Event()
+        self.cancel = Event()
+        self.auto_close = auto_close
         self.result, self.error = None, ""
 
     def run(self):
         try:
-            self.result = login(self.account, self.root, self.cancel, self.finish, self.progress.emit, self.url)
+            self.result = login(self.account, self.root, self.cancel, self.progress.emit, self.url, auto_close=self.auto_close)
         except Exception as exc:
             self.error = str(exc)
         self.completed.emit(self.result, self.error)
@@ -29,13 +32,15 @@ class LoginJob(QThread):
 class BrowserAI(QObject):
     changed = Signal()
     progress = Signal(str)
+    observed = Signal(str, str, str)
 
     def __init__(self, bridge):
         super().__init__(bridge)
         self.bridge = bridge
         self.store = BrowserAccounts(bridge.library.directory)
         self.job = None
-        self._message = "Thêm hồ sơ, đăng nhập tài khoản ChatGPT rồi chọn tài khoản dùng cho bài giảng."
+        self._message = "Đăng nhập trên web; phiên được tự lưu trên máy này."
+        self.observed.connect(self._observed)
 
     @Property("QVariantList", notify=changed)
     def accounts(self):
@@ -47,7 +52,10 @@ class BrowserAI(QObject):
 
     @Property(str, notify=changed)
     def activeLabel(self):
-        return next((item["label"] for item in self.accounts if item["id"] == self.activeId), "Chưa chọn tài khoản")
+        try:
+            return self.store.preferred()["label"]
+        except ValueError:
+            return "Chưa đăng nhập"
 
     @Property(bool, notify=changed)
     def automatic(self):
@@ -111,37 +119,54 @@ class BrowserAI(QObject):
         self._open(account_id, CHATGPT)
 
     @Slot()
+    def addAndSignIn(self):
+        if self.job or self.bridge.busy:
+            self.inform("Chờ tác vụ hiện tại xong trước khi đăng nhập.")
+            return
+        try:
+            used = {item["label"] for item in self.accounts}
+            number = 1
+            while f"ChatGPT {number}" in used:
+                number += 1
+            account = self.store.add(f"ChatGPT {number}")
+            self.changed.emit()
+            self._open(account["id"], CHATGPT)
+        except Exception as exc:
+            self.inform(str(exc))
+
+    def conversionAccount(self, folder=""):
+        journal = Path(folder) / "browser-job.json" if folder else None
+        if journal and journal.is_file():
+            record = json.loads(journal.read_text(encoding="utf-8"))
+            return self.store.get(record["account_id"])
+        return self.store.preferred()
+
+    @Slot()
     def openConversation(self):
         from .browser_automation import read_record
 
         try:
-            account = self.store.get()
             request = self.bridge.chatgptRequest
             if request:
+                account = self.conversionAccount(request["folder"])
                 record = read_record(request["folder"], account["id"])
-                self._open(account["id"], record.get("url") or CHATGPT)
+                self._open(account["id"], record.get("url") or CHATGPT, auto_close=False)
         except Exception as exc:
             self.inform(str(exc))
 
-    def _open(self, account_id, url):
+    def _open(self, account_id, url, *, auto_close=True):
         if self.job or self.bridge.busy:
             self.inform("Chờ tác vụ xong hoặc dừng tác vụ rồi mở browser.")
             return
         try:
             account = self.store.get(account_id)
-            self.job = LoginJob(account, self.store.root, self, url)
+            self.job = LoginJob(account, self.store.root, self, url, auto_close)
             self.job.progress.connect(self.inform)
             self.job.finished.connect(self._finished)
             self.job.start()
             self.inform("Đang mở browser đăng nhập…")
         except Exception as exc:
             self.inform(str(exc))
-
-    @Slot()
-    def finishLogin(self):
-        if self.job:
-            self.job.finish.set()
-            self.inform("Đang kiểm tra phiên đăng nhập và đóng cửa sổ browser…")
 
     @Slot()
     def stopLogin(self):
@@ -152,9 +177,17 @@ class BrowserAI(QObject):
     def _finished(self):
         job, self.job = self.job, None
         message = job.error or job.result["message"]
-        self.store.update_status(job.account["id"], "Đã kiểm tra đăng nhập" if job.result and job.result["ready"] else message)
+        if job.result and job.result["ready"]:
+            self.store.observe(job.account["id"], job.result.get("plan", "unknown"))
+        elif job.auto_close:
+            self.store.update_status(job.account["id"], message)
         self.inform(message)
         job.deleteLater()
+
+    @Slot(str, str, str)
+    def _observed(self, account_id, plan, model):
+        self.store.observe(account_id, plan, model)
+        self.changed.emit()
 
     def shutdown(self):
         if self.job:

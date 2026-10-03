@@ -3,7 +3,7 @@
 ## Browser AI trong mã nguồn ngày 03/10/2026
 
 - **Playwright 1.63.0**: điều khiển giao diện browser riêng và tải tệp; **pyee 13.0.1**, **greenlet 3.5.6** là phụ thuộc theo bản khóa trong `requirements-lock.txt`. Runtime được thu bằng `--collect-all playwright` khi build; metadata và notices được lấy bằng script thu giấy phép hiện có.
-- Edge/Chrome dùng bản đã cài trên máy; không đóng browser tải riêng trong gói ứng dụng. Hồ sơ đăng nhập và dữ liệu giáo viên không vào bản build. Tính năng hiện thử bằng mã nguồn, chưa kiểm chứng bản đóng gói mới.
+- Browser AI dùng cố định Microsoft Edge đã cài trên máy; không đóng browser tải riêng trong gói ứng dụng. Hồ sơ đăng nhập và dữ liệu giáo viên không vào bản build. Hồ sơ Chrome cũ được giữ nguyên, đăng nhập Edge lại trong thư mục riêng. Tính năng hiện thử bằng mã nguồn, chưa kiểm chứng bản đóng gói mới.
 
 ## OCR trong mã nguồn ngày 03/10/2026
 

@@ -12,7 +12,7 @@ from app.browser_automation import BrowserProblem, conversation_url, read_record
 def test_profiles_are_separate_persisted_and_deleted_with_session_data(tmp_path):
     accounts = BrowserAccounts(tmp_path)
     first = accounts.add("Cô A", "msedge")
-    second = accounts.add("Thầy B", "chrome")
+    second = accounts.add("Thầy B", "msedge")
     assert accounts.get()["id"] == first["id"]
     accounts.select(second["id"])
     accounts.options(False, True)
@@ -27,11 +27,39 @@ def test_profiles_are_separate_persisted_and_deleted_with_session_data(tmp_path)
     assert not resumed.profile(first["id"]).exists()
     assert resumed.get()["id"] == second["id"]
     resumed.remove(second["id"])
-    with pytest.raises(ValueError, match="Thêm và chọn"):
+    with pytest.raises(ValueError, match="Đăng nhập ChatGPT"):
         resumed.get()
     assert resumed.data["active"] == ""
     with pytest.raises(ValueError):
         resumed.profile("../../elsewhere")
+
+
+def test_plus_priority_changes_after_account_downgrades_to_free(tmp_path):
+    accounts = BrowserAccounts(tmp_path)
+    plus = accounts.add("Plus")
+    free = accounts.add("Free")
+    accounts.observe(plus["id"], "plus")
+    accounts.observe(free["id"], "free")
+    assert accounts.preferred()["id"] == plus["id"]
+    accounts.observe(plus["id"], "free", "GPT-6 Luna")
+    assert accounts.get(plus["id"])["plan"] == "free"
+    assert accounts.get(plus["id"])["model"] == "GPT-6 Luna"
+    assert accounts.preferred()["channel"] == "msedge"
+
+
+def test_legacy_chrome_profile_is_preserved_when_edge_is_used(tmp_path):
+    accounts = BrowserAccounts(tmp_path)
+    item = accounts.add("Old profile")
+    marker = accounts.profile(item["id"]) / "old-session-marker"
+    marker.write_text("Fixture")
+    accounts.data["accounts"][0]["channel"] = "chrome"
+    accounts.save()
+    resumed = BrowserAccounts(tmp_path)
+    assert resumed.get()["channel"] == "msedge"
+    assert Path(resumed.get()["profile"]) == marker.parent / "edge"
+    assert marker.read_text() == "Fixture"
+    with pytest.raises(ValueError, match="Microsoft Edge"):
+        resumed.add("New profile", "chrome")
 
 
 def test_job_keeps_conversation_and_refuses_another_account_or_foreign_url(tmp_path):
@@ -124,27 +152,31 @@ def browser_fixture(monkeypatch, tmp_path):
               "level": 2, "layout": "split_view", "preset": "standard", "style": "source", "mode": "level"}
     request = prepare_request(tmp_path / "library", config, source)
     original = adapter.open_context
-    captured = {"sends": [], "contexts": 0, "challenge": False, "download_failure": False}
+    captured = {"sends": [], "contexts": 0, "challenge": False, "download_failure": False, "html": ""}
 
     def opening(playwright, account, *, headless):
         captured["contexts"] += 1
         context = original(playwright, account, headless=headless)
 
         def route(req):
-            if "/backend-api/files/result.pptx" in req.request.url:
+            if "/backend-api/files/result-" in req.request.url:
                 if captured["download_failure"]:
                     req.fulfill(status=500, content_type="text/plain", body="Fixture download failed")
                 else:
                     req.fulfill(body=source.read_bytes(), headers={"Content-Type": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                                                                 "Content-Disposition": 'attachment; filename="fixture.pptx"'})
+                                                                 "Content-Disposition": f'attachment; filename="fixture-{captured["contexts"]}.pptx"'})
             else:
-                content = '<html><head><title>Just a moment...</title></head><body id="challenge-stage">Verify</body></html>' if captured["challenge"] else FIXTURE
+                content = '<html><head><title>Just a moment...</title></head><body id="challenge-stage">Verify</body></html>' if captured["challenge"] else captured["html"] or FIXTURE
+                content = content.replace("result.pptx", f'result-{captured["contexts"]}.pptx')
                 req.fulfill(status=403 if captured["challenge"] else 200, content_type="text/html", body=content)
 
         context.route("**/*", route)
-        for page in context.pages:
+        def observe_page(page):
             page.on("console", lambda msg: captured["sends"].append(json.loads(msg.text.split(":", 1)[1]))
                     if msg.text.startswith("FIXTURE-SEND:") else None)
+        context.on("page", observe_page)
+        for page in context.pages:
+            observe_page(page)
         return context
 
     monkeypatch.setattr(adapter, "open_context", opening)
@@ -209,3 +241,69 @@ def test_active_profile_cannot_overwrite_another_running_job(browser_fixture):
         with pytest.raises(ProfileBusy):
             adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None)
     assert read_record(request["folder"], accounts.get()["id"]) == record and not captured["contexts"]
+
+
+def models_fixture(plan):
+    profile = f'<button data-testid="accounts-profile-button"><div>Fixture account</div><div>{plan}</div></button>'
+    choices = '''<button data-testid="model-switcher-dropdown-button" id="model-picker" onclick="document.querySelector('#model-menu').hidden=false">GPT-6.1 Sol</button>
+    <div role="menu" id="model-menu" hidden>
+    <button role="menuitemradio" onclick="choose(this)">GPT-6 Luna</button>
+    <button role="menuitemradio" onclick="choose(this)">GPT-6.1 Sol</button>
+    <button role="menuitemradio" %s onclick="choose(this)">Astra</button>
+    <button role="menuitemradio" onclick="throw Error('Must not buy a plan')">Astra · Upgrade to Plus</button></div>
+    <script>function choose(item) {item.setAttribute('aria-checked','true');document.querySelector('#model-picker').textContent=item.textContent;document.querySelector('#model-menu').hidden=true;}</script>''' % ("disabled" if plan == "Free" else "")
+    if plan == "Free":
+        choices = choices.replace('onclick="choose(this)">GPT-6.1 Sol', 'disabled onclick="choose(this)">GPT-6.1 Sol')
+    return FIXTURE.replace('<button data-testid="accounts-profile-button">Fixture account</button>', profile + choices).replace(
+        "files:[...document.querySelector('#files').files]", "model:document.querySelector('#model-picker').textContent,files:[...document.querySelector('#files').files]")
+
+
+def test_downgrade_selects_free_model_before_upload_and_keeps_cancelled_request(browser_fixture):
+    from app.chatgpt_handoff import prepare_request
+
+    adapter, accounts, request, captured, source = browser_fixture
+    captured["html"] = models_fixture("Plus")
+    adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10,
+                    observed=accounts.observe)
+    assert captured["sends"][0]["model"] == "Astra"
+    assert accounts.get()["plan"] == "plus"
+    captured["html"] = models_fixture("Free")
+    next_request = prepare_request(accounts.root.parent, request["config"], source)
+    cancel = Event()
+
+    def stop_before_upload(account_id, plan, model):
+        accounts.observe(account_id, plan, model)
+        cancel.set()
+
+    with pytest.raises(BrowserProblem, match="Đã dừng"):
+        adapter.convert(accounts.get(), accounts.root, next_request["folder"], cancel, lambda _: None, timeout=10,
+                        observed=stop_before_upload)
+    assert accounts.get()["plan"] == "free" and accounts.get()["model"] == "GPT-6 Luna"
+    record = read_record(next_request["folder"], accounts.get()["id"])
+    assert record["plan"] == "free" and record["model"] == "GPT-6 Luna" and record["state"] == "prepared"
+    assert record["error"] == "cancelled" and len(captured["sends"]) == 1
+
+
+def test_login_saves_automatically_without_finish_button(browser_fixture, monkeypatch):
+    adapter, accounts, _, captured, _ = browser_fixture
+    captured["html"] = models_fixture("Plus")
+    opening = adapter.open_context
+
+    def login_browser(playwright, account, *, headless):
+        assert headless is False  # The product opens a visible login window.
+        return opening(playwright, account, headless=True)  # The test remains unobtrusive.
+
+    monkeypatch.setattr(adapter, "open_context", login_browser)
+    result = adapter.login(accounts.get(), accounts.root, Event(), lambda _: None)
+    assert result["ready"] and result["plan"] == "plus" and not captured["sends"]
+    with profile_lock(accounts.root, accounts.get()["id"]):
+        pass  # The automatic login closed its browser and released the profile.
+
+
+def test_upgrade_labels_are_not_plan_or_model_entitlements():
+    from app.browser_capabilities import model_priority, plan_from_text
+
+    assert plan_from_text("Upgrade to Plus") == "unknown"
+    assert plan_from_text("ChatGPT Free\nUpgrade to Plus") == "free"
+    assert model_priority("Astra · Upgrade to Plus") is None
+    assert model_priority("GPT-6.1 Sol") > model_priority("GPT-6 Sol") > model_priority("GPT-6 Luna")

@@ -153,7 +153,7 @@ def prepare_request(directory, config, source_path=None, text=""):
             "3. Nếu cần đối chiếu thiết kế/hình trong PowerPoint, đính kèm thêm ảnh các slide quan trọng.\n"
             "4. Gửi, tải file PowerPoint kết quả về máy. Nếu ChatGPT chưa tạo được tệp, yêu cầu xuất .pptx.\n"
             "5. Trong BiliClass chọn Nhận PowerPoint từ ChatGPT, xem trước rồi Dùng để dạy.\n"
-            "Các bước trên dành cho cách gửi thủ công. Trong Browser AI, bật Tự gửi tài liệu rồi bấm Chuyển đổi để app gửi qua tài khoản đã chọn.\n"
+            "Các bước trên dành cho cách gửi thủ công. Trong màn hình nhập bài → Tùy chọn thêm, bỏ chọn Gửi/nhận PowerPoint thủ công rồi bấm Chuyển đổi để app tự gửi qua tài khoản đã đăng nhập.\n"
             "Giải nén gói ZIP trước khi đính kèm thủ công. Không dùng API.\n",
             encoding="utf-8")
         archive = folder / "goi-gui-chatgpt.zip"
