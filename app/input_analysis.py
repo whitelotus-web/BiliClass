@@ -5,7 +5,7 @@ import unicodedata
 from collections import Counter
 
 VI_WORDS = set("va la cua trong mot cac cho voi khi thi duoc hoc bai giang nghia vi du ham so gia tri lop em chung ta tinh dien tich chu ky phan tu te bao lich su dia ly cach doc viet hay nay neu bang tu nhung nguoi khong".split())
-EN_WORDS = set("the a an and is are was were of to in for with when if then this that these those we you your each from by value values function equation calculate find explain example lesson learning class student students cell energy history geography area time what why how does can will has have not into about means change increases decreases".split())
+EN_WORDS = set("the a an and is are was were of to in for with when if then this that these those we you your each from by value values function equation calculate find explain example lesson learning class student students cell energy history geography area time what why how does can will has have not into about means change increases decreases english chapter sequences arithmetic geometric progressions grade mathematics standard curriculum objective".split())
 LABELS = {"vi": "Tiếng Việt", "en": "Tiếng Anh", "bilingual": "Có cặp Việt–Anh",
           "mixed": "Hỗn hợp Việt/Anh", "unknown": "Chưa rõ ngôn ngữ", "neutral": "Số/ký hiệu"}
 
@@ -30,7 +30,14 @@ def language_of(text):
 def split_existing_pair(text):
     """Only split clear labelled/alternating lines; never invent a translation."""
     if "|" in text:
-        return None  # Keep the original table grid; do not flatten its columns.
+        # A single bilingual heading is common in teachers' decks. Multi-row
+        # or multi-column grids remain intact for the native table exporter.
+        if text.count("|") == 1 and len(text.splitlines()) == 1:
+            left, right = (part.strip() for part in text.split("|"))
+            languages = language_of(left), language_of(right)
+            if set(languages) == {"vi", "en"}:
+                return dict(zip(languages, (left, right), strict=True))
+        return None
     parts = {"vi": [], "en": []}
     for line in text.splitlines():
         if not line.strip():
@@ -49,10 +56,10 @@ def split_existing_pair(text):
     return None
 
 
-def assess_blocks(blocks, kind="text", fallback_language="vi", objects=None):
+def assess_blocks(blocks, kind="text", fallback_language="vi", objects=None, table_locators=()):
     units = []
     for locator, text in blocks:
-        pair = split_existing_pair(text)
+        pair = None if locator in table_locators else split_existing_pair(text)
         language = "bilingual" if pair else language_of(text)
         source_language = language if language in {"vi", "en"} else fallback_language
         draft = pair or {"vi": text if source_language == "vi" else "",
@@ -106,10 +113,13 @@ def analyze_document(path, language="vi", cancelled=None):
     path = Path(path)
     blocks = parse_document(path, language, cancelled)
     objects = {}
+    table_locators = set()
     if path.suffix.lower() == ".pptx":
         from pptx import Presentation
 
         deck = Presentation(path)
+        from .source_deck import text_blocks
+        table_locators = {unit["locator"] for unit in text_blocks(deck) if unit["shape"].has_table}
         objects = {"slides": len(deck.slides), "images": 0, "charts": 0, "tables": 0, "image_only_slides": 0}
         for slide in deck.slides:
             def leaves(shapes):
@@ -123,7 +133,7 @@ def analyze_document(path, language="vi", cancelled=None):
             objects["charts"] += sum(shape.has_chart for shape in shapes)
             objects["tables"] += sum(shape.has_table for shape in shapes)
             objects["image_only_slides"] += not any((shape.has_text_frame and shape.text.strip()) or shape.has_table for shape in shapes)
-    profile = assess_blocks(blocks, path.suffix.lower().lstrip("."), language, objects)
+    profile = assess_blocks(blocks, path.suffix.lower().lstrip("."), language, objects, table_locators)
     if path.suffix.lower() == ".pptx" and any("OCR" in locator for locator, _ in blocks):
         profile.update(recommended_style="template", recommended_mode="level")
         profile["warnings"].append("PowerPoint có slide scan: nên tạo bài theo mẫu từ OCR; giữ nguồn để đối chiếu. Không thay trực tiếp chữ nằm trong ảnh.")

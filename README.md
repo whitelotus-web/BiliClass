@@ -2,7 +2,7 @@
 
 Kho kiến thức có nguồn và bộ nhớ giáo viên đang được bổ sung trong bản mã nguồn: xem [cách vận hành](docs/KNOWLEDGE.md). Bản RC12 đóng gói chưa có tính năng này.
 
-Bản mã nguồn ngày 03/10/2026 có **đánh giá đầu vào và chuyển đổi theo L0–L4**: giữ PowerPoint gốc hoặc tạo bài từ tài liệu/ảnh theo mẫu. Thêm **Dịch phần còn thiếu** và **So sánh gốc / song ngữ**. Xem [quy trình nhập bài](docs/INPUT_WORKFLOW.md) và [PowerPoint](docs/SOURCE_POWERPOINT.md). Các thay đổi này chưa có trong release rc12.
+Bản mã nguồn ngày 03/10/2026 có luồng **chọn tài liệu → chọn L0–L4 → Chuyển đổi → xem bản trình chiếu → Dùng để dạy**. Một nút tự đánh giá đầu vào, giữ cặp Việt–Anh có sẵn, dịch phần thiếu và tạo PowerPoint giữ thiết kế gốc hoặc dùng mẫu BiliClass. Thầy cô xác nhận đã kiểm tra cả bài một lần; sửa từng đoạn, bố cục, trợ giảng và quiz nằm trong **Chỉnh sửa chi tiết**. Xem [quy trình nhập bài](docs/INPUT_WORKFLOW.md) và [PowerPoint](docs/SOURCE_POWERPOINT.md). Các thay đổi này chưa có trong release rc12.
 
 Ứng dụng Windows chuẩn bị và dạy **song ngữ Anh–Việt đa môn THPT**. Bản thử hiện tại: **1.0 RC12**, cập nhật 02/10/2026.
 

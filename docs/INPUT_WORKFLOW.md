@@ -2,7 +2,22 @@
 
 Trạng thái: mã nguồn ngày 03/10/2026, chưa đóng trong release rc12. App bố trí và dịch nội dung giáo viên cung cấp; không tự xác nhận kiến thức đúng hoặc có sẵn đủ kiến thức mọi môn.
 
-## Hai luồng
+## Luồng chính: một nút chuyển đổi
+
+1. Chọn tài liệu hoặc dán nội dung; tên bài được gợi ý từ tên tệp. Điền môn, khối và chọn L0–L4 (mặc định L2).
+2. Bấm **Chuyển đổi sang bài giảng song ngữ**. App tự đánh giá từng vùng, giữ cặp đã có, bổ sung ngôn ngữ thiếu và tạo PowerPoint. PPTX mặc định giữ thiết kế gốc; tài liệu/ảnh dùng mẫu. Không cần chọn trước cách dịch, layout, quiz hay audio.
+3. Màn hình kết quả hiển thị slide; có nút trước/tiếp và **Xem toàn bộ bài**. Kiểm tra nội dung, số liệu, công thức và bố cục.
+4. Bấm **Dùng để dạy**, rồi **Đã kiểm tra · Trình chiếu**. Đây là xác nhận của giáo viên cho toàn bài, lưu bản chuẩn bị và mở PowerPoint. Không cần duyệt lần lượt từng đoạn. Trợ giảng và quiz có trạng thái duyệt riêng.
+
+**Tùy chọn thêm** trên màn hình nhập giữ các lựa chọn nguồn/mẫu, cách chuyển đổi, ngôn ngữ OCR/dự phòng, layout và kiểu dạy. **Chỉnh sửa chi tiết** trên màn hình kết quả mở trình biên tập cũ khi cần sửa nội dung, level, trợ giảng, quiz, so sánh hoặc xuất gói/PPTX. Bấm **Bản trình chiếu** để quay lại màn hình gọn.
+
+Luồng tự động xử lý toàn bộ phần thiếu, không dừng ở 50 đoạn/lượt như nút dịch trong trình biên tập. Nội dung dài được chia theo giới hạn model và nối lại trong đúng vùng nguồn; giữ dấu phân hàng/cột bảng và biểu thức được bảo vệ. Bản có sẵn, đoạn khóa và đoạn đã duyệt không bị tự dịch lại. Cặp tiêu đề Việt–Anh có một dấu `|` được nhận diện; bảng PowerPoint vẫn giữ lưới.
+
+Kết quả chuyển đổi **chưa tự được duyệt**. Bản xem trước dùng một bản sao xuất riêng, không ghi trạng thái duyệt vào thư viện. Thiếu ngôn ngữ, model chưa có hoặc bộ nhớ giáo viên có nhiều bản xung đột thì app báo vị trí cần xử lý trong Chỉnh sửa chi tiết. Không cho chốt bài thiếu cặp; tệp nguồn, phiên bản bài và checksum bản trình chiếu phải khớp lúc xác nhận. Sửa bài xong cần chuyển đổi/xem lại rồi xác nhận bản mới. Kiểm tra nhanh số liệu chỉ là hỗ trợ, không xác nhận ý nghĩa hay độ đúng kiến thức.
+
+Xem trước bằng ảnh và trình chiếu điều khiển trực tiếp cần Microsoft PowerPoint trên máy. Nếu không render được ảnh, bản `.pptx` vẫn được tạo để mở bằng ứng dụng phù hợp. Quiz/audio không phải điều kiện để chốt nội dung bài.
+
+## Hai cách tạo bản trình chiếu trong tùy chọn thêm
 
 **Giữ bài giảng của tôi** dành cho PPTX đã soạn: giữ bố cục/đối tượng và thêm hỗ trợ song ngữ. **Tạo bài với BiliClass** dành cho văn bản, DOCX, PDF, ảnh hoặc PPTX muốn bố trí lại theo mẫu. Cả hai dùng chung đoạn VI/EN, trợ giảng và quiz đã duyệt.
 

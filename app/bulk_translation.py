@@ -26,13 +26,13 @@ def plan_batch(library, lesson, limit=50):
             if knowledge:
                 plan.update(draft=knowledge["text"], provenance=knowledge["tier"])
         plans.append(plan)
-        if len(plans) >= limit:
+        if limit is not None and len(plans) >= limit:
             break
     return plans
 
 
-def translate_batch(plans, terms, cancelled=None):
-    from .translation import draft_resources, translate_with_resources
+def translate_batch(plans, terms, cancelled=None, whole_document=False, progress=None):
+    from .translation import draft_resources, translate_document_text, translate_with_resources
 
     results, warnings = [], []
     for language in ("vi", "en"):
@@ -42,6 +42,8 @@ def translate_batch(plans, terms, cancelled=None):
             for plan in (p for p in plans if p["language"] == language):
                 if cancelled and cancelled.is_set():
                     return {"drafts": [], "warnings": []}
+                if progress:
+                    progress(len(results) + len(warnings) + 1, len(plans))
                 if plan.get("error"):
                     warnings.append(plan["locator"] + ": " + plan["error"])
                     continue
@@ -52,7 +54,11 @@ def translate_batch(plans, terms, cancelled=None):
                         if text not in cached:
                             if resources is None:
                                 resources = draft_resources(language)
-                            cached[text] = translate_with_resources(text, language, terms, *resources)
+                            translate = translate_document_text if whole_document else translate_with_resources
+                            if whole_document:
+                                cached[text] = translate(text, language, terms, *resources, cancelled=cancelled)
+                            else:
+                                cached[text] = translate(text, language, terms, *resources)
                         draft = cached[text]
                     results.append({**plan, "draft": draft, "provenance": plan.get("provenance", "machine_draft")})
                 except (ValueError, RuntimeError) as exc:

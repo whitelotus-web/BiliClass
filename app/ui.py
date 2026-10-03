@@ -61,6 +61,7 @@ class Bridge(QObject):
     updateProgress = Signal(int)
     inputAssessmentChanged = Signal()
     comparisonReady = Signal()
+    conversionProgress = Signal(int, int)
 
     @Property(bool, constant=True)
     def developmentMode(self):
@@ -116,9 +117,12 @@ class Bridge(QObject):
         self._input_path = ""
         self._conversion_report = []
         self._comparison = {}
+        self._quick_result = {}
+        self.conversionProgress.connect(self._conversion_progress)
         self.powerpoint_worker = None
         self._powerpoint_lesson_id = None
         self._powerpoint_source_map = []
+        self._powerpoint_segment_map = []
         self._powerpoint_state = {"active": False, "slide": 0, "total": 0, "message": ""}
         self._readiness = {"checks": [], "text_ready": False, "total": 0, "approved": 0}
         self.teaching = TeachingBridge(self)
@@ -151,6 +155,16 @@ class Bridge(QObject):
     @Property("QVariantMap", notify=changed)
     def comparison(self):
         return self._comparison
+
+    @Property("QVariantMap", notify=changed)
+    def quickResult(self):
+        if self._quick_result.get("lesson_id") != self._lesson.get("id") or self._quick_result.get("revision") != self._lesson.get("revision"):
+            return {}
+        return self._quick_result
+
+    @Slot(int, int)
+    def _conversion_progress(self, current, total):
+        self.inform(f"Đang chuyển đổi phần {current}/{total}…")
 
     @Slot(int)
     def comparePowerPoint(self, output_slide):
@@ -639,6 +653,10 @@ class Bridge(QObject):
     def finishJob(self):
         self._busy = False
         result, error = self.job_result
+        # A completed stage may immediately launch the next stage. Release the
+        # old references first so cleanup cannot erase the new worker/callback.
+        worker, callback = self.worker, self.callback
+        self.worker = self.callback = self.job_result = None
         try:
             if self.cancel_event.is_set():
                 if self.classroom.runtime and not self.classroom.joinUrl:
@@ -649,11 +667,10 @@ class Bridge(QObject):
             elif error:
                 self.inform(error, True)
             else:
-                self.callback(result)
+                callback(result)
         except Exception as exc:
             self.inform(str(exc), True)
-        self.worker.deleteLater()
-        self.worker = self.callback = self.job_result = None
+        worker.deleteLater()
         self.changed.emit()
 
     @Slot()
@@ -840,7 +857,7 @@ class Bridge(QObject):
             self._segment_index = 0
             self.changed.emit()
             self.selectionChanged.emit()
-            self.navigate.emit("editor")
+            self.navigate.emit("result")
         except Exception as exc:
             self.inform(str(exc), True)
 
@@ -878,11 +895,14 @@ class Bridge(QObject):
         except Exception as exc:
             self.inform(str(exc), True)
 
-    def _start_powerpoint_session(self, path, source_map=None):
+    def _start_powerpoint_session(self, path, source_map=None, segment_map=None):
         initial = slide_for_locator(self.segment.get("locator", "")) or 1
         self._powerpoint_source_map = source_map or []
+        self._powerpoint_segment_map = segment_map or []
         if self._powerpoint_source_map:
             initial = self._powerpoint_source_map.index(initial) + 1
+        elif self._powerpoint_segment_map:
+            initial = self._powerpoint_segment_map.index(self.segment["id"]) + 1 if self.segment["id"] in self._powerpoint_segment_map else 1
         worker = PowerPointSession(path, initial, self)
         self.powerpoint_worker = worker
         self._powerpoint_lesson_id = self._lesson["id"]
@@ -937,11 +957,20 @@ class Bridge(QObject):
         self.powerpoint_worker = None
         self._powerpoint_lesson_id = None
         self._powerpoint_source_map = []
+        self._powerpoint_segment_map = []
         self._powerpoint_state = {"active": False, "slide": 0, "total": 0, "message": ""}
         self.changed.emit()
 
     @Slot()
     def followPowerPoint(self):
+        slide = self._powerpoint_state.get("slide", 0)
+        if self._powerpoint_segment_map and 0 < slide <= len(self._powerpoint_segment_map):
+            segment_id = self._powerpoint_segment_map[slide - 1]
+            for index, segment in enumerate(self._lesson.get("segments", [])):
+                if segment["id"] == segment_id:
+                    self.stopSpeech()
+                    self.selectSegment(index)
+                    return
         current = self._powerpoint_state.get("source_slide", self._powerpoint_state.get("slide"))
         for index, segment in enumerate(self._lesson.get("segments", [])):
             if slide_for_locator(segment.get("locator", "")) == current:
@@ -974,7 +1003,7 @@ class Bridge(QObject):
             self.changed.emit()
 
     @Slot(str, str, str, str, str, str, str, int, str, str, str, str)
-    def createLesson(self, title, subject, education, grade, text, file_url, source_language, level, layout, preset, style="", mode="level"):
+    def createLesson(self, title, subject, education, grade, text, file_url, source_language, level, layout, preset, style="", mode="level", quick=False):
         if not title.strip() or not subject.strip():
             self.inform("Nhập tên bài học và môn học.", True)
             return
@@ -1012,9 +1041,137 @@ class Bridge(QObject):
             if lesson["presentation_style"] == "source":
                 self.library.set_conversion_mode(lesson["id"], mode)
             self.openLesson(lesson["id"])
-            self.inform("Đã tạo bài học. Kiểm tra văn bản nguồn trước khi dịch và duyệt.")
+            if quick:
+                self.convertCurrentLesson()
+            else:
+                self.navigate.emit("editor")
+                self.inform("Đã tạo bài học. Kiểm tra văn bản nguồn trước khi dịch và duyệt.")
 
         self.launch(prepare, created)
+
+    @Slot(str, str, str, str, str, str, str, int, str, str, str, str)
+    def convertLesson(self, title, subject, education, grade, text, file_url, language, level, layout, preset, style, mode):
+        self.createLesson(title, subject, education, grade, text, file_url, language, level, layout, preset, style, mode, quick=True)
+
+    def _conversion_terms(self):
+        terms = self.library.glossary(self._lesson["subject"])
+        teacher_words = {term["vi"] for term in terms}
+        return terms + [term for term in self.library.knowledge_terms(self._lesson["subject"]) if term["vi"] not in teacher_words]
+
+    @Slot()
+    def convertCurrentLesson(self):
+        from .bulk_translation import plan_batch, translate_batch
+        from .quick_conversion import pair_issues
+
+        if not self._lesson or self._busy:
+            return
+        lesson = self._lesson
+        self._quick_result = {}
+        self.navigate.emit("result")
+        plans = plan_batch(self.library, lesson, limit=None)
+        terms = self._conversion_terms()
+
+        def translated(result):
+            updated = self.library.apply_batch_translations(lesson["id"], result["drafts"], lesson["revision"])
+            if self._lesson.get("id") != lesson["id"]:
+                return
+            self._lesson = updated
+            self.selectionChanged.emit()
+            missing, warnings = pair_issues(updated)
+            if missing:
+                self._quick_result = {"lesson_id": updated["id"], "revision": updated["revision"],
+                                      "missing": missing, "warnings": result["warnings"] + warnings}
+                self.inform(f"Còn {len(missing)} phần chưa đủ song ngữ. Mở Chỉnh sửa chi tiết để xử lý.", True)
+                return
+            self._build_quick_preview(terms, result["warnings"])
+
+        if plans:
+            self.launch(lambda: translate_batch(plans, terms, self.cancel_event, whole_document=True,
+                                                progress=self.conversionProgress.emit), translated)
+            self.inform("Đang chuyển đổi toàn bộ bài giảng tại máy…")
+        else:
+            translated({"drafts": [], "warnings": []})
+
+    def _build_quick_preview(self, terms, warnings):
+        from .powerpoint_review import render_slide
+        from .quick_conversion import build_preview
+
+        lesson, directory, profile = self._lesson, self.library.directory, self.settings
+
+        def build():
+            result = build_preview(lesson, directory, profile, terms)
+            result["warnings"] = warnings + result["warnings"]
+            if not self.cancel_event.is_set():
+                try:
+                    result["image"] = QUrl.fromLocalFile(render_slide(result["path"], 1, directory)).toString()
+                except Exception:
+                    result["preview_note"] = "Máy chưa xem trước được slide. Mở bản trình chiếu để kiểm tra."
+            return result
+
+        def built(result):
+            if lesson["id"] != self._lesson.get("id") or lesson["revision"] != self._lesson.get("revision"):
+                return
+            self._quick_result = result
+            self._conversion_report = result.get("report", [])
+            self.changed.emit()
+            self.inform("Đã tạo bản trình chiếu. Xem kết quả rồi bấm Dùng để dạy để xác nhận cả bài.")
+
+        self.launch(build, built)
+        self.inform("Đang tạo bản trình chiếu song ngữ…")
+
+    @Slot(int)
+    def previewConvertedSlide(self, slide):
+        from .powerpoint_review import render_slide
+        from .quick_conversion import verify_preview
+
+        if self._busy or not self.quickResult:
+            return
+        result = dict(self.quickResult)
+        if not 1 <= slide <= result.get("total", 0):
+            return
+        lesson, directory = self._lesson, self.library.directory
+
+        def render():
+            path = verify_preview(lesson, result, directory)
+            return QUrl.fromLocalFile(render_slide(path, slide, directory)).toString()
+
+        def rendered(image):
+            if result["revision"] == self._lesson.get("revision") and result["lesson_id"] == self._lesson.get("id"):
+                self._quick_result.update(image=image, slide=slide)
+                self.changed.emit()
+
+        self.launch(render, rendered)
+
+    @Slot()
+    def openConvertedDeck(self):
+        from .quick_conversion import verify_preview
+
+        try:
+            path = verify_preview(self._lesson, self.quickResult, self.library.directory)
+            if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(path))):
+                raise ValueError("Máy chưa có ứng dụng mở PowerPoint: " + str(path))
+            self.inform("Đã mở bản trình chiếu để kiểm tra. Khi đã kiểm tra, chọn Dùng để dạy.")
+        except Exception as exc:
+            self.inform(str(exc), True)
+
+    @Slot()
+    def useConvertedLesson(self):
+        from .quick_conversion import verify_preview
+
+        if self._busy or self.powerpoint_worker is not None:
+            self.inform("Đóng phiên PowerPoint hiện tại trước khi mở phiên dạy mới.", True)
+            return
+        try:
+            result = dict(self.quickResult)
+            path = verify_preview(self._lesson, result, self.library.directory)
+            self._lesson = self.library.review_lesson(self._lesson["id"], result["revision"])
+            self._quick_result.update(revision=self._lesson["revision"], draft=False)
+            self.changed.emit()
+            self.selectionChanged.emit()
+            self._start_powerpoint_session(str(path), result.get("slide_map"), result.get("segment_map"))
+            self.inform("Đã xác nhận cả bài và mở bản trình chiếu để dạy. Có thể dùng mascot khi cần.")
+        except Exception as exc:
+            self.inform(str(exc), True)
 
     @Slot(str)
     def setTeachingPreset(self, preset):
@@ -1576,7 +1733,7 @@ def run(args):
     window = engine.rootObjects()[0]
     width, height = (int(n) for n in args.size.split("x"))
     window.resize(width, height)
-    if args.page == "editor" and library.list_lessons():
+    if args.page in {"editor", "result"} and library.list_lessons():
         bridge.openLesson(library.list_lessons()[0]["id"])
     window.setProperty("page", args.page)
 

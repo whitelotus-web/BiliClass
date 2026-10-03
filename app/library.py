@@ -428,6 +428,26 @@ class Library:
         self._write(lesson)
         return lesson
 
+    def review_lesson(self, lesson_id, expected_revision):
+        """One explicit teacher review of the entire generated lesson.
+
+        This does not approve generated support, quizzes or knowledge packs.
+        Validate everything before persisting a single revision.
+        """
+        from .quick_conversion import review_snapshot
+
+        lesson = self.get(lesson_id)
+        if lesson["revision"] != expected_revision:
+            raise RevisionConflict("Bài vừa được sửa. Xem lại bản trình chiếu trước khi dùng để dạy.")
+        reviewed = review_snapshot(lesson, self.directory)
+        if any(not s.get("approved") for s in lesson["segments"]):
+            reviewed.update(revision=lesson["revision"] + 1, updated_at=now())
+        reviewed["prepared"] = {"revision": reviewed["revision"],
+                                "source_sha256": (reviewed.get("source") or {}).get("sha256", ""),
+                                "created_at": now()}
+        self._write(reviewed)
+        return reviewed
+
     def save_support(self, lesson_id, segment_id, item, item_id=""):
         from .content import validate_support
         lesson = self.get(lesson_id)

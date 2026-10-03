@@ -81,3 +81,42 @@ def translate_draft(text, source_language="vi", terms=()):
         return translate_with_resources(text, source_language, terms, tokenizer, translator)
     finally:
         translator.unload_model()
+
+
+def translate_document_text(text, source_language, terms, tokenizer, translator, cancelled=None):
+    """Translate bounded spans without changing native shape/segment boundaries.
+
+    Keep paragraph and table-cell separators and protected formula spans intact.
+    A long indivisible word/formula fails explicitly instead of being truncated.
+    """
+    import re
+
+    result = []
+    for part in re.split(r"(\n|\v|\s*\|\s*)", text):
+        if not part or not part.strip() or "|" in part or "\n" in part or "\v" in part:
+            result.append(part)
+            continue
+        atoms = []
+        for chunk in protected_parts(part, terms, source_language):
+            atoms.extend([chunk.get("original", chunk["text"])] if chunk["protected"]
+                         else re.findall(r"\s+|\S+", chunk["text"]))
+        spans, pending = [], ""
+        for atom in atoms:
+            candidate = pending + atom
+            if len(candidate) > 2000 or len(tokenizer.encode(candidate, out_type=str)) > 350:
+                if not pending.strip():
+                    raise ValueError("Một biểu thức hoặc từ quá dài; cần kiểm tra phần này.")
+                spans.append(pending)
+                pending = atom
+                if len(atom) > 2000 or len(tokenizer.encode(atom, out_type=str)) > 350:
+                    raise ValueError("Một biểu thức hoặc từ quá dài; cần kiểm tra phần này.")
+            else:
+                pending = candidate
+        if pending:
+            spans.append(pending)
+        for span in spans:
+            if cancelled and cancelled.is_set():
+                raise ValueError("Đã dừng chuyển đổi.")
+            result.append(translate_with_resources(span, source_language, terms, tokenizer, translator)
+                          if span.strip() else span)
+    return "".join(result)

@@ -7,7 +7,7 @@ from .lesson_templates import slide_pages, source_image
 from .powerpoint import slide_for_locator
 
 
-def export_deck(lesson, directory, destination, profile=None, terms=()):
+def export_deck(lesson, directory, destination, profile=None, terms=(), segment_map=None):
     from pptx import Presentation
     from pptx.dml.color import RGBColor
     from pptx.enum.shapes import MSO_SHAPE_TYPE
@@ -54,6 +54,9 @@ def export_deck(lesson, directory, destination, profile=None, terms=()):
         if not images:
             return
         visual = presentation.slides.add_slide(presentation.slide_layouts[6])
+        if segment_map is not None:
+            matching = next((s["id"] for s in lesson["segments"] if slide_for_locator(s.get("locator", "")) == source_slide), "")
+            segment_map.append(matching)
         visual.background.fill.solid()
         visual.background.fill.fore_color.rgb = RGBColor.from_string("F3F7FC")
         textbox(visual, lesson["title"][:100], .6, .35, 12, .65, 24, "112650", True)
@@ -83,6 +86,8 @@ def export_deck(lesson, directory, destination, profile=None, terms=()):
         plans = slide_pages(lesson, segment, terms=terms, image=str(image_path) if image_path else "", profile=profile)
         for plan in plans:
             slide = presentation.slides.add_slide(presentation.slide_layouts[6])
+            if segment_map is not None:
+                segment_map.append(segment["id"])
             slide.background.fill.solid()
             slide.background.fill.fore_color.rgb = RGBColor.from_string(plan["background"].lstrip("#"))
             from pptx.enum.text import PP_ALIGN
@@ -118,7 +123,7 @@ def export_deck(lesson, directory, destination, profile=None, terms=()):
                     ratio = logo.width / logo.height
                 width, height = (.35, .35 / ratio) if ratio >= 1 else (.35 * ratio, .35)
                 slide.shapes.add_picture(str(logo_path), Inches(12.55), Inches(.2), width=Inches(width), height=Inches(height))
-            slide.notes_slide.notes_text_frame.text = ("BiliClass: nội dung đã duyệt. Đoạn: " + segment["id"] + "\n" + segment["locator"]
+            slide.notes_slide.notes_text_frame.text = ("BiliClass: bản trình chiếu song ngữ. Đoạn: " + segment["id"] + "\n" + segment["locator"]
                                                       + "\nMẫu: " + preset + " / " + plan["kind"])
     if source_deck:
         while next_source_slide <= len(source_deck.slides):
