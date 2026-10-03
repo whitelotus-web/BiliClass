@@ -2,6 +2,8 @@
 
 Ngày 03/10/2026. Phạm vi: mã nguồn; chưa phát hành bản cài mới thay RC12.
 
+Tài liệu này mô tả lựa chọn **BiliClass ngoại tuyến**. Luồng mặc định dùng tài khoản ChatGPT trong browser được mô tả tại [CHATGPT_BROWSER.md](CHATGPT_BROWSER.md).
+
 `Bridge.convertLesson` nối ba bước: nhập/đánh giá → bổ sung bản dịch → xuất/xem trước. SQLite chỉ được sử dụng ở luồng UI; công việc đọc tài liệu, dịch, xuất và Office render chạy ở worker. `finishJob` giải phóng tham chiếu của bước cũ trước callback để callback có thể khởi động worker tiếp theo. Hủy tác vụ không áp dụng kết quả chưa hoàn tất; đã lưu nháp từ bước trước vẫn còn.
 
 `plan_batch(limit=None)` chọn toàn bộ phần trống. `translate_batch(whole_document=True)` dùng model một lần cho mỗi hướng, bảo toàn dấu phân bảng/đoạn và chia chuỗi trong giới hạn 2.000 ký tự/350 token. Không đổi ID hoặc vùng nguồn, không ghi đè phần song ngữ đã có. Các trường hợp quá dài không thể chia, bộ nhớ xung đột và thiếu model được báo thay vì tự lấy bản khác.

@@ -67,5 +67,11 @@ def verify_preview(lesson, result, directory):
     path = Path(result.get("path", ""))
     if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != result.get("sha256"):
         raise ValueError("Bản trình chiếu đã thay đổi. Bấm Chuyển đổi để tạo lại.")
-    review_snapshot(lesson, directory)
+    if result.get("external"):
+        from .chatgpt_handoff import external_preview
+
+        if not lesson.get("external_deck") or external_preview(lesson, directory)["sha256"] != result["sha256"]:
+            raise ValueError("PowerPoint nhận về không khớp bài học.")
+    else:
+        review_snapshot(lesson, directory)
     return path

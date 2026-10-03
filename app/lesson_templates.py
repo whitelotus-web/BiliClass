@@ -72,7 +72,7 @@ def slide_plan(lesson, segment, *, terms=(), rescue=False, image="", sample=Fals
     composition = block["composition"]
     if composition == "hero":
         x, y, width, height = 96, 228, 1088, 402
-    if composition == "visual" and (image or sample):
+    if composition == "visual" and (image or sample) or sample and image:
         width = 548
         result["image_box"] = {"x": 696, "y": 214, "width": 520, "height": 410}
         if sample and not image:
@@ -81,6 +81,8 @@ def slide_plan(lesson, segment, *, terms=(), rescue=False, image="", sample=Fals
     size = block["font_size"]
     if preset_id == "practice" and composition == "prompt":
         size = 42
+    if sample and image:
+        size = min(size, 28)
     if content["show_vi"] and content["show_en"]:
         if layout == "split_view":
             gap = 36
@@ -184,7 +186,11 @@ def source_image(lesson, directory, segment):
 
 def example_plan(preset, kind, level=2, layout="line_pair"):
     block = block_type(kind)
-    return slide_plan({"title": "Mẫu bài giảng song ngữ", "subject": "Môn học của thầy cô", "grade": "10–12",
+    demos = json.loads((Path(__file__).parent / "assets/templates/demo_lessons.json").read_text(encoding="utf-8"))
+    demo = demos[preset]
+    vi, en = demo["pairs"][block["id"]]
+    return slide_plan({"title": demo["title"], "subject": demo["subject"], "grade": demo["grade"],
                        "teaching_preset": preset, "level": level, "layout": layout},
-                      {"kind": kind, "vi": block["vi"], "en": block["sample_en"],
-                       "locator": "Mẫu cấu trúc · Thay bằng nội dung bài học"}, sample=True)
+                      {"kind": kind, "vi": vi, "en": en,
+                       "locator": "Ví dụ để xem thiết kế · Bài của thầy cô dùng nội dung và hình từ nguồn"},
+                      image=(Path(__file__).parent / "assets/templates" / demo["image"]).resolve().as_uri(), sample=True)

@@ -1,0 +1,62 @@
+{
+ "standard": {
+  "title": "Diện tích hình chữ nhật", "subject": "Toán · ví dụ minh họa", "grade": "",
+  "image": "demo-area.svg",
+  "pairs": {
+   "title": ["Diện tích hình chữ nhật", "Area of a rectangle"],
+   "goal": ["Tính diện tích từ hai kích thước.", "Calculate the area from two dimensions."],
+   "warmup": ["Có bao nhiêu ô vuông trong hình?", "How many squares can you see?"],
+   "vocabulary": ["Chiều dài · Chiều rộng\nDiện tích", "Length · Width\nArea"],
+   "concept": ["Diện tích là phần mặt phẳng được phủ.", "Area measures the covered surface."],
+   "explanation": ["4 cột, mỗi cột có 3 ô vuông.", "There are 4 columns of 3 squares."],
+   "visual": ["Quan sát hình 4 cm × 3 cm.", "Observe the 4 cm × 3 cm rectangle."],
+   "compare": ["Chu vi đo đường bao; diện tích đo bề mặt.", "Perimeter measures the boundary; area measures the surface."],
+   "formula": ["S = a × b\na, b cùng đơn vị đo.", "A = length × width\nUse the same length unit."],
+   "example": ["S = 4 × 3 = 12 cm²", "Area = 4 × 3 = 12 cm²"],
+   "practice": ["Tính diện tích hình 6 cm × 2 cm.", "Find the area of a 6 cm × 2 cm rectangle."],
+   "question": ["Vì sao đơn vị diện tích là cm²?", "Why is area measured in cm²?"],
+   "check": ["Nêu hai kích thước cần biết.", "Name the two dimensions you need."],
+   "summary": ["Diện tích = chiều dài × chiều rộng.", "Area = length × width."]
+  }
+ },
+ "visual": {
+  "title": "Vòng tuần hoàn của nước", "subject": "Khoa học · ví dụ minh họa", "grade": "",
+  "image": "demo-water.svg",
+  "pairs": {
+   "title": ["Nước chuyển động quanh ta", "Water moves around us"],
+   "goal": ["Nhận biết các bước trong sơ đồ.", "Identify the stages in the diagram."],
+   "warmup": ["Sau cơn mưa, nước đi đâu?", "Where does water go after rain?"],
+   "vocabulary": ["Bay hơi · Ngưng tụ\nMưa", "Evaporation · Condensation\nRain"],
+   "concept": ["Nước tuần hoàn trong tự nhiên.", "Water cycles through nature."],
+   "explanation": ["Hơi nước ngưng tụ thành giọt nước.", "Water vapour condenses into droplets."],
+   "visual": ["Theo dõi các mũi tên trong hình.", "Follow the arrows in the diagram."],
+   "compare": ["Bay hơi và ngưng tụ đổi trạng thái nước.", "Evaporation and condensation change the state of water."],
+   "formula": ["Lỏng → khí: bay hơi", "Liquid → gas: evaporation"],
+   "example": ["Vũng nước nhỏ dần khi nước bay hơi.", "A puddle shrinks as water evaporates."],
+   "practice": ["Gọi tên từng bước trong hình.", "Name each stage in the diagram."],
+   "question": ["Mặt trời góp phần như thế nào?", "How does the Sun help?"],
+   "check": ["Hơi nước thành giọt: bước nào?", "Which stage turns vapour into droplets?"],
+   "summary": ["Bay hơi → ngưng tụ → mưa.", "Evaporation → condensation → rain."]
+  }
+ },
+ "practice": {
+  "title": "Cấp số cộng", "subject": "Toán · ví dụ minh họa", "grade": "11",
+  "image": "demo-sequence.svg",
+  "pairs": {
+   "title": ["Tìm quy luật của dãy số", "Find the sequence pattern"],
+   "goal": ["Xác định công sai của cấp số cộng.", "Find the common difference."],
+   "warmup": ["2, 5, 8, 11… Số tiếp theo là gì?", "2, 5, 8, 11… What comes next?"],
+   "vocabulary": ["Số hạng · Công sai", "Term · Common difference"],
+   "concept": ["Hai số hạng liên tiếp hơn kém nhau d.", "Consecutive terms differ by d."],
+   "explanation": ["Mỗi bước trong hình cộng thêm 3.", "Each step in the diagram adds 3."],
+   "visual": ["Theo dõi bước nhảy +3.", "Follow the +3 jumps."],
+   "compare": ["2, 5, 8 và 2, 4, 8: khác quy luật.", "2, 5, 8 and 2, 4, 8 use different patterns."],
+   "formula": ["uₙ = u₁ + (n − 1)d", "uₙ = u₁ + (n − 1)d"],
+   "example": ["u₁ = 2, d = 3\nu₄ = 2 + 3 × 3 = 11", "u₁ = 2, d = 3\nu₄ = 2 + 3 × 3 = 11"],
+   "practice": ["u₁ = 2, d = 3. Tìm u₅.", "u₁ = 2, d = 3. Find u₅."],
+   "question": ["Giải thích vì sao công sai bằng 3.", "Explain why the common difference is 3."],
+   "check": ["Dãy 3, 7, 11 có công sai là gì?", "Find d for the sequence 3, 7, 11."],
+   "summary": ["Mỗi bước cộng cùng một số d.", "Add the same number d at each step."]
+  }
+ }
+}

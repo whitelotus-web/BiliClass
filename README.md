@@ -2,7 +2,7 @@
 
 Kho kiến thức có nguồn và bộ nhớ giáo viên đang được bổ sung trong bản mã nguồn: xem [cách vận hành](docs/KNOWLEDGE.md). Bản RC12 đóng gói chưa có tính năng này.
 
-Bản mã nguồn ngày 03/10/2026 có luồng **chọn tài liệu → chọn L0–L4 → Chuyển đổi → xem bản trình chiếu → Dùng để dạy**. Một nút tự đánh giá đầu vào, giữ cặp Việt–Anh có sẵn, dịch phần thiếu và tạo PowerPoint giữ thiết kế gốc hoặc dùng mẫu BiliClass. Thầy cô xác nhận đã kiểm tra cả bài một lần; sửa từng đoạn, bố cục, trợ giảng và quiz nằm trong **Chỉnh sửa chi tiết**. Xem [quy trình nhập bài](docs/INPUT_WORKFLOW.md) và [PowerPoint](docs/SOURCE_POWERPOINT.md). Các thay đổi này chưa có trong release rc12.
+Bản mã nguồn ngày 03/10/2026 có luồng **nhập tài liệu → chọn L0–L4 + bố cục Việt–Anh → giữ PowerPoint gốc / mẫu BiliClass → chuyển đổi → xem trình chiếu → dùng để dạy**. Mặc định dùng **ChatGPT trong browser của giáo viên**, không dùng API: app chuẩn bị prompt + tài liệu, giáo viên gửi và tải `.pptx` về rồi nhận vào BiliClass. BiliClass giữ nguyên PowerPoint kết quả; mascot đọc cặp nhận diện được từ chữ/ghi chú. Có thể chọn **BiliClass ngoại tuyến** để dùng model trên máy. Mẫu có slide minh họa lớn và hình nhỏ để chọn. Xem [ChatGPT trong browser](docs/CHATGPT_BROWSER.md) và [quy trình nhập bài](docs/INPUT_WORKFLOW.md). Các thay đổi này chưa có trong release rc12.
 
 Ứng dụng Windows chuẩn bị và dạy **song ngữ Anh–Việt đa môn THPT**. Bản thử hiện tại: **1.0 RC12**, cập nhật 02/10/2026.
 

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="520" height="410" viewBox="0 0 520 410">
+ <rect x="1" y="1" width="518" height="408" rx="28" fill="#FFF0DC"/>
+ <text x="36" y="49" font-family="Arial" font-size="18" fill="#B85B14">NHẬN RA QUY LUẬT / FIND THE PATTERN</text>
+ <g fill="#FFFFFF" stroke="#EBC398" stroke-width="2"><rect x="28" y="151" width="98" height="90" rx="16"/><rect x="149" y="151" width="98" height="90" rx="16"/><rect x="270" y="151" width="98" height="90" rx="16"/><rect x="391" y="151" width="98" height="90" rx="16"/></g>
+ <g fill="#422D1A" font-family="Arial" font-size="42" font-weight="bold" text-anchor="middle"><text x="77" y="208">2</text><text x="198" y="208">5</text><text x="319" y="208">8</text><text x="440" y="208">11</text></g>
+ <g fill="none" stroke="#B85B14" stroke-width="3"><path d="M77 139Q138 72 198 139M198 139Q259 72 319 139M319 139Q380 72 440 139"/><path d="M187 130L198 139L198 124M308 130L319 139L319 124M429 130L440 139L440 124"/></g>
+ <g fill="#B85B14" font-family="Arial" font-size="22" font-weight="bold" text-anchor="middle"><text x="138" y="91">+3</text><text x="259" y="91">+3</text><text x="380" y="91">+3</text></g>
+ <text x="260" y="299" text-anchor="middle" font-family="Arial" font-size="26" fill="#422D1A">Công sai / Common difference</text>
+ <text x="260" y="350" text-anchor="middle" font-family="Arial" font-size="36" font-weight="bold" fill="#B85B14">d = 3</text>
+</svg>

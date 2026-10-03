@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="520" height="410" viewBox="0 0 520 410">
+ <rect x="1" y="1" width="518" height="408" rx="28" fill="#E3F3EE"/>
+ <circle cx="84" cy="87" r="30" fill="#F7C95D"/>
+ <path d="M84 43V31M84 131V143M40 87H28M128 87H140M52 55L42 45M116 119L126 129" stroke="#E5B343" stroke-width="4" stroke-linecap="round"/>
+ <path d="M270 91C252 57 305 36 326 61C350 23 403 47 400 83C438 82 448 122 416 137H289C259 137 247 105 270 91" fill="#FFFFFF" stroke="#76B9A8" stroke-width="3"/>
+ <path d="M34 309Q110 285 185 309T339 309T489 309V365H34Z" fill="#77C8CE"/>
+ <path d="M149 272Q160 190 238 143" fill="none" stroke="#087F70" stroke-width="6"/>
+ <path d="M212 146L238 143L230 169" fill="none" stroke="#087F70" stroke-width="6" stroke-linecap="round"/>
+ <path d="M377 163L377 265M362 246L377 265L392 246" fill="none" stroke="#087F70" stroke-width="6" stroke-linecap="round"/>
+ <path d="M331 173L319 205M421 176L409 208M342 224L332 251M428 229L419 256" stroke="#5BAFC3" stroke-width="6" stroke-linecap="round"/>
+ <text x="44" y="220" font-family="Arial" font-size="19" fill="#123C37">Bay hơi</text><text x="44" y="244" font-family="Arial" font-size="16" fill="#087F70">Evaporation</text>
+ <text x="333" y="113" text-anchor="middle" font-family="Arial" font-size="18" fill="#123C37">Ngưng tụ</text>
+ <text x="402" y="292" font-family="Arial" font-size="19" fill="#123C37">Mưa / Rain</text>
+ <text x="260" y="392" text-anchor="middle" font-family="Arial" font-size="17" fill="#087F70">VÒNG TUẦN HOÀN / WATER CYCLE</text>
+</svg>

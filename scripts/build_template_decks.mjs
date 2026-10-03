@@ -2,7 +2,7 @@
 // ARTIFACT_TOOL_NODE_MODULES points to a supplied @oai/artifact-tool runtime.
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { pathToFileURL, fileURLToPath } from 'node:url';
 
 const moduleRoot = process.env.ARTIFACT_TOOL_NODE_MODULES;
 if (!moduleRoot) throw new Error('Set ARTIFACT_TOOL_NODE_MODULES to the supplied Node.js packages.');
@@ -25,7 +25,15 @@ for (const [preset, pages] of Object.entries(plans)) {
       box.text.style = { typeface: page.font, fontSize: item.size, color: item.color,
         bold: item.bold, italic: item.italic, alignment: item.align, autoFit: 'none' };
     }
-    slide.speakerNotes.textFrame.setText(`Mẫu ${preset}: ${page.kind}. Thay các phần trong ngoặc bằng nội dung đã kiểm tra. Đây là mẫu cấu trúc, không phải bài học đã duyệt.`);
+    if (page.image) {
+      const imagePath = fileURLToPath(page.image);
+      const image = await fs.readFile(imagePath);
+      const region = page.image_box;
+      slide.images.add({ blob: image, contentType: imagePath.endsWith('.svg') ? 'image/svg+xml' : 'image/png',
+        alt: 'Hình minh họa mẫu BiliClass', fit: 'contain',
+        position: { left: region.x, top: region.y, width: region.width, height: region.height } });
+    }
+    slide.speakerNotes.textFrame.setText(`Mẫu ${preset}: ${page.kind}. Ví dụ minh họa thiết kế từ app/assets/templates/demo_lessons.json. Khi tạo bài, thay bằng nội dung và hình của tài liệu giáo viên; không sao chép kiến thức của bài minh họa sang môn khác.`);
   }
   await (await PresentationFile.exportPptx(presentation)).save(path.join(destination, `${preset}-candidate.pptx`));
   console.log(`Created ${preset}: ${pages.length} editable slides`);

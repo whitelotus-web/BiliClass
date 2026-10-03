@@ -51,7 +51,12 @@ def test_samples_have_14_blocks_and_no_overflow():
     for preset in catalog()["presets"]:
         assert len(catalog()["blocks"]) == 14
         for block in catalog()["blocks"]:
-            assert not example_plan(preset["id"], block["id"])["overflow"], (preset["id"], block["id"])
+            for layout in ("keyword_overlay", "line_pair", "split_view", "english_rescue", "level_auto"):
+                for level in range(5):
+                    plan = example_plan(preset["id"], block["id"], level, layout)
+                    assert not plan["overflow"], (preset["id"], block["id"], level, layout)
+                    assert plan["image"] and plan["image_box"]
+                    assert not any("[" in item["text"] for item in plan["elements"])
 
 
 def test_pack_keeps_template_and_slide_type_but_requires_review(tmp_path):

@@ -448,6 +448,44 @@ class Library:
         self._write(reviewed)
         return reviewed
 
+    def create_external_lesson(self, config, source, inspection):
+        from .chatgpt_handoff import text_signature, validate_config
+
+        config = validate_config(config)
+        lesson = self.create(config["title"], config["subject"], config.get("education_level", ""),
+                             config.get("grade", ""), inspection["blocks"], source,
+                             analysis=inspection["profile"])
+        lesson.update(level=config["level"], layout=config["layout"], teaching_preset=config["preset"],
+                      presentation_style="source", conversion_mode="preserve")
+        lesson["external_deck"] = {
+            "provider": "chatgpt_browser", "request_id": config.get("request_id", ""),
+            "requested_style": config["style"], "original_source_sha256": config.get("source_sha256", ""),
+            "sha256": source["sha256"], "total": inspection["total"],
+            "text_signature": text_signature(lesson), "reviewed_revision": 0,
+        }
+        self._write(lesson)
+        return lesson
+
+    def review_external_deck(self, lesson_id, expected_revision):
+        """Confirm the visible deck; approve only extracted complete text pairs."""
+        from .chatgpt_handoff import external_preview
+
+        lesson = self.get(lesson_id)
+        if lesson["revision"] != expected_revision:
+            raise RevisionConflict("Bài vừa được sửa. Xem lại PowerPoint trước khi dùng để dạy.")
+        external_preview(lesson, self.directory)
+        for segment in lesson["segments"]:
+            if segment["vi"].strip() and segment["en"].strip():
+                segment["approved"] = True
+        lesson.update(revision=lesson["revision"] + 1, updated_at=now())
+        lesson["external_deck"].update(reviewed_revision=lesson["revision"], reviewed_at=now())
+        # Readiness for quiz/classroom text remains separate from deck approval.
+        if all(s["approved"] for s in lesson["segments"]):
+            lesson["prepared"] = {"revision": lesson["revision"], "source_sha256": lesson["source"]["sha256"],
+                                  "created_at": now()}
+        self._write(lesson)
+        return lesson
+
     def save_support(self, lesson_id, segment_id, item, item_id=""):
         from .content import validate_support
         lesson = self.get(lesson_id)

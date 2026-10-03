@@ -118,6 +118,16 @@ class Bridge(QObject):
         self._conversion_report = []
         self._comparison = {}
         self._quick_result = {}
+        self._chatgpt_request = {}
+        saved_request = self.library.setting("chatgpt_request_folder", "")
+        if saved_request:
+            try:
+                from .chatgpt_handoff import load_request
+
+                if Path(saved_request).resolve().parent == (self.library.directory / "chatgpt").resolve():
+                    self._chatgpt_request = load_request(saved_request)
+            except Exception:
+                self.logger.info("Previous ChatGPT handoff is no longer available.")
         self.conversionProgress.connect(self._conversion_progress)
         self.powerpoint_worker = None
         self._powerpoint_lesson_id = None
@@ -161,6 +171,70 @@ class Bridge(QObject):
         if self._quick_result.get("lesson_id") != self._lesson.get("id") or self._quick_result.get("revision") != self._lesson.get("revision"):
             return {}
         return self._quick_result
+
+    @Property("QVariantMap", notify=changed)
+    def chatgptRequest(self):
+        return self._chatgpt_request
+
+    @Slot(str, str, str, str, str, str, int, str, str, str, str)
+    def prepareChatGPT(self, title, subject, education, grade, text, file_url, level, layout, preset, style, mode):
+        from .chatgpt_handoff import prepare_request
+
+        if self._busy:
+            return
+        path = Path(QUrl(file_url).toLocalFile()) if file_url else None
+        config = {"title": title, "subject": subject, "education_level": education, "grade": grade,
+                  "level": level, "layout": layout, "preset": preset, "style": style, "mode": mode}
+
+        def prepared(result):
+            self._chatgpt_request = result
+            self.library.set_setting("chatgpt_request_folder", result["folder"])
+            self.changed.emit()
+            self.navigate.emit("chatgpt")
+            self.openChatGPT()
+
+        self.launch(lambda: prepare_request(self.library.directory, config, path, text), prepared)
+
+    @Slot()
+    def openChatGPT(self):
+        if not QDesktopServices.openUrl(QUrl("https://chatgpt.com/")):
+            self.inform("Chưa mở được browser. Mở https://chatgpt.com rồi sao chép prompt và đính kèm tài liệu.", True)
+        else:
+            self.inform("Đã mở ChatGPT trong browser. Sao chép prompt, đính kèm tài liệu và bấm Gửi tại ChatGPT.")
+
+    @Slot()
+    def copyChatGPTPrompt(self):
+        if self._chatgpt_request:
+            QGuiApplication.clipboard().setText(self._chatgpt_request["prompt"])
+            self.inform("Đã sao chép prompt. Dán vào ChatGPT và đính kèm tài liệu trong thư mục gói.")
+
+    @Slot()
+    def openChatGPTFolder(self):
+        if self._chatgpt_request:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(self._chatgpt_request["folder"]))
+
+    @Slot(str)
+    def receiveChatGPTDeck(self, file_url):
+        from .chatgpt_handoff import inspect_returned_deck, load_request
+
+        if self._busy or not self._chatgpt_request:
+            return
+        request = self._chatgpt_request
+        path = Path(QUrl(file_url).toLocalFile())
+
+        def inspect():
+            config = load_request(request["folder"])["config"]
+            source = self.library.store_source(path)  # File I/O; no SQLite in worker.
+            stored = self.library.directory / "sources" / source["file"]
+            return config, source, inspect_returned_deck(stored)
+
+        def received(result):
+            config, source, inspection = result
+            lesson = self.library.create_external_lesson(config, source, inspection)
+            self.openLesson(lesson["id"])
+            self.inform("Đã nhận PowerPoint từ ChatGPT, giữ nguyên file. Xem bài rồi xác nhận để dạy.")
+
+        self.launch(inspect, received)
 
     @Slot(int, int)
     def _conversion_progress(self, current, total):
@@ -854,10 +928,20 @@ class Bridge(QObject):
             if self._powerpoint_lesson_id and self._powerpoint_lesson_id != lesson_id:
                 self.stopPowerPoint()
             self._lesson = self.library.get(lesson_id)
+            if self._lesson.get("external_deck"):
+                from .chatgpt_handoff import external_preview
+
+                result = external_preview(self._lesson, self.library.directory)
+                if (self._quick_result.get("lesson_id") == result["lesson_id"]
+                        and self._quick_result.get("revision") == result["revision"]):
+                    result.update(image=self._quick_result.get("image", ""), slide=self._quick_result.get("slide", 1))
+                self._quick_result = result
             self._segment_index = 0
             self.changed.emit()
             self.selectionChanged.emit()
             self.navigate.emit("result")
+            if self._lesson.get("external_deck") and not self.quickResult.get("image"):
+                self.previewConvertedSlide(1)
         except Exception as exc:
             self.inform(str(exc), True)
 
@@ -865,6 +949,10 @@ class Bridge(QObject):
     def selectLessonForClass(self, lesson_id):
         try:
             self._lesson = self.library.get(lesson_id)
+            if self._lesson.get("external_deck"):
+                from .chatgpt_handoff import external_preview
+
+                self._quick_result = external_preview(self._lesson, self.library.directory)
             self._segment_index = 0
             self.refreshReadiness()
             self.changed.emit()
@@ -1065,6 +1153,10 @@ class Bridge(QObject):
 
         if not self._lesson or self._busy:
             return
+        if self._lesson.get("external_deck"):
+            self.inform("Bài này dùng PowerPoint đã nhận từ ChatGPT. Tạo gói mới và nhận file mới để chuyển đổi lại.")
+            self.navigate.emit("new")
+            return
         lesson = self._lesson
         self._quick_result = {}
         self.navigate.emit("result")
@@ -1164,7 +1256,10 @@ class Bridge(QObject):
         try:
             result = dict(self.quickResult)
             path = verify_preview(self._lesson, result, self.library.directory)
-            self._lesson = self.library.review_lesson(self._lesson["id"], result["revision"])
+            if result.get("external"):
+                self._lesson = self.library.review_external_deck(self._lesson["id"], result["revision"])
+            else:
+                self._lesson = self.library.review_lesson(self._lesson["id"], result["revision"])
             self._quick_result.update(revision=self._lesson["revision"], draft=False)
             self.changed.emit()
             self.selectionChanged.emit()

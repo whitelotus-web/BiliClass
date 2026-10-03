@@ -58,6 +58,7 @@ window.setProperty('selectedFileName', source.name)
 window.setProperty('selectedFile', QUrl.fromLocalFile(str(source.resolve())).toString())
 window.findChild(QObject, 'lessonTitle').setProperty('text', 'Bài giảng chuyển đổi một lần')
 window.findChild(QObject, 'lessonSubject').setProperty('text', 'Toán')
+window.findChild(QObject, 'conversionProvider').setProperty('currentIndex', 1)
 bridge.conversionProgress.connect(lambda current, total: progress.append([current, total]))
 deadline = time.monotonic() + 240
 

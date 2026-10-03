@@ -177,6 +177,17 @@ def import_pack(library, path):
     from .library import now
 
     lesson.update(id=str(uuid4()), revision=1, updated_at=now())
+    if lesson.get("external_deck"):
+        from .chatgpt_handoff import text_signature
+
+        external = lesson["external_deck"]
+        if (not isinstance(external, dict) or not source or not source["file"].endswith(".pptx")
+                or external.get("sha256") != source["sha256"]
+                or type(external.get("total")) is not int or not 1 <= external["total"] <= 1000
+                or external.get("text_signature") != text_signature(lesson)):
+            raise ValueError("PowerPoint từ ChatGPT trong gói không hợp lệ.")
+        external["reviewed_revision"] = 0
+        external.pop("reviewed_at", None)
     lesson["level"] = (
         lesson.get("level", 2) if type(lesson.get("level")) is int and 0 <= lesson["level"] <= 5 else 2
     )
