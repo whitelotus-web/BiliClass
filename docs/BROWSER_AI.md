@@ -1,5 +1,7 @@
 # Browser AI · ChatGPT
 
+Kế hoạch thay kết nối web bằng Sign in with ChatGPT và chuyển đổi bằng JSON tại máy: [Kế hoạch nâng cấp](CHATGPT_PLAN_UPGRADE.md). Đây là hướng đã thống nhất về phương thức kết nối, **chưa được triển khai**; hướng dẫn dưới đây mô tả bản hiện tại.
+
 Mã nguồn ngày 03/10/2026, chưa có trong gói RC12. Tự động hóa giao diện web là tính năng thử nghiệm, không phải kết nối API. Truy cập thực tế bằng Edge trên máy này trả HTTP 403 và trang xác minh; chưa kiểm chứng chuyển đổi trọn gói bằng tài khoản đã đăng nhập. Kiểm thử browser dùng trang mô phỏng và tệp bài giả lập, không tải bài thật lên ChatGPT.
 
 ## Thiết lập một lần
