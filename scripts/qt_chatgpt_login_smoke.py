@@ -58,9 +58,9 @@ QQuickStyle.setStyle('Basic')
 library = Library(workspace / 'library')
 bridge = Bridge(library)
 bridge.browserAI.store.save_registration('oaiapp_fixture')
-bridge.browserAI.store.data['last_error'] = {'code': '3p_login_workspace_scope_denied', 'message': WORKSPACE_DENIED_MESSAGE}
+bridge.browserAI.store.data['last_error'] = {'code': 'browser_closed', 'message': 'Cửa sổ đã đóng trước khi kết nối xong.'}
 bridge.browserAI.store.save()
-bridge.browserAI.inform(WORKSPACE_DENIED_MESSAGE)
+bridge.browserAI.inform(bridge.browserAI.store.data['last_error']['message'])
 engine = QQmlApplicationEngine()
 engine.warnings.connect(lambda values: warnings.extend(map(str, values)))
 engine.rootContext().setContextProperty('bridge', bridge)
@@ -104,7 +104,7 @@ def step():
             bridge.browserAI.store.reload()
             assert bridge.browserAI.store.data['last_error']['code'] == '3p_login_workspace_scope_denied'
             capture('login-denied.png')
-            stages.append('Workspace rejection shows failure, no identity; the single login action starts fresh')
+            stages.append('Closed browser and workspace rejection start fresh; failure shows no saved identity')
             click_login()
             phase = 'exchange_failed'
         elif phase == 'exchange_failed' and not bridge.browserAI.loginBusy:

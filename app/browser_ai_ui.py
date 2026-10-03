@@ -162,13 +162,10 @@ class BrowserAI(QObject):
         if self.job:
             self.stopLogin()
             return
-        # One visible action handles saved sign-in or an interrupted exchange.
-        # A workspace/client rejection must never reuse that pending client.
+        # Only invalid_grant proves this attempt reached the issued-client
+        # exchange. A closed browser may leave an unrelated older pending ID.
         code = self.store.data.get("last_error", {}).get("code", "")
-        resume = self.canResume and code not in {
-            "3p_login_workspace_scope_denied", "invalid_client", "access_denied",
-            "subscription_sharing_user_not_eligible",
-        }
+        resume = self.canResume and code == "invalid_grant"
         self._open(self.activeId, resume_pending=resume and not self.activeId)
 
     @Slot()
