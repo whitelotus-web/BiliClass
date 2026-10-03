@@ -159,6 +159,62 @@ def test_new_connection_never_reuses_a_pending_workspace_registration(service):
     assert json.loads(archives[0].read_text())["client_id"] == "oaiapp_other_workspace"
 
 
+@pytest.mark.parametrize("kind,final_error,expected_attempts", [
+    ("pending", "", 2),
+    ("pending", "3p_login_workspace_scope_denied", 2),
+    ("pending", "access_denied", 1),
+    ("new", "3p_login_workspace_scope_denied", 1),
+    ("saved", "3p_login_workspace_scope_denied", 1),
+])
+def test_workspace_denial_recovers_only_unverified_pending_registration(service, kind, final_error, expected_attempts):
+    auth, accounts, signed, exchange, requests = service
+    accounts.save_registration("oaiapp_other_workspace")
+    account_id = ""
+    if kind == "saved":
+        token = signed()
+        account_id = accounts.connect(auth.verify_identity(token, "oaiapp_test"),
+            {"scope": PLAN_SCOPE, "id_token": token}, "oaiapp_test")["id"]
+    host_id, before = accounts.host_id, dict(accounts.data)
+    attempts, threads = [], []
+
+    def opener(url):
+        values = parse_qs(urlsplit(url).query)
+        attempts.append(values)
+        exchange["nonce"] = values["nonce"][0]
+        error = ("3p_login_workspace_scope_denied" if kind == "pending" and len(attempts) == 1
+                 and final_error != "access_denied" else final_error)
+        result = {"state": values["state"][0]}
+        result.update({"error": error} if error else {"code": "new-code", "client_id": "oaiapp_test"})
+        callback = values["redirect_uri"][0] + "?" + urlencode(result)
+        thread = threading.Thread(target=lambda: httpx.get(callback))
+        thread.start()
+        threads.append(thread)
+        return True
+
+    if final_error:
+        with pytest.raises(PlanError) as caught:
+            auth.authorize(account_id, opener=opener, timeout=5, resume_pending=kind == "pending")
+        assert caught.value.code == final_error
+        assert accounts.data == before
+        assert not any(r.url.path == "/token" for r in requests)
+    else:
+        assert auth.authorize(opener=opener, timeout=5, resume_pending=True)["ready"]
+    for thread in threads:
+        thread.join(5)
+    assert len(attempts) == expected_attempts
+    assert accounts.host_id == host_id
+    if expected_attempts == 2:
+        assert attempts[0]["client_id"] == ["oaiapp_other_workspace"]
+        assert attempts[1]["client_id"] == ["dynamic_agent_client"]
+        assert attempts[1]["agent_name_hint"] == ["BiliClass"]
+        assert attempts[0]["ext_agent_host_id"] == attempts[1]["ext_agent_host_id"] == [host_id]
+        assert all(attempts[0][k] != attempts[1][k] for k in ("state", "nonce", "code_challenge"))
+        record = json.loads((accounts.root / "login-diagnostics.json").read_text(encoding="utf-8"))
+        stages = [e["stage"] for e in record["events"]]
+        assert stages.count("registration_restarted") == 1
+        assert "registration_pending" in stages and "registration_new" in stages
+
+
 @pytest.mark.parametrize("error", ["invalid_client", "access_denied", "subscription_sharing_user_not_eligible", "3p_login_workspace_scope_denied", "invalid_state"])
 def test_authorization_errors_are_reported_without_creating_account(service, error):
     auth, accounts, _signed, _exchange, requests = service

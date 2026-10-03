@@ -296,6 +296,22 @@ class ChatGPTAuth:
         self.login_event("start")
         cancel = cancel or Event()
         registration = self.accounts.registration(account_id, resume_pending=resume_pending)
+        pending = not account_id and resume_pending and registration["client_id"] != "dynamic_agent_client"
+        self.login_event("registration_saved" if account_id else "registration_pending" if pending else "registration_new")
+        try:
+            return self._authorize_attempt(registration, account_id, cancel, progress, opener, timeout)
+        except PlanError as exc:
+            if not pending or exc.code != "3p_login_workspace_scope_denied" or cancel.is_set():
+                raise
+        # An unverified pending registration belongs to its original workspace.
+        # Offer normal registration/consent for the account chosen now. Never
+        # replace a verified account or retry a fresh registration denial.
+        self.login_event("registration_restarted")
+        progress("Kết nối dang dở không được chấp nhận với tài khoản này. Đang mở lượt cấp quyền mới; hãy chọn tài khoản và workspace bạn muốn dùng…")
+        self.login_event("registration_new")
+        return self._authorize_attempt(self.accounts.registration(), "", cancel, progress, opener, timeout)
+
+    def _authorize_attempt(self, registration, account_id, cancel, progress, opener, timeout):
         client_id = registration["client_id"]
         state, nonce, verifier = secrets.token_urlsafe(32), secrets.token_urlsafe(32), secrets.token_urlsafe(64)
         challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip("=")
