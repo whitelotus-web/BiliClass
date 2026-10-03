@@ -1,5 +1,14 @@
 # Changelog
 
+## Mã nguồn đang phát triển — 03/10/2026
+
+- Đánh giá VI/EN/song ngữ/trộn/chưa rõ và hướng dịch từng đoạn; chọn giữ PPTX hoặc tạo bài theo mẫu. Gợi ý không tự duyệt cặp dịch.
+- Bổ sung PPTX theo L0–L4: panel ở vùng trống hoặc trang hỗ trợ khi kín/hiệu ứng/xoay; giữ nguyên file hoặc slide Việt/Anh kế tiếp vẫn chọn được. L4 giữ VI Rescue trong dự án; template có bố cục Theo level.
+- Dịch phần còn thiếu tối đa 50 đoạn/lượt; giữ cặp/đoạn khóa/duyệt, dùng thuật ngữ và memory giáo viên trước kho nền/model. Hủy hoặc revision đổi chặn áp dụng loạt cũ.
+- So sánh render gốc/song ngữ bằng Office theo mapping slide; ảnh tĩnh không kiểm chứng hiệu ứng. Gói bài giữ thuật ngữ/giọng/mascot tham chiếu, không tự thay máy nhận.
+- OCR Việt–Anh cục bộ có bước tải một lần và SHA-256; chạy ảnh/PDF scan/slide chỉ ảnh. Chữ OCR vẫn cần sửa dấu/bảng/công thức, không gửi tài liệu ra web. Bốn tab Cài đặt hiện tại được giữ nguyên.
+- 171 kiểm thử và lint đạt, Qt smoke đạt; Office mở/render cả năm level, dịch loạt hai chiều và ảnh/PDF OCR Việt chạy bằng engine thật. Chưa nghiệm thu mọi môn/bài thật, chưa phát hành trong rc12. Xem [quy trình nhập bài](docs/INPUT_WORKFLOW.md).
+
 ## Mã nguồn đang phát triển — 02/10/2026
 
 - Nhập PowerPoint mới mặc định giữ thiết kế gốc; ẩn chọn mẫu/loại slide để đơn giản hóa thao tác. Thêm xem và trình chiếu bản song ngữ gồm slide Việt/Anh kế tiếp, hoặc chỉ Anh/từ khóa.

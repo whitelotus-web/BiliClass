@@ -16,6 +16,15 @@ def export_pack(library, lesson_id, destination):
     from .portable_audio import collect_audio
     records, audio_files = collect_audio(library, lesson)
     lesson["portable_audio"] = records
+    # Keep a portable reference, never install another teacher's glossary or
+    # voice/mascot preferences into the receiving machine automatically.
+    terms = {item["vi"].casefold(): item for item in lesson.get("project_terms", [])}
+    terms.update({item["vi"].casefold(): {key: item[key] for key in ("vi", "en", "subject", "locked")}
+                  for item in library.glossary(lesson["subject"])})
+    lesson["project_terms"] = list(terms.values())
+    lesson["project_preferences"] = {key: library.setting(key, default) for key, default in
+                                     (("voice_en", ""), ("voice_vi", ""), ("voice_rate", 0),
+                                      ("mascot", "Milo"), ("mascot_options", {}))}
     entries = {"lesson.json": json.dumps(lesson, ensure_ascii=False).encode("utf-8")}
     entries.update(audio_files)
     source = lesson.get("source")
@@ -88,6 +97,16 @@ def import_pack(library, path):
             raise ValueError("Thông tin bài học không hợp lệ.")
     if not lesson["title"].strip() or not lesson["subject"].strip():
         raise ValueError("Tên bài học hoặc môn học trống.")
+    terms = lesson.get("project_terms", [])
+    if not isinstance(terms, list) or len(terms) > 10000 or any(
+        not isinstance(item, dict) or any(not isinstance(item.get(key), str) or not item[key].strip()
+                                         or len(item[key]) > 1000 for key in ("vi", "en", "subject"))
+        for item in terms
+    ):
+        raise ValueError("Thuật ngữ tham khảo của gói bài không hợp lệ.")
+    preferences = lesson.get("project_preferences", {})
+    if not isinstance(preferences, dict) or len(json.dumps(preferences)) > 20000:
+        raise ValueError("Cấu hình tham khảo của gói bài không hợp lệ.")
     segments = lesson.get("segments")
     if not isinstance(segments, list) or not 1 <= len(segments) <= 10000:
         raise ValueError("Danh sách đoạn không hợp lệ.")
@@ -100,8 +119,11 @@ def import_pack(library, path):
             isinstance(segment.get(key), str) for key in ("vi", "en", "locator")
         ):
             raise ValueError("Nội dung đoạn không hợp lệ.")
+        source_language = segment.get("source_language", lesson["source_language"])
+        if source_language not in {"vi", "en"}:
+            raise ValueError("Ngôn ngữ của vùng nguồn không hợp lệ.")
         if (
-            not segment[lesson["source_language"]].strip()
+            not segment[source_language].strip()
             or len(segment["vi"]) + len(segment["en"]) > 100_000
         ):
             raise ValueError("Đoạn trống hoặc quá dài.")
@@ -117,7 +139,11 @@ def import_pack(library, path):
         segment["locked"] = bool(segment.get("locked", False))
         from .lesson_templates import block_type
         segment["kind"] = block_type(segment.get("kind", "unknown"))["id"]
-        segment.setdefault("source_text", segment[lesson["source_language"]])
+        segment.setdefault("source_text", segment[source_language])
+        if segment.get("source_language", lesson["source_language"]) not in {"vi", "en"}:
+            raise ValueError("Ngôn ngữ của vùng nguồn không hợp lệ.")
+        if not isinstance(segment.get("paired_locator", ""), str):
+            raise ValueError("Liên kết vùng song ngữ không hợp lệ.")
         if not isinstance(segment["source_text"], str) or len(segment["source_text"]) > 100_000:
             raise ValueError("Bản trích xuất nguồn không hợp lệ.")
     questions = lesson.get("questions", [])
@@ -154,7 +180,7 @@ def import_pack(library, path):
     lesson["level"] = (
         lesson.get("level", 2) if type(lesson.get("level")) is int and 0 <= lesson["level"] <= 5 else 2
     )
-    if lesson.get("layout") not in ("keyword_overlay", "line_pair", "split_view", "english_rescue"):
+    if lesson.get("layout") not in ("keyword_overlay", "line_pair", "split_view", "english_rescue", "level_auto"):
         lesson["layout"] = "line_pair"
     if lesson.get("teaching_preset") not in ("standard", "visual", "practice"):
         lesson["teaching_preset"] = "standard"
@@ -162,6 +188,8 @@ def import_pack(library, path):
         lesson["presentation_style"] = "template"
     if lesson["presentation_style"] == "source" and not (lesson.get("source") or {}).get("file", "").lower().endswith(".pptx"):
         raise ValueError("Chế độ giữ thiết kế gốc cần nguồn PowerPoint.")
+    if lesson.get("conversion_mode", "paired") not in {"level", "preserve", "paired"}:
+        raise ValueError("Cách chuyển đổi PowerPoint không hợp lệ.")
     for record, data in audio:
         folder = library.directory / "audio"
         folder.mkdir(exist_ok=True)

@@ -17,7 +17,7 @@ from biliclass_m0.paths import RESOURCES
 
 from . import speech
 from .classroom_ui import ClassroomBridge
-from .importers import extraction_warnings, parse_document
+from .input_analysis import analyze_document, assess_blocks
 from .knowledge import ensure_builtin_foundation, load_pack
 from .lesson_templates import block_type, catalog, example_plan, slide_pages, slide_plan, source_image
 from .library import Library, lesson_status
@@ -59,6 +59,8 @@ class Bridge(QObject):
     mascotPreferencesSaved = Signal(bool)
     updateChanged = Signal()
     updateProgress = Signal(int)
+    inputAssessmentChanged = Signal()
+    comparisonReady = Signal()
 
     @Property(bool, constant=True)
     def developmentMode(self):
@@ -110,6 +112,10 @@ class Bridge(QObject):
         self.cancel_event = Event()
         self._memory_choices = []
         self._memory_request = None
+        self._input_result = None
+        self._input_path = ""
+        self._conversion_report = []
+        self._comparison = {}
         self.powerpoint_worker = None
         self._powerpoint_lesson_id = None
         self._powerpoint_source_map = []
@@ -131,6 +137,81 @@ class Bridge(QObject):
     @Property("QVariantMap", notify=changed)
     def lesson(self):
         return self._lesson
+
+    @Property("QVariantMap", notify=inputAssessmentChanged)
+    def inputAssessment(self):
+        if not self._input_result:
+            return {}
+        return {key: value for key, value in self._input_result["profile"].items() if key != "units"}
+
+    @Property("QVariantList", notify=changed)
+    def conversionReport(self):
+        return self._conversion_report
+
+    @Property("QVariantMap", notify=changed)
+    def comparison(self):
+        return self._comparison
+
+    @Slot(int)
+    def comparePowerPoint(self, output_slide):
+        from .powerpoint_review import render_pair
+        from .source_deck import prepare_source_deck
+
+        if not self._lesson or self._busy:
+            return
+        lesson, directory = self._lesson, self.library.directory
+        terms = self.library.glossary(lesson.get("subject", ""))
+
+        def render():
+            converted = prepare_source_deck(lesson, directory, terms)
+            return render_pair(verified_presentation(lesson, directory), converted, output_slide, directory)
+
+        def opened(result):
+            if lesson["id"] != self._lesson.get("id") or lesson["revision"] != self._lesson.get("revision"):
+                return
+            result["source_image"] = QUrl.fromLocalFile(result["source_image"]).toString()
+            result["result_image"] = QUrl.fromLocalFile(result["result_image"]).toString()
+            self._comparison = result
+            self._conversion_report = result["report"]
+            self.changed.emit()
+            self.comparisonReady.emit()
+            self.inform("Đã đối chiếu bằng PowerPoint. Kiểm tra chữ và hiệu ứng trước khi dạy.")
+
+        self.launch(render, opened)
+
+    @Slot()
+    def clearInputAssessment(self):
+        self._input_path = ""
+        self._input_result = None
+        self.inputAssessmentChanged.emit()
+
+    @Slot(str, str)
+    def assessInput(self, file_url, language):
+        if self._busy:
+            return
+        import hashlib
+
+        path = Path(QUrl(file_url).toLocalFile())
+        self.clearInputAssessment()
+        self._input_path = str(path)
+
+        def analyze():
+            if not path.is_file() or path.stat().st_size > 50 * 1024**2:
+                raise ValueError("Không đọc được tệp hoặc tệp vượt 50 MB.")
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            result = analyze_document(path, language, self.cancel_event)
+            if hashlib.sha256(path.read_bytes()).hexdigest() != digest:
+                raise ValueError("Tệp vừa thay đổi trong lúc đánh giá. Hãy chọn lại.")
+            result.update(sha256=digest, ocr_language=language)
+            return result
+
+        def finished(result):
+            if self._input_path == str(path):
+                self._input_result = result
+                self.inputAssessmentChanged.emit()
+                self.inform("Đã đánh giá đầu vào: " + result["profile"]["label"] + ". Các cặp nhận diện vẫn cần thầy cô duyệt.")
+
+        self.launch(analyze, finished)
 
     @Property("QVariantMap", notify=changed)
     def segment(self):
@@ -750,6 +831,8 @@ class Bridge(QObject):
     @Slot(str)
     def openLesson(self, lesson_id):
         try:
+            self._conversion_report = []
+            self._comparison = {}
             self.dismissMemoryChoices()
             if self._powerpoint_lesson_id and self._powerpoint_lesson_id != lesson_id:
                 self.stopPowerPoint()
@@ -823,6 +906,8 @@ class Bridge(QObject):
         def opened(result):
             if self._lesson.get("id") != lesson["id"]:
                 return
+            self._conversion_report = result.get("report", [])
+            self.changed.emit()
             self._start_powerpoint_session(result["path"], result["slide_map"])
             self.inform("Đang trình chiếu bản song ngữ, giữ thiết kế PowerPoint gốc…")
 
@@ -888,36 +973,44 @@ class Bridge(QObject):
             self._powerpoint_state = {**self._powerpoint_state, "message": "Đang đóng PowerPoint…"}
             self.changed.emit()
 
-    @Slot(str, str, str, str, str, str, str, int, str, str)
-    def createLesson(self, title, subject, education, grade, text, file_url, source_language, level, layout, preset):
+    @Slot(str, str, str, str, str, str, str, int, str, str, str, str)
+    def createLesson(self, title, subject, education, grade, text, file_url, source_language, level, layout, preset, style="", mode="level"):
         if not title.strip() or not subject.strip():
             self.inform("Nhập tên bài học và môn học.", True)
             return
         if bool(text.strip()) == bool(file_url):
             self.inform("Chọn một nguồn: tệp tài liệu hoặc nội dung dán vào.", True)
             return
-        if (level not in range(5) or layout not in {"keyword_overlay", "line_pair", "split_view", "english_rescue"}
-                or preset not in {"standard", "visual", "practice"}):
+        if (level not in range(5) or layout not in {"keyword_overlay", "line_pair", "split_view", "english_rescue", "level_auto"}
+                or preset not in {"standard", "visual", "practice"} or style not in {"", "source", "template"}
+                or mode not in {"level", "preserve", "paired"} or source_language not in {"vi", "en"}):
             self.inform("Chọn L0–L4 và một kiểu trình bày hợp lệ.", True)
             return
         path = Path(QUrl(file_url).toLocalFile()) if file_url else None
+        cached = self._input_result if path and self._input_path == str(path) else None
 
         def prepare():
             source = self.library.store_source(path) if path else None  # file I/O only
+            if path:
+                result = cached if cached and cached["sha256"] == source["sha256"] and cached["ocr_language"] == source_language else analyze_document(
+                    self.library.directory / "sources" / source["file"], source_language, self.cancel_event)
+            else:
+                blocks = [(f"Đoạn {i + 1}", p.strip()) for i, p in enumerate(text.split("\n\n")) if p.strip()]
+                result = {"blocks": blocks, "profile": assess_blocks(blocks, "text", source_language)}
             if source:
-                source["warnings"] = extraction_warnings(self.library.directory / "sources" / source["file"])
-            blocks = (
-                parse_document(self.library.directory / "sources" / source["file"], source_language, self.cancel_event)
-                if path
-                else [(f"Đoạn {i + 1}", p.strip()) for i, p in enumerate(text.split("\n\n")) if p.strip()]
-            )
-            return blocks, source
+                source["warnings"] = result["profile"]["warnings"]
+            return result, source
 
         def created(result):
-            blocks, source = result
-            lesson = self.library.create(title, subject, education, grade, blocks, source, source_language)
+            result, source = result
+            profile = result["profile"]
+            lesson = self.library.create(title, subject, education, grade, result["blocks"], source, profile["primary_language"], profile)
             self.library.set_presentation(lesson["id"], level, layout)
             self.library.set_teaching_preset(lesson["id"], preset)
+            if style:
+                lesson = self.library.set_presentation_style(lesson["id"], style)
+            if lesson["presentation_style"] == "source":
+                self.library.set_conversion_mode(lesson["id"], mode)
             self.openLesson(lesson["id"])
             self.inform("Đã tạo bài học. Kiểm tra văn bản nguồn trước khi dịch và duyệt.")
 
@@ -946,6 +1039,19 @@ class Bridge(QObject):
         except Exception as exc:
             self.inform(str(exc), True)
 
+    @Slot(str)
+    def setConversionMode(self, mode):
+        if not self._lesson:
+            return
+        try:
+            self._lesson = self.library.set_conversion_mode(self._lesson["id"], mode)
+            self._conversion_report = []
+            self._comparison = {}
+            self.changed.emit()
+            self.inform("Đã đổi cách chuyển đổi. Kiểm tra bản song ngữ trước khi dạy.")
+        except Exception as exc:
+            self.inform(str(exc), True)
+
     @Slot()
     def previewSourcePowerPoint(self):
         from .source_deck import prepare_source_deck
@@ -956,6 +1062,8 @@ class Bridge(QObject):
         terms = self.library.glossary(lesson.get("subject", ""))
 
         def opened(result):
+            self._conversion_report = result.get("report", [])
+            self.changed.emit()
             if not QDesktopServices.openUrl(QUrl.fromLocalFile(result["path"])):
                 self.inform("Đã tạo bản song ngữ nhưng máy chưa có ứng dụng mở PowerPoint: " + result["path"], True)
             else:
@@ -1072,6 +1180,35 @@ class Bridge(QObject):
             else:
                 self._translate_with_model(request)
 
+    @Slot()
+    def translateMissing(self):
+        from .bulk_translation import plan_batch, translate_batch
+
+        if self._busy or not self._lesson:
+            return
+        lesson = self._lesson
+        plans = plan_batch(self.library, lesson)
+        if not plans:
+            self.inform("Không còn phần ngôn ngữ trống chưa khóa. Kiểm tra và duyệt các cặp đang có.")
+            return
+        terms = self.library.glossary(lesson["subject"])
+        teacher_words = {term["vi"] for term in terms}
+        terms += [term for term in self.library.knowledge_terms(lesson["subject"]) if term["vi"] not in teacher_words]
+
+        def done(result):
+            updated = self.library.apply_batch_translations(lesson["id"], result["drafts"], lesson["revision"])
+            if self._lesson.get("id") == lesson["id"]:
+                self._lesson = updated
+                self.selectionChanged.emit()
+            message = f"Đã tạo {len(result['drafts'])} bản nháp cho phần còn thiếu; cần kiểm tra và duyệt. Mỗi lượt xử lý tối đa 50 đoạn."
+            if result["warnings"]:
+                message += "\n" + "\n".join(result["warnings"][:3])
+                if len(result["warnings"]) > 3:
+                    message += f"\nCòn {len(result['warnings']) - 3} đoạn cần xử lý riêng."
+            self.inform(message)
+
+        self.launch(lambda: translate_batch(plans, terms, self.cancel_event), done)
+
     def _apply_translation(self, request, translated, message):
         lesson_id, segment_id, revision, source_language, _ = request
         try:
@@ -1153,6 +1290,8 @@ class Bridge(QObject):
     @Slot(int, str)
     def setPresentation(self, level, layout):
         try:
+            self._conversion_report = []
+            self._comparison = {}
             self._lesson = self.library.set_presentation(self._lesson["id"], level, layout)
             self.changed.emit()
         except Exception as exc:
@@ -1321,9 +1460,26 @@ class Bridge(QObject):
 
     @Property(str, constant=True)
     def ocrStatus(self):
+        from .local_ocr import model_paths
         from .ocr import languages
         available = languages()
-        return "OCR Windows trên máy: " + (", ".join(available) if available else "chưa có gói nhận dạng")
+        local = " · OCR Việt–Anh cục bộ sẵn sàng" if model_paths() else " · Chưa có OCR Việt–Anh cục bộ"
+        return "OCR Windows: " + (", ".join(available) if available else "chưa có gói nhận dạng") + local
+
+    @Property(bool, notify=changed)
+    def localOCRAvailable(self):
+        from .local_ocr import model_paths
+        return bool(model_paths())
+
+    @Slot()
+    def prepareLocalOCR(self):
+        from .local_ocr import prepare_models
+
+        def ready(_):
+            self.changed.emit()
+            self.inform("Đã chuẩn bị OCR Việt–Anh. Chọn lại ảnh/PDF scan để nhận dạng; dữ liệu chạy trên máy.")
+
+        self.launch(prepare_models, ready)
 
     @Slot(str)
     def exportPack(self, url):

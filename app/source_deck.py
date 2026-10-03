@@ -210,6 +210,52 @@ def _clone_owned_part(part, index, entries, types, cloned):
     return new_part
 
 
+def _append_slide(part, tree, token, entries, types, relations, slide_list, sid, slide_id):
+    new_part = f"ppt/slides/biliclass-en-{token}.xml"
+    if new_part in entries:
+        raise ValueError("Tệp nguồn đã chứa slide BiliClass. Hãy nhập bản gốc của thầy cô.")
+    entries[new_part] = _bytes(tree)
+    etree.SubElement(types, f"{{{NS['ct']}}}Override", PartName="/" + new_part,
+                     ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml")
+    source_rels = _rels_path(part)
+    if source_rels in entries:
+        copied_rels, cloned = _xml(entries[source_rels]), {}
+        for relation in copied_rels:
+            if relation.get("TargetMode") == "External":
+                continue
+            if relation.get("Type", "").rsplit("/", 1)[-1] in {
+                    "chart", "chartUserShapes", "oleObject", "package", "comments", "tags",
+                    "diagramData", "diagramLayout", "diagramQuickStyle", "diagramColors"}:
+                owned = _part_relative(part, relation.get("Target"))
+                copied = _clone_owned_part(owned, token, entries, types, cloned)
+                relation.set("Target", posixpath.relpath(copied, posixpath.dirname(new_part)))
+            if relation.get("Type", "").endswith("/notesSlide"):
+                old_note = _part_relative(part, relation.get("Target"))
+                new_note = f"ppt/notesSlides/biliclass-en-{token}.xml"
+                entries[new_note] = entries[old_note]
+                note_rels = _rels_path(old_note)
+                if note_rels in entries:
+                    copied_notes = _xml(entries[note_rels])
+                    for back_link in copied_notes:
+                        if back_link.get("Type", "").endswith("/slide"):
+                            back_link.set("Target", "../slides/" + posixpath.basename(new_part))
+                    entries[_rels_path(new_note)] = _bytes(copied_notes)
+                relation.set("Target", "../notesSlides/" + posixpath.basename(new_note))
+                etree.SubElement(types, f"{{{NS['ct']}}}Override", PartName="/" + new_note,
+                                 ContentType="application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml")
+        entries[_rels_path(new_part)] = _bytes(copied_rels)
+    rid = "biliEnglish" + str(token)
+    if any(item.get("Id") == rid for item in relations):
+        raise ValueError("Mã liên kết slide trùng với bản đã chuyển đổi; nhập lại PowerPoint gốc.")
+    etree.SubElement(relations, f"{{{NS['rel']}}}Relationship", Id=rid,
+                     Type=NS["r"] + "/slide", Target="slides/" + posixpath.basename(new_part))
+    added = copy.deepcopy(sid)
+    added.set("id", str(slide_id))
+    added.set(f"{{{NS['r']}}}id", rid)
+    slide_list.insert(slide_list.index(sid) + 1, added)
+    return added
+
+
 def export_source_deck(lesson, directory, destination, terms=()):
     """Return output path and slide→source mapping for a reviewed native deck."""
     from pptx import Presentation
@@ -220,10 +266,24 @@ def export_source_deck(lesson, directory, destination, terms=()):
     target = Path(destination).with_suffix(".pptx").resolve()
     if source.resolve() == target:
         raise ValueError("Chọn đường dẫn mới để giữ nguyên tệp nguồn.")
-    if not lesson.get("segments") or any(not s.get("approved") for s in lesson["segments"]):
+    mode = lesson.get("conversion_mode", "paired")
+    if mode not in {"preserve", "level", "paired"}:
+        raise ValueError("Cách chuyển đổi PowerPoint không hợp lệ.")
+    if mode != "preserve" and (not lesson.get("segments") or any(not s.get("approved") for s in lesson["segments"])):
         raise ValueError("Duyệt toàn bộ cặp Việt/Anh trước khi xuất PowerPoint.")
     deck = Presentation(source)
     units = text_blocks(deck)
+    if mode == "preserve":
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(dir=target.parent, suffix=".pptx", delete=False) as pending:
+            pending_path = Path(pending.name)
+        try:
+            pending_path.write_bytes(source.read_bytes())
+            pending_path.replace(target)
+        finally:
+            pending_path.unlink(missing_ok=True)
+        return {"path": str(target), "slide_map": list(range(1, len(deck.slides) + 1)),
+                "report": [{"mode": "preserve", "message": "Giữ nguyên PowerPoint; trợ giảng chỉ dùng nội dung đã duyệt."}]}
     groups = {}
     for segment in lesson["segments"]:
         locator = re.sub(r"(?: · phần \d+)+$", "", segment["locator"])
@@ -235,9 +295,14 @@ def export_source_deck(lesson, directory, destination, terms=()):
         segments = groups[unit["locator"]]
         if any(s.get("source_text", "").strip() != unit["text"] for s in segments):
             raise ValueError(unit["locator"] + ": đoạn nguồn không khớp; nhập lại tệp trước khi giữ thiết kế gốc.")
-        joined = {"vi": "\n".join(s["vi"] for s in segments), "en": "\n".join(s["en"] for s in segments),
+        joined = {**segments[0], "source_language": segments[0].get("source_language", lesson.get("source_language", "vi")),
+                  "vi": "\n".join(s["vi"] for s in segments), "en": "\n".join(s["en"] for s in segments),
                   "support": [item for s in segments for item in s.get("support", [])] if len(segments) == 1 else []}
-        content = presentation_content(joined, lesson.get("level", 2), lesson.get("layout", "line_pair"), terms=terms)
+        layout = lesson.get("layout", "line_pair")
+        if mode == "paired" and layout == "level_auto":
+            layout = "line_pair"
+        content = presentation_content(joined, lesson.get("level", 2), layout, terms=terms)
+        content["segment"] = joined
         by_slide.setdefault(unit["slide"], []).append((unit, content))
     with zipfile.ZipFile(source) as archive:
         entries = {item.filename: archive.read(item) for item in archive.infolist()}
@@ -247,8 +312,7 @@ def export_source_deck(lesson, directory, destination, terms=()):
     slide_list = presentation.find("p:sldIdLst", NS)
     originals = list(slide_list)
     highest_id = max(int(item.get("id")) for item in originals)
-    used_relations = {item.get("Id") for item in relations}
-    slide_map = []
+    slide_map, report = [], []
     for index, (slide, sid) in enumerate(zip(deck.slides, originals, strict=True), 1):
         part = str(slide.part.partname)[1:]
         items = by_slide.get(index, [])
@@ -256,6 +320,38 @@ def export_source_deck(lesson, directory, destination, terms=()):
             slide_map.append(index)  # Image-only slides remain in their original positions.
             continue
         base, english = copy.deepcopy(slide._element), copy.deepcopy(slide._element)
+        if mode == "level" and lesson.get("level", 2) < 4:
+            from .source_support import apply_support
+
+            base, extra_slides, action, warnings = apply_support(slide, deck, items, lesson.get("level", 2), terms, NS)
+            if action == "added":
+                entries[part] = _bytes(base)
+            # Otherwise the native source slide bytes remain untouched.
+            report.append({"slide": index, "action": action, "warnings": warnings})
+            slide_map.append(index)
+            previous = sid
+            for number, extra in enumerate(extra_slides, 1):
+                highest_id += 1
+                token = str(index) if number == 1 else f"{index}-{number}"
+                previous = _append_slide(part, extra, token, entries, types, relations, slide_list, previous, highest_id)
+                slide_map.append(index)
+            continue
+        if mode == "level":
+            # L4 prioritizes English. A separate VI box already paired with an
+            # English box is left empty on the exported copy to avoid duplication.
+            for unit, content in items:
+                segment = content["segment"]
+                value = "" if segment.get("paired_locator") and segment.get("source_language") == "vi" else content["en"]
+                if not value:
+                    node = etree.XPath(".//p:cNvPr[@id=$id]/..", namespaces=NS)(base, id=str(unit["shape"].shape_id))[0].getparent()
+                    for body in node.findall(".//a:txBody", NS) + node.findall("p:txBody", NS):
+                        _replace_text(body, "", 18)
+                else:
+                    _apply(base, unit, value)
+            entries[part] = _bytes(base)
+            slide_map.append(index)
+            report.append({"slide": index, "action": "english", "warnings": ["VI Rescue được giữ trong dự án BiliClass."]})
+            continue
         show_vi, show_en = items[0][1]["show_vi"], items[0][1]["show_en"]
         for unit, content in items:
             _apply(base, unit, content["vi"] if show_vi else content["en"])
@@ -265,51 +361,8 @@ def export_source_deck(lesson, directory, destination, terms=()):
         slide_map.append(index)
         if not (show_vi and show_en) or all(content["vi"] == content["en"] for _, content in items):
             continue
-        new_part = f"ppt/slides/biliclass-en-{index}.xml"
-        if new_part in entries:
-            raise ValueError("Tệp nguồn đã chứa slide BiliClass. Hãy nhập bản gốc của thầy cô.")
-        entries[new_part] = _bytes(english)
-        content_type = "application/vnd.openxmlformats-officedocument.presentationml.slide+xml"
-        etree.SubElement(types, f"{{{NS['ct']}}}Override", PartName="/" + new_part, ContentType=content_type)
-        source_rels = _rels_path(part)
-        if source_rels in entries:
-            copied_rels = _xml(entries[source_rels])
-            cloned = {}
-            for relation in copied_rels:
-                if relation.get("TargetMode") == "External":
-                    continue
-                if relation.get("Type", "").rsplit("/", 1)[-1] in {
-                        "chart", "chartUserShapes", "oleObject", "package", "comments", "tags",
-                        "diagramData", "diagramLayout", "diagramQuickStyle", "diagramColors"}:
-                    owned = _part_relative(part, relation.get("Target"))
-                    copied = _clone_owned_part(owned, index, entries, types, cloned)
-                    relation.set("Target", posixpath.relpath(copied, posixpath.dirname(new_part)))
-                if relation.get("Type", "").endswith("/notesSlide"):
-                    old_note = _part_relative(part, relation.get("Target"))
-                    new_note = f"ppt/notesSlides/biliclass-en-{index}.xml"
-                    entries[new_note] = entries[old_note]
-                    note_rels = _rels_path(old_note)
-                    if note_rels in entries:
-                        copied_notes = _xml(entries[note_rels])
-                        for back_link in copied_notes:
-                            if back_link.get("Type", "").endswith("/slide"):
-                                back_link.set("Target", "../slides/" + posixpath.basename(new_part))
-                        entries[_rels_path(new_note)] = _bytes(copied_notes)
-                    relation.set("Target", "../notesSlides/" + posixpath.basename(new_note))
-                    etree.SubElement(types, f"{{{NS['ct']}}}Override", PartName="/" + new_note,
-                                     ContentType="application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml")
-            entries[_rels_path(new_part)] = _bytes(copied_rels)
-        rid = "biliEnglish" + str(index)
-        if rid in used_relations:
-            raise ValueError("Mã liên kết slide trùng với bản đã chuyển đổi; nhập lại PowerPoint gốc.")
-        used_relations.add(rid)
-        etree.SubElement(relations, f"{{{NS['rel']}}}Relationship", Id=rid,
-                         Type=NS["r"] + "/slide", Target="slides/" + posixpath.basename(new_part))
         highest_id += 1
-        added = copy.deepcopy(sid)
-        added.set("id", str(highest_id))
-        added.set(f"{{{NS['r']}}}id", rid)
-        slide_list.insert(slide_list.index(sid) + 1, added)
+        _append_slide(part, english, index, entries, types, relations, slide_list, sid, highest_id)
         slide_map.append(index)
     entries["ppt/presentation.xml"] = _bytes(presentation)
     entries["ppt/_rels/presentation.xml.rels"] = _bytes(relations)
@@ -330,7 +383,7 @@ def export_source_deck(lesson, directory, destination, terms=()):
         pending_path.replace(target)
     finally:
         pending_path.unlink(missing_ok=True)
-    return {"path": str(target), "slide_map": slide_map}
+    return {"path": str(target), "slide_map": slide_map, "report": report}
 
 
 def prepare_source_deck(lesson, directory, terms=()):
@@ -341,7 +394,7 @@ def prepare_source_deck(lesson, directory, terms=()):
 
     verified_presentation(lesson, directory)
 
-    signature = hashlib.sha256(json.dumps({"engine": "source-layout-v2", "lesson": lesson, "terms": terms}, sort_keys=True,
+    signature = hashlib.sha256(json.dumps({"engine": "source-layout-v3", "lesson": lesson, "terms": terms}, sort_keys=True,
                                         ensure_ascii=False).encode("utf-8")).hexdigest()[:24]
     path = Path(directory) / "temp/bilingual-powerpoint" / (signature + ".pptx")
     manifest = path.with_suffix(".json")
@@ -351,10 +404,10 @@ def prepare_source_deck(lesson, directory, terms=()):
             if (cached.get("sha256") == hashlib.sha256(path.read_bytes()).hexdigest()
                     and isinstance(cached.get("slide_map"), list)
                     and all(type(item) is int and item > 0 for item in cached["slide_map"])):
-                return {"path": str(path), "slide_map": cached["slide_map"]}
+                return {"path": str(path), "slide_map": cached["slide_map"], "report": cached.get("report", [])}
         except (OSError, ValueError):
             pass
     result = export_source_deck(lesson, directory, path, terms)
     manifest.write_text(json.dumps({"sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
-                                   "slide_map": result["slide_map"]}), encoding="utf-8")
+                                   "slide_map": result["slide_map"], "report": result["report"]}), encoding="utf-8")
     return result

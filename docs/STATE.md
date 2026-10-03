@@ -1,5 +1,7 @@
 # Trạng thái BiliClass
 
+Mã nguồn ngày 03/10/2026 bổ sung đánh giá đầu vào, hai luồng giữ PPTX/tạo theo mẫu, chuyển đổi L0–L4, dịch phần còn thiếu, so sánh bằng Office và OCR Việt–Anh cục bộ. 171 kiểm thử và Qt smoke đạt; OCR vẫn sai một số dấu cần sửa. Xem [quy trình hiện tại](INPUT_WORKFLOW.md). Các mục RC12 bên dưới mô tả bản đóng gói cũ, chưa bao gồm những thay đổi này.
+
 Cập nhật: 02/10/2026. Mã nguồn: **1.0.0rc12**; bản đóng gói mới cần kiểm thử riêng. Trọng tâm: chuẩn bị và dạy song ngữ Anh–Việt cho nhiều môn THPT, khối 10–12 và môn tự tạo. Các bài trong ảnh chỉ là ví dụ.
 
 ## Đã triển khai trong ứng dụng

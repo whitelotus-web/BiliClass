@@ -44,18 +44,36 @@ async def _image(path, language):
 
 
 def _recognize(path, language="vi", pages=None, cancelled=None):
-    import winrt.runtime
-    winrt.runtime.init_apartment(winrt.runtime.MTA)
+    if language not in {"vi", "en"}:
+        raise ValueError("Chọn ngôn ngữ OCR tiếng Việt hoặc tiếng Anh.")
+    path = Path(path)
+    if path.suffix.lower() != ".pdf":
+        from PIL import Image
+        try:
+            with Image.open(path) as image:
+                image.verify()
+        except (OSError, ValueError) as exc:
+            raise ValueError("Tệp ảnh OCR không hợp lệ; hãy xuất lại PNG/JPG.") from exc
+    from .local_ocr import model_paths
+
+    # Keep WinRT and ONNX in separate worker lifetimes. On Windows, importing
+    # WinRT before ONNX can crash its native DLL loader. VI always uses the
+    # dedicated local recognizer; Windows EN remains a fallback without a pack.
+    use_windows = language == "en" and not model_paths()
+    if use_windows:
+        import winrt.runtime
+        winrt.runtime.init_apartment(winrt.runtime.MTA)
+        def recognize_image(path):
+            return asyncio.run(_image(path, language))
+    else:
+        from .local_ocr import engine, image_text
+
+        recognizer = engine(language)
+        def recognize_image(path):
+            return image_text(recognizer, path)
     try:
-        path = Path(path)
         if path.suffix.lower() != ".pdf":
-            from PIL import Image
-            try:
-                with Image.open(path) as image:
-                    image.verify()
-            except (OSError, ValueError) as exc:
-                raise ValueError("Tệp ảnh OCR không hợp lệ; hãy xuất lại PNG/JPG.") from exc
-            return [("Ảnh 1 · OCR cần kiểm tra", asyncio.run(_image(path, language)))]
+            return [("Ảnh 1 · OCR cần kiểm tra", recognize_image(path))]
         import pypdfium2 as pdfium
         blocks = []
         with pdfium.PdfDocument(str(path)) as pdf, tempfile.TemporaryDirectory(prefix="biliclass-ocr-") as work:
@@ -75,11 +93,12 @@ def _recognize(path, language="vi", pages=None, cancelled=None):
                 image.close()
                 bitmap.close()
                 page.close()
-                text = asyncio.run(_image(target, language))
+                text = recognize_image(target)
                 blocks.append((f"Trang {index + 1} · OCR cần kiểm tra", text))
         return blocks
     finally:
-        winrt.runtime.uninit_apartment()
+        if use_windows:
+            winrt.runtime.uninit_apartment()
 
 
 def _worker(path, language, pages, events):
@@ -107,7 +126,7 @@ def recognize(path, language="vi", pages=None, cancelled=None):
                 return result["blocks"]
             except queue.Empty:
                 if not process.is_alive():
-                    raise ValueError("OCR Windows không hoàn tất. Kiểm tra gói ngôn ngữ hoặc dùng tài liệu có văn bản.")
+                    raise ValueError("OCR không hoàn tất. Kiểm tra bộ OCR hoặc dùng tài liệu có văn bản.")
                 if time.monotonic()-start > 600:
                     raise ValueError("OCR quá thời gian 10 phút; hãy chia nhỏ tài liệu.")
     finally:

@@ -22,9 +22,9 @@ ApplicationWindow {
     property string selectedFile: ""
     property string selectedFileName: ""
     readonly property bool creationPowerPoint: selectedFileName.toLowerCase().endsWith(".pptx")
+    readonly property bool creationKeepSource: creationPowerPoint && creationWorkflow.currentIndex === 0
     readonly property bool keepSourceDesign: bridge.lesson.presentation_style === "source"
-    readonly property var sourceLayoutKeys: ["keyword_overlay", "line_pair", "english_rescue"]
-    onCreationPowerPointChanged: Qt.callLater(function() { creationLayout.currentIndex = 1 })
+    onCreationPowerPointChanged: Qt.callLater(function() { creationWorkflow.currentIndex = 0; creationMode.currentIndex = 0; creationLayout.currentIndex = creationPowerPoint ? 1 : 4 })
     property bool rescue: false
     property var presentationContent: bridge.presentationContent(rescue)
     onRescueChanged: { presentationContent = bridge.presentationContent(rescue); refreshTemplate() }
@@ -32,7 +32,7 @@ ApplicationWindow {
     property var teaching: bridge.teachingContext
     property var classroom: bridge.classroomContext
     property string profileLabel: [bridge.settings.teacher, bridge.settings.school].filter(function(value) { return !!value }).join("  ·  ")
-    readonly property var layoutKeys: ["keyword_overlay", "line_pair", "split_view", "english_rescue"]
+    readonly property var layoutKeys: ["keyword_overlay", "line_pair", "split_view", "english_rescue", "level_auto"]
     readonly property var levels: ["L0 · Làm quen", "L1 · Tiếp xúc", "L2 · Cầu nối", "L3 · Kết hợp", "L4 · Ưu tiên English"]
     property var templatePages: bridge.templatePages(rescue)
     property int templatePageIndex: 0
@@ -85,6 +85,8 @@ ApplicationWindow {
         function onProjectClassroomRequested() { projector.quiz = true; bridge.showProjector(projector, bridge.screens.length > 1 ? 1 : 0) }
         function onNavigate(destination) { root.page = destination; root.loadFields(); titleInput.text = ""; subjectInput.text = ""; pasteInput.text = ""; root.selectedFile = ""; root.selectedFileName = "" }
         function onSelectionChanged() { root.loadFields() }
+        function onInputAssessmentChanged() { if (bridge.inputAssessment.recommended_mode) creationMode.currentIndex = bridge.inputAssessment.recommended_mode === "preserve" ? 1 : 0; if (root.creationPowerPoint && bridge.inputAssessment.recommended_style === "template") { creationWorkflow.currentIndex = 1; creationLayout.currentIndex = 4 } }
+        function onComparisonReady() { comparisonDialog.open() }
         function onChanged() { root.presentationContent = bridge.presentationContent(root.rescue); root.refreshTemplate() }
         function onMemoryChoicesAvailable() { memoryDialog.open() }
         function onCloseMemoryChoicesRequested() { memoryDialog.close() }
@@ -317,7 +319,7 @@ ApplicationWindow {
                     anchors.fill: parent; anchors.margins: 30; visible: root.page === "new"; clip: true; contentWidth: availableWidth
                     ColumnLayout {
                         width: parent.width; spacing: 21
-                        RowLayout { Heading { text: "Tạo bài học mới" } Item { Layout.fillWidth: true } Action { objectName: "creationTemplatesButton"; text: "Xem mẫu bài giảng"; visible: !root.creationPowerPoint; onClicked: { templateGallery.forCreation = true; templateGallery.preset = ["standard", "visual", "practice"][creationPreset.currentIndex]; templateGallery.level = creationLevel.currentIndex; templateGallery.layout = root.layoutKeys[creationLayout.currentIndex]; templateGallery.open() } } Action { text: "Quay lại thư viện"; iconName: "back"; subtle: true; onClicked: root.go("library") } }
+                        RowLayout { Heading { text: "Tạo bài học mới" } Item { Layout.fillWidth: true } Action { objectName: "creationTemplatesButton"; text: "Xem mẫu bài giảng"; visible: !root.creationKeepSource; onClicked: { templateGallery.forCreation = true; templateGallery.preset = ["standard", "visual", "practice"][creationPreset.currentIndex]; templateGallery.level = creationLevel.currentIndex; templateGallery.layout = root.layoutKeys[creationLayout.currentIndex]; templateGallery.open() } } Action { text: "Quay lại thư viện"; iconName: "back"; subtle: true; onClicked: root.go("library") } }
                         Copy { text: "Bắt đầu từ tài liệu quen thuộc. BiliClass giữ bản nguồn và tạo vùng biên tập song ngữ riêng."; Layout.fillWidth: true }
                         Surface {
                             Layout.fillWidth: true; implicitHeight: config.height + 42
@@ -326,16 +328,20 @@ ApplicationWindow {
                                 Caption { text: "Tên bài học"; Layout.columnSpan: 2 } Caption { text: "Môn học"; Layout.columnSpan: 2 }
                                 Field { id: titleInput; objectName: "lessonTitle"; Layout.fillWidth: true; Layout.columnSpan: 2; placeholderText: "Tên bài giảng của thầy cô"; maximumLength: 180 }
                                 Field { id: subjectInput; objectName: "lessonSubject"; Layout.fillWidth: true; Layout.columnSpan: 2; placeholderText: "Nhập môn bất kỳ, ví dụ: Ngữ văn"; maximumLength: 100 }
-                                Caption { text: "Cấp học" } Caption { text: "Khối lớp" } Caption { text: "Level của bài" } Caption { text: root.creationPowerPoint ? "Ngôn ngữ trình chiếu" : "Kiểu trình bày" }
-                                Choice { id: educationInput; editable: true; model: ["THPT", "THCS"]; Layout.fillWidth: true }
-                                Choice { id: gradeInput; objectName: "creationGrade"; editable: true; model: ["10", "11", "12", "6", "7", "8", "9"]; Layout.fillWidth: true }
-                                Choice { id: creationLevel; objectName: "creationLevel"; model: root.levels; currentIndex: 2; Layout.fillWidth: true }
-                                Choice { id: creationLayout; objectName: "creationLayout"; model: root.creationPowerPoint ? ["Việt + từ khóa Anh", "Slide Việt / Anh kế tiếp", "Chỉ bản Anh"] : ["Cùng dòng · từ khóa", "Hai dòng · EN in nghiêng", "Hai cột VI / EN", "English toàn phần"]; currentIndex: 1; Layout.fillWidth: true }
-                                Caption { text: "Ngôn ngữ tài liệu" }
-                                Choice { id: sourceLanguage; objectName: "sourceLanguage"; model: ["Tiếng Việt", "English"]; Layout.fillWidth: true }
-                                Copy { text: root.creationPowerPoint ? "Giữ thiết kế gốc. Mỗi slide Việt đi kèm một slide Anh cùng bố cục; không cần chọn template." : "Chọn môn, khối, level và bố cục cho riêng bài này. Từ khóa cùng dòng lấy từ thuật ngữ đã chuẩn bị."; Layout.columnSpan: 3; Layout.fillWidth: true; font.pixelSize: 11 }
-                                Caption { text: "Kiểu dạy"; visible: !root.creationPowerPoint }
-                                Choice { id: creationPreset; objectName: "creationPreset"; visible: !root.creationPowerPoint; model: ["Chuẩn lớp học", "Trực quan", "Luyện tập & tương tác"]; Layout.columnSpan: 3; Layout.fillWidth: true }
+                                Caption { text: "Cấp học" } Caption { text: "Khối lớp" } Caption { text: "Level của bài" } Caption { text: root.creationKeepSource ? "Cách chuyển đổi" : "Kiểu trình bày" }
+                                Choice { id: educationInput; editable: true; model: ["THPT", "THCS"]; Layout.preferredWidth: (config.width - 51) / 4; Layout.fillWidth: true }
+                                Choice { id: gradeInput; objectName: "creationGrade"; editable: true; model: ["10", "11", "12", "6", "7", "8", "9"]; Layout.preferredWidth: (config.width - 51) / 4; Layout.fillWidth: true }
+                                Choice { id: creationLevel; objectName: "creationLevel"; model: root.levels; currentIndex: 2; Layout.preferredWidth: (config.width - 51) / 4; Layout.fillWidth: true }
+                                Choice { id: creationLayout; objectName: "creationLayout"; visible: !root.creationKeepSource; model: ["Cùng dòng · từ khóa", "Hai dòng · EN in nghiêng", "Hai cột VI / EN", "English toàn phần", "Theo level L0–L4"]; currentIndex: 4; Layout.preferredWidth: (config.width - 51) / 4; Layout.fillWidth: true }
+                                Choice { id: creationMode; objectName: "creationMode"; visible: root.creationKeepSource; model: ["Bổ sung theo L0–L4", "Giữ nguyên + trợ giảng", "Slide Việt/Anh kế tiếp"]; Layout.preferredWidth: (config.width - 51) / 4; Layout.fillWidth: true }
+                                Caption { text: "Ngôn ngữ OCR/dự phòng" }
+                                Choice { id: sourceLanguage; objectName: "sourceLanguage"; model: ["Tiếng Việt", "English"]; enabled: !bridge.busy; Layout.fillWidth: true; onActivated: { if (root.selectedFile) bridge.assessInput(root.selectedFile, currentIndex === 0 ? "vi" : "en") } }
+                                Copy { text: "Tự nhận diện Việt/Anh theo từng vùng; ngôn ngữ dự phòng dùng cho OCR và vùng chưa rõ."; Layout.columnSpan: 2; Layout.fillWidth: true; font.pixelSize: 11 }
+                                Caption { text: "Tạo bài theo cách"; visible: root.creationPowerPoint }
+                                Choice { id: creationWorkflow; objectName: "creationWorkflow"; visible: root.creationPowerPoint; model: ["Giữ bài giảng của tôi", "Tạo bài với BiliClass"]; Layout.columnSpan: 3; Layout.fillWidth: true; onActivated: { if (currentIndex === 1) creationLayout.currentIndex = 4 } }
+                                Copy { text: root.creationKeepSource ? "Thêm hỗ trợ vào chỗ trống; slide kín dùng trang hỗ trợ kế tiếp. Giữ nguyên file gốc." : "Tạo PowerPoint mới từ nội dung đã kiểm tra theo mẫu và level của bài."; Layout.columnSpan: 4; Layout.fillWidth: true; font.pixelSize: 11 }
+                                Caption { text: "Kiểu dạy"; visible: !root.creationKeepSource }
+                                Choice { id: creationPreset; objectName: "creationPreset"; visible: !root.creationKeepSource; model: ["Chuẩn lớp học", "Trực quan", "Luyện tập & tương tác"]; Layout.columnSpan: 3; Layout.fillWidth: true }
                             }
                         }
                         RowLayout {
@@ -344,14 +350,15 @@ ApplicationWindow {
                                 Layout.fillWidth: true; Layout.preferredWidth: 1; implicitHeight: 285
                                 ColumnLayout { anchors.fill: parent; anchors.margins: 22; spacing: 13
                                     Caption { text: "01   Tải tài liệu bài giảng"; font.pixelSize: 15 }
-                                    Copy { text: "PPTX · DOCX · PDF · TXT · PNG/JPG\nTối đa 50 MB mỗi tệp. Ảnh/scan cần gói OCR Windows phù hợp."; Layout.fillWidth: true }
+                                    Copy { text: "PPTX · DOCX · PDF · TXT · PNG/JPG\nTối đa 50 MB mỗi tệp. OCR ảnh/scan chạy trên máy, cần kiểm tra lại chữ."; Layout.fillWidth: true }
                                     Rectangle { Layout.fillWidth: true; Layout.fillHeight: true; radius: 12; color: "#f4f8ff"; border.color: "#ccddf5"
                                         ColumnLayout { anchors.centerIn: parent; width: parent.width - 30; spacing: 9
                                             Label { text: root.selectedFile ? root.selectedFileName : "Tài liệu của thầy cô"; color: root.ink; font.pixelSize: 14; elide: Text.ElideMiddle; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
-                                            Action { text: root.selectedFile ? "Đổi tệp" : "Chọn tệp từ máy"; iconName: "upload"; Layout.alignment: Qt.AlignHCenter; onClicked: documentOpen.open() }
+                                            Action { text: root.selectedFile ? "Đổi tệp" : "Chọn tệp từ máy"; iconName: "upload"; enabled: !bridge.busy; Layout.alignment: Qt.AlignHCenter; onClicked: documentOpen.open() }
                                         }
                                     }
-                                    Action { visible: root.selectedFile !== ""; text: "Bỏ tệp đã chọn"; subtle: true; implicitHeight: 30; onClicked: { root.selectedFile = ""; root.selectedFileName = "" } }
+                                    Action { visible: root.selectedFile !== ""; text: "Bỏ tệp đã chọn"; subtle: true; implicitHeight: 30; enabled: !bridge.busy; onClicked: { root.selectedFile = ""; root.selectedFileName = ""; bridge.clearInputAssessment() } }
+                                    Action { visible: !bridge.localOCRAvailable; text: "Chuẩn bị OCR Việt–Anh (tải một lần)"; implicitHeight: 30; subtle: true; enabled: !bridge.busy; onClicked: bridge.prepareLocalOCR() }
                                 }
                             }
                             Surface {
@@ -365,8 +372,9 @@ ApplicationWindow {
                                 }
                             }
                         }
+                        Copy { objectName: "inputAssessmentLabel"; visible: !!bridge.inputAssessment.label; text: "Đánh giá đầu vào: " + (bridge.inputAssessment.label || "") + "\n" + ((bridge.inputAssessment.warnings || []).join("\n")); Layout.fillWidth: true; color: root.ink }
                         RowLayout { Layout.fillWidth: true; Copy { text: root.creationPowerPoint ? "Nhập bài → dịch và duyệt → xem PowerPoint song ngữ. Giữ riêng tệp gốc." : "Văn bản trích xuất cần được kiểm tra trước khi dịch và duyệt."; Layout.fillWidth: true }
-                            Action { objectName: "createLessonButton"; text: bridge.busy ? "Đang nhập…" : "Tạo vùng biên tập  →"; primary: true; enabled: !bridge.busy; onClicked: bridge.createLesson(titleInput.text, subjectInput.text, educationInput.editText, gradeInput.editText, pasteInput.text, root.selectedFile, sourceLanguage.currentIndex === 0 ? "vi" : "en", creationLevel.currentIndex, (root.creationPowerPoint ? root.sourceLayoutKeys : root.layoutKeys)[creationLayout.currentIndex], ["standard", "visual", "practice"][creationPreset.currentIndex]) } }
+                            Action { objectName: "createLessonButton"; text: bridge.busy ? "Đang nhập…" : "Tạo vùng biên tập  →"; primary: true; enabled: !bridge.busy; onClicked: bridge.createLesson(titleInput.text, subjectInput.text, educationInput.editText, gradeInput.editText, pasteInput.text, root.selectedFile, sourceLanguage.currentIndex === 0 ? "vi" : "en", creationLevel.currentIndex, root.creationKeepSource ? "level_auto" : root.layoutKeys[creationLayout.currentIndex], ["standard", "visual", "practice"][creationPreset.currentIndex], root.creationKeepSource ? "source" : "template", ["level", "preserve", "paired"][creationMode.currentIndex]) } }
                     }
                 }
 
@@ -380,7 +388,7 @@ ApplicationWindow {
                         Item { Layout.fillWidth: true }
                         Pill { text: root.dirty ? "Chưa lưu thay đổi" : "Đã lưu trên máy"; tone: root.dirty ? "#ad651d" : "#168567" }
                         Action { text: "Lịch sử"; enabled: !!bridge.lesson.id; onClicked: root.requestAction(function() { historyDialog.open() }) }
-                        Action { objectName: "previewButton"; text: root.keepSourceDesign ? "Xem bài song ngữ" : "Xem trước"; iconName: "view"; enabled: !!bridge.lesson.id && !bridge.busy; onClicked: root.requestAction(function() { if (root.keepSourceDesign) bridge.previewSourcePowerPoint(); else { root.rescue = false; preview.show() } }) }
+                        Action { objectName: "previewButton"; text: root.keepSourceDesign ? "So sánh gốc / song ngữ" : "Xem trước"; iconName: "view"; enabled: !!bridge.lesson.id && !bridge.busy; onClicked: root.requestAction(function() { if (root.keepSourceDesign) bridge.comparePowerPoint(1); else { root.rescue = false; preview.show() } }) }
                         Action { text: "PPTX"; enabled: !bridge.busy; onClicked: root.requestAction(function() { deckSave.open() }) }
                         Action { text: "Gói bài"; primary: true; enabled: !!bridge.lesson.id && !bridge.busy; onClicked: root.requestAction(function() { packSave.open() }) }
                     }
@@ -391,18 +399,24 @@ ApplicationWindow {
                         Choice { id: presetChoice; objectName: "presetChoice"; visible: !root.keepSourceDesign; model: ["Chuẩn lớp học", "Trực quan", "Luyện tập & tương tác"]; currentIndex: Math.max(0, ["standard", "visual", "practice"].indexOf(bridge.lesson.teaching_preset || "standard")); Layout.preferredWidth: 195; onActivated: bridge.setTeachingPreset(["standard", "visual", "practice"][currentIndex]) }
                         Action { objectName: "editorTemplatesButton"; text: "Mẫu"; visible: !root.keepSourceDesign; onClicked: root.requestAction(function() { templateGallery.forCreation = false; templateGallery.preset = bridge.lesson.teaching_preset || "standard"; templateGallery.level = bridge.lesson.level || 0; templateGallery.layout = bridge.lesson.layout || "line_pair"; templateGallery.open() }) }
                         Choice { id: levelChoice; model: bridge.lesson.level === 5 ? root.levels.concat(["L5 · Bài cũ"]) : root.levels; currentIndex: bridge.lesson.level === undefined ? 2 : bridge.lesson.level; Layout.preferredWidth: 194; onActivated: { if (currentIndex < 5) bridge.setPresentation(currentIndex, bridge.lesson.layout || "line_pair") } }
-                        Choice { id: layoutChoice; model: root.keepSourceDesign ? ["Việt + từ khóa Anh", "Slide Việt / Anh kế tiếp", "Chỉ bản Anh"] : ["Cùng dòng · từ khóa", "Hai dòng · EN in nghiêng", "Hai cột VI / EN", "English toàn phần"]; currentIndex: root.keepSourceDesign ? (bridge.lesson.layout === "english_rescue" ? 2 : bridge.lesson.layout === "keyword_overlay" ? 0 : 1) : Math.max(0, root.layoutKeys.indexOf(bridge.lesson.layout)); Layout.preferredWidth: 200; onActivated: bridge.setPresentation(bridge.lesson.level, (root.keepSourceDesign ? root.sourceLayoutKeys : root.layoutKeys)[currentIndex]) }
+                        Choice { objectName: "conversionMode"; visible: root.keepSourceDesign; model: ["Bổ sung theo L0–L4", "Giữ nguyên + trợ giảng", "Slide Việt/Anh kế tiếp"]; currentIndex: Math.max(0, ["level", "preserve", "paired"].indexOf(bridge.lesson.conversion_mode || "paired")); Layout.preferredWidth: 210; onActivated: bridge.setConversionMode(["level", "preserve", "paired"][currentIndex]) }
+                        Choice { id: layoutChoice; visible: !root.keepSourceDesign; model: ["Cùng dòng · từ khóa", "Hai dòng · EN in nghiêng", "Hai cột VI / EN", "English toàn phần", "Theo level L0–L4"]; currentIndex: Math.max(0, root.layoutKeys.indexOf(bridge.lesson.layout)); Layout.preferredWidth: 200; onActivated: bridge.setPresentation(bridge.lesson.level, root.layoutKeys[currentIndex]) }
                         Action { text: "Trợ giảng & Quiz"; objectName: "teachingButton"; onClicked: root.requestAction(function() { teachingDialog.open() }) }
                         Item { Layout.fillWidth: true }
                         Action { objectName: "readinessButton"; text: "Chuẩn bị lên lớp"; onClicked: root.requestAction(function() { bridge.refreshReadiness(); readinessDialog.open() }) }
                     }
                     RowLayout { visible: bridge.powerpointAvailable; Layout.fillWidth: true; spacing: 9
-                        Copy { text: bridge.powerpointState.active ? bridge.powerpointState.message : root.keepSourceDesign ? "Giữ bố cục gốc · slide Việt và Anh kế tiếp · duyệt đủ trước khi mở" : "Nguồn PowerPoint · mở bản chỉ đọc"; Layout.fillWidth: true; font.pixelSize: 11 }
+                        Copy { text: bridge.powerpointState.active ? bridge.powerpointState.message : root.keepSourceDesign ? "Giữ thiết kế gốc · theo cách chuyển đổi đã chọn · trợ giảng dùng nội dung đã duyệt" : "Nguồn PowerPoint · mở bản chỉ đọc"; Layout.fillWidth: true; font.pixelSize: 11 }
                         Action { objectName: "openPowerPointButton"; text: root.keepSourceDesign ? "Trình chiếu song ngữ" : "Chiếu bản gốc"; visible: !bridge.powerpointState.active; enabled: !!bridge.lesson.id && !bridge.busy; implicitHeight: 32; onClicked: root.requestAction(function() { if (root.keepSourceDesign) bridge.startBilingualPowerPoint(); else bridge.startPowerPoint() }) }
                         Action { text: "Slide trước"; visible: bridge.powerpointState.active; implicitHeight: 32; onClicked: bridge.navigatePowerPoint("previous") }
                         Action { text: "Đến slide đoạn này"; visible: bridge.powerpointState.active; implicitHeight: 32; onClicked: bridge.navigatePowerPoint("goto") }
                         Action { text: "Slide tiếp"; visible: bridge.powerpointState.active; implicitHeight: 32; onClicked: bridge.navigatePowerPoint("next") }
                         Action { text: "Đóng PowerPoint"; visible: bridge.powerpointState.active; implicitHeight: 32; onClicked: bridge.stopPowerPoint() }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true; spacing: 12
+                        Copy { text: "Giữ cặp ngôn ngữ đang có; phần dịch mới là bản nháp để thầy cô duyệt."; Layout.fillWidth: true; font.pixelSize: 11 }
+                        Action { objectName: "translateMissingButton"; text: "Dịch phần còn thiếu"; implicitHeight: 32; enabled: !bridge.busy && !!bridge.lesson.id; onClicked: root.requestAction(function() { bridge.translateMissing() }) }
                     }
                     RowLayout {
                         Layout.fillWidth: true; Layout.fillHeight: true; spacing: 16
@@ -455,7 +469,7 @@ ApplicationWindow {
                                 ScrollView { Layout.fillWidth: true; Layout.fillHeight: true; Layout.minimumHeight: 56; clip: true
                                     TextArea { id: enEdit; objectName: "enEditor"; wrapMode: TextEdit.Wrap; selectByMouse: true; color: "#1855a6"; font.pixelSize: 15; padding: 13; placeholderText: "Nhập bản tiếng Anh hoặc tạo bản dịch nháp trên máy…"; onTextChanged: root.edited(); background: Rectangle { radius: 9; color: "#f4f8ff"; border.color: parent.activeFocus ? root.blue : "#d4e4fc" } }
                                 }
-                                Action { text: "Tìm bản dịch gần giống đã duyệt"; iconName: "search"; implicitHeight: 30; enabled: !bridge.busy && !lockedCheck.checked; onClicked: { root.translationSource = bridge.lesson.source_language || "vi"; if (!root.dirty || root.save(false)) bridge.suggestSimilar(root.translationSource) } }
+                                Action { text: "Tìm bản dịch gần giống đã duyệt"; iconName: "search"; implicitHeight: 30; enabled: !bridge.busy && !lockedCheck.checked; onClicked: { root.translationSource = bridge.segment.source_language || bridge.lesson.source_language || "vi"; if (!root.dirty || root.save(false)) bridge.suggestSimilar(root.translationSource) } }
                                 Copy { text: "Bản dịch máy cần thầy cô kiểm tra thuật ngữ, số liệu, công thức và ý nghĩa. Dịch thử tối đa 2.000 ký tự/đoạn."; font.pixelSize: 10; Layout.fillWidth: true }
                                 Copy { visible: bridge.reviewWarnings.length > 0; text: bridge.reviewWarnings.join("\n"); color: "#ad651d"; font.pixelSize: 11; Layout.fillWidth: true }
                                 RowLayout {
@@ -580,7 +594,7 @@ ApplicationWindow {
             }
         }
     }
-    FileDialog { id: documentOpen; title: "Chọn tài liệu bài giảng"; nameFilters: ["Tài liệu (*.pptx *.docx *.pdf *.txt *.png *.jpg *.jpeg)"]; onAccepted: { root.selectedFile = selectedFile.toString(); root.selectedFileName = decodeURIComponent(selectedFile.toString().split("/").pop()); pasteInput.text = "" } }
+    FileDialog { id: documentOpen; title: "Chọn tài liệu bài giảng"; nameFilters: ["Tài liệu (*.pptx *.docx *.pdf *.txt *.png *.jpg *.jpeg)"]; onAccepted: { root.selectedFile = selectedFile.toString(); root.selectedFileName = decodeURIComponent(selectedFile.toString().split("/").pop()); pasteInput.text = ""; bridge.assessInput(root.selectedFile, sourceLanguage.currentIndex === 0 ? "vi" : "en") } }
     FileDialog { id: logoOpen; title: "Chọn logo trường"; nameFilters: ["Ảnh (*.png *.jpg *.jpeg)"]; onAccepted: bridge.saveSchoolLogo(selectedFile.toString()) }
     FileDialog { id: packOpen; title: "Nhập gói bài BiliClass"; nameFilters: ["BiliClass (*.biliclass)"]; onAccepted: bridge.importPack(selectedFile.toString()) }
     FileDialog { id: deckSave; title: "Xuất PowerPoint song ngữ mới"; fileMode: FileDialog.SaveFile; defaultSuffix: "pptx"; nameFilters: ["PowerPoint (*.pptx)"]; onAccepted: bridge.exportPowerPoint(selectedFile.toString()) }
@@ -589,6 +603,40 @@ ApplicationWindow {
     FileDialog { id: knowledgeOpen; title: "Cài gói kiến thức có nguồn"; nameFilters: ["BiliClass Knowledge (*.biliknowledge)"]; onAccepted: bridge.installKnowledgePack(selectedFile.toString()) }
     FileDialog { id: backupOpen; title: "Khôi phục vào thư mục mới"; nameFilters: ["BiliClass Backup (*.bcbackup)"]; onAccepted: bridge.restoreLibrary(selectedFile.toString()) }
     FolderDialog { id: libraryOpen; title: "Chọn thư mục thư viện đã khôi phục"; onAccepted: root.requestAction(function() { bridge.openLibrary(libraryOpen.selectedFolder.toString()) }) }
+    Dialog {
+        id: comparisonDialog; objectName: "comparisonDialog"; anchors.centerIn: parent; modal: true
+        title: "Đối chiếu bố cục bằng PowerPoint"; width: Math.min(1280, root.width - 50); height: Math.min(800, root.height - 65)
+        ColumnLayout {
+            anchors.fill: parent; spacing: 12
+            RowLayout {
+                Layout.fillWidth: true
+                Copy { text: "Bản nguồn · slide " + (bridge.comparison.source_slide || 1); Layout.fillWidth: true }
+                Copy { text: "Bản xuất · slide " + (bridge.comparison.output_slide || 1) + "/" + (bridge.comparison.total || 1); Layout.fillWidth: true }
+            }
+            RowLayout {
+                Layout.fillWidth: true; Layout.fillHeight: true; spacing: 12
+                Rectangle { Layout.fillWidth: true; Layout.fillHeight: true; color: "#e9eef5"; border.color: root.line
+                    Image { anchors.fill: parent; anchors.margins: 3; source: bridge.comparison.source_image || ""; fillMode: Image.PreserveAspectFit }
+                }
+                Rectangle { Layout.fillWidth: true; Layout.fillHeight: true; color: "#e9eef5"; border.color: root.line
+                    Image { anchors.fill: parent; anchors.margins: 3; source: bridge.comparison.result_image || ""; fillMode: Image.PreserveAspectFit }
+                }
+            }
+            ScrollView {
+                id: comparisonReport; Layout.fillWidth: true; Layout.preferredHeight: Math.min(110, comparisonWarnings.implicitHeight + 4); clip: true; contentWidth: availableWidth
+                Copy { id: comparisonWarnings; width: comparisonReport.availableWidth; text: (bridge.conversionReport || []).filter(function(item) { return !item.slide || item.slide === bridge.comparison.source_slide }).map(function(item) { return (item.warnings || []).join("\n") || item.message || (item.action === "added" ? "Đã thêm vùng hỗ trợ vào khoảng trống." : item.action === "support_pages" ? "Slide kín: phần hỗ trợ nằm ở trang kế tiếp." : "Giữ nội dung gốc hoặc ưu tiên ngôn ngữ đã chọn.") }).join("\n"); font.pixelSize: 11 }
+            }
+            Copy { text: "Ảnh đối chiếu xác nhận bố cục tĩnh. Mở PowerPoint để kiểm tra hiệu ứng, video và âm thanh."; Layout.fillWidth: true; font.pixelSize: 11 }
+            RowLayout {
+                Action { text: "Slide trước"; enabled: !bridge.busy && (bridge.comparison.output_slide || 1) > 1; onClicked: bridge.comparePowerPoint(bridge.comparison.output_slide - 1) }
+                Action { text: "Slide tiếp"; enabled: !bridge.busy && bridge.comparison.output_slide < bridge.comparison.total; onClicked: bridge.comparePowerPoint(bridge.comparison.output_slide + 1) }
+                Item { Layout.fillWidth: true }
+                Action { text: "Mở trong PowerPoint"; enabled: !bridge.busy; onClicked: bridge.previewSourcePowerPoint() }
+                Action { text: "Xuất PPTX"; primary: true; enabled: !bridge.busy; onClicked: deckSave.open() }
+                Action { text: "Đóng"; onClicked: comparisonDialog.close() }
+            }
+        }
+    }
     Dialog { id: metadataDialog; anchors.centerIn: parent; modal: true; title: "Thông tin bài học"; width: 500
         onOpened: { metaTitle.text = bridge.lesson.title; metaSubject.text = bridge.lesson.subject; metaEducation.text = bridge.lesson.education_level; metaGrade.text = bridge.lesson.grade }
         contentItem: ColumnLayout { spacing: 12

@@ -1,21 +1,32 @@
 # Giữ thiết kế PowerPoint khi thêm song ngữ
 
-Bản mã nguồn hiện tại mặc định giữ thiết kế khi nhập `.pptx`. Luồng chính: **Nhập bài → dịch và duyệt → Xem bài song ngữ**. Không cần chọn bộ mẫu hoặc loại slide.
+Mã nguồn ngày 03/10/2026 giữ PPTX làm đầu ra chính của **Giữ bài giảng của tôi**. Không cần chọn template. Nguồn lưu riêng theo hash, không ghi đè. Những thay đổi này chưa có trong release rc12.
 
-Đây là bước đầu: hiện thêm bản Anh ở slide kế tiếp. Thêm chữ Anh vào vùng trống cùng slide và so sánh gốc/song ngữ chưa có; xem [đối chiếu hướng phát triển](POWERPOINT_DIRECTION.md).
+1. Chọn PPTX tại **Tạo bài học mới**, kiểm tra đánh giá VI/EN/song ngữ/trộn, chọn môn/khối, L0–L4 và cách chuyển đổi.
+2. **Dịch phần còn thiếu** tạo nháp tối đa 50 đoạn/lượt, giữ cặp có sẵn và đoạn khóa/duyệt. Kiểm tra rồi duyệt từng đoạn; trợ giảng, câu Anh dễ và quiz cần duyệt riêng.
+3. **So sánh gốc / song ngữ** hiển thị hai bản cạnh nhau bằng Microsoft PowerPoint trên Windows. Đây là ảnh tĩnh; kiểm tra animation/trigger/audio/video trong PowerPoint thật.
+4. **PPTX** lưu bản mới; **Trình chiếu song ngữ** điều khiển PowerPoint và mascot theo mapping slide nguồn, kể cả trang hỗ trợ.
 
-1. Trong **Tạo bài học mới**, chọn PowerPoint, nhập tên bài/môn/khối và chọn L0–L4. **Slide Việt / Anh kế tiếp** là cách trình chiếu mặc định.
-2. Kiểm tra văn bản trích xuất, dịch rồi duyệt từng cặp Việt–Anh. Bảng giữ số dòng và dấu `|` phân cột. Chữ trong ảnh, biểu đồ và công thức nhúng cần đối chiếu riêng; app chưa tự dịch những phần này.
-3. Bấm **Xem bài song ngữ** để mở bản tạo trong thư mục tạm bằng ứng dụng PowerPoint trên máy, hoặc **PPTX** để lưu bản mới. Bấm **Trình chiếu song ngữ** để chiếu và điều khiển từ BiliClass; điều khiển này cần Microsoft PowerPoint trên Windows.
+| Cách chuyển đổi | Kết quả |
+|---|---|
+| Bổ sung theo L0–L4 | L0–L3 giữ chữ gốc, thêm panel hỗ trợ ở vùng trống; slide kín/có hiệu ứng/đối tượng xoay dùng trang hỗ trợ kế tiếp và giữ nguyên XML slide gốc. L4 thay chữ trên bản xuất bằng Anh; Việt giữ trong dự án cho VI Rescue. |
+| Giữ nguyên + trợ giảng | PPTX xuất là bản sao nguyên file nguồn; phù hợp bài đã song ngữ/đặc biệt phức tạp. Không cần duyệt để sao chép nguyên file, nhưng mascot/audio/lớp chỉ dùng nội dung đã duyệt. |
+| Slide Việt/Anh kế tiếp | Bản gốc đi kèm bản dịch trên cùng thiết kế. Slide chỉ hình hoặc chữ hai ngôn ngữ giống nhau không bị nhân đôi. |
 
-Với cách mặc định, thứ tự là slide Việt 1 → bản Anh 1 → slide Việt 2 → bản Anh 2. Bản Anh dùng hình, bảng, biểu đồ, nền và vị trí đối tượng của slide tương ứng. Slide chỉ có hình hoặc có nội dung hai ngôn ngữ giống nhau không bị nhân đôi. Nút theo dõi slide và chuyển tới đoạn trong BiliClass vẫn liên kết với số slide gốc.
+Theo level: L0 dùng từ khóa, L1 thêm câu lớp học, L2 câu Anh dễ, L3 bản Anh đầy đủ, L4 English + VI Rescue. Tất cả nội dung bổ sung cần duyệt. L2 thiếu câu dễ thì lấy câu đầu bản Anh đã duyệt và báo rõ; không tự đơn giản hóa kiến thức. L0/L1 thiếu thuật ngữ/câu hỗ trợ thì báo thiếu.
 
-Hai lựa chọn khác: **Việt + từ khóa Anh** chỉ thêm thuật ngữ đã chuẩn bị cạnh chữ Việt; **Chỉ bản Anh** thay văn bản Việt bằng bản Anh trên bố cục gốc. Level tiếp tục theo quy tắc của bài, bao gồm câu Anh dễ đã được duyệt ở L2. Ngôn ngữ trình chiếu quyết định phần chữ hiện trên slide; level không tự tạo kiến thức hay bản dịch đúng.
+Nguồn đã song ngữ giữ cặp hiện có ở L0–L3, không thêm bản dịch trùng. Giữ thiết kế cũng đồng nghĩa không tự xóa phần Anh sẵn có để giảm level. Nguồn chỉ Anh giữ chữ Anh và bổ sung phần Việt đã duyệt.
 
-Bản nguồn được lưu riêng và kiểm tra hash trước khi tạo bản song ngữ. Nội dung dịch dùng các ô chữ có sẵn; app có thể giảm cỡ chữ trong giới hạn, nhưng sẽ báo nếu vẫn quá dài. Khi đó rút gọn và duyệt lại, hoặc bỏ **Giữ thiết kế gốc** để dùng bố cục BiliClass. Hiệu ứng và đối tượng gốc được giữ trong gói PowerPoint; vẫn cần xem lại trên máy dạy, nhất là khi đổi độ dài chữ hoặc có âm thanh/video liên kết ngoài.
+## Giới hạn
 
-Bài cũ vẫn giữ cách trình bày đã chọn. Muốn chuyển bài PowerPoint cũ, bật **Giữ thiết kế gốc** trong màn soạn bài. Nếu các đoạn đã gộp/sửa nguồn nên không còn khớp ô chữ, app yêu cầu nhập lại bản gốc hoặc dùng bố cục BiliClass. Gói bài chia sẻ lưu lựa chọn này; người nhận vẫn cần kiểm tra và duyệt lại nội dung.
+- Nhận diện/ghép cặp là gợi ý, không chứng minh cùng nghĩa. Bảng giữ dấu | phân cột; giáo viên kiểm tra trước duyệt.
+- Chỉnh các phần OOXML cần thiết, giữ tài nguyên/theme nguồn. Biểu đồ bản sao có dữ liệu riêng. Chữ chart/SmartArt/công thức nhúng/hình có chữ và media liên kết ngoài chưa được dịch đầy đủ.
+- Panel dùng khoảng trống theo bounding box và ước lượng chữ. Master/hình nền phức tạp vẫn cần đối chiếu; không bảo đảm mọi slide không tràn. Trang hỗ trợ dùng nền/theme nguồn cùng panel chữ, không tự thiết kế lại bài.
+- L4/cặp slide kế tiếp có giới hạn giảm cỡ chữ; quá dài hoặc không khớp ô nguồn thì báo để rút gọn, nhập lại hoặc dùng template.
+- PPTX chỉ ảnh lớn được thử OCR và gợi ý template. Không OCR toàn bộ chữ trong mọi hình của slide vốn có text.
 
-Xem lại cùng một bài không cần tạo lại `.exe`: app dùng bản PowerPoint tạm đã kiểm tra khi nội dung/cấu hình không đổi, và tạo bản khác khi sửa bài. Bản thử từ mã nguồn chưa nằm trong rc12. Chạy nhanh theo [TRY_IT.md](TRY_IT.md).
+App cache bản tạm theo nội dung/cấu hình/hash; sửa bài làm cache cũ hết hiệu lực. Xuất OOXML không cần Office; so sánh và trình chiếu cần Office. Không cần build lại exe cho từng lần thử bài.
 
-Kiểm tra trên máy phát triển: bộ mẫu thử có chữ, bảng và biểu đồ sửa được; PowerPoint mở và render được cả 6 slide song ngữ. Ba slide Việt có render giống hệt bản nguồn. Kiểm thử cũng xác nhận biểu đồ của bản Anh có riêng phần dữ liệu nhúng, giữ nguyên dữ liệu gốc; nguồn, theme và media không bị sửa. Kết quả này không thay thế việc nghiệm thu bài thật của giáo viên.
+Gói .biliclass lưu nguồn, VI/EN, level/mode, trợ giảng/quiz/audio và thuật ngữ/giọng/mascot tham chiếu. Người nhận duyệt lại; tham chiếu không tự thay Cài đặt hoặc thuật ngữ máy nhận. Xem [quy trình chung](INPUT_WORKFLOW.md).
+
+Kiểm chứng: Office mở/render cả năm level trên fixture có chữ, bảng, biểu đồ sửa được; render slide giữ nguyên trong nhánh trang hỗ trợ giống hệt nguồn. Qt smoke xác nhận đánh giá đầu vào, điều khiển và màn so sánh. Chưa nghiệm thu mọi bài thật/hiệu ứng phức tạp.

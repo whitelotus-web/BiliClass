@@ -2,7 +2,7 @@
 
 Kho kiến thức có nguồn và bộ nhớ giáo viên đang được bổ sung trong bản mã nguồn: xem [cách vận hành](docs/KNOWLEDGE.md). Bản RC12 đóng gói chưa có tính năng này.
 
-Bản mã nguồn cũng đã thêm luồng **giữ thiết kế PowerPoint gốc**: nhập `.pptx`, dịch/duyệt, rồi mở bản song ngữ gồm slide Việt và Anh kế tiếp. Không cần chọn template. Xem [hướng dẫn](docs/SOURCE_POWERPOINT.md); tính năng này chưa nằm trong rc12.
+Bản mã nguồn ngày 03/10/2026 có **đánh giá đầu vào và chuyển đổi theo L0–L4**: giữ PowerPoint gốc hoặc tạo bài từ tài liệu/ảnh theo mẫu. Thêm **Dịch phần còn thiếu** và **So sánh gốc / song ngữ**. Xem [quy trình nhập bài](docs/INPUT_WORKFLOW.md) và [PowerPoint](docs/SOURCE_POWERPOINT.md). Các thay đổi này chưa có trong release rc12.
 
 Ứng dụng Windows chuẩn bị và dạy **song ngữ Anh–Việt đa môn THPT**. Bản thử hiện tại: **1.0 RC12**, cập nhật 02/10/2026.
 
@@ -16,8 +16,9 @@ App dùng thư viện của người dùng trong `%LOCALAPPDATA%/BiliClass`, kh�
 
 ## Chức năng
 
-- Nhập PPTX/DOCX/PDF/TXT/ảnh; OCR theo ngôn ngữ Windows đã cài; nguồn giữ nguyên.
-- Dịch offline Việt ↔ Anh, thuật ngữ theo môn, memory đã duyệt, gợi ý gần giống, kiểm tra số/ký hiệu; biên tập và duyệt từng đoạn.
+- Nhập PPTX/DOCX/PDF/TXT/PNG/JPG; đánh giá ngôn ngữ theo đoạn. OCR Việt–Anh cục bộ có bước chuẩn bị model một lần; chữ OCR cần kiểm tra, nguồn giữ nguyên.
+- Dịch offline Việt ↔ Anh; dịch phần còn thiếu theo loạt, giữ cặp sẵn có và đoạn duyệt/khóa. Ưu tiên thuật ngữ/memory giáo viên trước kho nền/model; bản nháp cần kiểm tra và duyệt.
+- Chuyển PPTX theo level: thêm panel ở vùng trống hoặc trang hỗ trợ; có lựa chọn giữ nguyên cùng trợ giảng và cặp slide kế tiếp. So sánh hai bản bằng Microsoft PowerPoint trên máy; template có lựa chọn Theo level L0–L4.
 - Chọn L0–L4 và một trong bốn kiểu trình bày cho từng bài, bài L5 cũ vẫn đọc được; nội dung trợ giảng được giáo viên chuẩn bị; năm giọng Kokoro English và bốn giọng VieNeu Việt chạy offline, cache WAV, VI Rescue, Milo/Lumi, PowerPoint companion và cửa sổ lớp riêng.
 - Sáu tab Cài đặt: Chung (tên, trường, nhiều bộ môn, logo), Song ngữ (hướng dẫn level/bố cục), Giọng đọc có nghe thử, Mascot có xem trước theo bối cảnh, Lớp học và Dữ liệu.
 - QR/LAN, học sinh trả lời trên trình duyệt, ba loại câu hỏi, gửi lại/đổi đáp án/kết nối lại; kết quả chỉ công bố khi giáo viên chọn.

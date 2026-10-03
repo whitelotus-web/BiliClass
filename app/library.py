@@ -125,7 +125,7 @@ class Library:
             segment.setdefault("source_text", segment[lesson["source_language"]])
         return lesson
 
-    def create(self, title, subject, education_level, grade, blocks, source=None, source_language="vi"):
+    def create(self, title, subject, education_level, grade, blocks, source=None, source_language="vi", analysis=None):
         if source_language not in ("vi", "en"):
             raise ValueError("Ngôn ngữ nguồn phải là tiếng Việt hoặc tiếng Anh.")
         if not title.strip() or not subject.strip():
@@ -150,6 +150,13 @@ class Library:
             raise ValueError("Một đoạn vượt 100.000 ký tự; hãy chia nhỏ nội dung nguồn.")
         if len(segments) > 10000 or sum(len(s["source_text"]) for s in segments) > 1_000_000:
             raise ValueError("Nội dung vượt giới hạn của bản thử.")
+        if analysis:
+            units = {unit["locator"]: unit for unit in analysis["units"]}
+            for segment in segments:
+                unit = units[segment["locator"]]
+                segment.update(vi=unit["vi"], en=unit["en"], source_language=unit["source_language"],
+                               input_language=unit["language"], existing_pair=unit["existing_pair"],
+                               paired_locator=unit["paired_locator"])
         lesson = {
             "id": str(uuid4()),
             "title": title.strip(),
@@ -166,6 +173,11 @@ class Library:
             "presentation_style": "source" if source and source.get("file", "").lower().endswith(".pptx") else "template",
             "updated_at": now(),
         }
+        if analysis:
+            # The full extraction is already stored in segments. Keep a compact
+            # input assessment in the project, not another copy of every string.
+            lesson["input_profile"] = {key: value for key, value in analysis.items() if key != "units"}
+            lesson["conversion_mode"] = analysis["recommended_mode"]
         self._write(lesson, new=True)
         return lesson
 
@@ -207,16 +219,16 @@ class Library:
 
     def edit_segment(self, lesson_id, segment_id, vi, en, approve=False, locked=False):
         lesson = self.get(lesson_id)
-        source = vi if lesson["source_language"] == "vi" else en
+        segment = next((s for s in lesson["segments"] if s["id"] == segment_id), None)
+        if segment is None:
+            raise ValueError("Không tìm thấy đoạn cần sửa.")
+        source = vi if segment.get("source_language", lesson["source_language"]) == "vi" else en
         if not source.strip():
             raise ValueError("Nội dung nguồn không được để trống.")
         if len(vi) + len(en) > 100_000:
             raise ValueError("Đoạn quá dài; hãy chia nhỏ nội dung trước khi biên tập.")
         if approve and not (en.strip() and vi.strip()):
             raise ValueError("Cần cả tiếng Việt và tiếng Anh trước khi duyệt đoạn này.")
-        segment = next((s for s in lesson["segments"] if s["id"] == segment_id), None)
-        if segment is None:
-            raise ValueError("Không tìm thấy đoạn cần sửa.")
         if (vi, en) != (segment["vi"], segment["en"]):
             for item in segment.get("support", []):
                 item["approved"] = False
@@ -245,6 +257,35 @@ class Library:
             text if source_language == "vi" else segment["en"],
             approve=False,
         )
+
+    def apply_batch_translations(self, lesson_id, drafts, expected_revision):
+        lesson = self.get(lesson_id)
+        if lesson["revision"] != expected_revision:
+            raise RevisionConflict("Bài vừa được sửa; chưa áp dụng loạt bản dịch cũ.")
+        segments = {s["id"]: s for s in lesson["segments"]}
+        seen = set()
+        for draft in drafts:
+            segment = segments.get(draft["id"])
+            language = draft["language"]
+            if segment is None or draft["id"] in seen or language not in {"vi", "en"}:
+                raise ValueError("Loạt bản dịch không khớp các đoạn của bài.")
+            seen.add(draft["id"])
+            target = "en" if language == "vi" else "vi"
+            if segment.get("locked") or segment.get("approved") or segment[target].strip() or segment[language] != draft["source"]:
+                raise RevisionConflict("Đoạn đã đổi, duyệt hoặc khóa; chưa áp dụng loạt bản dịch.")
+            text = draft["draft"]
+            if not isinstance(text, str) or not text.strip() or len(text) + len(segment[language]) > 100000:
+                raise ValueError("Một bản dịch trống hoặc quá dài; chưa áp dụng loạt bản dịch.")
+            segment.update({target: text, "approved": False, "translation_provenance": draft.get("provenance", "machine_draft")})
+            for item in segment.get("support", []):
+                item["approved"] = False
+            for question in lesson.get("questions", []):
+                if question.get("concept_id") == segment["id"]:
+                    question["approved"] = False
+        if drafts:
+            lesson.update(revision=lesson["revision"] + 1, updated_at=now())
+            self._write(lesson)
+        return lesson
 
     def history(self, lesson_id):
         return [
@@ -317,7 +358,7 @@ class Library:
     def set_presentation(self, lesson_id, level, layout):
         if type(level) is not int or not 0 <= level <= 5:
             raise ValueError("Level phải từ L0 đến L5.")
-        if layout not in {"keyword_overlay", "line_pair", "split_view", "english_rescue"}:
+        if layout not in {"keyword_overlay", "line_pair", "split_view", "english_rescue", "level_auto"}:
             raise ValueError("Layout không hợp lệ.")
         lesson = self.get(lesson_id)
         lesson.update(level=level, layout=layout, revision=lesson["revision"] + 1, updated_at=now())
@@ -343,6 +384,18 @@ class Library:
         if lesson.get("presentation_style", "template") == style:
             return lesson
         lesson.update(presentation_style=style, revision=lesson["revision"] + 1, updated_at=now())
+        self._write(lesson)
+        return lesson
+
+    def set_conversion_mode(self, lesson_id, mode):
+        if mode not in {"level", "preserve", "paired"}:
+            raise ValueError("Chọn cách chuyển đổi hợp lệ.")
+        lesson = self.get(lesson_id)
+        if lesson.get("presentation_style") != "source":
+            raise ValueError("Lựa chọn này dành cho PowerPoint giữ thiết kế gốc.")
+        if lesson.get("conversion_mode", "paired") == mode:
+            return lesson
+        lesson.update(conversion_mode=mode, revision=lesson["revision"] + 1, updated_at=now())
         self._write(lesson)
         return lesson
 

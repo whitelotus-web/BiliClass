@@ -1,5 +1,12 @@
 # Thành phần bên thứ ba — bản thử 1.0 RC12
 
+## OCR trong mã nguồn ngày 03/10/2026
+
+- **RapidOCR 3.9.2** (Apache-2.0) qua **ONNX Runtime 1.30.0** (MIT). Wheel có bộ dò PP-OCRv6 và phân hướng PP-OCR; app dùng nhận dạng **Latin PP-OCRv5 mobile** tải riêng. Nguồn: [RapidOCR](https://github.com/RapidAI/RapidOCR), [danh sách model](https://github.com/RapidAI/RapidOCRDocs/blob/main/docs/model_list.md), [cấu hình model v3.9.2](https://github.com/RapidAI/RapidOCR/blob/v3.9.2/python/rapidocr/default_models.yaml).
+- Model nhận dạng: [latin_PP-OCRv5_rec_mobile.onnx](https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/v3.9.2/onnx/PP-OCRv5/rec/latin_PP-OCRv5_rec_mobile.onnx). SHA-256: `b20bd37c168a570f583afbc8cd7925603890efbcdc000a59e22c269d160b5f5a`. Tải chủ động bằng nút chuẩn bị, có provenance; ảnh/PDF không gửi tới nguồn model. Sau khi chuẩn bị, OCR chạy cục bộ. Model không vào Git.
+- Phụ thuộc mới gồm OpenCV, OmegaConf/ANTLR4, colorlog, pyclipper và shapely; phiên bản chính xác trong `requirements-lock.txt`, giấy phép/metadata được thu khi đóng gói. RapidOCR và tài nguyên model được collect trong script build; thay đổi này chưa có ở release RC12.
+- Model Latin còn nhận sai một số dấu Việt trong kiểm tra thật. Chữ OCR là nháp cần giáo viên kiểm tra; không phải bảo đảm đọc đúng sách giáo khoa/công thức/chữ viết tay.
+
 Bản ứng dụng hiện tại dành để kiểm thử tại máy, chưa phải gói phát hành thương mại. Giữ nguyên thư mục `_internal`, các license kèm thư viện và thông tin gói model khi sao chép.
 
 ## Kokoro English TTS trong RC7

@@ -16,12 +16,12 @@ def export_deck(lesson, directory, destination, profile=None, terms=()):
     source = lesson.get("source")
     if source and target == (Path(directory) / "sources" / source["file"]).resolve():
         raise ValueError("Chọn đường dẫn mới để giữ nguyên tệp nguồn.")
-    if not lesson.get("segments") or any(not s.get("approved") for s in lesson["segments"]):
-        raise ValueError("Duyệt toàn bộ cặp Việt/Anh trước khi xuất PowerPoint.")
     from .source_deck import export_source_deck, is_source_style
 
     if is_source_style(lesson):
         return Path(export_source_deck(lesson, directory, target, terms)["path"])
+    if not lesson.get("segments") or any(not s.get("approved") for s in lesson["segments"]):
+        raise ValueError("Duyệt toàn bộ cặp Việt/Anh trước khi xuất PowerPoint.")
     presentation = Presentation()
     presentation.slide_width, presentation.slide_height = Inches(13.333), Inches(7.5)
     source_deck = None

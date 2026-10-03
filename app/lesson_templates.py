@@ -43,6 +43,7 @@ def slide_plan(lesson, segment, *, terms=(), rescue=False, image="", sample=Fals
     block = block_type(segment.get("kind", "unknown"))
     layout = lesson.get("layout", "line_pair")
     content = presentation_content(segment, lesson.get("level", 2), layout, rescue, terms)
+    layout = content["layout"]
     result = {"width": 1280, "height": 720, "font": "Arial", "preset": preset_id,
               "kind": block["id"], "background": preset["background"], "accent": preset["accent"],
               "ink": preset["ink"], "muted": preset["muted"], "elements": [], "image": image,
@@ -100,10 +101,11 @@ def slide_plan(lesson, segment, *, terms=(), rescue=False, image="", sample=Fals
 
 def slide_pages(lesson, segment, *, terms=(), image="", profile=None, rescue=False):
     content = presentation_content(segment, lesson.get("level", 2), lesson.get("layout", "line_pair"), rescue, terms)
+    resolved_lesson = {**lesson, "layout": content["layout"]}
     vi = content["vi"] if content["show_vi"] else ""
     en = content["en"] if content["show_en"] else ""
     # Start at corresponding lines, then pack those pairs into the actual regions.
-    pairs = paired_pages(vi, en, limit=340 if lesson.get("layout") == "split_view" else 430)
+    pairs = paired_pages(vi, en, limit=340 if content["layout"] == "split_view" else 430)
     line_pairs = []
     for left, right in pairs:
         left_lines, right_lines = left.splitlines(), right.splitlines()
@@ -118,7 +120,7 @@ def slide_pages(lesson, segment, *, terms=(), image="", profile=None, rescue=Fal
     packed, current = [], ("", "")
     for left, right in line_pairs:
         candidate = ("\n".join(filter(None, (current[0], left))), "\n".join(filter(None, (current[1], right))))
-        plan = slide_plan(lesson, {**segment, "vi": candidate[0], "en": candidate[1], "support": []},
+        plan = slide_plan(resolved_lesson, {**segment, "vi": candidate[0], "en": candidate[1], "support": []},
                           image=image, profile=profile, rescue=rescue)
         if plan["overflow"] and any(current):
             packed.append(current)
@@ -131,7 +133,7 @@ def slide_pages(lesson, segment, *, terms=(), image="", profile=None, rescue=Fal
     for index, (left, right) in enumerate(packed):
         # Already resolved keywords/easy English: avoid applying transformations twice.
         page_segment = {**segment, "vi": left, "en": right, "support": []}
-        plan = slide_plan(lesson, page_segment, terms=(), image=image, profile=profile, rescue=rescue)
+        plan = slide_plan(resolved_lesson, page_segment, terms=(), image=image, profile=profile, rescue=rescue)
         if plan["overflow"]:
             raise ValueError(f"{segment.get('locator', '')}: nội dung vượt khung mẫu. Hãy tách ý và duyệt lại cặp Việt–Anh.")
         if len(packed) > 1:

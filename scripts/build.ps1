@@ -12,6 +12,7 @@ try {
       --add-data 'app/student_web;app/student_web' `
       --add-data 'biliclass_m0/assets;biliclass_m0/assets' `
       --collect-submodules winrt --collect-all pypdfium2 --collect-all pypdfium2_raw `
+      --collect-all rapidocr --collect-all omegaconf --collect-all antlr4 `
       --hidden-import uvicorn.loops.auto --hidden-import uvicorn.protocols.http.h11_impl `
       --hidden-import uvicorn.protocols.websockets.websockets_sansio_impl --hidden-import uvicorn.lifespan.on `
       --collect-data ctranslate2 --exclude-module torch --exclude-module matplotlib `

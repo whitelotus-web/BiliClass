@@ -3,7 +3,7 @@ import re
 
 from biliclass_m0.contracts import LevelPolicy
 
-LAYOUTS = {"keyword_overlay", "line_pair", "split_view", "english_rescue"}
+LAYOUTS = {"keyword_overlay", "line_pair", "split_view", "english_rescue", "level_auto"}
 
 
 def inline_keywords(text, terms):
@@ -20,15 +20,32 @@ def presentation_content(segment, level, layout, rescue=False, terms=()):
     policy = LevelPolicy.for_level(level)
     if layout not in LAYOUTS:
         raise ValueError("Layout không hợp lệ.")
+    automatic = layout == "level_auto"
+    if automatic:
+        from .level_conversion import layout_for_level, support_for_level
+
+        layout = layout_for_level(level)
+        support = support_for_level(segment, level, terms)
     original_vi = segment.get("vi", "")
     en = segment.get("en", "")
     approved_easy = next((item["en"] for item in segment.get("support", [])
                           if item.get("approved") and item.get("kind") == "easy_en" and item.get("en")), "")
     if level == 2 and approved_easy:
         en = approved_easy
-    inline_vi = inline_keywords(original_vi, terms) if layout == "keyword_overlay" else original_vi
+    keywords = list(terms)
+    if automatic:
+        keywords += [item for item in segment.get("support", [])
+                     if item.get("approved") and item.get("kind") == "vocabulary"]
+        if level == 1:
+            en = "\n".join(item["en"] for item in segment.get("support", [])
+                           if item.get("approved") and item.get("kind") == "prompt" and item.get("en"))
+            if not en:
+                layout = "keyword_overlay"
+        elif level == 2:
+            en = support["text"]
+    inline_vi = inline_keywords(original_vi, keywords) if layout == "keyword_overlay" or automatic and level < 2 else original_vi
     return {
-        "vi": inline_vi, "en": en,
+        "vi": inline_vi, "en": en, "layout": layout,
         "show_vi": layout != "english_rescue" or rescue,
         "show_en": layout != "keyword_overlay",
         "columns": 2 if layout == "split_view" else 1,

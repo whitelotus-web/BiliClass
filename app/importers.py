@@ -56,6 +56,34 @@ def parse_document(path, language="vi", cancelled=None):
         from .source_deck import text_blocks
 
         blocks = [(unit["locator"], unit["text"]) for unit in text_blocks(presentation)]
+        # Scan-style decks can still enter Template Mode. OCR only substantial
+        # pictures on slides with no native text; never run it on every logo.
+        occupied_slides = {int(locator.split()[1].split("·")[0]) for locator, _ in blocks}
+        for index, slide in enumerate(presentation.slides, 1):
+            if index in occupied_slides:
+                continue
+            pictures = [shape for shape in slide.shapes if int(shape.shape_type) == 13
+                        and shape.width * shape.height >= presentation.slide_width * presentation.slide_height * .2]
+            if not pictures:
+                continue
+            import io
+            import tempfile
+
+            from PIL import Image
+
+            from .ocr import recognize
+
+            with tempfile.TemporaryDirectory(prefix="biliclass-slide-ocr-") as temporary:
+                for number, picture in enumerate(pictures, 1):
+                    target = Path(temporary) / "scan.png"
+                    with Image.open(io.BytesIO(picture.image.blob)) as image:
+                        image.thumbnail((2400, 2400))
+                        image.convert("RGB").save(target)
+                    recognized = recognize(target, language, cancelled=cancelled)
+                    text = "\n".join(value for _, value in recognized if value.strip())
+                    if text.strip():
+                        blocks.append((f"Slide {index} · ảnh {number} · OCR cần kiểm tra", text))
+        blocks.sort(key=lambda item: int(item[0].split()[1]))
     elif suffix == ".docx":
         from docx import Document
 

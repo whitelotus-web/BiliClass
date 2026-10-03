@@ -32,40 +32,52 @@ def find_model(source_language="vi"):
     return None
 
 
-def translate_draft(text, source_language="vi", terms=()):
+def draft_resources(source_language):
     import ctranslate2
     import sentencepiece
 
-    if source_language not in ("vi", "en") or not text.strip():
-        raise ValueError("Chọn hướng dịch hợp lệ và nhập nội dung nguồn.")
     package = find_model(source_language)
     if not package:
         raise ValueError("Chưa cài gói dịch trên máy. Bạn vẫn có thể nhập và duyệt bản tiếng Anh.")
-    if len(text) > 2000:
-        raise ValueError("Dịch thử tối đa 2.000 ký tự mỗi đoạn. Hãy rút gọn hoặc nhập bản tiếng Anh.")
     model, tokenizer_path = package
     tokenizer = sentencepiece.SentencePieceProcessor(model_proto=tokenizer_path.read_bytes())
+    return tokenizer, load_translator(model, ctranslate2)
+
+
+def translate_with_resources(text, source_language, terms, tokenizer, translator):
+    if source_language not in ("vi", "en") or not text.strip():
+        raise ValueError("Chọn hướng dịch hợp lệ và nhập nội dung nguồn.")
+    if len(text) > 2000:
+        raise ValueError("Dịch thử tối đa 2.000 ký tự mỗi đoạn. Hãy rút gọn hoặc nhập bản tiếng Anh.")
     tokens = tokenizer.encode(text, out_type=str)
     if len(tokens) > 350:
         raise ValueError("Đoạn quá dài cho gói dịch thử. Hãy chia nhỏ để tránh mất nội dung.")
-    translator = load_translator(model, ctranslate2)
+    chunks = protected_parts(text, terms, source_language)
+    pending = [(index, chunk["text"]) for index, chunk in enumerate(chunks)
+               if not chunk["protected"] and any(character.isalpha() for character in chunk["text"])]
+    if pending:
+        results = translator.translate_batch(
+            [tokenizer.encode(value.strip(), out_type=str) for _, value in pending],
+            beam_size=4, max_decoding_length=512,
+        )
+        for (index, original), result in zip(pending, results, strict=True):
+            pieces = result.hypotheses[0]
+            if len(pieces) >= 512:
+                raise ValueError("Bản dịch chạm giới hạn độ dài và chưa được lưu. Hãy chia nhỏ đoạn.")
+            decoded = decode_candidate(tokenizer, pieces).strip()
+            if not decoded:
+                raise ValueError("Model trả về một phần rỗng; chưa áp dụng bản dịch.")
+            chunks[index]["text"] = (" " if original[:1].isspace() else "") + decoded + (" " if original[-1:].isspace() else "")
+    return "".join(chunk["text"] for chunk in chunks)
+
+
+def translate_draft(text, source_language="vi", terms=()):
+    if source_language not in ("vi", "en") or not text.strip():
+        raise ValueError("Chọn hướng dịch hợp lệ và nhập nội dung nguồn.")
+    if len(text) > 2000:
+        raise ValueError("Dịch thử tối đa 2.000 ký tự mỗi đoạn. Hãy rút gọn hoặc nhập bản tiếng Anh.")
+    tokenizer, translator = draft_resources(source_language)
     try:
-        chunks = protected_parts(text, terms, source_language)
-        pending = [(index, chunk["text"]) for index, chunk in enumerate(chunks)
-                   if not chunk["protected"] and any(character.isalpha() for character in chunk["text"])]
-        if pending:
-            results = translator.translate_batch(
-                [tokenizer.encode(value.strip(), out_type=str) for _, value in pending],
-                beam_size=4, max_decoding_length=512,
-            )
-            for (index, original), result in zip(pending, results, strict=True):
-                pieces = result.hypotheses[0]
-                if len(pieces) >= 512:
-                    raise ValueError("Bản dịch chạm giới hạn độ dài và chưa được lưu. Hãy chia nhỏ đoạn.")
-                decoded = decode_candidate(tokenizer, pieces).strip()
-                if not decoded:
-                    raise ValueError("Model trả về một phần rỗng; chưa áp dụng bản dịch.")
-                chunks[index]["text"] = (" " if original[:1].isspace() else "") + decoded + (" " if original[-1:].isspace() else "")
-        return "".join(chunk["text"] for chunk in chunks)
+        return translate_with_resources(text, source_language, terms, tokenizer, translator)
     finally:
         translator.unload_model()
