@@ -41,3 +41,4 @@ refs/
 # Browser login sessions and teacher prompts/source bundles are machine-local.
 browser_ai/
 chatgpt/
+chatgpt_plan/

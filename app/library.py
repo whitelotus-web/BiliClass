@@ -230,6 +230,8 @@ class Library:
         if approve and not (en.strip() and vi.strip()):
             raise ValueError("Cần cả tiếng Việt và tiếng Anh trước khi duyệt đoạn này.")
         if (vi, en) != (segment["vi"], segment["en"]):
+            if segment.get("ai_provider") == "chatgpt_plan":
+                segment["ai_issues"] = []  # Teacher correction supersedes this draft's extraction issues.
             for item in segment.get("support", []):
                 item["approved"] = False
             for question in lesson.get("questions", []):
@@ -431,7 +433,8 @@ class Library:
     def review_lesson(self, lesson_id, expected_revision):
         """One explicit teacher review of the entire generated lesson.
 
-        This does not approve generated support, quizzes or knowledge packs.
+        Source-linked AI supports shown in the preview are covered by this review.
+        Other support, quizzes and knowledge packs have separate approval.
         Validate everything before persisting a single revision.
         """
         from .quick_conversion import review_snapshot

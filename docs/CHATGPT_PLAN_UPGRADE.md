@@ -1,6 +1,8 @@
 # Kế hoạch kết nối ChatGPT và chuyển đổi bài giảng
 
-Ngày đối chiếu: 03/10/2026. Trạng thái: **kế hoạch nâng cấp, chưa triển khai kết nối mới**. Luồng web hiện tại vẫn được mô tả trong [BROWSER_AI.md](BROWSER_AI.md).
+Ngày đối chiếu: 03/10/2026. Trạng thái: **đã triển khai OAuth và luồng JSON → PowerPoint trong mã nguồn; chưa xác nhận kết nối trên tài khoản thật**. Hướng dẫn và bằng chứng hiện tại: [BROWSER_AI.md](BROWSER_AI.md). Release RC12 chưa chứa thay đổi này.
+
+Đã có PKCE/state/nonce, kiểm tra ID token ký số, lưu DPAPI, refresh/revoke, catalog/Responses stream, validator tham chiếu nguồn, chia/cache từng phần, hỏi trước khi gửi lại lượt chưa rõ kết quả, dựng nguồn/mẫu, nhận diện ảnh nguồn và lời đọc theo level. Giao diện Qt với AI giả lập đã chạy qua PowerPoint thật và xác nhận cả bài. Đăng nhập thật chưa thành công: người dùng báo trang lỗi trước callback, chưa rõ thông báo cụ thể; mốc 0 và nghiệm thu hai giáo viên vẫn chưa đạt. Nhận JSON thủ công, chọn nhiều model và đánh giá chất lượng trên giáo án thật còn ở kế hoạch; luồng thủ công hiện vẫn nhận PPTX.
 
 Người dùng đã xác nhận chấp nhận kết nối chính thức dùng hạn mức ChatGPT, không cần API key hoặc billing API riêng. Kết nối này vẫn gọi Responses API bằng quyền OAuth; không đồng nghĩa với việc điều khiển trang ChatGPT web.
 
@@ -37,7 +39,7 @@ Thay luồng điều khiển DOM của chatgpt.com bằng kết nối chính th�
 
 ## 3. Cài đặt → Browser AI
 
-Trước khi kết nối, có một nút **Tiếp tục với ChatGPT**. Windows mở trình duyệt mặc định; thầy cô tự đăng nhập và đồng ý cho BiliClass dùng hạn mức gói. App tự nhận callback và lưu kết nối thành công, không có bước Lưu riêng.
+Trước khi kết nối, có một nút **Tiếp tục với ChatGPT**. Windows mở Edge với hồ sơ riêng của BiliClass, tự đóng khi xong/hủy; chuyển đổi chạy ngầm không mở browser; thầy cô tự đăng nhập và đồng ý cho BiliClass dùng hạn mức gói. App tự nhận callback và lưu kết nối thành công, không có bước Lưu riêng.
 
 Sau kết nối, hiện tài khoản, trạng thái quyền xử lý và các thao tác **Đổi/thêm tài khoản**, **Ngắt kết nối**, **Xem hạn mức**. Cho phép lưu nhiều tài khoản nếu cần, nhưng chỉ một tài khoản được chọn cho mỗi yêu cầu. Hiển thị thông báo dùng hạn mức gói một lần sau lần cấp quyền đầu tiên. [Hướng dẫn giao diện](https://developers.openai.com/siwc/ui-ux-guidelines).
 

@@ -37,3 +37,18 @@ def support_for_level(segment, level, terms=()):
             "questions_en": policy.questions_en, "rescue_available": policy.rescue_available,
             "missing_easy": level == 2 and not any(item.get("kind") == "easy_en" for item in reviewed),
             "missing_vocabulary": level < 2 and not vocabulary}
+
+
+def narration_text(segment, language, level, terms=()):
+    """English narration uses the same reviewed level support as the slide."""
+    if language == "vi" or segment.get("ai_provider") != "chatgpt_plan":
+        return segment.get(language, "")
+    if level < 2:
+        reviewed = [item for item in segment.get("support", []) if item.get("approved")]
+        words = [item["en"] for item in reviewed if item.get("kind") == "vocabulary" and item.get("en")]
+        words += [term["en"] for term in terms if term.get("vi") and term.get("en")
+                  and re.search(r"(?<!\w)" + re.escape(term["vi"]) + r"(?!\w)", segment.get("vi", ""), re.I)]
+        if level == 1:
+            words += [item["en"] for item in reviewed if item.get("kind") == "prompt" and item.get("en")]
+        return "\n".join(dict.fromkeys(words))
+    return support_for_level(segment, level, terms)["text"]

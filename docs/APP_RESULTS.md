@@ -1,4 +1,16 @@
-# Kiểm chứng BiliClass 1.0 RC10
+# Kiểm chứng BiliClass
+
+## Mã nguồn Browser AI ngày 03/10/2026
+
+- Toàn bộ kiểm thử: **244 passed**; một cảnh báo Starlette/httpx của phần lớp học, không có test lỗi. Ruff không lỗi.
+- OAuth giả lập kiểm tra đăng ký đầu tiên/đăng nhập lại, callback/state/PKCE, chữ ký/audience/nonce, scope, refresh và lỗi cấp quyền. DPAPI được kiểm tra trên Windows thật.
+- Windows job thực tế đóng cả tiến trình con tool tạo, giữ tiến trình ngoài phiên. Edge dùng hồ sơ riêng của BiliClass; đăng nhập xong/hủy thì đóng phiên, chuyển đổi không mở browser.
+- Qt: một nút chuyển đổi → manifest/JSON → PowerPoint render thật → xác nhận cả bài → bàn giao trình chiếu/mascot. AI và âm thanh là fixture; bàn giao trình chiếu cuối được chặn để kiểm tra. Mở lại bài sau khi xóa kết nối vẫn dùng cùng bài, không gọi AI. Không QML warning. Báo cáo tại máy: `reports/chatgpt-plan/qt-flow.json`.
+- Luồng PPTX thủ công vẫn qua Qt/Office. Kiểm thử bao gồm PPTX nguồn/song ngữ/ảnh/chữ dài, Word có ảnh, PDF scan, ảnh, pack có ảnh và tiếp tục yêu cầu gián đoạn.
+- **Kết nối thật chưa nghiệm thu:** lần mở browser trước người dùng báo trang lỗi, không nhận callback; chưa rõ thông báo cụ thể. Đã sửa tham số hint chỉ dùng lúc đăng ký đầu tiên, chưa xác nhận nguyên nhân. Đang chờ đăng nhập lại bằng cửa sổ riêng. Chưa xác nhận model/inference/hạn mức thật hoặc chất lượng trên giáo án của hai giáo viên.
+- Mở bản mã nguồn tại máy để thử; chưa build executable hoặc phát hành mới. Release RC12 giữ nguyên.
+
+## Bằng chứng các bản phát hành trước
 
 Ngày 01/10/2026, máy Windows phát triển hiện tại. Tất cả thư viện dùng trong kiểm tra được tạo riêng, không ghi bài thử vào thư viện người dùng. Kết quả không phải chứng nhận máy giáo viên/mạng trường.
 

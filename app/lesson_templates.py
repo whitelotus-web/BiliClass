@@ -150,6 +150,18 @@ def source_image(lesson, directory, segment):
     """Extract the first ordinary source image for an explicitly visual block."""
     if block_type(segment.get("kind"))["id"] != "visual":
         return None
+    if segment.get("source_image"):
+        import hashlib
+
+        name = segment["source_image"]
+        if Path(name).name != name or not name.startswith("ai-"):
+            raise ValueError("Hình nguồn không hợp lệ.")
+        assets = (Path(directory) / "assets").resolve()
+        target = assets / name
+        if (not target.is_file() or target.is_symlink() or target.resolve().parent != assets
+                or hashlib.sha256(target.read_bytes()).hexdigest() != segment.get("source_image_sha256")):
+            raise ValueError("Hình nguồn đã thay đổi hoặc không còn. Nhập lại nguồn trước khi tạo bài.")
+        return target
     from .powerpoint import slide_for_locator, verified_presentation
 
     source = lesson.get("source") or {}

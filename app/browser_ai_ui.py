@@ -1,46 +1,58 @@
-"""Qt controls for account profiles and an interruptible manual login window."""
+"""Minimal Qt account controls for official ChatGPT plan authorization."""
 
 import json
 from pathlib import Path
 from threading import Event
 
-from PySide6.QtCore import Property, QObject, QThread, Signal, Slot
+from PySide6.QtCore import Property, QObject, QThread, QUrl, Signal, Slot
+from PySide6.QtGui import QDesktopServices
 
-from .browser_accounts import BrowserAccounts
-from .browser_automation import CHATGPT, login
+from .chatgpt_auth import USAGE_URL, ChatGPTAuth, PlanAccounts, PlanError
 
 
 class LoginJob(QThread):
-    completed = Signal(object, str)
     progress = Signal(str)
 
-    def __init__(self, account, root, parent, url, auto_close):
+    def __init__(self, store, account_id, parent, disconnect=False):
         super().__init__(parent)
-        self.account, self.root, self.url = account, root, url
+        self.store, self.account_id, self.disconnect = store, account_id, disconnect
         self.cancel = Event()
-        self.auto_close = auto_close
         self.result, self.error = None, ""
 
     def run(self):
+        auth = ChatGPTAuth(self.store)
         try:
-            self.result = login(self.account, self.root, self.cancel, self.progress.emit, self.url, auto_close=self.auto_close)
-        except Exception as exc:
+            if self.disconnect:
+                self.result = {"removed": True, "confirmed": auth.disconnect(self.account_id)}
+            else:
+                self.result = auth.authorize(self.account_id, self.cancel, self.progress.emit)
+        except PlanError as exc:
             self.error = str(exc)
-        self.completed.emit(self.result, self.error)
+        except Exception:
+            self.error = "Chưa kết nối được ChatGPT. Kiểm tra mạng và thử đăng nhập lại."
+        finally:
+            auth.client.close()
 
 
 class BrowserAI(QObject):
     changed = Signal()
     progress = Signal(str)
-    observed = Signal(str, str, str)
 
     def __init__(self, bridge):
         super().__init__(bridge)
         self.bridge = bridge
-        self.store = BrowserAccounts(bridge.library.directory)
+        self.store = PlanAccounts(bridge.library.directory)
         self.job = None
-        self._message = "Đăng nhập trên web; phiên được tự lưu trên máy này."
-        self.observed.connect(self._observed)
+        self._message = "Đăng nhập một lần, cho phép dùng hạn mức ChatGPT; kết nối tự lưu trên máy."
+        legacy = Path(bridge.library.directory) / "browser_ai/accounts.json"
+        if legacy.is_file() and not self.store.path.exists():
+            try:
+                old = json.loads(legacy.read_text(encoding="utf-8"))
+                self.store.options(old.get("automatic", True), old.get("audio", True))
+                if old.get("accounts"):
+                    self._message = "Kết nối chính thức cần đăng nhập lại một lần. Hồ sơ web cũ vẫn được giữ tại máy."
+            except (ValueError, OSError):
+                pass
 
     @Property("QVariantList", notify=changed)
     def accounts(self):
@@ -53,9 +65,9 @@ class BrowserAI(QObject):
     @Property(str, notify=changed)
     def activeLabel(self):
         try:
-            return self.store.preferred()["label"]
+            return self.store.get()["label"]
         except ValueError:
-            return "Chưa đăng nhập"
+            return "Chưa kết nối"
 
     @Property(bool, notify=changed)
     def automatic(self):
@@ -78,36 +90,20 @@ class BrowserAI(QObject):
         self._message = message
         self.changed.emit()
 
-    @Slot(str, str)
-    def add(self, label, channel):
-        try:
-            item = self.store.add(label, channel)
-            self.inform("Đã thêm hồ sơ. Bấm Đăng nhập để truy cập tài khoản ChatGPT trên web.")
-            self.select(item["id"])
-        except Exception as exc:
-            self.inform(str(exc))
-
     @Slot(str)
     def select(self, account_id):
-        if self.bridge.busy:
-            self.inform("Chờ chuyển đổi xong trước khi đổi tài khoản.")
+        if self.bridge.busy or self.job:
+            self.inform("Chờ tác vụ hiện tại xong trước khi đổi tài khoản.")
             return
         try:
             self.store.select(account_id)
             self.changed.emit()
-        except Exception as exc:
+        except ValueError as exc:
             self.inform(str(exc))
 
     @Slot(str)
     def remove(self, account_id):
-        if self.bridge.busy or self.job:
-            self.inform("Đóng phiên đăng nhập và chờ tác vụ xong trước khi xóa hồ sơ.")
-            return
-        try:
-            self.store.remove(account_id)
-            self.inform("Đã xóa hồ sơ và phiên đăng nhập trên máy. Tài khoản ChatGPT trên web vẫn tồn tại.")
-        except Exception as exc:
-            self.inform(str(exc))
+        self._open(account_id, disconnect=True)
 
     @Slot(bool, bool)
     def saveOptions(self, automatic, audio):
@@ -116,78 +112,60 @@ class BrowserAI(QObject):
 
     @Slot(str)
     def signIn(self, account_id):
-        self._open(account_id, CHATGPT)
+        self._open(account_id)
 
     @Slot()
     def addAndSignIn(self):
-        if self.job or self.bridge.busy:
-            self.inform("Chờ tác vụ hiện tại xong trước khi đăng nhập.")
-            return
-        try:
-            used = {item["label"] for item in self.accounts}
-            number = 1
-            while f"ChatGPT {number}" in used:
-                number += 1
-            account = self.store.add(f"ChatGPT {number}")
-            self.changed.emit()
-            self._open(account["id"], CHATGPT)
-        except Exception as exc:
-            self.inform(str(exc))
+        self._open("")
 
     def conversionAccount(self, folder=""):
-        journal = Path(folder) / "browser-job.json" if folder else None
+        journal = Path(folder) / "ai-job.json" if folder else None
         if journal and journal.is_file():
             record = json.loads(journal.read_text(encoding="utf-8"))
             return self.store.get(record["account_id"])
-        return self.store.preferred()
+        if folder and (Path(folder) / "browser-job.json").is_file():
+            raise PlanError("Đây là yêu cầu web cũ. Nhận PowerPoint thủ công hoặc tạo yêu cầu mới bằng kết nối chính thức.")
+        return self.store.get()
 
     @Slot()
     def openConversation(self):
-        from .browser_automation import read_record
+        self.bridge.openChatGPT()
 
-        try:
-            request = self.bridge.chatgptRequest
-            if request:
-                account = self.conversionAccount(request["folder"])
-                record = read_record(request["folder"], account["id"])
-                self._open(account["id"], record.get("url") or CHATGPT, auto_close=False)
-        except Exception as exc:
-            self.inform(str(exc))
+    @Slot()
+    def openUsage(self):
+        if not QDesktopServices.openUrl(QUrl(USAGE_URL)):
+            self.inform("Chưa mở được trang hạn mức ChatGPT trong trình duyệt mặc định.")
 
-    def _open(self, account_id, url, *, auto_close=True):
+    def _open(self, account_id, disconnect=False):
         if self.job or self.bridge.busy:
-            self.inform("Chờ tác vụ xong hoặc dừng tác vụ rồi mở browser.")
+            self.inform("Chờ tác vụ hiện tại xong trước khi quản lý kết nối.")
             return
-        try:
-            account = self.store.get(account_id)
-            self.job = LoginJob(account, self.store.root, self, url, auto_close)
-            self.job.progress.connect(self.inform)
-            self.job.finished.connect(self._finished)
-            self.job.start()
-            self.inform("Đang mở browser đăng nhập…")
-        except Exception as exc:
-            self.inform(str(exc))
+        self.job = LoginJob(self.store, account_id, self, disconnect)
+        self.job.progress.connect(self.inform)
+        self.job.finished.connect(self._finished)
+        self.job.start()
+        self.inform("Đang ngắt kết nối…" if disconnect else "Đang mở cửa sổ Edge riêng của BiliClass để đăng nhập ChatGPT…")
 
     @Slot()
     def stopLogin(self):
-        if self.job:
+        if self.job and not self.job.disconnect:
             self.job.cancel.set()
+            self.inform("Đang hủy đăng nhập và đóng cửa sổ riêng của BiliClass…")
 
     @Slot()
     def _finished(self):
         job, self.job = self.job, None
-        message = job.error or job.result["message"]
-        if job.result and job.result["ready"]:
-            self.store.observe(job.account["id"], job.result.get("plan", "unknown"))
-        elif job.auto_close:
-            self.store.update_status(job.account["id"], message)
-        self.inform(message)
+        self.store.reload()
+        if job.error:
+            self.inform(job.error)
+        elif job.disconnect:
+            self.inform("Đã ngắt kết nối." if job.result["confirmed"] else
+                        "Đã xóa phiên tại máy; chưa xác nhận thu hồi trên mạng. Có thể quản lý quyền trong ChatGPT.")
+        elif job.result["ready"]:
+            self.inform("Đã kết nối và tự lưu. Chuyển đổi bài sử dụng hạn mức gói ChatGPT của tài khoản này.")
+        else:
+            self.inform("Đã đăng nhập, chưa được cấp quyền xử lý bằng hạn mức ChatGPT. Có thể dùng gửi/nhận thủ công.")
         job.deleteLater()
-
-    @Slot(str, str, str)
-    def _observed(self, account_id, plan, model):
-        self.store.observe(account_id, plan, model)
-        self.changed.emit()
 
     def shutdown(self):
         if self.job:

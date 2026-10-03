@@ -203,7 +203,7 @@ class Bridge(QObject):
         try:
             self._browser_ai.store.preferred()
             if self._browser_ai.loginBusy:
-                raise ValueError("Đăng nhập xong tool sẽ tự lưu và đóng browser; chờ phiên này kết thúc trước khi chuyển đổi.")
+                raise ValueError("Chờ đăng nhập và cấp quyền ChatGPT xong trước khi chuyển đổi.")
             self._prepareChatGPT(title, subject, education, grade, text, file_url, level, layout, preset, style, mode, True)
         except Exception as exc:
             self.inform(str(exc), True)
@@ -216,7 +216,8 @@ class Bridge(QObject):
             return
         path = Path(QUrl(file_url).toLocalFile()) if file_url else None
         config = {"title": title, "subject": subject, "education_level": education, "grade": grade,
-                  "level": level, "layout": layout, "preset": preset, "style": style, "mode": mode}
+                  "level": level, "layout": layout, "preset": preset, "style": style, "mode": mode,
+                  "provider": "chatgpt_plan" if automatic else "manual_web"}
 
         def prepared(result):
             self._chatgpt_request = result
@@ -233,47 +234,96 @@ class Bridge(QObject):
 
     @Slot()
     def runBrowserAI(self):
-        from .browser_audio import prepare_narration
-        from .browser_automation import convert
-        from .chatgpt_handoff import inspect_returned_deck, load_request
+        self._run_plan_conversion(False)
+
+    @Slot()
+    def retryBrowserAI(self):
+        self._run_plan_conversion(True)
+
+    def _run_plan_conversion(self, retry_unconfirmed):
+        import json
+
+        from .ai_lesson import convert_request, lesson_from_result
+        from .chatgpt_plan import ChatGPTPlanProvider
 
         if self._busy or not self._chatgpt_request:
             return
+        folder = self._chatgpt_request["folder"]
+        journal_path = Path(folder) / "ai-job.json"
+        if journal_path.is_file():
+            journal = json.loads(journal_path.read_text(encoding="utf-8"))
+            if journal.get("lesson_id"):
+                try:
+                    saved = self.library.get(journal["lesson_id"])
+                except (ValueError, KeyError):
+                    saved = None
+                if saved is not None:
+                    self._browser_state = {"running": False, "phase": "completed", "message": "Mở lại bài đã nhận; không gửi lại ChatGPT."}
+                    self.openLesson(saved["id"])
+                    self.convertCurrentLesson()
+                    return
         try:
             account = self._browser_ai.conversionAccount(self._chatgpt_request["folder"])
             if self._browser_ai.loginBusy:
-                raise ValueError("Chờ đăng nhập tự lưu xong hoặc đóng browser đang mở trước khi tiếp tục.")
+                raise ValueError("Chờ đăng nhập và cấp quyền xong trước khi tiếp tục.")
+            if not account.get("ready"):
+                raise ValueError("Tài khoản chưa được cấp quyền dùng hạn mức ChatGPT. Đăng nhập lại hoặc dùng gửi/nhận thủ công.")
         except Exception as exc:
             self.inform(str(exc), True)
             return
-        folder = self._chatgpt_request["folder"]
-        voices, audio = dict(self.voiceSettings), self._browser_ai.audio
+        if journal_path.is_file() and not retry_unconfirmed:
+            journal = json.loads(journal_path.read_text(encoding="utf-8"))
+            pending = journal.get("pending", "")
+            if pending and not (Path(folder) / ("result-" + pending + ".json")).is_file():
+                self._browser_state = {"running": False, "phase": "interrupted", "needsConfirmation": True,
+                                       "message": "Lượt trước chưa rõ đã hoàn tất chưa. Gửi lại phần chưa xong có thể dùng thêm hạn mức."}
+                self.changed.emit()
+                return
+        request = dict(self._chatgpt_request)
+        terms = self.library.glossary(request["config"]["subject"])
         self._browser_running = True
-        self._browser_state = {"running": True, "phase": "working", "message": "Đang chuẩn bị Browser AI…"}
+        self._browser_state = {"running": True, "phase": "working", "message": "Đang kết nối ChatGPT…"}
 
         def work():
-            result = convert(account, self._browser_ai.store.root, folder, self.cancel_event,
-                             self._browser_ai.progress.emit, observed=self._browser_ai.observed.emit)
-            self._browser_ai.progress.emit("Đang đọc nội dung slide cho mascot và lưu bài…")
-            config = load_request(folder)["config"]
-            source = self.library.store_source(Path(result["path"]))
-            inspection = inspect_returned_deck(self.library.directory / "sources" / source["file"])
-            narration = prepare_narration(inspection, voices, self.library.directory / "audio", self.cancel_event,
-                                          self._browser_ai.progress.emit) if audio else {}
-            return config, source, inspection, narration
+            provider = ChatGPTPlanProvider(self._browser_ai.store)
+            try:
+                return convert_request(request, self.library.directory, provider, account["id"], self.cancel_event,
+                                       self._browser_ai.progress.emit, terms, retry_unconfirmed)
+            finally:
+                provider.client.close()
 
         def completed(result):
-            config, source, inspection, narration = result
-            lesson = self.library.create_external_lesson(config, source, inspection)
+            from .chatgpt_auth import atomic_json
+
+            lesson = lesson_from_result(self.library, result)
+            journal = json.loads(journal_path.read_text(encoding="utf-8"))
+            journal["lesson_id"] = lesson["id"]
+            atomic_json(journal_path, journal)
             self._browser_running = False
-            self._browser_state.update(running=False, phase="completed", message="Đã nhận bài từ ChatGPT.", audio=narration)
+            self._browser_state.update(running=False, phase="completed", message="Đã nhận nội dung song ngữ từ ChatGPT.")
             self.openLesson(lesson["id"])
-            audio_message = f" Đã chuẩn bị {narration['complete']}/{narration['total']} đoạn giọng đọc." if narration else ""
-            if narration.get("failed") or narration.get("skipped"):
-                audio_message += " Một số đoạn chưa có audio; kiểm tra giọng đọc hoặc độ dài ghi chú."
-            self.inform("Đã nhận PowerPoint và liên kết mascot theo slide." + audio_message + " Xem bài rồi xác nhận để dạy.")
+            from .quick_conversion import pair_issues
+            missing, warnings = pair_issues(lesson)
+            if missing or any("SOURCE_MISSING" in issue for segment in lesson["segments"] for issue in segment.get("ai_issues", [])):
+                self._quick_result = {"lesson_id": lesson["id"], "revision": lesson["revision"],
+                                      "missing": missing or ["Nguồn ảnh chưa đọc rõ"], "warnings": warnings}
+                self.inform("Có phần nguồn chưa đọc rõ hoặc thiếu song ngữ. Kiểm tra trong Chỉnh sửa chi tiết trước khi tạo trình chiếu.", True)
+            else:
+                self._build_quick_preview(self._conversion_terms(), warnings)
 
         self.launch(work, completed)
+
+    @Slot()
+    def useManualChatGPT(self):
+        from .chatgpt_handoff import make_prompt
+
+        if self._busy or not self._chatgpt_request:
+            return
+        config = {**self._chatgpt_request["config"], "provider": "manual_web"}
+        self._chatgpt_request = {**self._chatgpt_request, "prompt": make_prompt(config, config["source_file"])}
+        self._browser_state = {"running": False, "phase": "manual", "message": ""}
+        self.changed.emit()
+        self.openChatGPT()
 
     @Slot()
     def openChatGPT(self):
@@ -938,14 +988,35 @@ class Bridge(QObject):
     @Property("QVariantMap", notify=changed)
     def audioAvailable(self):
         return {lang: bool(self.voiceSettings[lang] or available_audio(
-            self.library.directory, self.segment.get(lang, ""), lang, "", 0)) for lang in ("vi", "en")}
+            self.library.directory, self._reading_text(lang), lang, "", 0)) and bool(self._reading_text(lang)) for lang in ("vi", "en")}
+
+    def _reading_text(self, language):
+        if not self.segment or not self._lesson:
+            return ""
+        if self.segment.get("ai_provider") != "chatgpt_plan":
+            return self.segment.get(language, "")
+        import copy
+
+        from .ai_lesson import checked_ai_support
+        from .level_conversion import narration_text
+
+        segment = copy.deepcopy(self.segment)
+        if segment.get("ai_provider") == "chatgpt_plan":
+            try:
+                checked_ai_support({"segments": [segment]})
+            except ValueError:
+                return ""
+        return narration_text(segment, language, self._lesson.get("level", 2), self._conversion_terms())
 
     @Slot(str)
     def speakSegment(self, language):
         if self._busy or language not in ("vi", "en") or not self.segment:
             return
         voice = self.voiceSettings[language]
-        text, rate = self.segment[language], self.voiceSettings["rate"]
+        text, rate = self._reading_text(language), self.voiceSettings["rate"]
+        if not text.strip():
+            self.inform("Phần này chưa có lời đọc phù hợp với level. Kiểm tra nội dung đã chuẩn bị.", True)
+            return
         cached = available_audio(self.library.directory, text, language, voice, rate)
         if cached:
             speech.stop()
@@ -955,7 +1026,6 @@ class Bridge(QObject):
         if not voice:
             self.inform("Máy chưa có giọng đọc phù hợp. Nội dung dạng chữ vẫn sử dụng được.", True)
             return
-        text, rate = self.segment[language], self.voiceSettings["rate"]
         speech.stop()
 
         def completed(result):
@@ -1249,6 +1319,14 @@ class Bridge(QObject):
         lesson = self._lesson
         self._quick_result = {}
         self.navigate.emit("result")
+        if lesson.get("ai_conversion"):
+            missing, warnings = pair_issues(lesson)
+            if missing:
+                self._quick_result = {"lesson_id": lesson["id"], "revision": lesson["revision"], "missing": missing, "warnings": warnings}
+                self.inform("Kiểm tra phần còn thiếu trong Chỉnh sửa chi tiết; tool giữ nội dung AI đã nhận.", True)
+            else:
+                self._build_quick_preview(self._conversion_terms(), warnings)
+            return
         plans = plan_batch(self.library, lesson, limit=None)
         terms = self._conversion_terms()
 
@@ -1278,10 +1356,22 @@ class Bridge(QObject):
         from .quick_conversion import build_preview
 
         lesson, directory, profile = self._lesson, self.library.directory, self.settings
+        voices, audio = dict(self.voiceSettings), self._browser_ai.audio and bool(lesson.get("ai_conversion"))
 
         def build():
             result = build_preview(lesson, directory, profile, terms)
             result["warnings"] = warnings + result["warnings"]
+            if audio and not self.cancel_event.is_set():
+                from .browser_audio import prepare_narration
+                from .level_conversion import narration_text
+                from .quick_conversion import review_snapshot
+                snapshot = review_snapshot(lesson, directory)
+                units = []
+                for segment in snapshot["segments"]:
+                    units.append({language: narration_text(segment, language, lesson.get("level", 2), terms)
+                                  for language in ("vi", "en")})
+                result["audio"] = prepare_narration({"profile": {"units": units}}, voices, directory / "audio",
+                                                     self.cancel_event, self._browser_ai.progress.emit)
             if not self.cancel_event.is_set():
                 try:
                     result["image"] = QUrl.fromLocalFile(render_slide(result["path"], 1, directory)).toString()

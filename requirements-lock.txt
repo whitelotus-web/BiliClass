@@ -12,6 +12,7 @@ cloudpickle==3.1.2
 colorama==0.4.6
 colorlog==6.12.0
 ctranslate2==4.8.2
+cryptography==50.0.2
 decorator==5.3.1
 fastapi==0.141.1
 filelock==4.0.7
@@ -64,6 +65,7 @@ pydantic-core==2.46.5
 pydub==0.25.1
 pyee==13.0.1
 pygments==2.21.0
+pyjwt==2.15.1
 pyinstaller==6.22.3
 pyinstaller-hooks-contrib==2026.7
 pypdf==6.19.0

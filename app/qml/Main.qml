@@ -395,7 +395,7 @@ ApplicationWindow {
                                 else bridge.convertLesson(titleInput.text, subjectInput.text, educationInput.editText, gradeInput.editText, pasteInput.text, root.selectedFile, sourceLanguage.currentIndex === 0 ? "vi" : "en", creationLevel.currentIndex, root.layoutKeys[creationLayout.currentIndex], ["standard", "visual", "practice"][creationPreset.currentIndex], root.creationKeepSource ? "source" : "template", root.advancedCreation ? ["level", "preserve", "paired"][creationMode.currentIndex] : "level")
                             } }
                         }
-                        Copy { text: conversionProvider.currentIndex === 0 ? (bridge.browserAI.automatic ? "Khi bấm Chuyển đổi, tool gửi prompt và tài liệu lên tài khoản đã chọn trong Browser AI, chờ PPTX và chuẩn bị nội dung mascot/giọng đọc. Không dùng API." : "BiliClass tạo prompt và gói tài liệu tại máy. Thầy cô gửi trong ChatGPT, tải PowerPoint về rồi nhận vào tool. Không dùng API.") : "Chuyển đổi tại máy bằng model đã cài. Xem bản trình chiếu rồi xác nhận cả bài một lần."; Layout.fillWidth: true; font.pixelSize: 12 }
+                        Copy { text: conversionProvider.currentIndex === 0 ? (bridge.browserAI.automatic ? "Dùng hạn mức ChatGPT của tài khoản đã kết nối. BiliClass gửi nội dung/hình nguồn, nhận song ngữ rồi dựng PowerPoint và chuẩn bị trợ giảng tại máy." : "BiliClass tạo prompt và gói tài liệu tại máy. Thầy cô gửi trong ChatGPT, tải PowerPoint về rồi nhận vào tool.") : "Chuyển đổi tại máy bằng model đã cài. Xem bản trình chiếu rồi xác nhận cả bài một lần."; Layout.fillWidth: true; font.pixelSize: 12 }
                         Action { visible: conversionProvider.currentIndex === 0; text: "Tài khoản: " + bridge.browserAI.activeLabel + " · Browser AI"; subtle: true; onClicked: { root.go("settings"); settingsPanel.activeTab = 6 } }
                         Action { text: "Tiếp tục gói ChatGPT đã chuẩn bị"; visible: !!bridge.chatgptRequest.folder; subtle: true; onClicked: root.go("chatgpt") }
                     }
@@ -414,17 +414,17 @@ ApplicationWindow {
                                 id: autoBrowserSteps; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 21; spacing: 14
                                 RowLayout { Layout.fillWidth: true
                                     BusyIndicator { running: !!bridge.browserState.running; visible: running; implicitWidth: 34; implicitHeight: 34 }
-                                    Caption { text: bridge.browserState.running ? "Đang chuyển đổi qua web ChatGPT" : "Browser AI"; font.pixelSize: 18; Layout.fillWidth: true }
+                                    Caption { text: bridge.browserState.running ? "ChatGPT đang xử lý bài" : "Kết nối ChatGPT"; font.pixelSize: 18; Layout.fillWidth: true }
                                 }
                                 Copy { objectName: "browserConversionStatus"; text: bridge.browserState.message || "Yêu cầu đã chuẩn bị. Bấm Tiếp tục để gửi/chờ qua tài khoản đã chọn."; Layout.fillWidth: true; font.pixelSize: 15; color: root.ink }
-                                Copy { Layout.fillWidth: true; text: "Prompt → đính kèm tài liệu → ChatGPT tạo PPTX → tải kết quả → chuẩn bị giọng đọc và mascot → xem trình chiếu." }
+                                Copy { Layout.fillWidth: true; text: "Đọc bài gốc → xử lý song ngữ → tạo PowerPoint tại máy → xem trình chiếu → xác nhận để dạy." }
                                 RowLayout { Layout.fillWidth: true
-                                    Action { objectName: "browserConversionResume"; text: "Tiếp tục yêu cầu"; primary: true; visible: !bridge.browserState.running; enabled: !bridge.busy && !!bridge.chatgptRequest.folder; onClicked: bridge.runBrowserAI() }
+                                    Action { objectName: "browserConversionResume"; text: "Tiếp tục yêu cầu"; primary: true; visible: !bridge.browserState.running; enabled: !bridge.busy && !!bridge.chatgptRequest.folder; onClicked: { if (bridge.browserState.needsConfirmation) planRetryDialog.open(); else bridge.runBrowserAI() } }
                                     Action { objectName: "browserConversionCancel"; text: "Dừng"; visible: !!bridge.browserState.running; onClicked: bridge.cancelJob() }
-                                    Action { text: "Mở cuộc trò chuyện"; enabled: !bridge.busy && !bridge.browserAI.loginBusy; onClicked: bridge.browserAI.openConversation() }
+                                    Action { text: "Gửi/nhận thủ công"; enabled: !bridge.busy; onClicked: bridge.useManualChatGPT() }
                                     Action { text: "Đăng nhập / Browser AI"; enabled: !bridge.busy; onClicked: { root.go("settings"); settingsPanel.activeTab = 6 } }
                                 }
-                                Copy { text: "Nếu web yêu cầu đăng nhập/xác minh, xử lý tại browser rồi tiếp tục cùng yêu cầu. App giữ địa chỉ cuộc trò chuyện để tránh gửi lại bài."; Layout.fillWidth: true; font.pixelSize: 12 }
+                                Copy { text: "Các phần hoàn tất được lưu để dùng lại. Nếu kết nối bị ngắt giữa chừng, bạn sẽ xác nhận trước khi gửi lại phần chưa rõ kết quả."; Layout.fillWidth: true; font.pixelSize: 12 }
                             }
                         }
                         Surface {
@@ -835,6 +835,10 @@ ApplicationWindow {
     Dialog { id: reviewWarning; property string details: ""; anchors.centerIn: parent; modal: true; title: "Kiểm tra số và ký hiệu"; width: 540; standardButtons: Dialog.Ok | Dialog.Cancel
         Copy { width: parent.width; text: reviewWarning.details + "\n\nChỉ nhấn OK nếu thầy cô đã kiểm tra và muốn duyệt cặp này." }
         onAccepted: bridge.saveSegment(viEdit.text, enEdit.text, true, lockedCheck.checked)
+    }
+    Dialog { id: planRetryDialog; anchors.centerIn: parent; modal: true; title: "Gửi lại phần chưa xong?"; width: 500; standardButtons: Dialog.Ok | Dialog.Cancel
+        Copy { width: parent.width; text: "Lượt trước bị ngắt, chưa rõ ChatGPT đã xử lý xong chưa. Gửi lại có thể dùng thêm hạn mức. Các phần đã nhận sẽ được dùng lại." }
+        onAccepted: bridge.retryBrowserAI()
     }
     Dialog { id: busyDialog; anchors.centerIn: parent; modal: true; title: "Đang xử lý bài học"; standardButtons: Dialog.Ok; Copy { text: "Hãy chờ tác vụ hiện tại hoàn tất trước khi đóng ứng dụng." } }
     Dialog { id: updateBusyDialog; anchors.centerIn: parent; modal: true; title: "Đang tải bản cập nhật"; standardButtons: Dialog.Ok; Copy { text: "Chờ tải xong hoặc bấm Hủy tải ở Trang chủ trước khi đóng ứng dụng." } }

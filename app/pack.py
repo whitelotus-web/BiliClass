@@ -27,6 +27,20 @@ def export_pack(library, lesson_id, destination):
                                       ("mascot", "Milo"), ("mascot_options", {}))}
     entries = {"lesson.json": json.dumps(lesson, ensure_ascii=False).encode("utf-8")}
     entries.update(audio_files)
+    from .lesson_templates import source_image
+    for segment in lesson["segments"]:
+        if segment.get("source_image"):
+            image = source_image(lesson, library.directory, segment)
+            # source_image is only used for visual blocks; validate every stored asset.
+            if image is None:
+                image = library.directory / "assets" / segment["source_image"]
+            if (Path(segment["source_image"]).name != segment["source_image"] or not segment["source_image"].startswith("ai-")
+                    or image.is_symlink() or image.resolve().parent != (library.directory / "assets").resolve()):
+                raise ValueError("Ảnh nguồn không hợp lệ.")
+            payload = image.read_bytes()
+            if hashlib.sha256(payload).hexdigest() != segment.get("source_image_sha256"):
+                raise ValueError("Ảnh nguồn đã thay đổi; chưa thể xuất gói.")
+            entries["assets/" + image.name] = payload
     source = lesson.get("source")
     if source:
         source_path = library.directory / "sources" / source["file"]
@@ -35,7 +49,7 @@ def export_pack(library, lesson_id, destination):
             raise ValueError("Bản nguồn lưu trên máy đã thay đổi; chưa thể xuất gói.")
         entries["source/" + source["file"]] = payload
     manifest = {
-        "schema_version": 3,
+        "schema_version": 4 if any(name.startswith("assets/") for name in entries) else 3,
         "kind": "biliclass-draft",
         "lesson_id": lesson_id,
         "files": {
@@ -78,7 +92,7 @@ def import_pack(library, path):
             if ((entry.external_attr >> 16) & 0o170000) == 0o120000:
                 raise ValueError("Không chấp nhận liên kết trong gói.")
         manifest = json.loads(archive.read("manifest.json"))
-        if manifest.get("schema_version") not in (1, 2, 3) or manifest.get("kind") != "biliclass-draft":
+        if manifest.get("schema_version") not in (1, 2, 3, 4) or manifest.get("kind") != "biliclass-draft":
             raise ValueError("Phiên bản Lesson Pack chưa được hỗ trợ.")
         if set(names) != set(manifest["files"]) | {"manifest.json"}:
             raise ValueError("Danh sách nội dung gói không khớp manifest.")
@@ -113,7 +127,7 @@ def import_pack(library, path):
     from .content import validate_question, validate_support
     from .portable_audio import validate_audio
     audio = validate_audio(lesson.get("portable_audio", []), segments, payloads)
-    id_map = {}
+    id_map, image_assets = {}, {}
     for segment in segments:
         if not isinstance(segment, dict) or not all(
             isinstance(segment.get(key), str) for key in ("vi", "en", "locator")
@@ -135,6 +149,33 @@ def import_pack(library, path):
         if not isinstance(support, list) or len(support) > 100:
             raise ValueError("Nội dung trợ giảng không hợp lệ.")
         segment["support"] = [validate_support(item, reset_review=True) for item in support]
+        if segment.get("ai_provider") == "chatgpt_plan":
+            ref, issues = segment.get("source_ref"), segment.get("ai_issues", [])
+            if (not isinstance(ref, str) or len(ref) > 1000 or not ref
+                    or not isinstance(issues, list) or len(issues) > 20
+                    or any(not isinstance(issue, str) or len(issue) > 5000 for issue in issues)):
+                raise ValueError("Tham chiếu AI của gói không hợp lệ.")
+            for original, checked in zip(support, segment["support"], strict=True):
+                if original.get("provider") == "chatgpt_plan":
+                    basis = original.get("basis_sha256", "")
+                    if (original.get("source_refs") != [ref] or not isinstance(basis, str)
+                            or len(basis) != 64 or any(c not in "0123456789abcdef" for c in basis)):
+                        raise ValueError("Tham chiếu hỗ trợ AI không hợp lệ.")
+                    checked.update(provider="chatgpt_plan", source_refs=[ref], basis_sha256=basis)
+        image_name = segment.get("source_image")
+        if image_name:
+            if (not isinstance(image_name, str) or Path(image_name).name != image_name or not image_name.startswith("ai-")
+                    or Path(image_name).suffix != ".png"):
+                raise ValueError("Tên ảnh nguồn không hợp lệ.")
+            image_data = payloads.get("assets/" + image_name)
+            if image_data is None or hashlib.sha256(image_data).hexdigest() != segment.get("source_image_sha256"):
+                raise ValueError("Ảnh nguồn không khớp gói bài.")
+            import io
+
+            from PIL import Image
+            with Image.open(io.BytesIO(image_data)) as image:
+                image.verify()
+            image_assets[image_name] = image_data
         segment["approved"] = False  # imported content must be reviewed by this teacher
         segment["locked"] = bool(segment.get("locked", False))
         from .lesson_templates import block_type
@@ -207,5 +248,12 @@ def import_pack(library, path):
         (folder / record["file"]).write_bytes(data)
         record = {**record, "segment_id": id_map[record["segment_id"]]}
         (folder / (record["sha256"] + ".json")).write_text(json.dumps(record), encoding="utf-8")
+    for name, data in image_assets.items():
+        folder = library.directory / "assets"
+        folder.mkdir(exist_ok=True)
+        target = folder / name
+        if target.is_symlink():
+            raise ValueError("Không ghi ảnh qua liên kết.")
+        target.write_bytes(data)
     library._write(lesson, new=True)
     return lesson

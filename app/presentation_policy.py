@@ -43,6 +43,13 @@ def presentation_content(segment, level, layout, rescue=False, terms=()):
                 layout = "keyword_overlay"
         elif level == 2:
             en = support["text"]
+    elif segment.get("ai_provider") == "chatgpt_plan" and level < 3:
+        from .level_conversion import support_for_level
+
+        # Layout is independent of the requested amount/difficulty of English.
+        en = support_for_level(segment, level, terms)["text"]
+        keywords += [item for item in segment.get("support", [])
+                     if item.get("approved") and item.get("kind") == "vocabulary"]
     inline_vi = inline_keywords(original_vi, keywords) if layout == "keyword_overlay" or automatic and level < 2 else original_vi
     return {
         "vi": inline_vi, "en": en, "layout": layout,

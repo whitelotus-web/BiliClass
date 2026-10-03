@@ -1,75 +1,42 @@
-# Browser AI · ChatGPT
+# Browser AI · kết nối ChatGPT
 
-Kế hoạch thay kết nối web bằng Sign in with ChatGPT và chuyển đổi bằng JSON tại máy: [Kế hoạch nâng cấp](CHATGPT_PLAN_UPGRADE.md). Đây là hướng đã thống nhất về phương thức kết nối, **chưa được triển khai**; hướng dẫn dưới đây mô tả bản hiện tại.
-
-Mã nguồn ngày 03/10/2026, chưa có trong gói RC12. Tự động hóa giao diện web là tính năng thử nghiệm, không phải kết nối API. Truy cập thực tế bằng Edge trên máy này trả HTTP 403 và trang xác minh; chưa kiểm chứng chuyển đổi trọn gói bằng tài khoản đã đăng nhập. Kiểm thử browser dùng trang mô phỏng và tệp bài giả lập, không tải bài thật lên ChatGPT.
+Mã nguồn ngày 03/10/2026 đã dùng Sign in with ChatGPT (OAuth) và Responses streaming. Không cần API key hoặc billing API riêng; nếu được cấp quyền, app dùng hạn mức gói ChatGPT. Đây không phải điều khiển DOM/cookie của trang ChatGPT. Release RC12 chưa chứa thay đổi này.
 
 ## Thiết lập một lần
 
-1. Mở **Cài đặt → Browser AI**, bấm **Đăng nhập ChatGPT**.
-2. Microsoft Edge mở hồ sơ riêng; tự đăng nhập trên web và xử lý xác minh nếu xuất hiện. Không nhập mật khẩu vào BiliClass.
-3. Khi nhận diện đăng nhập thành công, app tự lưu phiên và đóng cửa sổ Edge. Không cần đặt tên, chọn browser, bấm Lưu hoặc xác nhận thêm. Trạng thái lưu trước đó không bảo đảm web sẽ chấp nhận lần chạy tiếp; app kiểm tra lại mỗi lượt.
+1. **Cài đặt → Browser AI → Continue with ChatGPT**.
+2. Đăng nhập trong cửa sổ Edge riêng của BiliClass và đồng ý cho BiliClass dùng hạn mức ChatGPT. Mật khẩu chỉ nhập trên trang OpenAI.
+3. App nhận callback, kiểm tra token ký số rồi tự lưu phiên được mã hóa bằng DPAPI của tài khoản Windows. Không có bước Lưu riêng. Cửa sổ đăng nhập tự đóng khi nhận callback, hủy hoặc hết thời gian chờ. Khi chuyển đổi, app dùng kết nối đã lưu và không mở cửa sổ browser.
 
-Tab này chỉ quản lý đăng nhập. **Thêm tài khoản** mở hồ sơ mới; **Đăng nhập lại** mở hồ sơ đã lưu. Mỗi hồ sơ dùng Edge riêng, không dùng hoặc sửa hồ sơ browser thường ngày. Hồ sơ Chrome cũ được giữ nguyên; cần đăng nhập Edge vào thư mục riêng, không chuyển cookie giữa browser. **Xóa** xóa hồ sơ và phiên tại máy, không xóa tài khoản ChatGPT. Khi hồ sơ đang dùng, app chặn mở trùng hoặc xóa.
+Có thể thêm, chọn, đăng nhập lại hoặc xóa kết nối; xóa thu hồi refresh token khi dịch vụ cho phép rồi xóa phiên tại máy. Nếu mạng lỗi, app báo chưa xác nhận thu hồi và vẫn xóa phiên cục bộ. Nút **Xem hạn mức ChatGPT** mở trang của ChatGPT. Hồ sơ Edge/Chrome cũ vẫn giữ tại máy, không chuyển cookie hay lấy token của Codex. Đăng nhập lại qua nút mới để dùng OAuth.
 
-### Tài khoản và model
+Plus/Pro đủ điều kiện theo [tài liệu chính thức](https://developers.openai.com/siwc/quickstart); nhãn gói không thay thế quyền thực tế của ứng dụng/tài khoản. Free hoặc mất quyền không được coi có thể tự xử lý như Plus. App giữ nguyên tài khoản đã chọn; không quay vòng tài khoản, chuyển billing hoặc tự mua gói.
 
-Yêu cầu mới ưu tiên tài khoản đã nhận diện có gói Plus hoặc gói trả phí tương đương, sau đó Free. Gói chưa nhận diện được ghi là chưa rõ; chữ “Upgrade to Plus” không được coi là tài khoản Plus. Mỗi lần mở web, app đọc lại gói đang hiển thị và chọn model được nhận diện, đang bật trong menu của tài khoản. Nếu Plus hết hạn và web cho dùng Free, cùng hồ sơ tiếp tục theo quyền Free hiện tại.
+## Chuyển đổi và dạy
 
-Thứ tự chất lượng do tool ưu tiên là Astra, Sol, Pro, Thinking, Terra, GPT khác, rồi Luna/mini/Instant; trong cùng nhóm ưu tiên phiên bản lớn hơn. Chỉ chọn mục đang có quyền truy cập, không bấm mua gói. Không nhận diện được menu/model thì giữ mặc định của web, không báo đã chọn model cao nhất. Đây là quy tắc lựa chọn của tool, không phải bảo đảm mọi tài khoản có cùng danh sách model. Khả năng và quyền truy cập phụ thuộc gói/đợt triển khai theo [Models](https://learn.chatgpt.com/docs/models) và [Model selection](https://learn.chatgpt.com/docs/model-selection).
+1. Nhập PPTX/DOCX/PDF/TXT/PNG/JPG hoặc dán chữ; chọn tên bài, môn/khối, L0–L4 và bố cục. PPTX có thể giữ thiết kế gốc hoặc dùng mẫu; tài liệu khác dùng mẫu.
+2. Bấm **Chuyển đổi bằng ChatGPT**. Nguồn được sao chép và băm tại máy; app gửi chữ, vị trí/manifest và ảnh cần đọc qua kết nối đã chọn. Nội dung này sẽ ra ngoài máy khi bấm chuyển đổi.
+3. Model được lấy từ catalog được cấp quyền, bỏ model ẩn và ghim model cho yêu cầu. Auto hiện chọn model công khai đầu tiên theo thứ tự dịch vụ; không cam kết đó là model mạnh nhất của giao diện web.
+4. AI trả JSON đầy đủ theo nguồn và hỗ trợ theo level. App kiểm tra cấu trúc, nguồn, số lượng/đúng thứ tự khối, văn bản gốc và cặp song ngữ sẵn có. Chỉ nhận sau sự kiện hoàn tất; dữ liệu một phần không được áp dụng.
+5. BiliClass dựng PowerPoint tại máy: giữ ảnh/đối tượng nguồn, thêm hỗ trợ vào vùng trống hoặc trang hỗ trợ khi kín. Trong chế độ giữ thiết kế, vị trí nguồn được ưu tiên; bố cục hai cột/đổi form đầy đủ phù hợp hơn với mẫu. L4 có thể thay chữ trong bản xuất bằng English; tệp gốc vẫn riêng và không thay đổi.
+6. App chuẩn bị lời đọc bằng voice cục bộ theo level; voice lỗi/thiếu không xóa bài. Xem slide hoặc mở toàn bộ bài, rồi **Dùng để dạy** và xác nhận cả bài. Trước đó nội dung AI và trợ giảng vẫn là nháp. Quiz và kho kiến thức không được tự duyệt.
 
-Yêu cầu đã gửi giữ tài khoản/cuộc trò chuyện ban đầu khi tiếp tục, kể cả khi hồ sơ khác được ưu tiên cho bài mới. Không tự chuyển tài khoản để né hạn mức, không đổi model giữa chừng hoặc gửi trùng bài.
+Ảnh/PDF scan được gửi dưới dạng hình để đọc; chữ mờ phải đánh dấu `SOURCE_MISSING`, chặn chốt bài đến khi thầy cô sửa. Word giữ chữ và ảnh nhúng; không tái tạo nguyên form Word. PowerPoint có ảnh/biểu đồ được render bằng Office khi có; khi không có Office, chỉ gửi hình nhúng đọc được và báo giới hạn. Xem trước và điều khiển trình chiếu cần Microsoft PowerPoint trên máy. Không bảo đảm đọc đúng mọi hình, công thức hoặc giữ được mọi trigger/font; cần đối chiếu bài thật.
 
-## Từ tài liệu đến bản dạy
+## Khi kết nối gián đoạn
 
-1. Nhập PPTX/DOCX/PDF/TXT/PNG/JPG hoặc dán nội dung. Điền tên bài, môn/khối; chọn L0–L4 và kiểu sắp xếp Việt–Anh.
-2. Với PPTX, chọn **Giữ PowerPoint gốc** hoặc **Theo mẫu BiliClass**; tài liệu khác dùng mẫu. Mở **Xem slide mẫu** khi cần xem thiết kế.
-3. Bấm **Chuyển đổi bằng ChatGPT**. App tạo prompt cùng bản sao nguồn tại máy, rồi dùng tài khoản được ưu tiên để đính kèm và gửi qua web trong browser chạy ngầm. Nếu chọn mẫu, gửi thêm PPTX mẫu. Tài liệu sẽ được tải lên ChatGPT khi bấm nút này. **Tùy chọn thêm** ở màn hình nhập bài chứa lựa chọn gửi/nhận thủ công và chuẩn bị giọng đọc, tự lưu khi đổi; mặc định tự động và có giọng đọc.
-4. App chờ liên kết `.pptx`, tải/kiểm tra tệp, giữ nguyên byte kết quả, nhận chữ và Speaker Notes theo slide, chuẩn bị WAV bằng voice cục bộ. Chưa có voice/ghi chú hoặc một đoạn audio lỗi thì vẫn giữ PowerPoint, báo phần chưa có audio.
-5. Xem trình chiếu, kiểm tra nội dung/bố cục, bấm **Dùng để dạy** và xác nhận cả bài. Chuẩn bị audio không tự duyệt nội dung hoặc phát ra loa. Không cần duyệt từng đoạn chỉ để mở bản trình chiếu đã nhận.
+Các phần hoàn tất được cache theo nguồn/cấu hình/model/prompt/thuật ngữ. Mất stream chưa rõ kết quả sẽ yêu cầu xác nhận trước khi gửi lại, vì có thể dùng thêm hạn mức. Lỗi quyền/quota dừng và giữ bài, không tự đổi tài khoản. Mở lại yêu cầu đã nhận sẽ mở cùng bài trong thư viện, không gửi AI và không tạo bản trùng. Bài đã nhận có thể dựng lại/chiếu mà không cần kết nối ChatGPT.
 
-Chuyển đổi cần Internet và tài khoản web có thể đính kèm/tạo tệp. Sau khi nhận bài và có voice cục bộ, trình chiếu/mascot không cần tiếp tục dùng ChatGPT. Xem ảnh slide và điều khiển trình chiếu cần Microsoft PowerPoint trên máy.
+**Gửi/nhận thủ công** tạo prompt yêu cầu PPTX và gói nguồn để thầy cô gửi trên web, rồi nhận file tải về. **BiliClass ngoại tuyến** vẫn dùng model dịch tại máy. Yêu cầu web cũ không được tự gửi lại bằng provider OAuth mới. Nhận JSON thủ công chưa có trong giao diện đợt này.
 
-## Prompt định hướng
+## Bằng chứng hiện tại
 
-Prompt đầy đủ được tạo theo từng yêu cầu và có thể mở bằng **Xem prompt đã cấu hình**. Nó gồm tên bài, môn/khối, nguồn, level, bố cục, cách xử lý cặp hiện có và thiết kế nguồn/mẫu.
+- Kiểm thử OAuth giả lập: callback sai trạng thái, PKCE, đăng ký client động, chữ ký/audience/nonce/hết hạn, scope, refresh, không quay vòng tài khoản, DPAPI Windows thật. Phiên Edge có hồ sơ riêng và khóa phiên; Windows job chỉ đóng cây tiến trình tool tạo, không đóng browser cá nhân.
+- Kiểm thử Responses: catalog/model ẩn, dữ liệu stream chỉ nhận khi hoàn tất, quota giữa stream, hủy và lỗi HTTP; không gửi các trường API không được hỗ trợ.
+- Luồng dữ liệu: PPTX gốc/song ngữ/ảnh/chữ dài, Word có ảnh, PDF scan, ảnh, nguồn thay đổi, hỗ trợ theo level, gói chia sẻ có ảnh, cache/tiếp tục và dữ liệu sai nguồn.
+- Qt smoke với AI/audio giả lập: một nút chuyển đổi → PowerPoint render thật → xác nhận cả bài → bàn giao trình chiếu/mascot; mở lại bài không cần tài khoản và không gọi AI nữa. Luồng nhận PPTX thủ công vẫn qua Qt/Office.
+- Đăng nhập thật chưa thành công: người dùng báo trang lỗi trước callback, chưa rõ thông báo cụ thể. Đã chỉnh lại việc chỉ gửi `agent_name_hint` ở đăng ký đầu tiên, chưa xác nhận đó là nguyên nhân lỗi. **Chưa xác nhận catalog/inference/hạn mức bằng tài khoản thật**, chưa nghiệm thu hai giáo viên hoặc build executable mới. Không có tài liệu dạy thật được gửi trong kiểm thử.
 
-| Level | Hỗ trợ yêu cầu |
-|---|---|
-| L0 | Tiếng Việt chính, thêm khoảng 3–5 từ khóa Anh cho mỗi ý lớn. |
-| L1 | Từ khóa và chỉ dẫn/câu Anh rất ngắn, phù hợp lớp. |
-| L2 | Câu Anh đơn giản cho ý chính, giữ giải thích Việt. |
-| L3 | Cặp Việt–Anh đầy đủ, thuật ngữ/điều kiện nhất quán. |
-| L4 | English chính, Việt hỗ trợ trong ghi chú/vùng cứu trợ. |
+Chạy `.venv/Scripts/python.exe -m pytest -q`, `scripts/qt_chatgpt_plan_smoke.py` và `scripts/qt_chatgpt_handoff_smoke.py` bằng môi trường dự án. `scripts/qt_browser_ai_smoke.py` chuyển tới smoke OAuth mới. Script `scripts/chatgpt_connect.py --data <thư-mục-thư-viện>` dành cho kiểm tra đăng nhập thật; không in token.
 
-Prompt yêu cầu nhận diện nguồn Việt/Anh/song ngữ/scan, giữ cặp đúng và bổ sung phần thiếu, giữ hình/logo/bảng/công thức/số liệu. Với thiết kế gốc, thêm vào vùng trống hoặc trang hỗ trợ kế tiếp khi kín; không chồng chữ hoặc thay hình nguồn bằng hình không liên quan. Với mẫu, thay toàn bộ nội dung ví dụ bằng bài thật. Không tự thêm đáp án/kiến thức thiếu căn cứ hoặc đoán chữ scan không rõ.
-
-Speaker Notes thật trong PPTX phải có `VI:` và `EN:` cho lời đọc theo level. Ghi chú cần kiểm tra để ở dòng `CHECK:` riêng, không đưa vào lời mascot. App nhận cả các dòng tiếp nối có xuống hàng. Chốt file không tự duyệt quiz hoặc cập nhật kho kiến thức.
-
-Giữ nguyên hình/hiệu ứng là yêu cầu, không phải bảo đảm chất lượng đầu ra của ChatGPT. Bản nhận về cần đối chiếu nguồn, nhất là công thức, đồ thị, scan và hiệu ứng. Khả năng tạo slide của ChatGPT được OpenAI mô tả trong [hướng dẫn tạo slide](https://learn.chatgpt.com/use-cases/generate-slide-decks); cách đọc hình phụ thuộc loại tệp và tài khoản, xem [File Uploads FAQ](https://help.openai.com/en/articles/8555545-file-uploads-faq).
-
-## Khi web dừng hoặc chưa trả tệp
-
-- **Xác minh/đăng nhập**: mở Browser AI → Đăng nhập lại, xử lý trực tiếp, chờ app tự lưu rồi **Tiếp tục yêu cầu**. App không giải hoặc vượt CAPTCHA.
-- **Hạn mức/không tạo được tệp/giao diện web đổi**: app giữ gói và địa chỉ cuộc trò chuyện đã biết để kiểm tra. Không bảo đảm xử lý tự động được mọi phiên, cũng không tự đổi tài khoản.
-- **Tải bài liên tiếp**: kiểm thử hai lượt tải sau khi mở lại cùng hồ sơ trên máy này gặp browser đóng trong lượt tải thứ hai (cả Edge và Chrome). Chưa xác định nguyên nhân; đổi tên tệp/thư mục tải không giải quyết được. Kiểm thử chọn model sau khi Plus xuống Free dừng trước khi tải lượt thứ hai, không chứng minh lượt chuyển đổi Free hoàn chỉnh. Chưa nên coi tự động tải nhiều bài là đã ổn định; có thể nhận PowerPoint thủ công khi lỗi.
-- **Dừng hoặc hết 15 phút chờ**: giữ yêu cầu. Tiếp tục cùng cuộc trò chuyện, tránh tải/gửi lại bài. Nếu chưa có PPTX, app chỉ gửi tối đa một câu yêu cầu xuất tệp bổ sung trong cùng cuộc trò chuyện.
-- **Không rõ đã gửi hay chưa**: trạng thái được lưu trước khi bấm Gửi. Nếu chưa lấy được địa chỉ cuộc trò chuyện, app yêu cầu kiểm tra thay vì tự gửi trùng.
-- **Cần gửi/tải thủ công**: trong màn hình nhập bài → Tùy chọn thêm, chọn **Gửi/nhận PowerPoint thủ công**, rồi dùng [hướng dẫn thủ công](CHATGPT_BROWSER.md). Browser mặc định có thể cần đăng nhập riêng với hồ sơ Browser AI. Ngoại tuyến vẫn là lựa chọn trên màn hình nhập bài.
-
-Tệp nguồn hoặc kết quả bị thay đổi sẽ bị kiểm tra hash và không tự dùng lại. Bài đã sửa chữ trong editor không tự sửa tệp PowerPoint nhận từ ChatGPT; nhận bản PPTX mới trước khi xác nhận dạy.
-
-## Dữ liệu và phát triển
-
-Hồ sơ browser và danh sách tài khoản nằm trong `browser_ai/` của thư viện máy; gói nguồn/prompt/cấu hình/nhật ký yêu cầu nằm trong `chatgpt/<request-id>/`. Browser lưu phiên đăng nhập trong hồ sơ riêng. App không thu thập mật khẩu hoặc xuất cookie/token. Các hồ sơ không đưa vào sao lưu thư viện, gói bài, Git hoặc bản build; máy khác đăng nhập lại. Kết quả PowerPoint lưu trong thư viện như nguồn bài, không thay file gốc của giáo viên.
-
-Dependency Playwright được khóa trong requirements và cache phát triển; dùng Microsoft Edge đã cài. Script build thu thập runtime Playwright, nhưng bản đóng gói có tính năng này chưa được build/kiểm thử/phát hành. Để chạy mã nguồn: `scripts/run.ps1 --page browser-ai`.
-
-Kiểm tra ngày 03/10/2026:
-
-- Mốc trước: toàn bộ suite 197 kiểm thử đạt. Đợt đơn giản hóa đăng nhập: 26 kiểm thử Browser AI + handoff đạt, Ruff đạt; bổ sung tự lưu, ưu tiên Plus/Free, quyền chọn model và giữ hồ sơ Chrome cũ. Qt kiểm tra thêm yêu cầu tiếp tục đúng tài khoản. Kiểm thử model Free dừng trước tải bài, giới hạn tải liên tiếp đã nêu trên.
-- `tests/test_browser_ai.py`: browser Edge thật với web được mô phỏng, kiểm tra tải đúng tệp, tải PPTX nguyên byte, chống gửi trùng, tiếp tục, xác minh, hash kết quả và khóa hồ sơ. Không chứng minh web ChatGPT thật sẽ chấp nhận phiên.
-- `scripts/qt_browser_ai_smoke.py`: Qt thật, một nút thêm/đăng nhập/tự lưu, ưu tiên Plus, xóa tài khoản, tiếp tục đúng hồ sơ, không còn nút chọn browser/Lưu/Kiểm tra; chuyển đổi, render Office thật, hai WAV với model thật, map mascot và xác nhận bài đều đạt. Đăng nhập/ChatGPT dùng kết quả thử trong kiểm thử Qt. Nạp model giọng đọc từ ổ ngoài chậm; giới hạn thời gian kiểm thử là 10 phút, có trace chẩn đoán.
-- Probe Edge thực tế không đăng nhập: HTTP 403/xác minh, không gửi prompt hoặc tệp; báo cáo `reports/browser-ai/live-probe.json`. Đăng nhập và nhận PowerPoint thật bằng tài khoản giáo viên là bước còn cần thử.
-
-Bằng chứng/ảnh thử nằm trong `reports/browser-ai/`, thư viện thử trong `.runtime/`, đều ngoài Git. Bản phát triển trên máy giúp thử nhanh mà chưa cần tạo lại `.exe` mỗi lần sửa.
+Thiết kế và các bước còn cần nghiệm thu: [CHATGPT_PLAN_UPGRADE.md](CHATGPT_PLAN_UPGRADE.md). Căn cứ kết nối: [OAuth cho ứng dụng nguồn mở](https://developers.openai.com/siwc/token-sharing-open-source/sign-in), [model và inference](https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference), [giới hạn preview](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations).

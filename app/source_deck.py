@@ -285,7 +285,11 @@ def export_source_deck(lesson, directory, destination, terms=()):
         return {"path": str(target), "slide_map": list(range(1, len(deck.slides) + 1)),
                 "report": [{"mode": "preserve", "message": "Giữ nguyên PowerPoint; trợ giảng chỉ dùng nội dung đã duyệt."}]}
     groups = {}
+    image_segments = []
     for segment in lesson["segments"]:
+        if segment.get("source_image_only"):
+            image_segments.append(segment)
+            continue
         locator = re.sub(r"(?: · phần \d+)+$", "", segment["locator"])
         groups.setdefault(locator, []).append(segment)
     if set(groups) != {unit["locator"] for unit in units}:
@@ -304,6 +308,16 @@ def export_source_deck(lesson, directory, destination, terms=()):
         content = presentation_content(joined, lesson.get("level", 2), layout, terms=terms)
         content["segment"] = joined
         by_slide.setdefault(unit["slide"], []).append((unit, content))
+    for segment in image_segments:
+        match = re.fullmatch(r"Slide (\d+) · hình nguồn", segment["locator"])
+        index = int(match[1]) if match else 0
+        if (not 1 <= index <= len(deck.slides) or any(u["slide"] == index for u in units)
+                or segment.get("source_ref") != f"{lesson['source']['sha256']}/{deck.slides[index - 1].part.partname}/image"):
+            raise ValueError("Nội dung ảnh không còn khớp slide nguồn.")
+        unit = {"slide": index, "locator": segment["locator"], "text": segment["source_text"], "image_only": True}
+        content = presentation_content(segment, lesson.get("level", 2), lesson.get("layout", "line_pair"), terms=terms)
+        content["segment"] = segment
+        by_slide.setdefault(index, []).append((unit, content))
     with zipfile.ZipFile(source) as archive:
         entries = {item.filename: archive.read(item) for item in archive.infolist()}
     presentation = _xml(entries["ppt/presentation.xml"])
@@ -320,7 +334,7 @@ def export_source_deck(lesson, directory, destination, terms=()):
             slide_map.append(index)  # Image-only slides remain in their original positions.
             continue
         base, english = copy.deepcopy(slide._element), copy.deepcopy(slide._element)
-        if mode == "level" and lesson.get("level", 2) < 4:
+        if (mode == "level" and lesson.get("level", 2) < 4) or any(u.get("image_only") for u, _c in items):
             from .source_support import apply_support
 
             base, extra_slides, action, warnings = apply_support(slide, deck, items, lesson.get("level", 2), terms, NS)
