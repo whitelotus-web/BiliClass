@@ -1,23 +1,25 @@
 """Minimal Qt account controls for official ChatGPT plan authorization."""
 
 import json
+from datetime import datetime
 from pathlib import Path
 from threading import Event
 
 from PySide6.QtCore import Property, QObject, QThread, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices
 
-from .chatgpt_auth import USAGE_URL, ChatGPTAuth, PlanAccounts, PlanError
+from .chatgpt_auth import USAGE_URL, WORKSPACE_DENIED_MESSAGE, ChatGPTAuth, PlanAccounts, PlanError
 
 
 class LoginJob(QThread):
     progress = Signal(str)
 
-    def __init__(self, store, account_id, parent, disconnect=False):
+    def __init__(self, store, account_id, parent, disconnect=False, resume_pending=False):
         super().__init__(parent)
         self.store, self.account_id, self.disconnect = store, account_id, disconnect
+        self.resume_pending = resume_pending
         self.cancel = Event()
-        self.result, self.error = None, ""
+        self.result, self.error, self.error_code = None, "", ""
 
     def run(self):
         auth = ChatGPTAuth(self.store)
@@ -25,9 +27,10 @@ class LoginJob(QThread):
             if self.disconnect:
                 self.result = {"removed": True, "confirmed": auth.disconnect(self.account_id)}
             else:
-                self.result = auth.authorize(self.account_id, self.cancel, self.progress.emit)
+                self.result = auth.authorize(self.account_id, self.cancel, self.progress.emit, resume_pending=self.resume_pending)
         except PlanError as exc:
             self.error = str(exc)
+            self.error_code = exc.code
         except Exception:
             self.error = "Chưa kết nối được ChatGPT. Kiểm tra mạng và thử đăng nhập lại."
         finally:
@@ -44,6 +47,10 @@ class BrowserAI(QObject):
         self.store = PlanAccounts(bridge.library.directory)
         self.job = None
         self._message = "Đăng nhập một lần, cho phép dùng hạn mức ChatGPT; kết nối tự lưu trên máy."
+        if self.store.data.get("last_error", {}).get("message"):
+            self._message = self.store.data["last_error"]["message"]
+        if self.store.data.get("last_error", {}).get("code") == "3p_login_workspace_scope_denied":
+            self._message = WORKSPACE_DENIED_MESSAGE
         legacy = Path(bridge.library.directory) / "browser_ai/accounts.json"
         if legacy.is_file() and not self.store.path.exists():
             try:
@@ -69,6 +76,30 @@ class BrowserAI(QObject):
         except ValueError:
             return "Chưa kết nối"
 
+    @Property("QVariantMap", notify=changed)
+    def accountInfo(self):
+        try:
+            account = self.store.get()
+        except PlanError:
+            return {}
+        # Identity details come only from the validated sign-in. Do not infer a
+        # subscription or quota from scopes, model names or a browser session.
+        saved = account.get("saved_at")
+        return {"label": account["label"], "name": account.get("name", ""), "email": account.get("email", ""),
+                "ready": account.get("ready", False),
+                "saved": datetime.fromtimestamp(saved).strftime("%H:%M · %d/%m/%Y") if saved else "Đã lưu trên máy",
+                "plan": account.get("plan", "") if account.get("plan") != "unknown" else ""}
+
+    @Property(str, notify=changed)
+    def quotaMessage(self):
+        if not self.accountInfo:
+            return "Hiện sau khi kết nối thành công."
+        return "Chưa có số liệu hạn mức còn lại từ OpenAI cho kết nối này."
+
+    @Property(bool, notify=changed)
+    def hasError(self):
+        return bool(self.store.data.get("last_error")) and not self.job
+
     @Property(bool, notify=changed)
     def automatic(self):
         return self.store.data["automatic"]
@@ -81,9 +112,17 @@ class BrowserAI(QObject):
     def loginBusy(self):
         return self.job is not None
 
+    @Property(bool, notify=changed)
+    def disconnectBusy(self):
+        return bool(self.job and self.job.disconnect)
+
     @Property(str, notify=changed)
     def message(self):
         return self._message
+
+    @Property(bool, notify=changed)
+    def canResume(self):
+        return (self.store.root / "pending-registration.json").is_file()
 
     @Slot(str)
     def inform(self, message):
@@ -118,6 +157,24 @@ class BrowserAI(QObject):
     def addAndSignIn(self):
         self._open("")
 
+    @Slot()
+    def connectAccount(self):
+        if self.job:
+            self.stopLogin()
+            return
+        # One visible action handles saved sign-in or an interrupted exchange.
+        # A workspace/client rejection must never reuse that pending client.
+        code = self.store.data.get("last_error", {}).get("code", "")
+        resume = self.canResume and code not in {
+            "3p_login_workspace_scope_denied", "invalid_client", "access_denied",
+            "subscription_sharing_user_not_eligible",
+        }
+        self._open(self.activeId, resume_pending=resume and not self.activeId)
+
+    @Slot()
+    def resumeSignIn(self):
+        self._open("", resume_pending=True)
+
     def conversionAccount(self, folder=""):
         journal = Path(folder) / "ai-job.json" if folder else None
         if journal and journal.is_file():
@@ -136,11 +193,11 @@ class BrowserAI(QObject):
         if not QDesktopServices.openUrl(QUrl(USAGE_URL)):
             self.inform("Chưa mở được trang hạn mức ChatGPT trong trình duyệt mặc định.")
 
-    def _open(self, account_id, disconnect=False):
+    def _open(self, account_id, disconnect=False, resume_pending=False):
         if self.job or self.bridge.busy:
             self.inform("Chờ tác vụ hiện tại xong trước khi quản lý kết nối.")
             return
-        self.job = LoginJob(self.store, account_id, self, disconnect)
+        self.job = LoginJob(self.store, account_id, self, disconnect, resume_pending)
         self.job.progress.connect(self.inform)
         self.job.finished.connect(self._finished)
         self.job.start()
@@ -157,12 +214,15 @@ class BrowserAI(QObject):
         job, self.job = self.job, None
         self.store.reload()
         if job.error:
+            if job.error_code != "cancelled":
+                self.store.data["last_error"] = {"code": job.error_code, "message": job.error}
+                self.store.save()
             self.inform(job.error)
         elif job.disconnect:
             self.inform("Đã ngắt kết nối." if job.result["confirmed"] else
                         "Đã xóa phiên tại máy; chưa xác nhận thu hồi trên mạng. Có thể quản lý quyền trong ChatGPT.")
         elif job.result["ready"]:
-            self.inform("Đã kết nối và tự lưu. Chuyển đổi bài sử dụng hạn mức gói ChatGPT của tài khoản này.")
+            self.inform("Đã kết nối và tự lưu tài khoản. Bạn có thể quay lại Bài giảng để chuyển đổi.")
         else:
             self.inform("Đã đăng nhập, chưa được cấp quyền xử lý bằng hạn mức ChatGPT. Có thể dùng gửi/nhận thủ công.")
         job.deleteLater()

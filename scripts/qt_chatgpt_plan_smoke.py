@@ -103,7 +103,7 @@ def start():
     QMetaObject.invokeMethod(window.findChild(QObject, "helpDialog"), "close", Qt.DirectConnection)
     window.setProperty("page", "settings")
     window.findChild(QObject, "settingsPage").setProperty("activeTab", 6)
-    assert window.findChild(QObject, "browserAccountAdd").property("text") == "Continue with ChatGPT"
+    assert window.findChild(QObject, "browserAccountAdd").property("text") == "Đăng nhập lại"
     assert QQuickWindow.grabWindow(window).save(str(reports / "accounts.png"))
     window.setProperty("page", "new")
     window.setProperty("selectedFile", QUrl.fromLocalFile(str(source)).toString())

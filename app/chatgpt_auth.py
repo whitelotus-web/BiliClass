@@ -21,10 +21,13 @@ from .browser_accounts import profile_lock
 from .login_browser import LoginBrowserError, PrivateLoginBrowser
 
 ISSUER = "https://auth.openai.com"
+AUTHORIZATION_ENDPOINT = ISSUER + "/api/accounts/authorize"
 RESOURCE = "https://api.openai.com/v1"
 SCOPE = "openid profile email offline_access resource.invoke chatgpt.tokens.use.direct"
 PLAN_SCOPE = "chatgpt.tokens.use.direct"
 USAGE_URL = "https://chatgpt.com/#settings/Usage"
+LOGIN_PAGE_TIMEOUT = 60
+WORKSPACE_DENIED_MESSAGE = "OpenAI chưa cho tài khoản/workspace này kết nối với BiliClass. Chưa lưu được tài khoản. Hãy đăng nhập bằng workspace có quyền dùng ứng dụng; nếu vẫn bị từ chối, cần chủ ứng dụng/workspace cấp quyền."
 
 
 class PlanError(ValueError):
@@ -101,7 +104,7 @@ class PlanAccounts:
             raise PlanError("Định danh máy ChatGPT không hợp lệ.")
 
     def reload(self):
-        self.data = {"version": 1, "accounts": [], "active": "", "automatic": True, "audio": True}
+        self.data = {"version": 1, "accounts": [], "active": "", "automatic": True, "audio": True, "last_error": {}}
         if self.path.exists():
             data = json.loads(self.path.read_text(encoding="utf-8"))
             if data.get("version") != 1 or not isinstance(data.get("accounts"), list):
@@ -134,17 +137,22 @@ class PlanAccounts:
         self.data.update(automatic=bool(automatic), audio=bool(audio))
         self.save()
 
-    def registration(self, account_id=""):
+    def registration(self, account_id="", *, resume_pending=False):
         if account_id:
             return self.get(account_id)
         pending = self.root / "pending-registration.json"
-        if pending.is_file():
+        if resume_pending and pending.is_file():
             return json.loads(pending.read_text(encoding="utf-8"))
         return {"client_id": "dynamic_agent_client"}
 
     def save_registration(self, client_id):
         # Keep the issued ID even if exchange fails; it is not a credential.
-        atomic_json(self.root / "pending-registration.json", {"client_id": client_id})
+        pending = self.root / "pending-registration.json"
+        if pending.is_file():
+            previous = json.loads(pending.read_text(encoding="utf-8"))
+            if previous.get("client_id") != client_id:
+                atomic_json(self.root / "registration-history" / (str(uuid4()) + ".json"), previous)
+        atomic_json(pending, {"client_id": client_id})
 
     def connect(self, claims, tokens, client_id, account_id=""):
         if account_id and self.get(account_id)["sub"] != claims["sub"]:
@@ -152,13 +160,16 @@ class PlanAccounts:
         account_id = account_id or next((a["id"] for a in self.data["accounts"]
                                          if a["sub"] == claims["sub"] and a["client_id"] == client_id), str(uuid4()))
         self.secrets.write(account_id, tokens)
-        email = str(claims.get("email") or claims.get("name") or "Tài khoản ChatGPT")[:200]
+        email = str(claims.get("email") or "")[:200]
+        name = str(claims.get("name") or "")[:200]
         enabled = PLAN_SCOPE in tokens.get("scope", "").split()
-        item = {"id": account_id, "client_id": client_id, "sub": claims["sub"], "label": email,
+        item = {"id": account_id, "client_id": client_id, "sub": claims["sub"], "label": email or name or "Tài khoản ChatGPT",
+                "name": name, "email": email, "saved_at": time.time(),
                 "ready": enabled, "status": "Đã kết nối · Dùng hạn mức ChatGPT" if enabled else
                 "Đã đăng nhập · Chưa cấp quyền xử lý", "plan": "", "provider": "chatgpt_plan"}
         self.data["accounts"] = [a for a in self.data["accounts"] if a["id"] != account_id] + [item]
         self.data["active"] = account_id
+        self.data["last_error"] = {}
         self.save()
         (self.root / "pending-registration.json").unlink(missing_ok=True)
         return item
@@ -188,6 +199,7 @@ def response_error(response):
         "subscription_sharing_route_not_supported": "Kết nối ChatGPT chưa cho phép đường xử lý này.",
         "invalid_grant": "Phiên ChatGPT hoặc mã đăng nhập đã hết hạn. Đăng nhập lại.",
         "access_denied": "Bạn chưa đồng ý cấp quyền kết nối ChatGPT.",
+        "3p_login_workspace_scope_denied": WORKSPACE_DENIED_MESSAGE,
     }
     message = messages.get(code, {
         401: "Phiên ChatGPT không được chấp nhận. Đăng nhập lại.",
@@ -201,7 +213,7 @@ def response_error(response):
 class ChatGPTAuth:
     def __init__(self, accounts, client=None):
         self.accounts = accounts
-        self.client = client or httpx.Client(timeout=httpx.Timeout(30, connect=10), follow_redirects=False)
+        self.client = client or httpx.Client(timeout=httpx.Timeout(15, connect=5), follow_redirects=False)
         self._metadata = None
 
     def metadata(self):
@@ -254,9 +266,9 @@ class ChatGPTAuth:
         result["expires_at"] = time.time() + expires
         return result
 
-    def authorize(self, account_id="", cancel=None, progress=lambda _: None, opener=None, timeout=600):
+    def authorize(self, account_id="", cancel=None, progress=lambda _: None, opener=None, timeout=600, *, resume_pending=False):
         cancel = cancel or Event()
-        registration = self.accounts.registration(account_id)
+        registration = self.accounts.registration(account_id, resume_pending=resume_pending)
         client_id = registration["client_id"]
         state, nonce, verifier = secrets.token_urlsafe(32), secrets.token_urlsafe(32), secrets.token_urlsafe(64)
         challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip("=")
@@ -303,7 +315,9 @@ class ChatGPTAuth:
                 params["id_token_hint"] = previous["id_token"]
         lifetime = ExitStack()
         try:
-            url = self.metadata()["authorization_endpoint"] + "?" + urlencode(params)
+            # The official authorize URL opens immediately. Discovery is needed
+            # for exchange/verification after callback, not before showing login.
+            url = AUTHORIZATION_ENDPOINT + "?" + urlencode(params)
             browser = None
             if opener is None:
                 browser = lifetime.enter_context(PrivateLoginBrowser(self.accounts))
@@ -312,13 +326,27 @@ class ChatGPTAuth:
                 raise PlanError("Chưa mở được phiên đăng nhập ChatGPT.")
             progress("Đăng nhập trong cửa sổ riêng của BiliClass và cho phép dùng hạn mức ChatGPT. Cửa sổ tự đóng khi xong…")
             deadline = time.monotonic() + timeout
+            loading_since, warned_loading = time.monotonic(), False
             while not returned:
                 if cancel.is_set():
                     raise PlanError("Đã hủy đăng nhập.", "cancelled")
                 if time.monotonic() >= deadline:
                     raise PlanError("Hết thời gian chờ đăng nhập. Nếu trang báo lỗi, ghi lại thông báo rồi đăng nhập lại hoặc dùng gửi/nhận thủ công.", "login_timeout")
                 if browser and not browser.running():
-                    raise PlanError("Cửa sổ đăng nhập đã đóng trước khi kết nối xong. Bấm Continue with ChatGPT để mở lại.", "browser_closed")
+                    raise PlanError("Cửa sổ đăng nhập đã đóng trước khi kết nối xong. Bấm Đăng nhập ChatGPT để mở lại.", "browser_closed")
+                if browser:
+                    status = browser.status()
+                    if status == "workspace_denied":
+                        raise PlanError(WORKSPACE_DENIED_MESSAGE, "3p_login_workspace_scope_denied")
+                    if status == "loading":
+                        elapsed = time.monotonic() - loading_since
+                        if elapsed >= LOGIN_PAGE_TIMEOUT:
+                            raise PlanError("Trang đăng nhập không tải xong sau 60 giây. Đã dừng chờ; kiểm tra mạng và thử lại.", "login_page_timeout")
+                        if elapsed >= 15 and not warned_loading:
+                            progress("Trang đăng nhập đang tải chậm. Tool sẽ dừng nếu trang vẫn trống sau 60 giây; có thể bấm Hủy ngay.")
+                            warned_loading = True
+                    else:
+                        loading_since = time.monotonic()
                 server.handle_request()
         except LoginBrowserError as exc:
             raise PlanError(str(exc), "login_browser") from None
@@ -334,6 +362,7 @@ class ChatGPTAuth:
                 "invalid_client": "ChatGPT chưa chấp nhận đăng ký ứng dụng BiliClass. Có thể dùng gửi/nhận thủ công.",
                 "subscription_sharing_user_not_eligible": "Tài khoản hoặc ứng dụng chưa đủ điều kiện dùng hạn mức ChatGPT. Có thể dùng gửi/nhận thủ công.",
                 "invalid_scope": "ChatGPT chưa chấp nhận quyền kết nối được yêu cầu. Có thể dùng gửi/nhận thủ công.",
+                "3p_login_workspace_scope_denied": WORKSPACE_DENIED_MESSAGE,
             }
             raise PlanError(messages.get(code, "ChatGPT chưa cho phép kết nối này. Thử lại hoặc dùng gửi/nhận thủ công."),
                             code if code in messages else "authorization_failed")
@@ -342,6 +371,7 @@ class ChatGPTAuth:
             raise PlanError("ChatGPT chưa cấp mã đăng ký hợp lệ cho BiliClass.")
         if not account_id:
             self.accounts.save_registration(issued)
+        progress("Đã nhận xác nhận từ trình duyệt. Đang kiểm tra và lưu kết nối ChatGPT…")
         tokens = self.token_exchange({"grant_type": "authorization_code", "client_id": issued, "code": returned["code"],
                                       "code_verifier": verifier, "redirect_uri": redirect, "resource": RESOURCE})
         claims = self.verify_identity(tokens["id_token"], issued, nonce)

@@ -471,42 +471,83 @@ Item {
             visible: page.activeTab === 6; Layout.fillWidth: true; spacing: 14
             Card {
                 Layout.fillWidth: true
-                ColumnLayout { width: parent.width; spacing: 14
+                ColumnLayout { width: parent.width; spacing: 18
                     RowLayout {
-                        Layout.fillWidth: true
-                        Title { text: "Tài khoản ChatGPT"; Layout.fillWidth: true }
-                        SaveButton { objectName: "browserAccountAdd"; text: "Continue with ChatGPT"; enabled: !bridge.busy && !bridge.browserAI.loginBusy; onClicked: bridge.browserAI.addAndSignIn() }
-                    }
-                    Hint { text: "Đăng nhập trong cửa sổ Edge riêng của BiliClass, cho phép dùng hạn mức ChatGPT. Cửa sổ tự đóng khi xong; chuyển đổi chạy ngầm. Kết nối được mã hóa và tự lưu trên máy; không cần API key."; Layout.fillWidth: true }
-                    Repeater {
-                        model: bridge.browserAI.accounts
-                        Rectangle {
-                            required property var modelData
-                            Layout.fillWidth: true; implicitHeight: accountRow.height + 26; radius: 10
-                            color: bridge.browserAI.activeId === modelData.id ? "#edf5ff" : "#fbfcfe"
-                            border.color: bridge.browserAI.activeId === modelData.id ? "#bcd5ff" : page.line
-                            RowLayout {
-                                id: accountRow; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 13; spacing: 10
-                                ColumnLayout {
-                                    Layout.fillWidth: true; spacing: 4
-                                    Label { text: modelData.label; color: page.ink; font.pixelSize: 15; font.bold: true; Layout.fillWidth: true; elide: Text.ElideRight }
-                                    Hint { text: modelData.status + (modelData.plan && modelData.plan !== "unknown" ? " · " + modelData.plan.charAt(0).toUpperCase() + modelData.plan.slice(1) : ""); Layout.fillWidth: true }
+                        Layout.fillWidth: true; spacing: 14
+                        ColumnLayout {
+                            Layout.fillWidth: true; spacing: 6
+                            Title { text: "Tài khoản ChatGPT" }
+                            Hint { text: "Đăng nhập một lần. BiliClass tự lưu kết nối trên máy."; Layout.fillWidth: true }
+                        }
+                        SaveButton {
+                            objectName: "browserAccountAdd"
+                            text: bridge.browserAI.disconnectBusy ? "Đang xóa…" : bridge.browserAI.loginBusy ? "Hủy" : bridge.browserAI.activeId ? "Đăng nhập lại" : "Đăng nhập ChatGPT"
+                            enabled: !bridge.busy && !bridge.browserAI.disconnectBusy
+                            onClicked: bridge.browserAI.connectAccount()
+                        }
+                        SoftButton {
+                            objectName: "browserAccountMenu"; text: "..."; implicitWidth: 42
+                            visible: !!bridge.browserAI.activeId
+                            enabled: !bridge.busy && !bridge.browserAI.loginBusy
+                            Accessible.name: "Quản lý tài khoản ChatGPT"
+                            onClicked: accountMenu.popup()
+                            Menu {
+                                id: accountMenu
+                                MenuItem { text: "Dùng tài khoản khác"; onTriggered: bridge.browserAI.addAndSignIn() }
+                                Menu {
+                                    id: savedAccountsMenu; objectName: "browserStoredAccountsMenu"
+                                    title: "Tài khoản đã lưu"; enabled: bridge.browserAI.accounts.length > 1
+                                    Instantiator {
+                                        model: bridge.browserAI.accounts
+                                        delegate: MenuItem {
+                                            required property var modelData
+                                            text: modelData.label; checkable: true
+                                            checked: bridge.browserAI.activeId === modelData.id
+                                            onTriggered: bridge.browserAI.select(modelData.id)
+                                        }
+                                        onObjectAdded: function(index, object) { savedAccountsMenu.insertItem(index, object) }
+                                        onObjectRemoved: function(index, object) { savedAccountsMenu.removeItem(object) }
+                                    }
                                 }
-                                SoftButton { text: "Chọn"; visible: bridge.browserAI.activeId !== modelData.id; enabled: !bridge.busy && !bridge.browserAI.loginBusy; onClicked: bridge.browserAI.select(modelData.id) }
-                                SoftButton { text: "Đăng nhập lại"; enabled: !bridge.busy && !bridge.browserAI.loginBusy; onClicked: bridge.browserAI.signIn(modelData.id) }
-                                SoftButton { text: "Xóa"; iconName: "delete"; enabled: !bridge.busy && !bridge.browserAI.loginBusy; onClicked: bridge.browserAI.remove(modelData.id) }
+                                MenuItem { text: "Hạn mức trên ChatGPT"; onTriggered: bridge.browserAI.openUsage() }
+                                MenuSeparator {}
+                                MenuItem { text: "Xóa kết nối trên máy"; onTriggered: bridge.browserAI.remove(bridge.browserAI.activeId) }
                             }
                         }
                     }
+                    Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: page.line }
                     RowLayout {
-                        visible: bridge.browserAI.loginBusy; Layout.fillWidth: true
-                        BusyIndicator { running: bridge.browserAI.loginBusy; implicitWidth: 28; implicitHeight: 28 }
-                        Hint { text: "Đang chờ bạn đăng nhập trên web… Phiên sẽ được lưu tự động."; Layout.fillWidth: true }
-                        SoftButton { objectName: "browserLoginStop"; text: "Hủy đăng nhập"; onClicked: bridge.browserAI.stopLogin() }
+                        Layout.fillWidth: true; spacing: 8
+                        Rectangle { implicitWidth: 8; implicitHeight: 8; radius: 4; color: bridge.browserAI.hasError ? "#c05b31" : bridge.browserAI.activeId ? "#138578" : page.muted }
+                        Label {
+                            objectName: "browserConnectionState"
+                            text: bridge.browserAI.disconnectBusy ? "Đang ngắt kết nối…" : bridge.browserAI.loginBusy ? "Đang kết nối…" : bridge.browserAI.hasError ? "Chưa kết nối thành công" : bridge.browserAI.activeId ? "Đã đăng nhập · Tự lưu" : "Chưa đăng nhập"
+                            font.pixelSize: 13; font.weight: Font.DemiBold; color: page.ink
+                        }
                     }
-                    Hint { objectName: "browserAccountStatus"; text: bridge.browserAI.message; Layout.fillWidth: true; color: page.blue }
-                    Hint { text: "Quyền dùng gói và model được kiểm tra khi chuyển đổi. Nếu hết hạn mức hoặc mất quyền, tool dừng để bạn chọn cách tiếp tục."; Layout.fillWidth: true; font.pixelSize: 12 }
-                    SoftButton { text: "Xem hạn mức ChatGPT"; onClicked: bridge.browserAI.openUsage() }
+                    ColumnLayout {
+                        objectName: "browserAccountDetails"
+                        visible: !!bridge.browserAI.activeId; Layout.fillWidth: true; spacing: 6
+                        Label { objectName: "browserAccountIdentity"; text: bridge.browserAI.accountInfo.name || bridge.browserAI.accountInfo.label || ""; color: page.ink; font.pixelSize: 21; font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight }
+                        Hint { text: bridge.browserAI.accountInfo.email || ""; visible: !!bridge.browserAI.accountInfo.name && !!text; Layout.fillWidth: true }
+                        Hint { objectName: "browserAccountSaved"; text: "Lưu lần cuối: " + (bridge.browserAI.accountInfo.saved || ""); Layout.fillWidth: true }
+                    }
+                    GridLayout {
+                        visible: !!bridge.browserAI.activeId; Layout.fillWidth: true
+                        columns: 2; columnSpacing: 24; rowSpacing: 12
+                        Hint { text: "Quyền xử lý bài" }
+                        Hint { objectName: "browserAccountPermission"; text: bridge.browserAI.accountInfo.ready ? "Đã cấp quyền dùng hạn mức ChatGPT" : "Chưa cấp quyền dùng hạn mức ChatGPT"; color: bridge.browserAI.accountInfo.ready ? "#138578" : "#ab5b20"; Layout.fillWidth: true }
+                        Hint { text: "Gói tài khoản"; visible: !!bridge.browserAI.accountInfo.plan }
+                        Hint { text: bridge.browserAI.accountInfo.plan || ""; visible: !!text; Layout.fillWidth: true }
+                        Hint { text: "Hạn mức còn lại" }
+                        Hint { objectName: "browserQuotaStatus"; text: bridge.browserAI.quotaMessage; Layout.fillWidth: true }
+                    }
+                    RowLayout {
+                        visible: bridge.browserAI.loginBusy || bridge.browserAI.hasError; Layout.fillWidth: true; spacing: 10
+                        BusyIndicator { visible: bridge.browserAI.loginBusy; running: visible; implicitWidth: 24; implicitHeight: 24 }
+                        Hint { objectName: "browserAccountStatus"; text: bridge.browserAI.message; Layout.fillWidth: true; color: bridge.browserAI.hasError ? "#ab5b20" : page.blue }
+                    }
+                    Hint { text: "Cửa sổ đăng nhập tự đóng khi xong. Chỉ khi có thông tin tài khoản ở đây thì kết nối mới được lưu."; Layout.fillWidth: true; font.pixelSize: 12 }
                 }
             }
         }

@@ -17,6 +17,17 @@ class LoginBrowserError(ValueError):
     pass
 
 
+def login_window_status(titles):
+    """Classify known top-level titles only; never read page forms or cookies."""
+    values = [title.casefold().replace("’", "'").strip() for title in titles]
+    if any(value.startswith("this account can't access this app") and value.endswith("openai") for value in values):
+        return "workspace_denied"
+    if not values or all(not value or value in {"microsoft edge", "about:blank"}
+                         or value.startswith("auth.openai.com") for value in values):
+        return "loading"
+    return "waiting"
+
+
 def edge_executable():
     for variable in ("PROGRAMFILES(X86)", "PROGRAMFILES", "LOCALAPPDATA"):
         root = os.environ.get(variable)
@@ -64,6 +75,25 @@ class OwnedProcess:
         return bool(self.job and win32job.QueryInformationJobObject(
             self.job, win32job.JobObjectBasicAccountingInformation)["ActiveProcesses"])
 
+    def window_titles(self):
+        import win32gui
+        import win32job
+        import win32process
+
+        if not self.job:
+            return []
+        processes = set(win32job.QueryInformationJobObject(self.job, win32job.JobObjectBasicProcessIdList))
+        titles = []
+
+        def owned_window(hwnd, _):
+            try:
+                if win32gui.IsWindowVisible(hwnd) and win32process.GetWindowThreadProcessId(hwnd)[1] in processes:
+                    titles.append(win32gui.GetWindowText(hwnd))
+            except Exception:
+                pass  # A window may disappear during enumeration.
+        win32gui.EnumWindows(owned_window, None)
+        return titles
+
     def close(self):
         import win32event
 
@@ -80,13 +110,17 @@ class PrivateLoginBrowser:
     def __init__(self, accounts):
         self.root = accounts.root
         self.host_id = accounts.host_id[9:]
-        self.profile = self.root / "sign-in-browser"
+        # Browser caches on the library drive made source runs unnecessarily slow.
+        # Keep them on the Windows local app-data drive, keyed by this installation.
+        local = Path(os.environ.get("LOCALAPPDATA", Path.home()))
+        self.profile_root = (local / "BiliClass/sign-in-browsers").resolve()
+        self.profile = self.profile_root / self.host_id
         self.process, self.lock = None, None
 
     def __enter__(self):
         if os.name != "nt":
             raise LoginBrowserError("Phiên đăng nhập riêng hiện hỗ trợ Windows và Microsoft Edge.")
-        if self.profile.is_symlink() or not self.profile.resolve().is_relative_to(self.root):
+        if self.profile.is_symlink() or not self.profile.resolve().is_relative_to(self.profile_root):
             raise LoginBrowserError("Đường dẫn hồ sơ đăng nhập riêng không hợp lệ.")
         self.lock = profile_lock(self.root / "browser-lock", self.host_id)
         self.lock.__enter__()
@@ -106,6 +140,9 @@ class PrivateLoginBrowser:
 
     def running(self):
         return bool(self.process and self.process.running())
+
+    def status(self):
+        return login_window_status(self.process.window_titles()) if self.process else "loading"
 
     def __exit__(self, *args):
         try:

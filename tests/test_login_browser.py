@@ -7,7 +7,7 @@ import psutil
 import pytest
 
 from app.chatgpt_auth import PlanAccounts
-from app.login_browser import LoginBrowserError, OwnedProcess, PrivateLoginBrowser
+from app.login_browser import LoginBrowserError, OwnedProcess, PrivateLoginBrowser, login_window_status
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Windows job and Edge profile")
@@ -25,6 +25,7 @@ def test_job_closes_its_tree_and_preserves_unrelated_process(tmp_path):
         while not child_record.exists() and time.monotonic() < deadline:
             time.sleep(.05)
         assert child_record.exists() and owned.running()
+        assert owned.window_titles() == []
         child_pid = int(child_record.read_text())
         assert psutil.pid_exists(child_pid)
         owned.close()
@@ -42,11 +43,23 @@ def test_job_closes_its_tree_and_preserves_unrelated_process(tmp_path):
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Windows Edge profile")
-def test_login_profile_is_owned_and_rejects_foreign_login_url(tmp_path):
+def test_login_profile_is_owned_and_rejects_foreign_login_url(tmp_path, monkeypatch):
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "local-app-data"))
     accounts = PlanAccounts(tmp_path)
     with PrivateLoginBrowser(accounts) as browser:
-        assert browser.profile.parent == accounts.root
+        assert browser.profile.is_relative_to(tmp_path / "local-app-data/BiliClass/sign-in-browsers")
+        assert browser.profile.name == accounts.host_id[9:]
         with pytest.raises(LoginBrowserError, match="không hợp lệ"):
             browser.open("https://example.test/login?code=private")
         assert not browser.running()
     assert not accounts.data["accounts"]
+
+
+@pytest.mark.parametrize("titles,status", [
+    ([], "loading"), (["auth.openai.com/api/accounts/authorize"], "loading"),
+    (["This account can't access this app - OpenAI"], "workspace_denied"),
+    (["This account can’t access this app - OpenAI"], "workspace_denied"),
+    (["Log in - OpenAI"], "waiting"), (["Select a workspace - OpenAI"], "waiting"),
+])
+def test_known_browser_window_titles(titles, status):
+    assert login_window_status(titles) == status

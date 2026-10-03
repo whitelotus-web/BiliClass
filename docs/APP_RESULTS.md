@@ -2,12 +2,14 @@
 
 ## Mã nguồn Browser AI ngày 03/10/2026
 
+Sửa theo phản hồi đăng nhập và giao diện: chỉ còn một nút đăng nhập/tự lưu, đổi thành Hủy khi chờ và Đăng nhập lại khi có tài khoản; quản lý tài khoản trong menu ⋯. Tên/email/thời điểm lưu/quyền xử lý chỉ hiện sau xác minh; hạn mức chưa có số liệu được báo trực tiếp, không giả định phần trăm/gói. Nút chính chọn đúng đăng ký mới, tiếp tục trao đổi mã hoặc đăng nhập lại đã lưu; không dùng mã pending bị từ chối workspace/client. Title của cửa sổ Edge riêng được kiểm tra để dừng khi từ chối workspace; trang trắng quá 60 giây dừng chờ. Discovery không chặn trước khi mở browser; cache browser/runtime OAuth nằm trên LocalAppData. **32 kiểm thử liên quan passed**, Qt login passed với bốn giai đoạn và ảnh hai cỡ cửa sổ, không QML warning; Ruff không lỗi. Báo cáo tại máy: `reports/chatgpt-plan/qt-login.json`. Đây là kiểm thử kiểm soát; người dùng đã vào màn đăng nhập nhưng store thật vẫn không có tài khoản và báo `3p_login_workspace_scope_denied`. Chưa xác nhận OAuth/inference thật.
+
 - Toàn bộ kiểm thử: **244 passed**; một cảnh báo Starlette/httpx của phần lớp học, không có test lỗi. Ruff không lỗi.
 - OAuth giả lập kiểm tra đăng ký đầu tiên/đăng nhập lại, callback/state/PKCE, chữ ký/audience/nonce, scope, refresh và lỗi cấp quyền. DPAPI được kiểm tra trên Windows thật.
 - Windows job thực tế đóng cả tiến trình con tool tạo, giữ tiến trình ngoài phiên. Edge dùng hồ sơ riêng của BiliClass; đăng nhập xong/hủy thì đóng phiên, chuyển đổi không mở browser.
 - Qt: một nút chuyển đổi → manifest/JSON → PowerPoint render thật → xác nhận cả bài → bàn giao trình chiếu/mascot. AI và âm thanh là fixture; bàn giao trình chiếu cuối được chặn để kiểm tra. Mở lại bài sau khi xóa kết nối vẫn dùng cùng bài, không gọi AI. Không QML warning. Báo cáo tại máy: `reports/chatgpt-plan/qt-flow.json`.
 - Luồng PPTX thủ công vẫn qua Qt/Office. Kiểm thử bao gồm PPTX nguồn/song ngữ/ảnh/chữ dài, Word có ảnh, PDF scan, ảnh, pack có ảnh và tiếp tục yêu cầu gián đoạn.
-- **Kết nối thật chưa nghiệm thu:** lần mở browser trước người dùng báo trang lỗi, không nhận callback; chưa rõ thông báo cụ thể. Đã sửa tham số hint chỉ dùng lúc đăng ký đầu tiên, chưa xác nhận nguyên nhân. Đang chờ đăng nhập lại bằng cửa sổ riêng. Chưa xác nhận model/inference/hạn mức thật hoặc chất lượng trên giáo án của hai giáo viên.
+- **Kết nối thật chưa nghiệm thu:** ảnh người dùng xác nhận lỗi workspace nêu trên. Chưa xác nhận model/inference/hạn mức thật hoặc chất lượng trên giáo án của hai giáo viên.
 - Mở bản mã nguồn tại máy để thử; chưa build executable hoặc phát hành mới. Release RC12 giữ nguyên.
 
 ## Bằng chứng các bản phát hành trước

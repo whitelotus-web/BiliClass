@@ -10,12 +10,13 @@ from app.chatgpt_plan import ChatGPTPlanProvider
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=Path, required=True)
+    parser.add_argument("--resume", action="store_true", help="Resume the previous incomplete registration, using the same account/workspace")
     args = parser.parse_args()
     accounts = PlanAccounts(args.data)
     auth = ChatGPTAuth(accounts)
     from app.chatgpt_auth import PlanError
     try:
-        item = auth.authorize(progress=lambda message: print(message, flush=True))
+        item = auth.authorize(progress=lambda message: print(message, flush=True), resume_pending=args.resume)
     except PlanError as exc:
         print(str(exc), flush=True)
         return

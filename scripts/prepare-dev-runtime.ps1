@@ -13,7 +13,7 @@ try { $signature = [BitConverter]::ToString($hasher.ComputeHash([Text.Encoding]:
 finally { $hasher.Dispose() }
 $cacheRoot = Join-Path $env:LOCALAPPDATA ('BiliClass\dev-runtime\source-' + $signature.Substring(0,16))
 $readyFile = Join-Path $cacheRoot 'ready.json'
-$essentialFiles = @('PySide6\QtCore.pyd','PySide6\plugins\platforms\qwindows.dll','shiboken6\__init__.py','pydantic\__init__.py','typing_extensions.py')
+$essentialFiles = @('PySide6\QtCore.pyd','PySide6\plugins\platforms\qwindows.dll','shiboken6\__init__.py','pydantic\__init__.py','typing_extensions.py','jwt\__init__.py','cryptography\__init__.py')
 $complete = @($essentialFiles | Where-Object { -not (Test-Path -LiteralPath (Join-Path $cacheRoot $_)) }).Count -eq 0
 if ($complete -and (Test-Path -LiteralPath $readyFile)) {
     try { $ready = Get-Content -LiteralPath $readyFile -Raw | ConvertFrom-Json }
@@ -26,7 +26,7 @@ New-Item -ItemType Directory -Force -Path $cacheRoot | Out-Null
 # Cache only libraries used at startup. Models and the teacher library stay in their existing folders.
 $packages = @('PySide6','shiboken6','pydantic','pydantic_core','psutil','annotated_types','typing_inspection',
               'fastapi','starlette','httpx','httpcore','h11','anyio','sniffio','uvicorn','click','certifi',
-              'annotated_doc','win32','win32com','win32comext','pywin32_system32','playwright','pyee','greenlet')
+              'annotated_doc','jwt','cryptography','win32','win32com','win32comext','pywin32_system32','playwright','pyee','greenlet')
 foreach ($packageName in $packages) {
     $source = Join-Path $sitePackages $packageName
     if (-not (Test-Path -LiteralPath $source)) { continue }

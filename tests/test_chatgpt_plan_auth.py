@@ -126,7 +126,40 @@ def test_reauthorization_uses_issued_client_without_registration_hint(service):
     assert len(accounts.data["accounts"]) == 1
 
 
-@pytest.mark.parametrize("error", ["invalid_client", "access_denied", "subscription_sharing_user_not_eligible"])
+def test_new_connection_never_reuses_a_pending_workspace_registration(service):
+    auth, accounts, _signed, exchange, requests = service
+    accounts.save_registration("oaiapp_other_workspace")
+    previous_path = accounts.root / "pending-registration.json"
+    previous = previous_path.read_bytes()
+    assert accounts.registration()["client_id"] == "dynamic_agent_client"
+    assert accounts.registration(resume_pending=True)["client_id"] == "oaiapp_other_workspace"
+    assert previous_path.read_bytes() == previous
+    threads = []
+
+    def opener(url):
+        assert not requests  # No discovery request delays the browser opening.
+        values = parse_qs(urlsplit(url).query)
+        assert values["client_id"] == ["dynamic_agent_client"]
+        assert values["agent_name_hint"] == ["BiliClass"]
+        exchange["nonce"] = values["nonce"][0]
+        callback = values["redirect_uri"][0] + "?" + urlencode({
+            "state": values["state"][0], "code": "test-code", "client_id": "oaiapp_test"})
+        thread = threading.Thread(target=lambda: httpx.get(callback))
+        thread.start()
+        threads.append(thread)
+        return True
+
+    item = auth.authorize(opener=opener, timeout=5)
+    for thread in threads:
+        thread.join(5)
+    assert item["ready"] and item["client_id"] == "oaiapp_test"
+    assert not previous_path.exists()
+    archives = list((accounts.root / "registration-history").glob("*.json"))
+    assert len(archives) == 1
+    assert json.loads(archives[0].read_text())["client_id"] == "oaiapp_other_workspace"
+
+
+@pytest.mark.parametrize("error", ["invalid_client", "access_denied", "subscription_sharing_user_not_eligible", "3p_login_workspace_scope_denied"])
 def test_authorization_errors_are_reported_without_creating_account(service, error):
     auth, accounts, _signed, _exchange, requests = service
     threads = []
@@ -149,13 +182,14 @@ def test_authorization_errors_are_reported_without_creating_account(service, err
     assert not accounts.data["accounts"] and not any(r.url.path == "/token" for r in requests)
 
 
-@pytest.mark.parametrize("reason", ["closed", "cancelled"])
+@pytest.mark.parametrize("reason", ["closed", "cancelled", "workspace_denied", "loading"])
 def test_owned_login_browser_cleanup_when_closed_or_cancelled(service, monkeypatch, reason):
     from app import chatgpt_auth
 
     auth, accounts, _signed, _exchange, _requests = service
     cancel = threading.Event()
     events = []
+    monkeypatch.setattr(chatgpt_auth, "LOGIN_PAGE_TIMEOUT", .01)
 
     class Browser:
         def __init__(self, store):
@@ -174,12 +208,17 @@ def test_owned_login_browser_cleanup_when_closed_or_cancelled(service, monkeypat
             return True
 
         def running(self):
-            return False
+            return reason != "closed"
+
+        def status(self):
+            return reason
 
     monkeypatch.setattr(chatgpt_auth, "PrivateLoginBrowser", Browser)
     with pytest.raises(PlanError) as caught:
         auth.authorize(cancel=cancel, timeout=5)
-    assert caught.value.code == ("browser_closed" if reason == "closed" else "cancelled")
+    expected = {"closed": "browser_closed", "cancelled": "cancelled",
+                "workspace_denied": "3p_login_workspace_scope_denied", "loading": "login_page_timeout"}
+    assert caught.value.code == expected[reason]
     assert events == ["opened", "closed"] and not accounts.data["accounts"]
 
 
@@ -191,6 +230,18 @@ def test_identity_only_does_not_authorize_inference(service):
     with pytest.raises(PlanError, match="Chưa cấp quyền"):
         auth.access_token(item["id"])
     assert not any(r.url.path == "/token" for r in requests)
+
+
+def test_basic_profile_saved_from_verified_identity_without_inventing_plan(service):
+    auth, accounts, signed, _exchange, _requests = service
+    claims = auth.verify_identity(signed(name="Cô giáo thử nghiệm"), "oaiapp_test")
+    item = accounts.connect(claims, {"scope": PLAN_SCOPE, "access_token": "DO-NOT-SAVE-IN-PROFILE"}, "oaiapp_test")
+    accounts.reload()
+    saved = accounts.get(item["id"])
+    assert saved["name"] == "Cô giáo thử nghiệm" and saved["email"] == "teacher@example.test"
+    assert saved["saved_at"] <= time.time() and saved["ready"]
+    assert not saved["plan"]  # Permission and identity are not a subscription claim.
+    assert "DO-NOT-SAVE-IN-PROFILE" not in accounts.path.read_text(encoding="utf-8")
 
 
 def test_refresh_rotates_token_and_rechecks_permission(service):
