@@ -8,6 +8,7 @@
 - So sánh render gốc/song ngữ bằng Office theo mapping slide; ảnh tĩnh không kiểm chứng hiệu ứng. Gói bài giữ thuật ngữ/giọng/mascot tham chiếu, không tự thay máy nhận.
 - OCR Việt–Anh cục bộ có bước tải một lần và SHA-256; chạy ảnh/PDF scan/slide chỉ ảnh. Chữ OCR vẫn cần sửa dấu/bảng/công thức, không gửi tài liệu ra web. Bốn tab Cài đặt hiện tại được giữ nguyên.
 - 171 kiểm thử và lint đạt, Qt smoke đạt; Office mở/render cả năm level, dịch loạt hai chiều và ảnh/PDF OCR Việt chạy bằng engine thật. Chưa nghiệm thu mọi môn/bài thật, chưa phát hành trong rc12. Xem [quy trình nhập bài](docs/INPUT_WORKFLOW.md).
+- Đóng gói một bản phát triển riêng và ghi commit/version. Sửa xung đột hai DLL ONNX Runtime trong gói; kiểm tra `.exe` đạt dịch, giọng Anh/Việt, OCR, lớp học, xuất bài, backup và Qt. Chưa đưa bản này lên Releases.
 
 ## Mã nguồn đang phát triển — 02/10/2026
 

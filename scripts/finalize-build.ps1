@@ -31,6 +31,14 @@ foreach ($runtimeName in @('vcruntime140.dll','vcruntime140_1.dll','msvcp140.dll
 # Remove only a generated bundle artifact, never a Windows system library.
 $foreignIcu = Join-Path $runtimeDest 'icuuc.dll'
 if (Test-Path -LiteralPath $foreignIcu) { Remove-Item -LiteralPath $foreignIcu }
+# Both Python OCR/VieNeu and sherpa-onnx use a DLL named onnxruntime.dll.
+# PyInstaller may resolve sherpa's older copy first in a spawned OCR worker.
+# Ship the installed Python runtime at both locations; validate OCR and both
+# speech engines with the packaged self-test after finalization.
+$onnxRuntimeSource = Join-Path $projectRoot '.venv\Lib\site-packages\onnxruntime\capi\onnxruntime.dll'
+$sherpaRuntimeDest = Join-Path $runtimeDest 'sherpa_onnx\lib\onnxruntime.dll'
+if (-not (Test-Path -LiteralPath $onnxRuntimeSource) -or -not (Test-Path -LiteralPath $sherpaRuntimeDest)) { throw 'Missing shared ONNX runtime in build.' }
+Copy-Item -LiteralPath $onnxRuntimeSource -Destination $sherpaRuntimeDest -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'docs\THIRD_PARTY.md') -Destination (Join-Path $bundlePath 'THIRD_PARTY.md') -Force
 if ($IncludeTrialModel) {
     $modelDest = Join-Path $bundlePath 'models'
@@ -39,6 +47,16 @@ if ($IncludeTrialModel) {
         $modelSource = Join-Path $projectRoot ('.runtime\models\' + $direction)
         if (-not (Test-Path -LiteralPath (Join-Path $modelSource 'provenance.json'))) { throw 'Download the trial models first.' }
         Copy-Item -LiteralPath $modelSource -Destination $modelDest -Recurse -Force
+    }
+    # Include the explicitly prepared OCR pack when available; otherwise the
+    # app offers its one-time setup button. Never download during a build.
+    $ocrPackSource = Join-Path $projectRoot '.runtime\models\ocr-vi-en-v1'
+    if (Test-Path -LiteralPath (Join-Path $ocrPackSource 'provenance.json')) {
+        $ocrPackDest = Join-Path $modelDest 'ocr-vi-en-v1'
+        New-Item -ItemType Directory -Path $ocrPackDest -Force | Out-Null
+        foreach ($ocrFile in @('latin_PP-OCRv5_rec_mobile.onnx','provenance.json')) {
+            Copy-Item -LiteralPath (Join-Path $ocrPackSource $ocrFile) -Destination $ocrPackDest -Force
+        }
     }
 }
 

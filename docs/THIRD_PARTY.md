@@ -6,6 +6,7 @@
 - Model nhận dạng: [latin_PP-OCRv5_rec_mobile.onnx](https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/v3.9.2/onnx/PP-OCRv5/rec/latin_PP-OCRv5_rec_mobile.onnx). SHA-256: `b20bd37c168a570f583afbc8cd7925603890efbcdc000a59e22c269d160b5f5a`. Tải chủ động bằng nút chuẩn bị, có provenance; ảnh/PDF không gửi tới nguồn model. Sau khi chuẩn bị, OCR chạy cục bộ. Model không vào Git.
 - Phụ thuộc mới gồm OpenCV, OmegaConf/ANTLR4, colorlog, pyclipper và shapely; phiên bản chính xác trong `requirements-lock.txt`, giấy phép/metadata được thu khi đóng gói. RapidOCR và tài nguyên model được collect trong script build; thay đổi này chưa có ở release RC12.
 - Model Latin còn nhận sai một số dấu Việt trong kiểm tra thật. Chữ OCR là nháp cần giáo viên kiểm tra; không phải bảo đảm đọc đúng sách giáo khoa/công thức/chữ viết tay.
+- Bản đóng gói phát triển dùng cùng ONNX Runtime 1.30.0 ở vị trí Python và sherpa-onnx để tránh chọn nhầm DLL cùng tên. Kiểm tra `.exe` đạt dịch hai chiều, Kokoro, VieNeu, OCR và lớp học; notices của ONNX Runtime 1.30.0 đi cùng metadata thư viện. Release RC12 cũ vẫn giữ runtime đã đóng trước đó.
 
 Bản ứng dụng hiện tại dành để kiểm thử tại máy, chưa phải gói phát hành thương mại. Giữ nguyên thư mục `_internal`, các license kèm thư viện và thông tin gói model khi sao chép.
 
