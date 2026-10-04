@@ -24,6 +24,7 @@ ApplicationWindow {
     property bool advancedCreation: false
     property bool pasteMode: false
     property bool resultDetails: false
+    property bool browserConversionOptions: false
     readonly property bool creationPowerPoint: selectedFileName.toLowerCase().endsWith(".pptx")
     readonly property bool creationKeepSource: creationPowerPoint && creationWorkflow.currentIndex === 0
     readonly property bool keepSourceDesign: bridge.lesson.presentation_style === "source"
@@ -414,17 +415,21 @@ ApplicationWindow {
                                 id: autoBrowserSteps; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 21; spacing: 14
                                 RowLayout { Layout.fillWidth: true
                                     BusyIndicator { running: !!bridge.browserState.running; visible: running; implicitWidth: 34; implicitHeight: 34 }
-                                    Caption { text: bridge.browserState.running ? "ChatGPT đang xử lý bài" : "Kết nối ChatGPT"; font.pixelSize: 18; Layout.fillWidth: true }
+                                    Caption { text: bridge.browserState.running ? "Đang chuyển đổi bài giảng" : "Chuyển đổi tự động"; font.pixelSize: 18; Layout.fillWidth: true }
                                 }
                                 Copy { objectName: "browserConversionStatus"; text: bridge.browserState.message || "Yêu cầu đã chuẩn bị. Bấm Tiếp tục để gửi/chờ qua tài khoản đã chọn."; Layout.fillWidth: true; font.pixelSize: 15; color: root.ink }
                                 Copy { Layout.fillWidth: true; text: bridge.browserAI.webMode ? "Gửi tài liệu → nhận PowerPoint song ngữ → chuẩn bị giọng đọc → xem trình chiếu → xác nhận để dạy." : "Đọc bài gốc → xử lý song ngữ → tạo PowerPoint tại máy → xem trình chiếu → xác nhận để dạy." }
                                 RowLayout { Layout.fillWidth: true
                                     Action { objectName: "browserConversionResume"; text: bridge.browserAI.webMode && bridge.browserState.needsLogin ? "Đăng nhập và tiếp tục" : "Tiếp tục yêu cầu"; primary: true; visible: !bridge.browserState.running; enabled: !bridge.busy && !bridge.browserAI.loginBusy && !!bridge.chatgptRequest.folder; onClicked: { if (bridge.browserState.needsConfirmation) planRetryDialog.open(); else if (bridge.browserAI.webMode && bridge.browserState.needsLogin) bridge.reconnectBrowserAI(); else bridge.runBrowserAI() } }
                                     Action { objectName: "browserConversionCancel"; text: "Dừng"; visible: !!bridge.browserState.running; onClicked: bridge.cancelJob() }
-                                    Action { text: "Gửi/nhận thủ công"; enabled: !bridge.busy; onClicked: bridge.useManualChatGPT() }
-                                    Action { text: "Đăng nhập / Browser AI"; enabled: !bridge.busy; onClicked: { root.go("settings"); settingsPanel.activeTab = 6 } }
+                                    Action { text: "Đăng nhập / Browser AI"; visible: !!bridge.browserState.needsLogin && !bridge.browserState.running; enabled: !bridge.busy; onClicked: { root.go("settings"); settingsPanel.activeTab = 6 } }
+                                    Action { text: root.browserConversionOptions ? "Thu gọn" : "Tùy chọn khác"; subtle: true; visible: !bridge.browserState.running; enabled: !bridge.busy; onClicked: root.browserConversionOptions = !root.browserConversionOptions }
                                 }
-                                Copy { text: bridge.browserAI.webMode ? "Yêu cầu giữ nguyên tài khoản đã gửi. Nếu hết hạn mức hoặc cần xác minh, tool dừng để bạn xử lý; không tự gửi lại hay đổi tài khoản." : "Các phần hoàn tất được lưu để dùng lại. Nếu kết nối bị ngắt giữa chừng, bạn sẽ xác nhận trước khi gửi lại phần chưa rõ kết quả."; Layout.fillWidth: true; font.pixelSize: 12 }
+                                RowLayout { visible: root.browserConversionOptions && !bridge.browserState.running
+                                    Action { text: "Gửi/nhận thủ công"; enabled: !bridge.busy; onClicked: bridge.useManualChatGPT() }
+                                    Action { text: "Browser AI"; enabled: !bridge.busy; onClicked: { root.go("settings"); settingsPanel.activeTab = 6 } }
+                                }
+                                Copy { text: bridge.browserAI.webMode ? "Tool tự gửi tài liệu, chờ và nhận PowerPoint. Bạn chỉ cần can thiệp khi web yêu cầu đăng nhập/xác minh, hết lượt hoặc kết quả chưa rõ." : "Các phần hoàn tất được lưu để dùng lại. Nếu kết nối bị ngắt giữa chừng, bạn sẽ xác nhận trước khi gửi lại phần chưa rõ kết quả."; Layout.fillWidth: true; font.pixelSize: 12 }
                             }
                         }
                         Surface {

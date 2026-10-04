@@ -94,6 +94,21 @@ def devtools_endpoint(profile):
         return None
 
 
+def hide_owned_windows(process):
+    """Hide only native windows belonging to this BiliClass Chrome process."""
+    if os.name != "nt" or process.poll() is not None:
+        return
+    import win32con
+    import win32gui
+    import win32process
+
+    def hide_window(hwnd, _):
+        if (win32process.GetWindowThreadProcessId(hwnd)[1] == process.pid
+                and win32gui.GetClassName(hwnd) == "Chrome_WidgetWin_1"):
+            win32gui.ShowWindow(hwnd, win32con.SW_HIDE)
+    win32gui.EnumWindows(hide_window, None)
+
+
 class ChromeSession:
     """Context-shaped owner of one Chrome process, including graceful shutdown."""
 
@@ -152,11 +167,11 @@ def open_chrome(playwright, account, *, background, cancel=None, timeout=30):
     arguments.append("about:blank")
     startup = None
     if os.name == "nt" and background:
-        # Keep the same browser mode as sign-in. Work is minimized rather than
-        # restarting the saved account in a different headless environment.
+        # Keep ordinary Chrome and the saved profile, with only its owned
+        # window hidden. Human login still uses a visible PlainChromeLogin.
         startup = subprocess.STARTUPINFO()
         startup.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        startup.wShowWindow = 6  # SW_MINIMIZE
+        startup.wShowWindow = 0  # SW_HIDE
     process = subprocess.Popen(arguments, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                                stderr=subprocess.DEVNULL,
                                startupinfo=startup,
@@ -183,6 +198,7 @@ def open_chrome(playwright, account, *, background, cancel=None, timeout=30):
                         session.detach()
                     except Exception:
                         pass  # Window managers may not support minimization.
+                    hide_owned_windows(process)
                 return context
             cancel.wait(.1)
         raise ChromeSessionError("Đã hủy mở Chrome." if cancel.is_set()

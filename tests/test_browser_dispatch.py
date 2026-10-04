@@ -35,7 +35,7 @@ def test_before_send_unusable_plus_falls_back_to_free_and_sends_once(tmp_path, r
         return {"path": "fixture.pptx", "url": record["url"]}
 
     result = convert_available(store.candidates(), store.root, folder, Event(), lambda _: None,
-                               converter=converter, failed=store.login_error)
+                               converter=converter, failed=store.login_error, retry_delays=())
     assert attempts == [plus, free] and sends == [free] and result["account_id"] == free
     assert store.preferred()["id"] == free
     assert read_record(folder, free)["state"] == "completed"
@@ -116,3 +116,69 @@ def test_cancelled_job_never_tries_another_account(tmp_path):
         convert_available(store.candidates(), store.root, tmp_path, cancel, lambda _: None,
                           converter=lambda *_a, **_k: pytest.fail("Cancelled before browser opens"))
     assert error.value.code == "cancelled"
+
+
+@pytest.mark.parametrize("state,url,reason", [("prepared", "", "network"),
+    ("waiting", "https://chatgpt.com/c/fixture", "browser"),
+    ("waiting", "https://chatgpt.com/c/fixture", "download")])
+def test_temporary_failure_recovers_automatically_on_same_account(tmp_path, state, url, reason):
+    store, plus, _free = accounts_fixture(tmp_path)
+    record = read_record(tmp_path, plus)
+    record.update(state=state, url=url)
+    write_record(tmp_path, record)
+    attempts, failures, progress = [], [], []
+
+    def converter(account, _root, folder, *_args, **_options):
+        attempts.append(account["id"])
+        job = read_record(folder, account["id"])
+        if len(attempts) == 1:
+            job["error"] = reason
+            write_record(folder, job)
+            raise BrowserProblem(reason, "Temporary fixture interruption")
+        assert job["state"] == state and job["url"] == url
+        return {"path": "fixture.pptx", "url": url}
+
+    result = convert_available(store.candidates(), store.root, tmp_path, Event(), progress.append,
+                               converter=converter, failed=lambda *args: failures.append(args), retry_delays=(0,))
+    assert attempts == [plus, plus] and not failures and progress
+    assert result["account_id"] == plus
+
+
+def test_unknown_send_is_not_retried_even_on_transport_failure(tmp_path):
+    store, plus, _free = accounts_fixture(tmp_path)
+    attempts = []
+
+    def converter(account, _root, folder, *_args, **_options):
+        attempts.append(account["id"])
+        record = read_record(folder, account["id"])
+        record.update(state="submitting", error="browser")
+        write_record(folder, record)
+        raise BrowserProblem("browser", "Uncertain acknowledgement")
+
+    with pytest.raises(BrowserProblem):
+        convert_available(store.candidates(), store.root, tmp_path, Event(), lambda _: None,
+                          converter=converter, retry_delays=(0, 0))
+    assert attempts == [plus]
+
+
+def test_recovery_has_a_bound_and_cancellation_stops_before_reopen(tmp_path):
+    store, plus, free = accounts_fixture(tmp_path)
+    attempts = []
+
+    def converter(account, _root, folder, *_args, **_options):
+        attempts.append(account["id"])
+        record = read_record(folder, account["id"])
+        write_record(folder, record)
+        if account["id"] == plus:
+            raise BrowserProblem("network", "Persistent fixture failure")
+        return {"path": "fixture.pptx", "url": ""}
+
+    convert_available(store.candidates(), store.root, tmp_path, Event(), lambda _: None,
+                      converter=converter, retry_delays=(0, 0))
+    assert attempts == [plus, plus, plus, free]
+    cancel = Event()
+    attempts.clear()
+    with pytest.raises(BrowserProblem) as exc:
+        convert_available(store.candidates(), store.root, tmp_path, cancel, lambda _: cancel.set(),
+                          converter=converter, retry_delays=(1,))
+    assert exc.value.code == "cancelled" and attempts == [plus]

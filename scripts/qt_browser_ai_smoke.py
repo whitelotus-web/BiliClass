@@ -76,6 +76,11 @@ def fake_convert(account, root, folder, cancel, progress, **options):
             "url": "https://chatgpt.com/c/fixture", "error": "verification"})
         raise browser_automation.BrowserProblem("verification", browser_automation.VERIFICATION_MESSAGE)
     assert len(sends) == 1 and browser_automation.read_record(folder, account["id"])["state"] == "waiting"
+    if len(conversions) == 3:
+        record = browser_automation.read_record(folder, account["id"])
+        record["error"] = "browser"
+        browser_automation.write_record(folder, record)
+        raise browser_automation.BrowserProblem("browser", "Kết nối tạm gián đoạn.")
     options["observed"](account["id"], "free", "Web model fixture")
     target = Path(folder) / "bai-giang-song-ngu.pptx"
     target.write_bytes(source.read_bytes())
@@ -249,9 +254,11 @@ def step():
             assert window.findChild(QObject, "browserAccountAdd").property("text") == "Kiểm tra và lưu"
             click("browserAccountAdd")
             phase = "converted"
-        elif phase == "converted" and not bridge.busy and not bridge.browserAI.loginBusy and len(conversions) == 3:
+        elif phase == "converted" and not bridge.busy and not bridge.browserAI.loginBusy and len(conversions) == 4:
             assert not bridge.error, bridge.message
             assert sends == [free_id]
+            assert conversions[-2:] == [free_id, free_id], "Transport recovery must not need another user click or resend"
+            stages.append("Temporary transport failure recovered automatically on the same conversation, with no duplicate send")
             assert bridge.lesson["external_deck"] and bridge.quickResult["image"]
             assert Path(bridge.quickResult["path"]).read_bytes() == source.read_bytes()
             assert not any(segment["approved"] for segment in bridge.lesson["segments"])

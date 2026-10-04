@@ -44,6 +44,16 @@ def test_native_chrome_persists_only_its_own_fixture_session_and_closes_process(
             page = context.pages[0]
             page.goto(url)
             page.evaluate("localStorage.setItem('fixture_marker', 'fixture-only')")
+            import os
+            if os.name == "nt":
+                import win32gui
+                import win32process
+
+                owned = []
+                win32gui.EnumWindows(lambda hwnd, _: owned.append(hwnd)
+                    if win32process.GetWindowThreadProcessId(hwnd)[1] == process.pid
+                    and win32gui.GetClassName(hwnd) == "Chrome_WidgetWin_1" else None, None)
+                assert owned and all(not win32gui.IsWindowVisible(hwnd) for hwnd in owned)
         finally:
             context.close()
         assert process.poll() is not None

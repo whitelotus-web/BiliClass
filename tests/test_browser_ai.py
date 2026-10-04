@@ -271,6 +271,64 @@ def test_real_browser_upload_download_and_repeat_does_not_send_twice(browser_fix
     assert len(captured["sends"]) == 1
 
 
+def test_filename_button_downloads_real_pptx_and_never_matches_user_source(browser_fixture):
+    adapter, accounts, request, captured, source = browser_fixture
+    captured["html"] = FIXTURE.replace(
+        '<a href="/backend-api/files/result.pptx">bai-giang-song-ngu.pptx</a>',
+        '<button aria-label="bai-giang-song-ngu.pptx" onclick="downloadFile()">PPTX</button>')
+    captured["html"] = captured["html"].replace('<script>', "<script>function downloadFile() { location.href='/backend-api/files/result.pptx'; }")
+    result = adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+    assert Path(result["path"]).read_bytes() == source.read_bytes() and len(captured["sends"]) == 1
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as playwright:
+        context = adapter.open_context(playwright, accounts.get(), background=True)
+        try:
+            page = context.pages[0]
+            page.goto(adapter.CHATGPT)
+            page.locator('#messages').evaluate("e => { e.innerHTML = '<div data-message-author-role=\"user\"><button aria-label=\"source.pptx\">PPTX</button></div><div data-message-author-role=\"assistant\">No result yet</div>'; }")
+            assert adapter.result_link(page) is None
+        finally:
+            context.close()
+
+
+def test_file_preview_download_uses_matching_artifact_and_sends_once(browser_fixture):
+    adapter, accounts, request, captured, source = browser_fixture
+    captured["html"] = FIXTURE.replace(
+        '<a href="/backend-api/files/result.pptx">bai-giang-song-ngu.pptx</a>',
+        '<button aria-label="bai-giang-song-ngu.pptx" onclick="showFile()">PPTX</button>')
+    captured["html"] = captured["html"].replace('<script>', '''<script>
+function showFile() {
+    const preview = document.createElement('div');
+    preview.innerHTML = `<h3>bai-giang-song-ngu.pptx</h3><button aria-label="Download file" onclick="location.href='/backend-api/files/result.pptx'">Download</button>`;
+    document.body.appendChild(preview);
+    const other = document.createElement('div');
+    other.innerHTML = `<h3>other.pptx</h3><button aria-label="Download file" onclick="throw Error('Do not download unrelated artifact')">Download</button>`;
+    document.body.appendChild(other);
+}
+''', 1)
+    result = adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+    assert Path(result["path"]).read_bytes() == source.read_bytes() and len(captured["sends"]) == 1
+
+
+def test_download_transport_failure_keeps_login_and_resumes_without_another_send(browser_fixture, monkeypatch):
+    from playwright.sync_api import TimeoutError
+
+    from app.browser_dispatch import convert_available
+
+    adapter, accounts, request, captured, _ = browser_fixture
+    accounts.observe(accounts.get()["id"], "free")
+    original = adapter.receive_download
+    monkeypatch.setattr(adapter, "receive_download", lambda *_a, **_k: (_ for _ in ()).throw(TimeoutError("Download fixture interruption")))
+    with pytest.raises(BrowserProblem) as exc:
+        convert_available(accounts.candidates(), accounts.root, request["folder"], Event(), lambda _: None,
+                          failed=accounts.login_error, retry_delays=())
+    assert exc.value.code == "download" and accounts.get()["ready"]
+    assert read_record(request["folder"], accounts.get()["id"])["state"] == "waiting"
+    monkeypatch.setattr(adapter, "receive_download", original)
+    result = convert_available(accounts.candidates(), accounts.root, request["folder"], Event(), lambda _: None)
+    assert Path(result["path"]).is_file() and len(captured["sends"]) == 1
+
+
 def test_challenge_stops_before_upload_and_can_retry_same_request(browser_fixture):
     adapter, accounts, request, captured, _ = browser_fixture
     captured["challenge"] = True
@@ -365,6 +423,71 @@ def test_prompt_removed_during_upload_is_not_sent(browser_fixture):
         adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
     assert not captured["sends"]
     assert read_record(request["folder"], accounts.get()["id"])["state"] == "prepared"
+
+
+def test_upload_event_timeout_still_waits_for_real_attachment_and_sends_once(browser_fixture, monkeypatch):
+    from playwright.sync_api import Locator, TimeoutError
+
+    adapter, accounts, request, captured, _ = browser_fixture
+    original = Locator.set_input_files
+    calls = []
+
+    def delayed_event(self, *args, **kwargs):
+        calls.append(1)
+        original(self, *args, **kwargs)
+        raise TimeoutError("Fixture input event timed out after files were set")
+
+    monkeypatch.setattr(Locator, "set_input_files", delayed_event)
+    adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+    assert len(calls) == len(captured["sends"]) == 1
+    assert captured["sends"][0]["files"] == ["tai-lieu-goc.pptx"]
+
+
+def test_upload_timeout_without_rendered_attachment_never_sends(browser_fixture, monkeypatch):
+    from playwright.sync_api import Locator, TimeoutError
+
+    adapter, accounts, request, captured, _ = browser_fixture
+    monkeypatch.setattr(Locator, "set_input_files", lambda *_a, **_k: (_ for _ in ()).throw(TimeoutError("No attachment")))
+    original = adapter.wait_upload
+    monkeypatch.setattr(adapter, "wait_upload", lambda *args: original(*args, timeout=.2))
+    with pytest.raises(BrowserProblem) as error:
+        adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+    assert error.value.code == "upload" and not captured["sends"]
+    assert read_record(request["folder"], accounts.get()["id"])["state"] == "prepared"
+
+
+def test_file_upload_skips_image_only_input_and_accepts_editor_paragraph_spacing(browser_fixture):
+    adapter, accounts, request, captured, _ = browser_fixture
+    captured["html"] = FIXTURE.replace('<textarea id="prompt-textarea"></textarea>',
+        '<input type="file" id="camera" accept="image/*" multiple>'
+        '<div id="prompt-textarea" contenteditable="true"></div>')
+    captured["html"] = captured["html"].replace("document.querySelector('#prompt-textarea').value",
+                                               "document.querySelector('#prompt-textarea').innerText")
+    captured["html"] = captured["html"].replace('<script>', '''<script>
+document.querySelector('#camera').onchange = () => { throw Error('Must not upload PPTX as photo'); };
+document.querySelector('#prompt-textarea').oninput = (e) => {
+    const lines = e.target.innerText.split('\\n');
+    e.target.replaceChildren(...lines.map(text => { const p = document.createElement('p'); p.textContent = text || ' '; return p; }));
+};
+''', 1)
+    adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+    import re
+    assert len(captured["sends"]) == 1 and captured["sends"][0]["files"] == ["tai-lieu-goc.pptx"]
+    assert re.sub(r"\s+", " ", captured["sends"][0]["prompt"]).strip() == re.sub(r"\s+", " ", request["prompt"]).strip()
+
+
+def test_web_renamed_attachment_is_recognized_after_app_draft_cleanup(browser_fixture):
+    adapter, accounts, request, captured, _ = browser_fixture
+    captured["html"] = FIXTURE.replace('<div id="attached"></div>',
+        '<div id="attached"><div id="stale" aria-label="tai-lieu-goc(7).pptx">'
+        '<button aria-label="Remove file 1: tai-lieu-goc(7).pptx" '
+        'onclick="this.parentElement.remove()">Remove old draft</button></div></div>')
+    captured["html"] = captured["html"].replace('n.textContent=f.name;',
+        '''n.setAttribute('aria-label', f.name.replace('.pptx','(8).pptx'));
+        n.textContent=f.name.replace('.pptx','(8)');
+        if (document.querySelector('#stale')) throw Error('Old draft was not cleared');''')
+    adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+    assert len(captured["sends"]) == 1 and captured["sends"][0]["files"] == ["tai-lieu-goc.pptx"]
 
 
 def test_active_profile_cannot_overwrite_another_running_job(browser_fixture):

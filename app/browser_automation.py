@@ -327,25 +327,89 @@ def read_record(folder, account_id):
     return record
 
 
-def wait_upload(page, files, cancel, timeout=120):
-    field = page.locator('input[type="file"]').first
-    if not field.count():
-        attach = visible(page, '#upload-file-btn, [data-testid="composer-plus-btn"], button[aria-label="Add files and more"]')
-        if not attach:
-            raise BrowserProblem("interface", "Chưa tìm được nút đính kèm trên web ChatGPT. Giao diện có thể đã đổi.")
-        attach.click(timeout=5000)
-        upload = page.get_by_text(re.compile(r"^(Upload from computer|Add photos & files|Tải lên từ máy tính|Thêm ảnh và tệp)$", re.I)).first
-        with page.expect_file_chooser(timeout=5000) as chooser:
-            upload.click(timeout=5000)
-        chooser.value.set_files([str(p) for p in files])
-    else:
-        field.set_input_files([str(p) for p in files], timeout=10000)
+def upload_field(page, files):
+    """Choose a file input that accepts this batch, rather than the camera input."""
+    import mimetypes
+
+    choices = []
+    for field in page.locator('input[type="file"]').all():
+        if not field.is_enabled() or len(files) > 1 and field.get_attribute("multiple") is None:
+            continue
+        accepted = [a.strip().casefold() for a in (field.get_attribute("accept") or "").split(",") if a.strip()]
+        if accepted and not all(any(
+                rule == p.suffix.casefold() or rule == (mimetypes.guess_type(p.name)[0] or "").casefold()
+                or rule.endswith("/*") and (mimetypes.guess_type(p.name)[0] or "").casefold().startswith(rule[:-1])
+                for rule in accepted) for p in files):
+            continue
+        choices.append((bool(accepted), field))
+    return min(choices, key=lambda choice: choice[0])[1] if choices else None
+
+
+def attachment_scope(page):
+    field = visible(page, COMPOSER)
+    form = field.locator('xpath=ancestor::form[1]') if field else None
+    return form if form is not None and form.count() else page
+
+
+def file_label(path):
+    # ChatGPT's file library can rename another upload to "name(2).pptx".
+    return re.escape(path.stem) + r"(?:\s*\(\d+\))?" + re.escape(path.suffix)
+
+
+def attachment_present(scope, path):
+    pattern = re.compile("^" + file_label(path) + "$", re.I)
+    candidates = [*scope.get_by_text(pattern).all(), *scope.get_by_label(pattern).all(),
+                  *scope.get_by_title(pattern).all()]
+    return any(node.is_visible() and not node.locator('xpath=ancestor-or-self::*[@data-message-author-role]').count()
+               for node in candidates)
+
+
+def clear_draft_attachments(page, files, cancel):
+    scope = attachment_scope(page)
+    names = "|".join(file_label(path) for path in files)
+    pattern = re.compile(r"^(?:Remove file\s+\d+:\s*|Xóa tệp\s+\d+:\s*)(?:" + names + ")$", re.I)
+    for _ in range(20):
+        check_cancel(cancel)
+        remove = scope.get_by_role("button", name=pattern)
+        found = next((node for node in remove.all() if node.is_visible()
+                      and not node.locator('xpath=ancestor-or-self::*[@data-message-author-role]').count()), None)
+        if found is None:
+            return
+        # Remove only previous app-named attachments in the unsent composer.
+        # This does not delete files from the user's library or source disk.
+        found.click(timeout=5000)
+    raise BrowserProblem("upload", "Chưa làm sạch được tệp đính kèm của lần thử trước. Chưa gửi bài.")
+
+
+def wait_upload(page, files, cancel, timeout=180):
+    from playwright.sync_api import TimeoutError
+
+    check_cancel(cancel)
+    clear_draft_attachments(page, files, cancel)
+    field = upload_field(page, files)
+    try:
+        if field is None:
+            attach = visible(page, '#upload-file-btn, [data-testid="composer-plus-btn"], button[aria-label="Add files and more"]')
+            if not attach:
+                raise BrowserProblem("interface", "Chưa tìm được nút đính kèm trên web ChatGPT. Giao diện có thể đã đổi.")
+            attach.click(timeout=5000)
+            upload = page.get_by_text(re.compile(r"^(Upload from computer|Add photos & files|Tải lên từ máy tính|Thêm ảnh và tệp)$", re.I)).first
+            with page.expect_file_chooser(timeout=10000) as chooser:
+                upload.click(timeout=5000)
+            chooser.value.set_files([str(p) for p in files], timeout=30000)
+        else:
+            field.set_input_files([str(p) for p in files], timeout=30000)
+    except TimeoutError:
+        # Chrome can set the files but time out awaiting the input event (seen
+        # with a real 16 MB PPTX). Never set them a second time in this page:
+        # continue observing actual rendered attachments before any send.
+        check_cancel(cancel)
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         check_cancel(cancel)
         page_problem(page)
         # Require an actual rendered attachment for every requested file.
-        attached = all(any(item.is_visible() for item in page.get_by_text(p.name, exact=True).all()) for p in files)
+        attached = all(attachment_present(attachment_scope(page), p) for p in files)
         sending = visible(page, SEND)
         loading = visible(page, '[data-testid="file-upload-progress"], [role="progressbar"], [data-testid="attachment-loading"]')
         if attached and sending and sending.is_enabled() and not loading:
@@ -369,7 +433,9 @@ def submit(page, folder, record, prompt, cancel, *, files=()):
     field = visible(page, COMPOSER)
     entered = (field.inner_text() if field and field.get_attribute("contenteditable") == "true"
                else field.input_value() if field else "")
-    if entered.strip() != prompt.strip():
+    # ProseMirror can render paragraph breaks as two newlines. Compare all
+    # non-whitespace content; a changed/missing word still prevents sending.
+    if re.sub(r"\s+", " ", entered).strip() != re.sub(r"\s+", " ", prompt).strip():
         raise BrowserProblem("interface", "Ô prompt đã thay đổi trong lúc tải trang/tệp. Chưa gửi; bấm Tiếp tục để thử lại.")
     sender = visible(page, SEND)
     if not sender or not sender.is_enabled():
@@ -412,6 +478,12 @@ def result_link(page, assistant_before=0):
                 or parsed.scheme == "https" and (parsed.hostname == "chatgpt.com"
                 or (parsed.hostname or "").endswith(".oaiusercontent.com"))):
             return anchor
+    # The current web UI can render an artifact as a filename button rather
+    # than an anchor. Only inspect the latest assistant answer, never user
+    # attachments/sidebar files; the downloaded bytes are validated below.
+    for button in messages.last.get_by_role("button", name=re.compile(r"^[^/\\\n]{1,240}\.pptx$", re.I)).all()[::-1]:
+        if button.is_visible() and button.is_enabled():
+            return button
     return None
 
 
@@ -450,6 +522,62 @@ def wait_result(page, folder, record, cancel, progress, timeout=900):
     raise BrowserProblem("timeout", "Chưa nhận PowerPoint trong thời gian chờ. Yêu cầu đã được giữ để tiếp tục, không gửi lại prompt.")
 
 
+def receive_download(page, entry, cancel, timeout=45, progress=None):
+    """Accept direct links or the file-preview → Download file UI."""
+    check_cancel(cancel)
+    downloads = []
+
+    def received(download):
+        downloads.append(download)
+    page.on("download", received)
+    try:
+        filename = entry.get_attribute("aria-label") or entry.inner_text().strip()
+        is_button = entry.evaluate("e => e.tagName === 'BUTTON' || e.getAttribute('role') === 'button'")
+        if progress:
+            progress("Đang mở thẻ PowerPoint từ câu trả lời ChatGPT…")
+        try:
+            entry.click(timeout=10000)
+        except Exception as exc:
+            raise BrowserProblem("download", "Chưa mở được thẻ PowerPoint của ChatGPT. Tool giữ kết quả để thử lại.") from exc
+        deadline = time.monotonic() + timeout
+        preview_clicked = False
+        download_label = re.compile(r"^(Download file|Tải tệp xuống|Tải xuống)$", re.I)
+        while time.monotonic() < deadline:
+            check_cancel(cancel)
+            if downloads:
+                return downloads[0]
+            page_problem(page)
+            if is_button and not preview_clicked:
+                matches = []
+                for button in page.get_by_role("button", name=download_label).all():
+                    if not button.is_visible() or not button.is_enabled():
+                        continue
+                    # Preview is portaled outside the assistant answer. Match
+                    # its filename locally, never a page-wide Download button.
+                    for panel in button.locator('xpath=ancestor::*').all()[::-1][:5]:
+                        if (panel.evaluate("e => ['HTML','BODY','MAIN'].includes(e.tagName)")
+                                or panel.get_by_role("button", name=download_label).count() != 1):
+                            continue
+                        if panel.get_by_text(filename, exact=True).count() or panel.get_by_role("button", name=filename, exact=True).count():
+                            matches.append(button)
+                            break
+                if matches:
+                    if progress:
+                        progress("Đang bấm tải PowerPoint từ thẻ tệp ChatGPT…")
+                    try:
+                        # The web card overlays its open-file button across
+                        # the download icon. Keyboard activation targets the
+                        # enabled Download button, rather than that overlay.
+                        matches[-1].press("Enter", timeout=10000)
+                    except Exception as exc:
+                        raise BrowserProblem("download", "Chưa bấm được nút tải trong thẻ PowerPoint. Tool giữ kết quả để thử lại.") from exc
+                    preview_clicked = True
+            page.wait_for_timeout(200)
+        raise BrowserProblem("download", "Chưa tải được PowerPoint từ nút tệp của ChatGPT. Tool giữ cuộc trò chuyện để tự thử lại.")
+    finally:
+        page.remove_listener("download", received)
+
+
 def convert(account, root, request_folder, cancel, progress, *, timeout=900, observed=None):
     with profile_lock(root, account["id"]):
         return _convert_locked(account, request_folder, cancel, progress, timeout=timeout, observed=observed)
@@ -473,6 +601,7 @@ def _convert_locked(account, request_folder, cancel, progress, *, timeout, obser
     if any(p.parent != folder or not p.is_file() or p.stat().st_size > MAX_BYTES for p in files):
         raise BrowserProblem("attachments", "Tài liệu hoặc mẫu đã thiếu/thay đổi. Chuẩn bị gói mới trước khi gửi.")
     write_record(folder, record)
+    stage = "starting"
     try:
         with sync_playwright() as playwright:
             progress("Đang mở phiên ChatGPT chạy ngầm…")
@@ -480,10 +609,12 @@ def _convert_locked(account, request_folder, cancel, progress, *, timeout, obser
             try:
                 page = context.pages[0] if context.pages else context.new_page()
                 page.set_default_timeout(10000)
+                stage = "session"
                 navigate(page, record["url"] or CHATGPT, cancel)
                 require_account(page, cancel)
                 if record["state"] == "prepared" and conversation_url(page.url):
                     raise BrowserProblem("interface", "Web mở lại cuộc trò chuyện cũ. Tạo chat mới trước khi chuyển đổi bài mới.")
+                stage = "model"
                 plan = detect_plan(page, PROFILE)
                 if record["state"] == "prepared":
                     model = select_best_model(page)
@@ -494,6 +625,7 @@ def _convert_locked(account, request_folder, cancel, progress, *, timeout, obser
                 if observed:
                     observed(account["id"], plan, record.get("model", ""))
                 if record["state"] == "prepared":
+                    stage = "upload"
                     progress("Đang đính kèm tài liệu và gửi prompt đã cấu hình…")
                     submit(page, folder, record, request["prompt"], cancel, files=files)
                 elif not record["url"]:
@@ -502,11 +634,11 @@ def _convert_locked(account, request_folder, cancel, progress, *, timeout, obser
                     # Resume a possibly sent follow-up by waiting, never by resending.
                     record["state"] = "waiting"
                     write_record(folder, record)
+                stage = "waiting"
                 link = wait_result(page, folder, record, cancel, progress, timeout)
+                stage = "download"
                 progress("Đang tải và kiểm tra PowerPoint kết quả…")
-                with page.expect_download(timeout=45000) as event:
-                    link.click(timeout=10000)
-                download = event.value
+                download = receive_download(page, link, cancel, progress=progress)
                 if Path(download.suggested_filename).suffix.casefold() != ".pptx":
                     raise BrowserProblem("download", "Tệp web trả về không phải PowerPoint .pptx.")
                 downloaded = download.path()
@@ -516,7 +648,7 @@ def _convert_locked(account, request_folder, cancel, progress, *, timeout, obser
                 download.save_as(str(pending))
                 inspect_returned_deck(pending)
                 pending.replace(target)
-                record.update(state="completed", error="", sha256=hashlib.sha256(target.read_bytes()).hexdigest())
+                record.update(state="completed", error="", stage="completed", sha256=hashlib.sha256(target.read_bytes()).hexdigest())
                 write_record(folder, record)
                 return {"path": str(target), "url": record["url"]}
             finally:
@@ -525,10 +657,17 @@ def _convert_locked(account, request_folder, cancel, progress, *, timeout, obser
                 except Error:
                     pass
     except Exception as exc:
-        code = exc.code if isinstance(exc, BrowserProblem) else "browser"
-        record.update(error=code)
+        from playwright.sync_api import TimeoutError
+
+        code = exc.code if isinstance(exc, BrowserProblem) else "download" if stage == "download" else (
+            "upload" if stage == "upload" and isinstance(exc, TimeoutError) and record["state"] == "prepared" else "browser")
+        record.update(error=code, stage=stage, failure_type=type(exc).__name__)
         # Keep the last durable send state and conversation URL for safe resume.
         write_record(folder, record)
         if isinstance(exc, (BrowserProblem, ValueError)):
             raise
-        raise BrowserProblem("browser", "Browser mất kết nối hoặc giao diện ChatGPT đã đổi. Yêu cầu được giữ lại để kiểm tra/tiếp tục.") from exc
+        if stage == "upload" and isinstance(exc, TimeoutError) and record["state"] == "prepared":
+            raise BrowserProblem("upload", "Chưa tải xong tài liệu lên ChatGPT. Chưa gửi bài; phiên đăng nhập vẫn được giữ.") from exc
+        if code == "download":
+            raise BrowserProblem(code, "Chưa tải được PowerPoint kết quả. Phiên đăng nhập và cuộc trò chuyện được giữ để tự thử lại.") from exc
+        raise BrowserProblem(code, "Browser mất kết nối hoặc giao diện ChatGPT đã đổi. Yêu cầu được giữ lại để kiểm tra/tiếp tục.") from exc

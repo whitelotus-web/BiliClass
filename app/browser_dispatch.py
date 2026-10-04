@@ -10,7 +10,12 @@ def unsent(record):
     return record["state"] == "prepared" and not record["url"] and record["followups"] == 0
 
 
-def convert_available(accounts, root, folder, cancel, progress, *, observed=None, failed=None, converter=None):
+def recoverable(record):
+    return unsent(record) or record["state"] == "waiting" and web.conversation_url(record["url"])
+
+
+def convert_available(accounts, root, folder, cancel, progress, *, observed=None, failed=None, converter=None,
+                      retry_delays=(2, 5)):
     converter = converter or web.convert
     journal = Path(folder) / "browser-job.json"
     record = web.read_record(folder, json.loads(journal.read_text(encoding="utf-8"))["account_id"]) if journal.is_file() else None
@@ -35,16 +40,25 @@ def convert_available(accounts, root, folder, cancel, progress, *, observed=None
             record["account_id"] = account["id"]
             record["error"] = ""
             web.write_record(folder, record)
-        try:
-            result = converter(account, root, folder, cancel, progress, observed=observed)
-            return dict(result, account_id=account["id"])
-        except web.BrowserProblem as exc:
-            last_error = exc
-            if failed:
-                failed(account["id"], exc.code, str(exc))
-            record = web.read_record(folder, account["id"])
-            if (exc.code not in {"limit", "login", "verification", "auth_response", "network", "browser"}
-                    or not unsent(record) or cancel.is_set()):
-                raise
-            progress("Tài khoản hiện tại chưa dùng được; đang thử tài khoản còn kết nối khác trước khi gửi bài…")
+        for attempt in range(len(retry_delays) + 1):
+            try:
+                result = converter(account, root, folder, cancel, progress, observed=observed)
+                return dict(result, account_id=account["id"])
+            except web.BrowserProblem as exc:
+                last_error = exc
+                record = web.read_record(folder, account["id"])
+                if (exc.code in {"network", "browser", "download"} and recoverable(record)
+                        and attempt < len(retry_delays) and not cancel.is_set()):
+                    progress("Kết nối tạm gián đoạn; đang tự khôi phục và tiếp tục bài đã gửi…"
+                             if record["url"] else "Đang tự khôi phục Chrome để tiếp tục tải tài liệu…")
+                    if cancel.wait(retry_delays[attempt]):
+                        web.check_cancel(cancel)
+                    continue
+                if failed:
+                    failed(account["id"], exc.code, str(exc))
+                if (exc.code not in {"limit", "login", "verification", "auth_response", "network", "browser"}
+                        or not unsent(record) or cancel.is_set()):
+                    raise
+                progress("Tài khoản hiện tại chưa dùng được; đang thử tài khoản còn kết nối khác trước khi gửi bài…")
+                break
     raise last_error
