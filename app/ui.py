@@ -131,6 +131,12 @@ class Bridge(QObject):
 
                 if Path(saved_request).resolve().parent == (self.library.directory / "chatgpt").resolve():
                     self._chatgpt_request = load_request(saved_request)
+                    if self._chatgpt_request.get("config", {}).get("provider") == "browser_web":
+                        path = Path(saved_request) / "browser-job.json"
+                        if path.is_file():
+                            record = json.loads(path.read_text(encoding="utf-8"))
+                            if record.get("error") in {"login", "verification"} and record.get("state") != "completed":
+                                self._web_conversion_failure("Bài trước đang chờ đăng nhập / xác minh để tiếp tục.")
             except Exception:
                 self.logger.info("Previous ChatGPT handoff is no longer available.")
         self.conversionProgress.connect(self._conversion_progress)
@@ -246,11 +252,37 @@ class Bridge(QObject):
         else:
             self._run_web_conversion()
 
+    @Slot()
+    def reconnectBrowserAI(self):
+        if self._busy or self._browser_ai.loginBusy or not self._chatgpt_request:
+            return
+        from .browser_automation import read_record
+
+        try:
+            folder = self._chatgpt_request["folder"]
+            account = self._browser_ai.conversionAccount(folder)
+            record = read_record(folder, account["id"])
+            self._browser_ai.signIn(account["id"], url=record["url"], resume=True)
+        except (ValueError, KeyError, OSError) as exc:
+            self.inform(str(exc), True)
+
+    def _web_conversion_failure(self, message):
+        """Expose the durable job error instead of guessing from translated text."""
+        code = "browser"
+        if self._chatgpt_request.get("config", {}).get("provider") == "browser_web":
+            try:
+                path = Path(self._chatgpt_request["folder"]) / "browser-job.json"
+                code = json.loads(path.read_text(encoding="utf-8")).get("error", code)
+            except (OSError, ValueError):
+                pass
+        self._browser_state.update(running=False, phase="error", message=message, errorCode=code,
+                                   needsLogin=code in {"login", "verification"})
+
     def _run_web_conversion(self):
         import json
 
         from .browser_audio import prepare_narration
-        from .browser_automation import convert, read_record, write_record
+        from .browser_automation import BrowserProblem, convert, read_record, write_record
         from .chatgpt_handoff import inspect_returned_deck, load_request
 
         if self._busy or not self._chatgpt_request:
@@ -266,6 +298,8 @@ class Bridge(QObject):
                 return
             account = self._browser_ai.conversionAccount(folder)
             if self._browser_ai.loginBusy or not account.get("ready"):
+                self._browser_state.update(running=False, phase="error", needsLogin=True, errorCode="login",
+                                           message="Đăng nhập lại để tiếp tục bài đang làm.")
                 raise ValueError("Đăng nhập xong tài khoản trong Browser AI trước khi chuyển đổi.")
             read_record(folder, account["id"])
         except (ValueError, KeyError, OSError, json.JSONDecodeError) as exc:
@@ -276,8 +310,12 @@ class Bridge(QObject):
         self._browser_state = {"running": True, "phase": "working", "message": "Đang mở phiên web ChatGPT…"}
 
         def work():
-            result = convert(account, self._browser_ai.store.root, folder, self.cancel_event,
-                             self._browser_ai.progress.emit, observed=self._browser_ai.observed.emit)
+            try:
+                result = convert(account, self._browser_ai.store.root, folder, self.cancel_event,
+                                 self._browser_ai.progress.emit, observed=self._browser_ai.observed.emit)
+            except BrowserProblem as exc:
+                self._browser_ai.failed.emit(account["id"], exc.code, str(exc))
+                raise
             config = load_request(folder)["config"]
             source = self.library.store_source(Path(result["path"]))
             inspection = inspect_returned_deck(self.library.directory / "sources" / source["file"])
@@ -936,14 +974,14 @@ class Bridge(QObject):
             elif error:
                 if self._browser_running:
                     self._browser_running = False
-                    self._browser_state.update(running=False, phase="error", message=error)
+                    self._web_conversion_failure(error)
                 self.inform(error, True)
             else:
                 callback(result)
         except Exception as exc:
             if self._browser_running:
                 self._browser_running = False
-                self._browser_state.update(running=False, phase="error", message=str(exc))
+                self._web_conversion_failure(str(exc))
             self.inform(str(exc), True)
         worker.deleteLater()
         self.changed.emit()

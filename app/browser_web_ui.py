@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from threading import Event
 
-from PySide6.QtCore import Property, QObject, QThread, Signal, Slot
+from PySide6.QtCore import Property, QObject, QThread, QTimer, Signal, Slot
 
 from . import browser_automation
 from .browser_accounts import BrowserAccounts
@@ -14,26 +14,31 @@ from .browser_accounts import BrowserAccounts
 class WebLoginJob(QThread):
     progress = Signal(str)
 
-    def __init__(self, account, root, parent):
+    def __init__(self, account, root, parent, *, url="", resume=False):
         super().__init__(parent)
         self.account, self.root = account, root
+        self.url, self.resume = url, resume
+        self.request_folder = parent.bridge.chatgptRequest.get("folder", "") if resume else ""
         self.cancel = Event()
         self.result, self.error, self.error_code = None, "", ""
 
     def run(self):
         try:
-            self.result = browser_automation.login(self.account, self.root, self.cancel, self.progress.emit)
+            options = {"url": self.url} if self.url else {}
+            self.result = browser_automation.login(self.account, self.root, self.cancel, self.progress.emit, **options)
         except (browser_automation.BrowserProblem, ValueError) as exc:
             self.error = str(exc)
             self.error_code = getattr(exc, "code", "browser")
         except Exception:
             self.error = "Chưa mở được phiên ChatGPT. Kiểm tra mạng và thử lại."
+            self.error_code = "browser"
 
 
 class WebBrowserAI(QObject):
     changed = Signal()
     progress = Signal(str)
     observed = Signal(str, str, str)
+    failed = Signal(str, str, str)
 
     def __init__(self, bridge):
         super().__init__(bridge)
@@ -45,10 +50,11 @@ class WebBrowserAI(QObject):
         self._message = "Đăng nhập ChatGPT Free hoặc Plus trong cửa sổ riêng. Phiên được tự lưu trên máy."
         self._restore_error()
         self.observed.connect(self._observed)
+        self.failed.connect(self._failed)
 
     def _restore_error(self):
         try:
-            error = self.store.get().get("last_error", {})
+            error = self.store.get(self.activeId).get("last_error", {})
         except ValueError:
             error = {}
         self._error_code = error.get("code", "")
@@ -70,7 +76,9 @@ class WebBrowserAI(QObject):
 
     @Property(str, notify=changed)
     def activeId(self):
-        return self.store.data["active"]
+        # A failed newly added account remains visible and retryable, without
+        # changing which verified account new conversion jobs prefer.
+        return self.store.data.get("pending_login") or self.store.data["active"]
 
     @Property(str, notify=changed)
     def activeLabel(self):
@@ -90,7 +98,7 @@ class WebBrowserAI(QObject):
     @Property("QVariantMap", notify=changed)
     def accountInfo(self):
         try:
-            account = self.store.get()
+            account = self.store.get(self.activeId)
         except ValueError:
             return {}
         saved = account.get("saved_at")
@@ -175,7 +183,7 @@ class WebBrowserAI(QObject):
         if self.job:
             self.job.cancel.set()
             self.inform("Đang đóng cửa sổ đăng nhập…")
-        elif self.accountInfo.get("ready"):
+        elif self.accountInfo.get("ready") and not self.store.data.get("pending_login"):
             self.addAndSignIn()
         else:
             self.signIn(self.activeId)
@@ -195,14 +203,15 @@ class WebBrowserAI(QObject):
         self.signIn("")
 
     @Slot(str)
-    def signIn(self, account_id):
+    def signIn(self, account_id, *, url="", resume=False):
         if not self._available():
             return
         if not account_id:
             account_id = self.store.add(f"ChatGPT {len(self.accounts) + 1}")["id"]
+        self.store.begin_login(account_id)
         self._error = False
         self._error_code = ""
-        self.job = WebLoginJob(self.store.get(account_id), self.store.root, self)
+        self.job = WebLoginJob(self.store.get(account_id), self.store.root, self, url=url, resume=resume)
         self.job.progress.connect(self.inform)
         self.job.finished.connect(self._finished)
         self.job.start()
@@ -223,12 +232,31 @@ class WebBrowserAI(QObject):
             self.inform("Đã đăng nhập và lưu phiên web. Có thể chuyển đổi bài giảng.")
         else:
             self.inform("Chưa xác nhận đăng nhập mới. Bấm Đăng nhập để tiếp tục.")
+        if job.resume and job.result and job.result.get("ready") and not job.cancel.is_set():
+            # User requested recovery of this job; continue only after the
+            # visible login confirms the same saved browser profile.
+            QTimer.singleShot(0, lambda folder=job.request_folder: self._continue_request(folder))
         job.deleteLater()
+
+    def _continue_request(self, folder):
+        if folder and self.bridge.chatgptRequest.get("folder") == folder:
+            self.bridge.runBrowserAI()
+        else:
+            self.inform("Đã đăng nhập. Bài đang mở đã đổi; mở lại gói cũ để tiếp tục chuyển đổi.")
 
     @Slot(str, str, str)
     def _observed(self, account_id, plan, model):
         self.store.observe(account_id, plan, model)
+        self._restore_error()
         self.changed.emit()
+
+    @Slot(str, str, str)
+    def _failed(self, account_id, code, message):
+        self.store.login_error(account_id, code, message)
+        if code in {"login", "verification"}:
+            self.store.begin_login(account_id)
+        self._restore_error()
+        self.inform(message)
 
     def conversionAccount(self, folder=""):
         journal = Path(folder) / "browser-job.json" if folder else None

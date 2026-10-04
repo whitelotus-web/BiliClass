@@ -81,6 +81,38 @@ def test_unknown_plan_is_not_free_and_downgrade_prefers_remaining_plus(tmp_path)
     assert accounts.preferred()["id"] == second["id"]
 
 
+def test_failed_added_account_is_retryable_without_changing_conversion_preference(tmp_path):
+    accounts = BrowserAccounts(tmp_path)
+    free, plus = accounts.add("Free"), accounts.add("Plus")
+    accounts.observe(free["id"], "free")
+    accounts.observe(plus["id"], "plus")
+    accounts.select(free["id"])
+    new = accounts.add("New account")
+    accounts.begin_login(new["id"])
+    accounts.login_error(new["id"], "verification", "Fixture verification")
+    resumed = BrowserAccounts(tmp_path)
+    assert resumed.data["pending_login"] == new["id"]
+    assert resumed.preferred()["id"] == free["id"]
+    resumed.observe(new["id"], "plus", identity={"name": "New teacher"})
+    assert not resumed.data["pending_login"] and resumed.preferred()["id"] == free["id"]
+    resumed.prefer_paid()
+    assert resumed.preferred()["plan"] == "plus"
+
+
+def test_expired_profile_is_not_used_for_new_jobs_and_recovers_after_login(tmp_path):
+    accounts = BrowserAccounts(tmp_path)
+    plus, free = accounts.add("Plus"), accounts.add("Free")
+    accounts.observe(plus["id"], "plus")
+    accounts.observe(free["id"], "free")
+    accounts.login_error(plus["id"], "login", "Session expired")
+    assert not accounts.get(plus["id"])["ready"] and accounts.preferred()["id"] == free["id"]
+    assert not BrowserAccounts(tmp_path).get(plus["id"])["ready"]
+    accounts.observe(plus["id"], "plus", identity={"name": "Teacher"})
+    assert accounts.preferred()["id"] == plus["id"]
+    accounts.login_error(plus["id"], "limit", "Web usage limit")
+    assert accounts.get(plus["id"])["ready"]  # Quota is distinct from authentication.
+
+
 def test_legacy_chrome_profile_is_preserved_when_edge_is_used(tmp_path):
     accounts = BrowserAccounts(tmp_path)
     item = accounts.add("Old profile")
@@ -264,6 +296,71 @@ def test_uncertain_send_is_not_repeated(browser_fixture):
     with pytest.raises(BrowserProblem, match="không gửi trùng"):
         adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
     assert not captured["sends"]
+
+
+def test_latest_answer_only_and_lesson_limits_do_not_become_quota_errors(browser_fixture):
+    from playwright.sync_api import sync_playwright
+
+    adapter, accounts, _, captured, _ = browser_fixture
+    captured["html"] = FIXTURE.replace('<div id="messages"></div>',
+        '<div id="messages"><div data-message-author-role="assistant"><a href="/backend-api/files/old.pptx">old.pptx</a></div>'
+        '<div data-message-author-role="assistant">Bài toán giới hạn; hạn mức là một khái niệm trong bài.</div></div>')
+    with sync_playwright() as playwright:
+        context = adapter.open_context(playwright, accounts.get(), headless=True)
+        try:
+            page = context.pages[0]
+            page.goto(adapter.CHATGPT)
+            adapter.page_problem(page)
+            assert adapter.result_link(page) is None  # Ignore the older PPTX.
+            page.locator('#messages').evaluate("node => node.insertAdjacentHTML('beforeend', "
+                + json.dumps('<div data-message-author-role="assistant"><a href="/backend-api/files/new.pptx">new.pptx</a></div>') + ")")
+            assert adapter.result_link(page, 2).inner_text() == "new.pptx"
+            assert adapter.result_link(page, 3) is None
+            page.locator('body').evaluate("node => node.insertAdjacentHTML('beforeend', "
+                + json.dumps('<div role="alert">You have reached your usage limit. Try again later.</div>') + ")")
+            with pytest.raises(BrowserProblem) as failure:
+                adapter.page_problem(page)
+            assert failure.value.code == "limit"
+        finally:
+            context.close()
+
+
+def test_followup_waits_for_new_answer_without_resending_source(browser_fixture):
+    adapter, accounts, request, captured, source = browser_fixture
+    captured["html"] = FIXTURE[:FIXTURE.index('<script>')] + '''<script>
+let sent = 0;
+document.querySelector('#files').onchange = (e) => {
+    document.querySelector('#attached').innerHTML = [...e.target.files].map(f => `<span>${f.name}</span>`).join('');
+};
+document.querySelector('#send').onclick = () => {
+    console.log('FIXTURE-SEND:' + JSON.stringify({prompt:document.querySelector('#prompt-textarea').value,
+                                               files:[...document.querySelector('#files').files].map(f=>f.name)}));
+    sent++; history.pushState({},'', '/c/fixture-123');
+    document.querySelector('#messages').insertAdjacentHTML('beforeend', '<div data-message-author-role="user">Sent</div>');
+    document.querySelector('#files').value = '';
+    if (sent === 1) document.querySelector('#messages').insertAdjacentHTML('beforeend',
+        '<div data-message-author-role="assistant">Bài giảng về giới hạn và hạn mức. Đây là dàn ý.</div>');
+    else setTimeout(() => document.querySelector('#messages').insertAdjacentHTML('beforeend',
+        '<div data-message-author-role="assistant"><a href="/backend-api/files/result.pptx">new.pptx</a></div>'), 700);
+};</script></body></html>'''
+    result = adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=15)
+    assert Path(result["path"]).read_bytes() == source.read_bytes()
+    assert len(captured["sends"]) == 2 and captured["sends"][1]["prompt"] == adapter.EXPORT_PROMPT
+    assert captured["sends"][1]["files"] == []
+    record = read_record(request["folder"], accounts.get()["id"])
+    assert record["followups"] == 1 and record["assistant_before"] == 1 and record["user_before"] == 1
+    adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None)
+    assert len(captured["sends"]) == 2
+
+
+def test_prompt_removed_during_upload_is_not_sent(browser_fixture):
+    adapter, accounts, request, captured, _ = browser_fixture
+    captured["html"] = FIXTURE.replace("document.querySelector('#files').onchange = (e) => {",
+        "document.querySelector('#files').onchange = (e) => {document.querySelector('#prompt-textarea').value='';")
+    with pytest.raises(BrowserProblem, match="Ô prompt đã thay đổi"):
+        adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+    assert not captured["sends"]
+    assert read_record(request["folder"], accounts.get()["id"])["state"] == "prepared"
 
 
 def test_active_profile_cannot_overwrite_another_running_job(browser_fixture):

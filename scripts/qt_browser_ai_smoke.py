@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from pptx import Presentation
 from pptx.util import Inches
-from PySide6.QtCore import QMetaObject, QObject, Qt, QTimer, QUrl
+from PySide6.QtCore import QCoreApplication, QEvent, QMetaObject, QObject, Qt, QTimer, QUrl
 from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuick import QQuickWindow
@@ -35,15 +35,18 @@ slide.shapes.add_textbox(Inches(.5), Inches(.5), Inches(8), Inches(2)).text = "D
 slide.notes_slide.notes_text_frame.text = "VI: Diện tích bằng 12 cm².\nEN: The area is 12 cm²."
 deck.save(source)
 attempts, sends, audio, warnings, failures, stages = [], [], [], [], [], []
+conversions = []
 
 
-def fake_login(account, root, cancel, progress):
+def fake_login(account, root, cancel, progress, **options):
     attempts.append(account["id"])
     if len(attempts) == 1:
         return {"ready": False}
-    if len(attempts) == 2:
+    if len(attempts) in {2, 4}:
         raise browser_automation.BrowserProblem("verification", browser_automation.VERIFICATION_MESSAGE)
-    plan = "free" if len(attempts) == 3 else "plus"
+    if len(attempts) == 6:
+        assert options["url"] == "https://chatgpt.com/c/fixture" and account["id"] == free_id
+    plan = "free" if len(attempts) in {3, 6} else "plus"
     return {"ready": True, "plan": plan, "name": "Cô giáo thử " + plan, "email": plan + "@example.test"}
 
 
@@ -52,7 +55,13 @@ def fake_convert(account, root, folder, cancel, progress, **options):
     assert request["config"]["provider"] == "browser_web"
     assert "FILE POWERPOINT" in request["prompt"] and "VI:" in request["prompt"]
     assert account["plan"] == "free", "Explicit Free testing must win over Plus priority"
-    sends.append(account["id"])
+    conversions.append(account["id"])
+    if len(conversions) == 1:
+        sends.append(account["id"])
+        browser_automation.write_record(folder, {"account_id": account["id"], "state": "waiting", "followups": 0,
+            "url": "https://chatgpt.com/c/fixture", "error": "verification"})
+        raise browser_automation.BrowserProblem("verification", browser_automation.VERIFICATION_MESSAGE)
+    assert len(sends) == 1 and browser_automation.read_record(folder, account["id"])["state"] == "waiting"
     options["observed"](account["id"], "free", "Web model fixture")
     target = Path(folder) / "bai-giang-song-ngu.pptx"
     target.write_bytes(source.read_bytes())
@@ -135,9 +144,16 @@ def step():
             capture("free-connected.png")
             stages.append("One login button; closed window is not success; successful Free session saved")
             click("browserAccountAdd")
+            phase = "plus_failed"
+        elif phase == "plus_failed" and not bridge.browserAI.loginBusy:
+            assert len(bridge.browserAI.accounts) == 2 and not bridge.browserAI.accountInfo["ready"]
+            assert bridge.browserAI.activeId != free_id and bridge.browserAI.store.preferred()["id"] == free_id
+            assert window.findChild(QObject, "browserAccountAdd").property("text") == "Đăng nhập ChatGPT"
+            click("browserAccountAdd")
             phase = "plus"
         elif phase == "plus" and not bridge.browserAI.loginBusy:
             assert len(bridge.browserAI.accounts) == 2 and bridge.browserAI.accountInfo["plan"] == "plus"
+            assert attempts[3] == attempts[4], "Retry must reopen the failed new account, not add/reopen a different profile"
             plus_id = bridge.browserAI.activeId
             assert free_id != plus_id
             capture("plus-preferred.png")
@@ -148,8 +164,20 @@ def step():
             stages.append("Adding Plus preserves Free; automatic Plus priority; explicit Free test selection")
             bridge.convertBrowserAI("Bài thử", "Toán", "THPT", "11", "", QUrl.fromLocalFile(str(source)).toString(),
                                     2, "split_view", "standard", "source", "level")
+            phase = "blocked_conversion"
+        elif phase == "blocked_conversion" and not bridge.busy:
+            assert bridge.error and bridge.browserState["needsLogin"]
+            assert not bridge.browserAI.store.get(free_id)["ready"]
+            assert window.findChild(QObject, "browserConversionResume").property("text") == "Đăng nhập và tiếp tục"
+            reopened = Bridge(library)
+            assert reopened.browserState["needsLogin"] and reopened.chatgptRequest["folder"] == bridge.chatgptRequest["folder"]
+            reopened.browserAI.shutdown()
+            reopened.deleteLater()
+            capture("conversion-reconnect.png")
+            click("browserConversionResume")
+            stages.append("Failed new account retries its own profile; conversion verification clears stale ready state and reconnects its pinned account")
             phase = "converted"
-        elif phase == "converted" and not bridge.busy:
+        elif phase == "converted" and not bridge.busy and not bridge.browserAI.loginBusy and len(conversions) == 2:
             assert not bridge.error, bridge.message
             assert sends == [free_id]
             assert bridge.lesson["external_deck"] and bridge.quickResult["image"]
@@ -183,6 +211,10 @@ def step():
 
 QTimer.singleShot(250, step)
 code = application.exec()
+# Destroy QML while its Python bridge is still alive, including queued job
+# cleanup; otherwise interpreter teardown can evaluate properties too late.
+engine.deleteLater()
+QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
 bridge.browserAI.shutdown()
 library.close()
 result = {"status": "passed" if not failures and not warnings else "failed", "stages": stages,

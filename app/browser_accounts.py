@@ -18,7 +18,8 @@ class BrowserAccounts:
         self.root = (Path(directory) / "browser_ai").resolve()
         self.root.mkdir(parents=True, exist_ok=True)
         self.path = self.root / "accounts.json"
-        self.data = {"version": 1, "active": "", "automatic": True, "audio": True, "accounts": [], "selection": "auto"}
+        self.data = {"version": 1, "active": "", "automatic": True, "audio": True, "accounts": [],
+                     "selection": "auto", "pending_login": ""}
         if self.path.exists():
             loaded = json.loads(self.path.read_text(encoding="utf-8"))
             if loaded.get("version") != 1 or not isinstance(loaded.get("accounts"), list):
@@ -28,6 +29,8 @@ class BrowserAccounts:
                 self.profile(account["id"])
                 if account.get("channel") not in {"msedge", "chrome"}:
                     raise ValueError("Browser của tài khoản không hợp lệ.")
+                if account.get("last_error", {}).get("code") in {"login", "verification"}:
+                    account.update(ready=False, status="Cần đăng nhập / xác minh")
 
     def save(self):
         temporary = self.root / (str(uuid4()) + ".tmp")
@@ -74,6 +77,7 @@ class BrowserAccounts:
 
     def select(self, account_id):
         self.get(account_id)
+        self.data["pending_login"] = ""
         self.data["active"] = account_id
         self.data["selection"] = "manual"
         self.save()
@@ -81,6 +85,13 @@ class BrowserAccounts:
     def prefer_paid(self):
         self.data["selection"] = "auto"
         self.data["active"] = self.preferred()["id"]
+        self.data["pending_login"] = ""
+        self.save()
+
+    def begin_login(self, account_id):
+        self.get(account_id)
+        # Keep the conversion preference intact while another account signs in.
+        self.data["pending_login"] = account_id
         self.save()
 
     def update_status(self, account_id, status):
@@ -94,6 +105,8 @@ class BrowserAccounts:
         for account in self.data["accounts"]:
             if account["id"] == account_id:
                 account["last_error"] = {"code": code, "message": message}
+                if code in {"login", "verification"}:
+                    account.update(ready=False, status="Cần đăng nhập / xác minh")
                 self.save()
                 return
 
@@ -103,7 +116,7 @@ class BrowserAccounts:
             if not chosen.get("ready"):
                 raise ValueError("Đăng nhập lại tài khoản đã chọn trong Browser AI.")
             return chosen
-        ready = [a for a in self.data["accounts"] if a.get("ready") or a.get("status") == "Đã kiểm tra đăng nhập"]
+        ready = [a for a in self.data["accounts"] if a.get("ready")]
         candidates = ready
         if not candidates:
             raise ValueError("Đăng nhập ChatGPT trong Cài đặt → Browser AI.")
@@ -119,6 +132,8 @@ class BrowserAccounts:
                 if identity is not None:
                     account.update(name=identity.get("name", ""), email=identity.get("email", ""), saved_at=time.time())
                     account["label"] = account["email"] or account["name"] or account["label"]
+                    if self.data.get("pending_login") == account_id:
+                        self.data["pending_login"] = ""
                 if self.data.get("selection") != "manual":
                     self.data["active"] = self.preferred()["id"]
                 self.save()
@@ -132,6 +147,8 @@ class BrowserAccounts:
             if target.exists():
                 shutil.rmtree(target)
             self.data["accounts"] = [a for a in self.data["accounts"] if a["id"] != item["id"]]
+            if self.data.get("pending_login") == account_id:
+                self.data["pending_login"] = ""
             if self.data["active"] == account_id:
                 self.data["active"] = self.data["accounts"][0]["id"] if self.data["accounts"] else ""
                 self.data["selection"] = "auto"

@@ -4,6 +4,8 @@ Mã nguồn ngày 04/10/2026 mặc định dùng **web ChatGPT trong Microsoft E
 
 Release RC12 chưa có thay đổi này. Tự gửi/nhận qua web là tính năng thử nghiệm, phụ thuộc giao diện và quyền của tài khoản. Kiểm thử giả lập không chứng minh tài khoản thật đã đăng nhập hoặc tạo được PowerPoint.
 
+Đợt ổn định ngày 04/10/2026 tiếp tục dùng Edge/Playwright trên máy, không thêm dịch vụ browser trả phí hoặc API key. Tham khảo cách quản lý hồ sơ và xác nhận thao tác từ các dự án browser; không cài Donut/Browserbase vào BiliClass. Chi phí/hạn mức ChatGPT vẫn theo tài khoản của giáo viên.
+
 **Kết quả thử thật ngày 04/10/2026:** người dùng gặp vòng lặp xác minh Cloudflare cả trong phiên do BiliClass mở và browser thường. Chưa xác định được nguyên nhân mạng/browser/tài khoản; chưa kết nối thành công. Không coi đây là lỗi riêng của Free hoặc bảo đảm Plus sẽ giải quyết được.
 
 ## Đăng nhập và thêm tài khoản
@@ -12,6 +14,8 @@ Release RC12 chưa có thay đổi này. Tự gửi/nhận qua web là tính nă
 2. Khi xác nhận được phiên đã đăng nhập, cửa sổ tự đóng; app lưu phiên trong hồ sơ Edge tại máy. Không cần bấm Lưu.
 3. Tab hiện tên/email nếu đọc được từ menu tài khoản, gói nếu web ghi rõ và thời điểm lưu. Không suy đoán Free/Plus từ nút nâng cấp hay model. Chưa nhận diện được gói sẽ ghi **Chưa xác định trên web**.
 4. Nút chính đổi thành **Thêm tài khoản**. Mỗi tài khoản có hồ sơ Edge riêng. Menu **⋯** cho đăng nhập lại, chọn tài khoản và xóa hồ sơ tại máy.
+
+Thêm tài khoản mà chưa đăng nhập được: giữ hồ sơ đang thử để nút chính mở lại đúng tài khoản đó, kể cả sau khi đóng/mở tool. Tài khoản đã dùng cho bài mới và lựa chọn cố định Free không bị thay đổi bởi lần thêm chưa thành công. Khi web báo phiên hết hạn/cần xác minh, trạng thái sẵn sàng bị gỡ; đăng nhập thành công sẽ xác nhận lại. Hạn mức là trạng thái riêng, không đồng nghĩa đăng xuất.
 
 Đóng cửa sổ khi chưa xác nhận đăng nhập không được coi là thành công. Chờ đăng nhập tối đa 10 phút; có thể bấm Hủy. Phiên web thuộc thư viện trên máy, không đưa vào Git, backup thư viện hoặc gói bài; không xuất cookie/token hay lưu mật khẩu bằng mã của BiliClass. Dữ liệu OAuth cũ được giữ riêng.
 
@@ -38,11 +42,15 @@ Prompt yêu cầu PowerPoint chỉnh sửa được, bảo toàn nội dung/hìn
 
 Khi gặp xác minh, đăng nhập hết hạn hoặc giới hạn: dừng, hiện thông báo, giữ trạng thái. Không dùng stealth, giải CAPTCHA hoặc endpoint web nội bộ. **Gửi/nhận thủ công** trong Tùy chọn thêm là dự phòng. Bài đã nhập thư viện có thể mở lại ngay cả khi xóa tài khoản; không gửi lại và không tạo bài trùng.
 
+Ở trang chuyển đổi, **Đăng nhập và tiếp tục** mở đúng hồ sơ/cuộc trò chuyện đã ghi; sau khi xác nhận đăng nhập, tool tự tiếp tục bài đó. Chỉ tiếp tục khi người dùng bấm nút này; đóng/hủy/chưa xác nhận đăng nhập không khởi động chuyển đổi. Bài đã gửi không chuyển sang tài khoản khác.
+
+Adapter chờ tài liệu chính và các điều khiển sẵn sàng thay vì chờ toàn bộ tài nguyên trang. Timeout tải trang không tự tải lại phiên đăng nhập. Kiểm tra prompt còn nguyên và mọi đính kèm hiển thị trước khi Gửi. Yêu cầu xuất PPTX bổ sung được ghi trước khi gửi và chờ câu trả lời mới; không nhận tệp từ câu trả lời cũ. Nhận hạn mức qua thông báo của web, tránh nhầm chữ “giới hạn/hạn mức” trong bài học thành lỗi.
+
 ## Kiểm tra
 
-- 21 kiểm thử browser: hồ sơ riêng, khóa/xóa, backup không chứa phiên, ưu tiên Plus, cố định Free, hạ gói, gói chưa rõ, lựa chọn model được phép, Think, không nhầm giao diện khách với đăng nhập, dừng vòng lặp xác minh, hủy/tiếp tục xác minh, không gửi lại khi trạng thái chưa chắc, tải lại và giữ tài khoản.
+- 26 kiểm thử browser và 12 handoff đã qua: hồ sơ riêng, khóa/xóa, backup không chứa phiên, ưu tiên Plus, cố định Free, hạ gói, gói chưa rõ, lựa chọn model được phép, Think, không nhầm giao diện khách với đăng nhập, dừng vòng lặp xác minh, hủy/tiếp tục xác minh, không gửi lại khi trạng thái chưa chắc, tải lại và giữ tài khoản. Thêm các ca thử tài khoản mới thất bại, gỡ trạng thái phiên hết hạn, chỉ nhận câu trả lời mới, thông báo quota tách nội dung bài, xuất PPTX bổ sung và prompt biến mất trước khi gửi.
 - Browser test chạy Edge thật trên trang fixture được chặn mạng; không đăng nhập/tải tài liệu thật lên ChatGPT.
-- Qt Browser AI: đóng cửa sổ chưa đăng nhập; lỗi Cloudflare và chọn dự phòng không báo giả đã kết nối; Free tự lưu; thêm Plus; cố định Free; nhận PPTX và audio giả lập; xem trước bằng Office thật; mở lại bài khi đã xóa tài khoản. Các tab Chung/Song ngữ/Giọng đọc/Mascot được giữ.
+- Qt Browser AI: đóng cửa sổ chưa đăng nhập; lỗi Cloudflare và chọn dự phòng không báo giả đã kết nối; Free tự lưu; thêm Plus thất bại rồi mở lại đúng hồ sơ; cố định Free; chuyển đổi bị xác minh rồi đăng nhập và tự tiếp tục cùng tài khoản/bài; nhận PPTX và audio giả lập; xem trước bằng Office thật; mở lại bài khi đã xóa tài khoản. Các tab Chung/Song ngữ/Giọng đọc/Mascot được giữ.
 - OAuth cũ có smoke riêng để tránh làm hỏng dữ liệu và yêu cầu đã có: [thiết kế và chẩn đoán cũ](CHATGPT_PLAN_AUTH.md).
 
 Còn cần nghiệm thu thật: đăng nhập Free, lựa chọn suy luận trên giao diện thực tế, một bài PPTX nhỏ, chất lượng kết quả và giới hạn lượt dùng; sau đó thử tài khoản Plus và bản đóng gói.

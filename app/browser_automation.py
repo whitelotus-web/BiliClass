@@ -21,10 +21,11 @@ PROFILE = '[data-testid="accounts-profile-button"], [data-testid="profile-button
 SEND = '[data-testid="send-button"], button[aria-label="Send prompt"], button[aria-label="Gửi lời nhắc"], button[aria-label="Send message"]'
 STOP = '[data-testid="stop-button"], button[aria-label="Stop generating"], button[aria-label="Dừng tạo"]'
 ASSISTANT = '[data-message-author-role="assistant"]'
+USER = '[data-message-author-role="user"]'
+LOGIN = '[data-testid="login-button"], [data-testid="login-button-header"]'
 VERIFICATION_MESSAGE = (
-    "ChatGPT đang chặn phiên browser riêng ở bước xác minh Cloudflare. "
-    "Chưa xác nhận đăng nhập; đăng nhập trong browser thường không tự kết nối phiên này với BiliClass. "
-    "Có thể dùng gửi/nhận PowerPoint thủ công trong browser thường."
+    "ChatGPT yêu cầu xác minh Cloudflare. Phiên và bài đang làm đã được giữ. "
+    "Mở lại phiên để tự xác minh; nếu browser thường cũng bị lặp, cần kiểm tra truy cập ChatGPT trước."
 )
 EXPORT_PROMPT = (
     "Hãy hoàn tất tệp bai-giang-song-ngu.pptx chỉnh sửa được theo yêu cầu đã gửi và cung cấp liên kết tải .pptx "
@@ -68,8 +69,33 @@ def page_problem(page):
         raise BrowserProblem("verification", VERIFICATION_MESSAGE)
     if urlsplit(page.url).hostname in {"auth.openai.com", "auth0.openai.com"}:
         raise BrowserProblem("login", "Phiên ChatGPT hết hạn. Đăng nhập lại tài khoản trong Browser AI.")
-    if visible(page, '[data-testid="login-button"], [data-testid="login-button-header"]'):
+    if visible(page, LOGIN):
         raise BrowserProblem("login", "Chưa đăng nhập ChatGPT. Mở Cài đặt → Browser AI → Đăng nhập.")
+    # Quota notices belong to web controls, not the teacher's lesson text.
+    for notice in page.locator('[role="alert"], [data-testid="toast"], [data-testid="rate-limit-message"]').all():
+        if (notice.is_visible() and not notice.locator('xpath=ancestor-or-self::*[@data-message-author-role]').count()
+                and re.search(r"usage limit|(?:you(?:'ve| have) )?reached (?:your|the) .{0,40}limit|"
+                              r"too many requests|đã (?:đạt|hết).{0,30}(?:giới hạn|hạn mức)|"
+                              r"hết (?:lượt|hạn mức)|try again later", notice.inner_text(), re.I)):
+            raise BrowserProblem("limit", "ChatGPT báo giới hạn lượt dùng. Bài được giữ lại để tiếp tục khi tài khoản dùng được.")
+
+
+def navigate(page, url, cancel):
+    """Wait for the main document, then let readiness checks watch the controls.
+
+    Do not retry a navigation automatically: it could restart sign-in or a
+    human verification. A document-load timeout may still have a usable page.
+    """
+    from playwright.sync_api import TimeoutError
+
+    check_cancel(cancel)
+    try:
+        page.goto(url, wait_until="commit", timeout=20000)
+    except TimeoutError as exc:
+        check_cancel(cancel)
+        if urlsplit(page.url).hostname not in {"chatgpt.com", "auth.openai.com", "auth0.openai.com"}:
+            raise BrowserProblem("network", "Chưa tải được ChatGPT. Kiểm tra mạng rồi mở lại; phiên đăng nhập được giữ.") from exc
+    check_cancel(cancel)
 
 
 def require_account(page, cancel, timeout=30):
@@ -104,7 +130,7 @@ def login(account, root, cancel, progress, url=CHATGPT, *, auto_close=True, time
         context = open_context(playwright, account, headless=False)
         try:
             page = context.pages[0] if context.pages else context.new_page()
-            page.goto(url if conversation_url(url) else CHATGPT, wait_until="domcontentloaded", timeout=45000)
+            navigate(page, url if conversation_url(url) else CHATGPT, cancel)
             progress("Đăng nhập trên web. Tool sẽ tự lưu phiên khi đăng nhập thành công.")
             ready_since = None
             verification_since = None
@@ -125,7 +151,7 @@ def login(account, root, cancel, progress, url=CHATGPT, *, auto_close=True, time
                     verification_since = None
                     signed_in = (urlsplit(page.url).hostname == "chatgpt.com"
                                  and visible(page, PROFILE) and visible(page, COMPOSER)
-                                 and not visible(page, '[data-testid="login-button"], [data-testid="login-button-header"]'))
+                                 and not visible(page, LOGIN))
                     if auto_close and signed_in:
                         ready_since = ready_since or time.monotonic()
                         if time.monotonic() - ready_since >= 1:
@@ -169,6 +195,9 @@ def read_record(folder, account_id):
         raise BrowserProblem("record", "Trạng thái yêu cầu Browser AI không hợp lệ.")
     if record.get("url") and not conversation_url(record["url"]):
         raise BrowserProblem("record", "Địa chỉ cuộc trò chuyện trong yêu cầu không hợp lệ.")
+    for key in ("assistant_before", "user_before"):
+        if key in record and (type(record[key]) is not int or record[key] < 0):
+            raise BrowserProblem("record", "Trạng thái câu trả lời Browser AI không hợp lệ.")
     return record
 
 
@@ -190,7 +219,7 @@ def wait_upload(page, files, cancel, timeout=120):
         check_cancel(cancel)
         page_problem(page)
         # Require an actual rendered attachment for every requested file.
-        attached = all(page.get_by_text(p.name, exact=True).count() for p in files)
+        attached = all(any(item.is_visible() for item in page.get_by_text(p.name, exact=True).all()) for p in files)
         sending = visible(page, SEND)
         loading = visible(page, '[data-testid="file-upload-progress"], [role="progressbar"], [data-testid="attachment-loading"]')
         if attached and sending and sending.is_enabled() and not loading:
@@ -211,18 +240,29 @@ def submit(page, folder, record, prompt, cancel, *, files=()):
     if files:
         wait_upload(page, files, cancel)
     check_cancel(cancel)
+    field = visible(page, COMPOSER)
+    entered = (field.inner_text() if field and field.get_attribute("contenteditable") == "true"
+               else field.input_value() if field else "")
+    if entered.strip() != prompt.strip():
+        raise BrowserProblem("interface", "Ô prompt đã thay đổi trong lúc tải trang/tệp. Chưa gửi; bấm Tiếp tục để thử lại.")
     sender = visible(page, SEND)
     if not sender or not sender.is_enabled():
         raise BrowserProblem("interface", "Nút Gửi của ChatGPT chưa sẵn sàng.")
     # Persist BEFORE click: a crash or unknown response must not trigger a duplicate send.
-    record["state"] = "submitting"
+    previous_url = page.url
+    record.update(state="submitting", assistant_before=page.locator(ASSISTANT).count(),
+                  user_before=page.locator(USER).count())
     write_record(folder, record)
     sender.click(timeout=10000)
     deadline = time.monotonic() + 40
     while time.monotonic() < deadline:
         check_cancel(cancel)
         page_problem(page)
-        if conversation_url(page.url):
+        # A follow-up already has a conversation URL. Confirm a new message
+        # instead of mistaking that old URL for acknowledgement of this send.
+        acknowledged = (page.url != previous_url or page.locator(USER).count() > record["user_before"]
+                        or page.locator(ASSISTANT).count() > record["assistant_before"])
+        if conversation_url(page.url) and acknowledged:
             record.update(state="waiting", url=page.url)
             write_record(folder, record)
             return
@@ -230,9 +270,13 @@ def submit(page, folder, record, prompt, cancel, *, files=()):
     raise BrowserProblem("submission", "Có thể prompt đã gửi nhưng chưa xác nhận được cuộc trò chuyện. Kiểm tra browser; app không tự gửi lại.")
 
 
-def result_link(page):
+def result_link(page, assistant_before=0):
     # Only files in assistant messages; never source attachments, sidebar or arbitrary links.
-    for anchor in page.locator(ASSISTANT + ' a[href]').all()[::-1]:
+    messages = page.locator(ASSISTANT)
+    if messages.count() <= assistant_before:
+        return None
+    # A prior answer's PPTX is not the result of the latest export request.
+    for anchor in messages.last.locator('a[href]').all()[::-1]:
         label = (anchor.inner_text() + " " + (anchor.get_attribute("download") or "")).casefold()
         href = anchor.get_attribute("href") or ""
         if ".pptx" not in label and ".pptx" not in urlsplit(href).path.casefold():
@@ -253,16 +297,15 @@ def wait_result(page, folder, record, cancel, progress, timeout=900):
         check_cancel(cancel)
         page_problem(page)
         generating = visible(page, STOP)
-        link = result_link(page)
+        before = record.get("assistant_before", 0)
+        link = result_link(page, before)
         if link and not generating:
             return link
         messages = page.locator(ASSISTANT)
-        if messages.count() and not generating:
+        if messages.count() > before and not generating:
             text = messages.last.inner_text()
             if text != last_text:
                 last_text, stable_since = text, time.monotonic()
-            if re.search(r"(usage limit|reached.*limit|too many requests|hạn mức|đạt giới hạn|try again later)", text, re.I):
-                raise BrowserProblem("limit", "ChatGPT báo giới hạn lượt dùng. Yêu cầu được giữ lại; tiếp tục khi tài khoản dùng được.")
             if text.strip() and not link and time.monotonic() - stable_since > 4:
                 if record.get("followups", 0) == 0:
                     # One follow-up only, with its count stored before submitting.
@@ -311,8 +354,10 @@ def _convert_locked(account, request_folder, cancel, progress, *, timeout, obser
             try:
                 page = context.pages[0] if context.pages else context.new_page()
                 page.set_default_timeout(10000)
-                page.goto(record["url"] or CHATGPT, wait_until="domcontentloaded", timeout=45000)
+                navigate(page, record["url"] or CHATGPT, cancel)
                 require_account(page, cancel)
+                if record["state"] == "prepared" and conversation_url(page.url):
+                    raise BrowserProblem("interface", "Web mở lại cuộc trò chuyện cũ. Tạo chat mới trước khi chuyển đổi bài mới.")
                 plan = detect_plan(page, PROFILE)
                 if record["state"] == "prepared":
                     model = select_best_model(page)
@@ -327,6 +372,10 @@ def _convert_locked(account, request_folder, cancel, progress, *, timeout, obser
                     submit(page, folder, record, request["prompt"], cancel, files=files)
                 elif not record["url"]:
                     raise BrowserProblem("submission", "Chưa rõ yêu cầu trước đã gửi hay chưa. Kiểm tra browser; app không gửi trùng.")
+                elif record["state"] == "submitting":
+                    # Resume a possibly sent follow-up by waiting, never by resending.
+                    record["state"] = "waiting"
+                    write_record(folder, record)
                 link = wait_result(page, folder, record, cancel, progress, timeout)
                 progress("Đang tải và kiểm tra PowerPoint kết quả…")
                 with page.expect_download(timeout=45000) as event:
