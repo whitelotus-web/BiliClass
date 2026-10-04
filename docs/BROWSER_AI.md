@@ -66,7 +66,7 @@ Lỗi mạng/browser/tải kết quả tạm thời được tự thử lại t�
 
 Giao diện thực tế trả tệp bằng nút tên `.pptx`, không có anchor tải. Adapter nhận nút trong câu trả lời cuối, mở thẻ tệp rồi kích hoạt **Download file** của đúng tên kết quả. Chỉ so khớp trong vùng preview chứa một nút tải; không bấm nút tải tệp nguồn hoặc artifact khác. Dùng Enter trên nút tải để tránh lớp mở thẻ tệp của web đè lên icon. Download được kiểm tra đuôi, kích thước, cấu trúc ZIP/PPTX trước khi lưu. Lỗi tải không bị báo nhầm thành mất đăng nhập.
 
-Sau sửa, **đã gửi và nhận PowerPoint thật qua tài khoản web đã lưu**: nguồn 15.992.900 byte; kết quả 15.386.284 byte, 12 slide, 25 mục media và 12 trang ghi chú. Số slide/media bằng nguồn; điều này không chứng minh bố cục, công thức hoặc bản dịch hoàn toàn đúng. App tiếp tục chuẩn bị 24 đoạn giọng đọc. Chất lượng sư phạm/bố cục và phát giọng trong tiết dạy cần giáo viên kiểm tra; không tự duyệt nội dung.
+Sau sửa, **đã gửi và nhận PowerPoint thật qua tài khoản web đã lưu**: nguồn 15.992.900 byte; kết quả 15.386.284 byte, 12 slide, 25 mục media và 12 trang ghi chú. Số slide/media bằng nguồn; điều này không chứng minh bố cục, công thức hoặc bản dịch hoàn toàn đúng. App đã lưu bài với 12 đoạn song ngữ, tạo đủ 12 WAV Việt/12 WAV Anh phù hợp văn bản/giọng/tốc độ đã chọn và dựng ảnh xem trước slide đầu bằng Office. Bài vẫn là bản nháp, chưa tự duyệt. Chất lượng sư phạm/bố cục và phát giọng trong tiết dạy cần giáo viên kiểm tra.
 
 ## Kiểm tra
 
