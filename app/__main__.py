@@ -16,6 +16,7 @@ def main():
     )
     parser.add_argument("--seed-demo", action="store_true", help="Create an example only in an empty library")
     parser.add_argument("--screenshot")
+    parser.add_argument("--lesson-id", help="Open a saved lesson in the guarded desktop entry point")
     parser.add_argument("--size", default="1366x850")
     parser.add_argument(
         "--page", choices=["home", "library", "new", "result", "editor", "glossary", "knowledge", "settings", "browser-ai", "classroom", "reports"], default="home"

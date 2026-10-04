@@ -25,7 +25,7 @@ from .library import Library, lesson_status
 from .pack import export_pack, import_pack
 from .paths import RESOURCE_ROOT, user_data
 from .portable_audio import available_audio
-from .powerpoint import PowerPointSession, slide_for_locator, verified_presentation
+from .powerpoint import PowerPointSession, slide_for_locator, slide_segment_indexes, verified_presentation
 from .readiness import assess
 from .storage import backup_library, configure_logging, restore_backup
 from .teaching import TeachingBridge
@@ -56,6 +56,7 @@ class Bridge(QObject):
     closeMemoryChoicesRequested = Signal()
     projectClassroomRequested = Signal()
     powerpointSlideChanged = Signal(int)
+    powerpointStarted = Signal()
     mascotStateChanged = Signal()
     mascotPreferencesSaved = Signal(bool)
     updateChanged = Signal()
@@ -94,6 +95,7 @@ class Bridge(QObject):
         self._segment_index = 0
         self._busy = False
         self._speaking = False
+        self._speech_generation = 0
         self._speech_timer = QTimer(self)
         self._speech_timer.setSingleShot(True)
         self._speech_timer.timeout.connect(self.stopSpeech)
@@ -782,6 +784,14 @@ class Bridge(QObject):
         extent = int(window.property("mascotExtent"))
         saved = self.library.setting("mascot_location", {})
         screen = QGuiApplication.primaryScreen()
+        if self._powerpoint_state.get("active") and self._powerpoint_state.get("hwnd"):
+            try:
+                import win32gui
+
+                left, top, right, bottom = win32gui.GetWindowRect(self._powerpoint_state["hwnd"])
+                screen = QGuiApplication.screenAt(QPoint((left + right) // 2, (top + bottom) // 2)) or screen
+            except Exception:
+                pass  # Keep the normal mascot corner if the native window just closed.
         if isinstance(saved, dict) and isinstance(saved.get("x"), int) and isinstance(saved.get("y"), int):
             candidate = QGuiApplication.screenAt(QPoint(saved["x"] + extent // 2, saved["y"] + extent // 2))
             if candidate is not None:
@@ -1095,14 +1105,22 @@ class Bridge(QObject):
     def _reading_text(self, language):
         if not self.segment or not self._lesson:
             return ""
-        if self.segment.get("ai_provider") != "chatgpt_plan":
-            return self.segment.get(language, "")
+        if self._powerpoint_state.get("active") and self._powerpoint_lesson_id == self._lesson.get("id"):
+            indexes = slide_segment_indexes(self._lesson, self._powerpoint_state.get("slide"),
+                                            self._powerpoint_source_map, self._powerpoint_segment_map)
+            return "\n".join(self._segment_reading_text(self._lesson["segments"][i], language)
+                             for i in indexes).strip()
+        return self._segment_reading_text(self.segment, language)
+
+    def _segment_reading_text(self, value, language):
+        if value.get("ai_provider") != "chatgpt_plan":
+            return value.get(language, "")
         import copy
 
         from .ai_lesson import checked_ai_support
         from .level_conversion import narration_text
 
-        segment = copy.deepcopy(self.segment)
+        segment = copy.deepcopy(value)
         if segment.get("ai_provider") == "chatgpt_plan":
             try:
                 checked_ai_support({"segments": [segment]})
@@ -1121,16 +1139,19 @@ class Bridge(QObject):
             return
         cached = available_audio(self.library.directory, text, language, voice, rate)
         if cached:
-            speech.stop()
+            self.stopSpeech()
             self._play_audio(cached)
             self.inform("Đang phát âm thanh đã chuẩn bị đúng nội dung.")
             return
         if not voice:
             self.inform("Máy chưa có giọng đọc phù hợp. Nội dung dạng chữ vẫn sử dụng được.", True)
             return
-        speech.stop()
+        self.stopSpeech()
+        generation = self._speech_generation
 
         def completed(result):
+            if generation != self._speech_generation or text != self._reading_text(language):
+                return  # A slide change must never start an old slide's voice.
             self._play_audio(result["path"])
             self.inform("Đang phát âm thanh đã lưu trên máy. Dùng nút Dừng để ngừng phát.")
 
@@ -1147,6 +1168,7 @@ class Bridge(QObject):
 
     @Slot()
     def stopSpeech(self):
+        self._speech_generation += 1
         speech.stop()
         self._speaking = False
         self._speech_timer.stop()
@@ -1183,6 +1205,7 @@ class Bridge(QObject):
     @Slot(str)
     def openLesson(self, lesson_id):
         try:
+            self.stopSpeech()
             self._conversion_report = []
             self._comparison = {}
             self.dismissMemoryChoices()
@@ -1255,6 +1278,9 @@ class Bridge(QObject):
         worker = PowerPointSession(path, initial, self)
         self.powerpoint_worker = worker
         self._powerpoint_lesson_id = self._lesson["id"]
+        self._powerpoint_state = {"active": False, "starting": True, "slide": 0, "total": 0,
+                                  "message": "Đang mở PowerPoint…"}
+        self.changed.emit()
         worker.stateChanged.connect(self._powerpoint_changed)
         worker.failed.connect(self._powerpoint_failed)
         worker.finished.connect(self._powerpoint_finished)
@@ -1288,11 +1314,15 @@ class Bridge(QObject):
             index = state.get("slide", 0)
             source_slide = self._powerpoint_source_map[index - 1] if 0 < index <= len(self._powerpoint_source_map) else index
             state = {**state, "source_slide": source_slide}
-            previous = self._powerpoint_state.get("source_slide", self._powerpoint_state.get("slide"))
+            previous = self._powerpoint_state
             self._powerpoint_state = state
-            if state.get("active") and previous != source_slide:
+            if not state.get("active") or index != previous.get("slide"):
+                self.stopSpeech()
+            if state.get("active") and (not previous.get("active") or index != previous.get("slide")):
                 self.powerpointSlideChanged.emit(source_slide)
             self.changed.emit()
+            if state.get("active") and not previous.get("active"):
+                self.powerpointStarted.emit()
 
     @Slot(str)
     def _powerpoint_failed(self, error):
@@ -1312,20 +1342,12 @@ class Bridge(QObject):
 
     @Slot()
     def followPowerPoint(self):
-        slide = self._powerpoint_state.get("slide", 0)
-        if self._powerpoint_segment_map and 0 < slide <= len(self._powerpoint_segment_map):
-            segment_id = self._powerpoint_segment_map[slide - 1]
-            for index, segment in enumerate(self._lesson.get("segments", [])):
-                if segment["id"] == segment_id:
-                    self.stopSpeech()
-                    self.selectSegment(index)
-                    return
-        current = self._powerpoint_state.get("source_slide", self._powerpoint_state.get("slide"))
-        for index, segment in enumerate(self._lesson.get("segments", [])):
-            if slide_for_locator(segment.get("locator", "")) == current:
-                self.stopSpeech()
-                self.selectSegment(index)
-                return
+        self.stopSpeech()
+        indexes = slide_segment_indexes(self._lesson, self._powerpoint_state.get("slide"),
+                                        self._powerpoint_source_map, self._powerpoint_segment_map)
+        if indexes:
+            self.selectSegment(indexes[0])
+            return
         self.inform("Slide này chưa có đoạn văn bản được nhập. Thầy cô chọn nội dung thủ công.")
 
     @Slot(str)
@@ -1346,6 +1368,7 @@ class Bridge(QObject):
 
     @Slot()
     def stopPowerPoint(self):
+        self.stopSpeech()
         if self.powerpoint_worker:
             self.powerpoint_worker.stop()
             self._powerpoint_state = {**self._powerpoint_state, "message": "Đang đóng PowerPoint…"}
@@ -1545,7 +1568,7 @@ class Bridge(QObject):
             self.changed.emit()
             self.selectionChanged.emit()
             self._start_powerpoint_session(str(path), result.get("slide_map"), result.get("segment_map"))
-            self.inform("Đã xác nhận cả bài và mở bản trình chiếu để dạy. Có thể dùng mascot khi cần.")
+            self.inform("Đang mở PowerPoint toàn màn hình. Bấm mascot → Đọc tiếng Anh để đọc slide đang chiếu.")
         except Exception as exc:
             self.inform(str(exc), True)
 
@@ -2109,7 +2132,10 @@ def run(args):
     window = engine.rootObjects()[0]
     width, height = (int(n) for n in args.size.split("x"))
     window.resize(width, height)
-    if args.page in {"editor", "result"} and library.list_lessons():
+    lesson_id = getattr(args, "lesson_id", None)
+    if lesson_id:
+        bridge.openLesson(lesson_id)
+    elif args.page in {"editor", "result"} and library.list_lessons():
         bridge.openLesson(library.list_lessons()[0]["id"])
     window.setProperty("page", "settings" if args.page == "browser-ai" else args.page)
     if args.page == "browser-ai":

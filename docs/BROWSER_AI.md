@@ -52,6 +52,10 @@ Free có công cụ/tải tệp với giới hạn riêng theo [hướng dẫn O
 
 Prompt yêu cầu PowerPoint chỉnh sửa được, bảo toàn nội dung/hình nguồn theo lựa chọn, Speaker Notes VI:/EN: để đọc và CHECK: cho phần chưa chắc. Nhận tệp → kiểm tra PPTX → lưu bản gốc trả về → chuẩn bị âm thanh nháp nếu bật → xem trình chiếu → giáo viên xác nhận **Dùng để dạy**. Không tự duyệt nội dung hoặc phát âm thanh nháp. Lỗi một giọng đọc không bỏ PowerPoint đã nhận.
 
+Sau khi xác nhận **Dùng để dạy**, mở chính tệp nhận về trong Microsoft PowerPoint, toàn màn hình và chỉ đọc. Mascot đã bật sẽ tự xuất hiện ở dạng trong suốt, thu gọn; kéo để di chuyển, bấm để mở **Đọc tiếng Anh**, **Dừng đọc**, **Trước/Sau**. Nội dung đọc theo slide thực tế, dùng Speaker Notes/cặp ngôn ngữ đã nhận, không dịch lại. Đổi slide hoặc đóng trình chiếu dừng lời đọc trước; kết quả tổng hợp đến muộn không được phát sai slide. Slide chưa có English không bật nút đọc. Không tự phát loa khi vào bài. Cần Microsoft PowerPoint cài trên máy cho luồng này.
+
+Đợt sửa trình chiếu 04/10/2026 được kiểm tra bằng `scripts/qt_teaching_smoke.py`: Qt thật, PowerPoint thật, giọng English cục bộ, ba slide thử, điều khiển view Office bên ngoài worker cùng nút mascot, đóng rồi mở lại, SHA của cả hai bản nguồn không đổi. `scripts/verify_navigation_mascot.py` kiểm tra trong suốt/kéo/lưu vị trí/menu. 30 kiểm thử PowerPoint/conversion/handoff/voice passed. Chưa chứng nhận Presenter View, máy chiếu hay bản đóng gói mới. Hộp hỏi lưu thay đổi thiết lập trình chiếu đã được tránh cho riêng deck chỉ đọc; không tắt cảnh báo toàn bộ Office.
+
 Khi gặp xác minh, đăng nhập hết hạn hoặc giới hạn: dừng, hiện thông báo, giữ trạng thái. Không dùng stealth, giải CAPTCHA hoặc endpoint web nội bộ. **Gửi/nhận thủ công** trong Tùy chọn thêm là dự phòng. Bài đã nhập thư viện có thể mở lại ngay cả khi xóa tài khoản; không gửi lại và không tạo bài trùng.
 
 Ở trang chuyển đổi, **Đăng nhập và tiếp tục** mở đúng hồ sơ/cuộc trò chuyện đã ghi; sau khi xác nhận đăng nhập, tool tự tiếp tục bài đó. Chỉ tiếp tục khi người dùng bấm nút này; đóng/hủy/chưa xác nhận đăng nhập không khởi động chuyển đổi. Bài đã gửi không chuyển sang tài khoản khác.

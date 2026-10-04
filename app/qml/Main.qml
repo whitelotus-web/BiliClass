@@ -86,6 +86,12 @@ ApplicationWindow {
     Connections {
         target: bridge
         function onPowerpointSlideChanged(slide) { if (!root.dirty) bridge.followPowerPoint() }
+        function onPowerpointStarted() {
+            if (bridge.mascotSettings.visible) {
+                companion.collapsed = true
+                bridge.showCompanion(companion)
+            }
+        }
         function onProjectClassroomRequested() { projector.quiz = true; bridge.showProjector(projector, bridge.screens.length > 1 ? 1 : 0) }
         function onNavigate(destination) { root.page = destination === "browser-settings" ? "settings" : destination; if (destination === "browser-settings") settingsPanel.activeTab = 6; root.loadFields(); if (destination === "result" || destination === "editor") { titleInput.text = ""; subjectInput.text = ""; pasteInput.text = ""; root.selectedFile = ""; root.selectedFileName = "" } }
         function onSelectionChanged() { root.loadFields() }
@@ -474,7 +480,7 @@ ApplicationWindow {
                             Copy { Layout.fillWidth: true; text: bridge.busy || bridge.error ? bridge.message : bridge.quickResult.path ? (bridge.quickResult.draft ? "Đã tạo bản trình chiếu · Xem kết quả và xác nhận cả bài để dạy." : "Đã kiểm tra cả bài · Sẵn sàng trình chiếu.") : bridge.quickResult.missing && bridge.quickResult.missing.length ? "Còn " + bridge.quickResult.missing.length + " phần cần sửa trước khi tạo bản trình chiếu." : "Bấm Chuyển đổi để tự bổ sung song ngữ và tạo bản trình chiếu."; color: root.ink }
                             Action { objectName: "convertCurrentLessonButton"; visible: !bridge.quickResult.path; text: "Chuyển đổi bài giảng"; primary: true; enabled: !bridge.busy; onClicked: bridge.convertCurrentLesson() }
                             Action { objectName: "openConvertedDeckButton"; visible: !!bridge.quickResult.path; text: "Xem toàn bộ bài"; enabled: !bridge.busy; onClicked: bridge.openConvertedDeck() }
-                            Action { objectName: "useConvertedLessonButton"; visible: !!bridge.quickResult.path; text: "Dùng để dạy"; primary: true; enabled: !bridge.busy && !bridge.powerpointState.active; onClicked: { if (bridge.quickResult.draft) wholeLessonReview.open(); else bridge.useConvertedLesson() } }
+                            Action { objectName: "useConvertedLessonButton"; visible: !!bridge.quickResult.path; text: "Dùng để dạy"; primary: true; enabled: !bridge.busy && !bridge.powerpointState.active && !bridge.powerpointState.starting; onClicked: { if (bridge.quickResult.draft) wholeLessonReview.open(); else bridge.useConvertedLesson() } }
                         }
                         ProgressBar { visible: bridge.busy; indeterminate: true; Layout.fillWidth: true }
                         Surface {
@@ -495,10 +501,11 @@ ApplicationWindow {
                             Action { text: "Chuyển đổi lại"; subtle: true; implicitHeight: 34; enabled: !bridge.busy && !bridge.powerpointState.active; onClicked: bridge.convertCurrentLesson() }
                         }
                         RowLayout {
-                            Layout.fillWidth: true; visible: bridge.powerpointState.active
+                            Layout.fillWidth: true; visible: !!bridge.powerpointState.active || !!bridge.powerpointState.starting
                             Copy { text: bridge.powerpointState.message || "Đang trình chiếu"; Layout.fillWidth: true }
-                            Action { text: "Slide trước"; onClicked: bridge.navigatePowerPoint("previous") }
-                            Action { text: "Slide tiếp"; onClicked: bridge.navigatePowerPoint("next") }
+                            Action { text: "Slide trước"; enabled: bridge.powerpointState.active; onClicked: bridge.navigatePowerPoint("previous") }
+                            Action { text: "Slide tiếp"; enabled: bridge.powerpointState.active; onClicked: bridge.navigatePowerPoint("next") }
+                            Action { text: "Đọc tiếng Anh"; enabled: bridge.powerpointState.active && !bridge.busy && bridge.audioAvailable.en; onClicked: bridge.speakSegment("en") }
                             Action { text: "Đóng trình chiếu"; onClicked: bridge.stopPowerPoint() }
                         }
                         Action { objectName: "resultDetailsButton"; visible: !!bridge.quickResult.path || !!bridge.quickResult.missing; text: root.resultDetails ? "Thu gọn thông tin" : "Thông tin và điểm cần kiểm tra"; subtle: true; implicitHeight: 32; onClicked: root.resultDetails = !root.resultDetails }

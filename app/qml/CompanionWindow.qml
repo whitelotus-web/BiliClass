@@ -12,10 +12,10 @@ Window {
     readonly property int mascotExtent: Math.max(90, Math.min(178, bridge.mascotSettings.size + 18))
     readonly property bool hasResponse: !bridge.teachingContext.response.untouched
 
-    flags: Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.NoDropShadowWindowHint
+    flags: Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.NoDropShadowWindowHint | Qt.WindowDoesNotAcceptFocus
     title: "BiliClass · Trợ giảng"
     width: collapsed ? mascotExtent : 344
-    height: collapsed ? mascotExtent : mascotExtent + (hasResponse ? 324 : 218)
+    height: collapsed ? mascotExtent : mascotExtent + (hasResponse ? 352 : 246)
     color: "transparent"
 
     function reposition() {
@@ -46,14 +46,15 @@ Window {
                 ActionButton { objectName: "resetCompanionPosition"; text: "Về góc"; implicitHeight: 28; onClicked: { bridge.resetMascotLocation(); bridge.showCompanion(companion) } }
                 ActionButton { objectName: "hideCompanion"; text: "Ẩn"; implicitHeight: 28; onClicked: companion.hide() }
             }
+            Label { visible: bridge.powerpointState.active; text: "Slide " + bridge.powerpointState.slide + " / " + bridge.powerpointState.total; color: "#667997"; font.pixelSize: 12 }
             GridLayout {
                 Layout.fillWidth: true; columns: 2; columnSpacing: 6; rowSpacing: 5
                 ActionButton { objectName: "companionExplain"; text: "English"; iconName: "view"; Layout.fillWidth: true; implicitHeight: 32; onClicked: bridge.teachingContext.ask("explanation", "en") }
                 ActionButton { text: "Ví dụ"; iconName: "add"; Layout.fillWidth: true; implicitHeight: 32; onClicked: bridge.teachingContext.ask("example", "en") }
                 ActionButton { text: "Hỏi lớp"; iconName: "students"; Layout.fillWidth: true; implicitHeight: 32; onClicked: bridge.teachingContext.ask("question", "en") }
                 ActionButton { text: "VI Rescue"; iconName: "back"; Layout.fillWidth: true; implicitHeight: 32; onClicked: bridge.teachingContext.ask("rescue", "vi") }
-                ActionButton { text: "Phát âm"; iconName: "play"; Layout.fillWidth: true; implicitHeight: 32; enabled: !bridge.busy; onClicked: bridge.speakSegment("en") }
-                ActionButton { text: "Dừng đọc"; iconName: "pause"; Layout.fillWidth: true; implicitHeight: 32; onClicked: bridge.stopSpeech() }
+                ActionButton { objectName: "companionReadEnglish"; text: "Đọc tiếng Anh"; iconName: "play"; Layout.fillWidth: true; implicitHeight: 32; enabled: !bridge.busy && bridge.audioAvailable.en; onClicked: bridge.speakSegment("en") }
+                ActionButton { objectName: "companionStopSpeech"; text: "Dừng đọc"; iconName: "pause"; Layout.fillWidth: true; implicitHeight: 32; onClicked: bridge.stopSpeech() }
             }
             ScrollView {
                 visible: companion.hasResponse
@@ -62,10 +63,10 @@ Window {
             }
             RowLayout {
                 Layout.fillWidth: true
-                ActionButton { text: "Trước"; iconName: "previous"; implicitHeight: 30; onClicked: bridge.powerpointState.active ? bridge.navigatePowerPoint("previous") : bridge.selectSegment(bridge.segmentIndex - 1) }
+                ActionButton { objectName: "companionPrevious"; text: "Trước"; iconName: "previous"; implicitHeight: 30; onClicked: bridge.powerpointState.active ? bridge.navigatePowerPoint("previous") : bridge.selectSegment(bridge.segmentIndex - 1) }
                 Item { Layout.fillWidth: true }
                 ActionButton { text: "Theo slide"; visible: bridge.powerpointState.active; implicitHeight: 30; onClicked: bridge.followPowerPoint() }
-                ActionButton { text: "Sau"; iconName: "next"; implicitHeight: 30; onClicked: bridge.powerpointState.active ? bridge.navigatePowerPoint("next") : bridge.selectSegment(bridge.segmentIndex + 1) }
+                ActionButton { objectName: "companionNext"; text: "Sau"; iconName: "next"; implicitHeight: 30; onClicked: bridge.powerpointState.active ? bridge.navigatePowerPoint("next") : bridge.selectSegment(bridge.segmentIndex + 1) }
             }
         }
     }

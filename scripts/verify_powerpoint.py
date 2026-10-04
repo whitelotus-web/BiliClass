@@ -50,7 +50,7 @@ def main():
             worker.stop()
             wait(lambda: not worker.isRunning())
         report = {"status": "passed", "trace": states, "source_unchanged": True,
-                  "scope": "Office on current machine, windowed slideshow; no projector certification"}
+                  "scope": "Office on current machine, native full-screen slideshow; no projector certification"}
         target = Path(__file__).resolve().parents[1] / "reports/app/powerpoint-companion.json"
         target.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
         print(json.dumps({"status": "passed", "slides": 3}))

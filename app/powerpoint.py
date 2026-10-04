@@ -15,6 +15,22 @@ def slide_for_locator(locator):
     return int(match.group(1)) if match else None
 
 
+def slide_segment_indexes(lesson, slide, source_map=(), segment_map=()):
+    """Resolve the displayed slide, including blank slides and split source text."""
+    if type(slide) is not int or slide < 1:
+        return []
+    segments = lesson.get("segments", [])
+    if segment_map:
+        segment_id = segment_map[slide - 1] if slide <= len(segment_map) else None
+        return [i for i, segment in enumerate(segments) if segment["id"] == segment_id]
+    if source_map:
+        if slide > len(source_map):
+            return []
+        slide = source_map[slide - 1]
+    return [i for i, segment in enumerate(segments)
+            if slide_for_locator(segment.get("locator", "")) == slide]
+
+
 def verified_presentation(lesson, library_directory):
     source = lesson.get("source") or {}
     filename = source.get("file", "")
@@ -28,6 +44,21 @@ def verified_presentation(lesson, library_directory):
     return path
 
 
+def slideshow_handle(path):
+    """Resolve the native window without relying on optional COM HWND members."""
+    import win32gui
+
+    matches = []
+
+    def collect(hwnd, _):
+        if (win32gui.IsWindowVisible(hwnd) and win32gui.GetClassName(hwnd) == "screenClass"
+                and Path(path).stem.casefold() in win32gui.GetWindowText(hwnd).casefold()):
+            matches.append(hwnd)
+
+    win32gui.EnumWindows(collect, None)
+    return matches[-1] if len(matches) == 1 else 0
+
+
 def _office_session(path, initial_slide, commands, events):
     import psutil
     import pythoncom
@@ -38,11 +69,23 @@ def _office_session(path, initial_slide, commands, events):
     )
     pythoncom.CoInitialize()
     application = presentation = window = view = slide = None
+    show_closed = False
+
+    def progress(message):
+        events.put({"active": False, "starting": True, "slide": 0, "total": 0, "message": message})
+
     try:
+        progress("Đang kết nối PowerPoint…")
         application = win32com.client.DispatchEx("PowerPoint.Application")
+        progress("Đang mở bài giảng trong PowerPoint…")
         presentation = application.Presentations.Open(path, ReadOnly=True, Untitled=False, WithWindow=False)
-        presentation.SlideShowSettings.ShowType = 2
+        presentation.SlideShowSettings.ShowType = 1  # ppShowTypeSpeaker: native full-screen slideshow.
+        progress("Đang mở trình chiếu toàn màn hình…")
         window = presentation.SlideShowSettings.Run()
+        try:
+            hwnd = slideshow_handle(path)
+        except Exception:
+            hwnd = 0  # Presentation and narration still work without window positioning.
         view = window.View
         total = presentation.Slides.Count
         if 1 <= initial_slide <= total:
@@ -67,21 +110,26 @@ def _office_session(path, initial_slide, commands, events):
                 slide = view.Slide
                 current = (slide.SlideIndex, slide.SlideID)
             except Exception:
+                show_closed = True
                 break  # User closed the slideshow; normal end of companion session.
             if current != last:
                 events.put({"active": True, "slide": current[0], "slide_id": current[1], "total": total,
+                            "hwnd": hwnd,
                             "message": f"PowerPoint · slide {current[0]}/{total}"})
                 last = current
     except Exception as exc:
         events.put({"error": "Không thể điều khiển PowerPoint: " + str(exc)})
     finally:
-        if window is not None:
+        if window is not None and not show_closed:
             try:
-                window.View.Exit()
+                view.Exit()
             except Exception:
                 pass
         if presentation is not None:
             try:
+                # Changing in-memory slideshow settings dirties even a read-only
+                # deck. Discard those settings without a Save As dialog or write.
+                presentation.Saved = True
                 presentation.Close()  # Only the read-only deck this session opened.
             except Exception:
                 pass
@@ -136,7 +184,7 @@ class PowerPointSession(QThread):
                     if "error" in state:
                         self.failed.emit(state["error"])
                     else:
-                        ready = True
+                        ready = ready or bool(state.get("active"))
                         self.stateChanged.emit(state)
                 except queue.Empty:
                     pass
@@ -155,8 +203,8 @@ class PowerPointSession(QThread):
                         self.failed.emit(state["error"])
                 except queue.Empty:
                     break
-        except Exception as exc:
-            self.failed.emit(str(exc))
+        except Exception:
+            self.failed.emit("Chưa khởi động được trình chiếu. Hãy đóng BiliClass và mở lại bằng lối khởi động chính thức.")
         finally:
             if process.is_alive():
                 process.terminate()
