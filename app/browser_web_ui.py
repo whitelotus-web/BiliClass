@@ -13,6 +13,7 @@ from .browser_accounts import BrowserAccounts
 
 class WebLoginJob(QThread):
     progress = Signal(str)
+    confirmation = Signal(bool)
 
     def __init__(self, account, root, parent, *, url="", resume=False):
         super().__init__(parent)
@@ -20,12 +21,14 @@ class WebLoginJob(QThread):
         self.url, self.resume = url, resume
         self.request_folder = parent.bridge.chatgptRequest.get("folder", "") if resume else ""
         self.cancel = Event()
+        self.finish_login = Event()
         self.result, self.error, self.error_code = None, "", ""
 
     def run(self):
         try:
             options = {"url": self.url} if self.url else {}
-            self.result = browser_automation.login(self.account, self.root, self.cancel, self.progress.emit, **options)
+            self.result = browser_automation.login(self.account, self.root, self.cancel, self.progress.emit,
+                finish=self.finish_login, awaiting_confirmation=self.confirmation.emit, **options)
         except (browser_automation.BrowserProblem, ValueError) as exc:
             self.error = str(exc)
             self.error_code = getattr(exc, "code", "browser")
@@ -45,6 +48,7 @@ class WebBrowserAI(QObject):
         self.bridge = bridge
         self.store = BrowserAccounts(bridge.library.directory)
         self.job = None
+        self._awaiting_confirmation = False
         self._error = False
         self._error_code = ""
         self._message = "Đăng nhập ChatGPT Free hoặc Plus trong cửa sổ riêng. Phiên được tự lưu trên máy."
@@ -127,6 +131,10 @@ class WebBrowserAI(QObject):
     def loginBusy(self):
         return self.job is not None
 
+    @Property(bool, notify=changed)
+    def loginAwaitingConfirmation(self):
+        return self.job is not None and self._awaiting_confirmation
+
     @Property(bool, constant=True)
     def disconnectBusy(self):
         return False
@@ -180,7 +188,11 @@ class WebBrowserAI(QObject):
 
     @Slot()
     def connectAccount(self):
-        if self.job:
+        if self.loginAwaitingConfirmation:
+            self.job.finish_login.set()
+            self._awaiting_confirmation = False
+            self.inform("Đang lưu và kiểm tra phiên Chrome…")
+        elif self.job:
             self.job.cancel.set()
             self.inform("Đang đóng cửa sổ đăng nhập…")
         elif self.accountInfo.get("ready") and not self.store.data.get("pending_login"):
@@ -213,13 +225,20 @@ class WebBrowserAI(QObject):
         self._error_code = ""
         self.job = WebLoginJob(self.store.get(account_id), self.store.root, self, url=url, resume=resume)
         self.job.progress.connect(self.inform)
+        self.job.confirmation.connect(self._confirmation)
         self.job.finished.connect(self._finished)
         self.job.start()
         self.inform("Đang mở ChatGPT trong Chrome riêng. Đăng nhập trực tiếp ở cửa sổ vừa mở…")
 
+    @Slot(bool)
+    def _confirmation(self, value):
+        self._awaiting_confirmation = value
+        self.changed.emit()
+
     @Slot()
     def _finished(self):
         job, self.job = self.job, None
+        self._awaiting_confirmation = False
         if job.error:
             self._error = True
             self._error_code = job.error_code
@@ -253,7 +272,7 @@ class WebBrowserAI(QObject):
     @Slot(str, str, str)
     def _failed(self, account_id, code, message):
         self.store.login_error(account_id, code, message)
-        if code in {"login", "verification"}:
+        if code in {"login", "verification", "auth_response"}:
             self.store.begin_login(account_id)
         self._restore_error()
         self.inform(message)

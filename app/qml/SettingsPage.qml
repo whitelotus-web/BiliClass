@@ -481,7 +481,7 @@ Item {
                         }
                         SaveButton {
                             objectName: "browserAccountAdd"
-                            text: bridge.browserAI.disconnectBusy ? "Đang xóa…" : bridge.browserAI.loginBusy ? "Hủy" : bridge.browserAI.webMode ? (bridge.browserAI.accountInfo.ready ? "Thêm tài khoản" : "Đăng nhập ChatGPT") : bridge.browserAI.activeId ? "Đăng nhập lại" : "Đăng nhập ChatGPT"
+                            text: bridge.browserAI.disconnectBusy ? "Đang xóa…" : bridge.browserAI.webMode && bridge.browserAI.loginAwaitingConfirmation ? "Kiểm tra và lưu" : bridge.browserAI.loginBusy ? "Hủy" : bridge.browserAI.webMode ? (bridge.browserAI.accountInfo.ready ? "Thêm tài khoản" : "Đăng nhập ChatGPT") : bridge.browserAI.activeId ? "Đăng nhập lại" : "Đăng nhập ChatGPT"
                             enabled: !bridge.busy && !bridge.browserAI.disconnectBusy
                             onClicked: bridge.browserAI.connectAccount()
                         }
@@ -558,7 +558,7 @@ Item {
                         enabled: !bridge.busy
                         onClicked: bridge.browserAI.useManualBrowser()
                     }
-                    Hint { text: "Cửa sổ đăng nhập tự đóng khi xong. Chỉ khi có thông tin tài khoản ở đây thì kết nối mới được lưu."; Layout.fillWidth: true; font.pixelSize: 12 }
+                    Hint { text: bridge.browserAI.webMode ? "Vào được màn hình chat rồi bấm Kiểm tra và lưu. BiliClass chỉ báo đã kết nối sau khi kiểm tra được phiên đã lưu." : "Cửa sổ đăng nhập tự đóng khi xong. Chỉ khi có thông tin tài khoản ở đây thì kết nối mới được lưu."; Layout.fillWidth: true; font.pixelSize: 12 }
                 }
             }
         }

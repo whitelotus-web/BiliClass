@@ -17,6 +17,51 @@ class ChromeSessionError(ValueError):
     pass
 
 
+class PlainChromeLogin:
+    """Human sign-in in Chrome with no driver/debug connection attached."""
+
+    def __init__(self, account, url):
+        profile = Path(account["profile"])
+        if account.get("channel") != "chrome" or profile.name != "chrome":
+            raise ChromeSessionError("Hồ sơ đăng nhập Chrome không hợp lệ.")
+        profile.mkdir(parents=True, exist_ok=True)
+        self.process = subprocess.Popen(
+            [str(chrome_executable()), f"--user-data-dir={profile}", "--no-first-run",
+             "--no-default-browser-check", "--new-window", url],
+            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+        )
+
+    def running(self):
+        return self.process.poll() is None
+
+    def finish(self):
+        """Ask only our Chrome windows to close and flush their saved session."""
+        if not self.running():
+            return
+        if os.name == "nt":
+            import win32con
+            import win32gui
+            import win32process
+
+            def close_window(hwnd, _):
+                if win32process.GetWindowThreadProcessId(hwnd)[1] == self.process.pid and win32gui.IsWindowVisible(hwnd):
+                    win32gui.PostMessage(hwnd, win32con.WM_CLOSE, 0, 0)
+            win32gui.EnumWindows(close_window, None)
+        else:
+            self.process.terminate()
+        try:
+            self.process.wait(timeout=10)
+        except subprocess.TimeoutExpired as exc:
+            raise ChromeSessionError("Chrome chưa đóng để lưu phiên. Đóng cửa sổ Chrome riêng rồi bấm kiểm tra lại.") from exc
+
+    def close(self):
+        try:
+            self.finish()
+        except ChromeSessionError:
+            stop_process(self.process)
+
+
 def chrome_executable():
     candidates = []
     if os.name == "nt":

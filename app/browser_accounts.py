@@ -40,7 +40,7 @@ class BrowserAccounts:
                     account["last_error"] = {"code": "browser_changed",
                         "message": "Browser AI đã chuyển sang Chrome. Đăng nhập lại một lần để lưu phiên Chrome riêng."}
                     migrated = True
-                if account.get("last_error", {}).get("code") in {"login", "verification"}:
+                if account.get("last_error", {}).get("code") in {"login", "verification", "auth_response"}:
                     account.update(ready=False, status="Cần đăng nhập / xác minh")
             if migrated:
                 self.save()
@@ -116,7 +116,7 @@ class BrowserAccounts:
         for account in self.data["accounts"]:
             if account["id"] == account_id:
                 account["last_error"] = {"code": code, "message": message}
-                if code in {"login", "verification"}:
+                if code in {"login", "verification", "auth_response"}:
                     account.update(ready=False, status="Cần đăng nhập / xác minh")
                 self.save()
                 return

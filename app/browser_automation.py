@@ -67,6 +67,7 @@ def verification_required(page):
 def page_problem(page):
     if verification_required(page):
         raise BrowserProblem("verification", VERIFICATION_MESSAGE)
+    authentication_problem(page)
     if urlsplit(page.url).hostname in {"auth.openai.com", "auth0.openai.com"}:
         raise BrowserProblem("login", "Phiên ChatGPT hết hạn. Đăng nhập lại tài khoản trong Browser AI.")
     if visible(page, LOGIN):
@@ -78,6 +79,18 @@ def page_problem(page):
                               r"too many requests|đã (?:đạt|hết).{0,30}(?:giới hạn|hạn mức)|"
                               r"hết (?:lượt|hạn mức)|try again later", notice.inner_text(), re.I)):
             raise BrowserProblem("limit", "ChatGPT báo giới hạn lượt dùng. Bài được giữ lại để tiếp tục khi tài khoản dùng được.")
+
+
+def authentication_problem(page):
+    """Recognize the actual full-page error, never lesson text or tokens."""
+    if (urlsplit(page.url).hostname not in {"chatgpt.com", "auth.openai.com", "auth0.openai.com"}
+            or visible(page, COMPOSER)):
+        return
+    heading = page.get_by_role("heading", name=re.compile(r"Oops,? an error occurred!?|Authentication Error", re.I))
+    if any(item.is_visible() for item in heading.all()):
+        error = page.get_by_text(re.compile(r"Route Error.*(?:400|Invalid content type)|Invalid content type", re.I))
+        if any(item.is_visible() for item in error.all()):
+            raise BrowserProblem("auth_response", "Trang đăng nhập ChatGPT trả lỗi 400 ‘Invalid content type’. Chưa lưu được kết nối; thử đăng nhập lại trong Chrome bình thường của BiliClass.")
 
 
 def navigate(page, url, cancel):
@@ -143,7 +156,7 @@ def login_page(context, previous):
     return pages[-1] if pages else None
 
 
-def login(account, root, cancel, progress, url=CHATGPT, *, auto_close=True, timeout=600, verification_timeout=None):
+def login_observed(account, root, cancel, progress, url=CHATGPT, *, auto_close=True, timeout=600, verification_timeout=None):
     from playwright.sync_api import Error, sync_playwright
 
     from .browser_capabilities import detect_account
@@ -179,6 +192,7 @@ def login(account, root, cancel, progress, url=CHATGPT, *, auto_close=True, time
                             raise BrowserProblem("verification", VERIFICATION_MESSAGE)
                         page.wait_for_timeout(250)
                         continue
+                    authentication_problem(page)
                     verification_since = None
                     if auto_close and signed_in(page):
                         ready_since = ready_since or time.monotonic()
@@ -216,6 +230,52 @@ def login(account, root, cancel, progress, url=CHATGPT, *, auto_close=True, time
                 context.close()
             except Error:
                 pass
+
+
+def login(account, root, cancel, progress, url=CHATGPT, *, finish=None, awaiting_confirmation=None, timeout=600):
+    """Let the human authenticate before attaching any browser controller."""
+    from threading import Event
+
+    from .chrome_session import PlainChromeLogin
+
+    finish = finish or Event()
+    target = url if conversation_url(url) else CHATGPT
+    with profile_lock(root, account["id"]):
+        check_cancel(cancel)
+        browser = PlainChromeLogin(account, target)
+        try:
+            if awaiting_confirmation:
+                awaiting_confirmation(True)
+            progress("Đăng nhập trực tiếp trong Chrome. Khi đã vào ChatGPT, bấm ‘Kiểm tra và lưu’ tại BiliClass hoặc đóng cửa sổ Chrome riêng.")
+            deadline = time.monotonic() + timeout
+            while browser.running() and not finish.is_set():
+                check_cancel(cancel)
+                if time.monotonic() >= deadline:
+                    raise BrowserProblem("timeout", "Chưa xác nhận đăng nhập trong thời gian chờ. Hồ sơ Chrome được giữ; mở lại để tiếp tục.")
+                cancel.wait(.2)
+            check_cancel(cancel)
+            browser.finish()
+        finally:
+            browser.close()
+            if awaiting_confirmation:
+                awaiting_confirmation(False)
+        check_cancel(cancel)
+        progress("Đang kiểm tra tài khoản từ phiên Chrome đã lưu…")
+        from playwright.sync_api import Error, sync_playwright
+
+        from .browser_capabilities import detect_account
+
+        with sync_playwright() as playwright:
+            context = open_context(playwright, account, background=True, cancel=cancel)
+            try:
+                page = context.pages[0] if context.pages else context.new_page()
+                navigate(page, target, cancel)
+                require_account(page, cancel)
+                return {"ready": True, **detect_account(page, PROFILE)}
+            except Error as exc:
+                raise BrowserProblem("browser", "Chưa kiểm tra được phiên Chrome đã lưu. Thử đăng nhập lại trong Browser AI.") from exc
+            finally:
+                context.close()
 
 
 def write_record(folder, record):

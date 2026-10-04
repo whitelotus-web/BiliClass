@@ -99,12 +99,13 @@ def test_failed_added_account_is_retryable_without_changing_conversion_preferenc
     assert resumed.preferred()["plan"] == "plus"
 
 
-def test_expired_profile_is_not_used_for_new_jobs_and_recovers_after_login(tmp_path):
+@pytest.mark.parametrize("code", ["login", "verification", "auth_response"])
+def test_expired_profile_is_not_used_for_new_jobs_and_recovers_after_login(tmp_path, code):
     accounts = BrowserAccounts(tmp_path)
     plus, free = accounts.add("Plus"), accounts.add("Free")
     accounts.observe(plus["id"], "plus")
     accounts.observe(free["id"], "free")
-    accounts.login_error(plus["id"], "login", "Session expired")
+    accounts.login_error(plus["id"], code, "Session unavailable")
     assert not accounts.get(plus["id"])["ready"] and accounts.preferred()["id"] == free["id"]
     assert not BrowserAccounts(tmp_path).get(plus["id"])["ready"]
     accounts.observe(plus["id"], "plus", identity={"name": "Teacher"})
@@ -428,7 +429,7 @@ def test_login_saves_automatically_without_finish_button(browser_fixture, monkey
         return opening(playwright, account, background=True, cancel=cancel)  # The test remains unobtrusive.
 
     monkeypatch.setattr(adapter, "open_context", login_browser)
-    result = adapter.login(accounts.get(), accounts.root, Event(), lambda _: None)
+    result = adapter.login_observed(accounts.get(), accounts.root, Event(), lambda _: None)
     assert result["ready"] and result["plan"] == "plus" and not captured["sends"]
     assert captured["contexts"] == 2  # Confirm the saved session in a new Chrome process.
     with profile_lock(accounts.root, accounts.get()["id"]):
@@ -441,7 +442,81 @@ def test_guest_composer_with_profile_control_is_not_a_saved_login(browser_fixtur
     opening = adapter.open_context
     monkeypatch.setattr(adapter, "open_context", lambda playwright, account, **_: opening(playwright, account, background=True))
     with pytest.raises(BrowserProblem, match="Hết thời gian"):
-        adapter.login(accounts.get(), accounts.root, Event(), lambda _: None, timeout=2)
+        adapter.login_observed(accounts.get(), accounts.root, Event(), lambda _: None, timeout=2)
+    assert not accounts.get()["ready"] and not captured["sends"]
+
+
+@pytest.fixture
+def plain_login(browser_fixture, monkeypatch):
+    from app import chrome_session
+
+    adapter, accounts, _, captured, _ = browser_fixture
+    native = {"opened": [], "closed": 0, "running": False}
+
+    class Plain:
+        def __init__(self, account, url):
+            native["opened"].append((account["id"], url))
+
+        def running(self):
+            return native["running"]
+
+        def finish(self):
+            native["running"] = False
+
+        def close(self):
+            native["closed"] += 1
+            native["running"] = False
+
+    monkeypatch.setattr(chrome_session, "PlainChromeLogin", Plain)
+    return adapter, accounts, captured, native
+
+
+def test_plain_login_attaches_only_after_user_confirmation_and_saves_once(plain_login):
+    adapter, accounts, captured, native = plain_login
+    native["running"] = True
+    finish = Event()
+    phases = []
+
+    def confirmation(waiting):
+        phases.append(waiting)
+        if waiting:
+            assert captured["contexts"] == 0 and not captured["sends"]
+            finish.set()  # Simulated human confirmation, not web form automation.
+
+    result = adapter.login(accounts.get(), accounts.root, Event(), lambda _: None,
+        finish=finish, awaiting_confirmation=confirmation, timeout=10)
+    assert result["ready"] and phases == [True, False] and captured["contexts"] == 1
+    assert native["opened"] == [(accounts.get()["id"], adapter.CHATGPT)] and native["closed"] == 1
+    assert not captured["sends"]
+
+
+def test_plain_login_cancel_does_not_attach_or_mark_account_ready(plain_login):
+    adapter, accounts, captured, native = plain_login
+    native["running"] = True
+    cancel = Event()
+    with pytest.raises(BrowserProblem) as error:
+        adapter.login(accounts.get(), accounts.root, cancel, lambda _: None,
+            awaiting_confirmation=lambda waiting: cancel.set() if waiting else None)
+    assert error.value.code == "cancelled" and captured["contexts"] == 0
+    assert native["closed"] == 1 and not accounts.get()["ready"]
+    with profile_lock(accounts.root, accounts.get()["id"]):
+        pass
+
+
+def test_plain_login_closed_before_sign_in_is_not_connected(plain_login):
+    adapter, accounts, captured, _ = plain_login
+    captured["html"] = FIXTURE.replace('<textarea', '<button data-testid="login-button">Log in</button><textarea')
+    with pytest.raises(BrowserProblem) as error:
+        adapter.login(accounts.get(), accounts.root, Event(), lambda _: None)
+    assert error.value.code == "login" and not accounts.get()["ready"] and not captured["sends"]
+
+
+def test_authentication_content_type_error_is_not_session_timeout(plain_login):
+    adapter, accounts, captured, _ = plain_login
+    captured["html"] = '<html><h1>Oops, an error occurred!</h1><p>Route Error (400 Invalid content type: text/html; charset=UTF-8)</p></html>'
+    with pytest.raises(BrowserProblem) as error:
+        adapter.login(accounts.get(), accounts.root, Event(), lambda _: None)
+    assert error.value.code == "auth_response" and "400" in str(error.value)
     assert not accounts.get()["ready"] and not captured["sends"]
 
 
@@ -459,7 +534,7 @@ def test_slow_first_document_keeps_login_alive_and_can_finish(browser_fixture, m
 
     monkeypatch.setattr(adapter, "navigate", slow_navigation)
     messages = []
-    result = adapter.login(accounts.get(), accounts.root, Event(), messages.append, timeout=10)
+    result = adapter.login_observed(accounts.get(), accounts.root, Event(), messages.append, timeout=10)
     assert result["ready"] and captured["contexts"] == 2 and not captured["sends"]
     assert any("tải chậm" in message for message in messages)
 
@@ -475,7 +550,7 @@ def test_slow_first_document_waits_for_user_cancel_without_false_success(browser
         if "tải chậm" in message:
             cancel.set()
 
-    result = adapter.login(accounts.get(), accounts.root, cancel, progress, timeout=10)
+    result = adapter.login_observed(accounts.get(), accounts.root, cancel, progress, timeout=10)
     assert not result["ready"] and cancel.is_set() and captured["contexts"] == 1
     assert not accounts.get()["ready"] and not captured["sends"]
 
@@ -490,7 +565,7 @@ def test_visible_login_is_not_ready_if_saved_chrome_session_cannot_reopen(browse
             captured["html"] = FIXTURE.replace('<textarea', '<button data-testid="login-button">Log in</button><textarea')
 
     with pytest.raises(BrowserProblem) as error:
-        adapter.login(accounts.get(), accounts.root, Event(), progress, timeout=10)
+        adapter.login_observed(accounts.get(), accounts.root, Event(), progress, timeout=10)
     assert error.value.code == "login"
     assert captured["contexts"] == 2 and not accounts.get()["ready"] and not captured["sends"]
 
@@ -502,7 +577,7 @@ def test_login_verification_loop_stops_with_recoverable_reason_and_releases_prof
     monkeypatch.setattr(adapter, "open_context", lambda playwright, account, **_: opening(playwright, account, background=True))
     messages = []
     with pytest.raises(BrowserProblem) as failure:
-        adapter.login(accounts.get(), accounts.root, Event(), messages.append, timeout=10, verification_timeout=.3)
+        adapter.login_observed(accounts.get(), accounts.root, Event(), messages.append, timeout=10, verification_timeout=.3)
     assert failure.value.code == "verification"
     assert "Cloudflare" in str(failure.value)
     assert any("xác minh" in message for message in messages)
@@ -530,7 +605,7 @@ def test_login_can_finish_after_user_resolves_fixture_challenge(browser_fixture,
             # session returns directly to signed-in controls on next launch.
             captured["html"] = models_fixture("Free")
 
-    result = adapter.login(accounts.get(), accounts.root, Event(), progress, timeout=10, verification_timeout=5)
+    result = adapter.login_observed(accounts.get(), accounts.root, Event(), progress, timeout=10, verification_timeout=5)
     assert result["ready"] and result["plan"] == "free"
     accounts.observe(accounts.get()["id"], result["plan"], identity=result)
     assert "last_error" not in accounts.get() and not captured["sends"]
@@ -547,7 +622,7 @@ def test_cancel_during_verification_is_not_success_or_unnecessary_timeout(browse
         if "xác minh" in message:
             cancel.set()
 
-    result = adapter.login(accounts.get(), accounts.root, cancel, on_progress, timeout=10, verification_timeout=5)
+    result = adapter.login_observed(accounts.get(), accounts.root, cancel, on_progress, timeout=10, verification_timeout=5)
     assert not result["ready"] and cancel.is_set() and not captured["sends"]
 
 

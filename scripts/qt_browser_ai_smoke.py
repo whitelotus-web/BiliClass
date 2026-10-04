@@ -46,6 +46,15 @@ def fake_login(account, root, cancel, progress, **options):
         raise browser_automation.BrowserProblem("verification", browser_automation.VERIFICATION_MESSAGE)
     if len(attempts) == 6:
         assert options["url"] == "https://chatgpt.com/c/fixture" and account["id"] == free_id
+    if len(attempts) in {3, 6}:
+        options["awaiting_confirmation"](True)
+        deadline = time.monotonic() + 15
+        while not options["finish"].is_set():
+            assert time.monotonic() < deadline, "UI did not confirm the plain Chrome sign-in"
+            if cancel.wait(.05):
+                raise browser_automation.BrowserProblem("cancelled", "Đã hủy đăng nhập.")
+        assert not cancel.is_set(), "Confirmation must verify, not cancel"
+        options["awaiting_confirmation"](False)
     plan = "free" if len(attempts) in {3, 6} else "plus"
     return {"ready": True, "plan": plan, "name": "Cô giáo thử " + plan, "email": plan + "@example.test"}
 
@@ -133,6 +142,13 @@ def step():
             window.findChild(QObject, "settingsPage").setProperty("activeTab", 6)
             stages.append("Verification error persisted; explicit manual fallback does not mark an account ready")
             click("browserAccountAdd")
+            phase = "confirm_free"
+        elif phase == "confirm_free" and bridge.browserAI.loginAwaitingConfirmation:
+            assert not bridge.browserAI.accountInfo["ready"]
+            assert window.findChild(QObject, "browserAccountAdd").property("text") == "Kiểm tra và lưu"
+            capture("login-confirm.png")
+            click("browserAccountAdd")
+            assert not bridge.browserAI.loginAwaitingConfirmation
             phase = "free"
         elif phase == "free" and not bridge.browserAI.loginBusy:
             assert bridge.browserAI.accountInfo["ready"] and bridge.browserAI.accountInfo["plan"] == "free"
@@ -142,7 +158,7 @@ def step():
             assert window.findChild(QObject, "browserAccountAdd").property("text") == "Thêm tài khoản"
             assert "số dư" in window.findChild(QObject, "browserQuotaStatus").property("text")
             capture("free-connected.png")
-            stages.append("One login button; closed window is not success; successful Free session saved")
+            stages.append("One primary button confirms plain Chrome sign-in; closing early is not success; verified Free session saved")
             click("browserAccountAdd")
             phase = "plus_failed"
         elif phase == "plus_failed" and not bridge.browserAI.loginBusy:
@@ -176,6 +192,13 @@ def step():
             capture("conversion-reconnect.png")
             click("browserConversionResume")
             stages.append("Failed new account retries its own profile; conversion verification clears stale ready state and reconnects its pinned account")
+            phase = "confirm_resume"
+        elif phase == "confirm_resume" and bridge.browserAI.loginAwaitingConfirmation:
+            window.setProperty("page", "settings")
+            window.findChild(QObject, "settingsPage").setProperty("activeTab", 6)
+            assert len(conversions) == 1 and not bridge.browserAI.accountInfo["ready"]
+            assert window.findChild(QObject, "browserAccountAdd").property("text") == "Kiểm tra và lưu"
+            click("browserAccountAdd")
             phase = "converted"
         elif phase == "converted" and not bridge.busy and not bridge.browserAI.loginBusy and len(conversions) == 2:
             assert not bridge.error, bridge.message

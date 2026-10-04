@@ -276,7 +276,7 @@ class Bridge(QObject):
             except (OSError, ValueError):
                 pass
         self._browser_state.update(running=False, phase="error", message=message, errorCode=code,
-                                   needsLogin=code in {"login", "verification"})
+                                   needsLogin=code in {"login", "verification", "auth_response"})
 
     def _run_web_conversion(self):
         import json
