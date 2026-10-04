@@ -109,59 +109,101 @@ def require_account(page, cancel, timeout=30):
     raise BrowserProblem("interface", "Chưa xác nhận được tài khoản ChatGPT hoặc giao diện web đã đổi. Mở browser để kiểm tra.")
 
 
-def open_context(playwright, account, *, headless):
+def open_context(playwright, account, *, background, cancel=None):
+    from .chrome_session import open_chrome
+
+    if cancel:
+        check_cancel(cancel)
     try:
-        return playwright.chromium.launch_persistent_context(
-            account["profile"], channel=account["channel"], headless=headless,
-            accept_downloads=True, viewport={"width": 1360, "height": 900},
-            timeout=30000, chromium_sandbox=True,
-        )
+        return open_chrome(playwright, account, background=background, cancel=cancel)
     except Exception as exc:
+        from .chrome_session import ChromeSessionError
+
+        if cancel:
+            check_cancel(cancel)
+        if isinstance(exc, ChromeSessionError):
+            raise BrowserProblem("browser", str(exc)) from exc
         # Never show driver logs; they may include session URLs or profile details.
-        raise BrowserProblem("browser", "Chưa mở được browser riêng. Cài/cập nhật Microsoft Edge và đóng phiên đang dùng tài khoản này.") from exc
+        raise BrowserProblem("browser", "Chưa mở được Chrome riêng. Cài/cập nhật Google Chrome và đóng phiên đang dùng tài khoản này.") from exc
 
 
-def login(account, root, cancel, progress, url=CHATGPT, *, auto_close=True, timeout=600, verification_timeout=60):
+def signed_in(page):
+    return bool(urlsplit(page.url).hostname == "chatgpt.com" and visible(page, PROFILE)
+                and visible(page, COMPOSER) and not visible(page, LOGIN))
+
+
+def login_page(context, previous):
+    """Follow the ChatGPT tab when login returns in a new tab/window."""
+    pages = [p for p in context.pages if not p.is_closed()]
+    for page in reversed(pages):
+        if urlsplit(page.url).hostname == "chatgpt.com" and signed_in(page):
+            return page
+    if not previous.is_closed():
+        return previous
+    return pages[-1] if pages else None
+
+
+def login(account, root, cancel, progress, url=CHATGPT, *, auto_close=True, timeout=600, verification_timeout=None):
     from playwright.sync_api import Error, sync_playwright
 
     from .browser_capabilities import detect_account
 
     with profile_lock(root, account["id"]), sync_playwright() as playwright:
-        context = open_context(playwright, account, headless=False)
+        context = open_context(playwright, account, background=False, cancel=cancel)
         try:
             page = context.pages[0] if context.pages else context.new_page()
-            navigate(page, url if conversation_url(url) else CHATGPT, cancel)
-            progress("Đăng nhập trên web. Tool sẽ tự lưu phiên khi đăng nhập thành công.")
+            try:
+                navigate(page, url if conversation_url(url) else CHATGPT, cancel)
+                progress("Đăng nhập trên web. Tool sẽ tự lưu phiên khi đăng nhập thành công.")
+            except BrowserProblem as exc:
+                if exc.code != "network":
+                    raise
+                # A slow first document is not a failed sign-in. Leave the
+                # native window available; never restart a pending auth flow.
+                progress("ChatGPT đang tải chậm trong Chrome. Giữ cửa sổ mở hoặc kiểm tra truy cập tại đó; tool vẫn chờ đăng nhập.")
             ready_since = None
             verification_since = None
+            identity = None
             deadline = time.monotonic() + timeout
             while not cancel.is_set() and time.monotonic() < deadline:
-                if page.is_closed():
-                    return {"ready": False, "message": "Đã đóng browser. Có thể mở lại để kiểm tra phiên."}
                 try:
+                    page = login_page(context, page)
+                    if page is None:
+                        return {"ready": False, "message": "Đã đóng Chrome. Có thể mở lại để kiểm tra phiên."}
                     if verification_required(page):
                         ready_since = None
                         if verification_since is None:
                             verification_since = time.monotonic()
-                            progress("Đang chờ bạn xác minh trên ChatGPT. Nếu xác minh vẫn lặp lại, phiên riêng sẽ dừng sau một phút.")
-                        if time.monotonic() - verification_since >= verification_timeout:
+                            progress("Đang chờ bạn xác minh trên ChatGPT trong Chrome. Giữ cửa sổ này mở để hoàn tất; có thể bấm Hủy trong tool.")
+                        if verification_timeout is not None and time.monotonic() - verification_since >= verification_timeout:
                             raise BrowserProblem("verification", VERIFICATION_MESSAGE)
                         page.wait_for_timeout(250)
                         continue
                     verification_since = None
-                    signed_in = (urlsplit(page.url).hostname == "chatgpt.com"
-                                 and visible(page, PROFILE) and visible(page, COMPOSER)
-                                 and not visible(page, LOGIN))
-                    if auto_close and signed_in:
+                    if auto_close and signed_in(page):
                         ready_since = ready_since or time.monotonic()
                         if time.monotonic() - ready_since >= 1:
-                            return {"ready": True, **detect_account(page, PROFILE), "message": "Đã đăng nhập và tự lưu phiên ChatGPT."}
+                            identity = detect_account(page, PROFILE)
+                            break
                     else:
                         ready_since = None
                 except Error:
                     # OAuth navigation can temporarily replace the page's DOM.
                     ready_since = None
-                page.wait_for_timeout(250)
+                if page and not page.is_closed():
+                    page.wait_for_timeout(250)
+            if identity is not None:
+                progress("Đã đăng nhập trên Chrome. Đang kiểm tra phiên đã lưu có mở lại được…")
+                context.close()
+                check_cancel(cancel)
+                context = open_context(playwright, account, background=True, cancel=cancel)
+                page = context.pages[0] if context.pages else context.new_page()
+                navigate(page, url if conversation_url(url) else CHATGPT, cancel)
+                require_account(page, cancel)
+                restored = detect_account(page, PROFILE)
+                if identity.get("email") and restored.get("email") and identity["email"] != restored["email"]:
+                    raise BrowserProblem("login", "Tài khoản Chrome đã thay đổi. Đăng nhập lại đúng tài khoản trong Browser AI.")
+                return {"ready": True, **restored, "message": "Đã kiểm tra và lưu phiên Chrome. Có thể chuyển đổi bài giảng."}
             if not cancel.is_set():
                 if verification_since is not None and verification_required(page):
                     raise BrowserProblem("verification", VERIFICATION_MESSAGE)
@@ -350,7 +392,7 @@ def _convert_locked(account, request_folder, cancel, progress, *, timeout, obser
     try:
         with sync_playwright() as playwright:
             progress("Đang mở phiên ChatGPT chạy ngầm…")
-            context = open_context(playwright, account, headless=True)
+            context = open_context(playwright, account, background=True, cancel=cancel)
             try:
                 page = context.pages[0] if context.pages else context.new_page()
                 page.set_default_timeout(10000)

@@ -25,12 +25,25 @@ class BrowserAccounts:
             if loaded.get("version") != 1 or not isinstance(loaded.get("accounts"), list):
                 raise ValueError("Danh sách Browser AI không hợp lệ.")
             self.data.update(loaded)
+            migrated = False
             for account in self.data["accounts"]:
                 self.profile(account["id"])
                 if account.get("channel") not in {"msedge", "chrome"}:
                     raise ValueError("Browser của tài khoản không hợp lệ.")
+                if account.get("profile_layout") != "chrome-v1":
+                    # Never move/export Edge's cookies or mark a fresh Chrome
+                    # folder ready just because the old browser was signed in.
+                    account.update(channel="chrome", profile_layout="chrome-v1", ready=False,
+                                   plan="unknown", model="", status="Cần đăng nhập trên Chrome")
+                    for key in ("name", "email", "saved_at"):
+                        account.pop(key, None)
+                    account["last_error"] = {"code": "browser_changed",
+                        "message": "Browser AI đã chuyển sang Chrome. Đăng nhập lại một lần để lưu phiên Chrome riêng."}
+                    migrated = True
                 if account.get("last_error", {}).get("code") in {"login", "verification"}:
                     account.update(ready=False, status="Cần đăng nhập / xác minh")
+            if migrated:
+                self.save()
 
     def save(self):
         temporary = self.root / (str(uuid4()) + ".tmp")
@@ -53,21 +66,19 @@ class BrowserAccounts:
         account_id = self.data["active"] if account_id is None else account_id
         for item in self.data["accounts"]:
             if item["id"] == account_id:
-                target = self.profile(account_id)
-                if item["channel"] == "chrome":
-                    # Keep old Chrome sessions intact; Edge signs in to a separate folder.
-                    edge = target / "edge"
-                    if edge.resolve().parent != target.resolve() or edge.is_symlink():
-                        raise ValueError("Đường dẫn hồ sơ Edge không hợp lệ.")
-                    target = edge
-                return dict(item, channel="msedge", profile=str(target))
+                parent = self.profile(account_id)
+                target = parent / "chrome"
+                if target.resolve().parent != parent.resolve() or target.is_symlink():
+                    raise ValueError("Đường dẫn hồ sơ Chrome không hợp lệ.")
+                return dict(item, channel="chrome", profile=str(target))
         raise ValueError("Đăng nhập ChatGPT trong Cài đặt → Browser AI.")
 
-    def add(self, label, channel="msedge"):
+    def add(self, label, channel="chrome"):
         label = label.strip()
-        if not label or len(label) > 100 or channel != "msedge":
-            raise ValueError("Hồ sơ ChatGPT dùng Microsoft Edge; tên tối đa 100 ký tự.")
-        item = {"id": str(uuid4()), "label": label, "channel": channel, "status": "Chưa đăng nhập", "plan": "unknown", "ready": False}
+        if not label or len(label) > 100 or channel != "chrome":
+            raise ValueError("Hồ sơ ChatGPT dùng Google Chrome; tên tối đa 100 ký tự.")
+        item = {"id": str(uuid4()), "label": label, "channel": channel, "profile_layout": "chrome-v1",
+                "status": "Chưa đăng nhập", "plan": "unknown", "ready": False}
         self.profile(item["id"]).mkdir(parents=True)
         self.data["accounts"].append(item)
         if not self.data["active"]:

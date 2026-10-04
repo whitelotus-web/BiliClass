@@ -11,8 +11,8 @@ from app.browser_automation import BrowserProblem, conversation_url, read_record
 
 def test_profiles_are_separate_persisted_and_deleted_with_session_data(tmp_path):
     accounts = BrowserAccounts(tmp_path)
-    first = accounts.add("Cô A", "msedge")
-    second = accounts.add("Thầy B", "msedge")
+    first = accounts.add("Cô A", "chrome")
+    second = accounts.add("Thầy B", "chrome")
     assert accounts.get()["id"] == first["id"]
     accounts.select(second["id"])
     accounts.options(False, True)
@@ -44,7 +44,7 @@ def test_plus_priority_changes_after_account_downgrades_to_free(tmp_path):
     accounts.observe(plus["id"], "free", "GPT-6 Luna")
     assert accounts.get(plus["id"])["plan"] == "free"
     assert accounts.get(plus["id"])["model"] == "GPT-6 Luna"
-    assert accounts.preferred()["channel"] == "msedge"
+    assert accounts.preferred()["channel"] == "chrome"
 
 
 def test_manual_free_testing_is_persisted_and_does_not_fall_back_to_plus(tmp_path):
@@ -113,19 +113,23 @@ def test_expired_profile_is_not_used_for_new_jobs_and_recovers_after_login(tmp_p
     assert accounts.get(plus["id"])["ready"]  # Quota is distinct from authentication.
 
 
-def test_legacy_chrome_profile_is_preserved_when_edge_is_used(tmp_path):
+def test_legacy_edge_profile_is_preserved_but_chrome_requires_new_login(tmp_path):
     accounts = BrowserAccounts(tmp_path)
     item = accounts.add("Old profile")
     marker = accounts.profile(item["id"]) / "old-session-marker"
     marker.write_text("Fixture")
-    accounts.data["accounts"][0]["channel"] = "chrome"
+    accounts.data["accounts"][0].update(channel="msedge", ready=True, plan="plus")
+    accounts.data["accounts"][0].pop("profile_layout")
     accounts.save()
     resumed = BrowserAccounts(tmp_path)
-    assert resumed.get()["channel"] == "msedge"
-    assert Path(resumed.get()["profile"]) == marker.parent / "edge"
+    assert resumed.get()["channel"] == "chrome"
+    assert Path(resumed.get()["profile"]) == marker.parent / "chrome"
+    assert not resumed.get()["ready"] and resumed.get()["plan"] == "unknown"
+    assert resumed.get()["last_error"]["code"] == "browser_changed"
     assert marker.read_text() == "Fixture"
-    with pytest.raises(ValueError, match="Microsoft Edge"):
-        resumed.add("New profile", "chrome")
+    assert BrowserAccounts(tmp_path).get()["profile"] == resumed.get()["profile"]
+    with pytest.raises(ValueError, match="Google Chrome"):
+        resumed.add("New profile", "msedge")
 
 
 def test_job_keeps_conversation_and_refuses_another_account_or_foreign_url(tmp_path):
@@ -175,7 +179,7 @@ def test_profiles_do_not_enter_library_backup(tmp_path):
     library = Library(tmp_path / "library")
     try:
         accounts = BrowserAccounts(library.directory)
-        item = accounts.add("Cô A", "msedge")
+        item = accounts.add("Cô A", "chrome")
         (accounts.profile(item["id"]) / "session-marker").write_text("Not a credential")
         path = backup_library(library.directory, tmp_path / "backup.bcbackup")
         import zipfile
@@ -185,7 +189,7 @@ def test_profiles_do_not_enter_library_backup(tmp_path):
         library.close()
 
 
-# A real Edge browser against a routed fixture: no ChatGPT account or uploads to the Internet.
+# A real Chrome browser against a routed fixture: no ChatGPT account or uploads to the Internet.
 FIXTURE = """<!DOCTYPE html><html><head><title>Browser AI fixture</title></head><body>
 <button data-testid="accounts-profile-button">Fixture account</button>
 <textarea id="prompt-textarea"></textarea><input type="file" multiple id="files"><div id="attached"></div>
@@ -213,16 +217,16 @@ def browser_fixture(monkeypatch, tmp_path):
     slide.notes_slide.notes_text_frame.text = "VI: Một câu tiếng Việt.\nEN: One English sentence.\nCHECK: Kiểm tra số liệu."
     deck.save(source)
     accounts = BrowserAccounts(tmp_path / "library")
-    accounts.add("Fixture account", "msedge")
+    accounts.add("Fixture account", "chrome")
     config = {"title": "Fixture", "subject": "Toán", "education_level": "THPT", "grade": "11",
               "level": 2, "layout": "split_view", "preset": "standard", "style": "source", "mode": "level"}
     request = prepare_request(tmp_path / "library", config, source)
     original = adapter.open_context
     captured = {"sends": [], "contexts": 0, "challenge": False, "download_failure": False, "html": ""}
 
-    def opening(playwright, account, *, headless):
+    def opening(playwright, account, *, background, cancel=None):
         captured["contexts"] += 1
-        context = original(playwright, account, headless=headless)
+        context = original(playwright, account, background=background, cancel=cancel)
 
         def route(req):
             if "/backend-api/files/result-" in req.request.url:
@@ -306,7 +310,7 @@ def test_latest_answer_only_and_lesson_limits_do_not_become_quota_errors(browser
         '<div id="messages"><div data-message-author-role="assistant"><a href="/backend-api/files/old.pptx">old.pptx</a></div>'
         '<div data-message-author-role="assistant">Bài toán giới hạn; hạn mức là một khái niệm trong bài.</div></div>')
     with sync_playwright() as playwright:
-        context = adapter.open_context(playwright, accounts.get(), headless=True)
+        context = adapter.open_context(playwright, accounts.get(), background=True)
         try:
             page = context.pages[0]
             page.goto(adapter.CHATGPT)
@@ -420,13 +424,13 @@ def test_login_saves_automatically_without_finish_button(browser_fixture, monkey
     captured["html"] = models_fixture("Plus")
     opening = adapter.open_context
 
-    def login_browser(playwright, account, *, headless):
-        assert headless is False  # The product opens a visible login window.
-        return opening(playwright, account, headless=True)  # The test remains unobtrusive.
+    def login_browser(playwright, account, *, background, cancel=None):
+        return opening(playwright, account, background=True, cancel=cancel)  # The test remains unobtrusive.
 
     monkeypatch.setattr(adapter, "open_context", login_browser)
     result = adapter.login(accounts.get(), accounts.root, Event(), lambda _: None)
     assert result["ready"] and result["plan"] == "plus" and not captured["sends"]
+    assert captured["contexts"] == 2  # Confirm the saved session in a new Chrome process.
     with profile_lock(accounts.root, accounts.get()["id"]):
         pass  # The automatic login closed its browser and released the profile.
 
@@ -435,17 +439,67 @@ def test_guest_composer_with_profile_control_is_not_a_saved_login(browser_fixtur
     adapter, accounts, _, captured, _ = browser_fixture
     captured["html"] = FIXTURE.replace("<textarea", '<button data-testid="login-button">Log in</button><textarea')
     opening = adapter.open_context
-    monkeypatch.setattr(adapter, "open_context", lambda playwright, account, **_: opening(playwright, account, headless=True))
+    monkeypatch.setattr(adapter, "open_context", lambda playwright, account, **_: opening(playwright, account, background=True))
     with pytest.raises(BrowserProblem, match="Hết thời gian"):
         adapter.login(accounts.get(), accounts.root, Event(), lambda _: None, timeout=2)
     assert not accounts.get()["ready"] and not captured["sends"]
+
+
+def test_slow_first_document_keeps_login_alive_and_can_finish(browser_fixture, monkeypatch):
+    adapter, accounts, _, captured, _ = browser_fixture
+    opening, navigating = adapter.open_context, adapter.navigate
+    monkeypatch.setattr(adapter, "open_context", lambda playwright, account, **_: opening(playwright, account, background=True))
+    navigations = []
+
+    def slow_navigation(page, url, cancel):
+        navigating(page, url, cancel)
+        navigations.append(url)
+        if len(navigations) == 1:
+            raise BrowserProblem("network", "Fixture slow first document")
+
+    monkeypatch.setattr(adapter, "navigate", slow_navigation)
+    messages = []
+    result = adapter.login(accounts.get(), accounts.root, Event(), messages.append, timeout=10)
+    assert result["ready"] and captured["contexts"] == 2 and not captured["sends"]
+    assert any("tải chậm" in message for message in messages)
+
+
+def test_slow_first_document_waits_for_user_cancel_without_false_success(browser_fixture, monkeypatch):
+    adapter, accounts, _, captured, _ = browser_fixture
+    opening = adapter.open_context
+    monkeypatch.setattr(adapter, "open_context", lambda playwright, account, **_: opening(playwright, account, background=True))
+    monkeypatch.setattr(adapter, "navigate", lambda *_: (_ for _ in ()).throw(BrowserProblem("network", "Fixture timeout")))
+    cancel = Event()
+
+    def progress(message):
+        if "tải chậm" in message:
+            cancel.set()
+
+    result = adapter.login(accounts.get(), accounts.root, cancel, progress, timeout=10)
+    assert not result["ready"] and cancel.is_set() and captured["contexts"] == 1
+    assert not accounts.get()["ready"] and not captured["sends"]
+
+
+def test_visible_login_is_not_ready_if_saved_chrome_session_cannot_reopen(browser_fixture, monkeypatch):
+    adapter, accounts, _, captured, _ = browser_fixture
+    opening = adapter.open_context
+    monkeypatch.setattr(adapter, "open_context", lambda playwright, account, **_: opening(playwright, account, background=True))
+
+    def progress(message):
+        if "kiểm tra phiên" in message:
+            captured["html"] = FIXTURE.replace('<textarea', '<button data-testid="login-button">Log in</button><textarea')
+
+    with pytest.raises(BrowserProblem) as error:
+        adapter.login(accounts.get(), accounts.root, Event(), progress, timeout=10)
+    assert error.value.code == "login"
+    assert captured["contexts"] == 2 and not accounts.get()["ready"] and not captured["sends"]
 
 
 def test_login_verification_loop_stops_with_recoverable_reason_and_releases_profile(browser_fixture, monkeypatch):
     adapter, accounts, _, captured, _ = browser_fixture
     captured["challenge"] = True
     opening = adapter.open_context
-    monkeypatch.setattr(adapter, "open_context", lambda playwright, account, **_: opening(playwright, account, headless=True))
+    monkeypatch.setattr(adapter, "open_context", lambda playwright, account, **_: opening(playwright, account, background=True))
     messages = []
     with pytest.raises(BrowserProblem) as failure:
         adapter.login(accounts.get(), accounts.root, Event(), messages.append, timeout=10, verification_timeout=.3)
@@ -468,9 +522,15 @@ def test_login_can_finish_after_user_resolves_fixture_challenge(browser_fixture,
         + json.dumps('<button data-testid="accounts-profile-button">Teacher<br>Free</button><textarea id="prompt-textarea"></textarea>')
         + '; }, 700)</script></body></html>')
     opening = adapter.open_context
-    monkeypatch.setattr(adapter, "open_context", lambda playwright, account, **_: opening(playwright, account, headless=True))
+    monkeypatch.setattr(adapter, "open_context", lambda playwright, account, **_: opening(playwright, account, background=True))
     accounts.login_error(accounts.get()["id"], "verification", "Fixture")
-    result = adapter.login(accounts.get(), accounts.root, Event(), lambda _: None, timeout=10, verification_timeout=5)
+    def progress(message):
+        if "kiểm tra phiên" in message:
+            # The mock verification has completed; the persisted fixture
+            # session returns directly to signed-in controls on next launch.
+            captured["html"] = models_fixture("Free")
+
+    result = adapter.login(accounts.get(), accounts.root, Event(), progress, timeout=10, verification_timeout=5)
     assert result["ready"] and result["plan"] == "free"
     accounts.observe(accounts.get()["id"], result["plan"], identity=result)
     assert "last_error" not in accounts.get() and not captured["sends"]
@@ -480,7 +540,7 @@ def test_cancel_during_verification_is_not_success_or_unnecessary_timeout(browse
     adapter, accounts, _, captured, _ = browser_fixture
     captured["challenge"] = True
     opening = adapter.open_context
-    monkeypatch.setattr(adapter, "open_context", lambda playwright, account, **_: opening(playwright, account, headless=True))
+    monkeypatch.setattr(adapter, "open_context", lambda playwright, account, **_: opening(playwright, account, background=True))
     cancel = Event()
 
     def on_progress(message):

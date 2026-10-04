@@ -215,7 +215,7 @@ class WebBrowserAI(QObject):
         self.job.progress.connect(self.inform)
         self.job.finished.connect(self._finished)
         self.job.start()
-        self.inform("Đang mở ChatGPT trong Edge riêng. Đăng nhập trực tiếp ở cửa sổ vừa mở…")
+        self.inform("Đang mở ChatGPT trong Chrome riêng. Đăng nhập trực tiếp ở cửa sổ vừa mở…")
 
     @Slot()
     def _finished(self):

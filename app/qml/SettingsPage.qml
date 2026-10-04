@@ -477,7 +477,7 @@ Item {
                         ColumnLayout {
                             Layout.fillWidth: true; spacing: 6
                             Title { text: "Tài khoản ChatGPT" }
-                            Hint { text: "Đăng nhập một lần. BiliClass tự lưu kết nối trên máy."; Layout.fillWidth: true }
+                            Hint { text: bridge.browserAI.webMode ? "Đăng nhập ChatGPT qua Chrome. BiliClass kiểm tra và tự lưu phiên trên máy." : "Đăng nhập một lần. BiliClass tự lưu kết nối trên máy."; Layout.fillWidth: true }
                         }
                         SaveButton {
                             objectName: "browserAccountAdd"
