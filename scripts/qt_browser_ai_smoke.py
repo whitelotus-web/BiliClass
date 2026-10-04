@@ -41,7 +41,9 @@ def fake_login(account, root, cancel, progress):
     attempts.append(account["id"])
     if len(attempts) == 1:
         return {"ready": False}
-    plan = "free" if len(attempts) == 2 else "plus"
+    if len(attempts) == 2:
+        raise browser_automation.BrowserProblem("verification", browser_automation.VERIFICATION_MESSAGE)
+    plan = "free" if len(attempts) == 3 else "plus"
     return {"ready": True, "plan": plan, "name": "Cô giáo thử " + plan, "email": plan + "@example.test"}
 
 
@@ -105,10 +107,28 @@ def step():
             assert not window.findChild(QObject, "browserAccountDetails").property("visible")
             assert window.findChild(QObject, "browserConnectionState").property("text") == "Chưa đăng nhập"
             click("browserAccountAdd")
+            phase = "verification"
+        elif phase == "verification" and not bridge.browserAI.loginBusy:
+            assert bridge.browserAI.hasError and bridge.browserAI.verificationBlocked
+            assert not bridge.browserAI.accountInfo["ready"]
+            assert window.findChild(QObject, "browserManualRecovery").property("visible")
+            assert "Cloudflare" in window.findChild(QObject, "browserAccountStatus").property("text")
+            assert bridge.browserAI.store.get()["last_error"]["code"] == "verification"
+            capture("verification-blocked.png")
+            # The fallback is an explicit choice and must not claim a connection.
+            click("browserManualRecovery")
+            assert not bridge.browserAI.automatic and not bridge.browserAI.accountInfo["ready"]
+            assert window.property("page") == "new"
+            bridge.browserAI.saveOptions(True, True)
+            window.setProperty("page", "settings")
+            window.findChild(QObject, "settingsPage").setProperty("activeTab", 6)
+            stages.append("Verification error persisted; explicit manual fallback does not mark an account ready")
+            click("browserAccountAdd")
             phase = "free"
         elif phase == "free" and not bridge.browserAI.loginBusy:
             assert bridge.browserAI.accountInfo["ready"] and bridge.browserAI.accountInfo["plan"] == "free"
-            assert len(bridge.browserAI.accounts) == 1 and attempts[0] == attempts[1]
+            assert len(bridge.browserAI.accounts) == 1 and attempts[0] == attempts[1] == attempts[2]
+            assert not bridge.browserAI.verificationBlocked and "last_error" not in bridge.browserAI.store.get()
             free_id = bridge.browserAI.activeId
             assert window.findChild(QObject, "browserAccountAdd").property("text") == "Thêm tài khoản"
             assert "số dư" in window.findChild(QObject, "browserQuotaStatus").property("text")

@@ -344,6 +344,56 @@ def test_guest_composer_with_profile_control_is_not_a_saved_login(browser_fixtur
     assert not accounts.get()["ready"] and not captured["sends"]
 
 
+def test_login_verification_loop_stops_with_recoverable_reason_and_releases_profile(browser_fixture, monkeypatch):
+    adapter, accounts, _, captured, _ = browser_fixture
+    captured["challenge"] = True
+    opening = adapter.open_context
+    monkeypatch.setattr(adapter, "open_context", lambda playwright, account, **_: opening(playwright, account, headless=True))
+    messages = []
+    with pytest.raises(BrowserProblem) as failure:
+        adapter.login(accounts.get(), accounts.root, Event(), messages.append, timeout=10, verification_timeout=.3)
+    assert failure.value.code == "verification"
+    assert "Cloudflare" in str(failure.value)
+    assert any("xác minh" in message for message in messages)
+    assert not accounts.get()["ready"] and not captured["sends"] and captured["contexts"] == 1
+    accounts.login_error(accounts.get()["id"], failure.value.code, str(failure.value))
+    assert BrowserAccounts(accounts.root.parent).get()["last_error"]["code"] == "verification"
+    with profile_lock(accounts.root, accounts.get()["id"]):
+        pass
+
+
+def test_login_can_finish_after_user_resolves_fixture_challenge(browser_fixture, monkeypatch):
+    adapter, accounts, _, captured, _ = browser_fixture
+    # The fixture simulates a human completing the challenge, not an automated
+    # click or a request to any real challenge endpoint.
+    captured["html"] = '<html><head><title>Just a moment...</title></head><body>' + (
+        '<script>setTimeout(() => { document.title="ChatGPT"; document.body.innerHTML='
+        + json.dumps('<button data-testid="accounts-profile-button">Teacher<br>Free</button><textarea id="prompt-textarea"></textarea>')
+        + '; }, 700)</script></body></html>')
+    opening = adapter.open_context
+    monkeypatch.setattr(adapter, "open_context", lambda playwright, account, **_: opening(playwright, account, headless=True))
+    accounts.login_error(accounts.get()["id"], "verification", "Fixture")
+    result = adapter.login(accounts.get(), accounts.root, Event(), lambda _: None, timeout=10, verification_timeout=5)
+    assert result["ready"] and result["plan"] == "free"
+    accounts.observe(accounts.get()["id"], result["plan"], identity=result)
+    assert "last_error" not in accounts.get() and not captured["sends"]
+
+
+def test_cancel_during_verification_is_not_success_or_unnecessary_timeout(browser_fixture, monkeypatch):
+    adapter, accounts, _, captured, _ = browser_fixture
+    captured["challenge"] = True
+    opening = adapter.open_context
+    monkeypatch.setattr(adapter, "open_context", lambda playwright, account, **_: opening(playwright, account, headless=True))
+    cancel = Event()
+
+    def on_progress(message):
+        if "xác minh" in message:
+            cancel.set()
+
+    result = adapter.login(accounts.get(), accounts.root, cancel, on_progress, timeout=10, verification_timeout=5)
+    assert not result["ready"] and cancel.is_set() and not captured["sends"]
+
+
 def test_upgrade_labels_are_not_plan_or_model_entitlements():
     from app.browser_capabilities import model_priority, plan_from_text
 

@@ -551,6 +551,13 @@ Item {
                         BusyIndicator { visible: bridge.browserAI.loginBusy; running: visible; implicitWidth: 24; implicitHeight: 24 }
                         Hint { objectName: "browserAccountStatus"; text: bridge.browserAI.message; Layout.fillWidth: true; color: bridge.browserAI.hasError ? "#ab5b20" : page.blue }
                     }
+                    SoftButton {
+                        objectName: "browserManualRecovery"
+                        visible: bridge.browserAI.webMode && bridge.browserAI.verificationBlocked && !bridge.browserAI.loginBusy
+                        text: "Dùng gửi/nhận thủ công"
+                        enabled: !bridge.busy
+                        onClicked: bridge.browserAI.useManualBrowser()
+                    }
                     Hint { text: "Cửa sổ đăng nhập tự đóng khi xong. Chỉ khi có thông tin tài khoản ở đây thì kết nối mới được lưu."; Layout.fillWidth: true; font.pixelSize: 12 }
                 }
             }

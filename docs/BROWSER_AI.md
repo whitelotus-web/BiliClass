@@ -4,6 +4,8 @@ Mã nguồn ngày 04/10/2026 mặc định dùng **web ChatGPT trong Microsoft E
 
 Release RC12 chưa có thay đổi này. Tự gửi/nhận qua web là tính năng thử nghiệm, phụ thuộc giao diện và quyền của tài khoản. Kiểm thử giả lập không chứng minh tài khoản thật đã đăng nhập hoặc tạo được PowerPoint.
 
+**Kết quả thử thật ngày 04/10/2026:** người dùng gặp vòng lặp xác minh Cloudflare cả trong phiên do BiliClass mở và browser thường. Chưa xác định được nguyên nhân mạng/browser/tài khoản; chưa kết nối thành công. Không coi đây là lỗi riêng của Free hoặc bảo đảm Plus sẽ giải quyết được.
+
 ## Đăng nhập và thêm tài khoản
 
 1. **Cài đặt → Browser AI → Đăng nhập ChatGPT**. Nhập thông tin trên trang ChatGPT trong cửa sổ Edge riêng.
@@ -12,6 +14,10 @@ Release RC12 chưa có thay đổi này. Tự gửi/nhận qua web là tính nă
 4. Nút chính đổi thành **Thêm tài khoản**. Mỗi tài khoản có hồ sơ Edge riêng. Menu **⋯** cho đăng nhập lại, chọn tài khoản và xóa hồ sơ tại máy.
 
 Đóng cửa sổ khi chưa xác nhận đăng nhập không được coi là thành công. Chờ đăng nhập tối đa 10 phút; có thể bấm Hủy. Phiên web thuộc thư viện trên máy, không đưa vào Git, backup thư viện hoặc gói bài; không xuất cookie/token hay lưu mật khẩu bằng mã của BiliClass. Dữ liệu OAuth cũ được giữ riêng.
+
+Nếu thấy trang xác minh Cloudflare, app báo đang chờ người dùng xác minh. Nếu trang này không thoát sau một phút, app đóng phiên riêng, lưu đúng lỗi và hiện **Dùng gửi/nhận thủ công**. Nút này chỉ chuyển cách gửi tài liệu khi người dùng chủ động chọn; không đánh dấu đã đăng nhập, không nhập phiên browser cá nhân vào tool. Khi xác minh thành công qua thao tác của người dùng, app tiếp tục nhận diện đăng nhập; không bấm CAPTCHA tự động hay đổi kỹ thuật để né xác minh.
+
+Nếu browser thường cũng bị kẹt, cách thủ công chưa dùng được. Thử kiểm tra bằng mạng di động hoặc cửa sổ riêng tư theo [hướng dẫn đăng nhập OpenAI](https://help.openai.com/en/articles/7426629-why-cant-i-log-in-to-chatgpt). Nếu vẫn lặp, báo [OpenAI Support](https://help.openai.com/en/articles/8184038-captchas-in-chatgpt) kèm ảnh lỗi. Không tự xóa cookie, tắt VPN hay đổi mạng của người dùng từ BiliClass.
 
 ## Chọn Free/Plus
 
@@ -34,9 +40,9 @@ Khi gặp xác minh, đăng nhập hết hạn hoặc giới hạn: dừng, hi�
 
 ## Kiểm tra
 
-- 18 kiểm thử browser: hồ sơ riêng, khóa/xóa, backup không chứa phiên, ưu tiên Plus, cố định Free, hạ gói, gói chưa rõ, lựa chọn model được phép, Think, không nhầm giao diện khách với đăng nhập, không gửi lại khi trạng thái chưa chắc, tải lại và giữ tài khoản.
+- 21 kiểm thử browser: hồ sơ riêng, khóa/xóa, backup không chứa phiên, ưu tiên Plus, cố định Free, hạ gói, gói chưa rõ, lựa chọn model được phép, Think, không nhầm giao diện khách với đăng nhập, dừng vòng lặp xác minh, hủy/tiếp tục xác minh, không gửi lại khi trạng thái chưa chắc, tải lại và giữ tài khoản.
 - Browser test chạy Edge thật trên trang fixture được chặn mạng; không đăng nhập/tải tài liệu thật lên ChatGPT.
-- Qt Browser AI: đóng cửa sổ chưa đăng nhập; Free tự lưu; thêm Plus; cố định Free; nhận PPTX và audio giả lập; xem trước bằng Office thật; mở lại bài khi đã xóa tài khoản. Các tab Chung/Song ngữ/Giọng đọc/Mascot được giữ.
+- Qt Browser AI: đóng cửa sổ chưa đăng nhập; lỗi Cloudflare và chọn dự phòng không báo giả đã kết nối; Free tự lưu; thêm Plus; cố định Free; nhận PPTX và audio giả lập; xem trước bằng Office thật; mở lại bài khi đã xóa tài khoản. Các tab Chung/Song ngữ/Giọng đọc/Mascot được giữ.
 - OAuth cũ có smoke riêng để tránh làm hỏng dữ liệu và yêu cầu đã có: [thiết kế và chẩn đoán cũ](CHATGPT_PLAN_AUTH.md).
 
 Còn cần nghiệm thu thật: đăng nhập Free, lựa chọn suy luận trên giao diện thực tế, một bài PPTX nhỏ, chất lượng kết quả và giới hạn lượt dùng; sau đó thử tài khoản Plus và bản đóng gói.

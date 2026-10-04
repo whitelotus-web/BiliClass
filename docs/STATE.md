@@ -1,5 +1,7 @@
 # Trạng thái BiliClass
 
+Thử thật ngày 04/10/2026: xác minh Cloudflare bị lặp cả trong browser riêng của tool và browser thường theo phản hồi người dùng; chưa kết nối được. Đã bổ sung nhận diện, thông báo và dừng trang xác minh bị kẹt sau một phút, lưu lỗi và lựa chọn gửi/nhận thủ công. 21 kiểm thử browser và Qt/Office fixture qua; chưa chứng minh khắc phục được chặn thực tế. Không suy đoán nguyên nhân là Free/Plus. Cần kiểm tra truy cập bình thường trên mạng khác trước khi thử lại tích hợp.
+
 Ngày 04/10/2026: Browser AI mặc định dùng phiên web Free/Plus, mỗi tài khoản một hồ sơ Edge. Có thêm/xóa, ưu tiên Plus cho bài mới, cố định Free để kiểm thử, giữ tài khoản cho bài đã gửi. Nhận PPTX, chuẩn bị âm thanh nháp và xem trước; không tự duyệt. Đã qua kiểm thử browser và Qt/Office với web/AI giả lập; chưa xác nhận tài khoản thật đăng nhập/chuyển đổi được. Luồng OAuth cũ và dữ liệu được giữ riêng. Xem [Browser AI](BROWSER_AI.md). Release RC12 chưa có thay đổi này.
 
 Mã nguồn ngày 03/10/2026 có luồng **tài liệu → level → Chuyển đổi → xem trình chiếu → Dùng để dạy**. App tự đánh giá đầu vào, giữ cặp có sẵn, bổ sung phần thiếu và tạo PPTX; thầy cô xác nhận toàn bài một lần. Các tùy chọn bố cục, dịch từng đoạn, trợ giảng và quiz nằm trong phần mở rộng. Đã qua 178 kiểm thử, Ruff và Qt với model/PowerPoint thật; OCR vẫn sai một số dấu cần sửa. Xem [quy trình hiện tại](INPUT_WORKFLOW.md) và [thiết kế chuyển đổi nhanh](QUICK_CONVERSION.md). Các mục RC12 bên dưới mô tả bản đóng gói cũ, chưa bao gồm những thay đổi này.

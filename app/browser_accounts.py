@@ -90,6 +90,13 @@ class BrowserAccounts:
                 self.save()
                 return
 
+    def login_error(self, account_id, code, message):
+        for account in self.data["accounts"]:
+            if account["id"] == account_id:
+                account["last_error"] = {"code": code, "message": message}
+                self.save()
+                return
+
     def preferred(self):
         if self.data.get("selection") == "manual":
             chosen = self.get()
@@ -108,6 +115,7 @@ class BrowserAccounts:
         for account in self.data["accounts"]:
             if account["id"] == account_id:
                 account.update(plan=plan, model=model, ready=True, status="Đã đăng nhập · Tự lưu")
+                account.pop("last_error", None)
                 if identity is not None:
                     account.update(name=identity.get("name", ""), email=identity.get("email", ""), saved_at=time.time())
                     account["label"] = account["email"] or account["name"] or account["label"]

@@ -18,13 +18,14 @@ class WebLoginJob(QThread):
         super().__init__(parent)
         self.account, self.root = account, root
         self.cancel = Event()
-        self.result, self.error = None, ""
+        self.result, self.error, self.error_code = None, "", ""
 
     def run(self):
         try:
             self.result = browser_automation.login(self.account, self.root, self.cancel, self.progress.emit)
         except (browser_automation.BrowserProblem, ValueError) as exc:
             self.error = str(exc)
+            self.error_code = getattr(exc, "code", "browser")
         except Exception:
             self.error = "Chưa mở được phiên ChatGPT. Kiểm tra mạng và thử lại."
 
@@ -40,8 +41,24 @@ class WebBrowserAI(QObject):
         self.store = BrowserAccounts(bridge.library.directory)
         self.job = None
         self._error = False
+        self._error_code = ""
         self._message = "Đăng nhập ChatGPT Free hoặc Plus trong cửa sổ riêng. Phiên được tự lưu trên máy."
+        self._restore_error()
         self.observed.connect(self._observed)
+
+    def _restore_error(self):
+        try:
+            error = self.store.get().get("last_error", {})
+        except ValueError:
+            error = {}
+        self._error_code = error.get("code", "")
+        self._error = bool(error)
+        if error:
+            self._message = error["message"]
+
+    @Property(bool, notify=changed)
+    def verificationBlocked(self):
+        return self._error_code == "verification"
 
     @Property(bool, constant=True)
     def webMode(self):
@@ -125,13 +142,15 @@ class WebBrowserAI(QObject):
     def select(self, account_id):
         if self._available():
             self.store.select(account_id)
-            self.inform("Bài mới sẽ dùng tài khoản đã chọn, kể cả khi có Plus.")
+            self._restore_error()
+            self.inform(self._message if self.hasError else "Bài mới sẽ dùng tài khoản đã chọn, kể cả khi có Plus.")
 
     @Slot()
     def preferPaid(self):
         if self._available():
             try:
                 self.store.prefer_paid()
+                self._restore_error()
                 self.inform("Bài mới ưu tiên Plus trước Free. Bài đã gửi giữ nguyên tài khoản.")
             except ValueError as exc:
                 self.inform(str(exc))
@@ -141,7 +160,7 @@ class WebBrowserAI(QObject):
         if self._available():
             try:
                 self.store.remove(account_id)
-                self._error = False
+                self._restore_error()
                 self.inform("Đã xóa tài khoản và phiên web riêng trên máy.")
             except (ValueError, OSError):
                 self.inform("Chưa xóa được phiên. Đóng cửa sổ đăng nhập rồi thử lại.")
@@ -162,6 +181,16 @@ class WebBrowserAI(QObject):
             self.signIn(self.activeId)
 
     @Slot()
+    def useManualBrowser(self):
+        if not self._available():
+            return
+        # Explicit user choice only; normal-browser sign-in is not a saved
+        # connection and must never flip ready or unlock background jobs.
+        self.store.options(False, self.audio)
+        self.inform("Đã chọn gửi/nhận thủ công. Nhập bài để tạo prompt và gói tài liệu; tài khoản tự động chưa kết nối.")
+        self.bridge.navigate.emit("new")
+
+    @Slot()
     def addAndSignIn(self):
         self.signIn("")
 
@@ -172,6 +201,7 @@ class WebBrowserAI(QObject):
         if not account_id:
             account_id = self.store.add(f"ChatGPT {len(self.accounts) + 1}")["id"]
         self._error = False
+        self._error_code = ""
         self.job = WebLoginJob(self.store.get(account_id), self.store.root, self)
         self.job.progress.connect(self.inform)
         self.job.finished.connect(self._finished)
@@ -183,10 +213,13 @@ class WebBrowserAI(QObject):
         job, self.job = self.job, None
         if job.error:
             self._error = True
+            self._error_code = job.error_code
+            self.store.login_error(job.account["id"], job.error_code, job.error)
             self.inform(job.error)
         elif job.result and job.result.get("ready"):
             self.store.observe(job.account["id"], job.result.get("plan", "unknown"), identity=job.result)
             self._error = False
+            self._error_code = ""
             self.inform("Đã đăng nhập và lưu phiên web. Có thể chuyển đổi bài giảng.")
         else:
             self.inform("Chưa xác nhận đăng nhập mới. Bấm Đăng nhập để tiếp tục.")

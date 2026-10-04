@@ -21,6 +21,11 @@ PROFILE = '[data-testid="accounts-profile-button"], [data-testid="profile-button
 SEND = '[data-testid="send-button"], button[aria-label="Send prompt"], button[aria-label="Gửi lời nhắc"], button[aria-label="Send message"]'
 STOP = '[data-testid="stop-button"], button[aria-label="Stop generating"], button[aria-label="Dừng tạo"]'
 ASSISTANT = '[data-message-author-role="assistant"]'
+VERIFICATION_MESSAGE = (
+    "ChatGPT đang chặn phiên browser riêng ở bước xác minh Cloudflare. "
+    "Chưa xác nhận đăng nhập; đăng nhập trong browser thường không tự kết nối phiên này với BiliClass. "
+    "Có thể dùng gửi/nhận PowerPoint thủ công trong browser thường."
+)
 EXPORT_PROMPT = (
     "Hãy hoàn tất tệp bai-giang-song-ngu.pptx chỉnh sửa được theo yêu cầu đã gửi và cung cấp liên kết tải .pptx "
     "trong câu trả lời. Không chỉ đưa dàn ý hoặc đường dẫn nội bộ dạng văn bản. "
@@ -52,11 +57,15 @@ def visible(page, selector):
     return None
 
 
-def page_problem(page):
+def verification_required(page):
     title = page.title().casefold()
-    if ("just a moment" in title or "verify you are human" in title
-            or visible(page, 'iframe[src*="challenges.cloudflare.com"], #challenge-running, #challenge-stage')):
-        raise BrowserProblem("verification", "ChatGPT yêu cầu xác minh browser. Mở Đăng nhập trong Browser AI và xử lý trực tiếp.")
+    return bool("just a moment" in title or "verify you are human" in title
+                or visible(page, 'iframe[src*="challenges.cloudflare.com"], #challenge-running, #challenge-stage'))
+
+
+def page_problem(page):
+    if verification_required(page):
+        raise BrowserProblem("verification", VERIFICATION_MESSAGE)
     if urlsplit(page.url).hostname in {"auth.openai.com", "auth0.openai.com"}:
         raise BrowserProblem("login", "Phiên ChatGPT hết hạn. Đăng nhập lại tài khoản trong Browser AI.")
     if visible(page, '[data-testid="login-button"], [data-testid="login-button-header"]'):
@@ -86,7 +95,7 @@ def open_context(playwright, account, *, headless):
         raise BrowserProblem("browser", "Chưa mở được browser riêng. Cài/cập nhật Microsoft Edge và đóng phiên đang dùng tài khoản này.") from exc
 
 
-def login(account, root, cancel, progress, url=CHATGPT, *, auto_close=True, timeout=600):
+def login(account, root, cancel, progress, url=CHATGPT, *, auto_close=True, timeout=600, verification_timeout=60):
     from playwright.sync_api import Error, sync_playwright
 
     from .browser_capabilities import detect_account
@@ -98,11 +107,22 @@ def login(account, root, cancel, progress, url=CHATGPT, *, auto_close=True, time
             page.goto(url if conversation_url(url) else CHATGPT, wait_until="domcontentloaded", timeout=45000)
             progress("Đăng nhập trên web. Tool sẽ tự lưu phiên khi đăng nhập thành công.")
             ready_since = None
+            verification_since = None
             deadline = time.monotonic() + timeout
             while not cancel.is_set() and time.monotonic() < deadline:
                 if page.is_closed():
                     return {"ready": False, "message": "Đã đóng browser. Có thể mở lại để kiểm tra phiên."}
                 try:
+                    if verification_required(page):
+                        ready_since = None
+                        if verification_since is None:
+                            verification_since = time.monotonic()
+                            progress("Đang chờ bạn xác minh trên ChatGPT. Nếu xác minh vẫn lặp lại, phiên riêng sẽ dừng sau một phút.")
+                        if time.monotonic() - verification_since >= verification_timeout:
+                            raise BrowserProblem("verification", VERIFICATION_MESSAGE)
+                        page.wait_for_timeout(250)
+                        continue
+                    verification_since = None
                     signed_in = (urlsplit(page.url).hostname == "chatgpt.com"
                                  and visible(page, PROFILE) and visible(page, COMPOSER)
                                  and not visible(page, '[data-testid="login-button"], [data-testid="login-button-header"]'))
@@ -117,6 +137,8 @@ def login(account, root, cancel, progress, url=CHATGPT, *, auto_close=True, time
                     ready_since = None
                 page.wait_for_timeout(250)
             if not cancel.is_set():
+                if verification_since is not None and verification_required(page):
+                    raise BrowserProblem("verification", VERIFICATION_MESSAGE)
                 raise BrowserProblem("timeout", "Hết thời gian chờ đăng nhập. Bấm Đăng nhập để mở lại phiên web.")
             return {"ready": False, "message": "Đã đóng phiên browser."}
         except Error as exc:

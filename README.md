@@ -2,6 +2,8 @@
 
 Kho kiến thức có nguồn và bộ nhớ giáo viên đang được bổ sung trong bản mã nguồn: xem [cách vận hành](docs/KNOWLEDGE.md). Bản RC12 đóng gói chưa có tính năng này.
 
+**Thử ChatGPT thực tế ngày 04/10/2026 đang bị kẹt xác minh Cloudflare**, cả trong phiên riêng của BiliClass và browser thường theo phản hồi người dùng. App đã nhận diện/dừng vòng lặp sau một phút và cung cấp gửi/nhận thủ công, nhưng chưa giải quyết được truy cập web thực tế. Chưa coi luồng tự động là sẵn sàng sử dụng.
+
 Bản mã nguồn ngày 04/10/2026: **Browser AI mặc định đăng nhập web ChatGPT Free/Plus trong Edge riêng**, tự lưu phiên và có **Thêm tài khoản**. Bài mới ưu tiên Plus; có thể cố định Free để kiểm thử. Chuyển đổi gửi prompt/tài liệu lên web, nhận PPTX rồi chuẩn bị giọng đọc và xem trình chiếu trước khi dạy. Gói/suy luận theo quyền thực tế trên web; số dư hạn mức chưa có dữ liệu. Không tự đổi tài khoản/gửi lại khi hết quota. Đã kiểm tra bằng fixture và Qt/Office; **chưa nghiệm thu đăng nhập và chuyển đổi bằng tài khoản thật**. OAuth cũ được giữ riêng. Xem [Browser AI](docs/BROWSER_AI.md) và [quy trình nhập bài](docs/INPUT_WORKFLOW.md). Release RC12 chưa chứa thay đổi này.
 
 Ứng dụng Windows chuẩn bị và dạy **song ngữ Anh–Việt đa môn THPT**. Bản thử hiện tại: **1.0 RC12**, cập nhật 02/10/2026.
