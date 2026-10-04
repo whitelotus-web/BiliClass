@@ -47,7 +47,7 @@ def test_plus_priority_changes_after_account_downgrades_to_free(tmp_path):
     assert accounts.preferred()["channel"] == "chrome"
 
 
-def test_manual_free_testing_is_persisted_and_does_not_fall_back_to_plus(tmp_path):
+def test_account_focus_does_not_override_automatic_paid_priority(tmp_path):
     accounts = BrowserAccounts(tmp_path)
     free, plus = accounts.add("Free"), accounts.add("Plus")
     with pytest.raises(ValueError, match="Đăng nhập"):
@@ -57,11 +57,10 @@ def test_manual_free_testing_is_persisted_and_does_not_fall_back_to_plus(tmp_pat
     assert accounts.preferred()["id"] == plus["id"]
     accounts.select(free["id"])
     accounts.observe(plus["id"], "plus", "Thinking")
-    assert BrowserAccounts(tmp_path).preferred()["id"] == free["id"]
-    accounts.data["accounts"][0]["ready"] = False
-    with pytest.raises(ValueError, match="Đăng nhập lại"):
-        accounts.preferred()
-    accounts.observe(free["id"], "free")
+    assert BrowserAccounts(tmp_path).preferred()["id"] == plus["id"]
+    accounts.data["selection"] = "manual"  # Old persisted UI setting is migrated.
+    accounts.save()
+    assert BrowserAccounts(tmp_path).data["selection"] == "auto"
     accounts.prefer_paid()
     assert accounts.preferred()["id"] == plus["id"]
     accounts.remove(plus["id"])
@@ -92,9 +91,9 @@ def test_failed_added_account_is_retryable_without_changing_conversion_preferenc
     accounts.login_error(new["id"], "verification", "Fixture verification")
     resumed = BrowserAccounts(tmp_path)
     assert resumed.data["pending_login"] == new["id"]
-    assert resumed.preferred()["id"] == free["id"]
+    assert resumed.preferred()["id"] == plus["id"]
     resumed.observe(new["id"], "plus", identity={"name": "New teacher"})
-    assert not resumed.data["pending_login"] and resumed.preferred()["id"] == free["id"]
+    assert not resumed.data["pending_login"] and resumed.preferred()["plan"] == "plus"
     resumed.prefer_paid()
     assert resumed.preferred()["plan"] == "plus"
 
@@ -518,6 +517,35 @@ def test_authentication_content_type_error_is_not_session_timeout(plain_login):
         adapter.login(accounts.get(), accounts.root, Event(), lambda _: None)
     assert error.value.code == "auth_response" and "400" in str(error.value)
     assert not accounts.get()["ready"] and not captured["sends"]
+
+
+def test_readonly_health_probe_reads_current_plan_without_upgrade_or_sending(browser_fixture):
+    adapter, accounts, _, captured, _ = browser_fixture
+    captured["html"] = '''<html><title>Fixture</title>
+    <button data-testid="accounts-profile-button" onclick="document.querySelector('#menu').hidden=false">TO</button>
+    <textarea id="prompt-textarea"></textarea><button data-testid="send-button">Send</button>
+    <div id="menu" role="menu" hidden><span>Upgrade to Plus</span><span data-testid="account-name">Fixture teacher</span>
+    <button role="menuitem" onclick="document.querySelector('#dialog').hidden=false">Settings</button></div>
+    <div id="dialog" role="dialog" hidden><button role="tab">Account</button>
+    <div data-testid="current-plan">Current plan: Free</div><button>Upgrade to Plus</button></div></html>'''
+    result = adapter.check_session(accounts.get(), accounts.root, Event(), lambda _: None)
+    assert result["ready"] and result["plan"] == "free" and result["name"] == "Fixture teacher"
+    assert not result["quota_limited"] and not captured["sends"]
+
+
+def test_health_probe_limit_keeps_authentication_and_does_not_upload(browser_fixture):
+    adapter, accounts, _, captured, _ = browser_fixture
+    captured["html"] = FIXTURE + '<div role="alert">You have reached your usage limit. Try again later.</div>'
+    result = adapter.check_session(accounts.get(), accounts.root, Event(), lambda _: None)
+    assert result["ready"] and result["quota_limited"] and not captured["sends"]
+
+
+def test_health_probe_reports_lost_session_without_opening_human_login(browser_fixture):
+    adapter, accounts, _, captured, _ = browser_fixture
+    captured["html"] = '<html><title>Fixture</title><button data-testid="login-button">Log in</button></html>'
+    with pytest.raises(BrowserProblem) as error:
+        adapter.check_session(accounts.get(), accounts.root, Event(), lambda _: None)
+    assert error.value.code == "login" and captured["contexts"] == 1 and not captured["sends"]
 
 
 def test_slow_first_document_keeps_login_alive_and_can_finish(browser_fixture, monkeypatch):

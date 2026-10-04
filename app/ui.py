@@ -282,7 +282,8 @@ class Bridge(QObject):
         import json
 
         from .browser_audio import prepare_narration
-        from .browser_automation import BrowserProblem, convert, read_record, write_record
+        from .browser_automation import read_record, write_record
+        from .browser_dispatch import convert_available
         from .chatgpt_handoff import inspect_returned_deck, load_request
 
         if self._busy or not self._chatgpt_request:
@@ -297,11 +298,15 @@ class Bridge(QObject):
                 self.openLesson(cached["lesson_id"])
                 return
             account = self._browser_ai.conversionAccount(folder)
+            accounts = self._browser_ai.conversionAccounts(folder)
             if self._browser_ai.loginBusy or not account.get("ready"):
                 self._browser_state.update(running=False, phase="error", needsLogin=True, errorCode="login",
                                            message="Đăng nhập lại để tiếp tục bài đang làm.")
                 raise ValueError("Đăng nhập xong tài khoản trong Browser AI trước khi chuyển đổi.")
-            read_record(folder, account["id"])
+            if account.get("quota_limited"):
+                self._browser_state.update(running=False, phase="error", needsLogin=False, errorCode="limit")
+                raise ValueError("Tài khoản của bài đã gửi đang hết lượt. Chờ hạn mức được cấp lại để tiếp tục đúng cuộc trò chuyện.")
+            read_record(folder, cached.get("account_id", account["id"]))
         except (ValueError, KeyError, OSError, json.JSONDecodeError) as exc:
             self.inform(str(exc), True)
             return
@@ -310,23 +315,20 @@ class Bridge(QObject):
         self._browser_state = {"running": True, "phase": "working", "message": "Đang mở phiên web ChatGPT…"}
 
         def work():
-            try:
-                result = convert(account, self._browser_ai.store.root, folder, self.cancel_event,
-                                 self._browser_ai.progress.emit, observed=self._browser_ai.observed.emit)
-            except BrowserProblem as exc:
-                self._browser_ai.failed.emit(account["id"], exc.code, str(exc))
-                raise
+            result = convert_available(accounts, self._browser_ai.store.root, folder, self.cancel_event,
+                                       self._browser_ai.progress.emit, observed=self._browser_ai.observed.emit,
+                                       failed=self._browser_ai.failed.emit)
             config = load_request(folder)["config"]
             source = self.library.store_source(Path(result["path"]))
             inspection = inspect_returned_deck(self.library.directory / "sources" / source["file"])
             narration = prepare_narration(inspection, voices, self.library.directory / "audio", self.cancel_event,
                                           self._browser_ai.progress.emit) if audio else {}
-            return config, source, inspection, narration
+            return config, source, inspection, narration, result["account_id"]
 
         def completed(result):
-            config, source, inspection, narration = result
+            config, source, inspection, narration, used_account = result
             lesson = self.library.create_external_lesson(config, source, inspection)
-            record = read_record(folder, account["id"])
+            record = read_record(folder, used_account)
             record["lesson_id"] = lesson["id"]
             write_record(folder, record)
             self._browser_running = False

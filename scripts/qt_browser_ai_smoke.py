@@ -14,7 +14,7 @@ from pptx import Presentation
 from pptx.util import Inches
 from PySide6.QtCore import QCoreApplication, QEvent, QMetaObject, QObject, Qt, QTimer, QUrl
 from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication
-from PySide6.QtQml import QQmlApplicationEngine
+from PySide6.QtQml import QQmlApplicationEngine, QQmlEngine, QQmlExpression
 from PySide6.QtQuick import QQuickWindow
 from PySide6.QtQuickControls2 import QQuickStyle
 
@@ -36,6 +36,7 @@ slide.notes_slide.notes_text_frame.text = "VI: Diện tích bằng 12 cm².\nEN:
 deck.save(source)
 attempts, sends, audio, warnings, failures, stages = [], [], [], [], [], []
 conversions = []
+free_health_failure = False
 
 
 def fake_login(account, root, cancel, progress, **options):
@@ -63,9 +64,13 @@ def fake_convert(account, root, folder, cancel, progress, **options):
     request = load_request(folder)
     assert request["config"]["provider"] == "browser_web"
     assert "FILE POWERPOINT" in request["prompt"] and "VI:" in request["prompt"]
-    assert account["plan"] == "free", "Explicit Free testing must win over Plus priority"
     conversions.append(account["id"])
-    if len(conversions) == 1:
+    if account["plan"] == "plus":
+        assert len(conversions) == 1 and not sends
+        browser_automation.write_record(folder, {"account_id": account["id"], "state": "prepared", "followups": 0,
+            "url": "", "error": "limit"})
+        raise browser_automation.BrowserProblem("limit", "ChatGPT báo hết lượt dùng.")
+    if len(conversions) == 2:
         sends.append(account["id"])
         browser_automation.write_record(folder, {"account_id": account["id"], "state": "waiting", "followups": 0,
             "url": "https://chatgpt.com/c/fixture", "error": "verification"})
@@ -79,8 +84,15 @@ def fake_convert(account, root, folder, cancel, progress, **options):
     return {"path": str(target), "url": "https://chatgpt.com/c/fixture"}
 
 
+def fake_check(account, root, cancel, progress):
+    if free_health_failure and account["id"] == free_id:
+        raise browser_automation.BrowserProblem("login", "Phiên hết hạn. Đăng nhập lại.")
+    return {"ready": True, "plan": account["plan"], "name": "Cô giáo thử " + account["plan"]}
+
+
 browser_automation.login = fake_login
 browser_automation.convert = fake_convert
+browser_automation.check_session = fake_check
 speech.synthesize = lambda text, *_: audio.append(text)
 application = QGuiApplication([])
 for font in (RESOURCES / "assets").glob("*.ttf"):
@@ -106,12 +118,45 @@ def click(name):
     assert QMetaObject.invokeMethod(item, "clicked", Qt.DirectConnection)
 
 
+def profile_value(account_id, control, *, activate=False):
+    # Keep dynamic delegates inside the QML engine. PySide can take incorrect
+    # ownership when returning these internal layout objects to Python.
+    repeater = window.findChild(QObject, "browserProfiles")
+    operation = 'if (!target.enabled) throw new Error("Button disabled"); target.clicked(); return true;' if activate else 'return target.text;'
+    code = '''(function() {
+        function find(node, name) {
+            if (node.objectName === name) return node;
+            for (var j = 0; j < node.children.length; j++) {
+                var found = find(node.children[j], name); if (found) return found;
+            }
+            return null;
+        }
+        for (var i = 0; i < count; i++) {
+            var row = itemAt(i);
+            if (row.accountId === ACCOUNT) {
+                var target = find(row, CONTROL);
+                if (!target) throw new Error("Profile control missing");
+                OPERATION
+            }
+        }
+        throw new Error("Profile row missing");
+    })()'''.replace("ACCOUNT", json.dumps(account_id)).replace("CONTROL", json.dumps(control)).replace("OPERATION", operation)
+    expression = QQmlExpression(QQmlEngine.contextForObject(repeater), repeater, code)
+    value = expression.evaluate()[0]
+    assert not expression.hasError(), expression.error().toString()
+    return value
+
+
+def click_profile(account_id, action):
+    assert profile_value(account_id, action, activate=True)
+
+
 def capture(name):
     assert QQuickWindow.grabWindow(window).save(str(reports / name))
 
 
 def step():
-    global phase, free_id, plus_id, lesson_id
+    global phase, free_id, plus_id, lesson_id, free_health_failure
     try:
         assert time.monotonic() < deadline, "Web UI flow timed out"
         if phase == "start":
@@ -123,8 +168,8 @@ def step():
         elif phase == "closed" and not bridge.browserAI.loginBusy:
             assert not bridge.browserAI.accountInfo["ready"]
             assert not window.findChild(QObject, "browserAccountDetails").property("visible")
-            assert window.findChild(QObject, "browserConnectionState").property("text") == "Chưa đăng nhập"
-            click("browserAccountAdd")
+            assert profile_value(bridge.browserAI.activeId, "browserProfileState") == "Chưa đăng nhập"
+            click_profile(bridge.browserAI.activeId, "browserProfileReconnect")
             phase = "verification"
         elif phase == "verification" and not bridge.browserAI.loginBusy:
             assert bridge.browserAI.hasError and bridge.browserAI.verificationBlocked
@@ -141,7 +186,7 @@ def step():
             window.setProperty("page", "settings")
             window.findChild(QObject, "settingsPage").setProperty("activeTab", 6)
             stages.append("Verification error persisted; explicit manual fallback does not mark an account ready")
-            click("browserAccountAdd")
+            click_profile(bridge.browserAI.activeId, "browserProfileReconnect")
             phase = "confirm_free"
         elif phase == "confirm_free" and bridge.browserAI.loginAwaitingConfirmation:
             assert not bridge.browserAI.accountInfo["ready"]
@@ -156,7 +201,11 @@ def step():
             assert not bridge.browserAI.verificationBlocked and "last_error" not in bridge.browserAI.store.get()
             free_id = bridge.browserAI.activeId
             assert window.findChild(QObject, "browserAccountAdd").property("text") == "Thêm tài khoản"
-            assert "số dư" in window.findChild(QObject, "browserQuotaStatus").property("text")
+            assert not window.findChild(QObject, "browserQuotaStatus").property("visible")
+            assert not window.findChild(QObject, "browserSelectionPolicy").property("visible")
+            assert not window.findChild(QObject, "browserAccountMenu").property("visible")
+            assert profile_value(free_id, "browserProfilePlan") == "Free"
+            assert profile_value(free_id, "browserProfileDelete") == "Xóa profile"
             capture("free-connected.png")
             stages.append("One primary button confirms plain Chrome sign-in; closing early is not success; verified Free session saved")
             click("browserAccountAdd")
@@ -164,8 +213,8 @@ def step():
         elif phase == "plus_failed" and not bridge.browserAI.loginBusy:
             assert len(bridge.browserAI.accounts) == 2 and not bridge.browserAI.accountInfo["ready"]
             assert bridge.browserAI.activeId != free_id and bridge.browserAI.store.preferred()["id"] == free_id
-            assert window.findChild(QObject, "browserAccountAdd").property("text") == "Đăng nhập ChatGPT"
-            click("browserAccountAdd")
+            assert window.findChild(QObject, "browserAccountAdd").property("text") == "Thêm tài khoản"
+            click_profile(bridge.browserAI.activeId, "browserProfileReconnect")
             phase = "plus"
         elif phase == "plus" and not bridge.browserAI.loginBusy:
             assert len(bridge.browserAI.accounts) == 2 and bridge.browserAI.accountInfo["plan"] == "plus"
@@ -173,17 +222,17 @@ def step():
             plus_id = bridge.browserAI.activeId
             assert free_id != plus_id
             capture("plus-preferred.png")
-            bridge.browserAI.select(free_id)
-            assert not bridge.browserAI.autoSelection
-            assert "Cố định" in window.findChild(QObject, "browserSelectionPolicy").property("text")
-            capture("free-pinned.png")
-            stages.append("Adding Plus preserves Free; automatic Plus priority; explicit Free test selection")
+            assert bridge.browserAI.store.preferred()["id"] == plus_id
+            assert window.findChild(QObject, "browserProfiles").property("count") == 2
+            stages.append("Separate account rows, visible profile deletion; no policy menu or unknown quota row")
             bridge.convertBrowserAI("Bài thử", "Toán", "THPT", "11", "", QUrl.fromLocalFile(str(source)).toString(),
                                     2, "split_view", "standard", "source", "level")
             phase = "blocked_conversion"
         elif phase == "blocked_conversion" and not bridge.busy:
             assert bridge.error and bridge.browserState["needsLogin"]
             assert not bridge.browserAI.store.get(free_id)["ready"]
+            assert bridge.browserAI.store.get(plus_id)["ready"] and bridge.browserAI.store.get(plus_id)["quota_limited"]
+            assert sends == [free_id], "Limited Plus must switch to Free before sending exactly once"
             assert window.findChild(QObject, "browserConversionResume").property("text") == "Đăng nhập và tiếp tục"
             reopened = Bridge(library)
             assert reopened.browserState["needsLogin"] and reopened.chatgptRequest["folder"] == bridge.chatgptRequest["folder"]
@@ -196,11 +245,11 @@ def step():
         elif phase == "confirm_resume" and bridge.browserAI.loginAwaitingConfirmation:
             window.setProperty("page", "settings")
             window.findChild(QObject, "settingsPage").setProperty("activeTab", 6)
-            assert len(conversions) == 1 and not bridge.browserAI.accountInfo["ready"]
+            assert len(conversions) == 2 and not bridge.browserAI.accountInfo["ready"]
             assert window.findChild(QObject, "browserAccountAdd").property("text") == "Kiểm tra và lưu"
             click("browserAccountAdd")
             phase = "converted"
-        elif phase == "converted" and not bridge.busy and not bridge.browserAI.loginBusy and len(conversions) == 2:
+        elif phase == "converted" and not bridge.busy and not bridge.browserAI.loginBusy and len(conversions) == 3:
             assert not bridge.error, bridge.message
             assert sends == [free_id]
             assert bridge.lesson["external_deck"] and bridge.quickResult["image"]
@@ -211,11 +260,30 @@ def step():
             assert window.property("page") == "result"
             lesson_id = bridge.lesson["id"]
             capture("result.png")
-            bridge.browserAI.preferPaid()
+            assert bridge.browserAI.store.preferred()["id"] == free_id
+            assert bridge.browserAI.conversionAccount(bridge.chatgptRequest["folder"])["id"] == free_id
+            bridge.browserAI.checkAccount(plus_id)
+            phase = "quota_recovered"
+        elif phase == "quota_recovered" and not bridge.browserAI.loginBusy:
             assert bridge.browserAI.store.preferred()["id"] == plus_id
             assert bridge.browserAI.conversionAccount(bridge.chatgptRequest["folder"])["id"] == free_id
-            bridge.browserAI.remove(free_id)
-            bridge.browserAI.remove(plus_id)
+            free_health_failure = True
+            bridge.browserAI.checkAccount(free_id)
+            phase = "health_lost"
+        elif phase == "health_lost" and not bridge.browserAI.loginBusy:
+            assert not bridge.browserAI.store.get(free_id)["ready"]
+            assert bridge.browserAI.store.preferred()["id"] == plus_id
+            assert profile_value(free_id, "browserProfileState") == "Mất kết nối"
+            assert profile_value(free_id, "browserProfileReconnect") == "Đăng nhập lại"
+            window.setProperty("page", "settings")
+            window.findChild(QObject, "settingsPage").setProperty("activeTab", 6)
+            phase = "delete_profiles"
+        elif phase == "delete_profiles" and not bridge.browserAI.loginBusy:
+            capture("accounts-simple.png")
+            click_profile(free_id, "browserProfileDelete")
+            assert len(bridge.browserAI.accounts) == 1 and bridge.browserAI.accounts[0]["id"] == plus_id
+            click_profile(plus_id, "browserProfileDelete")
+            stages.append("Plus quota fallback sends once through Free; resumed job stays on Free; health probe warns of lost session; each visible delete removes only its profile")
             bridge.runBrowserAI()
             phase = "cached"
         elif phase == "cached" and not bridge.busy:

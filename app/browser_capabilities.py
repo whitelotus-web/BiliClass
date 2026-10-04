@@ -9,14 +9,14 @@ PLANS = {"plus", "pro", "free", "go", "business", "enterprise", "edu"}
 
 def plan_from_text(text):
     for line in text.splitlines():
-        value = re.sub(r"^(your plan|plan|gói hiện tại|gói)\s*[:：]\s*", "", line.strip(), flags=re.I)
+        value = re.sub(r"^(current plan|your plan|plan|gói hiện tại|gói)\s*[:：]\s*", "", line.strip(), flags=re.I)
         value = re.sub(r"^ChatGPT\s+", "", value, flags=re.I).casefold()
         if value in PLANS:
             return value
     return "unknown"
 
 
-def detect_account(page, profile):
+def detect_account(page, profile, *, details=False):
     """Exact plan labels only: 'Upgrade to Plus' must never mean a Plus account."""
     from playwright.sync_api import Error
 
@@ -45,6 +45,33 @@ def detect_account(page, profile):
         email = re.search(r"(?m)^\s*([^\s@]+@[^\s@]+\.[^\s@]+)\s*$", text)
         if email:
             info["email"] = email[1][:254]
+        for node in page.locator('[data-testid="account-name"], [data-testid="profile-name"]').all():
+            if node.is_visible() and node.inner_text().strip():
+                info["name"] = node.inner_text().strip()[:100]
+                break
+        if details and info["plan"] == "unknown":
+            settings = page.get_by_role("menuitem", name=re.compile(r"^(Settings|Cài đặt)$", re.I))
+            if settings.count() and settings.first.is_visible():
+                settings.first.click(timeout=3000)
+                page.wait_for_timeout(300)
+                for dialog in page.get_by_role("dialog").all():
+                    if not dialog.is_visible():
+                        continue
+                    tabs = dialog.get_by_role("tab", name=re.compile(r"^(Account|Tài khoản)$", re.I))
+                    if not tabs.count():
+                        tabs = dialog.get_by_role("button", name=re.compile(r"^(Account|Tài khoản)$", re.I))
+                    if tabs.count() and tabs.first.is_visible():
+                        tabs.first.click(timeout=3000)
+                        page.wait_for_timeout(200)
+                    # Read the current-plan field, never pricing cards or an upsell.
+                    for node in dialog.locator('[data-testid="current-plan"], [data-testid="account-plan"]').all():
+                        if node.is_visible():
+                            plan = plan_from_text(node.inner_text())
+                            if plan != "unknown":
+                                info["plan"] = plan
+                    explicit = re.search(r"(?mi)^\s*(?:Current plan|Your plan|Gói hiện tại)\s*[:：]\s*(?:ChatGPT\s+)?(Free|Plus|Pro|Go|Business|Enterprise|Edu)\s*$", dialog.inner_text())
+                    if explicit:
+                        info["plan"] = explicit[1].casefold()
     except Error:
         pass
     finally:
@@ -56,7 +83,7 @@ def detect_account(page, profile):
 
 
 def detect_plan(page, profile):
-    return detect_account(page, profile)["plan"]
+    return detect_account(page, profile, details=True)["plan"]
 
 
 def select_reasoning(page):

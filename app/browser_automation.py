@@ -263,19 +263,43 @@ def login(account, root, cancel, progress, url=CHATGPT, *, finish=None, awaiting
         progress("Đang kiểm tra tài khoản từ phiên Chrome đã lưu…")
         from playwright.sync_api import Error, sync_playwright
 
-        from .browser_capabilities import detect_account
-
         with sync_playwright() as playwright:
             context = open_context(playwright, account, background=True, cancel=cancel)
             try:
                 page = context.pages[0] if context.pages else context.new_page()
                 navigate(page, target, cancel)
-                require_account(page, cancel)
-                return {"ready": True, **detect_account(page, PROFILE)}
+                return inspect_session(page, cancel)
             except Error as exc:
                 raise BrowserProblem("browser", "Chưa kiểm tra được phiên Chrome đã lưu. Thử đăng nhập lại trong Browser AI.") from exc
             finally:
                 context.close()
+
+
+def check_session(account, root, cancel, progress):
+    """Read the saved session's visible controls; never upload or send a chat."""
+    from playwright.sync_api import sync_playwright
+
+    with profile_lock(root, account["id"]), sync_playwright() as playwright:
+        context = open_context(playwright, account, background=True, cancel=cancel)
+        try:
+            page = context.pages[0] if context.pages else context.new_page()
+            navigate(page, CHATGPT, cancel)
+            return inspect_session(page, cancel)
+        finally:
+            context.close()
+
+
+def inspect_session(page, cancel):
+    from .browser_capabilities import detect_account
+
+    limited = False
+    try:
+        require_account(page, cancel)
+    except BrowserProblem as exc:
+        if exc.code != "limit" or not signed_in(page):
+            raise
+        limited = True
+    return {"ready": True, "quota_limited": limited, **detect_account(page, PROFILE, details=True)}
 
 
 def write_record(folder, record):

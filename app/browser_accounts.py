@@ -40,8 +40,11 @@ class BrowserAccounts:
                     account["last_error"] = {"code": "browser_changed",
                         "message": "Browser AI đã chuyển sang Chrome. Đăng nhập lại một lần để lưu phiên Chrome riêng."}
                     migrated = True
-                if account.get("last_error", {}).get("code") in {"login", "verification", "auth_response"}:
+                if account.get("last_error", {}).get("code") in {"login", "verification", "auth_response", "network", "browser"}:
                     account.update(ready=False, status="Cần đăng nhập / xác minh")
+            if self.data.get("selection") != "auto":
+                self.data["selection"] = "auto"
+                migrated = True
             if migrated:
                 self.save()
 
@@ -90,7 +93,7 @@ class BrowserAccounts:
         self.get(account_id)
         self.data["pending_login"] = ""
         self.data["active"] = account_id
-        self.data["selection"] = "manual"
+        self.data["selection"] = "auto"
         self.save()
 
     def prefer_paid(self):
@@ -116,29 +119,32 @@ class BrowserAccounts:
         for account in self.data["accounts"]:
             if account["id"] == account_id:
                 account["last_error"] = {"code": code, "message": message}
-                if code in {"login", "verification", "auth_response"}:
+                if code in {"login", "verification", "auth_response", "network", "browser"}:
                     account.update(ready=False, status="Cần đăng nhập / xác minh")
+                if code == "limit":
+                    account["quota_limited"] = True
+                account["checked_at"] = time.time()
                 self.save()
                 return
 
-    def preferred(self):
-        if self.data.get("selection") == "manual":
-            chosen = self.get()
-            if not chosen.get("ready"):
-                raise ValueError("Đăng nhập lại tài khoản đã chọn trong Browser AI.")
-            return chosen
-        ready = [a for a in self.data["accounts"] if a.get("ready")]
-        candidates = ready
-        if not candidates:
-            raise ValueError("Đăng nhập ChatGPT trong Cài đặt → Browser AI.")
+    def candidates(self):
         priority = {"plus": 3, "pro": 3, "business": 3, "enterprise": 3, "edu": 3, "go": 2, "free": 1}
-        chosen = max(candidates, key=lambda a: (priority.get(a.get("plan"), 0), a["id"] == self.data["active"]))
-        return self.get(chosen["id"])
+        ready = [a for a in self.data["accounts"] if a.get("ready") and not a.get("quota_limited")]
+        ready.sort(key=lambda a: (priority.get(a.get("plan"), 0), a["id"] == self.data["active"]), reverse=True)
+        return [self.get(a["id"]) for a in ready]
+
+    def preferred(self):
+        candidates = self.candidates()
+        if not candidates:
+            if any(a.get("ready") and a.get("quota_limited") for a in self.data["accounts"]):
+                raise ValueError("Các tài khoản còn đăng nhập đã hết lượt dùng. Chờ hạn mức được cấp lại; không cần đăng nhập lại.")
+            raise ValueError("Đăng nhập ChatGPT trong Cài đặt → Browser AI.")
+        return candidates[0]
 
     def observe(self, account_id, plan, model="", identity=None):
         for account in self.data["accounts"]:
             if account["id"] == account_id:
-                account.update(plan=plan, model=model, ready=True, status="Đã đăng nhập · Tự lưu")
+                account.update(plan=plan, model=model, ready=True, quota_limited=False, checked_at=time.time(), status="Đã đăng nhập · Tự lưu")
                 account.pop("last_error", None)
                 if identity is not None:
                     account.update(name=identity.get("name", ""), email=identity.get("email", ""), saved_at=time.time())
@@ -163,7 +169,7 @@ class BrowserAccounts:
             if self.data["active"] == account_id:
                 self.data["active"] = self.data["accounts"][0]["id"] if self.data["accounts"] else ""
                 self.data["selection"] = "auto"
-                if any(a.get("ready") for a in self.data["accounts"]):
+                if self.candidates():
                     self.data["active"] = self.preferred()["id"]
             self.save()
 

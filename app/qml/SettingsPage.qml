@@ -469,6 +469,7 @@ Item {
         }
         ColumnLayout {
             visible: page.activeTab === 6; Layout.fillWidth: true; spacing: 14
+            onVisibleChanged: { if (visible && bridge.browserAI.webMode) bridge.browserAI.refreshAccounts() }
             Card {
                 Layout.fillWidth: true
                 ColumnLayout { width: parent.width; spacing: 18
@@ -481,13 +482,13 @@ Item {
                         }
                         SaveButton {
                             objectName: "browserAccountAdd"
-                            text: bridge.browserAI.disconnectBusy ? "Đang xóa…" : bridge.browserAI.webMode && bridge.browserAI.loginAwaitingConfirmation ? "Kiểm tra và lưu" : bridge.browserAI.loginBusy ? "Hủy" : bridge.browserAI.webMode ? (bridge.browserAI.accountInfo.ready ? "Thêm tài khoản" : "Đăng nhập ChatGPT") : bridge.browserAI.activeId ? "Đăng nhập lại" : "Đăng nhập ChatGPT"
+                            text: bridge.browserAI.disconnectBusy ? "Đang xóa…" : bridge.browserAI.webMode && bridge.browserAI.loginAwaitingConfirmation ? "Kiểm tra và lưu" : bridge.browserAI.loginBusy ? "Hủy" : bridge.browserAI.webMode ? (bridge.browserAI.accounts.length ? "Thêm tài khoản" : "Đăng nhập ChatGPT") : bridge.browserAI.activeId ? "Đăng nhập lại" : "Đăng nhập ChatGPT"
                             enabled: !bridge.busy && !bridge.browserAI.disconnectBusy
                             onClicked: bridge.browserAI.connectAccount()
                         }
                         SoftButton {
                             objectName: "browserAccountMenu"; text: "..."; implicitWidth: 42
-                            visible: !!bridge.browserAI.activeId
+                            visible: !bridge.browserAI.webMode && !!bridge.browserAI.activeId
                             enabled: !bridge.busy && !bridge.browserAI.loginBusy
                             Accessible.name: "Quản lý tài khoản ChatGPT"
                             onClicked: accountMenu.popup()
@@ -518,6 +519,53 @@ Item {
                         }
                     }
                     Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: page.line }
+                    ColumnLayout {
+                        visible: bridge.browserAI.webMode; Layout.fillWidth: true; spacing: 18
+                        Hint { objectName: "browserEmptyAccounts"; visible: bridge.browserAI.accounts.length === 0; text: "Chưa có tài khoản. Đăng nhập ChatGPT để bắt đầu."; Layout.fillWidth: true }
+                        Repeater {
+                            id: browserProfiles; objectName: "browserProfiles"
+                            model: bridge.browserAI.webMode ? bridge.browserAI.accounts : []
+                            delegate: ColumnLayout {
+                                id: accountRow
+                                objectName: "browserProfileRow"
+                                required property var modelData
+                                required property int index
+                                property string accountId: modelData.id
+                                Layout.fillWidth: true; spacing: 8
+                                Rectangle { visible: accountRow.index > 0; Layout.fillWidth: true; implicitHeight: 1; color: page.line }
+                                RowLayout {
+                                    Layout.fillWidth: true; spacing: 16
+                                    Rectangle { objectName: "browserProfileLight"; implicitWidth: 9; implicitHeight: 9; radius: 5; color: accountRow.modelData.color; Accessible.name: accountRow.modelData.status }
+                                    ColumnLayout {
+                                        Layout.fillWidth: true; spacing: 5
+                                        Label { objectName: "browserProfileName"; text: accountRow.modelData.name || accountRow.modelData.label; color: page.ink; font.pixelSize: 18; font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight }
+                                        Hint { text: accountRow.modelData.email || ""; visible: !!text && text !== accountRow.modelData.label; Layout.fillWidth: true }
+                                        RowLayout {
+                                            spacing: 12
+                                            Label { objectName: "browserProfilePlan"; text: accountRow.modelData.plan === "unknown" ? "Chưa rõ gói" : accountRow.modelData.plan.charAt(0).toUpperCase() + accountRow.modelData.plan.slice(1); color: page.muted; font.pixelSize: 13 }
+                                            Label { objectName: "browserProfileState"; text: accountRow.modelData.status; color: accountRow.modelData.color; font.pixelSize: 13 }
+                                        }
+                                    }
+                                    SoftButton {
+                                        objectName: "browserProfileReconnect"
+                                        visible: !accountRow.modelData.ready || accountRow.modelData.limited
+                                        text: accountRow.modelData.recheck ? "Kiểm tra lại" : "Đăng nhập lại"
+                                        enabled: !bridge.busy && !bridge.browserAI.loginBusy
+                                        onClicked: { if (accountRow.modelData.recheck) bridge.browserAI.checkAccount(accountRow.accountId); else bridge.browserAI.signIn(accountRow.accountId) }
+                                    }
+                                    SoftButton {
+                                        objectName: "browserProfileDelete"; text: "Xóa profile"
+                                        enabled: !bridge.busy && !bridge.browserAI.loginBusy
+                                        Accessible.name: "Xóa profile " + (accountRow.modelData.name || accountRow.modelData.label)
+                                        onClicked: bridge.browserAI.remove(accountRow.accountId)
+                                    }
+                                }
+                                Hint { visible: !!accountRow.modelData.error && !accountRow.modelData.checking; text: accountRow.modelData.error; color: "#ab5b20"; Layout.fillWidth: true }
+                            }
+                        }
+                    }
+                    ColumnLayout {
+                        visible: !bridge.browserAI.webMode; Layout.fillWidth: true; spacing: 18
                     RowLayout {
                         Layout.fillWidth: true; spacing: 8
                         Rectangle { implicitWidth: 8; implicitHeight: 8; radius: 4; color: bridge.browserAI.hasError ? "#c05b31" : bridge.browserAI.accountInfo.ready ? "#138578" : page.muted }
@@ -546,8 +594,9 @@ Item {
                         Hint { text: "Hạn mức còn lại" }
                         Hint { objectName: "browserQuotaStatus"; text: bridge.browserAI.quotaMessage; Layout.fillWidth: true }
                     }
+                    }
                     RowLayout {
-                        visible: bridge.browserAI.loginBusy || bridge.browserAI.hasError || bridge.browserAI.webMode; Layout.fillWidth: true; spacing: 10
+                        visible: bridge.browserAI.loginBusy || bridge.browserAI.hasError; Layout.fillWidth: true; spacing: 10
                         BusyIndicator { visible: bridge.browserAI.loginBusy; running: visible; implicitWidth: 24; implicitHeight: 24 }
                         Hint { objectName: "browserAccountStatus"; text: bridge.browserAI.message; Layout.fillWidth: true; color: bridge.browserAI.hasError ? "#ab5b20" : page.blue }
                     }
@@ -558,7 +607,7 @@ Item {
                         enabled: !bridge.busy
                         onClicked: bridge.browserAI.useManualBrowser()
                     }
-                    Hint { text: bridge.browserAI.webMode ? "Vào được màn hình chat rồi bấm Kiểm tra và lưu. BiliClass chỉ báo đã kết nối sau khi kiểm tra được phiên đã lưu." : "Cửa sổ đăng nhập tự đóng khi xong. Chỉ khi có thông tin tài khoản ở đây thì kết nối mới được lưu."; Layout.fillWidth: true; font.pixelSize: 12 }
+                    Hint { visible: !bridge.browserAI.webMode; text: "Cửa sổ đăng nhập tự đóng khi xong. Chỉ khi có thông tin tài khoản ở đây thì kết nối mới được lưu."; Layout.fillWidth: true; font.pixelSize: 12 }
                 }
             }
         }

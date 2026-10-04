@@ -8,7 +8,7 @@ Release RC12 chưa có thay đổi này. Tự gửi/nhận qua web là tính nă
 
 **Kết quả thử thật ngày 04/10/2026:** người dùng gặp vòng lặp xác minh Cloudflare cả trong phiên do BiliClass mở và browser thường. Chưa xác định được nguyên nhân mạng/browser/tài khoản; chưa kết nối thành công. Không coi đây là lỗi riêng của Free hoặc bảo đảm Plus sẽ giải quyết được.
 
-Lần thử Chrome tiếp theo trả lỗi **400 Invalid content type: text/html** trên trang đăng nhập. Đã đổi bước đăng nhập sang Chrome thường, chưa gắn phần điều khiển browser; chỉ gắn sau khi người dùng xác nhận để kiểm tra phiên đã lưu. Đây là thay đổi đang được thử với tài khoản thật, chưa chứng minh loại bỏ được lỗi phía trang đăng nhập.
+Lần thử Chrome tiếp theo trả lỗi **400 Invalid content type: text/html** trên trang đăng nhập. Đã đổi bước đăng nhập sang Chrome thường, chưa gắn phần điều khiển browser; chỉ gắn sau khi người dùng xác nhận để kiểm tra phiên đã lưu. **Sau đó người dùng đã đăng nhập được và log xác nhận phiên đã lưu**. Chưa nghiệm thu chuyển đổi PowerPoint thật qua tài khoản này; lần xác nhận ban đầu chưa đọc được gói.
 
 ## Chrome riêng và phiên đã lưu
 
@@ -22,10 +22,13 @@ Tác vụ dùng cùng Chrome/hồ sơ với đăng nhập, chạy trong cửa s�
 
 1. **Cài đặt → Browser AI → Đăng nhập ChatGPT**. Nhập thông tin trên trang ChatGPT trong cửa sổ Chrome riêng.
 2. Khi đã vào màn hình chat, quay lại BiliClass và bấm **Kiểm tra và lưu** trên chính nút đăng nhập. Có thể đóng cửa sổ Chrome riêng để bắt đầu kiểm tra. App mở lại cùng hồ sơ ở chế độ thu nhỏ và kiểm tra phiên còn dùng được; chỉ lúc đó mới báo đã kết nối. Bấm xác nhận hoặc đóng Chrome tự nó không được coi là đăng nhập thành công.
-3. Tab hiện tên/email nếu đọc được từ menu tài khoản, gói nếu web ghi rõ và thời điểm lưu. Không suy đoán Free/Plus từ nút nâng cấp hay model. Chưa nhận diện được gói sẽ ghi **Chưa xác định trên web**.
-4. Nút chính đổi thành **Thêm tài khoản**. Mỗi tài khoản có hồ sơ Chrome riêng. Menu **⋯** cho đăng nhập lại, chọn tài khoản và xóa hồ sơ tại máy.
+3. Mỗi tài khoản hiện thành một dòng: tên/email, gói nếu web ghi rõ và đèn trạng thái. Không suy đoán Free/Plus từ nút nâng cấp hay model. Chưa nhận diện được gói sẽ ghi **Chưa rõ gói**. Khi cần, adapter đọc thêm trường gói hiện tại trong Settings → Account; không bấm nâng cấp.
+4. Nút chính đổi thành **Thêm tài khoản**. Mỗi tài khoản có hồ sơ Chrome riêng. Bỏ menu **⋯** và thông tin chính sách lựa chọn. **Xóa profile** xuất hiện ngay trên từng dòng, chỉ xóa hồ sơ browser tương ứng trên máy; bài đã lưu trong thư viện vẫn được giữ.
+5. Khi mất phiên, dòng tài khoản cảnh báo và hiện **Đăng nhập lại**. Lỗi mạng/browser hiện **Kiểm tra lại**; không tự xóa cookie hay yêu cầu mật khẩu chỉ vì mạng chập chờn. Hết lượt dùng là trạng thái riêng: vẫn đăng nhập, hiện cảnh báo hạn mức thay vì yêu cầu đăng nhập lại.
 
-Thêm tài khoản mà chưa đăng nhập được: giữ hồ sơ đang thử để nút chính mở lại đúng tài khoản đó, kể cả sau khi đóng/mở tool. Tài khoản đã dùng cho bài mới và lựa chọn cố định Free không bị thay đổi bởi lần thêm chưa thành công. Khi web báo phiên hết hạn/cần xác minh, trạng thái sẵn sàng bị gỡ; đăng nhập thành công sẽ xác nhận lại. Hạn mức là trạng thái riêng, không đồng nghĩa đăng xuất.
+Khi mở tab và mỗi năm phút lúc tool hoạt động, kiểm tra lần lượt các phiên đã từng lưu, thu nhỏ Chrome, chỉ đọc giao diện; không gửi prompt hoặc tải tài liệu. Bỏ qua kiểm tra định kỳ khi có tác vụ chuyển đổi/đăng nhập. Đèn phản ánh lần kiểm tra gần nhất, không phải kết nối tức thời liên tục.
+
+Thêm tài khoản mà chưa đăng nhập được: giữ hồ sơ đang thử để **Đăng nhập lại** trên dòng đó mở đúng hồ sơ, kể cả sau khi đóng/mở tool. Phiên đã lưu khác không bị xóa bởi lần thêm chưa thành công. Khi web báo phiên hết hạn/cần xác minh, trạng thái sẵn sàng bị gỡ; đăng nhập thành công sẽ xác nhận lại. Hạn mức là trạng thái riêng, không đồng nghĩa đăng xuất.
 
 Đóng cửa sổ khi chưa đăng nhập không được coi là thành công. Chờ người dùng đăng nhập tối đa 10 phút; hồ sơ vẫn được giữ khi quá thời gian. Khi đang kiểm tra phiên, nút chính cho phép Hủy. Đóng BiliClass cũng hủy tác vụ và đóng Chrome riêng. Phiên web thuộc thư viện trên máy, không đưa vào Git, backup thư viện hoặc gói bài; không xuất cookie/token hay lưu mật khẩu bằng mã của BiliClass. Dữ liệu OAuth cũ được giữ riêng.
 
@@ -35,12 +38,11 @@ Nếu browser thường cũng bị kẹt, cách thủ công chưa dùng được
 
 ## Chọn Free/Plus
 
-- Mặc định **Tự động · ưu tiên Plus** cho bài mới: ưu tiên tài khoản trả phí đã nhận diện và đăng nhập thành công trước Free; tài khoản chưa biết gói đứng sau gói đã biết.
-- Trong **⋯ → Cố định tài khoản để dùng / kiểm thử**, chọn Free để thử dù đã có Plus. Lựa chọn được lưu qua lần mở app.
-- Muốn dùng ưu tiên lại, chọn **Tự động · ưu tiên Plus**.
+- Bài mới tự chọn tài khoản còn kết nối, chưa báo hết lượt: ưu tiên Plus/các gói trả phí đã nhận diện, rồi Free; tài khoản chưa biết gói đứng sau gói đã biết. Không hiện chính sách này trong giao diện. Các lựa chọn cố định cũ được chuyển về tự động khi mở tool.
+- Nếu web báo hết lượt hoặc mất kết nối **trước khi gửi prompt**, thử tài khoản kế tiếp một lần. Lưu trạng thái hạn mức/mất phiên để các bài mới bỏ qua tài khoản đó. Khi kiểm tra lại đọc được phiên mà không còn cảnh báo hạn mức, cho phép thử lại; không suy ra số lượt còn lại.
 - Khi mở phiên chuyển đổi, đọc lại nhãn gói hiện có. Nếu Plus đã xuống Free, cập nhật thành Free. Quan sát này áp dụng cho lựa chọn bài sau; bài đang gửi giữ nguyên tài khoản.
-- Sau khi bài đã bắt đầu, không đổi tài khoản tự động khi hết quota, lỗi mạng hoặc cần xác minh. Tiếp tục dùng đúng cuộc trò chuyện/tài khoản đã ghi; trạng thái gửi không rõ thì dừng, không gửi trùng.
-- Số dư/quota reset chưa có nguồn đọc đáng tin cậy trong adapter. UI nói rõ chưa có số liệu, không tạo phần trăm giả.
+- Sau khi đã bắt đầu gửi prompt, không đổi tài khoản tự động khi hết quota, lỗi mạng hoặc cần xác minh. Tiếp tục dùng đúng cuộc trò chuyện/tài khoản đã ghi; trạng thái gửi không rõ thì dừng, không gửi trùng. Nếu bài đã gửi đang hết lượt, chờ hạn mức được cấp lại; không đăng nhập lại chỉ để giải quyết quota.
+- Số dư/quota reset chưa có nguồn đọc đáng tin cậy trong adapter nên **ẩn dòng hạn mức**, không tạo số dư hoặc phần trăm giả. Chỉ hiện cảnh báo hết lượt khi đọc được thông báo của web. Bảng [OpenAI Docs về hạn mức Work/Codex](https://learn.chatgpt.com/docs/pricing) không được dùng để suy ra số dư chat web của từng profile.
 
 ## Chuyển đổi bài
 
@@ -58,9 +60,9 @@ Trong bước đăng nhập, Chrome tự tải trang và được giữ để ng
 
 ## Kiểm tra
 
-- 42 kiểm thử browser/Chrome và 12 handoff đã qua: hồ sơ riêng, khóa/xóa, backup không chứa phiên, ưu tiên Plus, cố định Free, hạ gói, gói chưa rõ, lựa chọn model được phép, Think, không nhầm giao diện khách với đăng nhập, dừng vòng lặp xác minh, hủy/tiếp tục xác minh, không gửi lại khi trạng thái chưa chắc, tải lại và giữ tài khoản. Thêm các ca thử tài khoản mới thất bại, gỡ trạng thái phiên hết hạn/lỗi 400, chỉ nhận câu trả lời mới, thông báo quota tách nội dung bài, xuất PPTX bổ sung và prompt biến mất trước khi gửi.
+- 45 kiểm thử browser/Chrome, 9 lựa chọn/chuyển tài khoản và 12 handoff đã qua: hồ sơ riêng, khóa/xóa, backup không chứa phiên, ưu tiên Plus, bỏ lựa chọn cố định cũ, hạ gói, gói chưa rõ, lựa chọn model được phép, Think, không nhầm giao diện khách với đăng nhập, dừng vòng lặp xác minh, hủy/tiếp tục xác minh, không gửi lại khi trạng thái chưa chắc, tải lại và giữ tài khoản. Kiểm tra đọc gói hiện tại, kiểm tra phiên chỉ đọc, quota không làm đăng xuất, chuyển từ Plus sang Free khi chưa gửi, bài đã gửi vẫn giữ tài khoản cũ và cả danh sách hết lượt không yêu cầu đăng nhập lại.
 - Browser test chạy Chrome thật trên trang fixture được chặn mạng hoặc máy chủ localhost; không đăng nhập/tải tài liệu thật lên ChatGPT. Kiểm tra cookie fixture và localStorage còn sau khi đóng/mở tiến trình, không lẫn giữa hai hồ sơ; chỉ dùng endpoint debug cục bộ, hủy trước khởi động không tạo tiến trình. Thử Chrome thường thật không có cổng debug: đóng đúng cửa sổ riêng, giữ cookie fixture khi mở lại và không đóng tiến trình Chrome của hồ sơ khác. Adapter chỉ gắn phần điều khiển sau xác nhận; đóng sớm hoặc hủy không báo thành công. Các ca chờ tải chậm của adapter quan sát cũ vẫn được giữ, không đại diện cho đăng nhập thật.
-- Qt Browser AI: đóng cửa sổ chưa đăng nhập; lỗi Cloudflare và chọn dự phòng không báo giả đã kết nối; cùng nút đăng nhập đổi thành **Kiểm tra và lưu**, chỉ lưu Free sau kiểm tra; thêm Plus thất bại rồi mở lại đúng hồ sơ; cố định Free; chuyển đổi bị xác minh rồi đăng nhập, xác nhận và tự tiếp tục cùng tài khoản/bài; nhận PPTX và audio giả lập; xem trước bằng Office thật; mở lại bài khi đã xóa tài khoản. Các tab Chung/Song ngữ/Giọng đọc/Mascot được giữ. Smoke Qt đăng nhập OAuth cũ cũng qua, không có cảnh báo QML.
+- Qt Browser AI kiểm tra đóng sớm, đăng nhập/xác nhận, thêm tài khoản, từng dòng thông tin và nút **Xóa profile**; ẩn menu/chính sách/số dư chưa biết. Luồng fixture Plus hết lượt trước gửi → Free gửi đúng một lần → mất phiên → đăng nhập và tiếp tục cùng cuộc trò chuyện; nhận PPTX/audio giả lập và xem trước bằng Office thật; kiểm tra lại phiên, cảnh báo mất kết nối, xóa từng hồ sơ và mở lại bài không cần tài khoản. Các tab Chung/Song ngữ/Giọng đọc/Mascot được giữ. Smoke Qt đăng nhập OAuth cũ cũng qua, không có cảnh báo QML.
 - OAuth cũ có smoke riêng để tránh làm hỏng dữ liệu và yêu cầu đã có: [thiết kế và chẩn đoán cũ](CHATGPT_PLAN_AUTH.md).
 
-Còn cần nghiệm thu thật: đăng nhập Free, lựa chọn suy luận trên giao diện thực tế, một bài PPTX nhỏ, chất lượng kết quả và giới hạn lượt dùng; sau đó thử tài khoản Plus và bản đóng gói.
+Còn cần nghiệm thu thật: đọc gói trên giao diện thực tế, lựa chọn suy luận, một bài PPTX nhỏ, chất lượng kết quả và giới hạn lượt dùng; sau đó thử tài khoản Plus và bản đóng gói. Đăng nhập thật đã xác nhận thành công; không dùng kết quả đó thay cho nghiệm thu gửi/nhận PowerPoint.
