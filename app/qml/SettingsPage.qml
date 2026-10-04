@@ -481,7 +481,7 @@ Item {
                         }
                         SaveButton {
                             objectName: "browserAccountAdd"
-                            text: bridge.browserAI.disconnectBusy ? "Đang xóa…" : bridge.browserAI.loginBusy ? "Hủy" : bridge.browserAI.activeId ? "Đăng nhập lại" : "Đăng nhập ChatGPT"
+                            text: bridge.browserAI.disconnectBusy ? "Đang xóa…" : bridge.browserAI.loginBusy ? "Hủy" : bridge.browserAI.webMode ? (bridge.browserAI.accountInfo.ready ? "Thêm tài khoản" : "Đăng nhập ChatGPT") : bridge.browserAI.activeId ? "Đăng nhập lại" : "Đăng nhập ChatGPT"
                             enabled: !bridge.busy && !bridge.browserAI.disconnectBusy
                             onClicked: bridge.browserAI.connectAccount()
                         }
@@ -494,22 +494,24 @@ Item {
                             Menu {
                                 id: accountMenu
                                 MenuItem { text: "Dùng tài khoản khác"; onTriggered: bridge.browserAI.addAndSignIn() }
+                                MenuItem { text: "Đăng nhập lại tài khoản này"; visible: bridge.browserAI.webMode; onTriggered: bridge.browserAI.signIn(bridge.browserAI.activeId) }
+                                MenuItem { objectName: "browserAutoSelect"; text: "Tự động · ưu tiên Plus"; visible: bridge.browserAI.webMode; checkable: true; checked: bridge.browserAI.autoSelection; onTriggered: bridge.browserAI.preferPaid() }
                                 Menu {
                                     id: savedAccountsMenu; objectName: "browserStoredAccountsMenu"
-                                    title: "Tài khoản đã lưu"; enabled: bridge.browserAI.accounts.length > 1
+                                    title: "Cố định tài khoản để dùng / kiểm thử"; enabled: bridge.browserAI.accounts.length > 0
                                     Instantiator {
                                         model: bridge.browserAI.accounts
                                         delegate: MenuItem {
                                             required property var modelData
-                                            text: modelData.label; checkable: true
-                                            checked: bridge.browserAI.activeId === modelData.id
+                                            text: modelData.label + (bridge.browserAI.webMode ? " · " + (modelData.plan === "unknown" ? "Chưa rõ gói" : modelData.plan || "Chưa rõ gói") : ""); checkable: true
+                                            checked: !bridge.browserAI.autoSelection && bridge.browserAI.activeId === modelData.id
                                             onTriggered: bridge.browserAI.select(modelData.id)
                                         }
                                         onObjectAdded: function(index, object) { savedAccountsMenu.insertItem(index, object) }
                                         onObjectRemoved: function(index, object) { savedAccountsMenu.removeItem(object) }
                                     }
                                 }
-                                MenuItem { text: "Hạn mức trên ChatGPT"; onTriggered: bridge.browserAI.openUsage() }
+                                MenuItem { text: "Hạn mức trên ChatGPT"; visible: !bridge.browserAI.webMode; onTriggered: bridge.browserAI.openUsage() }
                                 MenuSeparator {}
                                 MenuItem { text: "Xóa kết nối trên máy"; onTriggered: bridge.browserAI.remove(bridge.browserAI.activeId) }
                             }
@@ -518,32 +520,34 @@ Item {
                     Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: page.line }
                     RowLayout {
                         Layout.fillWidth: true; spacing: 8
-                        Rectangle { implicitWidth: 8; implicitHeight: 8; radius: 4; color: bridge.browserAI.hasError ? "#c05b31" : bridge.browserAI.activeId ? "#138578" : page.muted }
+                        Rectangle { implicitWidth: 8; implicitHeight: 8; radius: 4; color: bridge.browserAI.hasError ? "#c05b31" : bridge.browserAI.accountInfo.ready ? "#138578" : page.muted }
                         Label {
                             objectName: "browserConnectionState"
-                            text: bridge.browserAI.disconnectBusy ? "Đang ngắt kết nối…" : bridge.browserAI.loginBusy ? "Đang kết nối…" : bridge.browserAI.hasError ? "Chưa kết nối thành công" : bridge.browserAI.activeId ? "Đã đăng nhập · Tự lưu" : "Chưa đăng nhập"
+                            text: bridge.browserAI.disconnectBusy ? "Đang ngắt kết nối…" : bridge.browserAI.loginBusy ? "Đang kết nối…" : bridge.browserAI.hasError ? "Lần đăng nhập vừa rồi chưa thành công" : bridge.browserAI.accountInfo.ready ? "Đã đăng nhập · Tự lưu" : "Chưa đăng nhập"
                             font.pixelSize: 13; font.weight: Font.DemiBold; color: page.ink
                         }
                     }
                     ColumnLayout {
                         objectName: "browserAccountDetails"
-                        visible: !!bridge.browserAI.activeId; Layout.fillWidth: true; spacing: 6
+                        visible: !!bridge.browserAI.accountInfo.ready; Layout.fillWidth: true; spacing: 6
                         Label { objectName: "browserAccountIdentity"; text: bridge.browserAI.accountInfo.name || bridge.browserAI.accountInfo.label || ""; color: page.ink; font.pixelSize: 21; font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight }
                         Hint { text: bridge.browserAI.accountInfo.email || ""; visible: !!bridge.browserAI.accountInfo.name && !!text; Layout.fillWidth: true }
                         Hint { objectName: "browserAccountSaved"; text: "Lưu lần cuối: " + (bridge.browserAI.accountInfo.saved || ""); Layout.fillWidth: true }
                     }
                     GridLayout {
-                        visible: !!bridge.browserAI.activeId; Layout.fillWidth: true
+                        visible: !!bridge.browserAI.accountInfo.ready; Layout.fillWidth: true
                         columns: 2; columnSpacing: 24; rowSpacing: 12
                         Hint { text: "Quyền xử lý bài" }
-                        Hint { objectName: "browserAccountPermission"; text: bridge.browserAI.accountInfo.ready ? "Đã cấp quyền dùng hạn mức ChatGPT" : "Chưa cấp quyền dùng hạn mức ChatGPT"; color: bridge.browserAI.accountInfo.ready ? "#138578" : "#ab5b20"; Layout.fillWidth: true }
+                        Hint { objectName: "browserAccountPermission"; text: bridge.browserAI.webMode ? "Dùng phiên đăng nhập web ChatGPT" : bridge.browserAI.accountInfo.ready ? "Đã cấp quyền dùng hạn mức ChatGPT" : "Chưa cấp quyền dùng hạn mức ChatGPT"; color: bridge.browserAI.accountInfo.ready ? "#138578" : "#ab5b20"; Layout.fillWidth: true }
                         Hint { text: "Gói tài khoản"; visible: !!bridge.browserAI.accountInfo.plan }
-                        Hint { text: bridge.browserAI.accountInfo.plan || ""; visible: !!text; Layout.fillWidth: true }
+                        Hint { text: bridge.browserAI.accountInfo.plan === "unknown" ? "Chưa xác định trên web" : bridge.browserAI.accountInfo.plan || ""; visible: !!text; Layout.fillWidth: true }
+                        Hint { text: "Bài mới"; visible: bridge.browserAI.webMode }
+                        Hint { objectName: "browserSelectionPolicy"; text: bridge.browserAI.selectionLabel; visible: bridge.browserAI.webMode; Layout.fillWidth: true }
                         Hint { text: "Hạn mức còn lại" }
                         Hint { objectName: "browserQuotaStatus"; text: bridge.browserAI.quotaMessage; Layout.fillWidth: true }
                     }
                     RowLayout {
-                        visible: bridge.browserAI.loginBusy || bridge.browserAI.hasError; Layout.fillWidth: true; spacing: 10
+                        visible: bridge.browserAI.loginBusy || bridge.browserAI.hasError || bridge.browserAI.webMode; Layout.fillWidth: true; spacing: 10
                         BusyIndicator { visible: bridge.browserAI.loginBusy; running: visible; implicitWidth: 24; implicitHeight: 24 }
                         Hint { objectName: "browserAccountStatus"; text: bridge.browserAI.message; Layout.fillWidth: true; color: bridge.browserAI.hasError ? "#ab5b20" : page.blue }
                     }

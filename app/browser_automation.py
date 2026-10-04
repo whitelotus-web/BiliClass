@@ -86,10 +86,10 @@ def open_context(playwright, account, *, headless):
         raise BrowserProblem("browser", "Chưa mở được browser riêng. Cài/cập nhật Microsoft Edge và đóng phiên đang dùng tài khoản này.") from exc
 
 
-def login(account, root, cancel, progress, url=CHATGPT, *, auto_close=True):
+def login(account, root, cancel, progress, url=CHATGPT, *, auto_close=True, timeout=600):
     from playwright.sync_api import Error, sync_playwright
 
-    from .browser_capabilities import detect_plan
+    from .browser_capabilities import detect_account
 
     with profile_lock(root, account["id"]), sync_playwright() as playwright:
         context = open_context(playwright, account, headless=False)
@@ -98,23 +98,26 @@ def login(account, root, cancel, progress, url=CHATGPT, *, auto_close=True):
             page.goto(url if conversation_url(url) else CHATGPT, wait_until="domcontentloaded", timeout=45000)
             progress("Đăng nhập trên web. Tool sẽ tự lưu phiên khi đăng nhập thành công.")
             ready_since = None
-            while not cancel.is_set():
+            deadline = time.monotonic() + timeout
+            while not cancel.is_set() and time.monotonic() < deadline:
                 if page.is_closed():
                     return {"ready": False, "message": "Đã đóng browser. Có thể mở lại để kiểm tra phiên."}
                 try:
                     signed_in = (urlsplit(page.url).hostname == "chatgpt.com"
-                                 and visible(page, PROFILE) and visible(page, COMPOSER))
+                                 and visible(page, PROFILE) and visible(page, COMPOSER)
+                                 and not visible(page, '[data-testid="login-button"], [data-testid="login-button-header"]'))
                     if auto_close and signed_in:
                         ready_since = ready_since or time.monotonic()
                         if time.monotonic() - ready_since >= 1:
-                            plan = detect_plan(page, PROFILE)
-                            return {"ready": True, "plan": plan, "message": "Đã đăng nhập và tự lưu phiên ChatGPT."}
+                            return {"ready": True, **detect_account(page, PROFILE), "message": "Đã đăng nhập và tự lưu phiên ChatGPT."}
                     else:
                         ready_since = None
                 except Error:
                     # OAuth navigation can temporarily replace the page's DOM.
                     ready_since = None
                 page.wait_for_timeout(250)
+            if not cancel.is_set():
+                raise BrowserProblem("timeout", "Hết thời gian chờ đăng nhập. Bấm Đăng nhập để mở lại phiên web.")
             return {"ready": False, "message": "Đã đóng phiên browser."}
         except Error as exc:
             raise BrowserProblem("browser", "Browser đăng nhập đã đóng hoặc mất kết nối. Mở lại để tiếp tục.") from exc
@@ -264,7 +267,7 @@ def convert(account, root, request_folder, cancel, progress, *, timeout=900, obs
 def _convert_locked(account, request_folder, cancel, progress, *, timeout, observed):
     from playwright.sync_api import Error, sync_playwright
 
-    from .browser_capabilities import detect_plan, select_best_model
+    from .browser_capabilities import detect_plan, select_best_model, select_reasoning
 
     request = load_request(request_folder)
     folder = Path(request["folder"])
@@ -291,7 +294,8 @@ def _convert_locked(account, request_folder, cancel, progress, *, timeout, obser
                 plan = detect_plan(page, PROFILE)
                 if record["state"] == "prepared":
                     model = select_best_model(page)
-                    record.update(plan=plan, model=model)
+                    reasoning = select_reasoning(page)
+                    record.update(plan=plan, model=model, reasoning=reasoning)
                     write_record(folder, record)
                     progress(f"Model đang dùng: {model} · quyền truy cập theo web ChatGPT.")
                 if observed:

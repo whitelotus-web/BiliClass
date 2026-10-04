@@ -23,6 +23,7 @@ from PySide6.QtQuickControls2 import QQuickStyle
 from test_ai_lesson import EchoProvider
 
 from app import chatgpt_plan, speech
+from app.browser_ai_ui import BrowserAI
 from app.library import Library
 from app.paths import RESOURCE_ROOT
 from app.quick_conversion import verify_preview
@@ -59,7 +60,7 @@ slide = deck.slides.add_slide(deck.slide_layouts[6])
 slide.shapes.add_textbox(Inches(.5), Inches(.5), Inches(8), Inches(1.5)).text = "Có một giá trị."
 deck.save(source)
 digest = hashlib.sha256(source.read_bytes()).hexdigest()
-bridge = Bridge(library)
+bridge = Bridge(library, browser_ai_factory=BrowserAI)
 account_id = str(uuid4())
 bridge.browserAI.store.data.update(accounts=[{"id": account_id, "label": "Tài khoản thử", "status": "Kết nối thử",
                                              "plan": "unknown", "ready": True}], active=account_id, audio=True)

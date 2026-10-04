@@ -16,35 +16,69 @@ def plan_from_text(text):
     return "unknown"
 
 
-def detect_plan(page, profile):
+def detect_account(page, profile):
     """Exact plan labels only: 'Upgrade to Plus' must never mean a Plus account."""
     from playwright.sync_api import Error
 
     from .browser_automation import visible
 
-    plan = "unknown"
+    info = {"plan": "unknown", "name": "", "email": ""}
     try:
         button = visible(page, profile)
         if not button:
-            return plan
-        plan = plan_from_text(button.inner_text())
-        if plan != "unknown":
-            return plan
+            return info
+        text = button.inner_text().strip()
+        info["plan"] = plan_from_text(text)
+        lines = text.splitlines()
+        if lines and plan_from_text(lines[0]) == "unknown" and lines[0].casefold() not in {
+            "open profile menu", "profile", "account", "chatgpt", "mở hồ sơ", "tài khoản",
+        } and not re.search(r"upgrade|nâng cấp", lines[0], re.I):
+            info["name"] = lines[0][:100]
         button.click(timeout=3000)
         page.wait_for_timeout(200)
         for menu in page.locator('[role="menu"], [data-testid="account-menu"]').all():
             if menu.is_visible():
-                plan = plan_from_text(menu.inner_text())
+                text += "\n" + menu.inner_text()
+                plan = plan_from_text(text)
                 if plan != "unknown":
-                    break
+                    info["plan"] = plan
+        email = re.search(r"(?m)^\s*([^\s@]+@[^\s@]+\.[^\s@]+)\s*$", text)
+        if email:
+            info["email"] = email[1][:254]
     except Error:
-        return "unknown"
+        pass
     finally:
         try:
             page.keyboard.press("Escape")
         except Error:
             pass
-    return plan
+    return info
+
+
+def detect_plan(page, profile):
+    return detect_account(page, profile)["plan"]
+
+
+def select_reasoning(page):
+    """Use only visible, enabled Think toggles; never click a plan upsell.
+
+    A Free account may have no separate thinking control. In that case leave
+    the web default intact and do not claim a reasoning level was selected.
+    """
+    from playwright.sync_api import Error
+
+    try:
+        for button in page.get_by_role("button", name=re.compile(r"^(Think|Thinking|Suy nghĩ|Suy luận)$", re.I)).all():
+            if not button.is_visible() or not button.is_enabled() or button.get_attribute("aria-disabled") == "true":
+                continue
+            pressed = button.get_attribute("aria-pressed")
+            if pressed == "false":
+                button.click(timeout=3000)
+            if button.get_attribute("aria-pressed") == "true":
+                return "Đã bật suy luận trên web"
+    except Error:
+        pass
+    return "Theo tùy chọn web đang có"
 
 
 def model_priority(label):

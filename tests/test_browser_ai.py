@@ -47,6 +47,40 @@ def test_plus_priority_changes_after_account_downgrades_to_free(tmp_path):
     assert accounts.preferred()["channel"] == "msedge"
 
 
+def test_manual_free_testing_is_persisted_and_does_not_fall_back_to_plus(tmp_path):
+    accounts = BrowserAccounts(tmp_path)
+    free, plus = accounts.add("Free"), accounts.add("Plus")
+    with pytest.raises(ValueError, match="Đăng nhập"):
+        accounts.preferred()
+    accounts.observe(free["id"], "free")
+    accounts.observe(plus["id"], "plus")
+    assert accounts.preferred()["id"] == plus["id"]
+    accounts.select(free["id"])
+    accounts.observe(plus["id"], "plus", "Thinking")
+    assert BrowserAccounts(tmp_path).preferred()["id"] == free["id"]
+    accounts.data["accounts"][0]["ready"] = False
+    with pytest.raises(ValueError, match="Đăng nhập lại"):
+        accounts.preferred()
+    accounts.observe(free["id"], "free")
+    accounts.prefer_paid()
+    assert accounts.preferred()["id"] == plus["id"]
+    accounts.remove(plus["id"])
+    assert accounts.preferred()["id"] == free["id"]
+
+
+def test_unknown_plan_is_not_free_and_downgrade_prefers_remaining_plus(tmp_path):
+    accounts = BrowserAccounts(tmp_path)
+    first, second, unknown = accounts.add("One"), accounts.add("Two"), accounts.add("Unknown")
+    accounts.observe(first["id"], "plus")
+    accounts.observe(second["id"], "plus")
+    accounts.observe(unknown["id"], "unknown", identity={"name": "Teacher", "email": ""})
+    assert accounts.get(unknown["id"])["plan"] == "unknown"
+    assert accounts.get(unknown["id"])["name"] == "Teacher"
+    assert accounts.get(unknown["id"])["saved_at"]
+    accounts.observe(first["id"], "free")
+    assert accounts.preferred()["id"] == second["id"]
+
+
 def test_legacy_chrome_profile_is_preserved_when_edge_is_used(tmp_path):
     accounts = BrowserAccounts(tmp_path)
     item = accounts.add("Old profile")
@@ -300,6 +334,16 @@ def test_login_saves_automatically_without_finish_button(browser_fixture, monkey
         pass  # The automatic login closed its browser and released the profile.
 
 
+def test_guest_composer_with_profile_control_is_not_a_saved_login(browser_fixture, monkeypatch):
+    adapter, accounts, _, captured, _ = browser_fixture
+    captured["html"] = FIXTURE.replace("<textarea", '<button data-testid="login-button">Log in</button><textarea')
+    opening = adapter.open_context
+    monkeypatch.setattr(adapter, "open_context", lambda playwright, account, **_: opening(playwright, account, headless=True))
+    with pytest.raises(BrowserProblem, match="Hết thời gian"):
+        adapter.login(accounts.get(), accounts.root, Event(), lambda _: None, timeout=2)
+    assert not accounts.get()["ready"] and not captured["sends"]
+
+
 def test_upgrade_labels_are_not_plan_or_model_entitlements():
     from app.browser_capabilities import model_priority, plan_from_text
 
@@ -307,3 +351,23 @@ def test_upgrade_labels_are_not_plan_or_model_entitlements():
     assert plan_from_text("ChatGPT Free\nUpgrade to Plus") == "free"
     assert model_priority("Astra · Upgrade to Plus") is None
     assert model_priority("GPT-6.1 Sol") > model_priority("GPT-6 Sol") > model_priority("GPT-6 Luna")
+
+
+def test_free_think_toggle_and_account_priority_do_not_change_a_sent_job(browser_fixture):
+    adapter, accounts, request, captured, _ = browser_fixture
+    free_id = accounts.get()["id"]
+    accounts.observe(free_id, "free")
+    captured["html"] = models_fixture("Free").replace('<textarea id="prompt-textarea">',
+        '<button aria-pressed="false" onclick="this.setAttribute(\'aria-pressed\',\'true\')">Think</button>'
+        '<textarea id="prompt-textarea">')
+    adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+    record = read_record(request["folder"], free_id)
+    assert record["reasoning"] == "Đã bật suy luận trên web"
+    plus = accounts.add("New Plus")
+    accounts.observe(plus["id"], "plus")
+    assert accounts.preferred()["id"] == plus["id"]
+    with pytest.raises(BrowserProblem, match="tài khoản khác"):
+        adapter.convert(accounts.preferred(), accounts.root, request["folder"], Event(), lambda _: None)
+    before = captured["contexts"]
+    adapter.convert(accounts.get(free_id), accounts.root, request["folder"], Event(), lambda _: None)
+    assert len(captured["sends"]) == 1 and captured["contexts"] == before

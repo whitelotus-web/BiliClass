@@ -395,7 +395,7 @@ ApplicationWindow {
                                 else bridge.convertLesson(titleInput.text, subjectInput.text, educationInput.editText, gradeInput.editText, pasteInput.text, root.selectedFile, sourceLanguage.currentIndex === 0 ? "vi" : "en", creationLevel.currentIndex, root.layoutKeys[creationLayout.currentIndex], ["standard", "visual", "practice"][creationPreset.currentIndex], root.creationKeepSource ? "source" : "template", root.advancedCreation ? ["level", "preserve", "paired"][creationMode.currentIndex] : "level")
                             } }
                         }
-                        Copy { text: conversionProvider.currentIndex === 0 ? (bridge.browserAI.automatic ? "Dùng hạn mức ChatGPT của tài khoản đã kết nối. BiliClass gửi nội dung/hình nguồn, nhận song ngữ rồi dựng PowerPoint và chuẩn bị trợ giảng tại máy." : "BiliClass tạo prompt và gói tài liệu tại máy. Thầy cô gửi trong ChatGPT, tải PowerPoint về rồi nhận vào tool.") : "Chuyển đổi tại máy bằng model đã cài. Xem bản trình chiếu rồi xác nhận cả bài một lần."; Layout.fillWidth: true; font.pixelSize: 12 }
+                        Copy { text: conversionProvider.currentIndex === 0 ? (bridge.browserAI.automatic ? (bridge.browserAI.webMode ? "BiliClass gửi prompt và tài liệu bằng phiên web ChatGPT đã đăng nhập, nhận PowerPoint rồi chuẩn bị giọng đọc. Khả năng tạo tệp và số lượt dùng phụ thuộc tài khoản Free/Plus." : "Dùng hạn mức ChatGPT của tài khoản đã kết nối. BiliClass gửi nội dung/hình nguồn, nhận song ngữ rồi dựng PowerPoint và chuẩn bị trợ giảng tại máy.") : "BiliClass tạo prompt và gói tài liệu tại máy. Thầy cô gửi trong ChatGPT, tải PowerPoint về rồi nhận vào tool.") : "Chuyển đổi tại máy bằng model đã cài. Xem bản trình chiếu rồi xác nhận cả bài một lần."; Layout.fillWidth: true; font.pixelSize: 12 }
                         Action { visible: conversionProvider.currentIndex === 0; text: "Tài khoản: " + bridge.browserAI.activeLabel + " · Browser AI"; subtle: true; onClicked: { root.go("settings"); settingsPanel.activeTab = 6 } }
                         Action { text: "Tiếp tục gói ChatGPT đã chuẩn bị"; visible: !!bridge.chatgptRequest.folder; subtle: true; onClicked: root.go("chatgpt") }
                     }
@@ -417,14 +417,14 @@ ApplicationWindow {
                                     Caption { text: bridge.browserState.running ? "ChatGPT đang xử lý bài" : "Kết nối ChatGPT"; font.pixelSize: 18; Layout.fillWidth: true }
                                 }
                                 Copy { objectName: "browserConversionStatus"; text: bridge.browserState.message || "Yêu cầu đã chuẩn bị. Bấm Tiếp tục để gửi/chờ qua tài khoản đã chọn."; Layout.fillWidth: true; font.pixelSize: 15; color: root.ink }
-                                Copy { Layout.fillWidth: true; text: "Đọc bài gốc → xử lý song ngữ → tạo PowerPoint tại máy → xem trình chiếu → xác nhận để dạy." }
+                                Copy { Layout.fillWidth: true; text: bridge.browserAI.webMode ? "Gửi tài liệu → nhận PowerPoint song ngữ → chuẩn bị giọng đọc → xem trình chiếu → xác nhận để dạy." : "Đọc bài gốc → xử lý song ngữ → tạo PowerPoint tại máy → xem trình chiếu → xác nhận để dạy." }
                                 RowLayout { Layout.fillWidth: true
                                     Action { objectName: "browserConversionResume"; text: "Tiếp tục yêu cầu"; primary: true; visible: !bridge.browserState.running; enabled: !bridge.busy && !!bridge.chatgptRequest.folder; onClicked: { if (bridge.browserState.needsConfirmation) planRetryDialog.open(); else bridge.runBrowserAI() } }
                                     Action { objectName: "browserConversionCancel"; text: "Dừng"; visible: !!bridge.browserState.running; onClicked: bridge.cancelJob() }
                                     Action { text: "Gửi/nhận thủ công"; enabled: !bridge.busy; onClicked: bridge.useManualChatGPT() }
                                     Action { text: "Đăng nhập / Browser AI"; enabled: !bridge.busy; onClicked: { root.go("settings"); settingsPanel.activeTab = 6 } }
                                 }
-                                Copy { text: "Các phần hoàn tất được lưu để dùng lại. Nếu kết nối bị ngắt giữa chừng, bạn sẽ xác nhận trước khi gửi lại phần chưa rõ kết quả."; Layout.fillWidth: true; font.pixelSize: 12 }
+                                Copy { text: bridge.browserAI.webMode ? "Yêu cầu giữ nguyên tài khoản đã gửi. Nếu hết hạn mức hoặc cần xác minh, tool dừng để bạn xử lý; không tự gửi lại hay đổi tài khoản." : "Các phần hoàn tất được lưu để dùng lại. Nếu kết nối bị ngắt giữa chừng, bạn sẽ xác nhận trước khi gửi lại phần chưa rõ kết quả."; Layout.fillWidth: true; font.pixelSize: 12 }
                             }
                         }
                         Surface {

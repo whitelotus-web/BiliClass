@@ -3,6 +3,7 @@
 import json
 import os
 import shutil
+import time
 from contextlib import contextmanager
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -17,7 +18,7 @@ class BrowserAccounts:
         self.root = (Path(directory) / "browser_ai").resolve()
         self.root.mkdir(parents=True, exist_ok=True)
         self.path = self.root / "accounts.json"
-        self.data = {"version": 1, "active": "", "automatic": True, "audio": True, "accounts": []}
+        self.data = {"version": 1, "active": "", "automatic": True, "audio": True, "accounts": [], "selection": "auto"}
         if self.path.exists():
             loaded = json.loads(self.path.read_text(encoding="utf-8"))
             if loaded.get("version") != 1 or not isinstance(loaded.get("accounts"), list):
@@ -74,6 +75,12 @@ class BrowserAccounts:
     def select(self, account_id):
         self.get(account_id)
         self.data["active"] = account_id
+        self.data["selection"] = "manual"
+        self.save()
+
+    def prefer_paid(self):
+        self.data["selection"] = "auto"
+        self.data["active"] = self.preferred()["id"]
         self.save()
 
     def update_status(self, account_id, status):
@@ -84,19 +91,28 @@ class BrowserAccounts:
                 return
 
     def preferred(self):
+        if self.data.get("selection") == "manual":
+            chosen = self.get()
+            if not chosen.get("ready"):
+                raise ValueError("Đăng nhập lại tài khoản đã chọn trong Browser AI.")
+            return chosen
         ready = [a for a in self.data["accounts"] if a.get("ready") or a.get("status") == "Đã kiểm tra đăng nhập"]
-        candidates = ready or self.data["accounts"]
+        candidates = ready
         if not candidates:
-            return self.get()
+            raise ValueError("Đăng nhập ChatGPT trong Cài đặt → Browser AI.")
         priority = {"plus": 3, "pro": 3, "business": 3, "enterprise": 3, "edu": 3, "go": 2, "free": 1}
         chosen = max(candidates, key=lambda a: (priority.get(a.get("plan"), 0), a["id"] == self.data["active"]))
         return self.get(chosen["id"])
 
-    def observe(self, account_id, plan, model=""):
+    def observe(self, account_id, plan, model="", identity=None):
         for account in self.data["accounts"]:
             if account["id"] == account_id:
                 account.update(plan=plan, model=model, ready=True, status="Đã đăng nhập · Tự lưu")
-                self.data["active"] = self.preferred()["id"]
+                if identity is not None:
+                    account.update(name=identity.get("name", ""), email=identity.get("email", ""), saved_at=time.time())
+                    account["label"] = account["email"] or account["name"] or account["label"]
+                if self.data.get("selection") != "manual":
+                    self.data["active"] = self.preferred()["id"]
                 self.save()
                 return
 
@@ -110,6 +126,9 @@ class BrowserAccounts:
             self.data["accounts"] = [a for a in self.data["accounts"] if a["id"] != item["id"]]
             if self.data["active"] == account_id:
                 self.data["active"] = self.data["accounts"][0]["id"] if self.data["accounts"] else ""
+                self.data["selection"] = "auto"
+                if any(a.get("ready") for a in self.data["accounts"]):
+                    self.data["active"] = self.preferred()["id"]
             self.save()
 
     def options(self, automatic, audio):

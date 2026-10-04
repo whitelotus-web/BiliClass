@@ -49,6 +49,18 @@ class BrowserAI(QObject):
     changed = Signal()
     progress = Signal(str)
 
+    @Property(bool, constant=True)
+    def webMode(self):
+        return False
+
+    @Property(bool, constant=True)
+    def autoSelection(self):
+        return False
+
+    @Property(str, constant=True)
+    def selectionLabel(self):
+        return "Tài khoản đã chọn"
+
     def __init__(self, bridge):
         super().__init__(bridge)
         self.bridge = bridge

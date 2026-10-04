@@ -58,7 +58,7 @@ for font in (RESOURCES / 'assets').glob('*.ttf'):
 application.setFont(QFont('Be Vietnam Pro', 10))
 QQuickStyle.setStyle('Basic')
 library = Library(workspace / 'library')
-bridge = Bridge(library)
+bridge = Bridge(library, browser_ai_factory=browser_ai_ui.BrowserAI)
 bridge.browserAI.store.save_registration('oaiapp_fixture')
 bridge.browserAI.store.data['last_error'] = {'code': 'browser_closed', 'message': 'Cửa sổ đã đóng trước khi kết nối xong.'}
 bridge.browserAI.store.save()

@@ -16,7 +16,7 @@ from biliclass_m0.contracts import LevelPolicy
 from biliclass_m0.paths import RESOURCES
 
 from . import speech
-from .browser_ai_ui import BrowserAI
+from .browser_web_ui import WebBrowserAI
 from .classroom_ui import ClassroomBridge
 from .input_analysis import analyze_document, assess_blocks
 from .knowledge import ensure_builtin_foundation, load_pack
@@ -82,7 +82,7 @@ class Bridge(QObject):
     def updateApplying(self):
         return self._update_applying
 
-    def __init__(self, library):
+    def __init__(self, library, browser_ai_factory=WebBrowserAI):
         super().__init__()
         self.library = library
         self.logger = configure_logging(library.directory)
@@ -120,7 +120,7 @@ class Bridge(QObject):
         self._comparison = {}
         self._quick_result = {}
         self._chatgpt_request = {}
-        self._browser_ai = BrowserAI(self)
+        self._browser_ai = browser_ai_factory(self)
         self._browser_ai.progress.connect(self._on_browser_progress)
         self._browser_state = {"running": False, "phase": "idle", "message": ""}
         self._browser_running = False
@@ -217,7 +217,7 @@ class Bridge(QObject):
         path = Path(QUrl(file_url).toLocalFile()) if file_url else None
         config = {"title": title, "subject": subject, "education_level": education, "grade": grade,
                   "level": level, "layout": layout, "preset": preset, "style": style, "mode": mode,
-                  "provider": "chatgpt_plan" if automatic else "manual_web"}
+                  "provider": ("browser_web" if self._browser_ai.webMode else "chatgpt_plan") if automatic else "manual_web"}
 
         def prepared(result):
             self._chatgpt_request = result
@@ -234,16 +234,76 @@ class Bridge(QObject):
 
     @Slot()
     def runBrowserAI(self):
-        self._run_plan_conversion(False)
+        if self._chatgpt_request.get("config", {}).get("provider") == "chatgpt_plan":
+            self._run_plan_conversion(False)
+        else:
+            self._run_web_conversion()
 
     @Slot()
     def retryBrowserAI(self):
-        self._run_plan_conversion(True)
+        if self._chatgpt_request.get("config", {}).get("provider") == "chatgpt_plan":
+            self._run_plan_conversion(True)
+        else:
+            self._run_web_conversion()
+
+    def _run_web_conversion(self):
+        import json
+
+        from .browser_audio import prepare_narration
+        from .browser_automation import convert, read_record, write_record
+        from .chatgpt_handoff import inspect_returned_deck, load_request
+
+        if self._busy or not self._chatgpt_request:
+            return
+        folder = self._chatgpt_request["folder"]
+        try:
+            journal = Path(folder) / "browser-job.json"
+            cached = json.loads(journal.read_text(encoding="utf-8")) if journal.is_file() else {}
+            if cached.get("lesson_id"):
+                self.library.get(cached["lesson_id"])
+                self._browser_state = {"running": False, "phase": "completed", "message": "Mở lại PowerPoint đã nhận."}
+                self.openLesson(cached["lesson_id"])
+                return
+            account = self._browser_ai.conversionAccount(folder)
+            if self._browser_ai.loginBusy or not account.get("ready"):
+                raise ValueError("Đăng nhập xong tài khoản trong Browser AI trước khi chuyển đổi.")
+            read_record(folder, account["id"])
+        except (ValueError, KeyError, OSError, json.JSONDecodeError) as exc:
+            self.inform(str(exc), True)
+            return
+        voices, audio = dict(self.voiceSettings), self._browser_ai.audio
+        self._browser_running = True
+        self._browser_state = {"running": True, "phase": "working", "message": "Đang mở phiên web ChatGPT…"}
+
+        def work():
+            result = convert(account, self._browser_ai.store.root, folder, self.cancel_event,
+                             self._browser_ai.progress.emit, observed=self._browser_ai.observed.emit)
+            config = load_request(folder)["config"]
+            source = self.library.store_source(Path(result["path"]))
+            inspection = inspect_returned_deck(self.library.directory / "sources" / source["file"])
+            narration = prepare_narration(inspection, voices, self.library.directory / "audio", self.cancel_event,
+                                          self._browser_ai.progress.emit) if audio else {}
+            return config, source, inspection, narration
+
+        def completed(result):
+            config, source, inspection, narration = result
+            lesson = self.library.create_external_lesson(config, source, inspection)
+            record = read_record(folder, account["id"])
+            record["lesson_id"] = lesson["id"]
+            write_record(folder, record)
+            self._browser_running = False
+            self._browser_state.update(running=False, phase="completed", message="Đã nhận PowerPoint từ ChatGPT.")
+            self.openLesson(lesson["id"])
+            self._quick_result["audio"] = narration
+            self.inform("Đã nhận bài. Xem trình chiếu rồi xác nhận Dùng để dạy.")
+
+        self.launch(work, completed)
 
     def _run_plan_conversion(self, retry_unconfirmed):
         import json
 
         from .ai_lesson import convert_request, lesson_from_result
+        from .chatgpt_auth import PlanAccounts
         from .chatgpt_plan import ChatGPTPlanProvider
 
         if self._busy or not self._chatgpt_request:
@@ -263,7 +323,9 @@ class Bridge(QObject):
                     self.convertCurrentLesson()
                     return
         try:
-            account = self._browser_ai.conversionAccount(self._chatgpt_request["folder"])
+            plan_store = PlanAccounts(self.library.directory) if self._browser_ai.webMode else self._browser_ai.store
+            pinned = json.loads(journal_path.read_text(encoding="utf-8"))["account_id"] if journal_path.is_file() else None
+            account = plan_store.get(pinned)
             if self._browser_ai.loginBusy:
                 raise ValueError("Chờ đăng nhập và cấp quyền xong trước khi tiếp tục.")
             if not account.get("ready"):
@@ -285,7 +347,7 @@ class Bridge(QObject):
         self._browser_state = {"running": True, "phase": "working", "message": "Đang kết nối ChatGPT…"}
 
         def work():
-            provider = ChatGPTPlanProvider(self._browser_ai.store)
+            provider = ChatGPTPlanProvider(plan_store)
             try:
                 return convert_request(request, self.library.directory, provider, account["id"], self.cancel_event,
                                        self._browser_ai.progress.emit, terms, retry_unconfirmed)
