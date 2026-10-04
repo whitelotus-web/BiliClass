@@ -109,6 +109,10 @@ def main():
             bridge.openLesson(lesson["id"])
             wait(lambda: not bridge.busy)
             assert not bridge.error, bridge.message
+            # A saved position on the teacher's other screen must not keep the
+            # mascot away from the actual slideshow when starting a new show.
+            primary = QGuiApplication.primaryScreen().availableGeometry()
+            bridge.saveMascotLocation(primary.left() + 40, primary.top() + 40)
             click("useConvertedLessonButton")
             assert window.findChild(QObject, "wholeLessonReview").property("visible")
             click("confirmWholeLessonButton")
@@ -145,6 +149,7 @@ def main():
             rectangle = win32gui.GetWindowRect(hwnd)
             monitor = win32api.GetMonitorInfo(win32api.MonitorFromWindow(hwnd))["Monitor"]
             assert all(abs(a - b) <= 2 for a, b in zip(rectangle, monitor)), (rectangle, monitor)
+            assert monitor[0] <= companion.x() < monitor[2] and monitor[1] <= companion.y() < monitor[3]
             trace.append("Teaching button -> whole-lesson confirmation -> native full-screen PowerPoint + transparent mascot")
 
             center = QPoint(companion.width() // 2, companion.height() // 2)
@@ -222,7 +227,7 @@ def main():
             pump()
             library.close()
     report = {"status": "passed", "trace": trace, "warnings": warnings,
-              "scope": "Real Qt, installed PowerPoint and local English voice; disposable 3-slide deck, one screen"}
+              "scope": "Real Qt, installed PowerPoint and local English voice; disposable 3-slide deck on current display configuration"}
     (reports / "teaching-smoke.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False), flush=True)
     app.quit()

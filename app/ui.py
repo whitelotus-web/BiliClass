@@ -780,7 +780,8 @@ class Bridge(QObject):
         return {**defaults, **saved} if isinstance(saved, dict) else defaults
 
     @Slot(QObject)
-    def showCompanion(self, window):
+    @Slot(QObject, bool)
+    def showCompanion(self, window, for_presentation=False):
         extent = int(window.property("mascotExtent"))
         saved = self.library.setting("mascot_location", {})
         screen = QGuiApplication.primaryScreen()
@@ -794,7 +795,7 @@ class Bridge(QObject):
                 pass  # Keep the normal mascot corner if the native window just closed.
         if isinstance(saved, dict) and isinstance(saved.get("x"), int) and isinstance(saved.get("y"), int):
             candidate = QGuiApplication.screenAt(QPoint(saved["x"] + extent // 2, saved["y"] + extent // 2))
-            if candidate is not None:
+            if candidate is not None and (not for_presentation or candidate == screen):
                 screen = candidate
                 anchor_x, anchor_y = saved["x"], saved["y"]
             else:
@@ -805,6 +806,8 @@ class Bridge(QObject):
         if not saved:
             anchor_x = area.left() + 20 if self.mascotSettings["position"] == "left" else area.right() - extent - 19
             anchor_y = area.bottom() - extent - 19
+            if for_presentation:
+                self.saveMascotLocation(anchor_x, anchor_y)
 
         right_edge = area.left() + area.width()
         bottom_edge = area.top() + area.height()

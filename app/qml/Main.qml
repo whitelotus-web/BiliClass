@@ -89,7 +89,7 @@ ApplicationWindow {
         function onPowerpointStarted() {
             if (bridge.mascotSettings.visible) {
                 companion.collapsed = true
-                bridge.showCompanion(companion)
+                bridge.showCompanion(companion, true)
             }
         }
         function onProjectClassroomRequested() { projector.quiz = true; bridge.showProjector(projector, bridge.screens.length > 1 ? 1 : 0) }
