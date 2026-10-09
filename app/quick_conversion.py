@@ -29,7 +29,7 @@ def review_snapshot(lesson, directory):
     for segment in snapshot["segments"]:
         segment["approved"] = True
     if lesson.get("ai_conversion"):
-        from .ai_lesson import checked_ai_support
+        from .legacy_support import checked_ai_support
 
         checked_ai_support(snapshot)
     if not text_readiness(snapshot, directory)["source_ok"]:

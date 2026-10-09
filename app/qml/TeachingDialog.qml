@@ -33,7 +33,7 @@ Dialog {
                     }
                 }
                 ColumnLayout { Layout.fillWidth: true; Layout.fillHeight: true; spacing: 10
-                    SelectBox { id: kind; Layout.fillWidth: true; model: ["Giải thích", "English đơn giản (L2)", "Ví dụ", "Câu điều hành lớp (L1+)", "Câu hỏi thảo luận", "VI Rescue", "Từ vựng"] }
+                    SelectBox { id: kind; Layout.fillWidth: true; model: ["Giải thích", "English đơn giản", "Ví dụ", "Câu điều hành lớp", "Câu hỏi thảo luận", "Hỗ trợ tiếng Việt", "Từ vựng"] }
                     Label { text: "Tiếng Việt"; color: "#112650" }
                     ScrollView { Layout.fillWidth: true; Layout.fillHeight: true; clip: true; TextArea { id: itemVi; objectName: "supportVi"; wrapMode: TextEdit.Wrap; selectByMouse: true; placeholderText: "Nội dung theo bài đang dạy…" } }
                     Label { text: "English"; color: "#0869f9" }

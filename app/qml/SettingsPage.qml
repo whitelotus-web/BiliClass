@@ -6,7 +6,6 @@ Item {
     id: page
     objectName: "settingsPage"
     required property var bridge
-    signal requestModelPack()
     signal requestBackup()
     signal requestLibrary()
     signal requestLogo()
@@ -423,21 +422,6 @@ Item {
                     Hint { text: bridge.dataPath; Layout.fillWidth: true; wrapMode: Text.WrapAnywhere; color: page.ink }
                     RowLayout { Layout.fillWidth: true; SoftButton { text: "Mở thư mục dữ liệu"; onClicked: bridge.openData() } SoftButton { objectName: "settingsBackup"; text: "Sao lưu thư viện"; enabled: !bridge.busy; onClicked: bridge.backupLibrary() } SoftButton { text: "Khôi phục bản sao"; enabled: !bridge.busy; onClicked: page.requestBackup() } SoftButton { text: "Mở thư viện khác"; enabled: !bridge.busy; onClicked: page.requestLibrary() } }
                     Hint { text: "Khôi phục tạo thư mục mới; không ghi đè thư viện đang dùng. Bài riêng có thể xuất thành gói .biliclass trong trình biên tập."; Layout.fillWidth: true }
-                }
-            }
-            Card { Layout.fillWidth: true
-                ColumnLayout { width: parent.width; spacing: 12
-                    Title { text: "Gói dịch ngoại tuyến" }
-                    Hint { text: bridge.modelReady ? "● Việt → Anh: sẵn sàng" : "○ Việt → Anh: chưa cài"; color: bridge.modelReady ? "#168567" : page.muted }
-                    Hint { text: bridge.reverseModelReady ? "● Anh → Việt: sẵn sàng" : "○ Anh → Việt: chưa cài"; color: bridge.reverseModelReady ? "#168567" : page.muted }
-                    SoftButton { text: "Cài gói dịch từ máy / USB"; enabled: !bridge.busy; onClicked: page.requestModelPack() }
-                    Hint { text: "Luồng ngoại tuyến xử lý tại máy. Browser AI gửi bài lên tài khoản ChatGPT đã chọn khi thầy cô bấm Chuyển đổi. Kết quả cần kiểm tra trước khi dạy."; Layout.fillWidth: true }
-                }
-            }
-            Card { Layout.fillWidth: true
-                ColumnLayout { width: parent.width; spacing: 8
-                    Title { text: "Nhận dạng văn bản từ ảnh" }
-                    Hint { text: bridge.ocrStatus; Layout.fillWidth: true }
                 }
             }
         }

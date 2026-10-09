@@ -1,6 +1,6 @@
 # Gửi và nhận PowerPoint thủ công trong browser
 
-Mã nguồn ngày 03/10/2026. Chưa đóng vào release rc12.
+Ngày 09/10/2026: hướng dẫn dự phòng cho mã nguồn mới; RC12 chưa có luồng này. Cấu hình level/bố cục cũ được thay bằng [bốn Kiểu chuyển đổi](FOUR_FORMAT_WORKFLOW.md).
 
 Đây là cách gửi thủ công dự phòng. Luồng tự gửi/chờ/tải thử nghiệm và quản lý tài khoản nằm trong [Browser AI](BROWSER_AI.md). Trong màn hình nhập bài → **Tùy chọn thêm**, chọn **Gửi/nhận PowerPoint thủ công** để hiện các bước bên dưới. Lựa chọn tự lưu, không cần mở Cài đặt.
 
@@ -29,7 +29,7 @@ Gói nằm trong `chatgpt/<request-id>` của thư viện cá nhân, gồm promp
 
 - `.venv`: `pytest` toàn bộ 189 kiểm thử đạt; Ruff đạt.
 - `scripts/qt_chatgpt_handoff_smoke.py`: level/layout/workflow hiện trên luồng chính; gói đúng cấu hình; xem mẫu có hình; nhận PPTX nguyên byte; render bằng Office thật; xác nhận cả bài và map mascot; mở lại bài đã lưu.
-- `scripts/qt_quick_conversion_smoke.py`: luồng ngoại tuyến vẫn dịch hai hướng bằng model thật, xuất/xem PowerPoint và chốt cả bài.
+- `scripts/qt_streamlined_smoke.py`: menu dữ liệu gọn, bốn phương pháp và bài cũ mở bằng nội dung đã lưu. Script Qt dịch ngoại tuyến đã nghỉ.
 - Kiểm thử Qt chặn mở browser và phiên slideshow cuối, không gửi tài liệu lên ChatGPT. Chất lượng PowerPoint do ChatGPT tạo cần thử bằng tài liệu thật và tài khoản giáo viên.
 
 Chạy bằng môi trường/cache của `scripts/run.ps1`. Kiểm thử dùng thư viện tạm dưới `.runtime`, bằng chứng nằm trong `reports`; không đưa dữ liệu giáo viên, gói hoặc bản build vào Git.

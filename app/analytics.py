@@ -92,12 +92,15 @@ def report(directory, session_id):
                                     "label": result["prompt"], "note": "Cùng người trả lời; đây là lượt kiểm tra lại cùng câu." if same else "Nhóm người trả lời thay đổi; không coi chênh lệch là tiến bộ cá nhân."})
         for item in rounds:
             item.pop("respondents")  # no identifiers needed in UI summary
+        from .conversion_formats import FORMATS
+        conversion_label = next((method["label"] for method in FORMATS if method["id"] == lesson.get("conversion_format")), "Bài đã lưu · cấu hình cũ")
         language_summary = compare_languages(language_items, lesson["level"])
         return {"id": session_id, "title": session["title"], "status": session["status"], "rounds": rounds, "concepts": bars,
                 "comparisons": comparisons, "participants_responded": len(participants),
                 "lesson_id": lesson.get("id", ""), "lesson_title": lesson.get("title", ""),
                 "subject": lesson.get("subject", ""), "grade": lesson.get("grade", ""),
                 "revision": lesson.get("revision", 0), "level": lesson["level"],
+                "conversion_format": lesson.get("conversion_format", ""), "conversion_label": conversion_label,
                 "language_comparison": language_summary,
                 "recommendation": language_summary["recommendation"]}
     finally:
@@ -129,9 +132,18 @@ def compare_languages(items, level):
     count = sum(p["count"] for p in pairs)
     vi = round(sum(p["vi_correct"] for p in pairs)/count*100, 1)
     en = round(sum(p["en_correct"] for p in pairs)/count*100, 1)
-    suggested = min(5, level+1) if vi >= 80 and en >= 80 else max(0, level-1) if vi >= 75 and en < 60 else level
-    return {"eligible": True, "pairs": pairs, "vi_percent": vi, "en_percent": en, "suggested_level": suggested,
-            "recommendation": f"Gợi ý cân nhắc L{suggested}: {len(pairs)} cặp / {count} lượt trả lời mỗi ngôn ngữ; đúng VI {vi}%, EN {en}%. Tăng một mức khi cả hai ≥80%; giảm khi VI ≥75% và EN <60%; còn lại giữ. Đây là gợi ý từ mẫu quan sát, chưa loại trừ độ khó/thứ tự câu. Thầy cô quyết định."}
+    if vi >= 75 and en < 60:
+        formats = ["parallel_columns", "sentence_pairs"]
+        advice = "Cân nhắc Hai cột song ngữ hoặc Song ngữ từng câu để học sinh đối chiếu ý Việt–Anh."
+    elif vi >= 80 and en >= 80:
+        formats = ["integrated_keywords", "english_only"]
+        advice = "Có thể thử Tích hợp từ khóa hoặc Tiếng Anh 100% với nội dung quen thuộc; giữ lời hỗ trợ Việt cho trợ giảng."
+    else:
+        formats = []
+        advice = "Chưa nên đổi cách trình bày từ kết quả này; kiểm tra kiến thức và cách diễn đạt của từng câu trước."
+    return {"eligible": True, "pairs": pairs, "vi_percent": vi, "en_percent": en, "suggested_formats": formats,
+            "recommendation": f"{advice} {len(pairs)} cặp / {count} lượt trả lời mỗi ngôn ngữ; đúng VI {vi}%, EN {en}%. Đây là gợi ý từ mẫu quan sát, chưa loại trừ độ khó/thứ tự câu và không đo năng lực bằng kiểu bố cục. Thầy cô quyết định."}
+
 
 
 def export_csv(directory, session_id, destination):

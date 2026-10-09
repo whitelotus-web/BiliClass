@@ -1,7 +1,7 @@
 """Presentation mode controls visible text; L0–L4 controls teaching support."""
 import re
 
-from biliclass_m0.contracts import LevelPolicy
+from .legacy_policy import LevelPolicy
 
 LAYOUTS = {"keyword_overlay", "line_pair", "split_view", "english_rescue", "level_auto"}
 

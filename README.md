@@ -4,7 +4,7 @@ Kho kiến thức có nguồn và bộ nhớ giáo viên đang được bổ sun
 
 Mã nguồn ngày 09/10/2026 có **bốn Kiểu chuyển đổi** thay level và bố cục riêng: Hai cột song ngữ, Song ngữ từng câu, Tích hợp từ khóa, Tiếng Anh 100%. Luồng chính dùng web ChatGPT qua Chrome: tài liệu → một phương pháp → chuyển đổi → xem → dùng để dạy với voice/mascot. Xem [quy trình và kế hoạch thu gọn](docs/FOUR_FORMAT_WORKFLOW.md). Bản đóng gói RC12 chưa có thay đổi này.
 
-Browser AI dùng **Google Chrome với hồ sơ riêng cho từng tài khoản**, tự lưu phiên, ưu tiên Plus còn dùng được rồi Free trước khi gửi bài. Ngày 04/10/2026 đã đăng nhập và nhận một PowerPoint thật 12 slide, chuẩn bị giọng Việt–Anh và mở trình chiếu cùng mascot. Chưa chứng nhận chất lượng mọi bài, mọi tài khoản hoặc máy khác; số dư hạn mức chưa có dữ liệu tin cậy. Yêu cầu đã gửi giữ tài khoản/cuộc trò chuyện, không tự gửi trùng. OAuth/offline cũ còn giữ để đọc luồng cũ, ngoài bước nhập mới. Xem [trạng thái kiểm tra](docs/STATE.md).
+Browser AI dùng **Google Chrome với hồ sơ riêng cho từng tài khoản**, tự lưu phiên, ưu tiên Plus còn dùng được rồi Free trước khi gửi bài. Ngày 04/10/2026 đã đăng nhập và nhận một PowerPoint thật 12 slide, chuẩn bị giọng Việt–Anh và mở trình chiếu cùng mascot. Chưa chứng nhận chất lượng mọi bài, mọi tài khoản hoặc máy khác; số dư hạn mức chưa có dữ liệu tin cậy. Yêu cầu đã gửi giữ tài khoản/cuộc trò chuyện, không tự gửi trùng. Đã gỡ kết nối OAuth/Responses và dịch/OCR offline khỏi sản phẩm chính. Bộ đọc bài đã lưu vẫn giữ; yêu cầu OAuth đang dở không tự gửi lại. Xem [trạng thái kiểm tra](docs/STATE.md).
 
 Ứng dụng Windows chuẩn bị và dạy **song ngữ Anh–Việt đa môn THPT**. Bản thử hiện tại: **1.0 RC12**, cập nhật 02/10/2026.
 
@@ -18,13 +18,13 @@ App dùng thư viện của người dùng trong `%LOCALAPPDATA%/BiliClass`, kh�
 
 ## Chức năng
 
-- Nhập PPTX/DOCX/PDF/TXT/PNG/JPG; đánh giá ngôn ngữ theo đoạn. OCR Việt–Anh cục bộ có bước chuẩn bị model một lần; chữ OCR cần kiểm tra, nguồn giữ nguyên.
-- Dịch offline Việt ↔ Anh; dịch phần còn thiếu theo loạt, giữ cặp sẵn có và đoạn duyệt/khóa. Ưu tiên thuật ngữ/memory giáo viên trước kho nền/model; bản nháp cần kiểm tra và duyệt.
+- Nhập PPTX/DOCX/PDF/TXT/PNG/JPG hoặc dán nội dung, gửi bản sao nguồn và prompt cấu hình qua tài khoản ChatGPT web đã đăng nhập.
+- Dữ liệu trợ giảng gom thuật ngữ thầy cô đã duyệt và kiến thức có nguồn trong một mục tra cứu. Không cần thiết lập kho dữ liệu để chuyển đổi; nội dung riêng vẫn được sao lưu.
 - Bài mới chọn một trong bốn kiểu chuyển đổi. Prompt giữ số lượng/thứ tự slide PPTX, hình/công thức/hoạt ảnh tối đa; trường hợp chưa xử lý được phải báo rõ. Tài liệu khác dựng theo mẫu. Khi nhận, tool cảnh báo số slide khác nguồn; chưa tự chứng nhận bản dịch/hiệu ứng đúng.
 - Bài cũ theo level vẫn đọc được. Năm giọng Kokoro English và bốn giọng VieNeu Việt chạy offline/cache WAV; PowerPoint toàn màn hình kết hợp Milo/Lumi trong suốt, đọc theo slide thực tế. Chế độ Tiếng Anh 100% giữ lời đọc Việt ở ghi chú riêng.
 - Cài đặt Chung, Giọng đọc, Mascot và Browser AI giữ cấu trúc hiện tại. Song ngữ hướng dẫn bốn phương pháp. Câu hỏi ChatGPT trong ghi chú được nhận thành bản nháp liên kết slide, cần duyệt riêng.
 - QR/LAN, học sinh trả lời trên trình duyệt, ba loại câu hỏi, gửi lại/đổi đáp án/kết nối lại; kết quả chỉ công bố khi giáo viên chọn.
-- Báo cáo có mẫu số, recheck, gợi ý level có điều kiện, CSV; Lesson Pack kèm audio, deck song ngữ mới, sao lưu/khôi phục.
+- Báo cáo có mẫu số, recheck, gợi ý cách trình bày có điều kiện, CSV; Lesson Pack kèm audio, deck song ngữ mới, sao lưu/khôi phục.
 
 RC12 đã qua smoke test, kiểm thử updater và tự kiểm tra đóng gói trên máy phát triển; chưa được nghiệm thu trên Windows sạch, laptop 8 GB, điện thoại/máy chiếu và mạng trường thực tế. Model dịch và cảm nhận chất lượng giọng cần giáo viên kiểm tra. Phạm vi còn lại được ghi rõ trong [backlog](docs/TASKS.md).
 
@@ -50,11 +50,11 @@ powershell -ExecutionPolicy Bypass -File scripts/run.ps1
 
 ```powershell
 .\.venv\Scripts\python.exe scripts/download_vieneu.py
-powershell -ExecutionPolicy Bypass -File scripts/build.ps1 -IncludeTrialModel -DistRoot (Join-Path $PWD 'dist/rc12')
-.\.venv\Scripts\python.exe -m scripts.package_release (Join-Path $PWD 'dist/rc12')
+powershell -ExecutionPolicy Bypass -File scripts/build.ps1 -DistRoot (Join-Path $PWD 'dist/rc13')
+.\.venv\Scripts\python.exe -m scripts.package_release (Join-Path $PWD 'dist/rc13')
 ```
 
-Model thử từ `.runtime/models`; có thể cấu hình `BILICLASS_MODEL_DIR`. `scripts/download_models.py` là bước tải chủ động khi thiết lập, không chạy lúc dạy. Giấy phép/thành phần đóng gói: [THIRD_PARTY](docs/THIRD_PARTY.md).
+Dịch/OCR cũ chỉ phục vụ kiểm chứng phát triển với extra `legacy-import`, không đóng kèm trong bộ cài chính. Giọng offline vẫn cần model Kokoro/VieNeu. Chạy `scripts/prepare-dev-runtime.ps1` và `scripts/prepare-dev-voices.ps1` một lần khi phát triển trên ổ dự án chậm; `run.ps1` dùng cache đã chuẩn bị. Giấy phép/thành phần đóng gói: [THIRD_PARTY](docs/THIRD_PARTY.md).
 
 ## Hồ sơ
 

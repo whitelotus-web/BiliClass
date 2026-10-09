@@ -10,7 +10,6 @@ from .importers import parse_document
 from .library import Library
 from .pack import export_pack, import_pack
 from .speech import list_voices, synthesize, valid_audio
-from .translation import translate_draft
 
 
 def run(output):
@@ -41,14 +40,17 @@ def run(output):
                 lesson = library.create(
                     "Kiểm tra", "Liên môn", "THPT", "11", [("Đoạn", "Thảo luận theo nhóm.")]
                 )
-                en = translate_draft("Thảo luận theo nhóm.", "vi")
-                vi = translate_draft("Discuss in groups.", "en")
-                assert en.strip() and vi.strip()
-                library.edit_segment(
-                    lesson["id"], lesson["segments"][0]["id"], "Thảo luận theo nhóm.", en, True
-                )
-                report["translations"] = {"vi_en": en, "en_vi": vi}
-                report["checks"].append("both local model directions load and produce drafts")
+                en = "Discuss in groups."
+                library.edit_segment(lesson["id"], lesson["segments"][0]["id"], "Thảo luận theo nhóm.", en, True)
+                from .chatgpt_handoff import inspect_returned_deck, prepare_request
+                from .conversion_formats import FORMATS
+                for method in FORMATS:
+                    request = prepare_request(library.directory, {"title": "Bài thử", "subject": "Liên môn",
+                        "education_level": "THPT", "grade": "11", "conversion_format": method["id"],
+                        "style": "source", "preset": "standard", "provider": "browser_web"}, directory / "Bài.pptx")
+                    assert request["config"]["conversion_format"] == method["id"]
+                assert inspect_returned_deck(directory / "Bài.pptx")["total"] == 1
+                report["checks"].append("four browser conversion prompts and native returned PPTX inspection; no AI network requests")
                 pack = export_pack(library, lesson["id"], directory / "Bài.biliclass")
                 copied = import_pack(library, pack)
                 assert copied["segments"][0]["en"] == en and not copied["segments"][0]["approved"]
@@ -109,20 +111,11 @@ def run(output):
                 finally:
                     runtime.stop()
                 from .deck_export import export_deck
-                from .ocr import languages
                 from .storage import backup_library, restore_backup
                 output_deck = export_deck(prepared, library.directory, directory / "Bilingual.pptx")
                 assert len(Presentation(output_deck).slides) == 1
                 restore_backup(backup_library(library.directory), directory / "restored")
                 report["checks"].append("reviewed deck export and consistent library/classroom backup restore")
-                report["ocr_languages"] = languages()
-                if any(tag.startswith("en") for tag in report["ocr_languages"]):
-                    from PIL import Image, ImageDraw, ImageFont
-                    image = Image.new("RGB", (900, 140), "white")
-                    ImageDraw.Draw(image).text((20, 30), "Discuss evidence in groups.", font=ImageFont.truetype("C:/Windows/Fonts/arial.ttf", 36), fill="black")
-                    image.save(directory / "ocr.png")
-                    assert "Discuss" in parse_document(directory / "ocr.png", "en")[0][1]
-                    report["checks"].append("isolated Windows English OCR and installed native dependencies")
             finally:
                 library.close()
         report["status"] = "passed"

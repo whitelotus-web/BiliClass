@@ -1,12 +1,10 @@
-"""Local release folder: application, user installer, notices, optional model packages."""
+"""Local release folder: application, user installer and license notices."""
 import hashlib
 import json
 import shutil
 import sys
 import tomllib
 from pathlib import Path
-
-from app.model_packs import build_model_pack
 
 
 def main():
@@ -32,14 +30,6 @@ def main():
     (dist_root / "app-manifest.json").write_text(json.dumps({"product": "BiliClass", "version": version, "files": files}, indent=2), encoding="utf-8")
     shutil.copy2(root / "scripts/Install-BiliClass.ps1", dist_root / "Install-BiliClass.ps1")
     (dist_root / "Setup.cmd").write_text('@echo off\r\npowershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Install-BiliClass.ps1"\r\npause\r\n', encoding="ascii")
-    for direction in ("vi-en-1.9", "en-vi-1.9"):
-        target = dist_root / (direction + ".bclanguage")
-        if not target.exists():
-            original = root / "dist" / target.name
-            if original.is_file() and target != original:
-                shutil.copy2(original, target)
-            else:
-                build_model_pack(root / ".runtime/models" / direction, target)
     shutil.copy2(root / "docs/USER_GUIDE.md", dist_root / "HUONG_DAN.md")
     print(json.dumps({"application_files": len(files), "version": version, "release_folder": str(dist_root)}))
 

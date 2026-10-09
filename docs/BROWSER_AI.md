@@ -48,7 +48,7 @@ Nếu browser thường cũng bị kẹt, cách thủ công chưa dùng được
 
 ## Chuyển đổi bài
 
-Nhập nguồn → chọn L0–L4, bố cục, giữ thiết kế gốc hoặc mẫu → **Chuyển đổi bằng ChatGPT**. App chuẩn bị prompt và tệp, chọn model trong các lựa chọn web đang hiển thị và được phép dùng; bật nút Think/Thinking nếu có toggle nhận diện được. Nếu không có nút hoặc giao diện đổi, giữ lựa chọn mặc định. Không cam kết suy luận cao nhất khi không xác nhận được điều khiển; không mở khóa model trả phí.
+Nhập nguồn → chọn một trong bốn **Kiểu chuyển đổi**, giữ thiết kế gốc hoặc mẫu → **Chuyển đổi bằng ChatGPT**. App chuẩn bị prompt và tệp, chọn model trong các lựa chọn web đang hiển thị và được phép dùng; bật nút Think/Thinking nếu có toggle nhận diện được. Nếu không có nút hoặc giao diện đổi, giữ lựa chọn mặc định. Không cam kết suy luận cao nhất khi không xác nhận được điều khiển; không mở khóa model trả phí.
 
 Free có công cụ/tải tệp với giới hạn riêng theo [hướng dẫn OpenAI](https://help.openai.com/en/articles/9275245-chatgpt-free-tier-faq). Có thể không tạo được PPTX trong một phiên hoặc phải chờ quota. BiliClass không bảo đảm Free có cùng chất lượng/tính năng với Plus.
 

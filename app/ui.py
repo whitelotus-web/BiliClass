@@ -12,14 +12,11 @@ from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuick import QQuickWindow
 from PySide6.QtQuickControls2 import QQuickStyle
 
-from biliclass_m0.contracts import LevelPolicy
-from biliclass_m0.paths import RESOURCES
-
 from . import speech
 from .browser_web_ui import WebBrowserAI
 from .classroom_ui import ClassroomBridge
-from .input_analysis import analyze_document, assess_blocks
 from .knowledge import ensure_builtin_foundation, load_pack
+from .legacy_policy import LevelPolicy
 from .lesson_templates import block_type, catalog, example_plan, slide_pages, slide_plan, source_image
 from .library import Library, lesson_status
 from .pack import export_pack, import_pack
@@ -30,8 +27,9 @@ from .readiness import assess
 from .storage import backup_library, configure_logging, restore_backup
 from .teaching import TeachingBridge
 from .text_quality import review_warnings
-from .translation import find_model, translate_draft
 from .updater import check_for_update, download_and_stage, launch_install
+
+RESOURCES = RESOURCE_ROOT  # Retained for source smoke scripts; no M0 runtime dependency.
 
 
 class Job(QThread):
@@ -139,7 +137,9 @@ class Bridge(QObject):
                             record = json.loads(path.read_text(encoding="utf-8"))
                             if record.get("error") in {"login", "verification"} and record.get("state") != "completed":
                                 self._web_conversion_failure("Bài trước đang chờ đăng nhập / xác minh để tiếp tục.")
-            except Exception:
+            except Exception as exc:
+                if "OAuth cũ" in str(exc):
+                    self._message = str(exc)
                 self.logger.info("Previous ChatGPT handoff is no longer available.")
         self.conversionProgress.connect(self._conversion_progress)
         self.powerpoint_worker = None
@@ -260,7 +260,7 @@ class Bridge(QObject):
         path = Path(QUrl(file_url).toLocalFile()) if file_url else None
         config = {"title": title, "subject": subject, "education_level": education, "grade": grade,
                   "level": level, "layout": layout, "preset": preset, "style": style, "mode": mode,
-                  "provider": ("browser_web" if self._browser_ai.webMode else "chatgpt_plan") if automatic else "manual_web"}
+                  "provider": "browser_web" if automatic else "manual_web"}
         if conversion_format:
             config.update(conversion_format=conversion_format, provider="browser_web" if automatic else "manual_web")
 
@@ -279,17 +279,11 @@ class Bridge(QObject):
 
     @Slot()
     def runBrowserAI(self):
-        if self._chatgpt_request.get("config", {}).get("provider") == "chatgpt_plan":
-            self._run_plan_conversion(False)
-        else:
-            self._run_web_conversion()
+        self._run_web_conversion()
 
     @Slot()
     def retryBrowserAI(self):
-        if self._chatgpt_request.get("config", {}).get("provider") == "chatgpt_plan":
-            self._run_plan_conversion(True)
-        else:
-            self._run_web_conversion()
+        self._run_web_conversion()
 
     @Slot()
     def reconnectBrowserAI(self):
@@ -379,81 +373,6 @@ class Bridge(QObject):
 
         self.launch(work, completed)
 
-    def _run_plan_conversion(self, retry_unconfirmed):
-        import json
-
-        from .ai_lesson import convert_request, lesson_from_result
-        from .chatgpt_auth import PlanAccounts
-        from .chatgpt_plan import ChatGPTPlanProvider
-
-        if self._busy or not self._chatgpt_request:
-            return
-        folder = self._chatgpt_request["folder"]
-        journal_path = Path(folder) / "ai-job.json"
-        if journal_path.is_file():
-            journal = json.loads(journal_path.read_text(encoding="utf-8"))
-            if journal.get("lesson_id"):
-                try:
-                    saved = self.library.get(journal["lesson_id"])
-                except (ValueError, KeyError):
-                    saved = None
-                if saved is not None:
-                    self._browser_state = {"running": False, "phase": "completed", "message": "Mở lại bài đã nhận; không gửi lại ChatGPT."}
-                    self.openLesson(saved["id"])
-                    self.convertCurrentLesson()
-                    return
-        try:
-            plan_store = PlanAccounts(self.library.directory) if self._browser_ai.webMode else self._browser_ai.store
-            pinned = json.loads(journal_path.read_text(encoding="utf-8"))["account_id"] if journal_path.is_file() else None
-            account = plan_store.get(pinned)
-            if self._browser_ai.loginBusy:
-                raise ValueError("Chờ đăng nhập và cấp quyền xong trước khi tiếp tục.")
-            if not account.get("ready"):
-                raise ValueError("Tài khoản chưa được cấp quyền dùng hạn mức ChatGPT. Đăng nhập lại hoặc dùng gửi/nhận thủ công.")
-        except Exception as exc:
-            self.inform(str(exc), True)
-            return
-        if journal_path.is_file() and not retry_unconfirmed:
-            journal = json.loads(journal_path.read_text(encoding="utf-8"))
-            pending = journal.get("pending", "")
-            if pending and not (Path(folder) / ("result-" + pending + ".json")).is_file():
-                self._browser_state = {"running": False, "phase": "interrupted", "needsConfirmation": True,
-                                       "message": "Lượt trước chưa rõ đã hoàn tất chưa. Gửi lại phần chưa xong có thể dùng thêm hạn mức."}
-                self.changed.emit()
-                return
-        request = dict(self._chatgpt_request)
-        terms = self.library.glossary(request["config"]["subject"])
-        self._browser_running = True
-        self._browser_state = {"running": True, "phase": "working", "message": "Đang kết nối ChatGPT…"}
-
-        def work():
-            provider = ChatGPTPlanProvider(plan_store)
-            try:
-                return convert_request(request, self.library.directory, provider, account["id"], self.cancel_event,
-                                       self._browser_ai.progress.emit, terms, retry_unconfirmed)
-            finally:
-                provider.client.close()
-
-        def completed(result):
-            from .chatgpt_auth import atomic_json
-
-            lesson = lesson_from_result(self.library, result)
-            journal = json.loads(journal_path.read_text(encoding="utf-8"))
-            journal["lesson_id"] = lesson["id"]
-            atomic_json(journal_path, journal)
-            self._browser_running = False
-            self._browser_state.update(running=False, phase="completed", message="Đã nhận nội dung song ngữ từ ChatGPT.")
-            self.openLesson(lesson["id"])
-            from .quick_conversion import pair_issues
-            missing, warnings = pair_issues(lesson)
-            if missing or any("SOURCE_MISSING" in issue for segment in lesson["segments"] for issue in segment.get("ai_issues", [])):
-                self._quick_result = {"lesson_id": lesson["id"], "revision": lesson["revision"],
-                                      "missing": missing or ["Nguồn ảnh chưa đọc rõ"], "warnings": warnings}
-                self.inform("Có phần nguồn chưa đọc rõ hoặc thiếu song ngữ. Kiểm tra trong Chỉnh sửa chi tiết trước khi tạo trình chiếu.", True)
-            else:
-                self._build_quick_preview(self._conversion_terms(), warnings)
-
-        self.launch(work, completed)
 
     @Slot()
     def useManualChatGPT(self):
@@ -546,33 +465,6 @@ class Bridge(QObject):
         self._input_result = None
         self.inputAssessmentChanged.emit()
 
-    @Slot(str, str)
-    def assessInput(self, file_url, language):
-        if self._busy:
-            return
-        import hashlib
-
-        path = Path(QUrl(file_url).toLocalFile())
-        self.clearInputAssessment()
-        self._input_path = str(path)
-
-        def analyze():
-            if not path.is_file() or path.stat().st_size > 50 * 1024**2:
-                raise ValueError("Không đọc được tệp hoặc tệp vượt 50 MB.")
-            digest = hashlib.sha256(path.read_bytes()).hexdigest()
-            result = analyze_document(path, language, self.cancel_event)
-            if hashlib.sha256(path.read_bytes()).hexdigest() != digest:
-                raise ValueError("Tệp vừa thay đổi trong lúc đánh giá. Hãy chọn lại.")
-            result.update(sha256=digest, ocr_language=language)
-            return result
-
-        def finished(result):
-            if self._input_path == str(path):
-                self._input_result = result
-                self.inputAssessmentChanged.emit()
-                self.inform("Đã đánh giá đầu vào: " + result["profile"]["label"] + ". Các cặp nhận diện vẫn cần thầy cô duyệt.")
-
-        self.launch(analyze, finished)
 
     @Property("QVariantMap", notify=changed)
     def segment(self):
@@ -740,9 +632,6 @@ class Bridge(QObject):
     def history(self):
         return self.library.history(self._lesson["id"]) if self._lesson else []
 
-    @Property(bool, notify=changed)
-    def reverseModelReady(self):
-        return find_model("en") is not None
 
     @Property("QVariantList", notify=changed)
     def englishVoices(self):
@@ -878,9 +767,6 @@ class Bridge(QObject):
     def requestClassroomProjection(self):
         self.projectClassroomRequested.emit()
 
-    @Property(bool, notify=changed)
-    def modelReady(self):
-        return find_model() is not None
 
     @Property(bool, notify=changed)
     def busy(self):
@@ -1159,7 +1045,7 @@ class Bridge(QObject):
             return value.get(language, "")
         import copy
 
-        from .ai_lesson import checked_ai_support
+        from .legacy_support import checked_ai_support
         from .level_conversion import narration_text
 
         segment = copy.deepcopy(value)
@@ -1416,56 +1302,6 @@ class Bridge(QObject):
             self._powerpoint_state = {**self._powerpoint_state, "message": "Đang đóng PowerPoint…"}
             self.changed.emit()
 
-    @Slot(str, str, str, str, str, str, str, int, str, str, str, str)
-    def createLesson(self, title, subject, education, grade, text, file_url, source_language, level, layout, preset, style="", mode="level", quick=False):
-        if not title.strip() or not subject.strip():
-            self.inform("Nhập tên bài học và môn học.", True)
-            return
-        if bool(text.strip()) == bool(file_url):
-            self.inform("Chọn một nguồn: tệp tài liệu hoặc nội dung dán vào.", True)
-            return
-        if (level not in range(5) or layout not in {"keyword_overlay", "line_pair", "split_view", "english_rescue", "level_auto"}
-                or preset not in {"standard", "visual", "practice"} or style not in {"", "source", "template"}
-                or mode not in {"level", "preserve", "paired"} or source_language not in {"vi", "en"}):
-            self.inform("Chọn L0–L4 và một kiểu trình bày hợp lệ.", True)
-            return
-        path = Path(QUrl(file_url).toLocalFile()) if file_url else None
-        cached = self._input_result if path and self._input_path == str(path) else None
-
-        def prepare():
-            source = self.library.store_source(path) if path else None  # file I/O only
-            if path:
-                result = cached if cached and cached["sha256"] == source["sha256"] and cached["ocr_language"] == source_language else analyze_document(
-                    self.library.directory / "sources" / source["file"], source_language, self.cancel_event)
-            else:
-                blocks = [(f"Đoạn {i + 1}", p.strip()) for i, p in enumerate(text.split("\n\n")) if p.strip()]
-                result = {"blocks": blocks, "profile": assess_blocks(blocks, "text", source_language)}
-            if source:
-                source["warnings"] = result["profile"]["warnings"]
-            return result, source
-
-        def created(result):
-            result, source = result
-            profile = result["profile"]
-            lesson = self.library.create(title, subject, education, grade, result["blocks"], source, profile["primary_language"], profile)
-            self.library.set_presentation(lesson["id"], level, layout)
-            self.library.set_teaching_preset(lesson["id"], preset)
-            if style:
-                lesson = self.library.set_presentation_style(lesson["id"], style)
-            if lesson["presentation_style"] == "source":
-                self.library.set_conversion_mode(lesson["id"], mode)
-            self.openLesson(lesson["id"])
-            if quick:
-                self.convertCurrentLesson()
-            else:
-                self.navigate.emit("editor")
-                self.inform("Đã tạo bài học. Kiểm tra văn bản nguồn trước khi dịch và duyệt.")
-
-        self.launch(prepare, created)
-
-    @Slot(str, str, str, str, str, str, str, int, str, str, str, str)
-    def convertLesson(self, title, subject, education, grade, text, file_url, language, level, layout, preset, style, mode):
-        self.createLesson(title, subject, education, grade, text, file_url, language, level, layout, preset, style, mode, quick=True)
 
     def _conversion_terms(self):
         terms = self.library.glossary(self._lesson["subject"])
@@ -1474,49 +1310,25 @@ class Bridge(QObject):
 
     @Slot()
     def convertCurrentLesson(self):
-        from .bulk_translation import plan_batch, translate_batch
         from .quick_conversion import pair_issues
 
         if not self._lesson or self._busy:
             return
         if self._lesson.get("external_deck"):
-            self.inform("Bài này dùng PowerPoint đã nhận từ ChatGPT. Tạo gói mới và nhận file mới để chuyển đổi lại.")
+            self.inform("Chọn kiểu chuyển đổi và nhận PowerPoint mới để đổi cách trình bày.")
             self.navigate.emit("new")
             return
-        lesson = self._lesson
+        # Legacy lessons can still render from their saved teacher text. Never
+        # download or run a translation model to reopen them.
+        missing, warnings = pair_issues(self._lesson)
         self._quick_result = {}
         self.navigate.emit("result")
-        if lesson.get("ai_conversion"):
-            missing, warnings = pair_issues(lesson)
-            if missing:
-                self._quick_result = {"lesson_id": lesson["id"], "revision": lesson["revision"], "missing": missing, "warnings": warnings}
-                self.inform("Kiểm tra phần còn thiếu trong Chỉnh sửa chi tiết; tool giữ nội dung AI đã nhận.", True)
-            else:
-                self._build_quick_preview(self._conversion_terms(), warnings)
+        if missing:
+            self._quick_result = {"lesson_id": self._lesson["id"], "revision": self._lesson["revision"],
+                                  "missing": missing, "warnings": warnings}
+            self.inform("Bài cũ còn thiếu song ngữ. Bổ sung trong chỉnh sửa hoặc chuyển đổi từ tài liệu gốc bằng Browser AI.", True)
             return
-        plans = plan_batch(self.library, lesson, limit=None)
-        terms = self._conversion_terms()
-
-        def translated(result):
-            updated = self.library.apply_batch_translations(lesson["id"], result["drafts"], lesson["revision"])
-            if self._lesson.get("id") != lesson["id"]:
-                return
-            self._lesson = updated
-            self.selectionChanged.emit()
-            missing, warnings = pair_issues(updated)
-            if missing:
-                self._quick_result = {"lesson_id": updated["id"], "revision": updated["revision"],
-                                      "missing": missing, "warnings": result["warnings"] + warnings}
-                self.inform(f"Còn {len(missing)} phần chưa đủ song ngữ. Mở Chỉnh sửa chi tiết để xử lý.", True)
-                return
-            self._build_quick_preview(terms, result["warnings"])
-
-        if plans:
-            self.launch(lambda: translate_batch(plans, terms, self.cancel_event, whole_document=True,
-                                                progress=self.conversionProgress.emit), translated)
-            self.inform("Đang chuyển đổi toàn bộ bài giảng tại máy…")
-        else:
-            translated({"drafts": [], "warnings": []})
+        self._build_quick_preview(self._conversion_terms(), warnings)
 
     def _build_quick_preview(self, terms, warnings):
         from .powerpoint_review import render_slide
@@ -1776,36 +1588,8 @@ class Bridge(QObject):
                 tier = "dữ liệu online có nguồn" if knowledge["tier"] == "online" else "kiến thức nền có nguồn"
                 self._apply_translation(request, knowledge["text"], f"Đã dùng {tier}; cần duyệt lại.")
             else:
-                self._translate_with_model(request)
+                self.inform("Chưa có bản đã duyệt phù hợp. Sửa thủ công hoặc chuyển đổi tài liệu bằng Browser AI.")
 
-    @Slot()
-    def translateMissing(self):
-        from .bulk_translation import plan_batch, translate_batch
-
-        if self._busy or not self._lesson:
-            return
-        lesson = self._lesson
-        plans = plan_batch(self.library, lesson)
-        if not plans:
-            self.inform("Không còn phần ngôn ngữ trống chưa khóa. Kiểm tra và duyệt các cặp đang có.")
-            return
-        terms = self.library.glossary(lesson["subject"])
-        teacher_words = {term["vi"] for term in terms}
-        terms += [term for term in self.library.knowledge_terms(lesson["subject"]) if term["vi"] not in teacher_words]
-
-        def done(result):
-            updated = self.library.apply_batch_translations(lesson["id"], result["drafts"], lesson["revision"])
-            if self._lesson.get("id") == lesson["id"]:
-                self._lesson = updated
-                self.selectionChanged.emit()
-            message = f"Đã tạo {len(result['drafts'])} bản nháp cho phần còn thiếu; cần kiểm tra và duyệt. Mỗi lượt xử lý tối đa 50 đoạn."
-            if result["warnings"]:
-                message += "\n" + "\n".join(result["warnings"][:3])
-                if len(result["warnings"]) > 3:
-                    message += f"\nCòn {len(result['warnings']) - 3} đoạn cần xử lý riêng."
-            self.inform(message)
-
-        self.launch(lambda: translate_batch(plans, terms, self.cancel_event), done)
 
     def _apply_translation(self, request, translated, message):
         lesson_id, segment_id, revision, source_language, _ = request
@@ -1820,20 +1604,6 @@ class Bridge(QObject):
         except Exception as exc:
             self.inform(str(exc), True)
 
-    def _translate_with_model(self, request):
-        _, _, _, source_language, source_text = request
-        terms = self.library.glossary(self._lesson["subject"])
-        teacher_words = {term[source_language] for term in terms}
-        terms += [term for term in self.library.knowledge_terms(self._lesson["subject"])
-                  if term[source_language] not in teacher_words]
-        self.launch(
-            lambda: translate_draft(source_text, source_language, terms),
-            lambda translated: self._apply_translation(
-                request,
-                translated,
-                "Bản dịch máy là bản nháp. Kiểm tra thuật ngữ, số liệu và ý nghĩa trước khi duyệt.",
-            ),
-        )
 
     @Slot(int)
     def useMemoryChoice(self, index):
@@ -1856,23 +1626,6 @@ class Bridge(QObject):
             request, choices[index]["text"], "Đã dùng bản thầy cô chọn làm bản nháp. Cần duyệt lại."
         )
 
-    @Slot()
-    def translateMemoryWithModel(self):
-        request = self._memory_request
-        self.dismissMemoryChoices()
-        self.closeMemoryChoicesRequested.emit()
-        if request is None:
-            return
-        lesson_id, segment_id, revision, source_language, source_text = request
-        if (
-            self._lesson.get("id") != lesson_id
-            or self.segment.get("id") != segment_id
-            or self._lesson.get("revision") != revision
-            or self.segment.get(source_language) != source_text
-        ):
-            self.inform("Đoạn đã thay đổi. Hãy yêu cầu dịch lại.", True)
-            return
-        self._translate_with_model(request)
 
     @Slot()
     def dismissMemoryChoices(self):
@@ -2056,28 +1809,6 @@ class Bridge(QObject):
         self.launch(lambda: export_deck(lesson, directory, QUrl(url).toLocalFile(), profile, terms),
                     lambda path: self.inform("Đã xuất PowerPoint song ngữ mới: " + str(path)))
 
-    @Property(str, constant=True)
-    def ocrStatus(self):
-        from .local_ocr import model_paths
-        from .ocr import languages
-        available = languages()
-        local = " · OCR Việt–Anh cục bộ sẵn sàng" if model_paths() else " · Chưa có OCR Việt–Anh cục bộ"
-        return "OCR Windows: " + (", ".join(available) if available else "chưa có gói nhận dạng") + local
-
-    @Property(bool, notify=changed)
-    def localOCRAvailable(self):
-        from .local_ocr import model_paths
-        return bool(model_paths())
-
-    @Slot()
-    def prepareLocalOCR(self):
-        from .local_ocr import prepare_models
-
-        def ready(_):
-            self.changed.emit()
-            self.inform("Đã chuẩn bị OCR Việt–Anh. Chọn lại ảnh/PDF scan để nhận dạng; dữ liệu chạy trên máy.")
-
-        self.launch(prepare_models, ready)
 
     @Slot(str)
     def exportPack(self, url):
@@ -2096,11 +1827,6 @@ class Bridge(QObject):
         except Exception as exc:
             self.inform("Chưa nhập được gói: " + str(exc), True)
 
-    @Slot(str)
-    def installModel(self, url):
-        from .model_packs import install_model_pack
-        self.launch(lambda: install_model_pack(QUrl(url).toLocalFile(), user_data() / "models"),
-                    lambda path: self.inform("Đã cài gói ngôn ngữ: " + path.name))
 
     @Slot()
     def openData(self):
@@ -2137,7 +1863,7 @@ def run(args):
     app.setApplicationName("BiliClass")
     app.setOrganizationName("BiliClass")
     QQuickStyle.setStyle("Basic")
-    for font in (RESOURCES / "assets").glob("*.ttf"):
+    for font in (RESOURCE_ROOT / "assets").glob("*.ttf"):
         QFontDatabase.addApplicationFont(str(font))
     app.setFont(QFont("Be Vietnam Pro", 10))
     library = Library(user_data())

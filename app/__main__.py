@@ -19,7 +19,7 @@ def main():
     parser.add_argument("--lesson-id", help="Open a saved lesson in the guarded desktop entry point")
     parser.add_argument("--size", default="1366x850")
     parser.add_argument(
-        "--page", choices=["home", "library", "new", "result", "editor", "glossary", "knowledge", "settings", "browser-ai", "classroom", "reports"], default="home"
+        "--page", choices=["home", "library", "new", "result", "editor", "reference", "glossary", "knowledge", "settings", "browser-ai", "classroom", "reports"], default="home"
     )
     args = parser.parse_args()
     if args.self_test:

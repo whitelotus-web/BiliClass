@@ -182,9 +182,18 @@ def _vieneu_engine(root):
     os.environ["HF_HOME"] = root
     os.environ["HF_HUB_OFFLINE"] = "1"
     os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
+    # Another speech dependency may have imported Hub before these environment
+    # variables were set. Its cached constants would still allow HTTP metadata
+    # requests, even though all model files are already installed locally.
+    from huggingface_hub import constants
+
+    constants.HF_HUB_OFFLINE = True
+    constants.HF_HOME = root
+    constants.HF_HUB_CACHE = str(Path(root) / "hub")
+    constants.HUGGINGFACE_HUB_CACHE = constants.HF_HUB_CACHE
     from vieneu import Vieneu
 
-    return Vieneu(backend="onnx", precision="fp32", threads=4)
+    return Vieneu(backend="onnx", device="cpu", precision="fp32", threads=4)
 
 
 def _synthesize_vieneu(text, voice_id, rate, temporary):

@@ -137,7 +137,7 @@ def main():
         click("saveProfile")
         assert control("projectorProfile").property("visible") is True
         shot("general")
-        checks.append("six tabs; multi-subject teacher profile and school logo persist; projector profile can be hidden")
+        checks.append("core settings tabs; multi-subject teacher profile and school logo persist; projector profile can be hidden")
 
         click("settingsTab1")
         assert control("settingsConversionFormat3")

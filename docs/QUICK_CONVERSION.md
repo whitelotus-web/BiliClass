@@ -1,5 +1,7 @@
 # Chuyển đổi một lần và xác nhận toàn bài
 
+**Hồ sơ lịch sử, không phải hướng dẫn hiện hành.** Ngày 09/10/2026, luồng dịch offline và `Bridge.convertLesson` đã gỡ khỏi desktop. Bài cũ vẫn mở/xuất từ chữ đã lưu; không tự dịch lại. Dùng [bốn kiểu chuyển đổi qua Browser AI](FOUR_FORMAT_WORKFLOW.md). Script Qt offline cũ đã nghỉ; thay bằng `qt_streamlined_smoke.py`, `qt_chatgpt_handoff_smoke.py`, `qt_browser_ai_smoke.py` và `qt_teaching_smoke.py`.
+
 Ngày 03/10/2026. Phạm vi: mã nguồn; chưa phát hành bản cài mới thay RC12.
 
 Tài liệu này mô tả lựa chọn **BiliClass ngoại tuyến**. Luồng mặc định dùng tài khoản ChatGPT trong browser được mô tả tại [CHATGPT_BROWSER.md](CHATGPT_BROWSER.md).

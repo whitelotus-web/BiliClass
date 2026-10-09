@@ -45,7 +45,7 @@ def test_fuzzy_memory_does_not_cross_subject_and_never_changes_content(tmp_path)
 def test_language_recommendation_needs_equivalent_distinct_questions_and_same_cohort():
     items = [{"group": group, "concept": "s", "question": group+language, "language": language, "eligible": 12,
               "responses": {str(i): i < correct for i in range(12)}} for group in ("pair1", "pair2") for language, correct in (("vi", 11), ("en", 6))]
-    assert compare_languages(items, 2)["suggested_level"] == 1
+    assert compare_languages(items, 2)["suggested_formats"] == ["parallel_columns", "sentence_pairs"]
     assert not compare_languages(items[:2], 2)["eligible"]
     items[1]["responses"]["outsider"] = items[1]["responses"].pop("0")
     assert not compare_languages(items, 2)["eligible"]

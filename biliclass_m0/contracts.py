@@ -6,6 +6,8 @@ from typing import Protocol
 
 from pydantic import BaseModel, Field
 
+from app.legacy_policy import POLICIES, LevelPolicy  # noqa: F401
+
 
 class EducationProfile(BaseModel):
     education_level: str = "THPT"
@@ -44,36 +46,6 @@ class Concept(BaseModel):
     audio_scripts: list[PreparedText] = Field(default_factory=list)
     audio_cache_refs: list[str] = Field(default_factory=list)
     approved: bool = False
-
-
-@dataclass(frozen=True)
-class LevelPolicy:
-    level: int
-    name: str
-    primary_language: str
-    vocabulary_en: bool
-    classroom_en: bool
-    explanation_en: bool
-    questions_en: bool
-    visible_vi: bool
-    scaffolding: str
-    rescue_available: bool = True
-
-    @classmethod
-    def for_level(cls, level: int) -> "LevelPolicy":
-        if isinstance(level, bool) or not isinstance(level, int) or level not in range(6):
-            raise ValueError("Bilingual level must be an integer from 0 to 5")
-        return POLICIES[level]
-
-
-POLICIES = (
-    LevelPolicy(0, "Familiarize", "vi", True, False, False, False, True, "keywords"),
-    LevelPolicy(1, "Exposure", "vi", True, True, False, False, True, "classroom_phrases"),
-    LevelPolicy(2, "Bridge", "vi", True, True, True, True, True, "easy_explanation"),
-    LevelPolicy(3, "Mixed", "mixed", True, True, True, True, True, "alternating_support"),
-    LevelPolicy(4, "English First", "en", True, True, True, True, False, "on_demand_support"),
-    LevelPolicy(5, "Immersion", "en", True, True, True, True, False, "minimal_support"),
-)
 
 
 def assistant_text(concept: Concept, action: str, language: str = "en") -> str:

@@ -19,7 +19,7 @@ ColumnLayout {
         ColumnLayout { width: parent.width; spacing: 18
             Label { text: classroom.selectedReport.title || "Chọn một phiên để xem"; font.pixelSize: 23; font.bold: true; color: "#112650"; textFormat: Text.PlainText }
             RowLayout { visible: !!classroom.selectedReport.id; Layout.fillWidth: true
-                Label { text: [classroom.selectedReport.lesson_title || "Bài không còn trong thư viện", classroom.selectedReport.subject || "", classroom.selectedReport.grade ? "Khối " + classroom.selectedReport.grade : "", "L" + (classroom.selectedReport.level === undefined ? 2 : classroom.selectedReport.level), "Bản " + (classroom.selectedReport.revision || "?")].filter(function(value) { return !!value }).join(" · "); color: "#667997"; wrapMode: Text.WordWrap; Layout.fillWidth: true; textFormat: Text.PlainText }
+                Label { text: [classroom.selectedReport.lesson_title || "Bài không còn trong thư viện", classroom.selectedReport.subject || "", classroom.selectedReport.grade ? "Khối " + classroom.selectedReport.grade : "", classroom.selectedReport.conversion_label || "Bài đã lưu", "Bản " + (classroom.selectedReport.revision || "?")].filter(function(value) { return !!value }).join(" · "); color: "#667997"; wrapMode: Text.WordWrap; Layout.fillWidth: true; textFormat: Text.PlainText }
                 ActionButton { text: "Mở bài gốc"; enabled: !!classroom.selectedReport.lesson_id; onClicked: bridge.openLesson(classroom.selectedReport.lesson_id) }
             }
             Label { visible: !!classroom.selectedReport.id; text: classroom.selectedReport.recommendation || ""; color: "#667997"; wrapMode: Text.WordWrap; Layout.fillWidth: true }

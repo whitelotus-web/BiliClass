@@ -34,12 +34,12 @@ LAYOUT_LABELS = {
 
 def validate_config(config):
     result = dict(config)
+    if result.get("provider") == "chatgpt_plan":
+        raise ValueError("Yêu cầu OAuth cũ đã ngừng hỗ trợ. Tài liệu và kết quả đã lưu vẫn giữ nguyên; tạo yêu cầu mới với một trong bốn kiểu chuyển đổi qua Browser AI.")
     if "conversion_format" in result:
         from .conversion_formats import format_config
 
         result = format_config(result)
-        if result.get("provider") == "chatgpt_plan":
-            raise ValueError("Bốn kiểu chuyển đổi dùng web ChatGPT qua Browser, không dùng kết nối OAuth cũ.")
     if not str(result.get("title", "")).strip() or not str(result.get("subject", "")).strip():
         raise ValueError("Nhập tên bài học và môn học.")
     if (type(result.get("level")) is not int or result["level"] not in range(5)
@@ -52,9 +52,6 @@ def validate_config(config):
 
 def make_prompt(config, source_name):
     config = validate_config(config)
-    if config.get("provider") == "chatgpt_plan":
-        from .ai_lesson import INSTRUCTIONS, output_schema
-        return INSTRUCTIONS + "\nLESSON CONFIGURATION\n" + json.dumps(config, ensure_ascii=False, indent=2) + "\nJSON SCHEMA\n" + json.dumps(output_schema(), ensure_ascii=False)
     preset = next(p for p in catalog()["presets"] if p["id"] == config["preset"])
     if config.get("conversion_format"):
         from .conversion_formats import conversion_prompt
@@ -167,8 +164,7 @@ def prepare_request(directory, config, source_path=None, text=""):
             "4. Gửi, tải file PowerPoint kết quả về máy. Nếu ChatGPT chưa tạo được tệp, yêu cầu xuất .pptx.\n"
             "5. Trong BiliClass chọn Nhận PowerPoint từ ChatGPT, xem trước rồi Dùng để dạy.\n"
             "Các bước trên dành cho cách gửi thủ công. Trong màn hình nhập bài → Tùy chọn thêm, bỏ chọn Gửi/nhận PowerPoint thủ công rồi bấm Chuyển đổi để app tự gửi qua tài khoản đã đăng nhập.\n"
-            + ("Kết nối chính thức dùng quyền OAuth và hạn mức ChatGPT; BiliClass nhận JSON rồi dựng PPTX tại máy. Không cần API key hoặc billing API riêng.\n"
-             if config.get("provider") == "chatgpt_plan" else "Giải nén gói ZIP trước khi đính kèm thủ công.\n"),
+            "Giải nén gói ZIP trước khi đính kèm thủ công.\n",
             encoding="utf-8")
         archive = folder / "goi-gui-chatgpt.zip"
         with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as output:

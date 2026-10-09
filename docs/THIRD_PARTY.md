@@ -1,4 +1,12 @@
-# Thành phần bên thứ ba — bản thử 1.0 RC12
+# Thành phần bên thứ ba — RC13 mã nguồn và hồ sơ các bản trước
+
+## Thu gọn ngày 09/10/2026
+
+- Browser hiện dùng **Google Chrome đã cài trên máy**, Playwright điều khiển web; không đóng browser riêng, API key hoặc kết nối OAuth/Responses. Hồ sơ/tài khoản riêng không vào Git hoặc bản build.
+- Bộ cài chính loại CTranslate2, SentencePiece, RapidOCR, WinRT OCR, PyJWT và module dịch/OCR/M0; không đóng model dịch hoặc gói `.bclanguage`. Helper nguồn cũ còn trong extra phát triển `legacy-import`. Các đoạn về Edge/dịch/OCR dưới đây là hồ sơ lịch sử, không mô tả RC13.
+- Giữ Kokoro/sherpa-onnx và VieNeu/sea-g2p/ONNX cho voice offline. Buộc CPU/ONNX và Hugging Face offline, kể cả khi thư viện đã import trước. OmegaConf/ANTLR4 vẫn cần cho voice; không gỡ theo OCR.
+- Ba font Be Vietnam Pro chuyển sang `app/assets/`, cùng `OFL.txt`; giấy phép font được giữ riêng trong `licenses/Be-Vietnam-Pro/` của bộ cài. Hình mascot/icon hiện có giữ nguyên.
+- `licenses/DEPENDENCIES.json` thu notices từ môi trường phát triển; có thể có metadata của gói không được đóng vào runtime. Kiểm tra thành phần thực tế bằng nội dung bundle/PyInstaller; không dùng danh sách notices để suy ra engine cũ còn hoạt động.
 
 ## Browser AI trong mã nguồn ngày 03/10/2026
 

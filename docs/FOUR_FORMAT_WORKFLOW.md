@@ -45,20 +45,22 @@ Theo yêu cầu người dùng: **Cài đặt Chung, Giọng đọc, Mascot, Bro
 
 Giữ thư viện bài, nguồn, ghi chú, giọng đọc offline/cache, trình chiếu PowerPoint, mascot, câu hỏi đã duyệt, sao lưu/khôi phục và cập nhật ứng dụng. Lớp học và báo cáo vẫn cần cho hoạt động trắc nghiệm; không gỡ chỉ vì chúng không nằm trong nút Chuyển đổi.
 
-## Kế hoạch loại bỏ phần thừa
+## Thu gọn đã triển khai trong mã nguồn
 
 | Phần | Xử lý | Điều kiện trước khi xóa mã/gỡ khỏi bộ cài |
 | --- | --- | --- |
 | Level L0–L4 + bộ chọn bố cục riêng | Đã gỡ khỏi nhập bài mới; hướng dẫn Song ngữ chỉ còn bốn kiểu | Giữ bộ đọc cho bài/gói cũ; không viết lại bài giáo viên |
 | Bộ chọn Browser/offline và chế độ giữ/bổ sung/slide Việt–Anh kế tiếp | Đã gỡ khỏi nhập bài mới | Luồng Browser là mặc định; bài cũ vẫn mở được |
-| Bộ chọn level/bố cục trong editor của PPTX nhận về | Đã ẩn; hiện tên phương pháp, tránh đổi cấu hình mà tưởng file PPTX cũng đã thay đổi | Muốn đổi phương pháp thì chuyển đổi/nhận PPTX mới |
-| Kết nối ChatGPT OAuth/Responses cũ | Gỡ khỏi sản phẩm ở đợt sau | Kiểm tra yêu cầu đang dở, bỏ lựa chọn cũ và phụ thuộc thật sự không còn dùng; không xóa hồ sơ người dùng |
-| Engine dịch offline + tải model dịch/OCR phục vụ chuyển đổi mới | Đưa ra khỏi bộ cài chính ở đợt sau | Kiểm tra đường gọi editor/pack/đọc bài cũ; giọng đọc offline và model voice phải giữ |
-| Thuật ngữ/kho kiến thức/menu dữ liệu dày | Đề xuất gom thành phần dữ liệu trợ giảng nâng cao | Giữ nội dung thầy cô đã duyệt và quyền xuất/sao lưu; chỉ gỡ giao diện trùng, không xóa dữ liệu |
-| Gợi ý level trong báo cáo/hướng dẫn cũ | Thay bằng cách chọn một trong bốn phương pháp ở đợt sau | Không suy ra năng lực học sinh bằng ánh xạ máy móc level sang kiểu bố cục |
+| Bộ chọn level/bố cục trong editor của PPTX nhận về | Đã gỡ các bộ chọn cũ khỏi editor; hiện tên phương pháp, giữ cấu hình đã lưu của bài cũ | Muốn đổi phương pháp thì chuyển đổi/nhận PPTX mới |
+| Kết nối ChatGPT OAuth/Responses cũ | Đã gỡ module OAuth/Responses, UI đăng nhập cũ, script và test của tính năng đã nghỉ | Yêu cầu OAuth cũ không tự gửi lại; tài liệu/kết quả/hồ sơ giữ nguyên. Bài AI đã lưu có bộ đọc hỗ trợ riêng, không cần token hoặc mạng |
+| Engine dịch offline + tải model dịch/OCR phục vụ chuyển đổi mới | Đã gỡ đường gọi dịch/OCR trong desktop, nút editor/cài model và bước đóng kèm model dịch/OCR. PyInstaller loại engine khỏi bộ cài chính | Bài cũ xem/xuất bằng nội dung đã lưu, không tự dịch lại. Helper nhập/dịch cũ chỉ còn cho công cụ phát triển tùy chọn; giọng Kokoro/VieNeu và model voice giữ |
+| Thuật ngữ/kho kiến thức/menu dữ liệu dày | Đã gom thành một mục Dữ liệu trợ giảng: Thầy cô đã duyệt / Kiến thức có nguồn | Giữ nội dung thầy cô đã duyệt và quyền xuất/sao lưu; chỉ gỡ giao diện trùng, không xóa dữ liệu |
+| Gợi ý level trong báo cáo/hướng dẫn cũ | Đã đổi thành gợi ý mô tả theo bốn phương pháp, bỏ tăng/giảm level số | Không suy ra năng lực học sinh bằng ánh xạ máy móc level sang kiểu bố cục |
 | Lớp học, QR và báo cáo | Giữ là tính năng tùy chọn khi dạy | Câu hỏi/đáp án cần duyệt; tách khỏi bước chuyển đổi để không tăng thao tác nhập bài |
 
-Không xóa module/model/data hàng loạt trong đợt này. Cần rà đường gọi và thử mở thư viện/gói bài cũ trước khi gỡ phụ thuộc khỏi bản phát hành.
+Không xóa model hoặc thư viện cá nhân trên máy. Bộ đọc/export bài cũ, sao lưu, nhập gói và reuse đoạn đã duyệt vẫn giữ. PyJWT không còn là phụ thuộc chính; dịch/OCR Windows chuyển sang extra `legacy-import` phục vụ kiểm chứng nguồn cũ. Dependency lock hiện có dành cho môi trường phát triển kèm extra, không mô tả toàn bộ thành phần được đóng gói.
+
+Giọng Việt: sửa hằng số offline của Hugging Face khi thư viện đã được import trước; ép backend CPU/ONNX tránh dò PyTorch. Cache thư viện native và script `prepare-dev-voices.ps1` sao chép model đã có sang ổ người dùng Windows để tránh nạp từ ổ dự án chậm. Không tải model/mạng trong bước này. `run.ps1` tự nhận cache đã chuẩn bị. Bộ cài cài trên ổ người dùng vẫn chứa model giọng; không có thêm cache mô hình dịch.
 
 ## Kiểm tra và giới hạn
 
@@ -66,4 +68,8 @@ Kiểm thử phải phủ bốn prompt độc lập, cấu hình lưu/mở lại
 
 Web ChatGPT có thể đổi giao diện, mất phiên hoặc giới hạn tài khoản. Nghiệm thu luồng/gói bằng fixture không chứng minh chất lượng AI của bốn bài thật. Cần thử thực tế từng phương pháp bằng tài liệu giáo viên rồi phát hành bộ cài riêng cho máy thứ hai.
 
-Kết quả ngày 09/10: 49 kiểm thử chuyển đổi/handoff/dispatch và 87 kiểm thử browser/Chrome/PowerPoint/readiness/pack/content đã qua; Qt handoff, Qt Browser fixture/Office và trình chiếu PowerPoint/mascot/giọng Anh thật đã qua. Cấu trúc và lưu Cài đặt qua với chế độ `--layout-only` (bỏ phát voice có ghi rõ phạm vi). Ca Cài đặt đầy đủ vượt thời gian chờ khi nghe thử giọng Việt VieNeu Hải Đăng; giữ cấu trúc tab, ghi nhận vấn đề runtime, chưa chứng nhận voice Việt ổn định.
+Kết quả ngày 09/10 sau thu gọn: lượt pytest toàn bộ có 276 ca qua và một ca Chrome localhost vượt thời gian kết nối. Chạy lại ca đó cùng nhóm báo cáo/lớp học bằng cache thư viện đầy đủ: 39 ca đều qua. Tổng cộng 277 ca đã qua, không phải một lượt chạy toàn bộ sạch. Ruff và kiểm tra diff đã qua.
+
+Qt `qt_streamlined_smoke.py` kiểm tra menu dữ liệu, hai tab, đúng bốn phương pháp và mở bài L5 cũ; `qt_chatgpt_handoff_smoke.py` và `qt_browser_ai_smoke.py` kiểm tra gói gửi/nhận, byte PPTX không đổi, xem trước Office và mở lại bài. Browser dùng web fixture, không gửi bài thật. `qt_teaching_smoke.py` qua với PowerPoint toàn màn hình, mascot kéo/điều khiển và giọng Anh thật. `verify_settings_ui.py` đầy đủ đã qua với phát giọng Anh và Việt thật, giữ/lưu các tab hiện có; không có QML warning.
+
+Ca voice ban đầu chậm khi nạp thư viện/model từ ổ dự án. Sau sửa cấu hình offline và chuẩn bị cache giọng trên ổ người dùng Windows, VieNeu nạp khoảng 18 giây và tạo một câu khoảng 10 giây trên máy này; chưa phải benchmark laptop khác. Không tự tải model hay lấy dữ liệu giáo viên trong bước cache. Các script kiểm tra giao diện dịch offline cũ đã nghỉ; dùng bộ smoke hiện hành nêu trên.

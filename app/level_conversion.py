@@ -2,7 +2,7 @@
 
 import re
 
-from biliclass_m0.contracts import LevelPolicy
+from .legacy_policy import LevelPolicy
 
 
 def layout_for_level(level):
