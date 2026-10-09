@@ -1,4 +1,8 @@
-# Nhập bài và chuyển đổi theo level
+# Quy trình mới ngày 09/10/2026
+
+Luồng nhập mới chỉ có một bộ chọn **Kiểu chuyển đổi** gồm bốn phương pháp, dùng ChatGPT Browser. Xem [hợp đồng chuyển đổi và kế hoạch thu gọn](FOUR_FORMAT_WORKFLOW.md). Các phần level/offline dưới đây ghi lại luồng cũ còn giữ để đọc bài/gói đã lưu, không phải các lựa chọn trong bước nhập mới.
+
+# Nhập bài và chuyển đổi theo level (luồng cũ)
 
 Trạng thái: mã nguồn ngày 03/10/2026, chưa đóng trong release rc12. App bố trí và dịch nội dung giáo viên cung cấp; không tự xác nhận kiến thức đúng hoặc có sẵn đủ kiến thức mọi môn.
 
@@ -61,4 +65,4 @@ Nhận diện là gợi ý: tiêu đề ngắn, tên riêng, chữ không dấu 
 
 Định dạng hiện hỗ trợ: PPTX, DOCX, PDF, TXT, PNG/JPG. PPT/DOC cũ cần lưu thành PPTX/DOCX; HEIC cần đổi PNG/JPG. Tệp nguồn tối đa 50 MB, có thêm giới hạn trang/độ dài. Tài liệu mã hóa, lỗi cấu trúc hoặc scan quá lớn cần đổi định dạng/chia nhỏ. Có thể nhập nội dung mọi môn; không bảo đảm dịch đúng mọi môn hoặc mọi file.
 
-Gói bài giữ thuật ngữ và giọng/mascot làm **tham chiếu của bài**. Người nhận kiểm tra/duyệt lại; tham chiếu không tự thay Cài đặt/thuật ngữ máy nhận. Bốn tab Chung, Song ngữ, Giọng đọc, Mascot hiện tại được giữ nguyên.
+Gói bài giữ thuật ngữ và giọng/mascot làm **tham chiếu của bài**. Người nhận kiểm tra/duyệt lại; tham chiếu không tự thay Cài đặt/thuật ngữ máy nhận.

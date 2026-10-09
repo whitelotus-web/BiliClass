@@ -103,6 +103,10 @@ def import_pack(library, path):
                 raise ValueError("Checksum gói không khớp; tệp có thể đã hỏng.")
             payloads[name] = data
     lesson = json.loads(payloads["lesson.json"])
+    if "conversion_format" in lesson:
+        from .conversion_formats import format_spec
+
+        format_spec(lesson["conversion_format"])
     lesson.setdefault("source_language", "vi")
     if lesson["source_language"] not in ("vi", "en"):
         raise ValueError("Ngôn ngữ nguồn không hợp lệ.")

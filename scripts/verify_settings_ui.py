@@ -1,12 +1,13 @@
 """Exercise the existing six settings tabs with a disposable lesson library."""
 
 import json
+import sys
 import tempfile
 import time
 from pathlib import Path
 
 from PySide6.QtCore import QEventLoop, QObject, QPointF, Qt, QTimer, QUrl
-from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication
+from PySide6.QtGui import QDesktopServices, QFont, QFontDatabase, QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
 from PySide6.QtTest import QTest
@@ -32,6 +33,7 @@ def until(predicate, timeout=90):
 
 
 def main():
+    layout_only = "--layout-only" in sys.argv
     reports = Path(__file__).resolve().parents[1] / "reports" / "app"
     reports.mkdir(parents=True, exist_ok=True)
     app = QGuiApplication([])
@@ -138,11 +140,12 @@ def main():
         checks.append("six tabs; multi-subject teacher profile and school logo persist; projector profile can be hidden")
 
         click("settingsTab1")
-        assert control("settingsLevel4")
+        assert control("settingsConversionFormat3")
+        assert window.findChild(QObject, "settingsLevel4") is None
         assert window.findChild(QObject, "saveLevel") is None
         assert "level" not in bridge.settings
         shot("bilingual")
-        checks.append("L0–L4 and four display modes are informational in settings; existing lesson unchanged")
+        checks.append("Four unified conversion methods are informational in settings; existing lesson unchanged")
         assert bridge.lesson["level"] == 2
 
         click("settingsTab2")
@@ -163,29 +166,32 @@ def main():
         ]
         click("selectVoice4")
         assert bridge.voiceSettings["en"] == "kokoro:bm_george"
-        click("previewVoice0")
-        until(lambda: not bridge.busy)
-        assert bridge.voiceSettings["en"] == "kokoro:bm_george"
-        until(lambda: control("previewEnglishVoice").isEnabled())
-        click("previewEnglishVoice")
-        until(lambda: not bridge.busy)
-        assert "nghe thử" in bridge.message.lower(), bridge.message
-        bridge.stopSpeech()
+        if not layout_only:
+            click("previewVoice0")
+            until(lambda: not bridge.busy)
+            assert bridge.voiceSettings["en"] == "kokoro:bm_george"
+            until(lambda: control("previewEnglishVoice").isEnabled())
+            click("previewEnglishVoice")
+            until(lambda: not bridge.busy)
+            assert "nghe thử" in bridge.message.lower(), bridge.message
+            bridge.stopSpeech()
         if bridge.vieneuReady:
             assert [voice["id"] for voice in bridge.vietnameseVoices[:4]] == [
                 "vieneu:Mai Anh", "vieneu:Thùy Dung", "vieneu:Hải Đăng", "vieneu:Thái Sơn"
             ]
             click("selectVietnameseVoice2")
             assert bridge.voiceSettings["vi"] == "vieneu:Hải Đăng"
-            click("previewVietnameseVoice2")
-            until(lambda: not bridge.busy)
-            assert "nghe thử" in bridge.message.lower(), bridge.message
-            bridge.stopSpeech()
+            if not layout_only:
+                click("previewVietnameseVoice2")
+                until(lambda: not bridge.busy)
+                assert "nghe thử" in bridge.message.lower(), bridge.message
+                bridge.stopSpeech()
             click("applyVoicePair")
             assert bridge.voiceSettings["vi"] == "vieneu:Mai Anh"
             assert bridge.voiceSettings["en"] == "kokoro:af_heart"
         shot("voice")
-        checks.append("English Kokoro and Vietnamese VieNeu voices preview offline; voice pair saves both selections")
+        checks.append("Voice selection/pair/layout persist; playback skipped explicitly" if layout_only else
+                      "English Kokoro and Vietnamese VieNeu voices preview offline; voice pair saves both selections")
 
         click("settingsTab3")
         shot("mascot-top")
@@ -296,17 +302,20 @@ def main():
         control("lessonTitle").setProperty("text", "Bài kiểm tra cấu hình")
         control("lessonSubject").setProperty("text", "Sinh học")
         control("lessonContent").setProperty("text", "Hãy quan sát mẫu vật.")
-        control("creationLevel").setProperty("currentIndex", 4)
-        control("creationLayout").setProperty("currentIndex", 2)
+        control("creationFormat").setProperty("currentIndex", 3)
         control("creationGrade").setProperty("currentIndex", 2)
-        control("conversionProvider").setProperty("currentIndex", 1)
+        bridge.browserAI.saveOptions(False, False)
+        QDesktopServices.openUrl = lambda url: True  # No browser/network in settings verification.
         click("createLessonButton")
-        until(lambda: not bridge.busy and bridge.lesson.get("title") == "Bài kiểm tra cấu hình")
-        assert bridge.lesson["level"] == 4 and bridge.lesson["layout"] == "split_view" and bridge.lesson["grade"] == "12"
-        checks.append("new grade-12 lesson stores its own L4 and two-column mode, ignoring old global defaults")
+        until(lambda: not bridge.busy and bridge.chatgptRequest.get("config", {}).get("title") == "Bài kiểm tra cấu hình")
+        assert bridge.chatgptRequest["config"]["conversion_format"] == "english_only"
+        assert bridge.chatgptRequest["config"]["grade"] == "12"
+        checks.append("new grade-12 request stores one English-only method, ignoring old global defaults")
 
         assert not warnings, warnings
-        (reports / "settings-ui.json").write_text(json.dumps({"status": "passed", "checks": checks, "qml_warnings": warnings}, ensure_ascii=False, indent=2), encoding="utf-8")
+        report_name = "settings-layout-ui.json" if layout_only else "settings-ui.json"
+        (reports / report_name).write_text(json.dumps({"status": "passed", "checks": checks, "qml_warnings": warnings,
+                                                      "voice_playback": "skipped" if layout_only else "passed"}, ensure_ascii=False, indent=2), encoding="utf-8")
         window.close()
         bridge.classroom.disconnect()
         library.close()

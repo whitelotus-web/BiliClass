@@ -193,6 +193,40 @@ class Bridge(QObject):
     def browserAI(self):
         return self._browser_ai
 
+    @Property("QVariantList", constant=True)
+    def conversionFormats(self):
+        from .conversion_formats import FORMATS
+
+        return [dict(item) for item in FORMATS]
+
+    @Property(str, notify=changed)
+    def conversionLabel(self):
+        from .conversion_formats import format_spec
+
+        if self._lesson.get("conversion_format"):
+            return format_spec(self._lesson["conversion_format"])["label"]
+        return "Bài đã lưu · cấu hình cũ"
+
+    @Slot(str, str, str, str, str, str, str, str, str)
+    def convertDocument(self, title, subject, education, grade, text, file_url, conversion_format, preset, style):
+        from .conversion_formats import format_spec
+
+        if self._busy:
+            return
+        try:
+            spec = format_spec(conversion_format)
+            automatic = self._browser_ai.automatic
+            if automatic:
+                self._browser_ai.store.preferred()
+                if self._browser_ai.loginBusy:
+                    raise ValueError("Chờ đăng nhập ChatGPT xong trước khi chuyển đổi.")
+            self._prepareChatGPT(title, subject, education, grade, text, file_url,
+                                spec["level"], spec["layout"], preset, style, "preserve", automatic,
+                                conversion_format=conversion_format)
+        except Exception as exc:
+            self.inform(str(exc), True)
+            self.navigate.emit("browser-settings")
+
     @Property("QVariantMap", notify=changed)
     def browserState(self):
         return self._browser_state
@@ -217,7 +251,8 @@ class Bridge(QObject):
             self.inform(str(exc), True)
             self.navigate.emit("browser-settings")
 
-    def _prepareChatGPT(self, title, subject, education, grade, text, file_url, level, layout, preset, style, mode, automatic):
+    def _prepareChatGPT(self, title, subject, education, grade, text, file_url, level, layout, preset, style, mode, automatic,
+                        conversion_format=None):
         from .chatgpt_handoff import prepare_request
 
         if self._busy:
@@ -226,6 +261,8 @@ class Bridge(QObject):
         config = {"title": title, "subject": subject, "education_level": education, "grade": grade,
                   "level": level, "layout": layout, "preset": preset, "style": style, "mode": mode,
                   "provider": ("browser_web" if self._browser_ai.webMode else "chatgpt_plan") if automatic else "manual_web"}
+        if conversion_format:
+            config.update(conversion_format=conversion_format, provider="browser_web" if automatic else "manual_web")
 
         def prepared(result):
             self._chatgpt_request = result
@@ -322,7 +359,8 @@ class Bridge(QObject):
                                        failed=self._browser_ai.failed.emit)
             config = load_request(folder)["config"]
             source = self.library.store_source(Path(result["path"]))
-            inspection = inspect_returned_deck(self.library.directory / "sources" / source["file"])
+            inspection = inspect_returned_deck(self.library.directory / "sources" / source["file"],
+                                               Path(folder) / config["source_file"] if config.get("conversion_format") else None)
             narration = prepare_narration(inspection, voices, self.library.directory / "audio", self.cancel_event,
                                           self._browser_ai.progress.emit) if audio else {}
             return config, source, inspection, narration, result["account_id"]
@@ -460,7 +498,8 @@ class Bridge(QObject):
             config = load_request(request["folder"])["config"]
             source = self.library.store_source(path)  # File I/O; no SQLite in worker.
             stored = self.library.directory / "sources" / source["file"]
-            return config, source, inspect_returned_deck(stored)
+            return config, source, inspect_returned_deck(stored, Path(request["folder"]) / config["source_file"]
+                                                        if config.get("conversion_format") else None)
 
         def received(result):
             config, source, inspection = result

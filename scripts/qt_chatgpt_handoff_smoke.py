@@ -14,7 +14,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from pptx import Presentation
 from pptx.util import Inches
-from PySide6.QtCore import QMetaObject, QObject, Qt, QTimer, QUrl
+from PySide6.QtCore import QCoreApplication, QEvent, QMetaObject, QObject, Qt, QTimer, QUrl
 from PySide6.QtGui import QDesktopServices, QFont, QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuick import QQuickWindow
@@ -38,7 +38,10 @@ deck = Presentation()
 for i in range(2):
     slide = deck.slides.add_slide(deck.slide_layouts[6])
     slide.shapes.add_textbox(Inches(.5), Inches(.5), Inches(8), Inches(2)).text = "Bài giảng của thầy cô"
-    slide.notes_slide.notes_text_frame.text = "VI: Diện tích bằng 12 cm².\nEN: The area is 12 cm²."
+    slide.notes_slide.notes_text_frame.text = 'VI: Diện tích bằng 12 cm².\nEN: The area is 12 cm².\nQUIZ: ' + json.dumps({
+        "kind": "single", "vi": "Diện tích bằng bao nhiêu?", "en": "What is the area?",
+        "options": [{"vi": "12 cm²", "en": "12 cm²"}, {"vi": "6 cm²", "en": "6 cm²"}],
+        "correct": "A", "rationale_vi": "Theo nội dung slide.", "rationale_en": "As shown on the slide."}, ensure_ascii=False) + "\nCHECK: Kiểm tra hoạt ảnh trước khi dạy."
 deck.save(source)
 deck.save(returned)
 digest = hashlib.sha256(returned.read_bytes()).hexdigest()
@@ -56,7 +59,7 @@ window.setProperty("selectedFileName", source.name)
 window.setProperty("selectedFile", QUrl.fromLocalFile(str(source)).toString())
 window.findChild(QObject, "lessonTitle").setProperty("text", "Bài giảng với ChatGPT")
 window.findChild(QObject, "lessonSubject").setProperty("text", "Toán")
-window.findChild(QObject, "creationLayout").setProperty("currentIndex", 2)
+window.findChild(QObject, "creationFormat").setProperty("currentIndex", 0)
 QDesktopServices.openUrl = lambda url: opened.append(url.toString()) or True
 deadline = time.monotonic() + 90
 
@@ -96,9 +99,16 @@ def wait_idle(action):
 
 
 def start():
-    assert window.findChild(QObject, "creationLayout").property("visible")
+    choice = window.findChild(QObject, "creationFormat")
+    assert choice.property("visible") and choice.property("count") == 4
+    for index, spec in enumerate(bridge.conversionFormats):
+        choice.setProperty("currentIndex", index)
+        assert window.findChild(QObject, "creationFormatDescription").property("text") == spec["detail"]
+    choice.setProperty("currentIndex", 0)
+    assert window.findChild(QObject, "creationLevel") is None
+    assert window.findChild(QObject, "creationLayout") is None
     assert window.findChild(QObject, "creationWorkflow").property("visible")
-    assert window.findChild(QObject, "conversionProvider").property("currentIndex") == 0
+    assert window.findChild(QObject, "conversionProvider") is None
     assert not window.findChild(QObject, "creationTemplatesButton").property("visible")
     assert QQuickWindow.grabWindow(window).save(str(reports / "new-native.png"))
     window.findChild(QObject, "creationWorkflow").setProperty("currentIndex", 1)
@@ -143,12 +153,13 @@ def prepared():
     assert not bridge.error, bridge.message
     assert window.property("page") == "chatgpt"
     request = bridge.chatgptRequest
-    assert request["config"]["layout"] == "split_view" and request["config"]["level"] == 2
+    assert request["config"]["conversion_format"] == "parallel_columns"
+    assert request["config"]["layout"] == "split_view" and request["config"]["level"] == 3
     assert "Hai cột" in request["prompt"] and "Giữ theme" in request["prompt"]
     assert opened == ["https://chatgpt.com/"]
     assert Path(request["bundle"]).is_file()
     assert QQuickWindow.grabWindow(window).save(str(reports / "browser-handoff.png"))
-    stages.append("Visible level/layout/workflow -> local prompt/bundle -> browser handoff (intercepted)")
+    stages.append("Four unified formats; no level/layout/provider choices -> prompt/bundle -> browser handoff (intercepted)")
     bridge.receiveChatGPTDeck(QUrl.fromLocalFile(str(returned)).toString())
     QTimer.singleShot(100, safe(lambda: wait_idle(received)))
 
@@ -161,6 +172,11 @@ def received():
     assert hashlib.sha256(Path(result["path"]).read_bytes()).hexdigest() == digest
     assert not any(s["approved"] for s in bridge.lesson["segments"])
     assert all(s["vi"] and s["en"] for s in bridge.lesson["segments"])
+    assert bridge.lesson["conversion_format"] == "parallel_columns"
+    assert len(bridge.lesson["questions"]) == 2 and not any(q["approved"] for q in bridge.lesson["questions"])
+    assert all("QUIZ:" not in s["en"] for s in bridge.lesson["segments"])
+    assert window.findChild(QObject, "returnedDeckReviewNotes").property("visible")
+    assert "Kiểm tra hoạt ảnh" in window.findChild(QObject, "returnedDeckReviewNotes").property("text")
     assert QQuickWindow.grabWindow(window).save(str(reports / "returned-pptx.png"))
     click("useConvertedLessonButton")
     assert window.findChild(QObject, "wholeLessonReview").property("visible")
@@ -169,6 +185,7 @@ def received():
     click("confirmWholeLessonButton")
     assert len(sessions) == 1 and all(s["approved"] for s in bridge.lesson["segments"])
     assert not bridge.quickResult["draft"]
+    assert not any(q["approved"] for q in bridge.lesson["questions"])
     stages.append("Receive byte-identical PPTX -> real Office preview -> whole-deck confirmation -> mascot mapping")
     lesson_id = bridge.lesson["id"]
     bridge.openLesson(lesson_id)
@@ -190,6 +207,7 @@ report = {"status": "passed" if code == 0 and not warnings and not failures else
 window.close()
 engine.deleteLater()
 app.processEvents()
+QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
 library.close()
 print(json.dumps(report, ensure_ascii=False), flush=True)
 raise SystemExit(code)

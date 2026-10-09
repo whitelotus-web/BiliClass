@@ -460,11 +460,18 @@ class Library:
                              analysis=inspection["profile"])
         lesson.update(level=config["level"], layout=config["layout"], teaching_preset=config["preset"],
                       presentation_style="source", conversion_mode="preserve")
+        if config.get("conversion_format"):
+            lesson["conversion_format"] = config["conversion_format"]
+        segments = {segment["locator"]: segment["id"] for segment in lesson["segments"]}
+        lesson["questions"] = [{**question, "concept_id": segments[question["locator"]], "approved": False}
+                               for question in inspection.get("questions", []) if question["locator"] in segments]
         lesson["external_deck"] = {
             "provider": "chatgpt_browser", "request_id": config.get("request_id", ""),
             "requested_style": config["style"], "original_source_sha256": config.get("source_sha256", ""),
             "sha256": source["sha256"], "total": inspection["total"],
             "text_signature": text_signature(lesson), "reviewed_revision": 0,
+            "conversion_format": config.get("conversion_format", ""),
+            "review_notes": inspection.get("review_notes", []),
         }
         self._write(lesson)
         return lesson

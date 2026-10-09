@@ -169,49 +169,23 @@ Item {
             Card {
                 Layout.fillWidth: true
                 ColumnLayout { width: parent.width; spacing: 13
-                    Title { text: "Mức hỗ trợ song ngữ L0–L4" }
-                    Hint { text: "Đây là hướng dẫn để chọn mức cho từng bài khi nhập tài liệu tiếng Việt và chuyển sang bài song ngữ. Level không cố định cho mọi môn hay mọi khối."; Layout.fillWidth: true }
+                    Title { text: "Bốn kiểu chuyển đổi bài giảng" }
+                    Hint { text: "Chọn một phương pháp tại bước nhập tài liệu; mỗi phương pháp quy định cả ngôn ngữ và bố cục. Không cần chọn level riêng."; Layout.fillWidth: true }
                     Repeater {
-                        model: [
-                            {name: "L0 · Làm quen", detail: "Tiếng Việt là chính, thêm từ khóa tiếng Anh."},
-                            {name: "L1 · Tiếp xúc", detail: "Thêm câu tiếng Anh ngắn cho hoạt động lớp."},
-                            {name: "L2 · Cầu nối", detail: "Cặp Việt–Anh và English đơn giản khi đã chuẩn bị."},
-                            {name: "L3 · Kết hợp", detail: "Dùng hai ngôn ngữ linh hoạt trong bài giảng."},
-                            {name: "L4 · Ưu tiên English", detail: "English là chính, tiếng Việt hỗ trợ khi cần."}
-                        ]
+                        model: bridge.conversionFormats
                         Frame { id: levelGuide; required property var modelData; required property int index
-                            objectName: "settingsLevel" + index; Layout.fillWidth: true; padding: 12
+                            objectName: "settingsConversionFormat" + index; Layout.fillWidth: true; padding: 12
                             background: Rectangle { radius: 10; color: "#fbfdff"; border.color: page.line }
                             contentItem: RowLayout { spacing: 14
-                                Label { text: "L" + levelGuide.index; color: page.blue; font.pixelSize: 17; font.bold: true }
+                                Label { text: String(levelGuide.index + 1); color: page.blue; font.pixelSize: 17; font.bold: true }
                                 ColumnLayout { Layout.fillWidth: true; spacing: 2
-                                    Label { text: levelGuide.modelData.name; color: page.ink; font.pixelSize: 14; font.bold: true }
+                                    Label { text: levelGuide.modelData.label; color: page.ink; font.pixelSize: 14; font.bold: true }
                                     Hint { text: levelGuide.modelData.detail; Layout.fillWidth: true }
                                 }
                             }
                         }
                     }
-                    Hint { text: "Level điều chỉnh cách trợ giảng hỗ trợ ngôn ngữ; kiểu trình bày bên dưới quyết định chữ nào xuất hiện trên màn hình."; Layout.fillWidth: true }
-                }
-            }
-            Card { Layout.fillWidth: true
-                ColumnLayout { width: parent.width; spacing: 11
-                    Title { text: "Bốn kiểu trình bày song ngữ" }
-                    Hint { text: "Chọn cho từng bài tại bước tạo bài. Có thể đổi sau trong trình biên tập; ví dụ ở đây chỉ minh họa cách bố trí, không phải nội dung bài học."; Layout.fillWidth: true }
-                    Repeater { model: [
-                        {name: "Cùng dòng · từ khóa", detail: "Giữ câu tiếng Việt, chèn thuật ngữ tiếng Anh đã chuẩn bị ngay sau từ tương ứng: tế bào (cell)."},
-                        {name: "Hai dòng", detail: "Dòng tiếng Việt trước; bản tiếng Anh in nghiêng ở dòng dưới."},
-                        {name: "Hai cột", detail: "Tiếng Việt ở bên trái, bản tiếng Anh tương ứng ở bên phải."},
-                        {name: "English toàn phần", detail: "Chỉ hiện bản tiếng Anh; thầy cô có thể bật VI Rescue khi cần."}
-                    ]
-                        Frame { required property var modelData; Layout.fillWidth: true; padding: 12
-                            background: Rectangle { radius: 10; color: "#fbfdff"; border.color: page.line }
-                            contentItem: ColumnLayout { spacing: 3
-                                Label { text: modelData.name; color: page.ink; font.pixelSize: 14; font.bold: true }
-                                Hint { text: modelData.detail; Layout.fillWidth: true }
-                            }
-                        }
-                    }
+                    Hint { text: "Tiếng Anh 100% áp dụng cho chữ hiển thị trên slide. Lời đọc Việt–Anh và câu hỏi của trợ lý được lưu riêng trong ghi chú; câu hỏi cần duyệt trước khi dùng."; Layout.fillWidth: true }
                 }
             }
         }

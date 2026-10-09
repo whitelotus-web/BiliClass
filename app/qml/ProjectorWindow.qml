@@ -25,7 +25,7 @@ Window {
     Connections { target: bridge; function onSelectionChanged() { projection.rescue = false } }
     ColumnLayout {
         anchors.fill: parent; anchors.margins: 40; spacing: 22
-        RowLayout { Label { text: "BiliClass"; color: "#112650"; font.pixelSize: 25; font.bold: true } Item { Layout.fillWidth: true } Label { text: "L" + (bridge.lesson.level || 0); color: "#0869f9"; font.pixelSize: 20 } }
+        RowLayout { Label { text: "BiliClass"; color: "#112650"; font.pixelSize: 25; font.bold: true } Item { Layout.fillWidth: true } Label { text: bridge.lesson.conversion_format ? bridge.conversionLabel : "L" + (bridge.lesson.level || 0); color: "#0869f9"; font.pixelSize: 20 } }
         Label { text: bridge.lesson.title || ""; font.pixelSize: 30; font.bold: true; color: "#112650"; Layout.fillWidth: true; elide: Text.ElideRight; textFormat: Text.PlainText }
         RowLayout { visible: bridge.settings.show_profile; Layout.fillWidth: true; spacing: 12
             Image { objectName: "projectorSchoolLogo"; visible: !!bridge.schoolLogoUrl; source: bridge.schoolLogoUrl; cache: false; fillMode: Image.PreserveAspectFit; Layout.preferredWidth: 56; Layout.preferredHeight: 56 }

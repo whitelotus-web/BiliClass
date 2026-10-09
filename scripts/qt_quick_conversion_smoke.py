@@ -58,7 +58,6 @@ window.setProperty('selectedFileName', source.name)
 window.setProperty('selectedFile', QUrl.fromLocalFile(str(source.resolve())).toString())
 window.findChild(QObject, 'lessonTitle').setProperty('text', 'Bài giảng chuyển đổi một lần')
 window.findChild(QObject, 'lessonSubject').setProperty('text', 'Toán')
-window.findChild(QObject, 'conversionProvider').setProperty('currentIndex', 1)
 bridge.conversionProgress.connect(lambda current, total: progress.append([current, total]))
 deadline = time.monotonic() + 240
 
@@ -89,11 +88,14 @@ def wait_idle(action):
 
 
 def start():
-    assert not window.findChild(QObject, 'creationMode').property('visible')
-    assert not window.findChild(QObject, 'sourceLanguage').property('visible')
+    assert window.findChild(QObject, 'creationMode') is None
+    assert window.findChild(QObject, 'sourceLanguage') is None
     assert not window.findChild(QObject, 'creationTemplatesButton').property('visible')
     assert QQuickWindow.grabWindow(window).save(str(root / 'new-simple.png'))
-    click('createLessonButton')
+    # The offline engine is retained for existing lessons, outside the new Browser workflow.
+    bridge.convertLesson('Bài giảng chuyển đổi một lần', 'Toán', 'THPT', '10', '',
+                         QUrl.fromLocalFile(str(source.resolve())).toString(), 'vi', 2, 'level_auto',
+                         'standard', 'source', 'level')
     QTimer.singleShot(150, safe(lambda: wait_idle(converted)))
 
 

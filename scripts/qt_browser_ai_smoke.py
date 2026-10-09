@@ -230,8 +230,8 @@ def step():
             assert bridge.browserAI.store.preferred()["id"] == plus_id
             assert window.findChild(QObject, "browserProfiles").property("count") == 2
             stages.append("Separate account rows, visible profile deletion; no policy menu or unknown quota row")
-            bridge.convertBrowserAI("Bài thử", "Toán", "THPT", "11", "", QUrl.fromLocalFile(str(source)).toString(),
-                                    2, "split_view", "standard", "source", "level")
+            bridge.convertDocument("Bài thử", "Toán", "THPT", "11", "", QUrl.fromLocalFile(str(source)).toString(),
+                                   "parallel_columns", "standard", "source")
             phase = "blocked_conversion"
         elif phase == "blocked_conversion" and not bridge.busy:
             assert bridge.error and bridge.browserState["needsLogin"]

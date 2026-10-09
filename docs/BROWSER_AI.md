@@ -1,5 +1,7 @@
 # Browser AI · tài khoản web Free và Plus
 
+Ngày 09/10/2026: bài mới dùng bốn **Kiểu chuyển đổi** qua web Chrome, không chọn level/bố cục độc lập hay kết nối OAuth cũ. Cấu trúc tab Browser AI giữ nguyên. Prompt yêu cầu giữ số slide PPTX, lời đọc VI:/EN: và câu hỏi QUIZ: riêng; xem [quy trình mới](FOUR_FORMAT_WORKFLOW.md). Ngày 04/10 đã đăng nhập và nhận PPTX thật, tạo audio/xem trước và trình chiếu; các lỗi truy cập phía dưới ghi lại quá trình sửa trước đó, không phải kết luận cuối cùng. Chưa chứng nhận chất lượng bốn phương pháp trên bài thật; RC12 chưa bao gồm mã mới.
+
 Mã nguồn ngày 04/10/2026 mặc định dùng **web ChatGPT trong Google Chrome riêng**. Người dùng đang thử Free; luồng OAuth dùng hạn mức gói trước đó không phù hợp với mục tiêu này. OpenAI tài liệu hóa quyền dùng hạn mức qua kết nối trực tiếp cho [Plus/Pro đủ điều kiện](https://developers.openai.com/siwc/quickstart). Không kết luận mọi lỗi workspace trước đó đều do Free.
 
 Release RC12 chưa có thay đổi này. Tự gửi/nhận qua web là tính năng thử nghiệm, phụ thuộc giao diện và quyền của tài khoản. Kiểm thử giả lập không chứng minh tài khoản thật đã đăng nhập hoặc tạo được PowerPoint.

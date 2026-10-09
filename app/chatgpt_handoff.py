@@ -34,6 +34,12 @@ LAYOUT_LABELS = {
 
 def validate_config(config):
     result = dict(config)
+    if "conversion_format" in result:
+        from .conversion_formats import format_config
+
+        result = format_config(result)
+        if result.get("provider") == "chatgpt_plan":
+            raise ValueError("Bốn kiểu chuyển đổi dùng web ChatGPT qua Browser, không dùng kết nối OAuth cũ.")
     if not str(result.get("title", "")).strip() or not str(result.get("subject", "")).strip():
         raise ValueError("Nhập tên bài học và môn học.")
     if (type(result.get("level")) is not int or result["level"] not in range(5)
@@ -50,6 +56,10 @@ def make_prompt(config, source_name):
         from .ai_lesson import INSTRUCTIONS, output_schema
         return INSTRUCTIONS + "\nLESSON CONFIGURATION\n" + json.dumps(config, ensure_ascii=False, indent=2) + "\nJSON SCHEMA\n" + json.dumps(output_schema(), ensure_ascii=False)
     preset = next(p for p in catalog()["presets"] if p["id"] == config["preset"])
+    if config.get("conversion_format"):
+        from .conversion_formats import conversion_prompt
+
+        return conversion_prompt(config, source_name, preset)
     workflow = (
         "Chỉnh trực tiếp bản sao PowerPoint gốc. Giữ theme, tỷ lệ slide, thứ tự, hình ảnh, bảng, biểu đồ, "
         "công thức, màu sắc và hiệu ứng nếu công cụ hỗ trợ. Không dựng lại toàn bộ bằng mẫu khác. "
@@ -186,7 +196,7 @@ def load_request(folder):
             "attachments": [name] + (["mau-biliclass.pptx"] if (folder / "mau-biliclass.pptx").is_file() else [])}
 
 
-def inspect_returned_deck(path):
+def inspect_returned_deck(path, source_path=None):
     """Read native text/notes only; no OCR, translation or document rewriting."""
     from pptx import Presentation
 
@@ -201,11 +211,34 @@ def inspect_returned_deck(path):
     if not 1 <= len(deck.slides) <= 1000:
         raise ValueError("PowerPoint cần từ 1 đến 1.000 slide.")
     units = text_blocks(deck)
-    blocks, render_only = [], []
+    blocks, render_only, questions, review_notes = [], [], [], []
+    if source_path and Path(source_path).suffix.lower() == ".pptx":
+        inspect_zip(Path(source_path))
+        source_total = len(Presentation(source_path).slides)
+        if source_total != len(deck.slides):
+            review_notes.append(f"Số slide đã thay đổi: nguồn {source_total}, kết quả {len(deck.slides)}. "
+                                "Chưa đạt yêu cầu giữ đúng số slide; cần kiểm tra hoặc chuyển đổi lại.")
     for index, slide in enumerate(deck.slides, 1):
         locator = f"Slide {index}"
         notes = slide.notes_slide.notes_text_frame.text if slide.has_notes_slide else ""
-        pair = speaker_pair(notes) or split_existing_pair(notes)
+        assistant_notes = re.split(r"(?im)^\s*BILICLASS_NOTES\s*[:：]", notes)[-1]
+        for line in assistant_notes.splitlines():
+            if re.match(r"^\s*CHECK\s*[:：]", line, re.I):
+                review_notes.append(f"{locator}: {line.strip()}")
+            if re.match(r"^\s*QUIZ\s*[:：]", line, re.I):
+                try:
+                    from .content import validate_question
+
+                    value = json.loads(re.split(r"[:：]", line, maxsplit=1)[1])
+                    if len(questions) >= 200:
+                        raise ValueError("Tối đa 200 câu hỏi.")
+                    question = validate_question({**value, "concept_id": locator,
+                                                  "concept_label": locator}, reset_review=True)
+                    questions.append({**question, "locator": locator, "provenance": "chatgpt_browser"})
+                except (ValueError, TypeError):
+                    review_notes.append(f"{locator}: Câu hỏi trong ghi chú chưa hợp lệ; kiểm tra lại trước khi dùng.")
+        fallback_notes = re.split(r"(?im)^\s*(?:CHECK|QUIZ)\s*[:：]", assistant_notes, maxsplit=1)[0]
+        pair = speaker_pair(assistant_notes) or split_existing_pair(fallback_notes)
         native = [unit["text"] for unit in units if unit["slide"] == index]
         if pair:
             text = f"VI: {pair['vi']}\nEN: {pair['en']}"
@@ -225,11 +258,13 @@ def inspect_returned_deck(path):
     for unit in profile["units"]:
         if unit["locator"] in render_only:
             unit.update(vi="", en="", language="unknown", existing_pair=False)
-    return {"blocks": blocks, "profile": profile, "total": len(deck.slides), "render_only": render_only}
+    return {"blocks": blocks, "profile": profile, "total": len(deck.slides), "render_only": render_only,
+            "questions": questions, "review_notes": review_notes}
 
 
 def speaker_pair(notes):
     """Keep labelled narration/continuations; CHECK lines are never spoken."""
+    notes = re.split(r"(?im)^\s*BILICLASS_NOTES\s*[:：]", notes)[-1]
     parts, language = {"vi": [], "en": []}, None
     for line in notes.splitlines():
         match = re.match(r"^\s*(VI|VN|EN|English|Tiếng Việt|Tiếng Anh)\s*[:：]\s*(.*)$", line, re.I)
@@ -237,7 +272,7 @@ def speaker_pair(notes):
             language = "vi" if match[1].casefold() in {"vi", "vn", "tiếng việt"} else "en"
             if match[2].strip():
                 parts[language].append(match[2].strip())
-        elif re.match(r"^\s*(CHECK|KIỂM TRA|BILICLASS_NOTES)\s*[:：]", line, re.I):
+        elif re.match(r"^\s*(CHECK|QUIZ|KIỂM TRA|BILICLASS_NOTES)\s*[:：]", line, re.I):
             language = None
         elif language and line.strip():
             parts[language].append(line.strip())
@@ -263,6 +298,7 @@ def external_preview(lesson, directory):
     mapped = {s["locator"]: s["id"] for s in lesson["segments"]}
     complete = sum(bool(s["vi"].strip() and s["en"].strip()) for s in lesson["segments"])
     warnings = ["Kiểm tra file ChatGPT trả về: nghĩa, thuật ngữ, số liệu, công thức, hình và hiệu ứng."]
+    warnings.extend(external.get("review_notes", []))
     if complete < len(lesson["segments"]):
         warnings.append(f"Trợ giảng nhận diện được cặp Việt–Anh ở {complete}/{external['total']} slide. "
                         "Các slide còn lại vẫn trình chiếu được; mascot chưa đọc song ngữ ở các slide đó.")

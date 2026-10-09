@@ -1,4 +1,10 @@
-# BiliClass 1.0 RC12 — hướng dẫn dùng thử
+# Hướng dẫn mã nguồn hiện tại · 09/10/2026
+
+Nhập tài liệu → chọn một **Kiểu chuyển đổi** (Hai cột song ngữ / Song ngữ từng câu / Tích hợp từ khóa / Tiếng Anh 100%) → giữ PowerPoint gốc hoặc mẫu → Chuyển đổi → xem → Dùng để dạy. ChatGPT Browser nhận prompt/tài liệu và trả PPTX; BiliClass chuẩn bị voice/mascot. Không chọn level riêng. PPTX gốc phải giữ đúng số lượng/thứ tự slide; hạn chế cần được báo để kiểm tra. Tiếng Anh 100% áp dụng cho slide; lời đọc Việt vẫn lưu riêng trong ghi chú. Câu hỏi nhận về là bản nháp, duyệt riêng trong Trợ giảng & Quiz.
+
+Cài đặt Chung, Giọng đọc, Mascot và Browser AI giữ cấu trúc hiện tại; Song ngữ hướng dẫn bốn phương pháp. Xem [quy trình và kế hoạch thu gọn](FOUR_FORMAT_WORKFLOW.md). Các mục RC12/level/offline bên dưới là hướng dẫn bản cũ; bộ cài RC12 chưa có luồng mới.
+
+# BiliClass 1.0 RC12 — hướng dẫn dùng thử bản đóng gói cũ
 
 Công cụ dạy học Anh–Việt ngoại tuyến, phục vụ các môn THPT và môn tự tạo. Các bài mẫu chỉ dùng để kiểm chứng công cụ.
 
