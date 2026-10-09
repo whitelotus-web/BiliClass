@@ -3,10 +3,12 @@
 ## Thu gọn ngày 09/10/2026
 
 - Browser hiện dùng **Google Chrome đã cài trên máy**, Playwright điều khiển web; không đóng browser riêng, API key hoặc kết nối OAuth/Responses. Hồ sơ/tài khoản riêng không vào Git hoặc bản build.
-- Bộ cài chính loại CTranslate2, SentencePiece, RapidOCR, WinRT OCR, PyJWT và module dịch/OCR/M0; không đóng model dịch hoặc gói `.bclanguage`. Helper nguồn cũ còn trong extra phát triển `legacy-import`. Các đoạn về Edge/dịch/OCR dưới đây là hồ sơ lịch sử, không mô tả RC13.
+- Bộ cài chính loại CTranslate2, SentencePiece, RapidOCR, WinRT OCR, PyJWT, Gradio/Gradio Client và module dịch/OCR/M0; không đóng model dịch hoặc gói `.bclanguage`. Gradio là nhánh giao diện web không dùng; VieNeu ONNX đã tạo WAV thật khi chặn cả hai module. Helper nguồn cũ còn trong extra phát triển `legacy-import`. Các đoạn về Edge/dịch/OCR dưới đây là hồ sơ lịch sử, không mô tả RC13.
 - Giữ Kokoro/sherpa-onnx và VieNeu/sea-g2p/ONNX cho voice offline. Buộc CPU/ONNX và Hugging Face offline, kể cả khi thư viện đã import trước. OmegaConf/ANTLR4 vẫn cần cho voice; không gỡ theo OCR.
 - Ba font Be Vietnam Pro chuyển sang `app/assets/`, cùng `OFL.txt`; giấy phép font được giữ riêng trong `licenses/Be-Vietnam-Pro/` của bộ cài. Hình mascot/icon hiện có giữ nguyên.
 - `licenses/DEPENDENCIES.json` thu notices từ môi trường phát triển; có thể có metadata của gói không được đóng vào runtime. Kiểm tra thành phần thực tế bằng nội dung bundle/PyInstaller; không dùng danh sách notices để suy ra engine cũ còn hoạt động.
+- Build dùng thu data/binary/submodule và metadata trực tiếp theo gói; bỏ `collect-all` ở cấu hình hiện hành để tránh dò toàn bộ RECORD của các thư viện phát triển không dùng. Metadata của sherpa-onnx và sherpa-onnx-core được giữ riêng, cùng OmegaConf, ANTLR, Playwright, VieNeu và sea-g2p.
+- llvmlite dùng khi chỉnh tốc độ voice Việt: giữ DLL ở `llvmlite/binding` và dependency MSVC riêng trong `llvmlite.libs`. Self-test RC13 độc lập đã qua cả Kokoro/VieNeu, chỉnh tốc độ và cache. Script notices đọc RECORD/SOURCES trực tiếp, chỉ kiểm tra tệp giấy phép; không stat mọi tệp của các model/thư viện không dùng.
 
 ## Browser AI trong mã nguồn ngày 03/10/2026
 

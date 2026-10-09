@@ -1,10 +1,26 @@
 """Ship installed dependency metadata and complete bundled license notices."""
+import csv
 import importlib.metadata
+import io
 import json
 import re
 import shutil
 import sys
 from pathlib import Path
+
+
+def notice_paths(distribution):
+    """Read installed manifests without stat'ing every unrelated package file."""
+    record = distribution.read_text("RECORD")
+    entries = csv.reader(io.StringIO(record)) if record else (
+        [line] for line in (distribution.read_text("SOURCES.txt") or "").splitlines()
+    )
+    for entry in entries:
+        if not entry:
+            continue
+        path = Path(entry[0])
+        if any(word in path.name.lower() for word in ("license", "copying", "notice", "copyright")):
+            yield path
 
 
 def main():
@@ -21,15 +37,14 @@ def main():
         folder.mkdir(exist_ok=True)
         (folder / "METADATA.txt").write_text((dist.read_text("METADATA") or dist.read_text("PKG-INFO") or json.dumps(dict(dist.metadata), ensure_ascii=False)), encoding="utf-8")
         licenses = []
-        for path in dist.files or []:
-            if any(word in path.name.lower() for word in ("license", "copying", "notice", "copyright")):
-                source = Path(dist.locate_file(path))
-                if source.is_file() and source.stat().st_size < 5*1024**2:
-                    relative = Path(*[part for part in path.parts if part not in ("..", ".")])
-                    target = folder / relative
-                    target.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(source, target)
-                    licenses.append(relative.as_posix())
+        for path in notice_paths(dist):
+            source = Path(dist.locate_file(path))
+            if source.is_file() and source.stat().st_size < 5*1024**2:
+                relative = Path(*[part for part in path.parts if part not in ("..", ".")])
+                target = folder / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source, target)
+                licenses.append(relative.as_posix())
         packages.append({"name": name, "version": version, "notices": licenses,
                          "project_urls": dist.metadata.get_all("Project-URL", [])})
     (root / "DEPENDENCIES.json").write_text(json.dumps(packages, indent=2), encoding="utf-8")

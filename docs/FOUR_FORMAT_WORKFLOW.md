@@ -60,7 +60,11 @@ Giữ thư viện bài, nguồn, ghi chú, giọng đọc offline/cache, trình 
 
 Không xóa model hoặc thư viện cá nhân trên máy. Bộ đọc/export bài cũ, sao lưu, nhập gói và reuse đoạn đã duyệt vẫn giữ. PyJWT không còn là phụ thuộc chính; dịch/OCR Windows chuyển sang extra `legacy-import` phục vụ kiểm chứng nguồn cũ. Dependency lock hiện có dành cho môi trường phát triển kèm extra, không mô tả toàn bộ thành phần được đóng gói.
 
-Giọng Việt: sửa hằng số offline của Hugging Face khi thư viện đã được import trước; ép backend CPU/ONNX tránh dò PyTorch. Cache thư viện native và script `prepare-dev-voices.ps1` sao chép model đã có sang ổ người dùng Windows để tránh nạp từ ổ dự án chậm. Không tải model/mạng trong bước này. `run.ps1` tự nhận cache đã chuẩn bị. Bộ cài cài trên ổ người dùng vẫn chứa model giọng; không có thêm cache mô hình dịch.
+Giọng Việt: sửa hằng số offline của Hugging Face khi thư viện đã được import trước; ép backend CPU/ONNX tránh dò PyTorch. Cache thư viện native, metadata và dữ liệu múi giờ của phụ thuộc; script `prepare-dev-voices.ps1` sao chép model đã có sang ổ người dùng Windows để tránh nạp từ ổ dự án chậm. Không tải model/mạng trong bước này. `run.ps1` tự nhận cache đã chuẩn bị. Bộ cài cài trên ổ người dùng vẫn chứa model giọng; không có thêm cache mô hình dịch.
+
+Build thu data/binary/submodule và metadata của từng gói cần thiết, thay `collect-all` gây dò mọi tệp của mọi thư viện đã cài. Loại Gradio/Gradio Client của nhánh giao diện web không dùng; kiểm tra SDK thực tế khi chặn hai module vẫn tạo WAV Việt mới hợp lệ, khoảng 18 giây trên cache của máy này. Bộ cài cần kiểm tra riêng cả archive và hai engine voice.
+
+Finalize giữ DLL llvmlite ở đường dẫn tài nguyên `llvmlite/binding` và dependency riêng trong `llvmlite.libs` để chỉnh tốc độ giọng Việt. Script thu giấy phép đọc RECORD/SOURCES, chỉ kiểm tra tệp notice cần sao chép; hai kiểm thử bổ sung xác nhận giữ attribution và không dò mọi tệp model/thư viện.
 
 ## Kiểm tra và giới hạn
 
@@ -73,3 +77,5 @@ Kết quả ngày 09/10 sau thu gọn: lượt pytest toàn bộ có 276 ca qua 
 Qt `qt_streamlined_smoke.py` kiểm tra menu dữ liệu, hai tab, đúng bốn phương pháp và mở bài L5 cũ; `qt_chatgpt_handoff_smoke.py` và `qt_browser_ai_smoke.py` kiểm tra gói gửi/nhận, byte PPTX không đổi, xem trước Office và mở lại bài. Browser dùng web fixture, không gửi bài thật. `qt_teaching_smoke.py` qua với PowerPoint toàn màn hình, mascot kéo/điều khiển và giọng Anh thật. `verify_settings_ui.py` đầy đủ đã qua với phát giọng Anh và Việt thật, giữ/lưu các tab hiện có; không có QML warning.
 
 Ca voice ban đầu chậm khi nạp thư viện/model từ ổ dự án. Sau sửa cấu hình offline và chuẩn bị cache giọng trên ổ người dùng Windows, VieNeu nạp khoảng 18 giây và tạo một câu khoảng 10 giây trên máy này; chưa phải benchmark laptop khác. Không tự tải model hay lấy dữ liệu giáo viên trong bước cache. Các script kiểm tra giao diện dịch offline cũ đã nghỉ; dùng bộ smoke hiện hành nêu trên.
+
+Bản độc lập RC13 đã qua kiểm tra archive, Playwright driver, Qt trang nhập bài (không warning) và self-test bằng `.exe` trên thư mục thử riêng ở ổ người dùng. Self-test có WAV Kokoro/VieNeu thật, tốc độ/cache, bốn prompt và đọc PPTX, lớp học/WebSocket/báo cáo, gói bài/lịch sử và backup/restore; không gửi bài lên AI, không dùng thư viện/model của môi trường nguồn. Release công khai RC12 chưa được thay; chưa chứng nhận Windows sạch hoặc chất lượng đầu ra ChatGPT của bốn phương pháp mới.

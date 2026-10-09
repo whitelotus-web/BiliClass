@@ -39,6 +39,17 @@ $onnxRuntimeSource = Join-Path $projectRoot '.venv\Lib\site-packages\onnxruntime
 $sherpaRuntimeDest = Join-Path $runtimeDest 'sherpa_onnx\lib\onnxruntime.dll'
 if (-not (Test-Path -LiteralPath $onnxRuntimeSource) -or -not (Test-Path -LiteralPath $sherpaRuntimeDest)) { throw 'Missing shared ONNX runtime in build.' }
 Copy-Item -LiteralPath $onnxRuntimeSource -Destination $sherpaRuntimeDest -Force
+# Recent llvmlite loads its DLL from the binding package's resource path.
+# PyInstaller's hook can collect the same DLL at the bundle root instead.
+$llvmSource = Join-Path $projectRoot '.venv\Lib\site-packages\llvmlite\binding\llvmlite.dll'
+$llvmDest = Join-Path $runtimeDest 'llvmlite\binding'
+if (-not (Test-Path -LiteralPath $llvmSource)) { throw 'Missing llvmlite runtime for Vietnamese voice speed adjustment.' }
+New-Item -ItemType Directory -Path $llvmDest -Force | Out-Null
+Copy-Item -LiteralPath $llvmSource -Destination $llvmDest -Force
+$llvmSharedSource = Join-Path $projectRoot '.venv\Lib\site-packages\llvmlite.libs'
+if (Test-Path -LiteralPath $llvmSharedSource) {
+    Copy-Item -LiteralPath $llvmSharedSource -Destination $runtimeDest -Recurse -Force
+}
 Copy-Item -LiteralPath (Join-Path $projectRoot 'docs\THIRD_PARTY.md') -Destination (Join-Path $bundlePath 'THIRD_PARTY.md') -Force
 $fontNotices = Join-Path $bundlePath 'licenses\Be-Vietnam-Pro'
 New-Item -ItemType Directory -Path $fontNotices -Force | Out-Null
