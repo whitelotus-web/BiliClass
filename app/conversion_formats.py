@@ -76,6 +76,7 @@ Tạo FILE POWERPOINT (.pptx) chỉnh sửa được từ tài liệu đính kè
 THÔNG TIN BÀI
 - Tên: {config['title']}; môn: {config['subject']}; cấp: {config.get('education_level', '')}; lớp: {config.get('grade', '')}.
 - Nguồn: {source_name}.
+- Tài liệu gốc: {config.get('source_original_name', source_name)}.
 - Kiểu chuyển đổi: {spec['label']}. {spec['detail']}
 - Đây là một cấu hình duy nhất cho ngôn ngữ và bố cục; không áp dụng level L0–L4 khác.
 

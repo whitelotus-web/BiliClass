@@ -207,25 +207,54 @@ class Bridge(QObject):
             return format_spec(self._lesson["conversion_format"])["label"]
         return "Bài đã lưu · cấu hình cũ"
 
+    @Slot(str, str, str, str, str, str, str, str, str, result="QVariantMap")
+    def conversionPromptPreview(self, title, subject, education, grade, text, file_url, conversion_format, preset, style):
+        from .conversion_input import creation_config, prompt_preview
+
+        try:
+            return prompt_preview(creation_config(title, subject, education, grade, conversion_format, preset, style),
+                                  file_url, text)
+        except ValueError as exc:
+            return {"prompt": str(exc), "ready": False}
+
+    @Slot("QVariantList", result="QVariantMap")
+    def selectInputDocument(self, urls):
+        from .conversion_input import document_selection
+
+        try:
+            return document_selection(urls)
+        except (ValueError, OSError) as exc:
+            self.inform(str(exc), True)
+            return {"valid": False}
+
     @Slot(str, str, str, str, str, str, str, str, str)
     def convertDocument(self, title, subject, education, grade, text, file_url, conversion_format, preset, style):
-        from .conversion_formats import format_spec
+        from .chatgpt_handoff import validate_config
+        from .conversion_input import creation_config, local_document
 
         if self._busy:
             return
         try:
-            spec = format_spec(conversion_format)
-            automatic = self._browser_ai.automatic
-            if automatic:
+            config = validate_config(creation_config(title, subject, education, grade, conversion_format, preset, style))
+            if bool(file_url) == bool(text.strip()):
+                raise ValueError("Chọn một nguồn: tài liệu hoặc nội dung dán vào.")
+            if file_url:
+                path = local_document(file_url)
+                if style == "source" and path.suffix.casefold() != ".pptx":
+                    raise ValueError("Giữ thiết kế gốc cần tệp PPTX; tài liệu khác dùng mẫu mới.")
+            self._browser_ai.saveOptions(True, True)
+            try:
                 self._browser_ai.store.preferred()
-                if self._browser_ai.loginBusy:
+                if self._browser_ai.loginBusy and not self._browser_ai.job.check_only:
                     raise ValueError("Chờ đăng nhập ChatGPT xong trước khi chuyển đổi.")
-            self._prepareChatGPT(title, subject, education, grade, text, file_url,
-                                spec["level"], spec["layout"], preset, style, "preserve", automatic,
+            except ValueError:
+                self.navigate.emit("browser-settings")
+                raise
+            self._prepareChatGPT(config["title"], config["subject"], config["education_level"], config["grade"], text, file_url,
+                                config["level"], config["layout"], preset, style, "preserve", True,
                                 conversion_format=conversion_format)
         except Exception as exc:
             self.inform(str(exc), True)
-            self.navigate.emit("browser-settings")
 
     @Property("QVariantMap", notify=changed)
     def browserState(self):

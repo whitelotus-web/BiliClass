@@ -1,12 +1,18 @@
 # BiliClass: bốn kiểu chuyển đổi và kế hoạch thu gọn
 
-Ngày 09/10/2026. Đây là định hướng mới cho mã nguồn, chưa phải bộ cài RC12.
+Ngày 10/10/2026. Đây là quy trình trong mã nguồn hiện tại, chưa phải bộ cài RC12.
 
 ## Quy trình chính
 
 Nhập giáo án/tài liệu → chọn **Kiểu chuyển đổi** → chọn giữ PowerPoint gốc hoặc mẫu BiliClass → Chuyển đổi → xem trình chiếu → xác nhận Dùng để dạy.
 
-Thông tin ngắn: tên bài, môn, khối; cấp học nằm trong tùy chọn thêm. Browser AI gửi prompt và bản sao tài liệu qua web ChatGPT đã đăng nhập, nhận PPTX, đọc ghi chú và chuẩn bị âm thanh. Không có lựa chọn API/OAuth/model dịch offline trong luồng nhập mới. Gửi/nhận thủ công vẫn là phương án phục hồi khi web gặp lỗi.
+Kéo thả một tài liệu hoặc chọn tệp trên máy; cũng có thể dán nội dung. Tệp được kiểm tra định dạng và giới hạn 50 MB trước khi thay tài liệu đã chọn. Thông tin ngắn gồm tên bài, môn, cấp học và khối, hiển thị cùng nhau. Bốn kiểu chuyển đổi hiện thành bốn ô chọn, mỗi ô có **Xem mẫu bố cục**; xem mẫu không đổi lựa chọn cho đến khi bấm **Chọn kiểu này**.
+
+**Thiết kế bài giảng** có hai ô chọn: giữ bài giảng đầu vào (chỉ PPTX) hoặc tạo theo mẫu mới. PPTX mặc định giữ thiết kế gốc; Word/PDF/ảnh/nội dung dán dùng mẫu mới. Khi tạo theo mẫu, chọn mẫu BiliClass và xem slide minh họa lớn.
+
+Ô **Prompt gửi ChatGPT** có Hiện/Ẩn, cập nhật theo thông tin, kiểu chuyển đổi và thiết kế đang chọn. Dùng cùng bộ tạo prompt với yêu cầu gửi thật, gồm tên tệp gốc và đúng một phương pháp. Xem prompt không tạo gói hoặc mở browser. Nút **Chuyển đổi bài giảng** luôn nằm ở cuối màn hình; chỉ bật khi có tài liệu/nội dung, tên bài và môn.
+
+Browser AI tự gửi prompt và bản sao tài liệu qua web ChatGPT đã đăng nhập, nhận PPTX, đọc ghi chú và chuẩn bị âm thanh Việt–Anh theo giọng đã lưu. Không còn “Tùy chọn thêm”, bộ chọn gửi/nhận thủ công hoặc bật/tắt chuẩn bị giọng trong luồng nhập mới. Yêu cầu thủ công đã lưu vẫn đọc được để không làm mất bài cũ. Không có lựa chọn API/OAuth/model dịch offline trong luồng nhập mới. Nếu web mất phiên/cần xác minh/hết lượt, tool giữ yêu cầu và thông báo để xử lý rồi tiếp tục; không cam kết tự vượt xác minh hoặc hạn mức.
 
 ## Bốn cấu hình duy nhất cho bài mới
 

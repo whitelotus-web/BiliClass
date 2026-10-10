@@ -1,7 +1,7 @@
-"""Exercise the browser handoff UI and returned PPTX with isolated teacher data.
+"""Exercise document drop/chooser, prompt preview and automatic PPTX conversion.
 
-Browser launches and the final classroom session are intercepted. PowerPoint
-preview rendering is real; there are no network or translation calls.
+Web response, voices and the final classroom session use fixtures. PowerPoint
+preview rendering is real; there are no uploads or teacher-library changes.
 """
 import hashlib
 import json
@@ -10,23 +10,48 @@ import tempfile
 import time
 import traceback
 from pathlib import Path
+from threading import Event
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from pptx import Presentation
 from pptx.util import Inches
-from PySide6.QtCore import QCoreApplication, QEvent, QMetaObject, QObject, Qt, QTimer, QUrl
-from PySide6.QtGui import QDesktopServices, QFont, QGuiApplication
-from PySide6.QtQml import QQmlApplicationEngine
+from PySide6.QtCore import (
+    QCoreApplication,
+    QEvent,
+    QMetaObject,
+    QMimeData,
+    QObject,
+    QPoint,
+    QPointF,
+    Qt,
+    QTimer,
+    QUrl,
+)
+from PySide6.QtGui import (
+    QDesktopServices,
+    QDragEnterEvent,
+    QDragLeaveEvent,
+    QDropEvent,
+    QFont,
+    QFontDatabase,
+    QGuiApplication,
+)
+from PySide6.QtQml import QQmlApplicationEngine, QQmlEngine, QQmlExpression
 from PySide6.QtQuick import QQuickWindow
 from PySide6.QtQuickControls2 import QQuickStyle
+from PySide6.QtTest import QTest
 
+from app import browser_audio, browser_automation
+from app.chatgpt_handoff import load_request
 from app.library import Library
 from app.paths import RESOURCE_ROOT
 from app.ui import Bridge
 
 app = QGuiApplication([])
 QQuickStyle.setStyle("Basic")
-app.setFont(QFont("Arial", 10))
+for font in (RESOURCE_ROOT / "assets").glob("*.ttf"):
+    QFontDatabase.addApplicationFontFromData(font.read_bytes())
+app.setFont(QFont("Be Vietnam Pro", 10))
 reports = Path("reports/chatgpt-handoff")
 reports.mkdir(parents=True, exist_ok=True)
 Path(".runtime/chatgpt-smoke").mkdir(parents=True, exist_ok=True)
@@ -46,7 +71,33 @@ deck.save(source)
 deck.save(returned)
 digest = hashlib.sha256(returned.read_bytes()).hexdigest()
 bridge = Bridge(library)
-bridge.browserAI.saveOptions(False, False)  # Exercise the retained manual browser workflow.
+bridge.browserAI.saveOptions(False, False)  # New UI must override obsolete manual/audio options.
+account = bridge.browserAI.store.add("UI fixture")
+bridge.browserAI.store.observe(account["id"], "free", identity={"name": "Cô giáo thử", "email": "fixture@example.test"})
+release_web = Event()
+sent, narration = [], []
+
+
+def fake_convert(account, root, folder, cancel, progress, **options):
+    sent.append(load_request(folder))
+    while not release_web.wait(.05):
+        if cancel.is_set():
+            raise browser_automation.BrowserProblem("cancelled", "Đã hủy.")
+    options["observed"](account["id"], "free", "Fixture")
+    target = Path(folder) / "bai-giang-song-ngu.pptx"
+    target.write_bytes(returned.read_bytes())
+    browser_automation.write_record(folder, {"account_id": account["id"], "state": "completed", "followups": 0,
+        "url": "https://chatgpt.com/c/fixture", "sha256": digest})
+    return {"path": str(target), "url": "https://chatgpt.com/c/fixture"}
+
+
+def fake_narration(inspection, voices, directory, cancel, progress):
+    narration.extend(inspection["profile"]["units"])
+    return {"complete": 4, "total": 4, "failed": 0, "skipped": 0}
+
+
+browser_automation.convert = fake_convert
+browser_audio.prepare_narration = fake_narration
 engine = QQmlApplicationEngine()
 warnings, failures, stages, opened = [], [], [], []
 engine.warnings.connect(lambda values: warnings.extend(map(str, values)))
@@ -55,13 +106,9 @@ engine.load(QUrl.fromLocalFile(str(RESOURCE_ROOT / "qml/Main.qml")))
 assert engine.rootObjects(), warnings
 window = engine.rootObjects()[0]
 window.setProperty("page", "new")
-window.setProperty("selectedFileName", source.name)
-window.setProperty("selectedFile", QUrl.fromLocalFile(str(source)).toString())
-window.findChild(QObject, "lessonTitle").setProperty("text", "Bài giảng với ChatGPT")
-window.findChild(QObject, "lessonSubject").setProperty("text", "Toán")
-window.findChild(QObject, "creationFormat").setProperty("currentIndex", 0)
 QDesktopServices.openUrl = lambda url: opened.append(url.toString()) or True
-deadline = time.monotonic() + 90
+deadline = time.monotonic() + 120
+preview_prompt = ""
 
 
 def safe(action):
@@ -90,6 +137,50 @@ def click(name):
     assert QMetaObject.invokeMethod(target, "clicked", Qt.DirectConnection)
 
 
+def visual_value(name, expression):
+    # Return scalars only; do not transfer ownership of QML Repeater delegates.
+    code = '''(function() {
+        function find(node) {
+            if (node.objectName === NAME) return node;
+            for (var i = 0; i < node.children.length; i++) {
+                var found = find(node.children[i]); if (found) return found;
+            }
+            return null;
+        }
+        var target = find(contentItem);
+        if (!target) throw new Error("Missing " + NAME);
+        return EXPRESSION;
+    })()'''.replace("NAME", json.dumps(name)).replace("EXPRESSION", expression)
+    query = QQmlExpression(QQmlEngine.contextForObject(window), window, code)
+    value = query.evaluate()[0]
+    assert not query.hasError(), query.error().toString()
+    return value
+
+
+def mouse_click(name):
+    assert visual_value(name, "target.enabled && target.visible"), name
+    point = QPoint(int(visual_value(name, "target.mapToItem(null, target.width / 2, target.height / 2).x")),
+                   int(visual_value(name, "target.mapToItem(null, target.width / 2, target.height / 2).y")))
+    QTest.mouseClick(window, Qt.LeftButton, Qt.NoModifier, point)
+
+
+def drop_file(paths):
+    mime = QMimeData()
+    mime.setUrls([QUrl.fromLocalFile(str(path)) for path in paths])
+    item = window.findChild(QObject, "creationSourceArea")
+    point = item.mapToScene(QPointF(30, 70))
+    entered = QDragEnterEvent(point.toPoint(), Qt.CopyAction, mime, Qt.LeftButton, Qt.NoModifier)
+    QCoreApplication.sendEvent(window, entered)
+    if not entered.isAccepted():
+        QCoreApplication.sendEvent(window, QDragLeaveEvent())
+        return False
+    dropped = QDropEvent(point, Qt.CopyAction, mime, Qt.LeftButton, Qt.NoModifier)
+    QCoreApplication.sendEvent(window, dropped)
+    accepted = dropped.isAccepted()
+    QCoreApplication.sendEvent(window, QDragLeaveEvent())
+    return accepted
+
+
 def wait_idle(action):
     assert time.monotonic() < deadline, "Flow timed out"
     if bridge.busy:
@@ -99,18 +190,70 @@ def wait_idle(action):
 
 
 def start():
+    assert not window.findChild(QObject, "createLessonButton").property("enabled")
+    assert drop_file([source]), "Windows-style local document drop was rejected"
+    assert window.property("selectedFileName") == source.name
+    assert window.findChild(QObject, "lessonTitle").property("text") == source.stem
+    assert not drop_file([source, source]), "Multiple documents must not replace the accepted source"
+    assert window.property("selectedFileName") == source.name
+    # File chooser accepted event routes through the same validation path.
+    picked = workspace / "Chọn ảnh #1.png"
+    picked.write_bytes(b"image fixture")
+    dialog = window.findChild(QObject, "creationFileDialog")
+    dialog.setProperty("selectedFile", QUrl.fromLocalFile(str(picked)))
+    assert QMetaObject.invokeMethod(dialog, "accepted", Qt.DirectConnection)
+    QTimer.singleShot(100, safe(lambda: chooser_checked(picked)))
+
+
+def chooser_checked(picked):
+    assert window.property("selectedFileName") == picked.name
+    assert not visual_value("creationKeepOriginal", "target.enabled")
+    assert window.findChild(QObject, "creationWorkflow").property("currentIndex") == 1
+    assert drop_file([source])
+    window.findChild(QObject, "lessonTitle").setProperty("text", "Bài giảng với ChatGPT")
+    window.findChild(QObject, "lessonSubject").setProperty("text", "Toán")
+    QTimer.singleShot(150, safe(formats))
+
+
+def formats():
     choice = window.findChild(QObject, "creationFormat")
     assert choice.property("visible") and choice.property("count") == 4
     for index, spec in enumerate(bridge.conversionFormats):
-        choice.setProperty("currentIndex", index)
+        mouse_click("formatChoice_" + spec["id"])
+        assert choice.property("currentIndex") == index
+        assert sum(visual_value("formatChoice_" + other["id"], "target.checked") for other in bridge.conversionFormats) == 1
         assert window.findChild(QObject, "creationFormatDescription").property("text") == spec["detail"]
     choice.setProperty("currentIndex", 0)
     assert window.findChild(QObject, "creationLevel") is None
     assert window.findChild(QObject, "creationLayout") is None
     assert window.findChild(QObject, "creationWorkflow").property("visible")
     assert window.findChild(QObject, "conversionProvider") is None
+    assert window.findChild(QObject, "creationManualChatGPT") is None
+    assert window.findChild(QObject, "creationAudio") is None
     assert not window.findChild(QObject, "creationTemplatesButton").property("visible")
     assert QQuickWindow.grabWindow(window).save(str(reports / "new-native.png"))
+    mouse_click("formatChoice_english_onlyPreview")
+    QTimer.singleShot(200, safe(example))
+
+
+def example(index=3):
+    dialog = window.findChild(QObject, "conversionExampleDialog")
+    assert dialog.property("visible") and dialog.property("formatIndex") == index
+    key = bridge.conversionFormats[index]["id"]
+    assert window.findChild(QObject, "conversionExampleSlide").property("conversionFormat") == key
+    assert window.findChild(QObject, "conversionExampleSlide").property("englishOnly") == (index == 3)
+    assert window.findChild(QObject, "creationFormat").property("currentIndex") == 0, "Preview is separate from selection"
+    assert QQuickWindow.grabWindow(window).save(str(reports / ("example-" + key + ".png")))
+    if index != 2:
+        assert QMetaObject.invokeMethod(dialog, "close", Qt.DirectConnection)
+        following = (index + 1) % 4
+        mouse_click("formatChoice_" + bridge.conversionFormats[following]["id"] + "Preview")
+        QTimer.singleShot(150, safe(lambda: example(following)))
+        return
+    click("selectConversionExample")
+    assert window.findChild(QObject, "creationFormat").property("currentIndex") == 2
+    window.findChild(QObject, "creationFormat").setProperty("currentIndex", 0)
+    stages.append("Native file drop and chooser; PPTX/non-PPTX defaults; four exclusive selections and independent layout preview")
     window.findChild(QObject, "creationWorkflow").setProperty("currentIndex", 1)
     QTimer.singleShot(150, safe(gallery))
 
@@ -145,22 +288,61 @@ def gallery_visual_slide():
     assert QMetaObject.invokeMethod(dialog, "close", Qt.DirectConnection)
     # Keep the configured split view when switching back to the original deck.
     window.findChild(QObject, "creationWorkflow").setProperty("currentIndex", 0)
+    click("creationPromptToggle")
+    prompt = window.findChild(QObject, "creationPromptText")
+    assert prompt.property("visible") and prompt.property("readOnly")
+    global preview_prompt
+    preview_prompt = prompt.property("text")
+    assert "Bài giảng với ChatGPT" in preview_prompt and source.name in preview_prompt
+    assert "Giữ theme" in preview_prompt and "VI:" in preview_prompt
+    QTimer.singleShot(150, safe(lambda: scroll_to_prompt(prompt_shown)))
+
+
+def scroll_to_prompt(action):
+    scroll = window.findChild(QObject, "creationScroll").property("contentItem")
+    scroll.setProperty("contentY", max(0, scroll.property("contentHeight") - scroll.property("height")))
+    QTimer.singleShot(150, safe(action))
+
+
+def prompt_shown():
+    assert QQuickWindow.grabWindow(window).save(str(reports / "prompt-visible.png"))
+    window.setWidth(1080)
+    window.setHeight(700)
+    QTimer.singleShot(150, safe(lambda: scroll_to_prompt(compact)))
+
+
+def compact():
+    footer = window.findChild(QObject, "createLessonButton")
+    point = footer.mapToScene(QPointF(0, 0))
+    assert 0 < point.y() < window.height() - footer.height(), "Conversion button must remain on screen"
+    assert QQuickWindow.grabWindow(window).save(str(reports / "compact-prompt.png"))
+    click("creationPromptToggle")
+    assert not window.findChild(QObject, "creationPromptText").property("visible")
+    window.setWidth(1366)
+    window.setHeight(850)
+    stages.append("Live prompt show/hide with read-only script; conversion button stays visible at 1080x700")
     click("createLessonButton")
-    QTimer.singleShot(100, safe(lambda: wait_idle(prepared)))
+    QTimer.singleShot(100, safe(prepared))
 
 
 def prepared():
+    assert time.monotonic() < deadline, "Automatic request was not started"
+    if not sent:
+        QTimer.singleShot(100, safe(prepared))
+        return
     assert not bridge.error, bridge.message
     assert window.property("page") == "chatgpt"
     request = bridge.chatgptRequest
     assert request["config"]["conversion_format"] == "parallel_columns"
     assert request["config"]["layout"] == "split_view" and request["config"]["level"] == 3
     assert "Hai cột" in request["prompt"] and "Giữ theme" in request["prompt"]
-    assert opened == ["https://chatgpt.com/"]
+    assert request["prompt"] == preview_prompt == sent[0]["prompt"]
+    assert bridge.browserAI.automatic and bridge.browserAI.audio
+    assert opened == [], "Automatic conversion must not launch a manual web handoff"
     assert Path(request["bundle"]).is_file()
     assert QQuickWindow.grabWindow(window).save(str(reports / "browser-handoff.png"))
-    stages.append("Four unified formats; no level/layout/provider choices -> prompt/bundle -> browser handoff (intercepted)")
-    bridge.receiveChatGPTDeck(QUrl.fromLocalFile(str(returned)).toString())
+    stages.append("One conversion click overrides old manual/audio settings; sent prompt equals preview; web send/receive fixture runs automatically")
+    release_web.set()
     QTimer.singleShot(100, safe(lambda: wait_idle(received)))
 
 
@@ -169,6 +351,8 @@ def received():
     assert window.property("page") == "result"
     result = bridge.quickResult
     assert result["external"] and result["draft"] and result["image"]
+    assert narration and all(unit["vi"] and unit["en"] for unit in narration)
+    assert result["audio"]["complete"] == 4
     assert hashlib.sha256(Path(result["path"]).read_bytes()).hexdigest() == digest
     assert not any(s["approved"] for s in bridge.lesson["segments"])
     assert all(s["vi"] and s["en"] for s in bridge.lesson["segments"])
@@ -198,11 +382,13 @@ def received():
 
 QTimer.singleShot(550, safe(start))
 code = app.exec()
+release_web.set()
 if bridge.worker:
     bridge.cancel_event.set()
     bridge.worker.wait()
 report = {"status": "passed" if code == 0 and not warnings and not failures else "failed",
-          "stages": stages, "warnings": warnings, "failures": failures, "scope": "No API, browser uploads or local translation"}
+          "stages": stages, "warnings": warnings, "failures": failures,
+          "scope": "Qt/native input and real Office preview; web/voices use fixtures, no uploads"}
 (reports / "qt-flow.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
 window.close()
 engine.deleteLater()

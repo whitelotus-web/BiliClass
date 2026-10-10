@@ -179,18 +179,13 @@ def step():
         elif phase == "verification" and not bridge.browserAI.loginBusy:
             assert bridge.browserAI.hasError and bridge.browserAI.verificationBlocked
             assert not bridge.browserAI.accountInfo["ready"]
-            assert window.findChild(QObject, "browserManualRecovery").property("visible")
+            assert window.findChild(QObject, "browserManualRecovery") is None
             assert "Cloudflare" in window.findChild(QObject, "browserAccountStatus").property("text")
             assert bridge.browserAI.store.get()["last_error"]["code"] == "verification"
             capture("verification-blocked.png")
-            # The fallback is an explicit choice and must not claim a connection.
-            click("browserManualRecovery")
-            assert not bridge.browserAI.automatic and not bridge.browserAI.accountInfo["ready"]
-            assert window.property("page") == "new"
-            bridge.browserAI.saveOptions(True, True)
-            window.setProperty("page", "settings")
-            window.findChild(QObject, "settingsPage").setProperty("activeTab", 6)
-            stages.append("Verification error persisted; explicit manual fallback does not mark an account ready")
+            assert bridge.browserAI.automatic and not bridge.browserAI.accountInfo["ready"]
+            assert window.property("page") == "settings"
+            stages.append("Verification error persisted; automatic flow retained, no obsolete manual fallback or false connection")
             click_profile(bridge.browserAI.activeId, "browserProfileReconnect")
             phase = "confirm_free"
         elif phase == "confirm_free" and bridge.browserAI.loginAwaitingConfirmation:
