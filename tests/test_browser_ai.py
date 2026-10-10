@@ -261,7 +261,8 @@ def test_real_browser_upload_download_and_repeat_does_not_send_twice(browser_fix
     assert captured["sends"][0] == {"files": ["tai-lieu-goc.pptx"], "prompt": request["prompt"]}
     assert "Hai cột" in captured["sends"][0]["prompt"]
     assert read_record(request["folder"], accounts.get()["id"])["state"] == "completed"
-    assert adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None) == result
+    cached = adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None)
+    assert cached == dict(result, cached=True) and not result["cached"]
     assert len(captured["sends"]) == 1 and captured["contexts"] == 1
     inspection = adapter.inspect_returned_deck(result["path"])
     assert inspection["profile"]["units"][0]["en"] == "One English sentence."
@@ -804,3 +805,91 @@ def test_free_think_toggle_and_account_priority_do_not_change_a_sent_job(browser
     before = captured["contexts"]
     adapter.convert(accounts.get(free_id), accounts.root, request["folder"], Event(), lambda _: None)
     assert len(captured["sends"]) == 1 and captured["contexts"] == before
+
+
+@pytest.mark.parametrize("state", ["aria-pressed", "data-state"])
+def test_reasoning_toggle_is_idempotent_and_verified_from_live_controls(browser_fixture, state):
+    from playwright.sync_api import sync_playwright
+
+    from app.browser_capabilities import select_reasoning
+
+    adapter, accounts, _request, captured, _source = browser_fixture
+    off, on = ("false", "true") if state == "aria-pressed" else ("off", "on")
+    captured["html"] = FIXTURE.replace('<textarea id="prompt-textarea">',
+        f'<button id="think" {state}="{off}" onclick="window.clicks=(window.clicks||0)+1;this.setAttribute(\'{state}\',\'{on}\')">Think</button>'
+        '<textarea id="prompt-textarea">')
+    with sync_playwright() as playwright:
+        context = adapter.open_context(playwright, accounts.get(), background=True)
+        try:
+            page = context.pages[0]
+            page.goto(adapter.CHATGPT)
+            assert select_reasoning(page) == "Đã bật suy luận trên web"
+            assert select_reasoning(page) == "Đã bật suy luận trên web"
+            assert page.evaluate("window.clicks") == 1 and not captured["sends"]
+        finally:
+            context.close()
+
+
+def test_strongest_enabled_effort_is_selected_before_sending(browser_fixture):
+    adapter, accounts, request, captured, _source = browser_fixture
+    controls = '''<button id="effort" onclick="document.querySelector('#efforts').hidden=false">Standard</button>
+    <div id="efforts" role="menu" hidden>
+      <button role="menuitemradio" aria-checked="false" onclick="document.querySelector('#effort').textContent='High';this.setAttribute('aria-checked','true');this.parentNode.hidden=true">High</button>
+      <button role="menuitemradio" aria-checked="false" onclick="document.querySelector('#effort').textContent='Extended';this.setAttribute('aria-checked','true');this.parentNode.hidden=true">Extended</button>
+      <button role="menuitemradio" disabled>Extra high</button>
+      <button role="menuitemradio" onclick="throw Error('Must not upgrade')">Max · Upgrade to Plus</button>
+    </div>'''
+    captured["html"] = FIXTURE.replace('<textarea id="prompt-textarea">', controls + '<textarea id="prompt-textarea">')
+    adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+    assert read_record(request["folder"], accounts.get()["id"])["reasoning"] == "Suy luận trên web: Extended"
+    assert len(captured["sends"]) == 1
+
+
+def test_free_tools_menu_can_enable_think_without_sending_a_chat(browser_fixture):
+    from playwright.sync_api import sync_playwright
+
+    from app.browser_capabilities import select_reasoning
+
+    adapter, accounts, _request, captured, _source = browser_fixture
+    controls = '''<button onclick="document.querySelector('#tools').hidden=false">Tools</button>
+    <div id="tools" role="menu" hidden><button role="menuitemcheckbox" onclick="document.querySelector('#think').hidden=false;this.parentNode.hidden=true">Think</button></div>
+    <button id="think" aria-pressed="true" hidden onclick="throw Error('Must not disable Think')">Think</button>'''
+    captured["html"] = FIXTURE.replace('<textarea id="prompt-textarea">', controls + '<textarea id="prompt-textarea">')
+    with sync_playwright() as playwright:
+        context = adapter.open_context(playwright, accounts.get(), background=True)
+        try:
+            page = context.pages[0]
+            page.goto(adapter.CHATGPT)
+            assert select_reasoning(page) == "Đã bật suy luận trên web" and not captured["sends"]
+        finally:
+            context.close()
+
+
+def test_unconfirmed_reasoning_selection_stops_before_upload_or_send(browser_fixture):
+    adapter, accounts, request, captured, _source = browser_fixture
+    captured["html"] = FIXTURE.replace('<textarea id="prompt-textarea">',
+        '<button aria-pressed="false">Think</button><textarea id="prompt-textarea">')
+    with pytest.raises(BrowserProblem) as exc:
+        adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+    assert exc.value.code == "model" and not captured["sends"]
+    assert read_record(request["folder"], accounts.get()["id"])["state"] == "prepared"
+
+
+def test_lesson_buttons_and_generic_retry_notice_are_not_effort_or_quota(browser_fixture):
+    from playwright.sync_api import sync_playwright
+
+    from app.browser_capabilities import select_reasoning
+
+    adapter, accounts, _request, captured, _source = browser_fixture
+    captured["html"] = FIXTURE.replace('<div id="messages">',
+        '<div role="alert">Something went wrong. Try again later.</div><div id="messages">'
+        '<div data-message-author-role="assistant"><button aria-pressed="false" onclick="throw Error(\'Must not click lesson text\')">Think</button></div>')
+    with sync_playwright() as playwright:
+        context = adapter.open_context(playwright, accounts.get(), background=True)
+        try:
+            page = context.pages[0]
+            page.goto(adapter.CHATGPT)
+            adapter.page_problem(page)
+            assert select_reasoning(page) == "Theo tùy chọn web đang có" and not captured["sends"]
+        finally:
+            context.close()

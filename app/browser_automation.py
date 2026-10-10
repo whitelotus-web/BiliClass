@@ -12,6 +12,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from .browser_accounts import profile_lock
+from .browser_health import retry_delay
 from .chatgpt_handoff import inspect_returned_deck, load_request
 from .importers import MAX_BYTES
 
@@ -77,8 +78,10 @@ def page_problem(page):
         if (notice.is_visible() and not notice.locator('xpath=ancestor-or-self::*[@data-message-author-role]').count()
                 and re.search(r"usage limit|(?:you(?:'ve| have) )?reached (?:your|the) .{0,40}limit|"
                               r"too many requests|đã (?:đạt|hết).{0,30}(?:giới hạn|hạn mức)|"
-                              r"hết (?:lượt|hạn mức)|try again later", notice.inner_text(), re.I)):
-            raise BrowserProblem("limit", "ChatGPT báo giới hạn lượt dùng. Bài được giữ lại để tiếp tục khi tài khoản dùng được.")
+                              r"hết (?:lượt|hạn mức)", notice.inner_text(), re.I)):
+            delay = retry_delay(notice.inner_text())
+            hint = f" Có thể thử lại sau {delay} giây theo thông báo web." if delay else ""
+            raise BrowserProblem("limit", "ChatGPT báo giới hạn lượt dùng. Bài được giữ lại để tiếp tục khi tài khoản dùng được." + hint)
 
 
 def authentication_problem(page):
@@ -135,7 +138,7 @@ def open_context(playwright, account, *, background, cancel=None):
         if cancel:
             check_cancel(cancel)
         if isinstance(exc, ChromeSessionError):
-            raise BrowserProblem("browser", str(exc)) from exc
+            raise BrowserProblem(exc.code, str(exc)) from exc
         # Never show driver logs; they may include session URLs or profile details.
         raise BrowserProblem("browser", "Chưa mở được Chrome riêng. Cài/cập nhật Google Chrome và đóng phiên đang dùng tài khoản này.") from exc
 
@@ -293,13 +296,16 @@ def inspect_session(page, cancel):
     from .browser_capabilities import detect_account
 
     limited = False
+    retry_after = 0
     try:
         require_account(page, cancel)
     except BrowserProblem as exc:
         if exc.code != "limit" or not signed_in(page):
             raise
         limited = True
-    return {"ready": True, "quota_limited": limited, **detect_account(page, PROFILE, details=True)}
+        retry_after = retry_delay(str(exc))
+    return {"ready": True, "quota_limited": limited, "retry_after_seconds": retry_after,
+            **detect_account(page, PROFILE, details=True)}
 
 
 def write_record(folder, record):
@@ -596,7 +602,7 @@ def _convert_locked(account, request_folder, cancel, progress, *, timeout, obser
         if target.stat().st_size > MAX_BYTES or record.get("sha256") != hashlib.sha256(target.read_bytes()).hexdigest():
             raise BrowserProblem("result", "PowerPoint đã tải bị thay đổi. Nhận lại kết quả từ cuộc trò chuyện trước khi dùng.")
         inspect_returned_deck(target)
-        return {"path": str(target), "url": record["url"]}
+        return {"path": str(target), "url": record["url"], "cached": True}
     files = [folder / name for name in request["attachments"]]
     if any(p.parent != folder or not p.is_file() or p.stat().st_size > MAX_BYTES for p in files):
         raise BrowserProblem("attachments", "Tài liệu hoặc mẫu đã thiếu/thay đổi. Chuẩn bị gói mới trước khi gửi.")
@@ -650,7 +656,7 @@ def _convert_locked(account, request_folder, cancel, progress, *, timeout, obser
                 pending.replace(target)
                 record.update(state="completed", error="", stage="completed", sha256=hashlib.sha256(target.read_bytes()).hexdigest())
                 write_record(folder, record)
-                return {"path": str(target), "url": record["url"]}
+                return {"path": str(target), "url": record["url"], "cached": False}
             finally:
                 try:
                     context.close()

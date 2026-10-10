@@ -317,6 +317,7 @@ class Bridge(QObject):
         from .browser_audio import prepare_narration
         from .browser_automation import read_record, write_record
         from .browser_dispatch import convert_available
+        from .browser_health import quota_blocked
         from .chatgpt_handoff import inspect_returned_deck, load_request
 
         if self._busy or not self._chatgpt_request:
@@ -330,13 +331,16 @@ class Bridge(QObject):
                 self._browser_state = {"running": False, "phase": "completed", "message": "Mở lại PowerPoint đã nhận."}
                 self.openLesson(cached["lesson_id"])
                 return
+            if self._browser_ai.finishProbeBeforeConversion(folder):
+                self.inform("Đang kết thúc kiểm tra phiên trước khi chuyển đổi…")
+                return
             account = self._browser_ai.conversionAccount(folder)
             accounts = self._browser_ai.conversionAccounts(folder)
-            if self._browser_ai.loginBusy or not account.get("ready"):
+            if self._browser_ai.loginBusy or (cached.get("state") != "completed" and not account.get("ready")):
                 self._browser_state.update(running=False, phase="error", needsLogin=True, errorCode="login",
                                            message="Đăng nhập lại để tiếp tục bài đang làm.")
                 raise ValueError("Đăng nhập xong tài khoản trong Browser AI trước khi chuyển đổi.")
-            if account.get("quota_limited"):
+            if cached.get("state") != "completed" and quota_blocked(account):
                 self._browser_state.update(running=False, phase="error", needsLogin=False, errorCode="limit")
                 raise ValueError("Tài khoản của bài đã gửi đang hết lượt. Chờ hạn mức được cấp lại để tiếp tục đúng cuộc trò chuyện.")
             read_record(folder, cached.get("account_id", account["id"]))
@@ -351,6 +355,8 @@ class Bridge(QObject):
             result = convert_available(accounts, self._browser_ai.store.root, folder, self.cancel_event,
                                        self._browser_ai.progress.emit, observed=self._browser_ai.observed.emit,
                                        failed=self._browser_ai.failed.emit)
+            if not result.get("cached"):
+                self._browser_ai.succeeded.emit(result["account_id"])
             config = load_request(folder)["config"]
             source = self.library.store_source(Path(result["path"]))
             inspection = inspect_returned_deck(self.library.directory / "sources" / source["file"],

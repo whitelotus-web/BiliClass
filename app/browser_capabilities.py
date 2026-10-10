@@ -87,25 +87,9 @@ def detect_plan(page, profile):
 
 
 def select_reasoning(page):
-    """Use only visible, enabled Think toggles; never click a plan upsell.
+    from .browser_reasoning import select_effort
 
-    A Free account may have no separate thinking control. In that case leave
-    the web default intact and do not claim a reasoning level was selected.
-    """
-    from playwright.sync_api import Error
-
-    try:
-        for button in page.get_by_role("button", name=re.compile(r"^(Think|Thinking|Suy nghĩ|Suy luận)$", re.I)).all():
-            if not button.is_visible() or not button.is_enabled() or button.get_attribute("aria-disabled") == "true":
-                continue
-            pressed = button.get_attribute("aria-pressed")
-            if pressed == "false":
-                button.click(timeout=3000)
-            if button.get_attribute("aria-pressed") == "true":
-                return "Đã bật suy luận trên web"
-    except Error:
-        pass
-    return "Theo tùy chọn web đang có"
+    return select_effort(page)
 
 
 def model_priority(label):

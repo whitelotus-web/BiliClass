@@ -1,5 +1,7 @@
 # Browser AI · tài khoản web Free và Plus
 
+Ngày 10/10/2026 — tham khảo cơ chế profile/health/cooldown/renderer nền và lựa chọn suy luận của VeoSuite, áp dụng cho Chrome riêng của BiliClass. Tách lỗi mạng khỏi mất phiên, giữ quota qua kiểm tra đăng nhập; chỉ kiểm tra một profile cần kiểm tra khi rảnh. Bỏ thu nhỏ Chrome nền, giữ renderer hoạt động và kiểm tra profile đang bận trước mở. Đọc lại mức suy luận đã chọn trước gửi. Bài đã tải có thể nhập tiếp khi tài khoản hết phiên/hết lượt. Giữ cấu trúc Cài đặt và luồng bốn phương pháp → PPTX → voice/mascot. Xem [thiết kế và cách vận hành](BROWSER_VEOSUITE_REFERENCE.md).
+
 Ngày 09/10/2026: bài mới dùng bốn **Kiểu chuyển đổi** qua web Chrome, không chọn level/bố cục độc lập hay kết nối OAuth cũ. Cấu trúc tab Browser AI giữ nguyên. Prompt yêu cầu giữ số slide PPTX, lời đọc VI:/EN: và câu hỏi QUIZ: riêng; xem [quy trình mới](FOUR_FORMAT_WORKFLOW.md). Ngày 04/10 đã đăng nhập và nhận PPTX thật, tạo audio/xem trước và trình chiếu; các lỗi truy cập phía dưới ghi lại quá trình sửa trước đó, không phải kết luận cuối cùng. Chưa chứng nhận chất lượng bốn phương pháp trên bài thật; RC12 chưa bao gồm mã mới.
 
 Mã nguồn ngày 04/10/2026 mặc định dùng **web ChatGPT trong Google Chrome riêng**. Người dùng đang thử Free; luồng OAuth dùng hạn mức gói trước đó không phù hợp với mục tiêu này. OpenAI tài liệu hóa quyền dùng hạn mức qua kết nối trực tiếp cho [Plus/Pro đủ điều kiện](https://developers.openai.com/siwc/quickstart). Không kết luận mọi lỗi workspace trước đó đều do Free.

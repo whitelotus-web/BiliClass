@@ -14,7 +14,37 @@ from threading import Event
 
 
 class ChromeSessionError(ValueError):
-    pass
+    def __init__(self, message, *, code="browser"):
+        self.code = code
+        super().__init__(message)
+
+
+def require_idle_profile(profile):
+    """Observe native Chrome ownership; never attach to or close its live process."""
+    import psutil
+
+    target = profile.resolve()
+    for process in psutil.process_iter(["name", "cmdline"]):
+        try:
+            if (process.info["name"] or "").casefold() not in {"chrome.exe", "chrome", "google-chrome", "google chrome"}:
+                continue
+            args = process.info["cmdline"] or []
+            for index, arg in enumerate(args):
+                value = (arg.split("=", 1)[1] if arg.startswith("--user-data-dir=") else
+                         args[index + 1] if arg == "--user-data-dir" and index + 1 < len(args) else "")
+                if value and Path(value.strip('"')).resolve() == target:
+                    raise ChromeSessionError("Profile đang mở trong Chrome. Đóng cửa sổ riêng đó hoặc chờ tác vụ xong; phiên được giữ.", code="busy")
+        except (psutil.NoSuchProcess, psutil.AccessDenied, OSError):
+            continue
+
+
+def background_position():
+    if os.name == "nt":
+        import ctypes
+
+        metrics = ctypes.windll.user32.GetSystemMetrics
+        return metrics(76) - 1460, metrics(77)  # Outside the entire virtual desktop.
+    return -3000, 0
 
 
 class PlainChromeLogin:
@@ -24,6 +54,7 @@ class PlainChromeLogin:
         profile = Path(account["profile"])
         if account.get("channel") != "chrome" or profile.name != "chrome":
             raise ChromeSessionError("Hồ sơ đăng nhập Chrome không hợp lệ.")
+        require_idle_profile(profile)
         profile.mkdir(parents=True, exist_ok=True)
         self.process = subprocess.Popen(
             [str(chrome_executable()), f"--user-data-dir={profile}", "--no-first-run",
@@ -154,16 +185,21 @@ def open_chrome(playwright, account, *, background, cancel=None, timeout=30):
     profile = Path(account["profile"])
     if account.get("channel") != "chrome" or profile.name != "chrome":
         raise ChromeSessionError("Hồ sơ Browser AI cần chuyển sang Chrome. Mở lại BiliClass rồi đăng nhập.")
-    profile.mkdir(parents=True, exist_ok=True)
-    # A stale file must never attach us to another process after a crash.
-    (profile / "DevToolsActivePort").unlink(missing_ok=True)
     cancel = cancel or Event()
     if cancel.is_set():
         raise ChromeSessionError("Đã hủy mở Chrome.")
+    require_idle_profile(profile)
+    profile.mkdir(parents=True, exist_ok=True)
+    # Only remove a stale endpoint after checking no native Chrome owns it.
+    (profile / "DevToolsActivePort").unlink(missing_ok=True)
     arguments = [str(chrome_executable()), f"--user-data-dir={profile}",
                  "--remote-debugging-address=127.0.0.1", "--remote-debugging-port=0",
                  "--no-first-run", "--no-default-browser-check", "--disable-session-crashed-bubble",
                  "--window-size=1360,900"]
+    left, top = background_position()
+    if background:
+        arguments.extend([f"--window-position={left},{top}", "--disable-backgrounding-occluded-windows",
+                          "--disable-renderer-backgrounding", "--disable-background-timer-throttling"])
     arguments.append("about:blank")
     startup = None
     if os.name == "nt" and background:
@@ -194,10 +230,12 @@ def open_chrome(playwright, account, *, background, cancel=None, timeout=30):
                         session = context.new_cdp_session(context.pages[0])
                         window = session.send("Browser.getWindowForTarget")
                         session.send("Browser.setWindowBounds", {"windowId": window["windowId"],
-                                     "bounds": {"windowState": "minimized"}})
+                                     "bounds": {"windowState": "normal"}})
+                        session.send("Browser.setWindowBounds", {"windowId": window["windowId"],
+                                     "bounds": {"left": left, "top": top, "width": 1360, "height": 900}})
                         session.detach()
                     except Exception:
-                        pass  # Window managers may not support minimization.
+                        pass  # Some window managers do not support positioning.
                     hide_owned_windows(process)
                 return context
             cancel.wait(.1)

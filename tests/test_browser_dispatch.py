@@ -39,7 +39,7 @@ def test_before_send_unusable_plus_falls_back_to_free_and_sends_once(tmp_path, r
     assert attempts == [plus, free] and sends == [free] and result["account_id"] == free
     assert store.preferred()["id"] == free
     assert read_record(folder, free)["state"] == "completed"
-    assert store.get(plus)["ready"] == (reason == "limit")
+    assert store.get(plus)["ready"] == (reason != "login")
     assert bool(store.get(plus).get("quota_limited")) == (reason == "limit")
 
 
@@ -88,6 +88,8 @@ def test_all_accounts_limited_stay_logged_in_and_do_not_claim_relogin_required(t
     with pytest.raises(ValueError, match="không cần đăng nhập lại"):
         store.preferred()
     store.observe(plus, "plus", identity={"name": "Fixture"})
+    assert not store.candidates()  # Successful session check is not renewed quota.
+    store.conversion_succeeded(plus)
     assert store.preferred()["id"] == plus
     store.remove(plus)  # Remaining limited account must not break deletion.
     assert len(store.data["accounts"]) == 1
@@ -159,6 +161,16 @@ def test_unknown_send_is_not_retried_even_on_transport_failure(tmp_path):
         convert_available(store.candidates(), store.root, tmp_path, Event(), lambda _: None,
                           converter=converter, retry_delays=(0, 0))
     assert attempts == [plus]
+
+
+def test_already_received_file_can_be_imported_without_session_or_quota(tmp_path):
+    store, plus, _free = accounts_fixture(tmp_path)
+    write_record(tmp_path, {"account_id": plus, "state": "completed", "url": "https://chatgpt.com/c/fixture", "followups": 0})
+    store.login_error(plus, "limit", "Fixture limit")
+    store.login_error(plus, "login", "Expired session")
+    result = convert_available([store.get(plus)], store.root, tmp_path, Event(), lambda _: None,
+        converter=lambda *_args, **_kwargs: {"path": "validated-local.pptx", "cached": True})
+    assert result["cached"] and result["account_id"] == plus
 
 
 def test_recovery_has_a_bound_and_cancellation_stops_before_reopen(tmp_path):

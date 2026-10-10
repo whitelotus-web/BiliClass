@@ -8,9 +8,19 @@ from contextlib import contextmanager
 from pathlib import Path
 from uuid import UUID, uuid4
 
+from .browser_health import (
+    AUTH_ERRORS,
+    RECOVERY_CHECK_INTERVAL,
+    UNKNOWN_QUOTA_BACKOFF,
+    health_due,
+    quota_blocked,
+    retry_delay,
+    temporary_blocked,
+)
+
 
 class ProfileBusy(ValueError):
-    pass
+    code = "busy"
 
 
 class BrowserAccounts:
@@ -40,7 +50,7 @@ class BrowserAccounts:
                     account["last_error"] = {"code": "browser_changed",
                         "message": "Browser AI đã chuyển sang Chrome. Đăng nhập lại một lần để lưu phiên Chrome riêng."}
                     migrated = True
-                if account.get("last_error", {}).get("code") in {"login", "verification", "auth_response", "network", "browser"}:
+                if account.get("last_error", {}).get("code") in AUTH_ERRORS:
                     account.update(ready=False, status="Cần đăng nhập / xác minh")
             if self.data.get("selection") != "auto":
                 self.data["selection"] = "auto"
@@ -115,44 +125,83 @@ class BrowserAccounts:
                 self.save()
                 return
 
-    def login_error(self, account_id, code, message):
+    def login_error(self, account_id, code, message, *, retry_after_seconds=None):
         for account in self.data["accounts"]:
             if account["id"] == account_id:
+                if code in {"busy", "cancelled"}:
+                    return
                 account["last_error"] = {"code": code, "message": message}
-                if code in {"login", "verification", "auth_response", "network", "browser"}:
+                if code in AUTH_ERRORS:
                     account.update(ready=False, status="Cần đăng nhập / xác minh")
+                if code in {"network", "browser"}:
+                    account["connection_retry_at"] = time.time() + RECOVERY_CHECK_INTERVAL
                 if code == "limit":
                     account["quota_limited"] = True
+                    delay = retry_after_seconds if retry_after_seconds is not None else retry_delay(message)
+                    retry_at = time.time() + (delay or UNKNOWN_QUOTA_BACKOFF)
+                    # A session probe must not shorten an existing task cooldown.
+                    if retry_at >= account.get("quota_retry_at", 0):
+                        account.update(quota_retry_at=retry_at, quota_reset_known=bool(delay))
                 account["checked_at"] = time.time()
                 self.save()
                 return
 
     def candidates(self):
         priority = {"plus": 3, "pro": 3, "business": 3, "enterprise": 3, "edu": 3, "go": 2, "free": 1}
-        ready = [a for a in self.data["accounts"] if a.get("ready") and not a.get("quota_limited")]
+        ready = [a for a in self.data["accounts"] if a.get("ready")
+                 and not quota_blocked(a) and not temporary_blocked(a)]
         ready.sort(key=lambda a: (priority.get(a.get("plan"), 0), a["id"] == self.data["active"]), reverse=True)
         return [self.get(a["id"]) for a in ready]
 
     def preferred(self):
         candidates = self.candidates()
         if not candidates:
-            if any(a.get("ready") and a.get("quota_limited") for a in self.data["accounts"]):
+            if any(a.get("ready") and quota_blocked(a) for a in self.data["accounts"]):
                 raise ValueError("Các tài khoản còn đăng nhập đã hết lượt dùng. Chờ hạn mức được cấp lại; không cần đăng nhập lại.")
+            if any(a.get("ready") for a in self.data["accounts"]):
+                raise ValueError("Kết nối browser tạm gián đoạn. Tool giữ phiên và sẽ kiểm tra lại; không cần đăng nhập lại.")
             raise ValueError("Đăng nhập ChatGPT trong Cài đặt → Browser AI.")
         return candidates[0]
 
     def observe(self, account_id, plan, model="", identity=None):
         for account in self.data["accounts"]:
             if account["id"] == account_id:
-                account.update(plan=plan, model=model, ready=True, quota_limited=False, checked_at=time.time(), status="Đã đăng nhập · Tự lưu")
-                account.pop("last_error", None)
+                account.update(plan=plan, model=model, ready=True, checked_at=time.time(), status="Đã đăng nhập · Tự lưu")
+                account.pop("connection_retry_at", None)
+                if account.get("last_error", {}).get("code") != "limit":
+                    account.pop("last_error", None)
                 if identity is not None:
                     account.update(name=identity.get("name", ""), email=identity.get("email", ""), saved_at=time.time())
                     account["label"] = account["email"] or account["name"] or account["label"]
                     if self.data.get("pending_login") == account_id:
                         self.data["pending_login"] = ""
                 if self.data.get("selection") != "manual":
-                    self.data["active"] = self.preferred()["id"]
+                    if self.candidates():
+                        self.data["active"] = self.preferred()["id"]
+                self.save()
+                return
+
+    def conversion_succeeded(self, account_id):
+        for account in self.data["accounts"]:
+            if account["id"] == account_id:
+                account["quota_limited"] = False
+                for key in ("quota_retry_at", "quota_reset_known", "connection_retry_at"):
+                    account.pop(key, None)
+                if account.get("last_error", {}).get("code") in {"limit", "network", "browser"}:
+                    account.pop("last_error", None)
+                account["completed_at"] = time.time()
+                self.save()
+                return
+
+    def due_accounts(self):
+        return sorted((a["id"] for a in self.data["accounts"] if health_due(a)),
+                      key=lambda account_id: max(self.get(account_id).get("checked_at", 0),
+                                                 self.get(account_id).get("probe_attempted_at", 0)))
+
+    def probe_started(self, account_id):
+        for account in self.data["accounts"]:
+            if account["id"] == account_id:
+                account["probe_attempted_at"] = time.time()
                 self.save()
                 return
 
@@ -160,6 +209,9 @@ class BrowserAccounts:
         item = self.get(account_id)
         # A real OS lock prevents removal while login or conversion uses the profile.
         with profile_lock(self.root, account_id):
+            from .chrome_session import require_idle_profile
+
+            require_idle_profile(Path(item["profile"]))
             target = self.profile(account_id)
             if target.exists():
                 shutil.rmtree(target)

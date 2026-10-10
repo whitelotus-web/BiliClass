@@ -7,6 +7,36 @@ from app.browser_accounts import BrowserAccounts
 from app.chrome_session import ChromeSessionError, devtools_endpoint, open_chrome
 
 
+def test_busy_native_profile_is_not_launched_or_its_live_endpoint_removed(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    import psutil
+
+    from app import chrome_session
+
+    accounts = BrowserAccounts(tmp_path)
+    accounts.add("Fixture")
+    account = accounts.get()
+    profile = Path(account["profile"])
+    profile.mkdir()
+    endpoint = profile / "DevToolsActivePort"
+    endpoint.write_text("9222\n/devtools/browser/live-fixture\n")
+    monkeypatch.setattr(psutil, "process_iter", lambda *_: [SimpleNamespace(info={
+        "name": "chrome.exe", "cmdline": ["chrome.exe", f'--user-data-dir={profile}']})])
+    monkeypatch.setattr(chrome_session.subprocess, "Popen", lambda *_a, **_k: pytest.fail("Must not launch a busy profile"))
+    with pytest.raises(ChromeSessionError) as exc:
+        open_chrome(None, account, background=True)
+    assert exc.value.code == "busy"
+    assert endpoint.read_text() == "9222\n/devtools/browser/live-fixture\n"
+    with pytest.raises(ChromeSessionError) as exc:
+        chrome_session.PlainChromeLogin(account, "about:blank")
+    assert exc.value.code == "busy"
+    with pytest.raises(ChromeSessionError) as exc:
+        accounts.remove(account["id"])
+    assert exc.value.code == "busy" and endpoint.exists()
+    assert accounts.get(account["id"])["label"] == "Fixture"
+
+
 @pytest.mark.parametrize("content", ["9222\nws://foreign.invalid/devtools/browser/a", "0\n/devtools/browser/a",
                                     "99999\n/devtools/browser/a", "9222\n/devtools/browser/a?token=x"])
 def test_devtools_endpoint_never_uses_a_foreign_host_or_invalid_port(tmp_path, content):
@@ -44,6 +74,9 @@ def test_native_chrome_persists_only_its_own_fixture_session_and_closes_process(
             page = context.pages[0]
             page.goto(url)
             page.evaluate("localStorage.setItem('fixture_marker', 'fixture-only')")
+            session = context.new_cdp_session(page)
+            assert session.send("Browser.getWindowForTarget")["bounds"]["windowState"] != "minimized"
+            session.detach()
             import os
             if os.name == "nt":
                 import win32gui

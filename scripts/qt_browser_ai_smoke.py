@@ -272,6 +272,14 @@ def step():
             bridge.browserAI.checkAccount(plus_id)
             phase = "quota_recovered"
         elif phase == "quota_recovered" and not bridge.browserAI.loginBusy:
+            assert bridge.browserAI.store.get(plus_id)["quota_limited"]
+            assert bridge.browserAI.store.preferred()["id"] == free_id
+            # Session checks cannot grant quota. A persisted cooldown expiry
+            # permits a later attempt but must not claim a balance reading.
+            for account in bridge.browserAI.store.data["accounts"]:
+                if account["id"] == plus_id:
+                    account["quota_retry_at"] = time.time() - 1
+            bridge.browserAI.store.save()
             assert bridge.browserAI.store.preferred()["id"] == plus_id
             assert bridge.browserAI.conversionAccount(bridge.chatgptRequest["folder"])["id"] == free_id
             free_health_failure = True
@@ -290,7 +298,7 @@ def step():
             click_profile(free_id, "browserProfileDelete")
             assert len(bridge.browserAI.accounts) == 1 and bridge.browserAI.accounts[0]["id"] == plus_id
             click_profile(plus_id, "browserProfileDelete")
-            stages.append("Plus quota fallback sends once through Free; resumed job stays on Free; health probe warns of lost session; each visible delete removes only its profile")
+            stages.append("Plus quota survives health probe; cooldown expiry permits retry; Free receives once; resume stays pinned; auth loss and profile deletion remain separate")
             bridge.runBrowserAI()
             phase = "cached"
         elif phase == "cached" and not bridge.busy:

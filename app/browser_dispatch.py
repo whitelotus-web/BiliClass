@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from . import browser_automation as web
+from .browser_health import quota_blocked, temporary_blocked
 
 
 def unsent(record):
@@ -22,13 +23,13 @@ def convert_available(accounts, root, folder, cancel, progress, *, observed=None
     if record and not unsent(record):
         eligible = [a for a in accounts if a["id"] == record["account_id"]]
     else:
-        eligible = [a for a in accounts if a.get("ready") and not a.get("quota_limited")]
+        eligible = [a for a in accounts if a.get("ready") and not quota_blocked(a) and not temporary_blocked(a)]
     if not eligible:
         raise web.BrowserProblem("login", "Không còn tài khoản dùng được. Kiểm tra trạng thái trong Browser AI.")
-    if record and not unsent(record):
+    if record and not unsent(record) and record["state"] != "completed":
         if not eligible[0].get("ready"):
             raise web.BrowserProblem("login", "Đăng nhập lại tài khoản của bài đã gửi để tiếp tục đúng cuộc trò chuyện.")
-        if eligible[0].get("quota_limited"):
+        if quota_blocked(eligible[0]):
             raise web.BrowserProblem("limit", "Tài khoản của bài đã gửi đang hết lượt. Chờ hạn mức được cấp lại để tiếp tục.")
     last_error = None
     for account in eligible:
