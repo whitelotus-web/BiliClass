@@ -27,13 +27,16 @@ ApplicationWindow {
     property var pendingAction: null
     property string selectedFile: ""
     property string selectedFileName: ""
+    property string inputDocumentError: ""
     property bool pasteMode: false
     property bool creationPromptVisible: false
     property bool resultDetails: false
+    property int preferredCreationDesign: 0
     readonly property bool creationPowerPoint: selectedFileName.toLowerCase().endsWith(".pptx")
-    readonly property bool creationKeepSource: creationPowerPoint && creationWorkflow.currentIndex === 0
+    readonly property bool creationCanKeepSource: creationPowerPoint || (!selectedFile && !pasteInput.text.trim())
+    readonly property bool creationKeepSource: creationCanKeepSource && creationWorkflow.currentIndex === 0
     readonly property bool keepSourceDesign: bridge.lesson.presentation_style === "source"
-    onCreationPowerPointChanged: Qt.callLater(function() { creationWorkflow.currentIndex = creationPowerPoint ? 0 : 1 })
+    onCreationCanKeepSourceChanged: Qt.callLater(function() { creationWorkflow.currentIndex = creationCanKeepSource ? preferredCreationDesign : 1 })
     property bool rescue: false
     property var presentationContent: bridge.presentationContent(rescue)
     onRescueChanged: { presentationContent = bridge.presentationContent(rescue); refreshTemplate() }
@@ -44,15 +47,16 @@ ApplicationWindow {
     property string profileLabel: [bridge.settings.teacher, bridge.settings.school].filter(function(value) { return !!value }).join("  ·  ")
     readonly property var conversionFormats: bridge.conversionFormats
     readonly property var creationPrompt: page === "new" ? bridge.conversionPromptPreview(
-        titleInput.text, subjectInput.text, educationInput.editText, gradeInput.editText, pasteInput.text,
+        titleInput.text, subjectInput.text, educationInput.currentText, gradeInput.currentText, pasteInput.text,
         selectedFile, conversionFormats[creationFormat.currentIndex].id,
-        ["standard", "visual", "practice"][creationPreset.currentIndex], creationKeepSource ? "source" : "template") : ({prompt: "", ready: false})
+        ["standard", "visual", "practice"][creationPreset.currentIndex], creationKeepSource ? "source" : "template", teacherNotesInput.text) : ({prompt: "", ready: false})
     property var templatePages: bridge.templatePages(rescue)
     property int templatePageIndex: 0
     function refreshTemplate() { templatePages = bridge.templatePages(rescue); templatePageIndex = 0 }
     function acceptInputDocuments(urls) {
         let selection = bridge.selectInputDocument(urls)
-        if (!selection.valid) return false
+        if (!selection.valid) { inputDocumentError = bridge.message; return false }
+        inputDocumentError = ""
         let previousTitle = selectedFileName.replace(/\.[^.]+$/, "")
         selectedFile = selection.url
         selectedFileName = selection.name
@@ -61,6 +65,13 @@ ApplicationWindow {
         if (!titleInput.text.trim() || titleInput.text === previousTitle) titleInput.text = selection.name.replace(/\.[^.]+$/, "")
         bridge.clearInputAssessment()
         return true
+    }
+    function removeInputDocument() {
+        if (titleInput.text === selectedFileName.replace(/\.[^.]+$/, "")) titleInput.text = ""
+        selectedFile = ""
+        selectedFileName = ""
+        inputDocumentError = ""
+        bridge.clearInputAssessment()
     }
     function showConversionExample(index) {
         conversionExample.formatIndex = index
@@ -115,7 +126,7 @@ ApplicationWindow {
             }
         }
         function onProjectClassroomRequested() { projector.quiz = true; bridge.showProjector(projector, bridge.screens.length > 1 ? 1 : 0) }
-        function onNavigate(destination) { root.page = destination === "browser-settings" ? "settings" : destination; if (destination === "browser-settings") settingsPanel.activeTab = 6; root.loadFields(); if (destination === "result" || destination === "editor") { titleInput.text = ""; subjectInput.text = ""; pasteInput.text = ""; root.selectedFile = ""; root.selectedFileName = "" } }
+        function onNavigate(destination) { root.page = destination === "browser-settings" ? "settings" : destination; if (destination === "browser-settings") settingsPanel.activeTab = 6; root.loadFields(); if (destination === "result" || destination === "editor") { titleInput.text = ""; subjectInput.text = ""; pasteInput.text = ""; teacherNotesInput.text = ""; root.inputDocumentError = ""; root.preferredCreationDesign = 0; root.selectedFile = ""; root.selectedFileName = "" } }
         function onSelectionChanged() { root.loadFields() }
         function onComparisonReady() { comparisonDialog.open() }
         function onChanged() { root.presentationContent = bridge.presentationContent(root.rescue); root.refreshTemplate() }
@@ -381,11 +392,13 @@ ApplicationWindow {
                                     Item { Layout.fillWidth: true }
                                     Action { objectName: "chooseInputDocumentButton"; text: root.selectedFile ? "Đổi tài liệu" : "Chọn từ máy tính"; iconName: "upload"; enabled: !bridge.busy; onClicked: documentOpen.open() }
                                 }
-                                Copy { objectName: "creationDropHint"; text: sourceDrop.containsDrag ? "Thả tài liệu vào đây" : "Kéo thả một tài liệu vào đây · PPTX, DOCX, PDF, TXT, PNG/JPG · tối đa 50 MB"; color: sourceDrop.containsDrag ? root.blue : root.muted; Layout.fillWidth: true; font.pixelSize: 12 }
+                                Copy { objectName: "creationDropHint"; text: sourceDrop.containsDrag ? "Thả tài liệu vào đây" : "Kéo thả một tài liệu vào đây · PPTX tối đa 200 MB · DOCX, PDF, TXT, PNG/JPG tối đa 50 MB"; color: sourceDrop.containsDrag ? root.blue : root.muted; Layout.fillWidth: true; font.pixelSize: 12 }
+                                Copy { objectName: "creationDocumentError"; visible: !!root.inputDocumentError; text: root.inputDocumentError; color: "#ab5b20"; Layout.fillWidth: true; font.pixelSize: 12 }
                                 RowLayout {
                                     visible: !!root.selectedFile; Layout.fillWidth: true
-                                    Caption { text: root.selectedFileName; elide: Text.ElideMiddle; Layout.fillWidth: true }
-                                    Action { text: "Bỏ tệp"; subtle: true; implicitHeight: 30; enabled: !bridge.busy; onClicked: { root.selectedFile = ""; root.selectedFileName = ""; bridge.clearInputAssessment() } }
+                                    Caption { objectName: "creationSelectedFilename"; text: root.selectedFileName; elide: Text.ElideMiddle; Layout.fillWidth: true }
+                                    Pill { text: "Đã nhận tệp" }
+                                    Action { objectName: "removeInputDocumentButton"; text: "Bỏ tệp"; subtle: true; implicitHeight: 30; enabled: !bridge.busy; onClicked: root.removeInputDocument() }
                                 }
                                 Action { visible: !root.selectedFile; text: root.pasteMode ? "Thu gọn nội dung" : "Hoặc dán nội dung bài học"; subtle: true; implicitHeight: 28; enabled: !bridge.busy; onClicked: root.pasteMode = !root.pasteMode }
                                 ScrollView { visible: root.pasteMode && !root.selectedFile; Layout.fillWidth: true; Layout.preferredHeight: 110; clip: true
@@ -402,10 +415,10 @@ ApplicationWindow {
                                     Layout.fillWidth: true; columns: 12; columnSpacing: 12; rowSpacing: 7
                                     Caption { text: "Tên bài học"; Layout.columnSpan: 4 } Caption { text: "Môn học"; Layout.columnSpan: 4 }
                                     Caption { text: "Cấp học"; Layout.columnSpan: 2 } Caption { text: "Khối lớp"; Layout.columnSpan: 2 }
-                                    Field { id: titleInput; objectName: "lessonTitle"; Layout.fillWidth: true; Layout.columnSpan: 4; placeholderText: "Tên bài giảng"; maximumLength: 180 }
-                                    Field { id: subjectInput; objectName: "lessonSubject"; Layout.fillWidth: true; Layout.columnSpan: 4; placeholderText: "Môn của thầy cô"; maximumLength: 100 }
-                                    Choice { id: educationInput; objectName: "creationEducation"; editable: true; model: ["THPT", "THCS", "Tiểu học"]; Layout.columnSpan: 2; Layout.fillWidth: true }
-                                    Choice { id: gradeInput; objectName: "creationGrade"; editable: true; model: ["10", "11", "12", "6", "7", "8", "9", "1", "2", "3", "4", "5"]; Layout.columnSpan: 2; Layout.fillWidth: true }
+                                    Field { id: titleInput; objectName: "lessonTitle"; Layout.fillWidth: true; Layout.columnSpan: 4; Layout.preferredWidth: 320; Layout.minimumWidth: 120; placeholderText: "Tên bài giảng"; maximumLength: 180 }
+                                    Field { id: subjectInput; objectName: "lessonSubject"; Layout.fillWidth: true; Layout.columnSpan: 4; Layout.preferredWidth: 320; Layout.minimumWidth: 120; placeholderText: "Môn của thầy cô"; maximumLength: 100 }
+                                    Choice { id: educationInput; objectName: "creationEducation"; model: ["THPT", "THCS", "Tiểu học"]; Layout.columnSpan: 2; Layout.preferredWidth: 160; Layout.minimumWidth: 115; Layout.fillWidth: true }
+                                    Choice { id: gradeInput; objectName: "creationGrade"; model: bridge.educationGrades(educationInput.currentText); onModelChanged: currentIndex = 0; Layout.columnSpan: 2; Layout.preferredWidth: 130; Layout.minimumWidth: 80; Layout.fillWidth: true }
                                 }
                                 Caption { text: "Kiểu chuyển đổi · chọn một" }
                                 GridLayout {
@@ -433,17 +446,17 @@ ApplicationWindow {
                                 Caption { text: "Thiết kế bài giảng" }
                                 GridLayout {
                                     id: creationWorkflow; objectName: "creationWorkflow"
-                                    property int currentIndex: 1
+                                    property int currentIndex: 0
                                     ButtonGroup { id: designChoices }
                                     columns: 2; columnSpacing: 10; Layout.fillWidth: true
                                     ConversionChoice {
                                         choiceName: "creationKeepOriginal"
                                         choiceGroup: designChoices
-                                        label: "Giữ bài giảng đầu vào"
-                                        detail: root.creationPowerPoint ? "Giữ thiết kế, hình và thứ tự slide; chỉnh ngôn ngữ theo kiểu đã chọn." : "Cần tệp PPTX để giữ thiết kế gốc. Word/PDF/ảnh dùng mẫu mới."
+                                        label: "Giữ thiết kế PowerPoint gốc"
+                                        detail: root.creationPowerPoint ? "Dùng đúng PowerPoint đầu vào: giữ thiết kế, hình, thứ tự slide và hiệu ứng; chuyển ngôn ngữ theo kiểu đã chọn." : root.creationCanKeepSource ? "Chọn tệp PPTX để giữ thiết kế, hình, thứ tự slide và hiệu ứng của PowerPoint đầu vào." : "Word/PDF/ảnh hoặc nội dung dán không có thiết kế PowerPoint gốc; dùng mẫu mới."
                                         selected: creationWorkflow.currentIndex === 0
-                                        enabled: root.creationPowerPoint; Layout.fillWidth: true; Layout.preferredWidth: 1
-                                        onChosen: creationWorkflow.currentIndex = 0
+                                        enabled: root.creationCanKeepSource; Layout.fillWidth: true; Layout.preferredWidth: 1
+                                        onChosen: { root.preferredCreationDesign = 0; creationWorkflow.currentIndex = 0 }
                                     }
                                     ConversionChoice {
                                         choiceName: "creationUseTemplate"
@@ -452,7 +465,7 @@ ApplicationWindow {
                                         detail: "Dùng nội dung và hình trong tài liệu, trình bày theo mẫu BiliClass."
                                         selected: creationWorkflow.currentIndex === 1
                                         Layout.fillWidth: true; Layout.preferredWidth: 1
-                                        onChosen: creationWorkflow.currentIndex = 1
+                                        onChosen: { root.preferredCreationDesign = 1; creationWorkflow.currentIndex = 1 }
                                     }
                                 }
                                 RowLayout {
@@ -460,6 +473,21 @@ ApplicationWindow {
                                     Caption { text: "Mẫu BiliClass" }
                                     Choice { id: creationPreset; objectName: "creationPreset"; model: ["Chuẩn lớp học", "Trực quan", "Luyện tập & tương tác"]; Layout.fillWidth: true }
                                     Action { objectName: "creationTemplatesButton"; text: "Xem slide mẫu"; iconName: "view"; onClicked: { templateGallery.forCreation = true; templateGallery.preset = ["standard", "visual", "practice"][creationPreset.currentIndex]; templateGallery.level = root.conversionFormats[creationFormat.currentIndex].level; templateGallery.layout = root.conversionFormats[creationFormat.currentIndex].layout; templateGallery.open() } }
+                                }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Caption { text: "Ghi chú thêm cho ChatGPT · không bắt buộc"; Layout.fillWidth: true }
+                                    Copy { text: teacherNotesInput.text.trim().length + " / 6.000"; color: teacherNotesInput.text.trim().length > 6000 ? "#ab5b20" : root.muted; font.pixelSize: 11 }
+                                }
+                                ScrollView {
+                                    Layout.fillWidth: true; Layout.preferredHeight: 90; clip: true
+                                    TextArea {
+                                        id: teacherNotesInput; objectName: "creationTeacherNotes"
+                                        enabled: !bridge.busy; wrapMode: TextEdit.Wrap; selectByMouse: true
+                                        placeholderText: "Ví dụ: giữ các bước giải; dùng thuật ngữ dễ hiểu cho học sinh lớp 7; chú ý phần chữ trong hình…"
+                                        color: root.ink; font.pixelSize: 13
+                                        background: Rectangle { radius: 8; color: "#fafcff"; border.color: root.line }
+                                    }
                                 }
                             }
                         }
@@ -493,7 +521,7 @@ ApplicationWindow {
                             Copy { text: "Tự động nhận PowerPoint và chuẩn bị giọng đọc Việt–Anh."; Layout.fillWidth: true; font.pixelSize: 12 }
                             Action { text: "Tài khoản: " + bridge.browserAI.activeLabel + " · Browser AI"; subtle: true; implicitHeight: 28; onClicked: { root.go("settings"); settingsPanel.activeTab = 6 } }
                         }
-                        Action { objectName: "createLessonButton"; text: bridge.busy ? "Đang chuẩn bị…" : "Chuyển đổi bài giảng"; primary: true; enabled: !bridge.busy && root.creationPrompt.ready; onClicked: bridge.convertDocument(titleInput.text, subjectInput.text, educationInput.editText, gradeInput.editText, pasteInput.text, root.selectedFile, root.conversionFormats[creationFormat.currentIndex].id, ["standard", "visual", "practice"][creationPreset.currentIndex], root.creationKeepSource ? "source" : "template") }
+                        Action { objectName: "createLessonButton"; text: bridge.busy ? "Đang chuẩn bị…" : "Chuyển đổi bài giảng"; primary: true; enabled: !bridge.busy && !root.inputDocumentError && root.creationPrompt.ready; onClicked: bridge.convertDocument(titleInput.text, subjectInput.text, educationInput.currentText, gradeInput.currentText, pasteInput.text, root.selectedFile, root.conversionFormats[creationFormat.currentIndex].id, ["standard", "visual", "practice"][creationPreset.currentIndex], root.creationKeepSource ? "source" : "template", teacherNotesInput.text) }
                     }
                 }
 

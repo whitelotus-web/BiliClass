@@ -6,13 +6,23 @@ Ngày 10/10/2026. Đây là quy trình trong mã nguồn hiện tại, chưa ph�
 
 Nhập giáo án/tài liệu → chọn **Kiểu chuyển đổi** → chọn giữ PowerPoint gốc hoặc mẫu BiliClass → Chuyển đổi → xem trình chiếu → xác nhận Dùng để dạy.
 
-Kéo thả một tài liệu hoặc chọn tệp trên máy; cũng có thể dán nội dung. Tệp được kiểm tra định dạng và giới hạn 50 MB trước khi thay tài liệu đã chọn. Thông tin ngắn gồm tên bài, môn, cấp học và khối, hiển thị cùng nhau. Bốn kiểu chuyển đổi hiện thành bốn ô chọn, mỗi ô có **Xem mẫu bố cục**; xem mẫu không đổi lựa chọn cho đến khi bấm **Chọn kiểu này**.
+Kéo thả một tài liệu hoặc chọn tệp trên máy; cũng có thể dán nội dung. PPTX tối đa **200 MB**; DOCX/PDF/TXT/PNG/JPG tối đa **50 MB**. Đây là giới hạn của BiliClass; quyền tải tệp/lượt dùng của tài khoản web vẫn được kiểm tra riêng. Khi chọn được, hiện tên tài liệu và **Đã nhận tệp**. Nếu bị từ chối, lỗi hiện ngay ô tài liệu, giữ tệp trước và khóa nút chuyển đổi đến khi chọn lại/bỏ tệp, tránh gửi nhầm nguồn.
 
-**Thiết kế bài giảng** có hai ô chọn: giữ bài giảng đầu vào (chỉ PPTX) hoặc tạo theo mẫu mới. PPTX mặc định giữ thiết kế gốc; Word/PDF/ảnh/nội dung dán dùng mẫu mới. Khi tạo theo mẫu, chọn mẫu BiliClass và xem slide minh họa lớn.
+Thông tin gồm tên bài, môn, cấp học và khối. Chọn Tiểu học chỉ hiện khối **1–5**, THCS **6–9**, THPT **10–12**; đổi cấp sẽ chọn khối đầu tiên của cấp mới. Không nhập tự do khối ngoài cấp. Tên bài dài không làm co mất ô cấp/khối. Bốn kiểu chuyển đổi hiện thành bốn ô chọn, mỗi ô có **Xem mẫu bố cục**; xem mẫu không đổi lựa chọn cho đến khi bấm **Chọn kiểu này**.
+
+**Thiết kế bài giảng** có hai ô chọn: **Giữ thiết kế PowerPoint gốc** hoặc **Tạo theo mẫu mới**. Có thể chọn giữ gốc trước khi nhập; khi có PPTX, dùng đúng bản sao PowerPoint đầu vào và yêu cầu bảo toàn thiết kế, hình, thứ tự slide và hiệu ứng, chỉ điều chỉnh ngôn ngữ/bố cục cần thiết cho phương pháp đã chọn. Không đủ chỗ/không giữ được hiệu ứng thì ChatGPT phải ghi CHECK để giáo viên kiểm tra. Tool không chứng nhận đầu ra giống nguồn 100% chỉ từ việc chọn ô này.
+
+Mặc định giữ thiết kế PPTX; nếu giáo viên đã chọn mẫu mới trước khi nhập thì giữ lựa chọn đó. Word/PDF/ảnh/nội dung dán dùng mẫu mới vì không có thiết kế PowerPoint gốc. Khi tạo theo mẫu, chọn mẫu BiliClass và xem slide minh họa lớn.
+
+Ô **Ghi chú thêm cho ChatGPT** không bắt buộc, nhận tối đa 6.000 ký tự. Các lưu ý được ghép đúng một lần vào mục **LƯU Ý BỔ SUNG CỦA GIÁO VIÊN**, sau phương pháp/thiết kế, giữ xuống dòng và lưu trong cấu hình yêu cầu. Không tự chép lời dặn lên slide; mâu thuẫn với phương pháp/thiết kế cần ghi CHECK. Quá giới hạn thì báo lỗi và khóa chuyển đổi, không cắt mất ghi chú.
 
 Ô **Prompt gửi ChatGPT** có Hiện/Ẩn, cập nhật theo thông tin, kiểu chuyển đổi và thiết kế đang chọn. Dùng cùng bộ tạo prompt với yêu cầu gửi thật, gồm tên tệp gốc và đúng một phương pháp. Xem prompt không tạo gói hoặc mở browser. Nút **Chuyển đổi bài giảng** luôn nằm ở cuối màn hình; chỉ bật khi có tài liệu/nội dung, tên bài và môn.
 
 Browser AI tự gửi prompt và bản sao tài liệu qua web ChatGPT đã đăng nhập, nhận PPTX, đọc ghi chú và chuẩn bị âm thanh Việt–Anh theo giọng đã lưu. Không còn “Tùy chọn thêm”, bộ chọn gửi/nhận thủ công hoặc bật/tắt chuẩn bị giọng trong luồng nhập mới. Yêu cầu thủ công đã lưu vẫn đọc được để không làm mất bài cũ. Không có lựa chọn API/OAuth/model dịch offline trong luồng nhập mới. Nếu web mất phiên/cần xác minh/hết lượt, tool giữ yêu cầu và thông báo để xử lý rồi tiếp tục; không cam kết tự vượt xác minh hoặc hạn mức.
+
+Giới hạn PPTX 200 MB dùng đồng bộ khi chọn, tạo gói, đính kèm browser, tải/nhận kết quả và lưu nguồn. Vẫn giữ giới hạn kiểm tra ZIP 250 MB giải nén/10.000 entry; bộ nhập/trích xuất nội dung cũ giữ 50 MB. Gói bài portable có giới hạn tổng riêng; không đồng nhất hạn mức này với một PPTX.
+
+Chrome do tool khởi chạy trên chính máy dùng kết nối loopback và `is_local=True`, phù hợp [tài liệu Playwright](https://playwright.dev/python/docs/api/class-browsertype#browser-type-connect-over-cdp-option-is-local). Điều này tránh chuyển tệp theo đường remote bị giới hạn 50 MB; không thay quyền dùng của tài khoản hoặc bước xác minh web.
 
 ## Bốn cấu hình duy nhất cho bài mới
 
@@ -73,6 +83,10 @@ Build thu data/binary/submodule và metadata của từng gói cần thiết, th
 Finalize giữ DLL llvmlite ở đường dẫn tài nguyên `llvmlite/binding` và dependency riêng trong `llvmlite.libs` để chỉnh tốc độ giọng Việt. Script thu giấy phép đọc RECORD/SOURCES, chỉ kiểm tra tệp notice cần sao chép; hai kiểm thử bổ sung xác nhận giữ attribution và không dò mọi tệp model/thư viện.
 
 ## Kiểm tra và giới hạn
+
+Ngày 10/10, lỗi không hiện tài liệu được tái hiện với ba PPTX Vật lý 70.906.619, 104.330.108 và 76.958.905 byte, đều vượt giới hạn 50 MB cũ. Sau sửa, `qt_conversion_picker_smoke.py --source-dir <thư mục bài gốc>` mở hộp chọn tệp thật của Windows và nhận đủ chín PPTX Toán/Tin/Vật lý, thêm một mẫu tên Unicode/đuôi viết hoa, đổi tệp rồi hủy hộp chọn mà giữ tài liệu trước. SHA256 toàn bộ nguồn không đổi, không upload. Báo cáo/ảnh nằm ngoài Git trong `reports/conversion-picker/`.
+
+Ca browser mới dùng PPTX 51 MB và máy chủ HTTP local để tải byte thật: tạo gói → đính kèm bằng Chrome thật → tải → kiểm tra → lưu nguồn → mở lại bài → phục hồi cache, chỉ gửi một lần, giữ nguyên SHA256. Web/AI là fixture, không phải ChatGPT thật. Ca này phát hiện và xác nhận sửa thiếu khai báo kết nối Chrome local. Smoke Qt handoff kiểm tra ghi chú trong prompt xem trước bằng đúng prompt gửi/lưu, khối lớp theo cấp, giữ lựa chọn thiết kế, lỗi tệp ngay tại ô nhập, giới hạn ghi chú, bốn mẫu và cửa sổ nhỏ. Smoke Browser AI vẫn qua với preview Office thật; không QML warning.
 
 Kiểm thử phải phủ bốn prompt độc lập, cấu hình lưu/mở lại, nguồn không đổi, PPTX tiếng Anh có lời đọc Việt riêng, câu hỏi liên kết slide/chưa duyệt, dữ liệu CHECK/QUIZ không vào voice và cảnh báo đổi số slide. Smoke Qt kiểm tra bốn lựa chọn → gói gửi → nhận file → xem trước Office → xác nhận bài → giữ câu hỏi nháp.
 

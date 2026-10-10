@@ -229,9 +229,16 @@ def browser_fixture(monkeypatch, tmp_path):
         context = original(playwright, account, background=background, cancel=cancel)
 
         def route(req):
+            from urllib.parse import urlsplit
+
+            if urlsplit(req.request.url).hostname == "127.0.0.1":
+                req.continue_()  # Optional local download server for a large fixture.
+                return
             if "/backend-api/files/result-" in req.request.url:
                 if captured["download_failure"]:
                     req.fulfill(status=500, content_type="text/plain", body="Fixture download failed")
+                elif captured.get("download_url"):
+                    req.fulfill(status=302, headers={"Location": captured["download_url"]})
                 else:
                     req.fulfill(body=source.read_bytes(), headers={"Content-Type": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
                                                                  "Content-Disposition": f'attachment; filename="fixture-{captured["contexts"]}.pptx"'})
@@ -270,6 +277,70 @@ def test_real_browser_upload_download_and_repeat_does_not_send_twice(browser_fix
     with pytest.raises(BrowserProblem, match="bị thay đổi"):
         adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None)
     assert len(captured["sends"]) == 1
+
+
+def test_powerpoint_above_old_limit_uploads_downloads_stores_and_reopens(browser_fixture):
+    import hashlib
+    import shutil
+    import zipfile
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    from threading import Thread
+
+    from app.chatgpt_handoff import external_preview, prepare_request
+    from app.importers import MAX_BYTES
+    from app.library import Library
+
+    adapter, accounts, request, captured, source = browser_fixture
+    # An unused stored media part increases file size without changing native
+    # slide text/notes; the fixture server returns these exact bytes.
+    with zipfile.ZipFile(source, "a", compression=zipfile.ZIP_STORED) as archive:
+        with archive.open("ppt/media/large-fixture.bin", "w") as stream:
+            for _ in range(51):
+                stream.write(b"\0" * 1024**2)
+    assert source.stat().st_size > MAX_BYTES
+    digest = hashlib.sha256(source.read_bytes()).hexdigest()
+    request = prepare_request(accounts.root, request["config"], source)
+
+    class Download(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header("Content-Type", "application/vnd.openxmlformats-officedocument.presentationml.presentation")
+            self.send_header("Content-Disposition", 'attachment; filename="large-fixture.pptx"')
+            self.send_header("Content-Length", str(source.stat().st_size))
+            self.end_headers()
+            with source.open("rb") as stream:
+                shutil.copyfileobj(stream, self.wfile, 1024**2)
+
+        def log_message(self, *_):
+            pass
+
+    # Stream actual download bytes instead of a huge base64 route.fulfill body.
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Download)
+    worker = Thread(target=server.serve_forever, daemon=True)
+    worker.start()
+    captured["download_url"] = f"http://127.0.0.1:{server.server_port}/large-fixture.pptx"
+    try:
+        result = adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=30)
+        assert hashlib.sha256(Path(result["path"]).read_bytes()).hexdigest() == digest
+        assert hashlib.sha256(source.read_bytes()).hexdigest() == digest
+        assert len(captured["sends"]) == 1
+        cached = adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None)
+        assert cached["cached"] and captured["contexts"] == 1
+        library = Library(accounts.root)
+        try:
+            stored = library.store_source(result["path"])
+            assert stored["sha256"] == digest
+            lesson = library.create_external_lesson(request["config"], stored, adapter.inspect_returned_deck(result["path"]))
+            preview = external_preview(library.get(lesson["id"]), library.directory)
+            assert preview["sha256"] == digest and preview["draft"]
+        finally:
+            library.close()
+        assert captured["sends"][0] == {"files": ["tai-lieu-goc.pptx"], "prompt": request["prompt"]}
+        assert read_record(request["folder"], accounts.get()["id"])["state"] == "completed"
+    finally:
+        server.shutdown()
+        server.server_close()
+        worker.join(timeout=5)
 
 
 def test_filename_button_downloads_real_pptx_and_never_matches_user_source(browser_fixture):

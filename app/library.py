@@ -792,11 +792,13 @@ class Library:
         return sorted(matches.values(), key=lambda item: -item["count"])
 
     def store_source(self, path):
-        if not Path(path).is_file() or Path(path).stat().st_size > 50 * 1024**2:
-            raise ValueError("Tệp nguồn không đọc được hoặc vượt 50 MB.")
+        from .document_limits import check_document_size
+
+        if not Path(path).is_file():
+            raise ValueError("Không đọc được tệp nguồn.")
+        check_document_size(path)
         data = Path(path).read_bytes()
-        if len(data) > 50 * 1024**2:
-            raise ValueError("Tệp nguồn vượt 50 MB.")
+        check_document_size(path, len(data))
         digest = hashlib.sha256(data).hexdigest()
         assets = self.directory / "sources"
         assets.mkdir(exist_ok=True)

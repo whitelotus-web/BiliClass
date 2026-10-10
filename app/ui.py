@@ -208,11 +208,13 @@ class Bridge(QObject):
         return "Bài đã lưu · cấu hình cũ"
 
     @Slot(str, str, str, str, str, str, str, str, str, result="QVariantMap")
-    def conversionPromptPreview(self, title, subject, education, grade, text, file_url, conversion_format, preset, style):
+    @Slot(str, str, str, str, str, str, str, str, str, str, result="QVariantMap")
+    def conversionPromptPreview(self, title, subject, education, grade, text, file_url, conversion_format, preset, style,
+                                teacher_notes=""):
         from .conversion_input import creation_config, prompt_preview
 
         try:
-            return prompt_preview(creation_config(title, subject, education, grade, conversion_format, preset, style),
+            return prompt_preview(creation_config(title, subject, education, grade, conversion_format, preset, style, teacher_notes),
                                   file_url, text)
         except ValueError as exc:
             return {"prompt": str(exc), "ready": False}
@@ -222,20 +224,30 @@ class Bridge(QObject):
         from .conversion_input import document_selection
 
         try:
-            return document_selection(urls)
+            selection = document_selection(urls)
+            self.inform("Đã chọn tài liệu: " + selection["name"])
+            return selection
         except (ValueError, OSError) as exc:
             self.inform(str(exc), True)
             return {"valid": False}
 
+    @Slot(str, result="QVariantList")
+    def educationGrades(self, education):
+        from .conversion_input import education_grades
+
+        return education_grades(education)
+
     @Slot(str, str, str, str, str, str, str, str, str)
-    def convertDocument(self, title, subject, education, grade, text, file_url, conversion_format, preset, style):
+    @Slot(str, str, str, str, str, str, str, str, str, str)
+    def convertDocument(self, title, subject, education, grade, text, file_url, conversion_format, preset, style,
+                        teacher_notes=""):
         from .chatgpt_handoff import validate_config
         from .conversion_input import creation_config, local_document
 
         if self._busy:
             return
         try:
-            config = validate_config(creation_config(title, subject, education, grade, conversion_format, preset, style))
+            config = validate_config(creation_config(title, subject, education, grade, conversion_format, preset, style, teacher_notes))
             if bool(file_url) == bool(text.strip()):
                 raise ValueError("Chọn một nguồn: tài liệu hoặc nội dung dán vào.")
             if file_url:
@@ -252,7 +264,7 @@ class Bridge(QObject):
                 raise
             self._prepareChatGPT(config["title"], config["subject"], config["education_level"], config["grade"], text, file_url,
                                 config["level"], config["layout"], preset, style, "preserve", True,
-                                conversion_format=conversion_format)
+                                conversion_format=conversion_format, teacher_notes=config["teacher_notes"])
         except Exception as exc:
             self.inform(str(exc), True)
 
@@ -281,7 +293,7 @@ class Bridge(QObject):
             self.navigate.emit("browser-settings")
 
     def _prepareChatGPT(self, title, subject, education, grade, text, file_url, level, layout, preset, style, mode, automatic,
-                        conversion_format=None):
+                        conversion_format=None, teacher_notes=""):
         from .chatgpt_handoff import prepare_request
 
         if self._busy:
@@ -291,7 +303,8 @@ class Bridge(QObject):
                   "level": level, "layout": layout, "preset": preset, "style": style, "mode": mode,
                   "provider": "browser_web" if automatic else "manual_web"}
         if conversion_format:
-            config.update(conversion_format=conversion_format, provider="browser_web" if automatic else "manual_web")
+            config.update(conversion_format=conversion_format, provider="browser_web" if automatic else "manual_web",
+                          teacher_notes=teacher_notes)
 
         def prepared(result):
             self._chatgpt_request = result

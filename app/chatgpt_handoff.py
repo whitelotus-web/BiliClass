@@ -12,7 +12,8 @@ import zipfile
 from pathlib import Path
 from uuid import uuid4
 
-from .importers import MAX_BYTES, inspect_zip
+from .document_limits import MAX_POWERPOINT_BYTES, check_document_size
+from .importers import inspect_zip
 from .lesson_templates import catalog
 from .presentation_policy import LAYOUTS
 
@@ -37,9 +38,12 @@ def validate_config(config):
     if result.get("provider") == "chatgpt_plan":
         raise ValueError("Yêu cầu OAuth cũ đã ngừng hỗ trợ. Tài liệu và kết quả đã lưu vẫn giữ nguyên; tạo yêu cầu mới với một trong bốn kiểu chuyển đổi qua Browser AI.")
     if "conversion_format" in result:
-        from .conversion_formats import format_config
+        from .conversion_formats import MAX_TEACHER_NOTES, format_config
 
         result = format_config(result)
+        notes = result.get("teacher_notes", "")
+        if not isinstance(notes, str) or len(notes) > MAX_TEACHER_NOTES:
+            raise ValueError(f"Ghi chú thêm tối đa {MAX_TEACHER_NOTES:,} ký tự.")
     if not str(result.get("title", "")).strip() or not str(result.get("subject", "")).strip():
         raise ValueError("Nhập tên bài học và môn học.")
     if (type(result.get("level")) is not int or result["level"] not in range(5)
@@ -127,13 +131,13 @@ def prepare_request(directory, config, source_path=None, text=""):
         raise ValueError("Chọn một nguồn: tệp hoặc nội dung dán vào.")
     if source_path:
         source_path = Path(source_path)
-        if not source_path.is_file() or source_path.stat().st_size > MAX_BYTES:
-            raise ValueError("Tài liệu không đọc được hoặc vượt 50 MB.")
+        if not source_path.is_file():
+            raise ValueError("Không đọc được tài liệu. Chọn lại một tệp trên máy tính.")
         if source_path.suffix.lower() not in {".pptx", ".docx", ".pdf", ".txt", ".png", ".jpg", ".jpeg"}:
             raise ValueError("Chọn PPTX, DOCX, PDF, TXT hoặc ảnh PNG/JPG.")
+        check_document_size(source_path)
         data = source_path.read_bytes()
-        if len(data) > MAX_BYTES:
-            raise ValueError("Tài liệu vượt 50 MB.")
+        check_document_size(source_path, len(data))
         suffix = source_path.suffix.lower()
         original_name = source_path.name
     else:
@@ -200,8 +204,8 @@ def inspect_returned_deck(path, source_path=None):
     from .source_deck import text_blocks
 
     path = Path(path)
-    if path.suffix.lower() != ".pptx" or not path.is_file() or path.stat().st_size > MAX_BYTES:
-        raise ValueError("Nhận một tệp PowerPoint .pptx, tối đa 50 MB.")
+    if path.suffix.lower() != ".pptx" or not path.is_file() or path.stat().st_size > MAX_POWERPOINT_BYTES:
+        raise ValueError("Nhận một tệp PowerPoint .pptx, tối đa 200 MB.")
     inspect_zip(path)
     deck = Presentation(path)
     if not 1 <= len(deck.slides) <= 1000:

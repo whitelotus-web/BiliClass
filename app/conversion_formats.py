@@ -10,6 +10,7 @@ FORMATS = [
     {"id": "english_only", "label": "Tiếng Anh 100%", "detail": "Thay toàn bộ chữ Việt trên slide bằng tiếng Anh; lời đọc Việt lưu riêng cho trợ lý.",
      "level": 4, "layout": "english_rescue"},
 ]
+MAX_TEACHER_NOTES = 6000
 
 METHODS = {
     "parallel_columns": """Giữ nguyên 100% câu chữ tiếng Việt; dịch đầy đủ từng câu/ý sang tiếng Anh tương ứng 1:1.
@@ -70,6 +71,11 @@ def conversion_prompt(config, source_name, preset):
 - Nếu đầu vào là PPTX: giữ đúng số lượng và thứ tự slide, giữ hình/công thức; chỉ áp dụng thiết kế mẫu.
 - Chữ dễ đọc khi chiếu, khoảng 24–36 pt cho nội dung chính; không tràn, đè chữ hoặc che hình."""
     )
+    notes = config.get("teacher_notes", "").strip()
+    teacher_guidance = ("\nLƯU Ý BỔ SUNG CỦA GIÁO VIÊN\n"
+        "Các lưu ý sau hướng dẫn cách chuyển đổi và giảng dạy; không tự chép chúng lên slide.\n"
+        "Áp dụng cùng kiểu chuyển đổi và thiết kế đã chọn; nếu có mâu thuẫn, ghi rõ trong CHECK.\n"
+        + notes + "\n") if notes else ""
     return f"""Bạn là chuyên gia biên dịch học thuật Việt–Anh, chỉnh sửa PowerPoint và giảng dạy theo môn/khối đã chọn.
 Tạo FILE POWERPOINT (.pptx) chỉnh sửa được từ tài liệu đính kèm. Không chỉ trả lời bằng dàn ý.
 
@@ -83,7 +89,7 @@ THÔNG TIN BÀI
 PHƯƠNG PHÁP ĐÃ CHỌN
 {METHODS[spec['id']]}
 
-{design}
+{design}{teacher_guidance}
 
 BẢO TOÀN NỘI DUNG VÀ KIỂM TRA
 - Không tự viết lại kiến thức, tóm tắt, thêm đáp án hoặc bỏ tiêu đề, định nghĩa, hoạt động, bài tập, lời giải/kết luận.

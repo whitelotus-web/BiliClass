@@ -14,7 +14,7 @@ from urllib.parse import urlsplit
 from .browser_accounts import profile_lock
 from .browser_health import retry_delay
 from .chatgpt_handoff import inspect_returned_deck, load_request
-from .importers import MAX_BYTES
+from .document_limits import MAX_POWERPOINT_BYTES, document_limit
 
 CHATGPT = "https://chatgpt.com/"
 COMPOSER = '#prompt-textarea, textarea[data-testid="prompt-textarea"], [contenteditable="true"][data-testid="composer"]'
@@ -599,12 +599,12 @@ def _convert_locked(account, request_folder, cancel, progress, *, timeout, obser
     record = read_record(folder, account["id"])
     target = folder / "bai-giang-song-ngu.pptx"
     if record["state"] == "completed" and target.is_file():
-        if target.stat().st_size > MAX_BYTES or record.get("sha256") != hashlib.sha256(target.read_bytes()).hexdigest():
+        if target.stat().st_size > MAX_POWERPOINT_BYTES or record.get("sha256") != hashlib.sha256(target.read_bytes()).hexdigest():
             raise BrowserProblem("result", "PowerPoint đã tải bị thay đổi. Nhận lại kết quả từ cuộc trò chuyện trước khi dùng.")
         inspect_returned_deck(target)
         return {"path": str(target), "url": record["url"], "cached": True}
     files = [folder / name for name in request["attachments"]]
-    if any(p.parent != folder or not p.is_file() or p.stat().st_size > MAX_BYTES for p in files):
+    if any(p.parent != folder or not p.is_file() or p.stat().st_size > document_limit(p) for p in files):
         raise BrowserProblem("attachments", "Tài liệu hoặc mẫu đã thiếu/thay đổi. Chuẩn bị gói mới trước khi gửi.")
     write_record(folder, record)
     stage = "starting"
@@ -648,8 +648,8 @@ def _convert_locked(account, request_folder, cancel, progress, *, timeout, obser
                 if Path(download.suggested_filename).suffix.casefold() != ".pptx":
                     raise BrowserProblem("download", "Tệp web trả về không phải PowerPoint .pptx.")
                 downloaded = download.path()
-                if not downloaded or Path(downloaded).stat().st_size > MAX_BYTES:
-                    raise BrowserProblem("download", "PowerPoint tải về bị lỗi hoặc vượt 50 MB.")
+                if not downloaded or Path(downloaded).stat().st_size > MAX_POWERPOINT_BYTES:
+                    raise BrowserProblem("download", "PowerPoint tải về bị lỗi hoặc vượt 200 MB.")
                 pending = folder / "ket-qua-chua-kiem-tra.pptx"
                 download.save_as(str(pending))
                 inspect_returned_deck(pending)

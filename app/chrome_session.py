@@ -220,7 +220,10 @@ def open_chrome(playwright, account, *, background, cancel=None, timeout=30):
                 raise ChromeSessionError("Chrome riêng đã đóng hoặc hồ sơ đang được sử dụng. Đóng phiên đó rồi thử lại.")
             endpoint = devtools_endpoint(profile)
             if endpoint:
-                browser = playwright.chromium.connect_over_cdp(endpoint, timeout=10000)
+                # This endpoint belongs to the Chrome process we just launched
+                # on loopback. Shared local paths avoid CDP's 50 MB remote-file
+                # transfer cap when attaching media-heavy PowerPoint decks.
+                browser = playwright.chromium.connect_over_cdp(endpoint, timeout=10000, is_local=True)
                 if not browser.contexts:
                     raise ChromeSessionError("Chrome chưa tạo được hồ sơ riêng. Đóng cửa sổ đó và thử lại.")
                 context = ChromeSession(browser, process)

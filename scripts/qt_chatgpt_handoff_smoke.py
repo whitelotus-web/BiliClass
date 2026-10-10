@@ -43,6 +43,7 @@ from PySide6.QtTest import QTest
 
 from app import browser_audio, browser_automation
 from app.chatgpt_handoff import load_request
+from app.document_limits import MAX_POWERPOINT_BYTES
 from app.library import Library
 from app.paths import RESOURCE_ROOT
 from app.ui import Bridge
@@ -109,6 +110,7 @@ window.setProperty("page", "new")
 QDesktopServices.openUrl = lambda url: opened.append(url.toString()) or True
 deadline = time.monotonic() + 120
 preview_prompt = ""
+teacher_notes = "Giữ từng bước giải và công thức.\nDùng thuật ngữ phù hợp học sinh lớp 10; không thêm bài tập ngoài nguồn."
 
 
 def safe(action):
@@ -191,11 +193,49 @@ def wait_idle(action):
 
 def start():
     assert not window.findChild(QObject, "createLessonButton").property("enabled")
+    assert visual_value("creationKeepOriginal", "target.enabled && target.checked")
+    assert not window.findChild(QObject, "creationEducation").property("editable")
+    assert not window.findChild(QObject, "creationGrade").property("editable")
+    check_education(0)
+
+
+def check_education(index):
+    window.findChild(QObject, "creationEducation").setProperty("currentIndex", [2, 1, 0][index])
+    QTimer.singleShot(100, safe(lambda: education_checked(index)))
+
+
+def education_checked(index):
+    grade = window.findChild(QObject, "creationGrade")
+    expected = [list(map(str, range(1, 6))), list(map(str, range(6, 10))), ["10", "11", "12"]][index]
+    assert grade.property("count") == len(expected)
+    assert grade.property("currentText") == expected[0]
+    for position, text in enumerate(expected):
+        grade.setProperty("currentIndex", position)
+        assert grade.property("currentText") == text
+    if index < 2:
+        check_education(index + 1)
+    else:
+        grade.setProperty("currentIndex", 0)
+        stages.append("Education filters exact grade ranges; stale grade resets; source design selectable before importing")
+        choose_document()
+
+
+def choose_document():
+    click("creationUseTemplate")
     assert drop_file([source]), "Windows-style local document drop was rejected"
     assert window.property("selectedFileName") == source.name
     assert window.findChild(QObject, "lessonTitle").property("text") == source.stem
+    assert window.findChild(QObject, "creationWorkflow").property("currentIndex") == 1, "Keep explicit template choice"
+    click("creationKeepOriginal")
     assert not drop_file([source, source]), "Multiple documents must not replace the accepted source"
     assert window.property("selectedFileName") == source.name
+    too_large = workspace / "Bài vượt dung lượng.pptx"
+    with too_large.open("wb") as stream:
+        stream.truncate(MAX_POWERPOINT_BYTES + 1)
+    assert not drop_file([too_large]), "Oversized source must not replace the accepted document"
+    assert window.property("selectedFileName") == source.name
+    assert window.findChild(QObject, "creationDocumentError").property("visible")
+    assert "200 MB" in window.property("inputDocumentError")
     # File chooser accepted event routes through the same validation path.
     picked = workspace / "Chọn ảnh #1.png"
     picked.write_bytes(b"image fixture")
@@ -209,9 +249,16 @@ def chooser_checked(picked):
     assert window.property("selectedFileName") == picked.name
     assert not visual_value("creationKeepOriginal", "target.enabled")
     assert window.findChild(QObject, "creationWorkflow").property("currentIndex") == 1
+    click("removeInputDocumentButton")
+    assert not window.property("selectedFile") and not window.property("selectedFileName")
+    assert not window.findChild(QObject, "lessonTitle").property("text"), "Remove filename-derived title with its source"
     assert drop_file([source])
+    assert window.findChild(QObject, "lessonTitle").property("text") == source.stem
+    assert not bridge.error and source.name in bridge.message, "Valid selection must clear stale input error"
     window.findChild(QObject, "lessonTitle").setProperty("text", "Bài giảng với ChatGPT")
     window.findChild(QObject, "lessonSubject").setProperty("text", "Toán")
+    window.findChild(QObject, "creationTeacherNotes").setProperty("text", teacher_notes)
+    assert not window.property("inputDocumentError")
     QTimer.singleShot(150, safe(formats))
 
 
@@ -227,6 +274,7 @@ def formats():
     assert window.findChild(QObject, "creationLevel") is None
     assert window.findChild(QObject, "creationLayout") is None
     assert window.findChild(QObject, "creationWorkflow").property("visible")
+    assert window.findChild(QObject, "creationWorkflow").property("currentIndex") == 0
     assert window.findChild(QObject, "conversionProvider") is None
     assert window.findChild(QObject, "creationManualChatGPT") is None
     assert window.findChild(QObject, "creationAudio") is None
@@ -288,6 +336,10 @@ def gallery_visual_slide():
     assert QMetaObject.invokeMethod(dialog, "close", Qt.DirectConnection)
     # Keep the configured split view when switching back to the original deck.
     window.findChild(QObject, "creationWorkflow").setProperty("currentIndex", 0)
+    notes = window.findChild(QObject, "creationTeacherNotes")
+    notes.setProperty("text", "x" * 6001)
+    assert not window.findChild(QObject, "createLessonButton").property("enabled"), "Do not truncate oversized notes"
+    notes.setProperty("text", teacher_notes)
     click("creationPromptToggle")
     prompt = window.findChild(QObject, "creationPromptText")
     assert prompt.property("visible") and prompt.property("readOnly")
@@ -295,6 +347,15 @@ def gallery_visual_slide():
     preview_prompt = prompt.property("text")
     assert "Bài giảng với ChatGPT" in preview_prompt and source.name in preview_prompt
     assert "Giữ theme" in preview_prompt and "VI:" in preview_prompt
+    assert preview_prompt.count(teacher_notes) == 1 and "LƯU Ý BỔ SUNG CỦA GIÁO VIÊN" in preview_prompt
+    scroll = window.findChild(QObject, "creationScroll").property("contentItem")
+    scroll.setProperty("contentY", max(0, scroll.property("contentY") + notes.mapToScene(QPointF(0, notes.height())).y()
+                                      - scroll.mapToScene(QPointF(0, scroll.height())).y() + 20))
+    QTimer.singleShot(150, safe(notes_shown))
+
+
+def notes_shown():
+    assert QQuickWindow.grabWindow(window).save(str(reports / "teacher-notes.png"))
     QTimer.singleShot(150, safe(lambda: scroll_to_prompt(prompt_shown)))
 
 
@@ -315,6 +376,8 @@ def compact():
     footer = window.findChild(QObject, "createLessonButton")
     point = footer.mapToScene(QPointF(0, 0))
     assert 0 < point.y() < window.height() - footer.height(), "Conversion button must remain on screen"
+    assert window.findChild(QObject, "creationEducation").property("width") >= 115
+    assert window.findChild(QObject, "creationGrade").property("width") >= 80
     assert QQuickWindow.grabWindow(window).save(str(reports / "compact-prompt.png"))
     click("creationPromptToggle")
     assert not window.findChild(QObject, "creationPromptText").property("visible")
@@ -335,6 +398,8 @@ def prepared():
     request = bridge.chatgptRequest
     assert request["config"]["conversion_format"] == "parallel_columns"
     assert request["config"]["layout"] == "split_view" and request["config"]["level"] == 3
+    assert request["config"]["education_level"] == "THPT" and request["config"]["grade"] == "10"
+    assert request["config"]["teacher_notes"] == teacher_notes
     assert "Hai cột" in request["prompt"] and "Giữ theme" in request["prompt"]
     assert request["prompt"] == preview_prompt == sent[0]["prompt"]
     assert bridge.browserAI.automatic and bridge.browserAI.audio
