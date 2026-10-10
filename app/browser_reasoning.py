@@ -36,9 +36,11 @@ def selected(item):
 
 
 def eligible(item):
+    from .browser_automation import MESSAGE_ANCESTORS
+
     return (item.is_visible() and item.is_enabled() and item.get_attribute("aria-disabled") != "true"
             and item.get_attribute("data-disabled") not in {"true", ""}
-            and not item.locator('xpath=ancestor-or-self::*[@data-message-author-role]').count())
+            and not item.locator(MESSAGE_ANCESTORS).count())
 
 
 def select_effort(page):

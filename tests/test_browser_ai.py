@@ -382,6 +382,43 @@ function showFile() {
     assert Path(result["path"]).read_bytes() == source.read_bytes() and len(captured["sends"]) == 1
 
 
+def test_current_web_collapsed_thinking_uses_reply_ids_to_find_only_new_export(browser_fixture):
+    from playwright.sync_api import sync_playwright
+
+    adapter, accounts, _request, captured, _source = browser_fixture
+    with sync_playwright() as playwright:
+        context = adapter.open_context(playwright, accounts.get(), background=True)
+        try:
+            page = context.pages[0]
+            page.goto(adapter.CHATGPT)
+            markup = '<div data-chatgpt-search-message-ids="old old"><h4 data-conversation-role="assistant">ChatGPT said</h4><a href="/backend-api/files/old.pptx">old.pptx</a></div>'
+            page.locator('#messages').evaluate('(node, html) => node.innerHTML = html', markup)
+            assert adapter.result_link(page, 10, assistant_ids_before=["old"]) is None
+            markup = '<div data-chatgpt-search-message-ids="new new"><h4 data-conversation-role="assistant">ChatGPT said</h4><a href="/backend-api/files/new.pptx">new.pptx</a></div>'
+            page.locator('#messages').evaluate('(node, html) => node.insertAdjacentHTML("beforeend", html)', markup)
+            # The saved count includes thinking nodes that the web removed.
+            link = adapter.result_link(page, 10, assistant_ids_before=["old"])
+            assert link.inner_text() == "new.pptx" and not captured["sends"]
+        finally:
+            context.close()
+
+
+def test_current_web_pressable_download_link_receives_native_pptx(browser_fixture):
+    adapter, accounts, request, captured, source = browser_fixture
+    content = FIXTURE.replace('<head>', '<head><meta charset="utf-8">')
+    content = content.replace('<div data-message-author-role="assistant">',
+        '<div data-chatgpt-search-message-ids="final"><h4 data-conversation-role="assistant">ChatGPT said</h4>')
+    content = content.replace('<a href="/backend-api/files/result.pptx">bai-giang-song-ngu.pptx</a>',
+        '<span role="link" data-d-component="pressable" tabindex="0" '
+        'aria-label="Open Tải xuống tệp PowerPoint (.pptx)" '
+        'onclick="downloadFile()">Tải xuống tệp PowerPoint (.pptx)</span>')
+    content = content.replace('<script>', '<script>function downloadFile() {location.href="/backend-api/files/result.pptx";}')
+    captured["html"] = content
+    result = adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+    assert Path(result["path"]).read_bytes() == source.read_bytes() and len(captured["sends"]) == 1
+    assert read_record(request["folder"], accounts.get()["id"])["state"] == "completed"
+
+
 def test_download_transport_failure_keeps_login_and_resumes_without_another_send(browser_fixture, monkeypatch):
     from playwright.sync_api import TimeoutError
 
@@ -487,10 +524,49 @@ document.querySelector('#send').onclick = () => {
     assert len(captured["sends"]) == 2
 
 
-def test_prompt_removed_during_upload_is_not_sent(browser_fixture):
+@pytest.mark.parametrize("send_label,stop_label", [("Send", "Stop"), ("Gửi", "Dừng")])
+def test_current_web_generation_finishes_before_export_followup_or_download(browser_fixture, send_label, stop_label):
+    adapter, accounts, request, captured, source = browser_fixture
+    content = FIXTURE[:FIXTURE.index('<script>')].replace('<head>', '<head><meta charset="utf-8">')
+    content = content.replace('<textarea', '<form onsubmit="event.preventDefault()"><textarea')
+    content = content.replace('<button data-testid="send-button"', f'<button type="submit" aria-label="{send_label}"')
+    content = content.replace('<div id="messages">', '</form><div id="messages">')
+    content += '''<script>
+document.querySelector('#files').onchange = (e) => {
+    document.querySelector('#attached').innerHTML = [...e.target.files].map(f => `<span>${f.name}</span>`).join('');
+};
+document.querySelector('#send').onclick = () => {
+    console.log('FIXTURE-SEND:' + JSON.stringify({prompt:document.querySelector('#prompt-textarea').value,
+                                               files:[...document.querySelector('#files').files].map(f=>f.name)}));
+    history.pushState({},'', '/c/fixture-123');
+    document.querySelector('#send').hidden = true;
+    const stop = document.createElement('button'); stop.type='button'; stop.id='stop';
+    stop.setAttribute('aria-label', STOP_LABEL); document.querySelector('form').appendChild(stop);
+    document.querySelector('#messages').innerHTML = '<div data-chatgpt-search-unit-key="fallback-turn-0:0:user" data-chatgpt-search-message-ids="source"><button aria-label="source.pptx" onclick="throw new Error()">PPTX</button></div><div data-chatgpt-search-message-ids="response"><h4 data-conversation-role="assistant">ChatGPT said</h4><div data-markdown-text-style="assistant-message">Still generating the presentation</div></div>';
+    setTimeout(() => {
+        stop.remove(); document.querySelector('#send').hidden=false;
+        document.querySelector('#messages').insertAdjacentHTML('beforeend', '<div data-chatgpt-search-message-ids="final"><h4 data-conversation-role="assistant">ChatGPT said</h4><div data-markdown-text-style="assistant-message"><a href="/backend-api/files/result.pptx">final.pptx</a></div></div>');
+    }, 6500);
+};</script></body></html>'''.replace('STOP_LABEL', json.dumps(stop_label))
+    captured["html"] = content
+    result = adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=12)
+    assert len(captured["sends"]) == 1 and Path(result["path"]).read_bytes() == source.read_bytes()
+    assert read_record(request["folder"], accounts.get()["id"])["followups"] == 0
+
+
+def test_empty_draft_after_web_rerender_is_restored_and_sent_once(browser_fixture):
     adapter, accounts, request, captured, _ = browser_fixture
     captured["html"] = FIXTURE.replace("document.querySelector('#files').onchange = (e) => {",
         "document.querySelector('#files').onchange = (e) => {document.querySelector('#prompt-textarea').value='';")
+    adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+    assert captured["sends"] == [{"prompt": request["prompt"], "files": ["tai-lieu-goc.pptx"]}]
+    assert read_record(request["folder"], accounts.get()["id"])["state"] == "completed"
+
+
+def test_changed_nonempty_prompt_is_never_sent(browser_fixture):
+    adapter, accounts, request, captured, _ = browser_fixture
+    captured["html"] = FIXTURE.replace("document.querySelector('#files').onchange = (e) => {",
+        "document.querySelector('#files').onchange = (e) => {document.querySelector('#prompt-textarea').value='changed prompt';")
     with pytest.raises(BrowserProblem, match="Ô prompt đã thay đổi"):
         adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
     assert not captured["sends"]
@@ -521,11 +597,33 @@ def test_upload_timeout_without_rendered_attachment_never_sends(browser_fixture,
     adapter, accounts, request, captured, _ = browser_fixture
     monkeypatch.setattr(Locator, "set_input_files", lambda *_a, **_k: (_ for _ in ()).throw(TimeoutError("No attachment")))
     original = adapter.wait_upload
-    monkeypatch.setattr(adapter, "wait_upload", lambda *args: original(*args, timeout=.2))
+    monkeypatch.setattr(adapter, "wait_upload", lambda *args, **kwargs: original(*args, timeout=.2, **kwargs))
     with pytest.raises(BrowserProblem) as error:
         adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
     assert error.value.code == "upload" and not captured["sends"]
     assert read_record(request["folder"], accounts.get()["id"])["state"] == "prepared"
+
+
+def test_one_click_recovers_upload_then_receives_file_without_second_send(browser_fixture, monkeypatch):
+    from app.browser_dispatch import convert_available
+
+    adapter, accounts, request, captured, source = browser_fixture
+    accounts.observe(accounts.get()["id"], "free")
+    original, attempts = adapter.wait_upload, []
+
+    def interrupted_upload(*args, **kwargs):
+        attempts.append(1)
+        if len(attempts) == 1:
+            raise BrowserProblem("upload", "Temporary upload interruption before send")
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(adapter, "wait_upload", interrupted_upload)
+    result = convert_available(accounts.candidates(), accounts.root, request["folder"], Event(), lambda _: None,
+                               retry_delays=(0,))
+    assert len(attempts) == captured["contexts"] == 2
+    assert captured["sends"] == [{"prompt": request["prompt"], "files": ["tai-lieu-goc.pptx"]}]
+    assert Path(result["path"]).read_bytes() == source.read_bytes()
+    assert read_record(request["folder"], accounts.get()["id"])["state"] == "completed"
 
 
 def test_file_upload_skips_image_only_input_and_accepts_editor_paragraph_spacing(browser_fixture):
@@ -866,7 +964,9 @@ def test_current_web_composer_saves_real_profile_identity_and_sends_full_prompt(
     content = content.replace('<textarea id="prompt-textarea"></textarea>',
         f'<form><div contenteditable="true" role="textbox" aria-label="{composer_label}" id="modern-composer"></div>'
         '<button type="button" aria-pressed="false" onclick="this.setAttribute(\'aria-pressed\',\'true\')">Think</button>')
-    content = content.replace('<button data-testid="send-button"', '<button type="button" data-testid="send-button"')
+    send_label = "Send" if composer_label == "Ask ChatGPT" else "Gửi"
+    content = content.replace('<form>', '<form onsubmit="event.preventDefault()">')
+    content = content.replace('<button data-testid="send-button"', f'<button type="submit" aria-label="{send_label}"')
     content = content.replace('<div id="messages">', '</form><div id="messages">')
     content = content.replace("document.querySelector('#prompt-textarea').value",
                               "document.querySelector('#modern-composer').innerText")

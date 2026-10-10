@@ -15,6 +15,14 @@ def recoverable(record):
     return unsent(record) or record["state"] == "waiting" and web.conversation_url(record["url"])
 
 
+def temporary_failure(code, record):
+    # Upload/editor retries are safe only before submission. Once sent,
+    # recovery stays on the saved conversation and never reuploads the source.
+    return (recoverable(record) and code in {"network", "browser", "download"}
+            or unsent(record) and code in {"upload", "interface"}
+            or record["state"] == "waiting" and web.conversation_url(record["url"]) and code == "timeout")
+
+
 def convert_available(accounts, root, folder, cancel, progress, *, observed=None, failed=None, converter=None,
                       retry_delays=(2, 5)):
     converter = converter or web.convert
@@ -48,7 +56,7 @@ def convert_available(accounts, root, folder, cancel, progress, *, observed=None
             except web.BrowserProblem as exc:
                 last_error = exc
                 record = web.read_record(folder, account["id"])
-                if (exc.code in {"network", "browser", "download"} and recoverable(record)
+                if (temporary_failure(exc.code, record)
                         and attempt < len(retry_delays) and not cancel.is_set()):
                     progress("Kết nối tạm gián đoạn; đang tự khôi phục và tiếp tục bài đã gửi…"
                              if record["url"] else "Đang tự khôi phục Chrome để tiếp tục tải tài liệu…")

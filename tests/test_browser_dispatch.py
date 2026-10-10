@@ -121,7 +121,10 @@ def test_cancelled_job_never_tries_another_account(tmp_path):
 
 
 @pytest.mark.parametrize("state,url,reason", [("prepared", "", "network"),
+    ("prepared", "", "upload"),
+    ("prepared", "", "interface"),
     ("waiting", "https://chatgpt.com/c/fixture", "browser"),
+    ("waiting", "https://chatgpt.com/c/fixture", "timeout"),
     ("waiting", "https://chatgpt.com/c/fixture", "download")])
 def test_temporary_failure_recovers_automatically_on_same_account(tmp_path, state, url, reason):
     store, plus, _free = accounts_fixture(tmp_path)
@@ -144,6 +147,41 @@ def test_temporary_failure_recovers_automatically_on_same_account(tmp_path, stat
                                converter=converter, failed=lambda *args: failures.append(args), retry_delays=(0,))
     assert attempts == [plus, plus] and not failures and progress
     assert result["account_id"] == plus
+
+
+@pytest.mark.parametrize("reason", ["upload", "interface"])
+def test_preparation_recovery_is_bounded_and_never_switches_accounts(tmp_path, reason):
+    store, plus, _free = accounts_fixture(tmp_path)
+    attempts = []
+
+    def converter(account, _root, folder, *_args, **_options):
+        attempts.append(account["id"])
+        write_record(folder, read_record(folder, account["id"]))
+        raise BrowserProblem(reason, "Persistent preparation failure")
+
+    with pytest.raises(BrowserProblem) as exc:
+        convert_available(store.candidates(), store.root, tmp_path, Event(), lambda _: None,
+                          converter=converter, retry_delays=(0, 0))
+    assert exc.value.code == reason and attempts == [plus, plus, plus]
+
+
+@pytest.mark.parametrize("state,url", [("submitting", ""), ("waiting", "https://chatgpt.com/c/fixture")])
+@pytest.mark.parametrize("reason", ["upload", "interface"])
+def test_attachment_or_editor_failure_after_submit_never_reuploads(tmp_path, state, url, reason):
+    store, plus, _free = accounts_fixture(tmp_path)
+    attempts = []
+
+    def converter(account, _root, folder, *_args, **_options):
+        attempts.append(account["id"])
+        record = read_record(folder, account["id"])
+        record.update(state=state, url=url)
+        write_record(folder, record)
+        raise BrowserProblem(reason, "Already submitted")
+
+    with pytest.raises(BrowserProblem):
+        convert_available(store.candidates(), store.root, tmp_path, Event(), lambda _: None,
+                          converter=converter, retry_delays=(0, 0))
+    assert attempts == [plus]
 
 
 def test_unknown_send_is_not_retried_even_on_transport_failure(tmp_path):

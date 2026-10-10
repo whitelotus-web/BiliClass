@@ -21,10 +21,17 @@ COMPOSER = ('#prompt-textarea, textarea[data-testid="prompt-textarea"], [content
             'form [contenteditable="true"][role="textbox"][aria-label="Ask ChatGPT"], '
             'form [contenteditable="true"][role="textbox"][aria-label="Hỏi ChatGPT"]')
 PROFILE = '[data-testid="accounts-profile-button"], [data-testid="profile-button"], button[aria-label="Open profile menu"]'
-SEND = '[data-testid="send-button"], button[aria-label="Send prompt"], button[aria-label="Gửi lời nhắc"], button[aria-label="Send message"]'
-STOP = '[data-testid="stop-button"], button[aria-label="Stop generating"], button[aria-label="Dừng tạo"]'
-ASSISTANT = '[data-message-author-role="assistant"]'
-USER = '[data-message-author-role="user"]'
+SEND = ('[data-testid="send-button"], button[aria-label="Send prompt"], button[aria-label="Gửi lời nhắc"], '
+        'button[aria-label="Send message"], button[type="submit"][aria-label="Send"], '
+        'button[type="submit"][aria-label="Gửi"]')
+STOP = ('[data-testid="stop-button"], button[aria-label="Stop generating"], button[aria-label="Dừng tạo"], '
+        'form button[aria-label="Stop"], form button[aria-label="Dừng"]')
+ASSISTANT = ('[data-message-author-role="assistant"], '
+             '[data-chatgpt-search-message-ids]:has(> [data-conversation-role="assistant"])'
+             ':not(:has([data-message-author-role="assistant"]))')
+USER = ('[data-message-author-role="user"], [data-chatgpt-search-unit-key$=":user"]'
+        ':not(:has([data-message-author-role="user"]))')
+MESSAGE_ANCESTORS = 'xpath=ancestor-or-self::*[@data-message-author-role or @data-chatgpt-search-message-ids]'
 LOGIN = '[data-testid="login-button"], [data-testid="login-button-header"]'
 VERIFICATION_MESSAGE = (
     "ChatGPT yêu cầu xác minh Cloudflare. Phiên và bài đang làm đã được giữ. "
@@ -77,7 +84,7 @@ def page_problem(page):
         raise BrowserProblem("login", "Chưa đăng nhập ChatGPT. Mở Cài đặt → Browser AI → Đăng nhập.")
     # Quota notices belong to web controls, not the teacher's lesson text.
     for notice in page.locator('[role="alert"], [data-testid="toast"], [data-testid="rate-limit-message"]').all():
-        if (notice.is_visible() and not notice.locator('xpath=ancestor-or-self::*[@data-message-author-role]').count()
+        if (notice.is_visible() and not notice.locator(MESSAGE_ANCESTORS).count()
                 and re.search(r"usage limit|(?:you(?:'ve| have) )?reached (?:your|the) .{0,40}limit|"
                               r"too many requests|đã (?:đạt|hết).{0,30}(?:giới hạn|hạn mức)|"
                               r"hết (?:lượt|hạn mức)", notice.inner_text(), re.I)):
@@ -332,6 +339,10 @@ def read_record(folder, account_id):
     for key in ("assistant_before", "user_before"):
         if key in record and (type(record[key]) is not int or record[key] < 0):
             raise BrowserProblem("record", "Trạng thái câu trả lời Browser AI không hợp lệ.")
+    ids = record.get("assistant_ids_before", [])
+    if (not isinstance(ids, list) or len(ids) > 4096
+            or any(not isinstance(value, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,160}", value) for value in ids)):
+        raise BrowserProblem("record", "Mã câu trả lời trong yêu cầu Browser AI không hợp lệ.")
     return record
 
 
@@ -368,7 +379,7 @@ def attachment_present(scope, path):
     pattern = re.compile("^" + file_label(path) + "$", re.I)
     candidates = [*scope.get_by_text(pattern).all(), *scope.get_by_label(pattern).all(),
                   *scope.get_by_title(pattern).all()]
-    return any(node.is_visible() and not node.locator('xpath=ancestor-or-self::*[@data-message-author-role]').count()
+    return any(node.is_visible() and not node.locator(MESSAGE_ANCESTORS).count()
                for node in candidates)
 
 
@@ -380,7 +391,7 @@ def clear_draft_attachments(page, files, cancel):
         check_cancel(cancel)
         remove = scope.get_by_role("button", name=pattern)
         found = next((node for node in remove.all() if node.is_visible()
-                      and not node.locator('xpath=ancestor-or-self::*[@data-message-author-role]').count()), None)
+                      and not node.locator(MESSAGE_ANCESTORS).count()), None)
         if found is None:
             return
         # Remove only previous app-named attachments in the unsent composer.
@@ -389,7 +400,7 @@ def clear_draft_attachments(page, files, cancel):
     raise BrowserProblem("upload", "Chưa làm sạch được tệp đính kèm của lần thử trước. Chưa gửi bài.")
 
 
-def wait_upload(page, files, cancel, timeout=180):
+def wait_upload(page, files, cancel, timeout=None, *, progress=None, prompt=None):
     from playwright.sync_api import TimeoutError
 
     check_cancel(cancel)
@@ -412,17 +423,38 @@ def wait_upload(page, files, cancel, timeout=180):
         # with a real 16 MB PPTX). Never set them a second time in this page:
         # continue observing actual rendered attachments before any send.
         check_cancel(cancel)
+    # Large original decks need time to upload; keep the wait bounded and
+    # cancellable instead of treating a fixed three minutes as a lost session.
+    if timeout is None:
+        timeout = max(180, min(600, sum(p.stat().st_size for p in files) / 1024**2 * 3))
     deadline = time.monotonic() + timeout
+    last_progress, restored = time.monotonic(), False
+    attached, loading = False, None
     while time.monotonic() < deadline:
         check_cancel(cancel)
         page_problem(page)
         # Require an actual rendered attachment for every requested file.
-        attached = all(attachment_present(attachment_scope(page), p) for p in files)
-        sending = visible(page, SEND)
-        loading = visible(page, '[data-testid="file-upload-progress"], [role="progressbar"], [data-testid="attachment-loading"]')
+        scope = attachment_scope(page)
+        attached = all(attachment_present(scope, p) for p in files)
+        sending = visible(scope, SEND)
+        loading = visible(scope, '[data-testid="file-upload-progress"], [role="progressbar"], [data-testid="attachment-loading"]')
+        # A web re-render can clear the draft while attaching a file. Restore
+        # only an empty app-owned draft, once, before any send is recorded.
+        field = visible(page, COMPOSER)
+        if prompt and attached and not restored and field:
+            entered = field.inner_text() if field.get_attribute("contenteditable") == "true" else field.input_value()
+            if not entered.strip():
+                fill_prompt(page, prompt)
+                restored = True
+                continue
         if attached and sending and sending.is_enabled() and not loading:
             return
+        if progress and time.monotonic() - last_progress >= 20:
+            progress("Đang tải tài liệu lên ChatGPT; tool sẽ tự gửi khi tệp sẵn sàng…")
+            last_progress = time.monotonic()
         page.wait_for_timeout(300)
+    if attached and not loading and not visible(attachment_scope(page), SEND):
+        raise BrowserProblem("interface", "Tệp đã đính kèm nhưng chưa tìm được nút Gửi trên giao diện ChatGPT.")
     raise BrowserProblem("upload", "Tệp chưa tải lên xong hoặc web không nhận tệp. Không gửi prompt thiếu tài liệu.")
 
 
@@ -433,10 +465,10 @@ def fill_prompt(page, prompt):
     field.fill(prompt, timeout=10000)
 
 
-def submit(page, folder, record, prompt, cancel, *, files=()):
+def submit(page, folder, record, prompt, cancel, *, files=(), progress=None):
     fill_prompt(page, prompt)
     if files:
-        wait_upload(page, files, cancel)
+        wait_upload(page, files, cancel, progress=progress, prompt=prompt)
     check_cancel(cancel)
     field = visible(page, COMPOSER)
     entered = (field.inner_text() if field and field.get_attribute("contenteditable") == "true"
@@ -444,14 +476,15 @@ def submit(page, folder, record, prompt, cancel, *, files=()):
     # ProseMirror can render paragraph breaks as two newlines. Compare all
     # non-whitespace content; a changed/missing word still prevents sending.
     if re.sub(r"\s+", " ", entered).strip() != re.sub(r"\s+", " ", prompt).strip():
-        raise BrowserProblem("interface", "Ô prompt đã thay đổi trong lúc tải trang/tệp. Chưa gửi; bấm Tiếp tục để thử lại.")
-    sender = visible(page, SEND)
+        raise BrowserProblem("interface", "Ô prompt đã thay đổi trong lúc tải trang/tệp. Chưa gửi bài.")
+    sender = visible(attachment_scope(page), SEND)
     if not sender or not sender.is_enabled():
         raise BrowserProblem("interface", "Nút Gửi của ChatGPT chưa sẵn sàng.")
     # Persist BEFORE click: a crash or unknown response must not trigger a duplicate send.
     previous_url = page.url
     record.update(state="submitting", assistant_before=page.locator(ASSISTANT).count(),
-                  user_before=page.locator(USER).count())
+                  user_before=page.locator(USER).count(),
+                  assistant_ids_before=[key for node in page.locator(ASSISTANT).all() if (key := reply_key(node))])
     write_record(folder, record)
     sender.click(timeout=10000)
     deadline = time.monotonic() + 40
@@ -470,13 +503,30 @@ def submit(page, folder, record, prompt, cancel, *, files=()):
     raise BrowserProblem("submission", "Có thể prompt đã gửi nhưng chưa xác nhận được cuộc trò chuyện. Kiểm tra browser; app không tự gửi lại.")
 
 
-def result_link(page, assistant_before=0):
-    # Only files in assistant messages; never source attachments, sidebar or arbitrary links.
+def reply_key(node):
+    value = node.get_attribute("data-chatgpt-search-message-ids") or node.get_attribute("data-message-id") or ""
+    return value.split()[0] if value.strip() else ""
+
+
+def latest_reply(page, assistant_before=0, assistant_ids_before=None):
     messages = page.locator(ASSISTANT)
-    if messages.count() <= assistant_before:
+    if assistant_ids_before is not None:
+        keyed = [(reply_key(node), node) for node in messages.all()]
+        if any(key for key, _node in keyed):
+            # The current web removes/collapses thinking chunks. Durable IDs,
+            # rather than a changing DOM count, distinguish a new export reply.
+            unseen = [node for key, node in keyed if key and key not in assistant_ids_before]
+            return unseen[-1] if unseen else None
+    return messages.last if messages.count() > assistant_before else None
+
+
+def result_link(page, assistant_before=0, *, assistant_ids_before=None):
+    # Only files in assistant messages; never source attachments, sidebar or arbitrary links.
+    message = latest_reply(page, assistant_before, assistant_ids_before)
+    if message is None:
         return None
     # A prior answer's PPTX is not the result of the latest export request.
-    for anchor in messages.last.locator('a[href]').all()[::-1]:
+    for anchor in message.locator('a[href]').all()[::-1]:
         label = (anchor.inner_text() + " " + (anchor.get_attribute("download") or "")).casefold()
         href = anchor.get_attribute("href") or ""
         if ".pptx" not in label and ".pptx" not in urlsplit(href).path.casefold():
@@ -489,9 +539,15 @@ def result_link(page, assistant_before=0):
     # The current web UI can render an artifact as a filename button rather
     # than an anchor. Only inspect the latest assistant answer, never user
     # attachments/sidebar files; the downloaded bytes are validated below.
-    for button in messages.last.get_by_role("button", name=re.compile(r"^[^/\\\n]{1,240}\.pptx$", re.I)).all()[::-1]:
+    for button in message.get_by_role("button", name=re.compile(r"^[^/\\\n]{1,240}\.pptx$", re.I)).all()[::-1]:
         if button.is_visible() and button.is_enabled():
             return button
+    # Current ChatGPT renders sandbox downloads as DIL pressable links with
+    # no href. Click the web control; do not extract tokens or call its APIs.
+    for link in message.locator('[role="link"][data-d-component="pressable"]:not([href])').all()[::-1]:
+        label = (link.inner_text() + " " + (link.get_attribute("aria-label") or ""))
+        if re.search(r"\.pptx\b", label, re.I) and link.is_visible() and link.is_enabled():
+            return link
     return None
 
 
@@ -504,12 +560,13 @@ def wait_result(page, folder, record, cancel, progress, timeout=900):
         page_problem(page)
         generating = visible(page, STOP)
         before = record.get("assistant_before", 0)
-        link = result_link(page, before)
+        ids = record.get("assistant_ids_before")
+        link = result_link(page, before, assistant_ids_before=ids)
         if link and not generating:
             return link
-        messages = page.locator(ASSISTANT)
-        if messages.count() > before and not generating:
-            text = messages.last.inner_text()
+        message = latest_reply(page, before, ids)
+        if message is not None and not generating:
+            text = message.inner_text()
             if text != last_text:
                 last_text, stable_since = text, time.monotonic()
             if text.strip() and not link and time.monotonic() - stable_since > 4:
@@ -524,7 +581,7 @@ def wait_result(page, folder, record, cancel, progress, timeout=900):
                 elif time.monotonic() - stable_since > 15:
                     raise BrowserProblem("no_file", "ChatGPT chưa trả file PowerPoint. Mở cuộc trò chuyện để kiểm tra khả năng tạo tệp của tài khoản.")
         if time.monotonic() - last_progress > 20:
-            progress("Đang chờ ChatGPT tạo PowerPoint; bạn có thể dừng và tiếp tục cùng yêu cầu…")
+            progress("ChatGPT đang tạo PowerPoint; tool sẽ tự nhận tệp và chuẩn bị giọng đọc…")
             last_progress = time.monotonic()
         page.wait_for_timeout(500)
     raise BrowserProblem("timeout", "Chưa nhận PowerPoint trong thời gian chờ. Yêu cầu đã được giữ để tiếp tục, không gửi lại prompt.")
@@ -635,7 +692,7 @@ def _convert_locked(account, request_folder, cancel, progress, *, timeout, obser
                 if record["state"] == "prepared":
                     stage = "upload"
                     progress("Đang đính kèm tài liệu và gửi prompt đã cấu hình…")
-                    submit(page, folder, record, request["prompt"], cancel, files=files)
+                    submit(page, folder, record, request["prompt"], cancel, files=files, progress=progress)
                 elif not record["url"]:
                     raise BrowserProblem("submission", "Chưa rõ yêu cầu trước đã gửi hay chưa. Kiểm tra browser; app không gửi trùng.")
                 elif record["state"] == "submitting":
