@@ -111,6 +111,7 @@ QDesktopServices.openUrl = lambda url: opened.append(url.toString()) or True
 deadline = time.monotonic() + 120
 preview_prompt = ""
 teacher_notes = "Giữ từng bước giải và công thức.\nDùng thuật ngữ phù hợp học sinh lớp 10; không thêm bài tập ngoài nguồn."
+custom_subject = "STEM – dự án của lớp"
 
 
 def safe(action):
@@ -193,6 +194,9 @@ def wait_idle(action):
 
 def start():
     assert not window.findChild(QObject, "createLessonButton").property("enabled")
+    assert window.findChild(QObject, "lessonSubject").property("currentIndex") == -1
+    assert not window.findChild(QObject, "lessonSubject").property("editable")
+    assert not window.findChild(QObject, "creationCustomSubject").property("visible")
     assert visual_value("creationKeepOriginal", "target.enabled && target.checked")
     assert not window.findChild(QObject, "creationEducation").property("editable")
     assert not window.findChild(QObject, "creationGrade").property("editable")
@@ -256,9 +260,55 @@ def chooser_checked(picked):
     assert window.findChild(QObject, "lessonTitle").property("text") == source.stem
     assert not bridge.error and source.name in bridge.message, "Valid selection must clear stale input error"
     window.findChild(QObject, "lessonTitle").setProperty("text", "Bài giảng với ChatGPT")
-    window.findChild(QObject, "lessonSubject").setProperty("text", "Toán")
     window.findChild(QObject, "creationTeacherNotes").setProperty("text", teacher_notes)
     assert not window.property("inputDocumentError")
+    QTimer.singleShot(150, safe(subjects))
+
+
+def subjects():
+    choice = window.findChild(QObject, "lessonSubject")
+    custom = window.findChild(QObject, "creationCustomSubject")
+    button = window.findChild(QObject, "createLessonButton")
+    assert choice.property("count") == len(bridge.conversionSubjects)
+    assert not button.property("enabled"), "Do not silently assume the subject"
+    for subject in bridge.conversionSubjects[:-1]:
+        choice.setProperty("currentIndex", bridge.conversionSubjects.index(subject))
+        assert window.property("creationSubject") == subject
+        assert subject in window.property("creationPrompt")["prompt"]
+        assert not custom.property("visible") and button.property("enabled")
+    choice.setProperty("currentIndex", -1)
+    assert not button.property("enabled")
+    mouse_click("lessonSubject")
+    QTimer.singleShot(120, safe(subject_popup))
+
+
+def subject_popup():
+    popup = window.findChild(QObject, "creationSubjectPopup")
+    assert popup.property("visible") and 0 < popup.property("height") <= 400
+    assert popup.property("width") >= 400
+    assert QQuickWindow.grabWindow(window).save(str(reports / "subject-list.png"))
+    # End/Enter selects the last item even when it starts outside the viewport.
+    QTest.keyClick(window, Qt.Key_End)
+    QTest.keyClick(window, Qt.Key_Return)
+    QTimer.singleShot(120, safe(custom_subject_checked))
+
+
+def custom_subject_checked():
+    choice = window.findChild(QObject, "lessonSubject")
+    custom = window.findChild(QObject, "creationCustomSubject")
+    button = window.findChild(QObject, "createLessonButton")
+    assert choice.property("currentText") == "Khác"
+    assert custom.property("visible") and not button.property("enabled")
+    custom.setProperty("text", "   ")
+    assert not button.property("enabled"), "Whitespace is not a subject"
+    custom.setProperty("text", "  " + custom_subject + "  ")
+    assert window.property("creationSubject") == custom_subject and button.property("enabled")
+    choice.setProperty("currentIndex", bridge.conversionSubjects.index("Toán"))
+    assert window.property("creationSubject") == "Toán" and not custom.property("visible")
+    choice.setProperty("currentIndex", len(bridge.conversionSubjects) - 1)
+    assert window.property("creationSubject") == custom_subject, "Keep custom entry when switching choices"
+    assert QQuickWindow.grabWindow(window).save(str(reports / "subject-other.png"))
+    stages.append("All curriculum subjects reach the prompt; scrollable dropdown, keyboard selection and custom subject validation")
     QTimer.singleShot(150, safe(formats))
 
 
@@ -400,6 +450,7 @@ def prepared():
     assert request["config"]["layout"] == "split_view" and request["config"]["level"] == 3
     assert request["config"]["education_level"] == "THPT" and request["config"]["grade"] == "10"
     assert request["config"]["teacher_notes"] == teacher_notes
+    assert request["config"]["subject"] == custom_subject
     assert "Hai cột" in request["prompt"] and "Giữ theme" in request["prompt"]
     assert request["prompt"] == preview_prompt == sent[0]["prompt"]
     assert bridge.browserAI.automatic and bridge.browserAI.audio
@@ -414,6 +465,8 @@ def prepared():
 def received():
     assert not bridge.error, bridge.message
     assert window.property("page") == "result"
+    assert window.findChild(QObject, "lessonSubject").property("currentIndex") == -1
+    assert not window.findChild(QObject, "creationCustomSubject").property("text")
     result = bridge.quickResult
     assert result["external"] and result["draft"] and result["image"]
     assert narration and all(unit["vi"] and unit["en"] for unit in narration)

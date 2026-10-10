@@ -858,6 +858,50 @@ def test_upgrade_labels_are_not_plan_or_model_entitlements():
     assert model_priority("GPT-6.1 Sol") > model_priority("GPT-6 Sol") > model_priority("GPT-6 Luna")
 
 
+@pytest.mark.parametrize("composer_label", ["Ask ChatGPT", "Hỏi ChatGPT"])
+def test_current_web_composer_saves_real_profile_identity_and_sends_full_prompt(browser_fixture, composer_label):
+    adapter, accounts, request, captured, _ = browser_fixture
+    content = models_fixture("Free").replace("<head>", '<head><meta charset="utf-8">').replace(
+        "<div>Fixture account</div>", "<div>Loading profile</div><div>Fixture account</div>")
+    content = content.replace('<textarea id="prompt-textarea"></textarea>',
+        f'<form><div contenteditable="true" role="textbox" aria-label="{composer_label}" id="modern-composer"></div>'
+        '<button type="button" aria-pressed="false" onclick="this.setAttribute(\'aria-pressed\',\'true\')">Think</button>')
+    content = content.replace('<button data-testid="send-button"', '<button type="button" data-testid="send-button"')
+    content = content.replace('<div id="messages">', '</form><div id="messages">')
+    content = content.replace("document.querySelector('#prompt-textarea').value",
+                              "document.querySelector('#modern-composer').innerText")
+    captured["html"] = content
+    result = adapter.check_session(accounts.get(), accounts.root, Event(), lambda _: None)
+    assert result["ready"] and result["plan"] == "free" and result["name"] == "Fixture account"
+    assert not captured["sends"], "Checking the saved session does not send a prompt"
+    adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+    assert len(captured["sends"]) == 1
+    assert " ".join(captured["sends"][0]["prompt"].split()) == " ".join(request["prompt"].split())
+    record = read_record(request["folder"], accounts.get()["id"])
+    assert record["model"] == "GPT-6 Luna" and record["reasoning"] == "Đã bật suy luận trên web"
+
+
+def test_highest_model_must_be_confirmed_before_any_upload_or_send(browser_fixture):
+    adapter, accounts, request, captured, _ = browser_fixture
+    captured["html"] = models_fixture("Plus").replace(
+        'onclick="choose(this)">Astra',
+        'onclick="document.querySelector(\'#model-menu\').hidden=true">Astra', 1)
+    with pytest.raises(BrowserProblem) as error:
+        adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+    assert error.value.code == "model" and not captured["sends"]
+    record = read_record(request["folder"], accounts.get()["id"])
+    assert record["error"] == "model" and record["state"] == "prepared"
+
+
+def test_model_with_generic_heading_is_verified_in_reopened_visible_menu(browser_fixture):
+    adapter, accounts, request, captured, _ = browser_fixture
+    captured["html"] = models_fixture("Plus").replace(
+        "document.querySelector('#model-picker').textContent=item.textContent;", "")
+    adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+    record = read_record(request["folder"], accounts.get()["id"])
+    assert record["model"] == "Astra" and len(captured["sends"]) == 1
+
+
 def test_free_think_toggle_and_account_priority_do_not_change_a_sent_job(browser_fixture):
     adapter, accounts, request, captured, _ = browser_fixture
     free_id = accounts.get()["id"]

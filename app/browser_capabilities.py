@@ -30,10 +30,12 @@ def detect_account(page, profile, *, details=False):
         text = button.inner_text().strip()
         info["plan"] = plan_from_text(text)
         lines = text.splitlines()
-        if lines and plan_from_text(lines[0]) == "unknown" and lines[0].casefold() not in {
+        names = [line.strip() for line in lines if line.strip() and plan_from_text(line) == "unknown" and line.casefold().strip() not in {
             "open profile menu", "profile", "account", "chatgpt", "mở hồ sơ", "tài khoản",
-        } and not re.search(r"upgrade|nâng cấp", lines[0], re.I):
-            info["name"] = lines[0][:100]
+            "loading profile", "đang tải hồ sơ", "đang tải…",
+        } and not re.search(r"upgrade|nâng cấp", line, re.I)]
+        if names:
+            info["name"] = names[0][:100]
         button.click(timeout=3000)
         page.wait_for_timeout(200)
         for menu in page.locator('[role="menu"], [data-testid="account-menu"]').all():
@@ -124,12 +126,12 @@ def model_priority(label):
 def select_best_model(page):
     from playwright.sync_api import Error
 
-    from .browser_automation import visible
+    from .browser_automation import BrowserProblem, visible
+    from .browser_reasoning import eligible, selected
 
     picker = visible(page, PICKER)
     if not picker:
         return "Mặc định của web"
-    current = picker.inner_text().strip() or "Mặc định của web"
     try:
         picker.click(timeout=3000)
         page.wait_for_timeout(250)
@@ -138,25 +140,33 @@ def select_best_model(page):
             if not panel.is_visible():
                 continue
             for item in panel.locator('[role="menuitemradio"], [role="menuitem"], [role="radio"], [role="option"], button').all():
-                if (not item.is_visible() or not item.is_enabled()
-                        or item.get_attribute("aria-disabled") == "true" or item.get_attribute("data-disabled") == "true"):
+                if not eligible(item):
                     continue
                 label = item.inner_text().strip()
                 rank = model_priority(label)
                 if rank is not None:
                     options.append((rank, item, label.splitlines()[0]))
         if not options:
-            return current
+            raise BrowserProblem("model", "Chưa đọc được các model được phép dùng trên web ChatGPT. Chưa gửi bài.")
         _, choice, label = max(options, key=lambda option: option[0])
         choice.click(timeout=3000)
         page.wait_for_timeout(150)
-        selected = picker.inner_text().strip()
-        if (label.casefold() in selected.casefold() or choice.get_attribute("aria-checked") == "true"
-                or choice.get_attribute("aria-selected") == "true"):
+        active = picker.inner_text().strip()
+        if label.casefold() in active.casefold():
             return label
-        return selected or current
-    except Error:
-        return current
+        # Some web pickers keep a generic heading and unmount the chosen option.
+        # Reopen the visible menu and check its selected state before uploading.
+        picker.click(timeout=3000)
+        page.wait_for_timeout(150)
+        for panel in page.locator('[role="menu"], [role="listbox"], [role="dialog"]').all():
+            if not panel.is_visible():
+                continue
+            for item in panel.locator('[role="menuitemradio"], [role="menuitem"], [role="radio"], [role="option"], button').all():
+                if eligible(item) and item.inner_text().strip().partition("\n")[0] == label and selected(item):
+                    return label
+        raise BrowserProblem("model", "Web chưa xác nhận model cao nhất đã chọn. Chưa gửi bài; thử lại khi Chrome sẵn sàng.")
+    except Error as exc:
+        raise BrowserProblem("model", "Không kiểm tra được model đã chọn trên web ChatGPT. Chưa gửi bài.") from exc
     finally:
         try:
             page.keyboard.press("Escape")

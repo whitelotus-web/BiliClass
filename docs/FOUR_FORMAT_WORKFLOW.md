@@ -10,6 +10,8 @@ Kéo thả một tài liệu hoặc chọn tệp trên máy; cũng có thể dá
 
 Thông tin gồm tên bài, môn, cấp học và khối. Chọn Tiểu học chỉ hiện khối **1–5**, THCS **6–9**, THPT **10–12**; đổi cấp sẽ chọn khối đầu tiên của cấp mới. Không nhập tự do khối ngoài cấp. Tên bài dài không làm co mất ô cấp/khối. Bốn kiểu chuyển đổi hiện thành bốn ô chọn, mỗi ô có **Xem mẫu bố cục**; xem mẫu không đổi lựa chọn cho đến khi bấm **Chọn kiểu này**.
 
+**Môn học** chọn từ danh sách chung các môn của ba cấp, theo bảng chữ cái tiếng Việt. **Khác** ở cuối, hiện ô nhập tay cho môn chưa có. Môn chọn sẵn hoặc tên nhập tay dùng đúng trong prompt và bài lưu; không đổi môn theo cấp học. Xem phạm vi và nguồn trong [Danh sách môn học](SCHOOL_SUBJECTS.md).
+
 **Thiết kế bài giảng** có hai ô chọn: **Giữ thiết kế PowerPoint gốc** hoặc **Tạo theo mẫu mới**. Có thể chọn giữ gốc trước khi nhập; khi có PPTX, dùng đúng bản sao PowerPoint đầu vào và yêu cầu bảo toàn thiết kế, hình, thứ tự slide và hiệu ứng, chỉ điều chỉnh ngôn ngữ/bố cục cần thiết cho phương pháp đã chọn. Không đủ chỗ/không giữ được hiệu ứng thì ChatGPT phải ghi CHECK để giáo viên kiểm tra. Tool không chứng nhận đầu ra giống nguồn 100% chỉ từ việc chọn ô này.
 
 Mặc định giữ thiết kế PPTX; nếu giáo viên đã chọn mẫu mới trước khi nhập thì giữ lựa chọn đó. Word/PDF/ảnh/nội dung dán dùng mẫu mới vì không có thiết kế PowerPoint gốc. Khi tạo theo mẫu, chọn mẫu BiliClass và xem slide minh họa lớn.

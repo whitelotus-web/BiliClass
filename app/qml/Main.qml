@@ -46,8 +46,9 @@ ApplicationWindow {
     property var classroom: bridge.classroomContext
     property string profileLabel: [bridge.settings.teacher, bridge.settings.school].filter(function(value) { return !!value }).join("  ·  ")
     readonly property var conversionFormats: bridge.conversionFormats
+    readonly property string creationSubject: subjectInput.currentText === "Khác" ? customSubjectInput.text.trim() : subjectInput.currentText
     readonly property var creationPrompt: page === "new" ? bridge.conversionPromptPreview(
-        titleInput.text, subjectInput.text, educationInput.currentText, gradeInput.currentText, pasteInput.text,
+        titleInput.text, creationSubject, educationInput.currentText, gradeInput.currentText, pasteInput.text,
         selectedFile, conversionFormats[creationFormat.currentIndex].id,
         ["standard", "visual", "practice"][creationPreset.currentIndex], creationKeepSource ? "source" : "template", teacherNotesInput.text) : ({prompt: "", ready: false})
     property var templatePages: bridge.templatePages(rescue)
@@ -126,7 +127,7 @@ ApplicationWindow {
             }
         }
         function onProjectClassroomRequested() { projector.quiz = true; bridge.showProjector(projector, bridge.screens.length > 1 ? 1 : 0) }
-        function onNavigate(destination) { root.page = destination === "browser-settings" ? "settings" : destination; if (destination === "browser-settings") settingsPanel.activeTab = 6; root.loadFields(); if (destination === "result" || destination === "editor") { titleInput.text = ""; subjectInput.text = ""; pasteInput.text = ""; teacherNotesInput.text = ""; root.inputDocumentError = ""; root.preferredCreationDesign = 0; root.selectedFile = ""; root.selectedFileName = "" } }
+        function onNavigate(destination) { root.page = destination === "browser-settings" ? "settings" : destination; if (destination === "browser-settings") settingsPanel.activeTab = 6; root.loadFields(); if (destination === "result" || destination === "editor") { titleInput.text = ""; subjectInput.currentIndex = -1; customSubjectInput.text = ""; pasteInput.text = ""; teacherNotesInput.text = ""; root.inputDocumentError = ""; root.preferredCreationDesign = 0; root.selectedFile = ""; root.selectedFileName = "" } }
         function onSelectionChanged() { root.loadFields() }
         function onComparisonReady() { comparisonDialog.open() }
         function onChanged() { root.presentationContent = bridge.presentationContent(root.rescue); root.refreshTemplate() }
@@ -415,10 +416,45 @@ ApplicationWindow {
                                     Layout.fillWidth: true; columns: 12; columnSpacing: 12; rowSpacing: 7
                                     Caption { text: "Tên bài học"; Layout.columnSpan: 4 } Caption { text: "Môn học"; Layout.columnSpan: 4 }
                                     Caption { text: "Cấp học"; Layout.columnSpan: 2 } Caption { text: "Khối lớp"; Layout.columnSpan: 2 }
-                                    Field { id: titleInput; objectName: "lessonTitle"; Layout.fillWidth: true; Layout.columnSpan: 4; Layout.preferredWidth: 320; Layout.minimumWidth: 120; placeholderText: "Tên bài giảng"; maximumLength: 180 }
-                                    Field { id: subjectInput; objectName: "lessonSubject"; Layout.fillWidth: true; Layout.columnSpan: 4; Layout.preferredWidth: 320; Layout.minimumWidth: 120; placeholderText: "Môn của thầy cô"; maximumLength: 100 }
-                                    Choice { id: educationInput; objectName: "creationEducation"; model: ["THPT", "THCS", "Tiểu học"]; Layout.columnSpan: 2; Layout.preferredWidth: 160; Layout.minimumWidth: 115; Layout.fillWidth: true }
-                                    Choice { id: gradeInput; objectName: "creationGrade"; model: bridge.educationGrades(educationInput.currentText); onModelChanged: currentIndex = 0; Layout.columnSpan: 2; Layout.preferredWidth: 130; Layout.minimumWidth: 80; Layout.fillWidth: true }
+                                    Field { id: titleInput; objectName: "lessonTitle"; Layout.fillWidth: true; Layout.columnSpan: 4; Layout.preferredWidth: 320; Layout.minimumWidth: 120; Layout.alignment: Qt.AlignTop; placeholderText: "Tên bài giảng"; maximumLength: 180 }
+                                    ColumnLayout {
+                                        Layout.fillWidth: true; Layout.columnSpan: 4; Layout.preferredWidth: 320; Layout.minimumWidth: 120; Layout.alignment: Qt.AlignTop; spacing: 7
+                                        Choice {
+                                            id: subjectInput; objectName: "lessonSubject"; Layout.fillWidth: true
+                                            model: bridge.conversionSubjects; currentIndex: -1; leftPadding: 12; rightPadding: 36
+                                            displayText: currentIndex < 0 ? "Chọn môn học" : currentText
+                                            Accessible.name: "Môn học"
+                                            contentItem: Text {
+                                                text: subjectInput.displayText; font: subjectInput.font
+                                                color: subjectInput.currentIndex < 0 ? root.muted : root.ink
+                                                verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight
+                                            }
+                                            delegate: ItemDelegate {
+                                                required property string modelData
+                                                required property int index
+                                                width: subjectList.width - 16; height: 38
+                                                text: modelData; font: subjectInput.font
+                                                highlighted: subjectInput.highlightedIndex === index
+                                                contentItem: Text { text: parent.text; font: parent.font; color: root.ink; verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight }
+                                                background: Rectangle { radius: 5; color: parent.highlighted || parent.hovered ? "#e8f1ff" : "transparent" }
+                                            }
+                                            popup: Popup {
+                                                id: subjectPopup; objectName: "creationSubjectPopup"
+                                                y: subjectInput.height + 4; width: Math.min(root.width - 32, Math.max(subjectInput.width, 400)); padding: 6
+                                                implicitHeight: Math.min(contentItem.implicitHeight + 12, 400, root.height - 60)
+                                                contentItem: ListView {
+                                                    id: subjectList; objectName: "creationSubjectList"; clip: true
+                                                    implicitHeight: contentHeight; model: subjectPopup.visible ? subjectInput.delegateModel : null
+                                                    currentIndex: subjectInput.highlightedIndex; highlightMoveDuration: 0
+                                                    ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                                                }
+                                                background: Rectangle { color: "white"; radius: 8; border.color: root.line }
+                                            }
+                                        }
+                                        Field { id: customSubjectInput; objectName: "creationCustomSubject"; visible: subjectInput.currentText === "Khác"; Layout.fillWidth: true; placeholderText: "Nhập tên môn học khác"; maximumLength: 100; Accessible.name: "Tên môn học khác" }
+                                    }
+                                    Choice { id: educationInput; objectName: "creationEducation"; model: ["THPT", "THCS", "Tiểu học"]; Layout.columnSpan: 2; Layout.preferredWidth: 160; Layout.minimumWidth: 115; Layout.fillWidth: true; Layout.alignment: Qt.AlignTop }
+                                    Choice { id: gradeInput; objectName: "creationGrade"; model: bridge.educationGrades(educationInput.currentText); onModelChanged: currentIndex = 0; Layout.columnSpan: 2; Layout.preferredWidth: 130; Layout.minimumWidth: 80; Layout.fillWidth: true; Layout.alignment: Qt.AlignTop }
                                 }
                                 Caption { text: "Kiểu chuyển đổi · chọn một" }
                                 GridLayout {
@@ -521,7 +557,7 @@ ApplicationWindow {
                             Copy { text: "Tự động nhận PowerPoint và chuẩn bị giọng đọc Việt–Anh."; Layout.fillWidth: true; font.pixelSize: 12 }
                             Action { text: "Tài khoản: " + bridge.browserAI.activeLabel + " · Browser AI"; subtle: true; implicitHeight: 28; onClicked: { root.go("settings"); settingsPanel.activeTab = 6 } }
                         }
-                        Action { objectName: "createLessonButton"; text: bridge.busy ? "Đang chuẩn bị…" : "Chuyển đổi bài giảng"; primary: true; enabled: !bridge.busy && !root.inputDocumentError && root.creationPrompt.ready; onClicked: bridge.convertDocument(titleInput.text, subjectInput.text, educationInput.currentText, gradeInput.currentText, pasteInput.text, root.selectedFile, root.conversionFormats[creationFormat.currentIndex].id, ["standard", "visual", "practice"][creationPreset.currentIndex], root.creationKeepSource ? "source" : "template", teacherNotesInput.text) }
+                        Action { objectName: "createLessonButton"; text: bridge.busy ? "Đang chuẩn bị…" : "Chuyển đổi bài giảng"; primary: true; enabled: !bridge.busy && !root.inputDocumentError && root.creationPrompt.ready; onClicked: bridge.convertDocument(titleInput.text, root.creationSubject, educationInput.currentText, gradeInput.currentText, pasteInput.text, root.selectedFile, root.conversionFormats[creationFormat.currentIndex].id, ["standard", "visual", "practice"][creationPreset.currentIndex], root.creationKeepSource ? "source" : "template", teacherNotesInput.text) }
                     }
                 }
 

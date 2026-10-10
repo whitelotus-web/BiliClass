@@ -16,6 +16,12 @@ Lần thử Chrome tiếp theo trả lỗi **400 Invalid content type: text/html
 
 ## Chrome riêng và phiên đã lưu
 
+**Sửa theo phiên thật ngày 10/10/2026:** hồ sơ Chrome đã đăng nhập nhưng tool báo lỗi `interface`: trang mới dùng ô `contenteditable` có `role="textbox"`, nhãn **Ask ChatGPT**, không còn ID/test ID cũ. Đã bổ sung nhận diện ô này trong form cho cả kiểm tra phiên và gửi prompt; bỏ dòng “Loading profile” khi đọc tên tài khoản. Kiểm tra lại Chrome thật nhận tên tài khoản, **Free**, trạng thái sẵn sàng và **Think đã bật**, không gửi tin hoặc tải giáo án trong lần kiểm tra này.
+
+Trước lần gửi mới, tool chọn model có ưu tiên chất lượng cao nhất trong các mục **được bật và nhận diện được** của bộ chọn web; kiểm tra tên đang dùng hoặc dấu chọn ở menu mở lại. Nếu web có bộ chọn mà tool không đọc/xác nhận được, dừng trước khi đính kèm và gửi, giữ yêu cầu để tiếp tục. Không ngầm dùng model cũ sau lỗi bấm chọn. Nếu tài khoản không có bộ chọn (như phiên Free vừa kiểm tra), ghi **Mặc định của web** và xác nhận mức suy luận cao nhất được web cho phép. Không suy ra tên model hay quyền Plus chỉ từ nút Think. Model và suy luận được lưu trong bản ghi tác vụ và hiện ở tiến độ; tiếp tục bài đã gửi giữ cuộc trò chuyện/tài khoản.
+
+[Hướng dẫn OpenAI về chọn model](https://learn.chatgpt.com/docs/model-selection) và [ChatGPT trên web](https://learn.chatgpt.com/docs/web) nêu quyền model/công cụ/suy luận khác nhau theo sản phẩm và tài khoản. Các bộ chọn giả lập kiểm tra Free/Plus và model không xác nhận được; chưa thử chuyển đổi một bài thật hoặc đăng nhập Plus thật trong đợt này.
+
 BiliClass mở Chrome thường với hồ sơ riêng theo từng tài khoản để người dùng đăng nhập. Trong bước này không có Playwright hoặc cổng DevTools. Sau khi xác nhận, Chrome đóng để ghi phiên rồi mở lại cùng hồ sơ; lúc này BiliClass mới kết nối Playwright qua DevTools chỉ tại `127.0.0.1`, cổng tự chọn. Đây là giao diện debug được [Chrome hỗ trợ với thư mục dữ liệu riêng](https://developer.chrome.com/blog/remote-debugging-port) và [Playwright hỗ trợ qua CDP](https://playwright.dev/python/docs/api/class-browsertype#browser-type-connect-over-cdp). Không đọc hồ sơ Chrome cá nhân, không copy cookie từ Edge, không sửa fingerprint hoặc giải CAPTCHA. Không cần ChromeDriver hoặc tải thêm một browser lớn.
 
 Hồ sơ Edge/Chrome cũ được giữ; mỗi tài khoản dùng thư mục mới `profiles/<id>/chrome`. Sau nâng cấp, trạng thái đăng nhập cũ bị gỡ và cần đăng nhập lại một lần. Cookie và dữ liệu web được Chrome tự lưu; BiliClass chỉ đọc điều khiển tài khoản trên trang, không xuất token.

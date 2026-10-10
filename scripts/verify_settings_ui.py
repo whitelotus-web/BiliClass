@@ -300,7 +300,7 @@ def main():
         window.setProperty("page", "new")
         pump(180)
         control("lessonTitle").setProperty("text", "Bài kiểm tra cấu hình")
-        control("lessonSubject").setProperty("text", "Sinh học")
+        control("lessonSubject").setProperty("currentIndex", bridge.conversionSubjects.index("Sinh học"))
         control("lessonContent").setProperty("text", "Hãy quan sát mẫu vật.")
         control("creationFormat").setProperty("currentIndex", 3)
         control("creationGrade").setProperty("currentIndex", 2)

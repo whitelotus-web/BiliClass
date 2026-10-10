@@ -12,11 +12,12 @@ from app.importers import MAX_BYTES
 
 @pytest.mark.parametrize("spec", FORMATS, ids=lambda spec: spec["id"])
 @pytest.mark.parametrize("style", ["source", "template"])
-def test_preview_matches_sent_prompt_with_unicode_filename_and_configuration(tmp_path, spec, style):
+@pytest.mark.parametrize("subject", ["Toán", "Giáo dục kinh tế và pháp luật", "STEM – dự án của lớp"])
+def test_preview_matches_sent_prompt_with_unicode_filename_and_configuration(tmp_path, spec, style, subject):
     source = tmp_path / "Giáo án #1 – Toán.PPTX"
     source.write_bytes(b"source stays untouched")
     notes = "Giữ từng bước giải.\nDùng thuật ngữ dễ hiểu cho lớp 6; chú ý hình #1."
-    config = creation_config("  Diện tích  ", "  Toán  ", "THCS", "6", spec["id"], "visual", style, notes)
+    config = creation_config("  Diện tích  ", f"  {subject}  ", "THCS", "6", spec["id"], "visual", style, notes)
     before = set(tmp_path.iterdir())
     preview = prompt_preview(config, QUrl.fromLocalFile(str(source)).toString())
     assert set(tmp_path.iterdir()) == before, "Typing a prompt must not create request files"
@@ -25,7 +26,8 @@ def test_preview_matches_sent_prompt_with_unicode_filename_and_configuration(tmp
     assert METHODS[spec["id"]] in preview["prompt"]
     assert source.name in preview["prompt"] and "THCS" in preview["prompt"]
     assert source.read_bytes() == b"source stays untouched"
-    assert sent["config"]["title"] == "Diện tích" and sent["config"]["subject"] == "Toán"
+    assert sent["config"]["title"] == "Diện tích" and sent["config"]["subject"] == subject
+    assert subject in preview["prompt"]
     assert sent["config"]["teacher_notes"] == notes
     assert preview["prompt"].count(notes) == 1 and load_request(sent["folder"])["prompt"] == preview["prompt"]
     assert preview["prompt"].index(notes) > preview["prompt"].index(METHODS[spec["id"]])

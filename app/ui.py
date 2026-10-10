@@ -199,6 +199,12 @@ class Bridge(QObject):
 
         return [dict(item) for item in FORMATS]
 
+    @Property("QVariantList", constant=True)
+    def conversionSubjects(self):
+        from .school_subjects import subject_options
+
+        return subject_options()
+
     @Property(str, notify=changed)
     def conversionLabel(self):
         from .conversion_formats import format_spec

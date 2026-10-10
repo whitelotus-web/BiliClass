@@ -17,7 +17,9 @@ from .chatgpt_handoff import inspect_returned_deck, load_request
 from .document_limits import MAX_POWERPOINT_BYTES, document_limit
 
 CHATGPT = "https://chatgpt.com/"
-COMPOSER = '#prompt-textarea, textarea[data-testid="prompt-textarea"], [contenteditable="true"][data-testid="composer"]'
+COMPOSER = ('#prompt-textarea, textarea[data-testid="prompt-textarea"], [contenteditable="true"][data-testid="composer"], '
+            'form [contenteditable="true"][role="textbox"][aria-label="Ask ChatGPT"], '
+            'form [contenteditable="true"][role="textbox"][aria-label="Hỏi ChatGPT"]')
 PROFILE = '[data-testid="accounts-profile-button"], [data-testid="profile-button"], button[aria-label="Open profile menu"]'
 SEND = '[data-testid="send-button"], button[aria-label="Send prompt"], button[aria-label="Gửi lời nhắc"], button[aria-label="Send message"]'
 STOP = '[data-testid="stop-button"], button[aria-label="Stop generating"], button[aria-label="Dừng tạo"]'
@@ -627,7 +629,7 @@ def _convert_locked(account, request_folder, cancel, progress, *, timeout, obser
                     reasoning = select_reasoning(page)
                     record.update(plan=plan, model=model, reasoning=reasoning)
                     write_record(folder, record)
-                    progress(f"Model đang dùng: {model} · quyền truy cập theo web ChatGPT.")
+                    progress(f"Model đang dùng: {model} · {reasoning} · quyền truy cập theo web ChatGPT.")
                 if observed:
                     observed(account["id"], plan, record.get("model", ""))
                 if record["state"] == "prepared":
