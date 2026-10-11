@@ -1056,6 +1056,8 @@ ApplicationWindow {
     TemplateGallery {
         id: templateGallery; objectName: "templateGallery"
         bridge: root.bridgeRef
+        conversionFormat: forCreation ? root.conversionFormats[creationFormat.currentIndex].id
+            : ({split_view:"parallel_columns", line_pair:"sentence_pairs", keyword_overlay:"integrated_keywords", english_rescue:"english_only"})[layout] || "sentence_pairs"
         onApplyPreset: function(preset) {
             if (forCreation) creationPreset.currentIndex = ["standard", "visual", "practice"].indexOf(preset)
             else bridge.setTeachingPreset(preset)
@@ -1073,6 +1075,7 @@ ApplicationWindow {
             Copy { text: root.conversionFormats[conversionExample.formatIndex].detail; Layout.fillWidth: true; font.pixelSize: 14 }
             ConversionLayoutPreview {
                 objectName: "conversionExampleSlide"
+                bridge: root.bridgeRef
                 conversionFormat: root.conversionFormats[conversionExample.formatIndex].id
                 preset: ["standard", "visual", "practice"][creationPreset.currentIndex]
                 Layout.fillWidth: true; Layout.fillHeight: true

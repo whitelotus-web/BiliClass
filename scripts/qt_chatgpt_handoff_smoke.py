@@ -339,7 +339,9 @@ def example(index=3):
     assert dialog.property("visible") and dialog.property("formatIndex") == index
     key = bridge.conversionFormats[index]["id"]
     assert window.findChild(QObject, "conversionExampleSlide").property("conversionFormat") == key
-    assert window.findChild(QObject, "conversionExampleSlide").property("englishOnly") == (index == 3)
+    image = window.findChild(QObject, "conversionReferenceImage")
+    assert QQmlExpression(engine.rootContext(), image, "status === 1").evaluate()[0]
+    assert bridge.conversionFormats[index]["id"] in image.property("source").toString()
     assert window.findChild(QObject, "creationFormat").property("currentIndex") == 0, "Preview is separate from selection"
     assert QQuickWindow.grabWindow(window).save(str(reports / ("example-" + key + ".png")))
     if index != 2:
@@ -366,9 +368,20 @@ def gallery():
 def gallery_visible():
     dialog = window.findChild(QObject, "templateGallery")
     assert dialog.property("visible")
-    plan = window.findChild(QObject, "templateSampleSlide").property("plan")
-    assert plan["image"] and not plan["overflow"]
+    sample = window.findChild(QObject, "templateSampleSlide")
+    assert QQmlExpression(engine.rootContext(), sample, "status === 1").evaluate()[0]
+    assert "standard-parallel_columns.png" in sample.property("source").toString()
     assert QQuickWindow.grabWindow(window).save(str(reports / "gallery-standard.png"))
+    # Every style/method combination must show the corresponding real PNG,
+    # including English-only (no Vietnamese body) and integrated keywords.
+    for preset in ("standard", "visual", "practice"):
+        dialog.setProperty("preset", preset)
+        for index, spec in enumerate(bridge.conversionFormats):
+            window.findChild(QObject, "creationFormat").setProperty("currentIndex", index)
+            QCoreApplication.processEvents()
+            assert QQmlExpression(engine.rootContext(), sample, "status === 1").evaluate()[0]
+            assert f"{preset}-{spec['id']}.png" in sample.property("source").toString()
+    window.findChild(QObject, "creationFormat").setProperty("currentIndex", 0)
     dialog.setProperty("preset", "visual")
     QTimer.singleShot(300, safe(gallery_visual))
 
@@ -380,8 +393,9 @@ def gallery_visual():
 
 def gallery_visual_slide():
     dialog = window.findChild(QObject, "templateGallery")
-    plan = window.findChild(QObject, "templateSampleSlide").property("plan")
-    assert plan["kind"] == "visual" and plan["image"]
+    sample = window.findChild(QObject, "templateSampleSlide")
+    assert QQmlExpression(engine.rootContext(), sample, "status === 1").evaluate()[0]
+    assert "visual-visual.png" in sample.property("source").toString()
     assert QQuickWindow.grabWindow(window).save(str(reports / "gallery-visual.png"))
     assert QMetaObject.invokeMethod(dialog, "close", Qt.DirectConnection)
     # Keep the configured split view when switching back to the original deck.

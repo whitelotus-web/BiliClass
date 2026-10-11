@@ -16,6 +16,8 @@ Thông tin gồm tên bài, môn, cấp học và khối. Chọn Tiểu học ch
 
 Mặc định giữ thiết kế PPTX; nếu giáo viên đã chọn mẫu mới trước khi nhập thì giữ lựa chọn đó. Word/PDF/ảnh/nội dung dán dùng mẫu mới vì không có thiết kế PowerPoint gốc. Khi tạo theo mẫu, chọn mẫu BiliClass và xem slide minh họa lớn.
 
+Từ 11/10/2026, bộ mẫu dùng tài nguyên người dùng cung cấp: ba phong cách và 24 ảnh xem trước. Popup mặc định thể hiện đúng phong cách/kiểu ngôn ngữ đã chọn; có thêm bốn bố cục minh họa. ChatGPT nhận PPTX **trung tính**, không nhận ảnh/nội dung bài demo. Prompt thêm hướng dẫn theo lớp 1–12 và môn, chỉ ghép một phong cách khi tạo mẫu mới. Xem [Thư viện mẫu](TEMPLATE_LIBRARY.md) về phạm vi, nguồn, kiểm chứng và giới hạn.
+
 Ô **Ghi chú thêm cho ChatGPT** không bắt buộc, nhận tối đa 6.000 ký tự. Các lưu ý được ghép đúng một lần vào mục **LƯU Ý BỔ SUNG CỦA GIÁO VIÊN**, sau phương pháp/thiết kế, giữ xuống dòng và lưu trong cấu hình yêu cầu. Không tự chép lời dặn lên slide; mâu thuẫn với phương pháp/thiết kế cần ghi CHECK. Quá giới hạn thì báo lỗi và khóa chuyển đổi, không cắt mất ghi chú.
 
 Ô **Prompt gửi ChatGPT** có Hiện/Ẩn, cập nhật theo thông tin, kiểu chuyển đổi và thiết kế đang chọn. Dùng cùng bộ tạo prompt với yêu cầu gửi thật, gồm tên tệp gốc và đúng một phương pháp. Xem prompt không tạo gói hoặc mở browser. Nút **Chuyển đổi bài giảng** luôn nằm ở cuối màn hình; chỉ bật khi có tài liệu/nội dung, tên bài và môn.

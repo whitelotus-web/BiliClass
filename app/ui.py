@@ -554,6 +554,16 @@ class Bridge(QObject):
     def templateExample(self, preset, kind, level, layout):
         return example_plan(preset, kind, level, layout)
 
+    @Slot(str, str, str, result=str)
+    def templatePreviewImage(self, preset, role, conversion_format):
+        from .template_rules import reference_asset
+
+        try:
+            path = reference_asset(preset, conversion_format=conversion_format) if role == "language" else reference_asset(preset, role=role)
+            return QUrl.fromLocalFile(str(path)).toString()
+        except ValueError:
+            return ""
+
     @Slot(str)
     def openTemplateSample(self, preset):
         if preset not in {item["id"] for item in catalog()["presets"]}:

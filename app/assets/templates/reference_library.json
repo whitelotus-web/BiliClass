@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "content_policy": "design_only",
+  "templates": {
+    "standard": {
+      "id": "CLASSROOM",
+      "pptx": "standard-classroom.pptx",
+      "colors": {
+        "background": "#F6F9FF",
+        "heading": "#173B70",
+        "accent": "#2166CF",
+        "soft": "#EAF2FF",
+        "border": "#D5E2F4",
+        "text": "#243247"
+      },
+      "font": "Arial",
+      "layouts": [
+        {
+          "id": "title",
+          "slide": 1,
+          "preview": "reference-preview/standard-title.png"
+        },
+        {
+          "id": "concept",
+          "slide": 2,
+          "preview": "reference-preview/standard-concept.png"
+        },
+        {
+          "id": "visual",
+          "slide": 3,
+          "preview": "reference-preview/standard-visual.png"
+        },
+        {
+          "id": "practice",
+          "slide": 4,
+          "preview": "reference-preview/standard-practice.png"
+        }
+      ],
+      "language_previews": {
+        "parallel_columns": "reference-preview/standard-parallel_columns.png",
+        "sentence_pairs": "reference-preview/standard-sentence_pairs.png",
+        "integrated_keywords": "reference-preview/standard-integrated_keywords.png",
+        "english_only": "reference-preview/standard-english_only.png"
+      }
+    },
+    "visual": {
+      "id": "VISUAL",
+      "pptx": "visual-classroom.pptx",
+      "colors": {
+        "background": "#F2FAF7",
+        "heading": "#105D57",
+        "accent": "#078C7F",
+        "soft": "#DFF3ED",
+        "border": "#CCE8E1",
+        "text": "#173F3B"
+      },
+      "font": "Arial",
+      "layouts": [
+        {
+          "id": "title",
+          "slide": 1,
+          "preview": "reference-preview/visual-title.png"
+        },
+        {
+          "id": "concept",
+          "slide": 2,
+          "preview": "reference-preview/visual-concept.png"
+        },
+        {
+          "id": "visual",
+          "slide": 3,
+          "preview": "reference-preview/visual-visual.png"
+        },
+        {
+          "id": "practice",
+          "slide": 4,
+          "preview": "reference-preview/visual-practice.png"
+        }
+      ],
+      "language_previews": {
+        "parallel_columns": "reference-preview/visual-parallel_columns.png",
+        "sentence_pairs": "reference-preview/visual-sentence_pairs.png",
+        "integrated_keywords": "reference-preview/visual-integrated_keywords.png",
+        "english_only": "reference-preview/visual-english_only.png"
+      }
+    },
+    "practice": {
+      "id": "PRACTICE",
+      "pptx": "practice-classroom.pptx",
+      "colors": {
+        "background": "#FFF9F1",
+        "heading": "#743A12",
+        "accent": "#D76A16",
+        "soft": "#FFEDD5",
+        "border": "#F3D7B6",
+        "text": "#4A3525"
+      },
+      "font": "Arial",
+      "layouts": [
+        {
+          "id": "title",
+          "slide": 1,
+          "preview": "reference-preview/practice-title.png"
+        },
+        {
+          "id": "concept",
+          "slide": 2,
+          "preview": "reference-preview/practice-concept.png"
+        },
+        {
+          "id": "visual",
+          "slide": 3,
+          "preview": "reference-preview/practice-visual.png"
+        },
+        {
+          "id": "practice",
+          "slide": 4,
+          "preview": "reference-preview/practice-practice.png"
+        }
+      ],
+      "language_previews": {
+        "parallel_columns": "reference-preview/practice-parallel_columns.png",
+        "sentence_pairs": "reference-preview/practice-sentence_pairs.png",
+        "integrated_keywords": "reference-preview/practice-integrated_keywords.png",
+        "english_only": "reference-preview/practice-english_only.png"
+      }
+    }
+  }
+}

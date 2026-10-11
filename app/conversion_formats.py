@@ -51,6 +51,8 @@ def format_config(config):
 
 
 def conversion_prompt(config, source_name, preset):
+    from .template_rules import audience_guidance, design_guidance, subject_guidance
+
     spec = format_spec(config["conversion_format"])
     design = (
         """CHỈNH BẢN SAO POWERPOINT GỐC
@@ -64,12 +66,7 @@ def conversion_prompt(config, source_name, preset):
 - Slide quá chật: không bỏ chữ, không giảm chữ tới mức khó đọc, không tự tăng số slide;
   ghi rõ số slide và hạn chế trong CHECK/báo cáo để giáo viên kiểm tra."""
         if config["style"] == "source" else
-        f"""DỰNG SLIDE THEO MẪU BILICLASS «{preset['label']}»
-- {preset['description']} Nền {preset['background']}, chữ {preset['ink']}, nhấn {preset['accent']}, Arial, 16:9.
-- Tham khảo mau-biliclass.pptx nếu có; không lấy kiến thức/ví dụ của mẫu đưa vào bài thực tế.
-- Tài liệu Word/PDF/ảnh/nội dung dán: chia thành slide theo trình tự nguồn, giữ đủ ý, dùng hình nguồn.
-- Nếu đầu vào là PPTX: giữ đúng số lượng và thứ tự slide, giữ hình/công thức; chỉ áp dụng thiết kế mẫu.
-- Chữ dễ đọc khi chiếu, khoảng 24–36 pt cho nội dung chính; không tràn, đè chữ hoặc che hình."""
+        f"DỰNG SLIDE THEO MẪU BILICLASS «{preset['label']}»\n" + design_guidance(config["preset"])
     )
     notes = config.get("teacher_notes", "").strip()
     teacher_guidance = ("\nLƯU Ý BỔ SUNG CỦA GIÁO VIÊN\n"
@@ -91,6 +88,9 @@ PHƯƠNG PHÁP ĐÃ CHỌN
 
 {design}{teacher_guidance}
 
+{audience_guidance(config)}
+{subject_guidance(config['subject'])}
+
 BẢO TOÀN NỘI DUNG VÀ KIỂM TRA
 - Không tự viết lại kiến thức, tóm tắt, thêm đáp án hoặc bỏ tiêu đề, định nghĩa, hoạt động, bài tập, lời giải/kết luận.
 - Giữ phép toán, dấu, số mũ/chỉ số, số liệu, đơn vị, điều kiện và ký hiệu; chỉ dịch giải thích tự nhiên.
@@ -101,6 +101,8 @@ BẢO TOÀN NỘI DUNG VÀ KIỂM TRA
 - Không biến cả slide thành ảnh tĩnh, video hay PDF; giữ bảng/công thức chỉnh sửa được nếu nguồn có.
 - Kiểm tra từng slide với nguồn: đầy đủ nội dung, cặp câu/thuật ngữ, công thức, hình, font, tràn chữ và hoạt ảnh.
 - Báo cáo số slide nguồn/kết quả, điều chỉnh bố cục, ảnh/chữ/hiệu ứng chưa giữ được; không khẳng định bảo toàn khi chưa kiểm chứng.
+- Nếu truy xuất được, thống kê đối tượng, hình, bảng/công thức, hoạt ảnh, âm thanh/video trước và sau;
+  nếu không kiểm chứng được thì ghi rõ chưa kiểm chứng, không đưa số liệu giả. Đối chiếu dữ kiện trong đề, hình và đáp án.
 
 LỜI ĐỌC CHO VOICE VÀ MASCOT
 - Mỗi slide có Speaker Notes thật trong PPTX; giữ ghi chú gốc, thêm khối BILICLASS_NOTES: riêng ở cuối.
@@ -116,6 +118,7 @@ CÂU HỎI HIỂU BÀI CHO TRỢ LÝ (KHÔNG THÊM SLIDE)
 - Một dòng QUIZ: theo sau là một JSON hợp lệ, không dùng markdown; trường kind là single,
   vi/en là câu hỏi Việt/Anh, options là 2–4 đối tượng có vi/en, correct là A/B/C/D,
   rationale_vi/rationale_en là giải thích dựa vào nguồn. Không có trường approved.
+- correct phải thuộc các phương án thực tế: hai lựa chọn chỉ A/B, ba lựa chọn A/B/C, bốn lựa chọn A/B/C/D.
 - BiliClass nhập câu hỏi ở trạng thái bản nháp; giáo viên duyệt riêng trước khi sử dụng với lớp.
 
 BÀN GIAO

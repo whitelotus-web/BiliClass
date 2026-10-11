@@ -157,10 +157,13 @@ def prepare_request(directory, config, source_path=None, text=""):
         (folder / "config.json").write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
         attachments = [config["source_file"]]
         if config["style"] == "template":
-            sample = Path(__file__).parent / "assets/templates" / (config["preset"] + "-classroom.pptx")
-            if sample.is_file():
-                shutil.copyfile(sample, folder / "mau-biliclass.pptx")
-                attachments.append("mau-biliclass.pptx")
+            from .template_rules import reference_asset
+
+            sample = reference_asset(config["preset"])
+            shutil.copyfile(sample, folder / "mau-biliclass.pptx")
+            config["template_sha256"] = hashlib.sha256(sample.read_bytes()).hexdigest()
+            attachments.append("mau-biliclass.pptx")
+            (folder / "config.json").write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
         (folder / "HUONG-DAN.txt").write_text(
             "1. Mở ChatGPT bằng tài khoản của thầy cô.\n"
             "2. Sao chép nội dung PROMPT.txt và đính kèm: " + ", ".join(attachments) + ".\n"
@@ -191,8 +194,12 @@ def load_request(folder):
         raise ValueError("Gói tài liệu không hợp lệ.")
     if hashlib.sha256((folder / name).read_bytes()).hexdigest() != config["source_sha256"]:
         raise ValueError("Nguồn của gói ChatGPT đã thay đổi. Tạo lại gói trước khi tiếp tục.")
+    if config.get("template_sha256"):
+        template = folder / "mau-biliclass.pptx"
+        if not template.is_file() or hashlib.sha256(template.read_bytes()).hexdigest() != config["template_sha256"]:
+            raise ValueError("Mẫu của gói ChatGPT đã thay đổi. Tạo lại gói trước khi tiếp tục.")
     return {"folder": str(folder.resolve()), "bundle": str((folder / "goi-gui-chatgpt.zip").resolve()),
-            "prompt": make_prompt(config, name), "config": config,
+            "prompt": (folder / "PROMPT.txt").read_text(encoding="utf-8"), "config": config,
             "attachments": [name] + (["mau-biliclass.pptx"] if (folder / "mau-biliclass.pptx").is_file() else [])}
 
 
