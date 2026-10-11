@@ -1,61 +1,59 @@
 # BiliClass
 
-Kho kiến thức có nguồn và bộ nhớ giáo viên đang được bổ sung trong bản mã nguồn: xem [cách vận hành](docs/KNOWLEDGE.md). Bản RC12 đóng gói chưa có tính năng này.
+Ứng dụng Windows chuyển tài liệu của giáo viên thành bài giảng Anh–Việt, rồi trình chiếu bằng PowerPoint với giọng đọc và mascot trợ giảng. Hỗ trợ cấu hình từ lớp 1 đến lớp 12 và môn tự nhập.
 
-Mã nguồn ngày 09/10/2026 có **bốn Kiểu chuyển đổi** thay level và bố cục riêng: Hai cột song ngữ, Song ngữ từng câu, Tích hợp từ khóa, Tiếng Anh 100%. Luồng chính dùng web ChatGPT qua Chrome: tài liệu → một phương pháp → chuyển đổi → xem → dùng để dạy với voice/mascot. Xem [quy trình và kế hoạch thu gọn](docs/FOUR_FORMAT_WORKFLOW.md). Bản đóng gói RC12 chưa có thay đổi này.
+## Cài để dùng trên máy khác
 
-Browser AI dùng **Google Chrome với hồ sơ riêng cho từng tài khoản**, tự lưu phiên, ưu tiên Plus còn dùng được rồi Free trước khi gửi bài. Ngày 04/10/2026 đã đăng nhập và nhận một PowerPoint thật 12 slide, chuẩn bị giọng Việt–Anh và mở trình chiếu cùng mascot. Chưa chứng nhận chất lượng mọi bài, mọi tài khoản hoặc máy khác; số dư hạn mức chưa có dữ liệu tin cậy. Yêu cầu đã gửi giữ tài khoản/cuộc trò chuyện, không tự gửi trùng. Đã gỡ kết nối OAuth/Responses và dịch/OCR offline khỏi sản phẩm chính. Bộ đọc bài đã lưu vẫn giữ; yêu cầu OAuth đang dở không tự gửi lại. Xem [trạng thái kiểm tra](docs/STATE.md).
+Tải **BiliClass-RC13-Windows.zip** tại [Release RC13](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc13), giải nén toàn bộ rồi chạy **Setup.cmd**. Không tải “Source code” nếu chỉ muốn cài và dùng. Không cần Python hoặc API key.
 
-Ứng dụng Windows chuẩn bị và dạy **song ngữ Anh–Việt đa môn THPT**. Bản thử hiện tại: **1.0 RC12**, cập nhật 02/10/2026.
+Máy cần Windows 10/11 64-bit, Google Chrome để đăng nhập ChatGPT và Microsoft PowerPoint bản desktop để trình chiếu/giữ hiệu ứng. Kết nối Internet cần khi đăng nhập và chuyển đổi; giọng đọc Kokoro English/VieNeu Việt và các mẫu đã nằm trong gói. Việc tạo tệp/hạn mức phụ thuộc tài khoản ChatGPT Free/Plus của người dùng.
 
-## Dùng thử
+Sau khi cài, mở BiliClass từ Start menu → **Cài đặt → Browser AI → Thêm tài khoản** và tự đăng nhập ChatGPT trên máy đó. Phiên đăng nhập và bài học riêng không được chuyển qua GitHub. Muốn dùng portable, chạy `BiliClass/BiliClass.exe` và giữ nguyên toàn bộ thư mục `_internal`, `models`, `licenses`.
 
-Tải [BiliClass RC12](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc12) hoặc chọn bản phát hành mới nhất trong [GitHub Releases](https://github.com/whitelotus-web/BiliClass/releases), giải nén toàn bộ rồi chạy `Setup.cmd` để cài lần đầu. Bản portable cũng có thể chạy `BiliClass/BiliClass.exe`; giữ nguyên cả thư mục, gồm `_internal` và `models`. Gói thử kèm model dịch, năm giọng English Kokoro và bốn giọng Việt VieNeu offline. Không cần Python. Sau khi cài, app tự kiểm tra GitHub khi mở và có nút **Kiểm tra cập nhật**; khi có bản mới, bấm **Cập nhật**, chờ app tự đóng/mở lại. Thư viện bài học nằm riêng và được giữ lại.
+App tự kiểm tra bản mới khi mở. Khi có phiên bản mới, chọn **Cập nhật**; app tải/xác minh gói rồi cài và mở lại. Dữ liệu nằm riêng tại `%LOCALAPPDATA%/BiliClass` nên được giữ qua cập nhật. Không cần tự tải và cài lại mỗi lần.
 
-App dùng thư viện của người dùng trong `%LOCALAPPDATA%/BiliClass`, không tự chèn bài mẫu. `BILICLASS_DATA` đổi thư mục dữ liệu. Các kiểm thử dùng thư viện tạm riêng.
+## Chuyển đổi và dạy
 
-[Hướng dẫn sử dụng](docs/USER_GUIDE.md) · [Trạng thái và giới hạn](docs/STATE.md) · [Kết quả kiểm tra](docs/APP_RESULTS.md) · [Phiếu nghiệm thu tại lớp](docs/FIELD_ACCEPTANCE.md).
+1. Kéo thả/chọn PPTX, DOCX, PDF, TXT, PNG/JPG hoặc dán nội dung.
+2. Điền tên bài, môn, cấp/khối lớp và ghi chú thêm nếu cần.
+3. Chọn một kiểu: **Hai cột song ngữ**, **Song ngữ từng câu**, **Tích hợp từ khóa**, **Tiếng Anh 100%**.
+4. Với PPTX, chọn giữ thiết kế PowerPoint đầu vào hoặc mẫu mới. Tài liệu khác dùng mẫu mới. Ba mẫu **Chuẩn lớp học**, **Trực quan**, **Luyện tập & tương tác** có ảnh xem trước rõ.
+5. Bấm **Chuyển đổi bài giảng**. BiliClass gửi bản sao nguồn và prompt qua Chrome, nhận PPTX, chuẩn bị giọng Việt–Anh. Chỉ cần can thiệp khi web yêu cầu đăng nhập/xác minh, hết lượt hoặc kết quả cần kiểm tra.
+6. Xem lại rồi bấm **Dùng để dạy**. PowerPoint trình chiếu toàn màn hình; mascot nổi có thể kéo, nhấp để mở đọc Anh/Việt và điều khiển slide. Quiz nhận từ ChatGPT là bản nháp cần duyệt riêng.
 
-## Chức năng
+Mẫu gửi ChatGPT chỉ chứa bố cục trống, không chứa kiến thức bài minh họa. Prompt tách quy tắc môn/độ tuổi khỏi kiểu ngôn ngữ, giữ hình/công thức và số lượng/thứ tự slide khi chọn PowerPoint gốc. Nội dung, bản dịch và hiệu ứng vẫn cần giáo viên đối chiếu trước khi dạy.
 
-- Nhập PPTX/DOCX/PDF/TXT/PNG/JPG hoặc dán nội dung, gửi bản sao nguồn và prompt cấu hình qua tài khoản ChatGPT web đã đăng nhập.
-- Dữ liệu trợ giảng gom thuật ngữ thầy cô đã duyệt và kiến thức có nguồn trong một mục tra cứu. Không cần thiết lập kho dữ liệu để chuyển đổi; nội dung riêng vẫn được sao lưu.
-- Bài mới chọn một trong bốn kiểu chuyển đổi. Prompt giữ số lượng/thứ tự slide PPTX, hình/công thức/hoạt ảnh tối đa; trường hợp chưa xử lý được phải báo rõ. Tài liệu khác dựng theo mẫu. Khi nhận, tool cảnh báo số slide khác nguồn; chưa tự chứng nhận bản dịch/hiệu ứng đúng.
-- Bài cũ theo level vẫn đọc được. Năm giọng Kokoro English và bốn giọng VieNeu Việt chạy offline/cache WAV; PowerPoint toàn màn hình kết hợp Milo/Lumi trong suốt, đọc theo slide thực tế. Chế độ Tiếng Anh 100% giữ lời đọc Việt ở ghi chú riêng.
-- Cài đặt Chung, Giọng đọc, Mascot và Browser AI giữ cấu trúc hiện tại. Song ngữ hướng dẫn bốn phương pháp. Câu hỏi ChatGPT trong ghi chú được nhận thành bản nháp liên kết slide, cần duyệt riêng.
-- QR/LAN, học sinh trả lời trên trình duyệt, ba loại câu hỏi, gửi lại/đổi đáp án/kết nối lại; kết quả chỉ công bố khi giáo viên chọn.
-- Báo cáo có mẫu số, recheck, gợi ý cách trình bày có điều kiện, CSV; Lesson Pack kèm audio, deck song ngữ mới, sao lưu/khôi phục.
+## Mã nguồn và cập nhật GitHub
 
-RC12 đã qua smoke test, kiểm thử updater và tự kiểm tra đóng gói trên máy phát triển; chưa được nghiệm thu trên Windows sạch, laptop 8 GB, điện thoại/máy chiếu và mạng trường thực tế. Model dịch và cảm nhận chất lượng giọng cần giáo viên kiểm tra. Phạm vi còn lại được ghi rõ trong [backlog](docs/TASKS.md).
+**Vẫn sửa code bình thường.** GitHub lưu và đồng bộ các phiên bản; không thay thế môi trường chạy trên máy. Người cùng phát triển clone hoặc tải mã nguồn, cài môi trường một lần, sửa → kiểm tra → commit/push. Trước khi làm tiếp ở máy khác, chạy `git pull --ff-only`; nếu hai người sửa cùng chỗ, cần xử lý xung đột.
 
-RC12 thêm kiểm tra phiên bản, tải gói có checksum, cài phiên bản mới cạnh phiên bản cũ và giữ thư viện bài học; tiếp tục tách nhiều ý trên một slide PowerPoint thành các đoạn để duyệt, xuất cặp Việt–Anh cùng trang, giữ ảnh thường từ slide gốc, cho chọn kiểu bài và yêu cầu **Chốt bản chuẩn bị** trước khi mở lớp mới. Biểu đồ, video và hiệu ứng PowerPoint vẫn cần đối chiếu hoặc trình chiếu bản gốc.
+Gói cài Windows là tài sản riêng trong Releases. Không cần tạo lại `.exe` sau mỗi lần sửa để thử trên máy phát triển: đóng cửa sổ nguồn rồi chạy lại `scripts/run.ps1`. Chỉ đóng gói khi có mốc đã kiểm tra để người dùng bản cài cập nhật.
 
-Để hai giáo viên thử trên hai máy, xem [quy trình chia sẻ bản thử](docs/TEACHER_TESTING.md). Kho Git công khai chứa mã và tài liệu; dữ liệu bài học, báo cáo học sinh, model và bản `.exe` không nằm trong lịch sử Git. Tải bản cài tại [Release RC12](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc12) hoặc xem [toàn bộ Releases](https://github.com/whitelotus-web/BiliClass/releases).
-
-## Phát triển
-
-Để thử thay đổi nhanh, đóng BiliClass đang mở rồi chạy mã nguồn bằng `powershell -ExecutionPolicy Bypass -File scripts/run.ps1 --page settings` trong thư mục dự án. Cửa sổ có nhãn **Bản phát triển từ mã nguồn**; sau mỗi lần sửa Python/QML, đóng cửa sổ này và chạy lại lệnh. Không cần đóng gói `.exe` ở mỗi lượt. Bản `dist/rc12` giữ nguyên cho đến lần đóng gói phát hành tiếp theo; không mở đồng thời hai bản vì chúng dùng chung thư viện cá nhân.
-
-Mascot nổi có thể kéo đến vị trí bất kỳ trên màn hình, kể cả sang màn hình khác. Thả chuột để lưu vị trí; nhấp nhanh để mở/thu các nút. Trong bảng nút, **Về góc** đặt lại theo góc đã chọn ở Cài đặt → Mascot. Khi đổi góc mặc định rồi lưu, vị trí kéo cũ cũng được xóa.
+Cài Python 3.12 64-bit và [uv](https://docs.astral.sh/uv/getting-started/installation/) rồi chạy trong thư mục mã nguồn:
 
 ```powershell
 uv venv --python 3.12 .venv
 uv pip install --python .venv/Scripts/python.exe -r requirements-lock.txt
 uv pip install --python .venv/Scripts/python.exe -e . --no-deps
 .\.venv\Scripts\python.exe scripts/download_kokoro.py
-.\.venv\Scripts\python.exe -m pytest -q
-.\.venv\Scripts\python.exe -m ruff check app biliclass_m0 scripts tests
+.\.venv\Scripts\python.exe scripts/download_vieneu.py
 powershell -ExecutionPolicy Bypass -File scripts/run.ps1
 ```
 
+Model tải một lần cho môi trường nguồn; bộ cài đã có model nên không cần các lệnh trên. File khóa gồm cả các phụ thuộc kiểm chứng cũ; dịch/OCR cũ không đóng trong RC13. Trên ổ dự án chậm, chuẩn bị `scripts/prepare-dev-runtime.ps1` và `scripts/prepare-dev-voices.ps1` một lần; `run.ps1` tự dùng cache hợp lệ.
+
 ```powershell
-.\.venv\Scripts\python.exe scripts/download_vieneu.py
+.\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe -m ruff check app biliclass_m0 scripts tests
 powershell -ExecutionPolicy Bypass -File scripts/build.ps1 -DistRoot (Join-Path $PWD 'dist/rc13')
 .\.venv\Scripts\python.exe -m scripts.package_release (Join-Path $PWD 'dist/rc13')
+powershell -ExecutionPolicy Bypass -File scripts/verify_release.ps1 -DistRoot (Join-Path $PWD 'dist/rc13')
 ```
 
-Dịch/OCR cũ chỉ phục vụ kiểm chứng phát triển với extra `legacy-import`, không đóng kèm trong bộ cài chính. Giọng offline vẫn cần model Kokoro/VieNeu. Chạy `scripts/prepare-dev-runtime.ps1` và `scripts/prepare-dev-voices.ps1` một lần khi phát triển trên ổ dự án chậm; `run.ps1` dùng cache đã chuẩn bị. Giấy phép/thành phần đóng gói: [THIRD_PARTY](docs/THIRD_PARTY.md).
+Gói có `BiliClass/BUILD_INFO.json` ghi version/commit và manifest SHA-256 để đối chiếu bản đang thử. Kho Git chỉ giữ code, kiểm thử, tài liệu và tài nguyên dùng chung. Thư viện giáo viên, báo cáo học sinh, browser profile, model, cache và `.exe` không vào lịch sử Git.
 
-## Hồ sơ
+## Tài liệu và phạm vi kiểm chứng
 
-[Kế hoạch](docs/BUILD_PLAN.md) · [Sản phẩm](docs/PRODUCT_SPEC.md) · [Thiết kế](docs/DESIGN_SPEC.md) · [Kiến trúc](docs/ARCHITECTURE.md) · [Dữ liệu](docs/DATA_SCHEMA.md) · [Quyết định](docs/DECISIONS.md) · [Mascot](docs/MASCOT_ASSETS.md).
+[Hướng dẫn sử dụng](docs/USER_GUIDE.md) · [Thử trên hai máy](docs/TEACHER_TESTING.md) · [Bốn kiểu chuyển đổi](docs/FOUR_FORMAT_WORKFLOW.md) · [Thư viện mẫu](docs/TEMPLATE_LIBRARY.md) · [Trạng thái kỹ thuật](docs/STATE.md) · [Thành phần bên thứ ba](docs/THIRD_PARTY.md).
+
+Bản thử đã kiểm tra trên máy phát triển với Microsoft PowerPoint và Chrome. Cần thử thêm Windows sạch, máy ít RAM, máy chiếu/mạng lớp và chất lượng nhiều môn. Kiểm thử kỹ thuật không tự chứng nhận mọi bài giảng hoặc mọi tài khoản ChatGPT.

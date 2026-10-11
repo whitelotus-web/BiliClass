@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.0rc13 — 11/10/2026 — bản thử cho luồng Browser AI
+
+- Chuyển tài liệu qua ChatGPT web/Chrome, nhận PPTX và chuẩn bị giọng đọc; profile riêng từng tài khoản, không cần API key.
+- Bốn kiểu chuyển đổi thay level/bố cục riêng; kéo thả/chọn tài liệu, môn/cấp/khối, ghi chú thêm và xem prompt.
+- Giữ PowerPoint đầu vào hoặc ba mẫu mới; 24 ảnh xem trước, mẫu gửi AI không chứa nội dung bài minh họa; prompt điều chỉnh theo môn và lớp 1–12.
+- PowerPoint toàn màn hình theo đúng slide, đọc Anh/Việt offline và mascot trong suốt có thể kéo.
+- Thu gọn runtime, bỏ dịch/OCR/OAuth cũ khỏi bộ cài chính. Giữ hai bộ giọng Kokoro/VieNeu, cập nhật GitHub và dữ liệu cá nhân riêng.
+- Bộ cài ghi version/commit và SHA-256; script kiểm tra cài/gỡ bằng dữ liệu riêng, templates/previews, hai giọng thật và tiến trình lớp học, không dựa vào cache phát triển.
+- Hướng dẫn tải bộ cài, đăng nhập trên máy khác, thử và sửa code qua GitHub. Chưa chứng nhận mọi máy Windows/môn học hoặc tài khoản ChatGPT.
+
 ## Mã nguồn đang phát triển — 03/10/2026
 
 - Đánh giá VI/EN/song ngữ/trộn/chưa rõ và hướng dịch từng đoạn; chọn giữ PPTX hoặc tạo bài theo mẫu. Gợi ý không tự duyệt cặp dịch.

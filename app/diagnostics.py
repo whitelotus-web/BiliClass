@@ -51,6 +51,18 @@ def run(output):
                     assert request["config"]["conversion_format"] == method["id"]
                 assert inspect_returned_deck(directory / "Bài.pptx")["total"] == 1
                 report["checks"].append("four browser conversion prompts and native returned PPTX inspection; no AI network requests")
+                from .template_rules import reference_asset
+
+                for preset in ("standard", "visual", "practice"):
+                    for method in FORMATS:
+                        assert reference_asset(preset, conversion_format=method["id"]).is_file()
+                        template_request = prepare_request(library.directory, {"title": "Bài thử",
+                            "subject": "Liên môn", "education_level": "Tiểu học", "grade": "3",
+                            "conversion_format": method["id"], "style": "template", "preset": preset,
+                            "provider": "browser_web"}, directory / "Bài.pptx")
+                        template = Path(template_request["folder"]) / "mau-biliclass.pptx"
+                        assert len(Presentation(template).slides) == 4
+                report["checks"].append("three bundled editable templates and twelve layout previews; all four methods")
                 pack = export_pack(library, lesson["id"], directory / "Bài.biliclass")
                 copied = import_pack(library, pack)
                 assert copied["segments"][0]["en"] == en and not copied["segments"][0]["approved"]
@@ -59,6 +71,9 @@ def run(output):
                 assert restored["segments"][0]["en"] == ""
                 report["checks"].append("SQLite, history and draft pack roundtrip")
                 voices = list_voices()
+                if getattr(sys, "frozen", False):
+                    assert sum(v.get("provider") == "kokoro" for v in voices) == 5, "Missing bundled English voices"
+                    assert sum(v.get("provider") == "vieneu" for v in voices) == 4, "Missing bundled Vietnamese voices"
                 report["voices"] = [{"name": v["name"], "language": v["language"]} for v in voices]
                 english = next((v for v in voices if v["language"] == "en"), None)
                 if english:

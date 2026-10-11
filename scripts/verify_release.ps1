@@ -1,32 +1,61 @@
+param([Parameter(Mandatory=$true)][string]$DistRoot)
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-$installRoot = [IO.Path]::GetFullPath((Join-Path $projectRoot '.runtime\install-validation'))
-$dataRoot = [IO.Path]::GetFullPath((Join-Path $projectRoot '.runtime\release-validation-data'))
+$distPath = [IO.Path]::GetFullPath($DistRoot)
+if (-not $distPath.StartsWith(([IO.Path]::GetFullPath($projectRoot).TrimEnd('\') + '\'), [StringComparison]::OrdinalIgnoreCase)) { throw 'Release must stay inside the project.' }
+$manifest = Get-Content -LiteralPath (Join-Path $distPath 'app-manifest.json') -Raw | ConvertFrom-Json
+if ($manifest.product -ne 'BiliClass' -or $manifest.version -notmatch '^\d+\.\d+\.\d+(?:rc\d+)?$') { throw 'Invalid release manifest.' }
+$runId = $manifest.version + '-' + [Guid]::NewGuid().ToString('N').Substring(0,8)
+$installRoot = [IO.Path]::GetFullPath((Join-Path $projectRoot ('.runtime\install-validation-' + $runId)))
+$dataRoot = [IO.Path]::GetFullPath((Join-Path $projectRoot ('.runtime\release-data-' + $runId)))
 $runtimeRoot = [IO.Path]::GetFullPath((Join-Path $projectRoot '.runtime')) + '\'
-if (-not $installRoot.StartsWith($runtimeRoot, [StringComparison]::OrdinalIgnoreCase)) { throw 'Test install path escaped workspace.' }
-if (Test-Path -LiteralPath $installRoot) { throw 'Validation directory already exists; inspect it before another run.' }
-$previousData = $env:BILICLASS_DATA
-$previousModels = $env:BILICLASS_MODEL_DIR
+if (-not $installRoot.StartsWith($runtimeRoot, [StringComparison]::OrdinalIgnoreCase) -or -not $dataRoot.StartsWith($runtimeRoot, [StringComparison]::OrdinalIgnoreCase)) { throw 'Test paths escaped workspace.' }
+$reportRoot = Join-Path $projectRoot ('reports\release\' + $runId)
+New-Item -ItemType Directory -Path $reportRoot -Force | Out-Null
+$savedEnvironment = @{}
+foreach ($name in @('BILICLASS_DATA','BILICLASS_MODEL_DIR','BILICLASS_KOKORO_DIR','BILICLASS_VIENEU_DIR','PYTHONPATH','PYTHONHOME')) {
+    $savedEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
+    [Environment]::SetEnvironmentVariable($name, $null, 'Process')
+}
+function Invoke-InstalledCheck([string[]]$Arguments, [int]$TimeoutSeconds = 300) {
+    $probe = Start-Process -FilePath $executable -ArgumentList $Arguments -WorkingDirectory $versionPath -WindowStyle Hidden -PassThru
+    if (-not $probe.WaitForExit($TimeoutSeconds * 1000)) {
+        Stop-Process -Id $probe.Id -Force
+        throw ('Installed check timed out: ' + ($Arguments -join ' '))
+    }
+    $probe.Refresh()
+    if ($probe.ExitCode -ne 0) { throw ('Installed check failed: ' + ($Arguments -join ' ')) }
+}
 try {
-    & (Join-Path $projectRoot 'dist\Install-BiliClass.ps1') -InstallRoot $installRoot -NoShortcuts
+    Write-Output ('Verifying ' + $manifest.version + ': installing into an isolated Unicode path...')
+    & (Join-Path $distPath 'Install-BiliClass.ps1') -InstallRoot $installRoot -NoShortcuts
     $env:BILICLASS_DATA = $dataRoot
-    $env:BILICLASS_MODEL_DIR = ''
-    $executable = Join-Path $installRoot '1.0.0rc1\BiliClass.exe'
-    $shot = Join-Path $projectRoot 'reports\app\installed-no-model.png'
-    $probe = Start-Process -FilePath $executable -ArgumentList @('--smoke','--page','settings','--size','1366x768','--screenshot',('"' + $shot + '"')) -WindowStyle Hidden -Wait -PassThru
-    if ($probe.ExitCode -ne 0) { throw 'Installed app failed without optional model packs.' }
-    & (Join-Path $projectRoot '.venv\Scripts\python.exe') -m scripts.verify_model_packs
-    if ($LASTEXITCODE -ne 0) { throw 'Optional model installation failed.' }
-    $report = Join-Path $projectRoot 'reports\app\installed-v1-pipeline.json'
-    $probe = Start-Process -FilePath $executable -ArgumentList @('--self-test',('"' + $report + '"')) -WindowStyle Hidden -Wait -PassThru
-    if ($probe.ExitCode -ne 0) { throw 'Installed pipeline failed.' }
+    $versionPath = Join-Path $installRoot $manifest.version
+    $executable = Join-Path $versionPath 'BiliClass.exe'
+    foreach ($page in @('new','browser-ai')) {
+        $shot = Join-Path $reportRoot ($page + '.png')
+        Invoke-InstalledCheck -Arguments @('--smoke','--page',$page,'--size','1366x850','--screenshot',('"' + $shot + '"'))
+        if (-not (Test-Path -LiteralPath $shot)) { throw ('Missing screenshot: ' + $page) }
+        Write-Output ('Passed installed Qt page: ' + $page)
+    }
+    $report = Join-Path $reportRoot 'pipeline.json'
+    Invoke-InstalledCheck -Arguments @('--self-test',('"' + $report + '"')) -TimeoutSeconds 900
+    $pipeline = Get-Content -LiteralPath $report -Raw | ConvertFrom-Json
+    if ($pipeline.status -ne 'passed' -or $pipeline.tts.provider -ne 'kokoro' -or $pipeline.tts_vi.provider -ne 'vieneu') { throw ('Incomplete installed pipeline: ' + $report) }
+    Write-Output 'Passed bundled templates, both offline voice engines, classroom process and lesson backup.'
     $marker = Get-Content -LiteralPath (Join-Path $installRoot '.biliclass-install.json') -Raw | ConvertFrom-Json
-    if ($marker.root -ne $installRoot -or $marker.product -ne 'BiliClass') { throw 'Installation marker failed validation.' }
-    # Explicit workspace target and its product marker checked before recursive uninstall.
-    & (Join-Path $projectRoot 'dist\Install-BiliClass.ps1') -InstallRoot $installRoot -NoShortcuts -Uninstall
+    if ($marker.root -ne $installRoot -or $marker.product -ne 'BiliClass' -or $marker.version -ne $manifest.version) { throw 'Installation marker failed validation.' }
+    $buildInfo = Get-Content -LiteralPath (Join-Path $versionPath 'BUILD_INFO.json') -Raw | ConvertFrom-Json
+    # Only remove this isolated installation after its absolute workspace path and marker were checked.
+    & (Join-Path $distPath 'Install-BiliClass.ps1') -InstallRoot $installRoot -NoShortcuts -Uninstall
     if ((Test-Path -LiteralPath $installRoot) -or -not (Test-Path -LiteralPath (Join-Path $dataRoot 'library.db'))) { throw 'Uninstall did not preserve the separate test library.' }
-    @{status='passed';checks=@('manifest verified install in Unicode workspace','native settings without optional models','both real model packs installed offline','installed executable full pipeline','uninstall preserves separate lesson library');scope='current Windows machine, isolated install and library, no shortcuts'} | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $projectRoot 'reports\app\installer.json') -Encoding UTF8
+    @{status='passed';version=$manifest.version;source_commit=$buildInfo.source_commit;
+      checks=@('manifest verified install in Unicode workspace','installed Qt conversion and Browser AI pages',
+               'all templates/previews and both bundled voice engines without development cache',
+               'spawned classroom process and library backup','uninstall preserves separate lesson library');
+      scope='current Windows machine; isolated install/data; no shortcuts; not a clean-Windows certification'} |
+      ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $reportRoot 'installer.json') -Encoding UTF8
+    Write-Output ('Release verification passed: ' + $reportRoot)
 } finally {
-    $env:BILICLASS_DATA = $previousData
-    $env:BILICLASS_MODEL_DIR = $previousModels
+    foreach ($name in $savedEnvironment.Keys) { [Environment]::SetEnvironmentVariable($name, $savedEnvironment[$name], 'Process') }
 }
