@@ -15,7 +15,7 @@ MAX_TEACHER_NOTES = 6000
 METHODS = {
     "parallel_columns": """Giữ nguyên 100% câu chữ tiếng Việt; dịch đầy đủ từng câu/ý sang tiếng Anh tương ứng 1:1.
 Việt bên trái – Anh bên phải trên chính slide đó, căn tương ứng tiêu đề, định nghĩa, câu hỏi, lời giải và kết luận.
-Không dồn Việt lên trên/Anh xuống dưới; không tạo slide English riêng. Hình/công thức có thể ở giữa hai vùng.
+Không dồn Việt lên trên/Anh xuống dưới ở slide có nội dung; ngoại lệ slide tiêu đề độc lập theo quy tắc chung. Không tạo slide English riêng. Hình/công thức có thể ở giữa hai vùng.
 Với bảng, đối chiếu từng hàng/ô. Chữ Việt giữ màu gốc, English có thể dùng xanh đậm; hai cột có phân cấp cân đối.""",
     "sentence_pairs": """Giữ nguyên 100% câu chữ tiếng Việt; mỗi câu/ý có bản dịch tiếng Anh đầy đủ 1:1 ngay bên dưới.
 Việt trên – Anh dưới theo từng cặp, kể cả tiêu đề, chú thích, câu hỏi và từng bước giải; không gộp nhiều câu.
@@ -30,7 +30,7 @@ Kèm bảng thuật ngữ đã sử dụng trong báo cáo chat, không thêm sl
     "english_only": """Dịch đầy đủ 100% chữ tiếng Việt hiển thị trên slide sang English tại chính vị trí cũ: tiêu đề, định nghĩa,
 câu hỏi, chú thích, bảng, nhãn biểu đồ, bài tập, đáp án, lời giải, hướng dẫn và kết luận. Không tóm tắt/bỏ ý.
 Không giữ chữ Việt hiển thị, trừ tên riêng/nội dung có lý do chuyên môn được nêu rõ. Không có vùng VI Rescue trên slide.
-Sửa văn bản trong đối tượng gốc, giữ định dạng/hoạt ảnh. Chỉ điều chỉnh nhẹ hộp chữ, giãn dòng/cỡ chữ nếu cần.
+Sửa văn bản trong đối tượng gốc, giữ định dạng/hoạt ảnh; điều chỉnh hộp chữ, hình, giãn dòng/cỡ chữ khi cần để dễ đọc và không che nhau.
 Chữ Việt trong ảnh: chỉ xử lý lớp chữ khi bảo toàn hình và dữ kiện; nếu không làm được phải ghi slide/chữ còn lại
 trong CHECK và báo cáo, không tuyên bố đã đạt 100% tiếng Anh. Không vẽ lại hoặc thay hình.
 Ghi chú trợ lý vẫn có cặp VI:/EN:; tiếng Việt này chỉ là dữ liệu lời đọc riêng, không xuất hiện trên slide.""",
@@ -69,6 +69,27 @@ def conversion_prompt(config, source_name, preset):
         f"DỰNG SLIDE THEO MẪU BILICLASS «{preset['label']}»\n" + design_guidance(config["preset"])
     )
     notes = config.get("teacher_notes", "").strip()
+    layout_rules = """TỐI ƯU HÌNH THỨC, GIỮ NGUYÊN NỘI DUNG
+- Ngoại lệ cho slide CHỈ có tiêu đề chương/phần/tên bài: ba kiểu song ngữ đều dùng Việt trên – English ngay dưới, thành nhóm căn giữa; không ép chia hai cột, không thêm diễn giải. English 100% chỉ có tiêu đề Anh.
+- Phân loại từng slide: tiêu đề, lý thuyết, hình/đồ thị, công thức, ví dụ/bài tập, câu hỏi, lời giải/kết luận; bố cục theo nội dung, không ép mọi slide giống nhau.
+- Hình/đồ thị/công thức: giữ nội dung, nhãn, trục, số liệu, tỷ lệ; được di chuyển/đổi kích thước giữ tỷ lệ, không cắt ký hiệu, vẽ lại hình hoặc che chữ/hình khoa học.
+- Phân biệt nền có kiến thức với trang trí: dùng vùng trống, giảm/dời trang trí phụ, thêm nền sáng/mờ SAU chữ nếu cần; không phủ lên hình có kiến thức. Giữ PowerPoint gốc không được thay cả background; mẫu mới được dùng nền tối giản theo mẫu.
+- Được đổi font Unicode (Arial/Aptos), cỡ chữ trong ngưỡng dễ đọc, giãn dòng, hộp chữ, căn lề; công thức giữ font/ký hiệu phù hợp như Cambria Math. Không sửa câu chữ/ý nghĩa để vừa khung.
+- Slide chật: giảm trang trí → dùng vùng trống → dàn lại hình → hộp chữ/giãn dòng → font trong ngưỡng dễ đọc → kiểm tra lại. Không bỏ/tóm tắt kiến thức, rút bản dịch 1:1, giảm chữ quá nhỏ hoặc tăng số slide ở chế độ giữ nguồn.
+- Chừa lề an toàn cho nội dung; kiểm tra tương phản ngay vùng nền dưới chữ. Chữ trong ảnh/nhóm/bảng/biểu đồ/đối tượng xuất hiện theo hiệu ứng phải được đối chiếu; chưa nhận diện được ghi CHECK, không đoán.
+- Render từng slide để kiểm tra chữ tràn/chồng, hình che chữ, công thức, font/ký tự rác; sửa và render lại khi có công cụ. Chỉ mở được PPTX không đủ để báo PASS. Không có công cụ thì ghi CHECK/chưa kiểm chứng, không báo đã render.
+- Báo PASS/CHECK/FAIL theo slide với phạm vi đã kiểm; ghi rõ hiệu ứng/audio/video/click order/trigger nào chưa bảo toàn. Không dùng PASS cho slide chỉ có tiêu đề Anh mà thân bài còn thiếu bản dịch.
+"""
+    speech_rules = """DỮ LIỆU ĐỌC ENGLISH THEO ĐỐI TƯỢNG SLIDE
+- Lời đọc phải lấy từ tiếng Anh THỰC SỰ hiển thị: tiêu đề → nội dung → chú thích → câu hỏi → A/B/C/D. Không thêm lời giảng ngoài slide. KEYWORDS chỉ đọc cụm English đã tích hợp; EN_ONLY đọc toàn bộ English trên slide.
+- Giữ ID native của shape và hiệu ứng; đặt tên text English là BCL_EN nếu toàn shape là English và đánh dấu language en-US/en-GB cho các run English; run Việt là vi-VN. Không đổi chữ chỉ để gắn nhãn.
+- Trong BILICLASS_NOTES, sau VI:/EN:/CHECK:/QUIZ:, thêm MỘT dòng SPEECH: JSON, schema dưới đây. paragraph là chỉ số đoạn bắt đầu 0; cell là [hàng,cột] bắt đầu 0 cho bảng, bỏ cell với text shape.
+SPEECH: {"version":1,"segments":[{"shape_id":17,"paragraph":0,"text":"English đúng nguyên văn trong đối tượng","kind":"body","order":0}]}
+- Khai báo đủ từng vùng English, loại title/body/caption/question/option/keyword và thứ tự đọc. Đây là dữ liệu, không phải chữ xuất hiện trên slide. Không đoán shape ID, text hoặc trạng thái hiển thị.
+- Không đọc/ghi vào EN: các nhãn BILICLASS_NOTES/CHECK/QUIZ, JSON, URL kỹ thuật, mã rác. Đáp án ẩn theo animation không được lộ trước khi xuất hiện; không thêm dấu tick nếu nguồn chưa có.
+- Chữ English trong ảnh chưa trích xuất chắc: CHECK + needs_review, không dùng lời đọc giả. Ưu tiên thêm lớp text bản dịch có vị trí/ID thật nếu giữ đúng hình; không coi ảnh được kiểm chỉ vì Notes có EN.
+- EN: phải đối chiếu đủ với các vùng English trên slide, không chỉ tiêu đề. Không cắt bớt lời đọc theo giới hạn ký tự; BiliClass chia âm thanh thành đoạn. Công thức chưa có cách đọc chắc phải CHECK, không tự đoán.
+"""
     teacher_guidance = ("\nLƯU Ý BỔ SUNG CỦA GIÁO VIÊN\n"
         "Các lưu ý sau hướng dẫn cách chuyển đổi và giảng dạy; không tự chép chúng lên slide.\n"
         "Áp dụng cùng kiểu chuyển đổi và thiết kế đã chọn; nếu có mâu thuẫn, ghi rõ trong CHECK.\n"
@@ -90,6 +111,8 @@ PHƯƠNG PHÁP ĐÃ CHỌN
 
 {audience_guidance(config)}
 {subject_guidance(config['subject'])}
+{layout_rules}
+{speech_rules}
 
 BẢO TOÀN NỘI DUNG VÀ KIỂM TRA
 - Không tự viết lại kiến thức, tóm tắt, thêm đáp án hoặc bỏ tiêu đề, định nghĩa, hoạt động, bài tập, lời giải/kết luận.
@@ -109,7 +132,7 @@ LỜI ĐỌC CHO VOICE VÀ MASCOT
 - VI: [lời đọc tiếng Việt bám nội dung slide]; EN: [lời đọc English tương ứng], mỗi nhãn bắt đầu một dòng.
 - Hai cột/từng câu: lời đọc đủ các ý tương ứng. Tích hợp từ khóa: VI đọc ý chính, EN chỉ đọc thuật ngữ/cụm ngắn đã tích hợp.
 - Tiếng Anh 100%: EN đọc nội dung English, VI giải thích tương ứng lưu riêng trong notes; tuyệt đối không thêm chữ Việt lên slide.
-- Tối đa 3.000 ký tự/ngôn ngữ/slide. Đọc số/công thức tự nhiên và đúng; không đọc mã, nhãn cấu hình hoặc cảnh báo.
+- Lời đọc đủ nội dung đã xác minh; số/công thức cần cách đọc đúng theo ngữ cảnh, chưa chắc phải CHECK. Không đọc mã, nhãn cấu hình hoặc cảnh báo.
 - CHECK: [hạn chế/cần giáo viên kiểm tra], ở dòng riêng sau lời đọc; không trộn vào VI:/EN:.
 
 CÂU HỎI HIỂU BÀI CHO TRỢ LÝ (KHÔNG THÊM SLIDE)

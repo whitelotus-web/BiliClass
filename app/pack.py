@@ -222,6 +222,10 @@ def import_pack(library, path):
     from .library import now
 
     lesson.update(id=str(uuid4()), revision=1, updated_at=now())
+    # Derived speech cannot be trusted merely because an imported JSON claims
+    # the source hash. Rebuild it from the actual PPTX on first use.
+    lesson.pop("slide_speech", None)
+    lesson.pop("slide_quality", None)
     if lesson.get("external_deck"):
         from .chatgpt_handoff import text_signature
 

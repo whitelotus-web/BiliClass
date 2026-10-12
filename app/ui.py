@@ -97,6 +97,12 @@ class Bridge(QObject):
         self._speech_timer = QTimer(self)
         self._speech_timer.setSingleShot(True)
         self._speech_timer.timeout.connect(self.stopSpeech)
+        from .english_reader import EnglishReader
+
+        self.english_reader = EnglishReader(library.directory / "audio", self)
+        self.english_reader.changed.connect(self.changed)
+        self.english_reader.speakingChanged.connect(self._english_speaking)
+        self.english_reader.failed.connect(lambda message: self.inform(message, True))
         self._message = ""
         self._error = False
         self._logo_revision = 0
@@ -147,6 +153,7 @@ class Bridge(QObject):
         self._powerpoint_source_map = []
         self._powerpoint_segment_map = []
         self._powerpoint_state = {"active": False, "slide": 0, "total": 0, "message": ""}
+        self._session_speech = {}
         self._readiness = {"checks": [], "text_ready": False, "total": 0, "approved": 0}
         self.teaching = TeachingBridge(self)
         self.classroom = ClassroomBridge(self)
@@ -254,6 +261,7 @@ class Bridge(QObject):
             return
         try:
             config = validate_config(creation_config(title, subject, education, grade, conversion_format, preset, style, teacher_notes))
+            config["quality_review_version"] = 1
             if bool(file_url) == bool(text.strip()):
                 raise ValueError("Chọn một nguồn: tài liệu hoặc nội dung dán vào.")
             if file_url:
@@ -408,7 +416,13 @@ class Bridge(QObject):
             config = load_request(folder)["config"]
             source = self.library.store_source(Path(result["path"]))
             inspection = inspect_returned_deck(self.library.directory / "sources" / source["file"],
-                                               Path(folder) / config["source_file"] if config.get("conversion_format") else None)
+                                               Path(folder) / config["source_file"] if config.get("conversion_format") else None,
+                                               config.get("conversion_format", ""), config.get("style", "source"))
+            from .slide_quality import quality_messages, render_quality
+
+            render_quality(self.library.directory / "sources" / source["file"], self.library.directory,
+                           inspection["slide_quality"], self.cancel_event, self._browser_ai.progress.emit)
+            inspection["review_notes"] = list(dict.fromkeys(inspection["review_notes"] + quality_messages(inspection["slide_quality"])))
             narration = prepare_narration(inspection, voices, self.library.directory / "audio", self.cancel_event,
                                           self._browser_ai.progress.emit) if audio else {}
             return config, source, inspection, narration, result["account_id"]
@@ -423,7 +437,9 @@ class Bridge(QObject):
             self._browser_state.update(running=False, phase="completed", message="Đã nhận PowerPoint từ ChatGPT.")
             self.openLesson(lesson["id"])
             self._quick_result["audio"] = narration
-            self.inform("Đã nhận bài. Xem trình chiếu rồi xác nhận Dùng để dạy.")
+            failures = lesson.get("slide_quality", {}).get("counts", {}).get("FAIL", 0)
+            self.inform(f"Đã nhận bản nháp; {failures} slide có lỗi cần sửa. Xem báo cáo kiểm tra." if failures
+                        else "Đã nhận bản nháp. Xem ảnh và các điểm CHECK trước khi Dùng để dạy.", bool(failures))
 
         self.launch(work, completed)
 
@@ -472,7 +488,8 @@ class Bridge(QObject):
             source = self.library.store_source(path)  # File I/O; no SQLite in worker.
             stored = self.library.directory / "sources" / source["file"]
             return config, source, inspect_returned_deck(stored, Path(request["folder"]) / config["source_file"]
-                                                        if config.get("conversion_format") else None)
+                                                        if config.get("conversion_format") else None,
+                                                        config.get("conversion_format", ""), config.get("style", "source"))
 
         def received(result):
             config, source, inspection = result
@@ -1122,6 +1139,9 @@ class Bridge(QObject):
 
     @Slot(str)
     def speakSegment(self, language):
+        if language == "en" and self._powerpoint_state.get("active"):
+            self.readSlideEnglish()
+            return
         if self._busy or language not in ("vi", "en") or not self.segment:
             return
         voice = self.voiceSettings[language]
@@ -1164,7 +1184,99 @@ class Bridge(QObject):
         speech.stop()
         self._speaking = False
         self._speech_timer.stop()
+        self.english_reader.stop()
         self.changed.emit()
+
+    def _english_speaking(self, speaking):
+        self._speaking = speaking
+        self.mascotStateChanged.emit()
+        self.changed.emit()
+
+    @Property("QVariantMap", notify=changed)
+    def englishReaderState(self):
+        return self.english_reader.summary()
+
+    @Slot()
+    def readSlideEnglish(self):
+        import time
+
+        from .slide_speech import visible_segments
+
+        if self._busy:
+            return
+        if not self._powerpoint_state.get("active") or not self.powerpoint_worker:
+            self.inform("Mở trình chiếu PowerPoint để đọc đúng slide hiện tại.", True)
+            return
+        self.stopSpeech()
+        path = Path(self.powerpoint_worker.path)
+        if getattr(self, "_presentation_stamp", None) != (path.stat().st_size, path.stat().st_mtime_ns):
+            self.inform("PowerPoint đã thay đổi sau khi mở. Dừng trình chiếu và nhận/kiểm tra lại tệp để cập nhật lời đọc.", True)
+            return
+        source_path = self.library.directory / "sources" / self._lesson.get("source", {}).get("file", "")
+        data = self._lesson.get("slide_speech", {}) if path.resolve() == source_path.resolve() else self._session_speech
+        if not data or (path.resolve() == source_path.resolve() and data.get("sha256") != self._lesson.get("source", {}).get("sha256")):
+            self._refresh_slide_speech(read_after=True)
+            return
+        voice = self.voiceSettings["en"]
+        if not any(v["id"] == voice and v["language"] == "en" for v in self._voices):
+            self.inform("Chọn giọng English en-US/en-GB trong Cài đặt → Giọng đọc.", True)
+            return
+        slide_number = self._powerpoint_state["slide"]
+        slide = next((s for s in data["slides"] if s["slide"] == slide_number), {})
+        elapsed = time.monotonic() - self._powerpoint_state.get("build_started", time.monotonic())
+        segments = visible_segments(slide, self._powerpoint_state.get("click_index"), elapsed)
+        if not segments:
+            self.inform("Slide này chưa có nội dung tiếng Anh để đọc." if not slide.get("englishSpeechSegments")
+                        else "Phần tiếng Anh đang ẩn hoặc cần kiểm tra; chưa có lời đọc được xác minh.", True)
+            return
+        self.english_reader.start([s["english_text"] for s in segments], voice, self.voiceSettings["rate"])
+        if slide.get("issues"):
+            self.inform("Đọc phần tiếng Anh xác định được trên slide. Chữ trong ảnh/ký hiệu/hiệu ứng chưa rõ vẫn cần kiểm tra.")
+
+    def _refresh_slide_speech(self, read_after=False):
+        from .chatgpt_handoff import inspect_returned_deck
+        from .slide_quality import render_quality
+
+        if self._busy or not self._lesson:
+            return
+        lesson_id = self._lesson["id"]
+        slide = self._powerpoint_state.get("slide")
+        path = Path(self.powerpoint_worker.path) if read_after and self.powerpoint_worker else verified_presentation(self._lesson, self.library.directory)
+        mode = self._lesson.get("conversion_format", "")
+
+        def inspect():
+            inspection = inspect_returned_deck(path, conversion_format=mode)
+            if not read_after:
+                render_quality(path, self.library.directory, inspection["slide_quality"], self.cancel_event)
+                from .slide_quality import quality_messages
+
+                inspection["review_notes"] = list(dict.fromkeys(inspection["review_notes"] + quality_messages(inspection["slide_quality"])))
+            return inspection
+
+        def completed(inspection):
+            if self._lesson.get("id") != lesson_id:
+                return
+            if inspection["slide_speech"]["sha256"] == self._lesson.get("source", {}).get("sha256"):
+                self._lesson = self.library.update_slide_inspection(lesson_id, inspection)
+            else:
+                self._session_speech = inspection["slide_speech"]
+            self.changed.emit()
+            if read_after and self._powerpoint_state.get("active") and self._powerpoint_state.get("slide") == slide:
+                self.readSlideEnglish()
+
+        self.launch(inspect, completed)
+
+    @Slot()
+    def inspectSlideQuality(self):
+        self._refresh_slide_speech()
+
+    @Slot()
+    def pauseEnglish(self):
+        self.english_reader.pause()
+
+    @Slot()
+    def resumeEnglish(self):
+        self.english_reader.resume()
 
     @Slot(str)
     def prepareAudio(self, language):
@@ -1240,6 +1352,8 @@ class Bridge(QObject):
     @Slot(int)
     def selectSegment(self, index):
         if 0 <= index < len(self._lesson.get("segments", [])):
+            if index != self._segment_index:
+                self.stopSpeech()
             self.dismissMemoryChoices()
             self._segment_index = index
             self.changed.emit()
@@ -1260,6 +1374,9 @@ class Bridge(QObject):
             self.inform(str(exc), True)
 
     def _start_powerpoint_session(self, path, source_map=None, segment_map=None):
+        self.stopSpeech()
+        self._session_speech = {}
+        self._presentation_stamp = (Path(path).stat().st_size, Path(path).stat().st_mtime_ns)
         initial = slide_for_locator(self.segment.get("locator", "")) or 1
         self._powerpoint_source_map = source_map or []
         self._powerpoint_segment_map = segment_map or []
@@ -1308,7 +1425,8 @@ class Bridge(QObject):
             state = {**state, "source_slide": source_slide}
             previous = self._powerpoint_state
             self._powerpoint_state = state
-            if not state.get("active") or index != previous.get("slide"):
+            if (not state.get("active") or index != previous.get("slide")
+                    or state.get("click_index") != previous.get("click_index")):
                 self.stopSpeech()
             if state.get("active") and (not previous.get("active") or index != previous.get("slide")):
                 self.powerpointSlideChanged.emit(source_slide)
@@ -1322,6 +1440,7 @@ class Bridge(QObject):
 
     @Slot()
     def _powerpoint_finished(self):
+        self.stopSpeech()
         worker = self.powerpoint_worker
         if worker is not None:
             worker.deleteLater()
@@ -1347,6 +1466,7 @@ class Bridge(QObject):
         if not self.powerpoint_worker or not self._powerpoint_state["active"]:
             self.inform("Chưa có trình chiếu PowerPoint đang hoạt động.", True)
             return
+        self.stopSpeech()
         if command == "goto":
             slide = slide_for_locator(self.segment.get("locator", ""))
             if slide is None:
@@ -2014,6 +2134,7 @@ def run(args):
     if bridge.worker:
         bridge.worker.wait()  # closing is disabled while jobs run; also safe on OS shutdown
     bridge.library.close()
+    bridge.english_reader.shutdown()
     speech.stop()
     del engine
     return result

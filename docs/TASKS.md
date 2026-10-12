@@ -1,5 +1,19 @@
 # Backlog và nghiệm thu
 
+## RC14 — Smart Bilingual Slides & Mascot English Reader
+
+Task: `biliclass-smart-slides-mascot-reader`. Phạm vi và giới hạn: [SMART_SLIDES_READER](SMART_SLIDES_READER.md).
+
+- [x] Đối chiếu tài liệu với chuyển đổi, PowerPoint, Notes, voice/mascot hiện có; giữ bốn kiểu và Cài đặt.
+- [x] Prompt tiêu đề độc lập, giữ hình/dữ kiện/công thức, dàn trang/nền/font và dữ liệu SPEECH theo đối tượng.
+- [x] Dữ liệu English native theo slide/shape/bảng/nhóm/AlternateContent; hash và trạng thái needs_review.
+- [x] Kiểm tra/render từng slide, lỗi theo slide, chặn xác nhận FAIL và một lượt sửa browser có dấu chống gửi trùng.
+- [x] Hàng đợi đọc, pause/resume/stop/replay, cancel khi đổi slide/build, giọng English và đồng bộ mascot.
+- [x] Kiểm thử unit, fixture browser, Qt và PowerPoint/WAV thật; hồi quy 65 slide bằng dữ liệu riêng.
+- [ ] Chứng nhận chất lượng lượt sửa ChatGPT với bài 65 slide thật và giáo viên đối chiếu.
+- [ ] OCR/đối chiếu ngữ nghĩa hình/công thức và ánh xạ mọi trigger/tự chạy/paragraph animation.
+- [ ] Xuất PPTX độc lập có audio/nút phát; phần riêng, không giả định nút mascot nằm trong tệp tải về.
+
 Cập nhật 01/10/2026, RC7. Phạm vi: song ngữ Anh–Việt đa môn THPT, khối 10–12. Tách các tiêu chí ghép trong kế hoạch gốc để không đánh dấu phần chưa thử. `[x]` là phần có triển khai/bằng chứng local; `[ ]` giữ các nghiệm thu cần môi trường hoặc dữ liệu thật. Chi tiết kết quả: `APP_RESULTS.md`.
 
 ## P — Tiếp nhận

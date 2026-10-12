@@ -15,7 +15,7 @@ Window {
     flags: Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.NoDropShadowWindowHint | Qt.WindowDoesNotAcceptFocus
     title: "BiliClass · Trợ giảng"
     width: collapsed ? mascotExtent : 344
-    height: collapsed ? mascotExtent : mascotExtent + (hasResponse ? 352 : 246)
+    height: collapsed ? mascotExtent : mascotExtent + (hasResponse ? 415 : 309)
     color: "transparent"
 
     function reposition() {
@@ -53,9 +53,12 @@ Window {
                 ActionButton { text: "Ví dụ"; iconName: "add"; Layout.fillWidth: true; implicitHeight: 32; onClicked: bridge.teachingContext.ask("example", "en") }
                 ActionButton { text: "Hỏi lớp"; iconName: "students"; Layout.fillWidth: true; implicitHeight: 32; onClicked: bridge.teachingContext.ask("question", "en") }
                 ActionButton { text: "VI Rescue"; iconName: "back"; Layout.fillWidth: true; implicitHeight: 32; onClicked: bridge.teachingContext.ask("rescue", "vi") }
-                ActionButton { objectName: "companionReadEnglish"; text: "Đọc tiếng Anh"; iconName: "play"; Layout.fillWidth: true; implicitHeight: 32; enabled: !bridge.busy && bridge.audioAvailable.en; onClicked: bridge.speakSegment("en") }
+                ActionButton { objectName: "companionReadEnglish"; text: "Đọc tiếng Anh"; iconName: "play"; Layout.fillWidth: true; implicitHeight: 32; enabled: !bridge.busy; onClicked: bridge.speakSegment("en") }
                 ActionButton { objectName: "companionStopSpeech"; text: "Dừng đọc"; iconName: "pause"; Layout.fillWidth: true; implicitHeight: 32; onClicked: bridge.stopSpeech() }
+                ActionButton { objectName: "companionPauseEnglish"; text: bridge.englishReaderState.state === "paused" ? "Tiếp tục" : "Tạm dừng"; iconName: "pause"; Layout.fillWidth: true; implicitHeight: 32; enabled: ["reading", "preparing", "paused"].indexOf(bridge.englishReaderState.state) >= 0; onClicked: bridge.englishReaderState.state === "paused" ? bridge.resumeEnglish() : bridge.pauseEnglish() }
+                ActionButton { objectName: "companionReplayEnglish"; text: "Đọc lại"; iconName: "refresh"; Layout.fillWidth: true; implicitHeight: 32; enabled: !bridge.busy; onClicked: bridge.speakSegment("en") }
             }
+            Label { objectName: "companionReaderStatus"; text: bridge.englishReaderState.message; color: bridge.englishReaderState.state === "error" ? "#b14828" : "#667997"; wrapMode: Text.WordWrap; Layout.fillWidth: true; font.pixelSize: 11 }
             ScrollView {
                 visible: companion.hasResponse
                 Layout.fillWidth: true; Layout.fillHeight: true; clip: true

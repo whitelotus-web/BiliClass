@@ -473,6 +473,20 @@ class Library:
             "conversion_format": config.get("conversion_format", ""),
             "review_notes": inspection.get("review_notes", []),
         }
+        lesson["slide_speech"] = inspection.get("slide_speech", {})
+        lesson["slide_quality"] = inspection.get("slide_quality", {})
+        self._write(lesson)
+        return lesson
+
+    def update_slide_inspection(self, lesson_id, inspection):
+        """Refresh derived data for the exact source hash; never approve lesson text."""
+        lesson = self.get(lesson_id)
+        if inspection["slide_speech"]["sha256"] != (lesson.get("source") or {}).get("sha256"):
+            raise ValueError("Dữ liệu lời đọc không khớp PowerPoint hiện tại.")
+        lesson["slide_speech"] = inspection["slide_speech"]
+        lesson["slide_quality"] = inspection["slide_quality"]
+        if lesson.get("external_deck"):
+            lesson["external_deck"]["review_notes"] = inspection.get("review_notes", [])
         self._write(lesson)
         return lesson
 
@@ -484,6 +498,9 @@ class Library:
         if lesson["revision"] != expected_revision:
             raise RevisionConflict("Bài vừa được sửa. Xem lại PowerPoint trước khi dùng để dạy.")
         external_preview(lesson, self.directory)
+        quality = lesson.get("slide_quality", {})
+        if quality.get("counts", {}).get("FAIL", 0):
+            raise ValueError("Bản PowerPoint còn slide FAIL. Sửa các lỗi trong báo cáo và nhận lại tệp trước khi xác nhận dùng để dạy.")
         for segment in lesson["segments"]:
             if segment["vi"].strip() and segment["en"].strip():
                 segment["approved"] = True

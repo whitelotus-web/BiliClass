@@ -1,6 +1,6 @@
 # Hai giáo viên dùng BiliClass trên hai máy
 
-Gửi [link Release RC13](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc13) cho người dùng thử. Người nhận tải **BiliClass-RC13-Windows.zip** trong Assets, giải nén toàn bộ, chạy **Setup.cmd**, rồi mở BiliClass từ Start menu. Không cần tài khoản GitHub hoặc Python. Không chọn Source code nếu chỉ muốn dùng.
+Gửi [link Release RC14](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc14) cho người dùng thử. Người nhận tải **BiliClass-RC14-Windows.zip** trong Assets, giải nén toàn bộ, chạy **Setup.cmd**, rồi mở BiliClass từ Start menu. Không cần tài khoản GitHub hoặc Python. Không chọn Source code nếu chỉ muốn dùng.
 
 Mỗi máy cần Windows 10/11 64-bit, Google Chrome, PowerPoint desktop và Internet khi chuyển đổi. Sau khi cài, đăng nhập ChatGPT riêng tại **Cài đặt → Browser AI → Thêm tài khoản**. Bộ cài chứa giọng Anh/Việt, mẫu và ảnh xem trước; không mang tài khoản hoặc thư viện của máy phát triển sang.
 

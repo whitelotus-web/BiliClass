@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.0rc14 — 12/10/2026 — Smart Slides & English Reader
+
+- Bổ sung quy tắc tiêu đề độc lập, giữ hình/công thức/dữ kiện và tối ưu font/nền/bố cục cho cả bốn kiểu.
+- English Reader lấy dữ liệu có cấu trúc từ đối tượng thực trên slide, gồm bảng, nhóm và AlternateContent; không chỉ đọc EN trong Notes. Vùng chưa chắc có needs_review.
+- Một nút mascot đọc hàng đợi English của slide hiện tại, tạm dừng/tiếp tục/dừng/đọc lại, không tự phát và hủy khi đổi slide/bước hoạt ảnh. Dùng TTS/cache offline hiện có, WAV/MCI thực.
+- Kiểm tra/render theo slide, báo FAIL/CHECK, chặn xác nhận khi còn FAIL; bài mới yêu cầu ChatGPT sửa tối đa một lượt trong cùng cuộc trò chuyện rồi kiểm tra lại.
+- Chặn nhãn/mã rác và lời đọc cũ khi tệp thay đổi; không đọc đối tượng hoạt ảnh chưa xác định chắc. Không chứng nhận OCR/công thức/hiệu ứng bằng việc mở/render được PPTX.
+- Chi tiết kiểm chứng và phần chưa hỗ trợ: [SMART_SLIDES_READER](docs/SMART_SLIDES_READER.md).
+
 ## 1.0.0rc13 — 11/10/2026 — bản thử cho luồng Browser AI
 
 - Chuyển tài liệu qua ChatGPT web/Chrome, nhận PPTX và chuẩn bị giọng đọc; profile riêng từng tài khoản, không cần API key.

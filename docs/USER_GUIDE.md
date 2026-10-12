@@ -1,8 +1,8 @@
-# BiliClass RC13 — hướng dẫn dùng thử
+# BiliClass RC14 — hướng dẫn dùng thử
 
 ## Cài lần đầu
 
-1. Mở [Release RC13](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc13), tải **BiliClass-RC13-Windows.zip** trong Assets.
+1. Mở [Release RC14](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc14), tải **BiliClass-RC14-Windows.zip** trong Assets.
 2. Giải nén toàn bộ bằng Windows; không chạy ứng dụng ngay trong cửa sổ ZIP.
 3. Chạy **Setup.cmd**. Bộ cài kiểm tra checksum, cài vào `%LOCALAPPDATA%/Programs/BiliClass/<version>` và tạo mục Start menu, không cần quyền quản trị.
 4. Mở BiliClass từ Start menu, vào **Cài đặt → Browser AI → Thêm tài khoản**, đăng nhập ChatGPT. Mỗi máy tự đăng nhập; không sao chép profile của người khác.
@@ -29,6 +29,10 @@ Thời gian phụ thuộc kích thước tệp, mạng và tài khoản Free/Plu
 **Dùng để dạy** mở bài kết quả bằng PowerPoint toàn màn hình. PowerPoint thực thi các hiệu ứng trong tệp; BiliClass theo slide thực tế để đọc Anh/Việt và cung cấp trợ giảng.
 
 Mascot nổi trên nền trong suốt. Kéo để đổi vị trí, nhấp để mở/thu các nút đọc, tiến/lùi slide và trợ giảng. Có thể mở lại từ thanh bên nếu đã ẩn. Giọng được chọn độc lập trong Cài đặt → Giọng đọc. Âm thanh đã chuẩn bị chạy trên máy, không cần gọi ChatGPT mỗi khi đọc.
+
+**Đọc tiếng Anh** đọc hàng đợi từ chữ English thực trên slide, gồm tiêu đề và thân bài xác định được, không chỉ EN trong ghi chú. Có Tạm dừng/Tiếp tục, Dừng và Đọc lại; đổi slide/bước hoạt ảnh thì dừng. Phần ảnh, công thức hoặc hoạt ảnh chưa xác minh được sẽ báo cần kiểm tra và không tự đọc. Không có English thì báo rõ.
+
+RC14 kiểm tra/render từng slide sau khi nhận bài. Với lỗi kỹ thuật hoặc thân bài thiếu bản Anh, tool yêu cầu ChatGPT sửa tối đa một lượt trong cùng cuộc trò chuyện (dùng thêm hạn mức web), rồi kiểm tra lại. Lỗi FAIL chặn xác nhận Dùng để dạy; xem thông tin lỗi của slide để sửa/nhận lại. CHECK cần giáo viên đối chiếu. Bài cũ có nút Kiểm tra toàn bộ slide. Chi tiết và giới hạn: [Smart Slides & English Reader](SMART_SLIDES_READER.md).
 
 ## Quiz và báo cáo
 

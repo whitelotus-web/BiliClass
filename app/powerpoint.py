@@ -91,6 +91,7 @@ def _office_session(path, initial_slide, commands, events):
         if 1 <= initial_slide <= total:
             view.GotoSlide(initial_slide)
         last = None
+        build_started = time.monotonic()
         while True:
             try:
                 command, target = commands.get(timeout=0.15)
@@ -108,13 +109,18 @@ def _office_session(path, initial_slide, commands, events):
             pythoncom.PumpWaitingMessages()
             try:
                 slide = view.Slide
-                current = (slide.SlideIndex, slide.SlideID)
+                try:
+                    click_index = int(view.GetClickIndex())
+                except Exception:
+                    click_index = None
+                current = (slide.SlideIndex, slide.SlideID, click_index)
             except Exception:
                 show_closed = True
                 break  # User closed the slideshow; normal end of companion session.
             if current != last:
+                build_started = time.monotonic()
                 events.put({"active": True, "slide": current[0], "slide_id": current[1], "total": total,
-                            "hwnd": hwnd,
+                            "hwnd": hwnd, "click_index": click_index, "build_started": build_started,
                             "message": f"PowerPoint · slide {current[0]}/{total}"})
                 last = current
     except Exception as exc:

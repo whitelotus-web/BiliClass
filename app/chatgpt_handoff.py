@@ -203,7 +203,7 @@ def load_request(folder):
             "attachments": [name] + (["mau-biliclass.pptx"] if (folder / "mau-biliclass.pptx").is_file() else [])}
 
 
-def inspect_returned_deck(path, source_path=None):
+def inspect_returned_deck(path, source_path=None, conversion_format="", requested_style="source"):
     """Read native text/notes only; no OCR, translation or document rewriting."""
     from pptx import Presentation
 
@@ -219,7 +219,8 @@ def inspect_returned_deck(path, source_path=None):
         raise ValueError("PowerPoint cần từ 1 đến 1.000 slide.")
     units = text_blocks(deck)
     blocks, render_only, questions, review_notes = [], [], [], []
-    if source_path and Path(source_path).suffix.lower() == ".pptx":
+    source_total = None
+    if source_path and requested_style == "source" and Path(source_path).suffix.lower() == ".pptx":
         inspect_zip(Path(source_path))
         source_total = len(Presentation(source_path).slides)
         if source_total != len(deck.slides):
@@ -265,8 +266,15 @@ def inspect_returned_deck(path, source_path=None):
     for unit in profile["units"]:
         if unit["locator"] in render_only:
             unit.update(vi="", en="", language="unknown", existing_pair=False)
+    from .slide_quality import inspect_quality, quality_messages
+    from .slide_speech import deck_speech
+
+    speech_data = deck_speech(path, deck, conversion_format, profile["units"])
+    quality = inspect_quality(deck, speech_data, conversion_format, source_total)
+    review_notes.extend(quality_messages(quality))
     return {"blocks": blocks, "profile": profile, "total": len(deck.slides), "render_only": render_only,
-            "questions": questions, "review_notes": review_notes}
+            "questions": questions, "review_notes": review_notes,
+            "slide_speech": speech_data, "slide_quality": quality}
 
 
 def speaker_pair(notes):
@@ -279,7 +287,7 @@ def speaker_pair(notes):
             language = "vi" if match[1].casefold() in {"vi", "vn", "tiếng việt"} else "en"
             if match[2].strip():
                 parts[language].append(match[2].strip())
-        elif re.match(r"^\s*(CHECK|QUIZ|KIỂM TRA|BILICLASS_NOTES)\s*[:：]", line, re.I):
+        elif re.match(r"^\s*(CHECK|QUIZ|SPEECH|KIỂM TRA|BILICLASS_NOTES)\s*[:：]", line, re.I):
             language = None
         elif language and line.strip():
             parts[language].append(line.strip())

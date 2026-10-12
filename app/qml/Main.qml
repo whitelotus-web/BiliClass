@@ -653,9 +653,20 @@ ApplicationWindow {
                             Copy { text: bridge.powerpointState.message || "Đang trình chiếu"; Layout.fillWidth: true }
                             Action { text: "Slide trước"; enabled: bridge.powerpointState.active; onClicked: bridge.navigatePowerPoint("previous") }
                             Action { text: "Slide tiếp"; enabled: bridge.powerpointState.active; onClicked: bridge.navigatePowerPoint("next") }
-                            Action { text: "Đọc tiếng Anh"; enabled: bridge.powerpointState.active && !bridge.busy && bridge.audioAvailable.en; onClicked: bridge.speakSegment("en") }
+                            Action { text: "Đọc tiếng Anh"; enabled: bridge.powerpointState.active && !bridge.busy; onClicked: bridge.readSlideEnglish() }
                             Action { text: "Đóng trình chiếu"; onClicked: bridge.stopPowerPoint() }
                         }
+                        RowLayout { visible: bridge.powerpointState.active; Layout.fillWidth: true
+                            Copy { text: bridge.englishReaderState.message; Layout.fillWidth: true }
+                            Action { text: bridge.englishReaderState.state === "paused" ? "Tiếp tục" : "Tạm dừng"; enabled: ["reading", "preparing", "paused"].indexOf(bridge.englishReaderState.state) >= 0; onClicked: bridge.englishReaderState.state === "paused" ? bridge.resumeEnglish() : bridge.pauseEnglish() }
+                            Action { text: "Dừng đọc"; onClicked: bridge.stopSpeech() }
+                            Action { text: "Đọc lại"; enabled: !bridge.busy; onClicked: bridge.readSlideEnglish() }
+                        }
+                        RowLayout { Layout.fillWidth: true; visible: !!bridge.lesson.external_deck
+                            Copy { text: (bridge.lesson.slide_quality || {}).counts ? "Kiểm tra slide: " + (bridge.lesson.slide_quality.counts.FAIL || 0) + " FAIL · " + (bridge.lesson.slide_quality.counts.CHECK || 0) + " CHECK" : "Chưa kiểm tra toàn bộ slide và lời đọc"; Layout.fillWidth: true }
+                            Action { objectName: "inspectSlideQualityButton"; text: "Kiểm tra toàn bộ slide"; enabled: !bridge.busy && !bridge.powerpointState.active; onClicked: bridge.inspectSlideQuality() }
+                        }
+                        Copy { objectName: "currentSlideQuality"; visible: !!bridge.lesson.slide_quality && !!bridge.quickResult.path; Layout.fillWidth: true; color: "#a66318"; text: { const rows = (bridge.lesson.slide_quality || {}).slides || []; const row = rows[(bridge.quickResult.slide || 1) - 1]; return row ? "Slide " + row.slide + ": " + row.status + "\n" + row.issues.map(function(i) { return i.message || i.code }).join("\n") : "" } }
                         Copy { objectName: "returnedDeckReviewNotes"; visible: (((bridge.lesson.external_deck || {}).review_notes || []).length > 0); text: ((bridge.lesson.external_deck || {}).review_notes || []).slice(0, 2).join("\n"); textFormat: Text.PlainText; color: "#a66318"; Layout.fillWidth: true }
                         Copy { visible: !!bridge.lesson.conversion_format && (bridge.lesson.questions || []).length > 0; text: (bridge.lesson.questions || []).filter(function(q) { return !q.approved }).length + " câu hỏi nháp · xem và duyệt riêng trong Chỉnh sửa chi tiết → Trợ giảng & Quiz."; Layout.fillWidth: true }
                         Action { objectName: "resultDetailsButton"; visible: !!bridge.quickResult.path || !!bridge.quickResult.missing; text: root.resultDetails ? "Thu gọn thông tin" : "Thông tin và điểm cần kiểm tra"; subtle: true; implicitHeight: 32; onClicked: root.resultDetails = !root.resultDetails }
