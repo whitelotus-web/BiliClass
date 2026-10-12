@@ -6,7 +6,7 @@ RC14 thêm [kiểm tra slide và English Reader](docs/SMART_SLIDES_READER.md): l
 
 ## Cài để dùng trên máy khác
 
-Tải **BiliClass-RC14-Windows.zip** tại [Release RC14](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc14), giải nén toàn bộ rồi chạy **Setup.cmd**. Không tải “Source code” nếu chỉ muốn cài và dùng. Không cần Python hoặc API key.
+Tải **BiliClass-RC15-Windows.zip** tại [Release RC15](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc15), giải nén toàn bộ rồi chạy **Setup.cmd**. Không tải “Source code” nếu chỉ muốn cài và dùng. Không cần Python hoặc API key.
 
 Máy cần Windows 10/11 64-bit, Google Chrome để đăng nhập ChatGPT và Microsoft PowerPoint bản desktop để trình chiếu/giữ hiệu ứng. Kết nối Internet cần khi đăng nhập và chuyển đổi; giọng đọc Kokoro English/VieNeu Việt và các mẫu đã nằm trong gói. Việc tạo tệp/hạn mức phụ thuộc tài khoản ChatGPT Free/Plus của người dùng.
 
@@ -47,9 +47,9 @@ Model tải một lần cho môi trường nguồn; bộ cài đã có model nê
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q
 .\.venv\Scripts\python.exe -m ruff check app biliclass_m0 scripts tests
-powershell -ExecutionPolicy Bypass -File scripts/build.ps1 -DistRoot (Join-Path $PWD 'dist/rc14')
-.\.venv\Scripts\python.exe -m scripts.package_release (Join-Path $PWD 'dist/rc14')
-powershell -ExecutionPolicy Bypass -File scripts/verify_release.ps1 -DistRoot (Join-Path $PWD 'dist/rc14')
+powershell -ExecutionPolicy Bypass -File scripts/build.ps1 -DistRoot (Join-Path $PWD 'dist/rc15')
+.\.venv\Scripts\python.exe -m scripts.package_release (Join-Path $PWD 'dist/rc15')
+powershell -ExecutionPolicy Bypass -File scripts/verify_release.ps1 -DistRoot (Join-Path $PWD 'dist/rc15')
 ```
 
 Gói có `BiliClass/BUILD_INFO.json` ghi version/commit và manifest SHA-256 để đối chiếu bản đang thử. Kho Git chỉ giữ code, kiểm thử, tài liệu và tài nguyên dùng chung. Thư viện giáo viên, báo cáo học sinh, browser profile, model, cache và `.exe` không vào lịch sử Git.

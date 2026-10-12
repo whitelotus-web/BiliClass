@@ -1,8 +1,8 @@
-# BiliClass RC14 — hướng dẫn dùng thử
+# BiliClass RC15 — hướng dẫn dùng thử
 
 ## Cài lần đầu
 
-1. Mở [Release RC14](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc14), tải **BiliClass-RC14-Windows.zip** trong Assets.
+1. Mở [Release RC15](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc15), tải **BiliClass-RC15-Windows.zip** trong Assets.
 2. Giải nén toàn bộ bằng Windows; không chạy ứng dụng ngay trong cửa sổ ZIP.
 3. Chạy **Setup.cmd**. Bộ cài kiểm tra checksum, cài vào `%LOCALAPPDATA%/Programs/BiliClass/<version>` và tạo mục Start menu, không cần quyền quản trị.
 4. Mở BiliClass từ Start menu, vào **Cài đặt → Browser AI → Thêm tài khoản**, đăng nhập ChatGPT. Mỗi máy tự đăng nhập; không sao chép profile của người khác.
@@ -13,6 +13,10 @@ Yêu cầu: Windows 10/11 64-bit; Google Chrome; Microsoft PowerPoint desktop đ
 Portable: chạy `BiliClass/BiliClass.exe` trong thư mục đã giải nén. Giữ nguyên `_internal`, `models`, `licenses`. Không mở đồng thời bản nguồn và bản cài với cùng thư viện.
 
 ## Tạo bài giảng
+
+Trong **Bài giảng**, mỗi bài có giờ/ngày tạo và các nút Mở bài, Sửa, Xóa. Chọn Mới tạo nhất/Tạo lâu nhất/Mới cập nhật để sắp xếp. Sửa cho đổi thông tin bài hoặc mở biên tập nội dung trợ giảng. Đổi tên không thay ngày tạo hay yêu cầu duyệt lại nội dung; đổi môn vẫn cần duyệt lại.
+
+Xóa đưa bài vào thùng rác. Mở **Chia sẻ & quản lý → Thùng rác** để khôi phục, giữ nguồn, âm thanh và báo cáo. Kết thúc trình chiếu/tiết học trước khi xóa. Với bài cũ không còn phiên bản đầu tiên, ngày lưu sớm nhất còn giữ được hiển thị thay cho việc đoán chính xác ngày tạo.
 
 1. Vào Bài giảng → tạo bài mới; kéo thả hoặc chọn tài liệu. Hỗ trợ PPTX, DOCX, PDF, TXT, PNG/JPG; cũng có thể dán nội dung. PowerPoint `.ppt` cũ cần lưu lại thành `.pptx`.
 2. Điền tên bài, chọn môn; **Khác** cho phép nhập tên môn. Chọn cấp học để danh sách khối lớp đổi theo Tiểu học 1–5, THCS 6–9, THPT 10–12.
@@ -25,6 +29,8 @@ Portable: chạy `BiliClass/BiliClass.exe` trong thư mục đã giải nén. Gi
 Thời gian phụ thuộc kích thước tệp, mạng và tài khoản Free/Plus. Khi web yêu cầu xác minh/đăng nhập hoặc hết hạn mức, tool báo để bạn xử lý; không bảo đảm mọi yêu cầu đều chạy hoàn toàn không can thiệp. Không gửi trùng yêu cầu đã gửi chỉ vì mất kết nối. Hạn mức không có số dư tin cậy thì không hiển thị số tự đoán.
 
 ## Dạy với PowerPoint, giọng và mascot
+
+Màn slide có **Trở lại thư viện**, **Tải PowerPoint** và **Dùng để dạy**. Tải PowerPoint lưu nguyên tệp đang xem vào vị trí bạn chọn, giữ hình/hiệu ứng trong tệp đó; không tự tạo lại mẫu mới. Muốn mở file bằng PowerPoint hoặc sửa/gửi gói bài, dùng **Thao tác khác**. Không ghi đè file trong thư viện nguồn.
 
 **Dùng để dạy** mở bài kết quả bằng PowerPoint toàn màn hình. PowerPoint thực thi các hiệu ứng trong tệp; BiliClass theo slide thực tế để đọc Anh/Việt và cung cấp trợ giảng.
 
@@ -45,6 +51,8 @@ Nếu điện thoại không vào được: kiểm tra cùng mạng, đúng IP, 
 App tự kiểm tra GitHub khi mở; có **Kiểm tra cập nhật**. Khi có bản mới, chọn **Cập nhật**, chờ app tải/xác minh/cài rồi tự mở lại. Bản mới được đặt cạnh bản cũ. Thư viện bài học giữ tại `%LOCALAPPDATA%/BiliClass`; không xóa thư mục này khi cập nhật.
 
 **Xuất gói bài** tạo `.biliclass` để chuyển một bài cho giáo viên khác. Bản nhận cần duyệt lại trước khi dạy. Gói có giới hạn kích thước; bài lớn cần chia nhỏ hoặc chuyển nguồn/kết quả riêng.
+
+`.biliclass` là gói riêng của BiliClass, gồm bài, nguồn và dữ liệu trợ giảng/quiz/audio có thể chuyển. Đây là chức năng chia sẻ tùy chọn, không cần dùng để tạo hoặc dạy bài thông thường. Nhận gói ở **Thư viện → Chia sẻ & quản lý**; gửi gói ở **Màn slide → Thao tác khác**. Người chỉ cần file để dạy dùng **Tải PowerPoint**.
 
 **Sao lưu thư viện** và **Khôi phục bản sao** phục vụ chuyển dữ liệu cá nhân; khôi phục tạo thư mục mới. Model/ứng dụng cài riêng; đăng nhập ChatGPT lại trên máy mới. GitHub dùng để chia sẻ code và bộ cài, không tự đồng bộ thư viện hoặc tài khoản.
 

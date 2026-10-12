@@ -221,7 +221,10 @@ def import_pack(library, path):
         target.write_bytes(data)
     from .library import now
 
-    lesson.update(id=str(uuid4()), revision=1, updated_at=now())
+    imported_at = now()
+    lesson.update(id=str(uuid4()), revision=1, updated_at=imported_at, created_at=imported_at)
+    lesson.pop("created_at_estimated", None)
+    lesson.pop("deleted_at", None)
     # Derived speech cannot be trusted merely because an imported JSON claims
     # the source hash. Rebuild it from the actual PPTX on first use.
     lesson.pop("slide_speech", None)

@@ -19,6 +19,13 @@ def now():
     return datetime.now(UTC).isoformat()
 
 
+def timestamp(value):
+    try:
+        return datetime.fromisoformat(value).timestamp()
+    except (ValueError, TypeError):
+        return 0
+
+
 def lesson_status(segments):
     if not segments or not any(s.get("en", "").strip() and s.get("vi", "").strip() for s in segments):
         return "DRAFT"
@@ -92,17 +99,34 @@ class Library:
                   ON knowledge_entries(pack_id, pack_version);
                 PRAGMA user_version=3;
             """)
+        self._backfill_created_dates()
+
+    def _backfill_created_dates(self):
+        """Recover original save time from revision 1; label retained-history estimates."""
+        with self.db:
+            for row in self.db.execute("SELECT id,content FROM lessons").fetchall():
+                lesson = json.loads(row["content"])
+                if lesson.get("created_at"):
+                    continue
+                first = self.db.execute("SELECT revision,content FROM lesson_revisions WHERE lesson_id=? ORDER BY revision LIMIT 1", (row["id"],)).fetchone()
+                earliest = json.loads(first["content"]) if first else lesson
+                lesson["created_at"] = earliest.get("updated_at", lesson["updated_at"])
+                lesson["created_at_estimated"] = (first["revision"] if first else lesson["revision"]) != 1
+                self.db.execute("UPDATE lessons SET content=? WHERE id=?", (json.dumps(lesson, ensure_ascii=False), row["id"]))
 
     def close(self):
         self.db.close()
 
-    def list_lessons(self):
+    def list_lessons(self, order="updated_desc", *, trash=False):
         from .readiness import preparation_current
 
         rows = self.db.execute("SELECT * FROM lessons ORDER BY updated_at DESC").fetchall()
         result = []
         for row in rows:
             lesson = json.loads(row["content"])
+            if bool(lesson.get("deleted_at")) != trash:
+                continue
+            failures = lesson.get("slide_quality", {}).get("counts", {}).get("FAIL", 0)
             result.append(
                 {
                     **dict(row),
@@ -110,16 +134,26 @@ class Library:
                     "segments_count": len(lesson["segments"]),
                     "approved_count": sum(bool(s["approved"]) for s in lesson["segments"]),
                     "status": lesson_status(lesson["segments"]),
-                    "prepared": preparation_current(lesson),
+                    "prepared": preparation_current(lesson) and not failures,
+                    "created_at": lesson.get("created_at", lesson["updated_at"]),
+                    "created_at_estimated": lesson.get("created_at_estimated", False),
+                    "deleted_at": lesson.get("deleted_at", ""),
+                    "slides_count": lesson.get("external_deck", {}).get("total", 0),
                 }
             )
+        if order not in {"created_desc", "created_asc", "updated_desc"}:
+            raise ValueError("Kiểu sắp xếp không hợp lệ.")
+        key = "updated_at" if order == "updated_desc" else "created_at"
+        result.sort(key=lambda value: (timestamp(value[key]), value["id"]), reverse=order != "created_asc")
         return result
 
-    def get(self, lesson_id):
+    def get(self, lesson_id, *, include_trash=False):
         row = self.db.execute("SELECT content FROM lessons WHERE id=?", (lesson_id,)).fetchone()
         if not row:
             raise ValueError("Không tìm thấy bài học.")
         lesson = json.loads(row[0])
+        if lesson.get("deleted_at") and not include_trash:
+            raise ValueError("Bài học đang ở thùng rác. Khôi phục trước khi mở.")
         lesson.setdefault("source_language", "vi")
         for segment in lesson["segments"]:
             segment.setdefault("source_text", segment[lesson["source_language"]])
@@ -173,6 +207,7 @@ class Library:
             "presentation_style": "source" if source and source.get("file", "").lower().endswith(".pptx") else "template",
             "updated_at": now(),
         }
+        lesson["created_at"] = lesson["updated_at"]
         if analysis:
             # The full extraction is already stored in segments. Keep a compact
             # input assessment in the project, not another copy of every string.
@@ -182,6 +217,14 @@ class Library:
         return lesson
 
     def _write(self, lesson, new=False):
+        if new:
+            lesson.setdefault("created_at", lesson["updated_at"])
+        else:
+            stored = self.db.execute("SELECT content FROM lessons WHERE id=?", (lesson["id"],)).fetchone()
+            if stored:
+                previous = json.loads(stored[0])
+                lesson["created_at"] = previous.get("created_at", previous["updated_at"])
+                lesson["created_at_estimated"] = previous.get("created_at_estimated", False)
         content = json.dumps(lesson, ensure_ascii=False)
         values = (
             lesson["title"],
@@ -216,6 +259,26 @@ class Library:
                     "UPDATE lessons SET title=?,subject=?,education_level=?,grade=?,revision=?,content=?,updated_at=? WHERE id=?",
                     values,
                 )
+
+    def trash_lesson(self, lesson_id):
+        lesson = self.get(lesson_id)
+        classroom = self.directory / "classroom.db"
+        if classroom.exists():
+            with sqlite3.connect(classroom) as connection:
+                for (snapshot,) in connection.execute("SELECT lesson FROM sessions WHERE status!='ended'"):
+                    if json.loads(snapshot).get("id") == lesson_id:
+                        raise ValueError("Kết thúc tiết học của bài này trước khi xóa.")
+        lesson["deleted_at"] = now()
+        # Keep source/audio, revisions and classroom snapshots for recovery.
+        with self.db:
+            self.db.execute("UPDATE lessons SET content=? WHERE id=?", (json.dumps(lesson, ensure_ascii=False), lesson_id))
+
+    def restore_lesson(self, lesson_id):
+        lesson = self.get(lesson_id, include_trash=True)
+        lesson.pop("deleted_at", None)
+        with self.db:
+            self.db.execute("UPDATE lessons SET content=? WHERE id=?", (json.dumps(lesson, ensure_ascii=False), lesson_id))
+        return lesson
 
     def edit_segment(self, lesson_id, segment_id, vi, en, approve=False, locked=False):
         lesson = self.get(lesson_id)
@@ -570,6 +633,8 @@ class Library:
         if any(not isinstance(v, str) or not v.strip() or len(v) > 200 for v in values):
             raise ValueError("Điền đầy đủ tên bài, môn, cấp và khối; tối đa 200 ký tự mỗi mục.")
         lesson = self.get(lesson_id)
+        title_only = (subject.strip(), education.strip(), grade.strip()) == (lesson["subject"], lesson["education_level"], lesson["grade"])
+        previous_revision = lesson["revision"]
         if subject.strip() != lesson["subject"]:
             for segment in lesson["segments"]:
                 segment["approved"] = False
@@ -579,6 +644,11 @@ class Library:
                 question["approved"] = False
         lesson.update(title=title.strip(), subject=subject.strip(), education_level=education.strip(),
                       grade=grade.strip(), revision=lesson["revision"] + 1, updated_at=now())
+        if title_only:
+            if lesson.get("prepared", {}).get("revision") == previous_revision:
+                lesson["prepared"]["revision"] = lesson["revision"]
+            if lesson.get("external_deck", {}).get("reviewed_revision") == previous_revision:
+                lesson["external_deck"]["reviewed_revision"] = lesson["revision"]
         self._write(lesson)
         return lesson
 
@@ -794,7 +864,10 @@ class Library:
             (subject,),
         )
         for row in rows:
-            for segment in json.loads(row["content"])["segments"]:
+            lesson = json.loads(row["content"])
+            if lesson.get("deleted_at"):
+                continue
+            for segment in lesson["segments"]:
                 if (row["id"], segment["id"]) == exclude or not segment.get("approved"):
                     continue
                 if memory_key(segment[source_language]) != source_text:
@@ -834,7 +907,10 @@ class Library:
         if len(key) < 12:
             return []
         for row in self.db.execute("SELECT id,title,content FROM lessons WHERE subject=?", (subject,)):
-            for segment in json.loads(row["content"])["segments"]:
+            lesson = json.loads(row["content"])
+            if lesson.get("deleted_at"):
+                continue
+            for segment in lesson["segments"]:
                 if not segment.get("approved") or (row["id"], segment["id"]) == exclude:
                     continue
                 source = memory_key(segment[source_language])

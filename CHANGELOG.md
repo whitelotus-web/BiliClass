@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.0rc15 — 12/10/2026 — Quản lý thư viện và tải bài
+
+- Thư viện có Sửa/Xóa trên từng bài, ngày/giờ tạo và sắp xếp mới tạo/tạo lâu nhất/mới cập nhật. Bài cũ lấy ngày từ lịch sử còn giữ; ngày ước tính được ghi rõ.
+- Xóa đưa vào thùng rác để khôi phục, giữ nguồn/audio/lịch sử/báo cáo; bài trong thùng rác không còn tham gia bộ nhớ dịch của thư viện.
+- Màn slide có Trở lại thư viện và Tải PowerPoint: lưu đúng tệp đang xem, không dựng lại hoặc làm mất hình/hiệu ứng. Không cho ghi đè vào thư viện nguồn.
+- Nhận/gửi gói .biliclass giữ trong menu chia sẻ; các thao tác phụ gom vào Thao tác khác. Bỏ nút Chuyển đổi lại dễ bị hiểu là gửi lại AI ở màn slide.
+- Đổi tên giữ ngày tạo và trạng thái kiểm tra nội dung; đổi môn vẫn cần duyệt lại. Gói bài nhập vào có ngày tạo tại máy nhận.
+
 ## 1.0.0rc14 — 12/10/2026 — Smart Slides & English Reader
 
 - Bổ sung quy tắc tiêu đề độc lập, giữ hình/công thức/dữ kiện và tối ưu font/nền/bố cục cho cả bốn kiểu.

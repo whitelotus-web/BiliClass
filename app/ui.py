@@ -6,7 +6,7 @@ from dataclasses import asdict
 from pathlib import Path
 from threading import Event
 
-from PySide6.QtCore import Property, QObject, QPoint, QThread, QTimer, QUrl, Signal, Slot
+from PySide6.QtCore import Property, QObject, QPoint, QStandardPaths, QThread, QTimer, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices, QFont, QFontDatabase, QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuick import QQuickWindow
@@ -166,7 +166,108 @@ class Bridge(QObject):
 
     @Property("QVariantList", notify=changed)
     def lessons(self):
-        return self.library.list_lessons()
+        return self.library.list_lessons(self.lessonOrder)
+
+    @Property(str, notify=changed)
+    def lessonOrder(self):
+        return self.library.setting("lesson_order", "created_desc")
+
+    @Slot(str)
+    def setLessonOrder(self, order):
+        if order in {"created_desc", "created_asc", "updated_desc"}:
+            self.library.set_setting("lesson_order", order)
+            self.changed.emit()
+
+    @Property("QVariantList", notify=changed)
+    def trashedLessons(self):
+        return self.library.list_lessons(trash=True)
+
+    @Slot(str, result=str)
+    def lessonDateLabel(self, value):
+        from datetime import datetime
+
+        try:
+            return datetime.fromisoformat(value).astimezone().strftime("%H:%M · %d/%m/%Y")
+        except (ValueError, TypeError):
+            return "Chưa có ngày lưu"
+
+    @Property(str, constant=True)
+    def downloadsDirectory(self):
+        path = QStandardPaths.writableLocation(QStandardPaths.DownloadLocation) or str(Path.home())
+        return QUrl.fromLocalFile(path).toString()
+
+    @Slot(str)
+    def trashLesson(self, lesson_id):
+        if self._busy or self.powerpoint_worker or self.classroom.running:
+            self.inform("Kết thúc tác vụ, trình chiếu hoặc tiết học trước khi xóa bài.", True)
+            return
+        try:
+            self.library.trash_lesson(lesson_id)
+            if self._lesson.get("id") == lesson_id:
+                self.stopSpeech()
+                self._lesson, self._quick_result = {}, {}
+                self.selectionChanged.emit()
+            self.changed.emit()
+            self.inform("Đã đưa bài vào thùng rác. Có thể khôi phục từ mục Chia sẻ & quản lý.")
+        except Exception as exc:
+            self.inform(str(exc), True)
+
+    @Slot(str)
+    def restoreLesson(self, lesson_id):
+        if self._busy:
+            return
+        try:
+            self.library.restore_lesson(lesson_id)
+            self.inform("Đã khôi phục bài về thư viện.")
+        except Exception as exc:
+            self.inform(str(exc), True)
+
+    @Slot()
+    def returnToLibrary(self):
+        self.stopSpeech()
+        if self.powerpoint_worker:
+            self.stopPowerPoint()
+        self.navigate.emit("library")
+
+    @Slot(str, str, str, str, str, result=bool)
+    def editLessonMetadata(self, lesson_id, title, subject, education, grade):
+        if self._busy or self.powerpoint_worker or self.classroom.running:
+            self.inform("Kết thúc tác vụ, trình chiếu hoặc tiết học trước khi sửa thông tin bài.", True)
+            return False
+        try:
+            updated = self.library.update_metadata(lesson_id, title, subject, education, grade)
+            if self._lesson.get("id") == lesson_id:
+                self._lesson = updated
+                self.selectionChanged.emit()
+                if updated.get("external_deck"):
+                    from .chatgpt_handoff import external_preview
+
+                    try:
+                        preview = external_preview(updated, self.library.directory)
+                        preview.update(image=self._quick_result.get("image", ""), slide=self._quick_result.get("slide", 1))
+                        self._quick_result = preview
+                    except ValueError:
+                        self._quick_result = {}  # Metadata is saved even if the old PPTX needs receiving again.
+            self.inform("Đã lưu thông tin bài giảng.")
+            return True
+        except Exception as exc:
+            self.inform(str(exc), True)
+            return False
+
+    @Slot(str)
+    def editLesson(self, lesson_id):
+        if self._busy or self.powerpoint_worker:
+            return
+        try:
+            self.stopSpeech()
+            self._lesson = self.library.get(lesson_id)
+            self._segment_index = 0
+            self._quick_result = {}
+            self.changed.emit()
+            self.selectionChanged.emit()
+            self.navigate.emit("editor")
+        except Exception as exc:
+            self.inform(str(exc), True)
 
     @Property("QVariantMap", notify=changed)
     def lesson(self):
@@ -1934,14 +2035,7 @@ class Bridge(QObject):
 
     @Slot(str, str, str, str, result=bool)
     def updateMetadata(self, title, subject, education, grade):
-        try:
-            self._lesson = self.library.update_metadata(self._lesson["id"], title, subject, education, grade)
-            self.selectionChanged.emit()
-            self.inform("Đã cập nhật thông tin bài. Đổi môn yêu cầu duyệt lại văn bản.")
-            return True
-        except Exception as exc:
-            self.inform(str(exc), True)
-            return False
+        return self.editLessonMetadata(self._lesson.get("id", ""), title, subject, education, grade)
 
     @Slot()
     def backupLibrary(self):
@@ -1992,6 +2086,17 @@ class Bridge(QObject):
         terms = self.library.glossary(lesson.get("subject", ""))
         self.launch(lambda: export_deck(lesson, directory, QUrl(url).toLocalFile(), profile, terms),
                     lambda path: self.inform("Đã xuất PowerPoint song ngữ mới: " + str(path)))
+
+    @Slot(str)
+    def downloadPresentation(self, url):
+        from .lesson_files import save_presentation
+
+        lesson, preview, directory = self._lesson, dict(self.quickResult), self.library.directory
+        if not preview.get("path"):
+            self.inform("Tạo hoặc nhận bản trình chiếu trước khi tải về máy.", True)
+            return
+        self.launch(lambda: save_presentation(lesson, preview, directory, QUrl(url).toLocalFile()),
+                    lambda path: self.inform("Đã tải đúng bản PowerPoint đang xem: " + str(path)))
 
 
     @Slot(str)
