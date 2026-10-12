@@ -59,15 +59,16 @@ def english_text(text, *, tagged=False):
 
 def objects(slide):
     """Keep group ancestry and stable native IDs, including table cells."""
-    def walk(shapes, ancestors=()):
+    def walk(shapes, ancestors=(), inherited_hidden=False):
         for shape in native_shapes(shapes):
             parents = (*ancestors, shape.shape_id)
+            hidden = inherited_hidden or bool(shape._element.xpath('./*/p:cNvPr[@hidden="1" or @hidden="true"]'))
             if hasattr(shape, "shapes"):
-                yield from walk(shape.shapes, parents)
+                yield from walk(shape.shapes, parents, hidden)
                 continue
             base = {"shape_id": shape.shape_id, "ancestors": list(parents), "name": shape.name,
                     "x": int(shape.left), "y": int(shape.top), "w": int(shape.width), "h": int(shape.height),
-                    "shape": shape}
+                    "shape": shape, "hidden": hidden}
             if shape.has_text_frame:
                 if shape._element.xpath('.//*[local-name()="oMath" or local-name()="oMathPara"]'):
                     formula_text = " ".join(shape._element.xpath('.//*[local-name()="t"]/text()'))
@@ -265,8 +266,7 @@ def inspect_slide(slide, number, mode="", notes_en=""):
                 if str(ancestor) in animations:
                     rule = animations[str(ancestor)]
                     visibility = rule if visibility["kind"] == "always" else {"kind": "unverified"}
-            hidden = bool(item["shape"]._element.xpath('.//p:cNvPr[@hidden="1"]'))
-            if hidden:
+            if item["hidden"]:
                 visibility = {"kind": "hidden"}
             problem = speech_problem(text)
             segments.append({"id": "en-" + digest, "slide_id": slide.slide_id, "slide": number,

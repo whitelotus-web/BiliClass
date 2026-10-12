@@ -236,3 +236,15 @@ def test_alternate_content_reads_modern_shape_once_and_does_not_skip_math():
     assert [s["english_text"] for s in data["englishSpeechSegments"] if s["status"] == "ready"] == ["The energy is conserved."]
     assert any(s["status"] == "needs_review" and not s["english_text"] for s in data["englishSpeechSegments"])
     assert "image_or_formula_needs_review" in data["issues"]
+
+
+def test_hidden_group_cannot_leak_answer_through_visible_child_shape():
+    deck = Presentation()
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    textbox(slide, "What is kinetic energy?")
+    group = slide.shapes.add_group_shape()
+    child = group.shapes.add_textbox(Inches(1), Inches(2), Inches(5), Inches(.5))
+    child.text = "The correct answer is potential energy."
+    group._element.xpath('./p:nvGrpSpPr/p:cNvPr')[0].set("hidden", "true")
+    result = inspect_slide(slide, 1)
+    assert [s["english_text"] for s in visible_segments(result)] == ["What is kinetic energy?"]
