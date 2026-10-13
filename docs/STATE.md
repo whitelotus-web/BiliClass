@@ -1,5 +1,20 @@
 # Trạng thái BiliClass
 
+Ngày 14/10/2026 — đã phát hành [RC27](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc27)
+từ commit ứng dụng `eecf83519685e31a40fdab322de1ede2a6417af1`. ZIP
+667.923.267 byte, SHA-256
+`4ae7bf0c631c033635c2106698de5609814610b773c8b519d38a9abdd0b01d6b`.
+PyInstaller xây lại 63 module app trong 5,84 giây; đối chiếu runtime/model
+giữ nguyên với toàn bộ manifest RC26, cập nhật Main.qml và CompanionWindow.
+Checksum/CRC, cài/gỡ Unicode và Qt 1366×850/1080×700 qua. Bản đóng gói
+thực thi nút tạo EN với cache riêng: chưa bấm vẫn Chỉ bài giảng song ngữ,
+bấm mới Có giọng Tiếng Anh; PPTX/revision/ngày tạo/quyền duyệt không đổi.
+Đã cài/mở RC27 theo đường dẫn chuẩn; UI có lựa chọn Anh/Việt/cả hai,
+nút cập nhật, giữ nhận diện giọng cũ. Updater từ RC26 nhận RC27 với dung
+lượng/checksum khớp. Đối chiếu trước/sau giữ nguyên sáu bài, nguồn, revision,
+ngày tạo, quyền duyệt và 638 WAV trên máy. Không gửi/sửa lại bài thật
+trong đợt nâng cấp hai bước; các lỗi slide của bài cũ vẫn báo đúng.
+
 Ngày 14/10/2026 — nguồn RC27 tách bước bài giảng và giọng đọc theo yêu cầu.
 Nhận/kiểm tra/lưu PPTX rồi dừng tại màn kết quả, cho tải tệp hoặc xác nhận
 dạy không voice. Chọn Anh, Việt hoặc Việt + Anh và bấm Tạo giọng đọc mới
