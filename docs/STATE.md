@@ -1,5 +1,17 @@
 # Trạng thái BiliClass
 
+RC20 nguồn đã kiểm tra ngày 13/10/2026: logo trường đã lưu hiển thị ở hồ sơ
+thanh bên, thay ảnh/bỏ ảnh cập nhật ngay và không kéo méo. Dòng copyright tác
+giả ở chân cửa sổ, riêng với trạng thái/lỗi và không tự thêm vào bài/prompt.
+Browser AI đổi chỗ với Song ngữ nhưng giữ định danh tab/đường dẫn cũ; mỗi
+profile có Mở tài khoản theo luồng Chrome hiện có, không tạo profile mới và
+khóa khi tác vụ/profile đang dùng. Qt kiểm tra logo, hai vị trí tab, hai nút
+mở đúng ID và footer ở 1366×850/1080×700 qua, không warning. Việc mở profile
+trong smoke dùng fixture, không gửi bài/đăng nhập ChatGPT thật. 20 kiểm thử
+thư viện và sức khỏe Browser AI qua. Smoke Qt Browser AI hiện có cũng qua,
+gồm giữ phiên, retry đúng chat không gửi trùng, cache và Office preview thật;
+bộ cài mới được tạo sau mốc kiểm tra.
+
 RC19 nguồn đã kiểm tra ngày 13/10/2026: giữ phiên Chrome qua các lượt chạy nền,
 không thêm tab trắng mỗi lần kiểm tra; lưu/mở PowerPoint trước rồi tự chuẩn bị
 âm thanh ở nền, ưu tiên lượt cần đọc và chống tạo trùng WAV. Cấu trúc Settings

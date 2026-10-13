@@ -239,8 +239,22 @@ ApplicationWindow {
                 }
                 Rectangle { Layout.fillWidth: true; height: 1; color: root.line; Layout.topMargin: 14; Layout.bottomMargin: 12 }
                 RowLayout {
-                    spacing: 10
-                    Rectangle { width: 36; height: 36; radius: 18; color: "#fff0df"; Label { anchors.centerIn: parent; text: (bridge.settings.teacher || "G").charAt(0).toUpperCase(); color: "#ab611f"; font.weight: Font.Bold } }
+                    Layout.fillWidth: true; spacing: 10
+                    Item {
+                        Layout.preferredWidth: 40; Layout.preferredHeight: 40
+                        Image {
+                            id: sidebarSchoolLogo; objectName: "sidebarSchoolLogo"
+                            anchors.fill: parent; source: bridge.schoolLogoUrl; cache: false
+                            fillMode: Image.PreserveAspectFit; visible: status === Image.Ready
+                            Accessible.name: "Logo trường"
+                        }
+                        Rectangle {
+                            objectName: "sidebarProfileInitial"
+                            anchors.centerIn: parent; width: 36; height: 36; radius: 18; color: "#fff0df"
+                            visible: sidebarSchoolLogo.status !== Image.Ready
+                            Label { anchors.centerIn: parent; text: (bridge.settings.teacher || "G").charAt(0).toUpperCase(); color: "#ab611f"; font.weight: Font.Bold }
+                        }
+                    }
                     ColumnLayout { spacing: 3; Label { text: bridge.settings.teacher; color: root.ink; font.pixelSize: 12; elide: Text.ElideRight; Layout.maximumWidth: 110 } Copy { text: bridge.settings.school || "Giáo viên · Local"; font.pixelSize: 10; elide: Text.ElideRight; Layout.maximumWidth: 130 } }
                 }
                 Action { text: "Hướng dẫn · F1"; implicitHeight: 32; subtle: true; onClicked: helpDialog.open() }
@@ -940,12 +954,24 @@ ApplicationWindow {
                 }
             }
             Rectangle {
-                Layout.fillWidth: true; implicitHeight: Math.max(38, statusMessage.implicitHeight + 20)
+                objectName: "applicationFooter"
+                Layout.fillWidth: true; implicitHeight: footerContent.implicitHeight + 16
                 color: bridge.error ? "#fff0eb" : bridge.busy ? "#eaf3ff" : "#ffffff"
-                RowLayout { anchors.fill: parent; anchors.leftMargin: 25; anchors.rightMargin: 25; spacing: 10
-                    BusyIndicator { visible: bridge.busy; running: bridge.busy; Layout.preferredWidth: 23; Layout.preferredHeight: 23 }
-                    Label { id: statusMessage; text: bridge.message || "Sẵn sàng · Dữ liệu bài giảng được lưu tại máy"; color: bridge.error ? "#b14828" : root.muted; font.pixelSize: 11; wrapMode: Text.WordWrap; Layout.fillWidth: true; textFormat: Text.PlainText }
-                    Action { visible: bridge.busy; text: "Dừng tác vụ"; implicitHeight: 30; onClicked: bridge.cancelJob() }
+                ColumnLayout {
+                    id: footerContent
+                    anchors.left: parent.left; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                    anchors.leftMargin: 25; anchors.rightMargin: 25; spacing: 5
+                    RowLayout { Layout.fillWidth: true; spacing: 10
+                        BusyIndicator { visible: bridge.busy; running: bridge.busy; Layout.preferredWidth: 23; Layout.preferredHeight: 23 }
+                        Label { id: statusMessage; objectName: "applicationStatusMessage"; text: bridge.message || "Sẵn sàng · Dữ liệu bài giảng được lưu tại máy"; color: bridge.error ? "#b14828" : root.muted; font.pixelSize: 11; wrapMode: Text.WordWrap; Layout.fillWidth: true; textFormat: Text.PlainText }
+                        Action { visible: bridge.busy; text: "Dừng tác vụ"; implicitHeight: 30; onClicked: bridge.cancelJob() }
+                    }
+                    Label {
+                        objectName: "applicationCopyright"
+                        text: "Copyright 2026: Nguyễn Diệu Linh - Giáo viên Tin học - Trường THPT Vân Cốc"
+                        color: root.muted; font.pixelSize: 10; textFormat: Text.PlainText
+                        wrapMode: Text.WordWrap; Layout.fillWidth: true; horizontalAlignment: Text.AlignRight
+                    }
                 }
             }
         }

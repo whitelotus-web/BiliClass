@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.0rc20 — 13/10/2026 — Logo hồ sơ và copyright
+
+- Hiện logo trường đã lưu cạnh tên giáo viên ở chân thanh bên; giữ đúng tỷ lệ ảnh, tự cập nhật khi thay/bỏ logo và dùng chữ cái tên khi không có ảnh.
+- Thêm dòng “Copyright 2026: Nguyễn Diệu Linh - Giáo viên Tin học - Trường THPT Vân Cốc” ở chân cửa sổ, tách riêng khỏi trạng thái tác vụ; tự xuống dòng khi cần.
+- Đổi vị trí Browser AI và Song ngữ trong Cài đặt; giữ định danh tab để các đường dẫn mở Browser AI vẫn đúng.
+- Mỗi profile có nút Mở tài khoản, dùng lại luồng Chrome đăng nhập hiện có với đúng profile, không thêm tài khoản mới; khóa thao tác trong lúc profile/tác vụ đang được sử dụng.
+- Giữ cấu trúc Cài đặt và nội dung PowerPoint/prompt hiện có.
+
 ## 1.0.0rc19 — 13/10/2026 — Giữ phiên và tách giọng đọc nền
 
 - Chrome riêng khôi phục phiên khi mở lại; giữ cookie phiên qua các lượt xử lý nền, kiểm tra profile bận/cấu hình hỏng trước khi chạy.

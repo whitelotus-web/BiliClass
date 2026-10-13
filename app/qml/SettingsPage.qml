@@ -83,27 +83,27 @@ Item {
             Layout.fillWidth: true; spacing: 5
             Repeater {
                 model: [
-                    {name: "Chung", icon: "settings"}, {name: "Song ngữ", icon: "bilingual"},
-                    {name: "Giọng đọc", icon: "voice"}, {name: "Mascot", icon: "mascot"},
-                    {name: "Lớp học", icon: "classroom"}, {name: "Dữ liệu", icon: "data"},
-                    {name: "Browser AI", icon: "bilingual"}
+                    {name: "Chung", icon: "settings", tabId: 0}, {name: "Browser AI", icon: "bilingual", tabId: 6},
+                    {name: "Giọng đọc", icon: "voice", tabId: 2}, {name: "Mascot", icon: "mascot", tabId: 3},
+                    {name: "Lớp học", icon: "classroom", tabId: 4}, {name: "Dữ liệu", icon: "data", tabId: 5},
+                    {name: "Song ngữ", icon: "bilingual", tabId: 1}
                 ]
                 Button {
                     id: tab
                     required property var modelData
                     required property int index
-                    objectName: "settingsTab" + index
+                    objectName: "settingsTab" + modelData.tabId
                     Layout.fillWidth: true; Layout.preferredWidth: 1; implicitHeight: 57
-                    onClicked: page.activeTab = index
+                    onClicked: page.activeTab = modelData.tabId
                     background: Rectangle {
-                        color: page.activeTab === tab.index ? "#e7f2ff" : tab.hovered ? "#f5f8fc" : "transparent"
+                        color: page.activeTab === tab.modelData.tabId ? "#e7f2ff" : tab.hovered ? "#f5f8fc" : "transparent"
                         radius: 11
-                        Rectangle { anchors.bottom: parent.bottom; anchors.horizontalCenter: parent.horizontalCenter; width: parent.width - 35; height: 2; color: page.blue; visible: page.activeTab === tab.index }
+                        Rectangle { anchors.bottom: parent.bottom; anchors.horizontalCenter: parent.horizontalCenter; width: parent.width - 35; height: 2; color: page.blue; visible: page.activeTab === tab.modelData.tabId }
                     }
                     contentItem: RowLayout {
                         spacing: 7
-                        Image { source: "../assets/navigation/" + tab.modelData.icon + (page.activeTab === tab.index ? "-active" : "") + ".png"; sourceSize.width: 64; sourceSize.height: 64; fillMode: Image.PreserveAspectFit; Layout.preferredWidth: 27; Layout.preferredHeight: 27 }
-                        Label { text: tab.modelData.name; color: page.activeTab === tab.index ? page.blue : page.ink; font.pixelSize: 13; font.weight: page.activeTab === tab.index ? Font.Bold : Font.DemiBold; elide: Text.ElideRight; Layout.fillWidth: true }
+                        Image { source: "../assets/navigation/" + tab.modelData.icon + (page.activeTab === tab.modelData.tabId ? "-active" : "") + ".png"; sourceSize.width: 64; sourceSize.height: 64; fillMode: Image.PreserveAspectFit; Layout.preferredWidth: 27; Layout.preferredHeight: 27 }
+                        Label { text: tab.modelData.name; color: page.activeTab === tab.modelData.tabId ? page.blue : page.ink; font.pixelSize: 13; font.weight: page.activeTab === tab.modelData.tabId ? Font.Bold : Font.DemiBold; elide: Text.ElideRight; Layout.fillWidth: true }
                     }
                 }
             }
@@ -477,6 +477,12 @@ Item {
                                             Label { objectName: "browserProfilePlan"; text: accountRow.modelData.plan === "unknown" ? "Chưa rõ gói" : accountRow.modelData.plan.charAt(0).toUpperCase() + accountRow.modelData.plan.slice(1); color: page.muted; font.pixelSize: 13 }
                                             Label { objectName: "browserProfileState"; text: accountRow.modelData.status; color: accountRow.modelData.color; font.pixelSize: 13 }
                                         }
+                                    }
+                                    SoftButton {
+                                        objectName: "browserProfileOpen"; text: "Mở tài khoản"
+                                        enabled: !bridge.busy && !bridge.browserAI.loginBusy
+                                        Accessible.name: "Mở tài khoản " + (accountRow.modelData.name || accountRow.modelData.label)
+                                        onClicked: bridge.browserAI.signIn(accountRow.accountId)
                                     }
                                     SoftButton {
                                         objectName: "browserProfileReconnect"

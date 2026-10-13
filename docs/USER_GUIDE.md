@@ -1,8 +1,8 @@
-# BiliClass RC19 — hướng dẫn dùng thử
+# BiliClass RC20 — hướng dẫn dùng thử
 
 ## Cài lần đầu
 
-1. Mở [Release RC19](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc19), tải **BiliClass-RC19-Windows.zip** trong Assets.
+1. Mở [Release RC20](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc20), tải **BiliClass-RC20-Windows.zip** trong Assets.
 2. Giải nén toàn bộ bằng Windows; không chạy ứng dụng ngay trong cửa sổ ZIP.
 3. Chạy **Setup.cmd**. Bộ cài kiểm tra checksum, cài vào `%LOCALAPPDATA%/Programs/BiliClass/<version>` và tạo mục Start menu, không cần quyền quản trị.
 4. Mở BiliClass từ Start menu, vào **Cài đặt → Browser AI → Thêm tài khoản**, đăng nhập ChatGPT. Mỗi máy tự đăng nhập; không sao chép profile của người khác.
@@ -11,6 +11,10 @@
 Yêu cầu: Windows 10/11 64-bit; Google Chrome; Microsoft PowerPoint desktop để giữ trình chiếu, animation và điều khiển slide. Cần Internet khi chuyển đổi bằng ChatGPT. Bộ cài đã có sáu giọng VieNeu đa ngôn ngữ, một giọng đọc cả Việt và Anh, mẫu và ảnh xem trước; không cần Python, API key hay tải model riêng.
 
 Portable: chạy `BiliClass/BiliClass.exe` trong thư mục đã giải nén. Giữ nguyên `_internal`, `models`, `licenses`. Không mở đồng thời bản nguồn và bản cài với cùng thư viện.
+
+Trong Cài đặt, Browser AI ở vị trí thứ hai, Song ngữ ở cuối. Nút **Mở tài khoản** trên mỗi profile mở đúng phiên Chrome đã lưu, không tạo tài khoản mới; khi đóng cửa sổ hoặc bấm Kiểm tra và lưu, tool xác minh lại phiên. Hoàn tất tác vụ/profile đang mở trước khi mở tài khoản khác.
+
+Logo tải ở **Chung** cũng hiện cạnh tên giáo viên ở chân thanh bên. Không có logo thì hiện chữ cái tên; thay/bỏ logo cập nhật ngay. Tùy chọn hiện hồ sơ trên bài giảng chỉ điều khiển phần hồ sơ trong bài. Copyright tác giả hiển thị riêng ở chân cửa sổ BiliClass, không được tự thêm vào tài liệu hoặc prompt của giáo viên.
 
 ## Tạo bài giảng
 
