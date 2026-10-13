@@ -579,6 +579,16 @@ def result_link(page, assistant_before=0, *, assistant_ids_before=None):
     return None
 
 
+def interrupted_answer(page):
+    """Recognize the web's stream status, never a quote in a lesson/reply."""
+    for notice in page.locator('[role="status"], [role="alert"]').all():
+        if (notice.is_visible() and not notice.locator(MESSAGE_ANCESTORS).count()
+                and re.fullmatch(r"Connection interrupted\.?\s*Waiting for the complete answer\.?",
+                                 notice.inner_text().strip(), re.I)):
+            return True
+    return False
+
+
 def wait_result(page, folder, record, cancel, progress, timeout=900):
     deadline = time.monotonic() + timeout
     last_progress = 0
@@ -592,6 +602,22 @@ def wait_result(page, folder, record, cancel, progress, timeout=900):
         link = result_link(page, before, assistant_ids_before=ids)
         if link and not generating:
             return link
+        if interrupted_answer(page):
+            key = record.get("send_sha256", "")
+            if record.get("stream_reconnect_key") != key:
+                record.update(stream_reconnect_key=key, stream_reconnects=0)
+            attempts = record.get("stream_reconnects", 0)
+            if attempts >= 2 or not conversation_url(record.get("url", "")):
+                raise BrowserProblem("network", "Kết nối xử lý đang gián đoạn. Bài và lượt đã gửi được giữ để tiếp tục.")
+            record.update(stream_reconnects=attempts + 1, error="")
+            write_record(folder, record)
+            progress("Đang tự nối lại tiến trình xử lý…")
+            if cancel.wait(2):
+                check_cancel(cancel)
+            navigate(page, record["url"], cancel)
+            require_account(page, cancel)
+            last_text, stable_since = "", time.monotonic()
+            continue
         message = latest_reply(page, before, ids)
         if message is not None and not generating:
             text = message.inner_text()

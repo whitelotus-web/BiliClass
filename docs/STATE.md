@@ -1,5 +1,25 @@
 # Trạng thái BiliClass
 
+Ngày 14/10/2026 — đợt nghiệm thu bài thật phát hiện thông báo web “Connection
+interrupted. Waiting for the complete answer” trong role=status, ngoài nội
+dung trả lời, trong khi nút Stop vẫn hiện. Đây là nguyên nhân lượt sửa giữ
+loading đến timeout dù tài khoản đã vào được chat. Nguồn RC26 nhận diện đúng
+thông báo, tải lại cùng cuộc trò chuyện tối đa hai lần/lượt gửi, lưu bộ đếm
+qua lần mở app; không gửi lại prompt. Hai test Chrome thật với fixture qua:
+khôi phục có file không gửi thêm, và lỗi kéo dài bị chặn sau hai lần; câu
+trích trong bài không bị hiểu thành thông báo hệ thống. Chưa khẳng định lỗi
+mạng/dịch vụ bên ngoài được giải quyết hoặc bài thật đã hoàn thiện.
+
+RC25 đã phát hành từ commit `22f8c206355e85e9bb1f5676fe9c5df34eac0ccf`:
+ZIP 667.913.122 byte, SHA-256
+`222e4557acfc021a7dbd59b6ce9576c9ef52fa2f8814e16d6f779a0eafed3594`.
+62 module app được xây lại bằng PyInstaller trong 16,03 giây; runtime/model
+tái sử dụng được đối chiếu toàn bộ manifest RC24. Cài/gỡ Unicode, Qt hai cỡ
+cửa sổ, kiểm tra checksum/CRC và nút sửa thực thi trong bản đóng gói qua
+(bản sao đổi font/italic đúng, giữ nguồn, tạo revision mới không tự duyệt).
+Updater từ RC24 nhận đúng RC25; đã cài RC25 trên máy, chưa mở thư viện thật
+khi lượt sửa web đang được theo dõi.
+
 Ngày 14/10/2026 — nguồn RC25 thêm Tự sửa bài giảng cho bài đã lưu và kiểm
 tra/sửa tự động sau chuyển đổi. Sửa tràn chữ bằng PowerPoint trên bản sao,
 đồng nhất font tiêu đề Việt trên/Anh dưới (Anh nhỏ, nghiêng), giữ nguyên các

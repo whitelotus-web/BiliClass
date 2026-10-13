@@ -1338,3 +1338,60 @@ def test_lesson_buttons_and_generic_retry_notice_are_not_effort_or_quota(browser
             assert select_reasoning(page) == "Theo tùy chọn web đang có" and not captured["sends"]
         finally:
             context.close()
+
+
+def test_stream_interruption_reloads_same_conversation_without_a_second_send(browser_fixture, monkeypatch):
+    from playwright.sync_api import sync_playwright
+
+    adapter, accounts, request, captured, _source = browser_fixture
+    record = {"account_id": accounts.get()["id"], "state": "waiting", "url": "https://chatgpt.com/c/fixture-123",
+              "followups": 0, "send_sha256": "a" * 64, "assistant_before": 0, "assistant_ids_before": []}
+    original = adapter.navigate
+    reloads = []
+    def recover(page, url, cancel):
+        reloads.append(url)
+        captured["html"] = FIXTURE
+        original(page, url, cancel)
+    monkeypatch.setattr(adapter, "navigate", recover)
+    with sync_playwright() as driver:
+        context = adapter.open_context(driver, accounts.get(), background=True)
+        try:
+            page = context.pages[0]
+            page.goto(record["url"])
+            page.set_content('<button data-testid="stop-button">Stop</button><div role="status">'
+                             'Connection interrupted. Waiting for the complete answer</div>')
+            link = adapter.wait_result(page, request["folder"], record, Event(), lambda _: None, timeout=15)
+            assert ".pptx" in link.inner_text()
+            assert reloads == [record["url"]] and not captured["sends"]
+            assert record["send_sha256"] == "a" * 64 and record["stream_reconnects"] == 1
+        finally:
+            context.close()
+
+
+def test_stream_reconnections_are_durable_and_bounded_even_when_stop_button_remains(browser_fixture, monkeypatch):
+    from playwright.sync_api import sync_playwright
+
+    adapter, accounts, request, captured, _source = browser_fixture
+    captured["html"] = FIXTURE.replace('<div id="messages">', '<button data-testid="stop-button">Stop</button>'
+        '<div role="status">Connection interrupted. Waiting for the complete answer</div><div id="messages">')
+    record = {"account_id": accounts.get()["id"], "state": "waiting", "url": "https://chatgpt.com/c/fixture-123",
+              "followups": 0, "send_sha256": "a" * 64, "assistant_before": 1}
+    original = adapter.navigate
+    reloads = []
+    monkeypatch.setattr(adapter, "navigate", lambda p, url, cancel: (reloads.append(url), original(p, url, cancel))[-1])
+    with sync_playwright() as driver:
+        context = adapter.open_context(driver, accounts.get(), background=True)
+        try:
+            page = context.pages[0]
+            page.goto(record["url"])
+            for _ in range(2):
+                with pytest.raises(BrowserProblem) as exc:
+                    adapter.wait_result(page, request["folder"], record, Event(), lambda _: None, timeout=15)
+                assert exc.value.code == "network"
+            assert reloads == [record["url"], record["url"]] and not captured["sends"]
+            assert read_record(request["folder"], accounts.get()["id"])["stream_reconnects"] == 2
+            page.set_content('<div data-message-author-role="assistant"><div role="status">'
+                             'Connection interrupted. Waiting for the complete answer</div></div>')
+            assert not adapter.interrupted_answer(page)
+        finally:
+            context.close()
