@@ -6,15 +6,17 @@ RC14 thêm [kiểm tra slide và English Reader](docs/SMART_SLIDES_READER.md): l
 
 ## Cài để dùng trên máy khác
 
-Tải **BiliClass-RC16-Windows.zip** tại [Release RC16](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc16), giải nén toàn bộ rồi chạy **Setup.cmd**. Không tải “Source code” nếu chỉ muốn cài và dùng. Không cần Python hoặc API key.
+Tải **BiliClass-RC17-Windows.zip** tại [Release RC17](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc17), giải nén toàn bộ rồi chạy **Setup.cmd**. Không tải “Source code” nếu chỉ muốn cài và dùng. Không cần Python hoặc API key.
 
 RC16 có [thanh tiến trình % và tối ưu xử lý trên máy](docs/CONVERSION_PROGRESS.md): dùng lại ảnh/đo bố cục đã kiểm tra, tránh voice trùng và chờ menu model sẵn sàng. % giữ ở mốc chờ khi ChatGPT đang tạo bài; không đoán % xử lý bên trong web.
 
-Máy cần Windows 10/11 64-bit, Google Chrome để đăng nhập ChatGPT và Microsoft PowerPoint bản desktop để trình chiếu/giữ hiệu ứng. Kết nối Internet cần khi đăng nhập và chuyển đổi; giọng đọc Kokoro English/VieNeu Việt và các mẫu đã nằm trong gói. Việc tạo tệp/hạn mức phụ thuộc tài khoản ChatGPT Free/Plus của người dùng.
+Máy cần Windows 10/11 64-bit, Google Chrome để đăng nhập ChatGPT và Microsoft PowerPoint bản desktop để trình chiếu/giữ hiệu ứng. Kết nối Internet cần khi đăng nhập và chuyển đổi; sáu giọng VieNeu chung Việt/Anh và các mẫu đã nằm trong gói. Việc tạo tệp/hạn mức phụ thuộc tài khoản ChatGPT Free/Plus của người dùng.
 
 Sau khi cài, mở BiliClass từ Start menu → **Cài đặt → Browser AI → Thêm tài khoản** và tự đăng nhập ChatGPT trên máy đó. Phiên đăng nhập và bài học riêng không được chuyển qua GitHub. Muốn dùng portable, chạy `BiliClass/BiliClass.exe` và giữ nguyên toàn bộ thư mục `_internal`, `models`, `licenses`.
 
 App tự kiểm tra bản mới khi mở. Khi có phiên bản mới, chọn **Cập nhật**; app tải/xác minh gói rồi cài và mở lại. Dữ liệu nằm riêng tại `%LOCALAPPDATA%/BiliClass` nên được giữ qua cập nhật. Không cần tự tải và cài lại mỗi lần.
+
+RC17 dùng [một giọng VieNeu cho Việt và Anh](docs/MULTILINGUAL_VOICE.md), có sáu giọng nam/nữ, nghe thử tốc độ trước khi lưu.
 
 ## Chuyển đổi và dạy
 
@@ -39,7 +41,6 @@ Cài Python 3.12 64-bit và [uv](https://docs.astral.sh/uv/getting-started/insta
 uv venv --python 3.12 .venv
 uv pip install --python .venv/Scripts/python.exe -r requirements-lock.txt
 uv pip install --python .venv/Scripts/python.exe -e . --no-deps
-.\.venv\Scripts\python.exe scripts/download_kokoro.py
 .\.venv\Scripts\python.exe scripts/download_vieneu.py
 powershell -ExecutionPolicy Bypass -File scripts/run.ps1
 ```

@@ -22,9 +22,14 @@ def export_pack(library, lesson_id, destination):
     terms.update({item["vi"].casefold(): {key: item[key] for key in ("vi", "en", "subject", "locked")}
                   for item in library.glossary(lesson["subject"])})
     lesson["project_terms"] = list(terms.values())
-    lesson["project_preferences"] = {key: library.setting(key, default) for key, default in
-                                     (("voice_en", ""), ("voice_vi", ""), ("voice_rate", 0),
-                                      ("mascot", "Milo"), ("mascot_options", {}))}
+    from .speech import voice_settings
+    voice = voice_settings(library)
+    saved_voice = library.setting("voice_options", None)
+    lesson["project_preferences"] = {
+        "voice_options": saved_voice if isinstance(saved_voice, dict) else {"voice": voice["voice"], "rate": voice["rate"]},
+        "mascot": library.setting("mascot", "Milo"),
+        "mascot_options": library.setting("mascot_options", {}),
+    }
     entries = {"lesson.json": json.dumps(lesson, ensure_ascii=False).encode("utf-8")}
     entries.update(audio_files)
     from .lesson_templates import source_image
@@ -258,7 +263,10 @@ def import_pack(library, path):
         folder.mkdir(exist_ok=True)
         (folder / record["file"]).write_bytes(data)
         record = {**record, "segment_id": id_map[record["segment_id"]]}
-        (folder / (record["sha256"] + ".json")).write_text(json.dumps(record), encoding="utf-8")
+        # The same waveform may serve both languages (e.g. an unchanged term).
+        # Keep each text/language/voice association instead of overwriting it.
+        metadata_key = hashlib.sha256(json.dumps(record, sort_keys=True).encode("utf-8")).hexdigest()
+        (folder / (metadata_key + ".json")).write_text(json.dumps(record), encoding="utf-8")
     for name, data in image_assets.items():
         folder = library.directory / "assets"
         folder.mkdir(exist_ok=True)

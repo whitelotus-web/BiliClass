@@ -856,40 +856,16 @@ class Bridge(QObject):
 
 
     @Property("QVariantList", notify=changed)
-    def englishVoices(self):
-        return [v for v in self._voices if v["language"] == "en"]
-
-    @Property(bool, notify=changed)
-    def kokoroReady(self):
-        return speech.kokoro_ready()
+    def multilingualVoices(self):
+        return self._voices
 
     @Property(bool, notify=changed)
     def vieneuReady(self):
         return speech.vieneu_ready()
 
-    @Property("QVariantList", notify=changed)
-    def voicePairs(self):
-        return [
-            {"name": "Êm dịu · Bắc / Mỹ", "vi": "vieneu:Mai Anh", "en": "kokoro:af_heart"},
-            {"name": "Tươi sáng · Nam / Mỹ", "vi": "vieneu:Thùy Dung", "en": "kokoro:af_bella"},
-            {"name": "Mạch lạc · Bắc / Mỹ", "vi": "vieneu:Hải Đăng", "en": "kokoro:am_michael"},
-            {"name": "Ấm áp · Nam / Anh", "vi": "vieneu:Thái Sơn", "en": "kokoro:bm_george"},
-        ] if self.vieneuReady and self.kokoroReady else []
-
-    @Property("QVariantList", notify=changed)
-    def vietnameseVoices(self):
-        return [v for v in self._voices if v["language"] == "vi"]
-
     @Property("QVariantMap", notify=changed)
     def voiceSettings(self):
-        result = {"rate": self.library.setting("voice_rate", 0)}
-        for language in ("en", "vi"):
-            available = [v for v in self._voices if v["language"] == language]
-            selected = self.library.setting("voice_" + language, "")
-            ids = [v["id"] for v in available]
-            result[language] = selected if selected in ids else ids[0] if ids else ""
-            result[language + "_index"] = ids.index(result[language]) if ids else -1
-        return result
+        return speech.voice_settings(self.library, self._voices)
 
     @Property("QVariantMap", notify=changed)
     def readiness(self):
@@ -1183,65 +1159,28 @@ class Bridge(QObject):
             self.inform(str(exc), True)
 
     @Slot(str, int)
-    def setVoice(self, language, index):
-        voices = [v for v in self._voices if v["language"] == language]
-        if language in ("vi", "en") and 0 <= index < len(voices):
-            self.library.set_setting("voice_" + language, voices[index]["id"])
-            self.inform("Đã chọn giọng đọc. Mascot vẫn giữ nguyên.")
-
-    @Slot(int)
-    def setVoicePair(self, index):
-        pairs = self.voicePairs
-        if not 0 <= index < len(pairs):
+    def saveMultilingualVoice(self, voice, rate):
+        if voice not in {v["id"] for v in self._voices} or not -3 <= rate <= 3:
+            self.inform("Chọn giọng và tốc độ hợp lệ trước khi lưu.", True)
             return
-        pair = pairs[index]
-        ids = {voice["id"] for voice in self._voices}
-        if pair["vi"] not in ids or pair["en"] not in ids:
-            self.inform("Bộ giọng này chưa có đủ model trên máy.", True)
-            return
-        self.library.set_setting("voice_vi", pair["vi"])
-        self.library.set_setting("voice_en", pair["en"])
-        self.inform("Đã lưu cả giọng Việt và English cho bài giảng song ngữ.")
+        self.stopSpeech()
+        # One atomic preference prevents a half-saved voice/rate combination.
+        self.library.set_setting("voice_options", {"voice": voice, "rate": rate})
+        self.inform("Đã lưu giọng chung và tốc độ cho tiếng Việt, tiếng Anh và mascot.")
 
-    @Slot(int)
-    def setVoiceRate(self, rate):
-        if -3 <= rate <= 3:
-            self.library.set_setting("voice_rate", rate)
-            self.inform("Đã lưu tốc độ giọng đọc.")
-
-    @Slot(str)
-    def previewVoice(self, sample):
-        self._preview_voice(self.voiceSettings["en"], sample)
-
-    @Slot(int, str)
-    def previewVoiceChoice(self, index, sample):
-        voices = self.englishVoices
-        if 0 <= index < len(voices):
-            self._preview_voice(voices[index]["id"], sample)
-
-    @Slot(int, str)
-    def previewVietnameseVoiceChoice(self, index, sample):
-        voices = self.vietnameseVoices
-        if 0 <= index < len(voices):
-            self._preview_voice(voices[index]["id"], sample)
-
-    @Slot(str)
-    def previewVietnameseVoice(self, sample):
-        self._preview_voice(self.voiceSettings["vi"], sample)
-
-    def _preview_voice(self, voice, sample):
-        if not voice:
-            self.inform("Máy chưa có giọng đọc phù hợp để nghe thử.", True)
+    @Slot(str, int, str)
+    def previewMultilingualVoice(self, voice, rate, sample):
+        if voice not in {v["id"] for v in self._voices} or not -3 <= rate <= 3:
+            self.inform("Chọn giọng và tốc độ hợp lệ để nghe thử.", True)
             return
         sample = sample.strip()
         if not sample or len(sample) > 250:
             self.inform("Câu nghe thử cần từ 1 đến 250 ký tự.", True)
             return
         self.stopSpeech()
-        rate = self.voiceSettings["rate"]
         self.launch(
             lambda: speech.synthesize(sample, voice, rate, self.library.directory / "audio"),
-            lambda result: (self._play_audio(result["path"]), self.inform("Đang nghe thử giọng đã chọn.")),
+            lambda result: (self._play_audio(result["path"]), self.inform("Đang nghe thử giọng và tốc độ; chưa thay cấu hình đã lưu.")),
         )
 
     @Slot(str, str, result="QVariantList")
@@ -1360,8 +1299,8 @@ class Bridge(QObject):
             self._refresh_slide_speech(read_after=True)
             return
         voice = self.voiceSettings["en"]
-        if not any(v["id"] == voice and v["language"] == "en" for v in self._voices):
-            self.inform("Chọn giọng English en-US/en-GB trong Cài đặt → Giọng đọc.", True)
+        if not any(v["id"] == voice and "en" in v.get("languages", []) for v in self._voices):
+            self.inform("Chọn giọng đa ngôn ngữ VieNeu trong Cài đặt → Giọng đọc.", True)
             return
         slide_number = self._powerpoint_state["slide"]
         slide = next((s for s in data["slides"] if s["slide"] == slide_number), {})

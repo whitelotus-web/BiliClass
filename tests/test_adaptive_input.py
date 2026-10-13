@@ -75,7 +75,7 @@ def test_mixed_source_review_and_project_roundtrip_preserve_languages(tmp_path):
         with pytest.raises(ValueError, match="nguồn"):
             library.edit_segment(lesson["id"], en["id"], "Giá trị", "", False)
         library.save_term("Toán", "Hàm số", "function")
-        library.set_setting("voice_en", "test-voice")
+        library.set_setting("voice_options", {"voice": "vieneu:Hải Đăng", "rate": 1})
         lesson = library.edit_segment(lesson["id"], vi["id"], vi["vi"], "A function is a rule.", True)
         lesson = library.edit_segment(lesson["id"], en["id"], "Mỗi đầu vào có một giá trị.", en["en"], True)
         lesson = library.set_presentation(lesson["id"], 3, "level_auto")
@@ -87,9 +87,9 @@ def test_mixed_source_review_and_project_roundtrip_preserve_languages(tmp_path):
             assert [s["source_language"] for s in imported["segments"]] == ["vi", "en"]
             assert imported["layout"] == "level_auto" and imported["conversion_mode"] == "level"
             assert imported["project_terms"][0]["en"] == "function"
-            assert imported["project_preferences"]["voice_en"] == "test-voice"
+            assert imported["project_preferences"]["voice_options"] == {"voice": "vieneu:Hải Đăng", "rate": 1}
             assert not any(s["approved"] for s in imported["segments"])
-            assert not recipient.glossary() and recipient.setting("voice_en", "unchanged") == "unchanged"
+            assert not recipient.glossary() and recipient.setting("voice_options", "unchanged") == "unchanged"
             assert source.read_bytes() == (recipient.directory / "sources" / imported["source"]["file"]).read_bytes()
         finally:
             recipient.close()

@@ -29,7 +29,7 @@ def main():
         if p.is_file() and (
             "models" not in p.relative_to(bundle).parts
             or p.relative_to(bundle).parts[:2] in {
-                ("models", "kokoro-multi-lang-v1_0"), ("models", "vieneu-hf")
+                ("models", "vieneu-hf")
             }
         )
     }

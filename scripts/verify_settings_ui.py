@@ -6,8 +6,8 @@ import tempfile
 import time
 from pathlib import Path
 
-from PySide6.QtCore import QEventLoop, QObject, QPointF, Qt, QTimer, QUrl
-from PySide6.QtGui import QDesktopServices, QFont, QFontDatabase, QGuiApplication
+from PySide6.QtCore import QEventLoop, QMetaObject, QObject, QPointF, Qt, QTimer, QUrl
+from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
 from PySide6.QtTest import QTest
@@ -149,49 +149,31 @@ def main():
         assert bridge.lesson["level"] == 2
 
         click("settingsTab2")
-        pair_card = control("voicePairCard")
-        english_card = control("voiceEnglishCard")
-        vietnamese_card = control("voiceVietnameseCard")
-        english_top = english_card.mapToScene(QPointF(0, 0))
-        vietnamese_top = vietnamese_card.mapToScene(QPointF(0, 0))
-        assert abs(english_top.y() - vietnamese_top.y()) < 2, "English and Vietnamese voices should share a row"
-        assert english_top.x() < vietnamese_top.x() and abs(english_card.width() - vietnamese_card.width()) < 2
-        if bridge.voicePairs:
-            pair_bottom = pair_card.mapToScene(QPointF(0, pair_card.height())).y()
-            assert pair_card.isVisible() and pair_bottom < english_top.y(), "Suggested pairs should be above both voice columns"
-        shot("voice-layout")
-        assert [voice["id"] for voice in bridge.englishVoices] == [
-            "kokoro:af_heart", "kokoro:af_bella", "kokoro:am_michael",
-            "kokoro:bf_emma", "kokoro:bm_george",
-        ]
-        click("selectVoice4")
-        assert bridge.voiceSettings["en"] == "kokoro:bm_george"
+        assert control("multilingualVoiceCard").isVisible()
+        assert len(bridge.multilingualVoices) == 6
+        assert not window.findChild(QObject, "voiceEnglishCard")
+        assert not window.findChild(QObject, "voiceVietnameseCard")
+        original = dict(bridge.voiceSettings)
+        click("selectMultilingualVoice2")
+        assert bridge.voiceSettings == original, "Selection must remain a draft until saved"
+        settings_page = control("settingsPage")
+        control("settingsVoiceRate").setProperty("value", 2)
+        assert QMetaObject.invokeMethod(control("settingsVoiceRate"), "moved", Qt.DirectConnection)
+        assert settings_page.property("draftRate") == 2
+        assert bridge.voiceSettings == original, "Speed preview must not change saved preferences"
         if not layout_only:
-            click("previewVoice0")
-            until(lambda: not bridge.busy)
-            assert bridge.voiceSettings["en"] == "kokoro:bm_george"
-            until(lambda: control("previewEnglishVoice").isEnabled())
-            click("previewEnglishVoice")
+            click("previewMultilingualVoice")
             until(lambda: not bridge.busy)
             assert "nghe thử" in bridge.message.lower(), bridge.message
+            assert bridge.voiceSettings == original
             bridge.stopSpeech()
-        if bridge.vieneuReady:
-            assert [voice["id"] for voice in bridge.vietnameseVoices[:4]] == [
-                "vieneu:Mai Anh", "vieneu:Thùy Dung", "vieneu:Hải Đăng", "vieneu:Thái Sơn"
-            ]
-            click("selectVietnameseVoice2")
-            assert bridge.voiceSettings["vi"] == "vieneu:Hải Đăng"
-            if not layout_only:
-                click("previewVietnameseVoice2")
-                until(lambda: not bridge.busy)
-                assert "nghe thử" in bridge.message.lower(), bridge.message
-                bridge.stopSpeech()
-            click("applyVoicePair")
-            assert bridge.voiceSettings["vi"] == "vieneu:Mai Anh"
-            assert bridge.voiceSettings["en"] == "kokoro:af_heart"
+        click("saveMultilingualVoice")
+        assert bridge.voiceSettings["en"] == bridge.voiceSettings["vi"] == "vieneu:Hải Đăng"
+        assert bridge.voiceSettings["rate"] == 2
+        assert library.setting("voice_options", {}) == {"voice": "vieneu:Hải Đăng", "rate": 2}
         shot("voice")
-        checks.append("Voice selection/pair/layout persist; playback skipped explicitly" if layout_only else
-                      "English Kokoro and Vietnamese VieNeu voices preview offline; voice pair saves both selections")
+        checks.append("Single VieNeu speaker for VI/EN; draft choice/speed; explicit atomic save" +
+                      ("; playback skipped explicitly" if layout_only else "; actual mixed-language speed preview"))
 
         click("settingsTab3")
         shot("mascot-top")
@@ -304,13 +286,13 @@ def main():
         control("lessonContent").setProperty("text", "Hãy quan sát mẫu vật.")
         control("creationFormat").setProperty("currentIndex", 3)
         control("creationGrade").setProperty("currentIndex", 2)
-        bridge.browserAI.saveOptions(False, False)
-        QDesktopServices.openUrl = lambda url: True  # No browser/network in settings verification.
-        click("createLessonButton")
-        until(lambda: not bridge.busy and bridge.chatgptRequest.get("config", {}).get("title") == "Bài kiểm tra cấu hình")
-        assert bridge.chatgptRequest["config"]["conversion_format"] == "english_only"
-        assert bridge.chatgptRequest["config"]["grade"] == "12"
-        checks.append("new grade-12 request stores one English-only method, ignoring old global defaults")
+        assert control("creationFormat").property("currentIndex") == 3
+        assert control("creationGrade").property("currentText") == "12"
+        # The automatic workflow now requires a ready browser account. This
+        # settings test has no account and must not create or send a web request;
+        # qt_chatgpt_handoff_smoke separately tests the complete conversion flow.
+        assert not bridge.chatgptRequest
+        checks.append("new lesson uses its local grade/method; no account or uploads in settings smoke")
 
         assert not warnings, warnings
         report_name = "settings-layout-ui.json" if layout_only else "settings-ui.json"
@@ -327,6 +309,7 @@ def main():
             assert reopened.setting("teaching_subjects", []) == ["Ngữ văn", "Lịch sử"]
             assert (Path(directory) / "assets" / "school-logo.png").is_file()
             assert reopened.setting("mascot", "") == "Lumi"
+            assert reopened.setting("voice_options", {}) == {"voice": "vieneu:Hải Đăng", "rate": 2}
             assert reopened.setting("classroom_options", {})["capacity"] == 42
         finally:
             reopened.close()

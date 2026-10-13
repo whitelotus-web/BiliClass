@@ -1,4 +1,4 @@
-param([string]$DistRoot)
+﻿param([string]$DistRoot)
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $distPath = if ($DistRoot) { [IO.Path]::GetFullPath($DistRoot) } else { Join-Path $projectRoot 'dist' }
@@ -6,16 +6,6 @@ if (-not $distPath.StartsWith(([IO.Path]::GetFullPath($projectRoot).TrimEnd('\')
 $bundlePath = Join-Path $distPath 'BiliClass'
 $runtimeDest = Join-Path $bundlePath '_internal'
 if (-not (Test-Path -LiteralPath (Join-Path $runtimeDest 'python312.dll'))) { throw 'Build the application first.' }
-$kokoroSource = Join-Path $projectRoot '.runtime\kokoro\kokoro-multi-lang-v1_0'
-$kokoroDest = Join-Path $bundlePath 'models\kokoro-multi-lang-v1_0'
-foreach ($required in @('model.onnx','voices.bin','tokens.txt','lexicon-us-en.txt','espeak-ng-data\phontab','LICENSE')) {
-    if (-not (Test-Path -LiteralPath (Join-Path $kokoroSource $required))) { throw ('Missing Kokoro model file: ' + $required) }
-}
-New-Item -ItemType Directory -Path $kokoroDest -Force | Out-Null
-foreach ($name in @('model.onnx','voices.bin','tokens.txt','lexicon-us-en.txt','LICENSE','README.md')) {
-    Copy-Item -LiteralPath (Join-Path $kokoroSource $name) -Destination (Join-Path $kokoroDest $name) -Force
-}
-Copy-Item -LiteralPath (Join-Path $kokoroSource 'espeak-ng-data') -Destination $kokoroDest -Recurse -Force
 $vieneuSource = Join-Path $projectRoot '.runtime\vieneu-hf\hub'
 $vieneuDest = Join-Path $bundlePath 'models\vieneu-hf\hub'
 if (-not (Test-Path -LiteralPath (Join-Path $vieneuSource 'models--pnnbao-ump--VieNeu-TTS-v3-Turbo\refs\main'))) { throw 'Missing VieNeu model cache.' }
@@ -31,25 +21,18 @@ foreach ($runtimeName in @('vcruntime140.dll','vcruntime140_1.dll','msvcp140.dll
 # Remove only a generated bundle artifact, never a Windows system library.
 $foreignIcu = Join-Path $runtimeDest 'icuuc.dll'
 if (Test-Path -LiteralPath $foreignIcu) { Remove-Item -LiteralPath $foreignIcu }
-# Both Python VieNeu and sherpa-onnx use a DLL named onnxruntime.dll.
-# PyInstaller may resolve sherpa's older copy first in a speech worker.
-# Ship the installed Python runtime at both locations; validate both
-# speech engines with the packaged self-test after finalization.
-$onnxRuntimeSource = Join-Path $projectRoot '.venv\Lib\site-packages\onnxruntime\capi\onnxruntime.dll'
-$sherpaRuntimeDest = Join-Path $runtimeDest 'sherpa_onnx\lib\onnxruntime.dll'
-if (-not (Test-Path -LiteralPath $onnxRuntimeSource) -or -not (Test-Path -LiteralPath $sherpaRuntimeDest)) { throw 'Missing shared ONNX runtime in build.' }
-Copy-Item -LiteralPath $onnxRuntimeSource -Destination $sherpaRuntimeDest -Force
 # Recent llvmlite loads its DLL from the binding package's resource path.
 # PyInstaller's hook can collect the same DLL at the bundle root instead.
 $llvmSource = Join-Path $projectRoot '.venv\Lib\site-packages\llvmlite\binding\llvmlite.dll'
 $llvmDest = Join-Path $runtimeDest 'llvmlite\binding'
-if (-not (Test-Path -LiteralPath $llvmSource)) { throw 'Missing llvmlite runtime for Vietnamese voice speed adjustment.' }
+if (-not (Test-Path -LiteralPath $llvmSource)) { throw 'Missing llvmlite runtime for VieNeu SDK audio utilities.' }
 New-Item -ItemType Directory -Path $llvmDest -Force | Out-Null
 Copy-Item -LiteralPath $llvmSource -Destination $llvmDest -Force
 $llvmSharedSource = Join-Path $projectRoot '.venv\Lib\site-packages\llvmlite.libs'
 if (Test-Path -LiteralPath $llvmSharedSource) {
     Copy-Item -LiteralPath $llvmSharedSource -Destination $runtimeDest -Recurse -Force
 }
+Copy-Item -LiteralPath (Join-Path $projectRoot 'docs\licenses') -Destination $bundlePath -Recurse -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'docs\THIRD_PARTY.md') -Destination (Join-Path $bundlePath 'THIRD_PARTY.md') -Force
 $fontNotices = Join-Path $bundlePath 'licenses\Be-Vietnam-Pro'
 New-Item -ItemType Directory -Path $fontNotices -Force | Out-Null

@@ -35,21 +35,28 @@ def available_audio(directory, text, language, voice="", rate=0):
 
 
 def collect_audio(library, lesson):
-    from .speech import list_voices
-    try:
-        voices = list_voices()
-    except Exception:
-        voices = []
+    from .speech import voice_settings
+    selections = voice_settings(library)
+    saved = library.setting("voice_options", {})
+    saved = saved if isinstance(saved, dict) else {}
     records, files = [], {}
     for segment in lesson["segments"]:
         if not segment.get("approved"):
             continue
         for language in ("vi", "en"):
-            voice = library.setting("voice_" + language, "")
-            if not voice:
-                voice = next((v["id"] for v in voices if v["language"] == language), "")
-            rate = library.setting("voice_rate", 0)
-            path = available_audio(library.directory, segment[language], language, voice, rate)
+            # A machine can export its prepared WAVs even if its model was
+            # removed. Preserve old-language cached audio without offering
+            # those legacy engines as new voice choices.
+            candidates = [(selections["voice"], selections["rate"]),
+                          (saved.get("voice", ""), saved.get("rate", 0)),
+                          (library.setting("voice_" + language, ""), library.setting("voice_rate", 0))]
+            path = None
+            for voice, rate in candidates:
+                if not isinstance(voice, str) or not voice or type(rate) is not int or not -3 <= rate <= 3:
+                    continue
+                path = available_audio(library.directory, segment[language], language, voice, rate)
+                if path is not None:
+                    break
             if path is None:
                 continue
             data = path.read_bytes()

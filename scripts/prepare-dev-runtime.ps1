@@ -1,4 +1,4 @@
-param([switch]$CheckOnly)
+﻿param([switch]$CheckOnly)
 $ErrorActionPreference = 'Stop'
 # Use this shell's module when launched from a different PowerShell version.
 Import-Module (Join-Path $PSHOME 'Modules\Microsoft.PowerShell.Utility') -ErrorAction Stop
@@ -59,7 +59,7 @@ New-Item -ItemType Directory -Force -Path $cacheRoot | Out-Null
 $packages = @('PySide6','shiboken6','pydantic','pydantic_core','psutil','annotated_types','typing_inspection',
               'fastapi','starlette','httpx','httpcore','h11','anyio','sniffio','uvicorn','click','certifi',
               'annotated_doc','cryptography','win32','win32com','win32comext','pywin32_system32','playwright','pyee','greenlet',
-              'numpy','numpy.libs','scipy','scipy.libs','vieneu','vieneu_utils','onnxruntime','sherpa_onnx','huggingface_hub',
+              'numpy','numpy.libs','scipy','scipy.libs','vieneu','vieneu_utils','onnxruntime','huggingface_hub',
               'tokenizers','safetensors','sea_g2p','librosa','numba','llvmlite','llvmlite.libs','soundfile','_soundfile_data',
               'nltk','regex','joblib','soxr','lazy_loader','audioread','pooch','platformdirs','tqdm','filelock',
               'packaging','yaml','fsspec','requests','urllib3','charset_normalizer','idna','omegaconf','antlr4',

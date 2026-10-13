@@ -25,7 +25,7 @@ def main():
     QQuickStyle.setStyle("Basic")
     for name in ("BeVietnamPro-Regular.ttf", "BeVietnamPro-SemiBold.ttf", "BeVietnamPro-Bold.ttf"):
         QFontDatabase.addApplicationFont(str(RESOURCE_ROOT / "assets" / name))
-    report = {"status": "running", "checks": [], "warnings": [], "scope": "real Office and MCI/Kokoro on this Windows machine; no uploads"}
+    report = {"status": "running", "checks": [], "warnings": [], "scope": "real Office and MCI/VieNeu multilingual on this Windows machine; no uploads"}
     output = Path("reports/english-reader")
     output.mkdir(parents=True, exist_ok=True)
 
@@ -79,7 +79,7 @@ def main():
             bridge.openLesson(lesson["id"])
             wait(lambda: not bridge.busy)
             voice = bridge.voiceSettings["en"]
-            assert voice.startswith("kokoro:"), "Offline English voice missing"
+            assert voice.startswith("vieneu:") and voice == bridge.voiceSettings["vi"], "Shared multilingual voice missing"
             for text in paragraphs:
                 speech.synthesize(text, voice, bridge.voiceSettings["rate"], library.directory / "audio")
             bridge.startPowerPoint()
@@ -98,7 +98,7 @@ def main():
             assert QMetaObject.invokeMethod(window.findChild(QObject, "companionPauseEnglish"), "clicked", Qt.DirectConnection)
             assert bridge.englishReaderState["state"] == "reading"
             wait(lambda: len(plays) == 2)
-            report["checks"].append("One mascot click reads title and full native English body; real Kokoro WAV and MCI pause/resume")
+            report["checks"].append("One mascot click reads title and full native English body; real shared VieNeu WAV and MCI pause/resume")
             assert window.grabWindow().save(str(output / "reader-controls.png"))
             companion.grabWindow().save(str(output / "mascot-reader.png"))
             bridge.navigatePowerPoint("next")

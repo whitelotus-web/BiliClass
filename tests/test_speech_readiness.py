@@ -26,31 +26,17 @@ def test_audio_identity_includes_text_voice_and_rate(tmp_path):
     assert valid_audio(path)
 
 
-def test_five_kokoro_voices_replace_windows_english_when_model_is_ready(monkeypatch):
-    monkeypatch.setattr(speech, "kokoro_ready", lambda: True)
-    monkeypatch.setattr(speech, "vieneu_ready", lambda: False)
-    monkeypatch.setattr(speech, "_windows_voices", lambda: [
-        {"id": "windows-en", "name": "Windows English", "language": "en"},
-        {"id": "windows-vi", "name": "Windows Vietnamese", "language": "vi"},
-    ])
-    voices = speech.list_voices()
-    assert [voice["id"] for voice in voices if voice["language"] == "en"] == [
-        "kokoro:af_heart", "kokoro:af_bella", "kokoro:am_michael",
-        "kokoro:bf_emma", "kokoro:bm_george",
-    ]
-    assert [voice["id"] for voice in voices if voice["language"] == "vi"] == ["windows-vi"]
-
-
-def test_vieneu_voices_precede_windows_and_use_offline_synthesizer(tmp_path, monkeypatch):
-    monkeypatch.setattr(speech, "kokoro_ready", lambda: False)
+def test_only_multilingual_voices_available_when_model_installed(monkeypatch):
     monkeypatch.setattr(speech, "vieneu_ready", lambda: True)
-    monkeypatch.setattr(speech, "_windows_voices", lambda: [
-        {"id": "windows-vi", "name": "Windows Vietnamese", "language": "vi"}
-    ])
-    voices = [voice for voice in speech.list_voices() if voice["language"] == "vi"]
-    assert [voice["id"] for voice in voices] == [
-        "vieneu:Mai Anh", "vieneu:Thùy Dung", "vieneu:Hải Đăng", "vieneu:Thái Sơn", "windows-vi"
-    ]
+    voices = speech.list_voices()
+    assert len(voices) == 6
+    assert all(v["provider"] == "vieneu" and v["languages"] == ["vi", "en"] for v in voices)
+    assert len({v["id"] for v in voices}) == 6
+    monkeypatch.setattr(speech, "vieneu_ready", lambda: False)
+    assert speech.list_voices() == []  # Do not pretend a single-language fallback is bilingual.
+
+
+def test_vieneu_audio_cached_for_exact_voice_text_and_speed(tmp_path, monkeypatch):
     calls = []
 
     def render(text, voice, rate, destination):
@@ -58,28 +44,12 @@ def test_vieneu_voices_precede_windows_and_use_offline_synthesizer(tmp_path, mon
         wav(destination)
 
     monkeypatch.setattr(speech, "_synthesize_vieneu", render)
-    sample = "Chào các em."
-    assert not speech.synthesize(sample, "vieneu:Mai Anh", 0, tmp_path)["cached"]
-    assert speech.synthesize(sample, "vieneu:Mai Anh", 0, tmp_path)["cached"]
-    assert calls == [(sample, "vieneu:Mai Anh", 0)]
-    assert audio_key(sample, "vieneu:Mai Anh", 0) != audio_key(sample, "vieneu:Thùy Dung", 0)
-
-
-def test_kokoro_audio_is_cached_for_exact_voice_and_speed(tmp_path, monkeypatch):
-    calls = []
-
-    def render(text, voice, rate, destination):
-        calls.append((text, voice, rate))
-        wav(destination)
-
-    monkeypatch.setattr(speech, "_synthesize_kokoro", render)
-    first = speech.synthesize("Hello, class.", "kokoro:af_heart", 0, tmp_path)
-    second = speech.synthesize("Hello, class.", "kokoro:af_heart", 0, tmp_path)
-    third = speech.synthesize("Hello, class.", "kokoro:bf_emma", 0, tmp_path)
-    assert first["cached"] is False and second["cached"] is True
-    assert third["cached"] is False
-    assert len(calls) == 2
-    assert audio_key("Hello, class.", "kokoro:af_heart", 0) != audio_key("Hello, class.", "kokoro:af_heart", 1)
+    first = speech.synthesize("Hello, class.", "vieneu:Mai Anh", 0, tmp_path)
+    second = speech.synthesize("Hello, class.", "vieneu:Mai Anh", 0, tmp_path)
+    third = speech.synthesize("Hello, class.", "vieneu:Hải Đăng", 0, tmp_path)
+    faster = speech.synthesize("Hello, class.", "vieneu:Mai Anh", 1, tmp_path)
+    assert not first["cached"] and second["cached"]
+    assert not third["cached"] and not faster["cached"] and len(calls) == 3
 
 
 def test_readiness_does_not_require_voice_or_quiz_for_text(tmp_path):

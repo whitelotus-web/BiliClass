@@ -41,8 +41,8 @@ try {
     $report = Join-Path $reportRoot 'pipeline.json'
     Invoke-InstalledCheck -Arguments @('--self-test',('"' + $report + '"')) -TimeoutSeconds 900
     $pipeline = Get-Content -LiteralPath $report -Raw | ConvertFrom-Json
-    if ($pipeline.status -ne 'passed' -or $pipeline.tts.provider -ne 'kokoro' -or $pipeline.tts_vi.provider -ne 'vieneu') { throw ('Incomplete installed pipeline: ' + $report) }
-    Write-Output 'Passed bundled templates, both offline voice engines, classroom process and lesson backup.'
+    if ($pipeline.status -ne 'passed' -or $pipeline.tts.provider -ne 'vieneu' -or $pipeline.tts_vi.provider -ne 'vieneu' -or $pipeline.tts.voice -ne $pipeline.tts_vi.voice) { throw ('Incomplete installed pipeline: ' + $report) }
+    Write-Output 'Passed bundled templates, one bilingual VieNeu speaker, classroom process and lesson backup.'
     $marker = Get-Content -LiteralPath (Join-Path $installRoot '.biliclass-install.json') -Raw | ConvertFrom-Json
     if ($marker.root -ne $installRoot -or $marker.product -ne 'BiliClass' -or $marker.version -ne $manifest.version) { throw 'Installation marker failed validation.' }
     $buildInfo = Get-Content -LiteralPath (Join-Path $versionPath 'BUILD_INFO.json') -Raw | ConvertFrom-Json
@@ -51,7 +51,7 @@ try {
     if ((Test-Path -LiteralPath $installRoot) -or -not (Test-Path -LiteralPath (Join-Path $dataRoot 'library.db'))) { throw 'Uninstall did not preserve the separate test library.' }
     @{status='passed';version=$manifest.version;source_commit=$buildInfo.source_commit;
       checks=@('manifest verified install in Unicode workspace','installed Qt conversion and Browser AI pages',
-               'all templates/previews and both bundled voice engines without development cache',
+               'all templates/previews and bilingual VieNeu without development cache',
                'spawned classroom process and library backup','uninstall preserves separate lesson library');
       scope='current Windows machine; isolated install/data; no shortcuts; not a clean-Windows certification'} |
       ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $reportRoot 'installer.json') -Encoding UTF8

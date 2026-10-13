@@ -72,10 +72,9 @@ def run(output):
                 report["checks"].append("SQLite, history and draft pack roundtrip")
                 voices = list_voices()
                 if getattr(sys, "frozen", False):
-                    assert sum(v.get("provider") == "kokoro" for v in voices) == 5, "Missing bundled English voices"
-                    assert sum(v.get("provider") == "vieneu" for v in voices) == 4, "Missing bundled Vietnamese voices"
+                    assert len(voices) == 6 and all(v.get("provider") == "vieneu" for v in voices), "Missing multilingual voices"
                 report["voices"] = [{"name": v["name"], "language": v["language"]} for v in voices]
-                english = next((v for v in voices if v["language"] == "en"), None)
+                english = next((v for v in voices if "en" in v.get("languages", [])), None)
                 if english:
                     first = synthesize("Please explain your answer.", english["id"], 0, directory / "audio")
                     second = synthesize("Please explain your answer.", english["id"], 0, directory / "audio")
@@ -89,7 +88,10 @@ def run(output):
                     adjusted = synthesize("Chào cả lớp.", vietnamese["id"], 1, directory / "audio")
                     assert valid_audio(first["path"]) and second["cached"] and valid_audio(adjusted["path"])
                     report["tts_vi"] = {"voice": vietnamese["id"], "provider": "vieneu", "cached": True}
-                    report["checks"].append("offline Vietnamese VieNeu WAV, speed and cache; no playback")
+                    assert english and english["id"] == vietnamese["id"], "Both languages must use one speaker"
+                    mixed = synthesize("Động năng là kinetic energy. Energy is measured in joules.", vietnamese["id"], -1, directory / "audio")
+                    assert valid_audio(mixed["path"])
+                    report["checks"].append("one offline VieNeu speaker: VI, EN, mixed text, speed and cache; no playback")
                 library.edit_segment(lesson["id"], lesson["segments"][0]["id"], "Thảo luận theo nhóm.", en, True)
                 prepared = library.save_question(lesson["id"], {"kind": "single", "vi": "Chọn bằng chứng", "en": "Choose evidence", "approved": True,
                     "concept_id": lesson["segments"][0]["id"], "concept_label": "Lập luận", "correct": "A",

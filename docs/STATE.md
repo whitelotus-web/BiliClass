@@ -1,5 +1,19 @@
 # Trạng thái BiliClass
 
+Ngày 13/10/2026 — RC17: chuyển sang một giọng VieNeu chung Việt/Anh/câu xen,
+sáu preset (3 nam/3 nữ), draft chọn giọng/tốc độ 82–118%, nghe thử rồi lưu nguyên
+tử. English Reader, lời đọc Việt, audio chuyển đổi và mascot cùng ID/tốc độ.
+Giữ preset Việt/tốc độ cũ khi chưa có cấu hình mới; không xóa bài/audio riêng.
+Kokoro/SAPI và model Kokoro không còn nằm trong runtime/bộ cài mới. WSOLA dùng
+NumPy, giữ cao độ; nguồn/Apache license đi cùng gói. Chi tiết: [MULTILINGUAL_VOICE](MULTILINGUAL_VOICE.md).
+
+Kiểm chứng nguồn RC17: 70 ca giọng/readiness/pack/thư viện qua sau sửa giữ WAV
+khi thiếu model và giữ hai metadata cho waveform chung. Sáu preset tạo 18 WAV
+VI/EN/mixed thật, cache và tốc độ qua; Qt Settings nghe thử draft, lưu/mở lại qua
+không cảnh báo; Qt English Reader/mascot phát VieNeu trong PowerPoint thật,
+pause/resume và dừng đổi slide qua. Kiểm tra waveform không thay đánh giá phát
+âm thuật ngữ của giáo viên. Bản RC16 và bằng chứng các mốc trước ghi bên dưới.
+
 Ngày 13/10/2026 — [RC16 đã phát hành](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc16), commit ứng dụng `f921ef347d4df4d39ba37b4ec2da1471073e67f5`: thêm % theo mốc chuyển đổi và số slide/đoạn voice; giữ mốc chờ vì web không cung cấp % tạo bài. Tiến trình lưu riêng, retry không lùi và không gửi trùng. Dùng lại render/phép đo native theo hash PPTX/PNG/phiên bản khi nhập thư viện và xem bài, render tiếp phần thiếu; voice bỏ tác vụ trùng và dùng WAV có sẵn. Thông báo rõ ChatGPT chưa trả PPTX sau một yêu cầu xuất thêm, lỗi voice không làm mất bài; chờ menu model sẵn sàng có giới hạn. Cài đặt giữ cấu trúc. Phạm vi: [CONVERSION_PROGRESS](CONVERSION_PROGRESS.md).
 
 Kiểm chứng nguồn: lượt rộng 195/196 ca qua, một ca menu model chạy chậm không có lựa chọn; sau bổ sung chờ sẵn sàng, 7 ca model (gồm ca menu trì hoãn 800 ms mới) và 91 ca liên quan chạy lại qua. Hai smoke Qt handoff/Browser AI qua, gồm % chờ 25%, lỗi giữ %, lưu 100%, retry cùng chat và native Office preview; không QML warning. 9 ca progress/cache/voice mới qua. Đo Office thật 6 slide: render đầu 7,995 giây, nhập dùng cache 0,121 giây, xem slide đầu 0,006 giây; hash nguồn giữ nguyên. Không suy rộng thành mức tăng tốc ChatGPT hay chứng nhận bài giáo viên thật đã chuyển đổi xong. Tệp/ảnh/báo cáo/profile/model không vào Git.

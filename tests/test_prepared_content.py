@@ -85,6 +85,31 @@ def test_portable_audio_without_installed_voice_and_exact_content(prepared, tmp_
         with_other.close()
 
 
+def test_shared_voice_pack_keeps_prepared_audio_when_model_missing(prepared, tmp_path, monkeypatch):
+    from app import speech
+
+    monkeypatch.setattr(speech, "vieneu_ready", lambda: False)
+    library, lesson = prepared
+    library.set_setting("voice_options", {"voice": "vieneu:Hải Đăng", "rate": 1})
+    folder = library.directory / "audio"
+    folder.mkdir()
+    for language in ("vi", "en"):
+        text = lesson["segments"][0][language]
+        with wave.open(str(folder / (audio_key(text, "vieneu:Hải Đăng", 1) + ".wav")), "wb") as stream:
+            stream.setparams((1, 2, 48000, 0, "NONE", "not compressed"))
+            stream.writeframes(b"\x01\x00" * 4800)
+    pack = export_pack(library, lesson["id"], tmp_path / "shared-voice.biliclass")
+    recipient = Library(tmp_path / "recipient")
+    try:
+        imported = import_pack(recipient, pack)
+        for language in ("vi", "en"):
+            assert available_audio(recipient.directory, lesson["segments"][0][language], language)
+        assert imported["project_preferences"]["voice_options"] == {"voice": "vieneu:Hải Đăng", "rate": 1}
+        assert recipient.setting("voice_options", None) is None
+    finally:
+        recipient.close()
+
+
 def test_consistent_backup_restore_into_new_library(prepared, tmp_path):
     library, lesson = prepared
     backup = backup_library(library.directory, daily=True)

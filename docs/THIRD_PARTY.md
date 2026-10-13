@@ -1,4 +1,22 @@
-# Thành phần bên thứ ba — RC13 mã nguồn và hồ sơ các bản trước
+# Thành phần bên thứ ba — RC17 và hồ sơ các bản trước
+
+## RC17: một engine giọng Việt–Anh
+
+RC17 dùng **VieNeu SDK 3.8.3 / v3 Turbo ONNX CPU fp32** cho cả Việt, Anh và câu
+xen hai ngôn ngữ, cùng một preset. Sáu preset gồm Mai Anh, Thùy Dung, Hải Đăng,
+Thái Sơn, Ngọc Trân và Quang Sơn. Model/SDK và codec MOSS ghi Apache-2.0;
+revision model/codec được khóa tại `scripts/download_vieneu.py` và provenance
+đóng trong `models/vieneu-hf/PROVENANCE.json`.
+
+Tốc độ dùng WSOLA NumPy, trích và điều chỉnh từ VieNeuTTSApp revision
+`a07bb7db798916852efba15fff7141597f438f22`, Apache-2.0. Đầy đủ attribution và
+license tại `docs/licenses/`, đóng vào `licenses/` trong bộ cài.
+Nguồn: https://github.com/NguyenSiTrung/VieNeuTTSApp và
+https://huggingface.co/pnnbao-ump/VieNeu-TTS-v3-Turbo .
+
+Kokoro, sherpa-onnx và eSpeak không còn dùng/đóng trong runtime RC17. Các mục
+Kokoro/SAPI bên dưới là lịch sử RC7–RC16, không phải danh sách giọng hiện tại.
+Ứng dụng không nhân bản giọng cá nhân. Hướng dẫn: [MULTILINGUAL_VOICE](MULTILINGUAL_VOICE.md).
 
 ## Thu gọn ngày 09/10/2026
 

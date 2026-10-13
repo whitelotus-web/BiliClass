@@ -10,6 +10,9 @@ Item {
     signal requestLibrary()
     signal requestLogo()
     property int activeTab: 0
+    property string draftVoice: bridge.voiceSettings.voice
+    property int draftRate: bridge.voiceSettings.rate
+    readonly property bool voiceDirty: draftVoice !== bridge.voiceSettings.voice || draftRate !== bridge.voiceSettings.rate
     onActiveTabChanged: { if (contentScroll.contentItem && contentScroll.contentItem.contentY !== undefined) contentScroll.contentItem.contentY = 0 }
     property string selectedMascot: bridge.settings.mascot
     property int mascotPreviewMode: 0
@@ -191,91 +194,62 @@ Item {
 
         ColumnLayout {
             visible: page.activeTab === 2; Layout.fillWidth: true; spacing: 14
-            Card { objectName: "voicePairCard"; visible: bridge.voicePairs.length > 0; Layout.fillWidth: true
-                ColumnLayout { width: parent.width; spacing: 9
-                    Title { text: "Bộ giọng song ngữ gợi ý" }
-                    Hint { text: "Chọn nhanh một cặp giọng Việt–Anh hài hòa. Sau đó có thể đổi riêng từng giọng ở hai cột bên dưới; mascot không đổi theo giọng."; Layout.fillWidth: true }
-                    RowLayout { Layout.fillWidth: true; spacing: 10
-                        Choice { id: bilingualVoicePair; objectName: "settingsVoicePair"; model: bridge.voicePairs; textRole: "name"; Layout.fillWidth: true }
-                        SaveButton { objectName: "applyVoicePair"; text: "Dùng bộ giọng"; onClicked: bridge.setVoicePair(bilingualVoicePair.currentIndex) }
-                    }
-                }
-            }
-            RowLayout {
-                objectName: "voiceLanguageColumns"
-                Layout.fillWidth: true; spacing: 14
-                Card {
-                    objectName: "voiceEnglishCard"
-                    Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; Layout.alignment: Qt.AlignTop
-                    ColumnLayout { width: parent.width; spacing: 12
-                        Title { text: "Giọng đọc tiếng Anh" }
-                        Hint { text: bridge.kokoroReady ? "Năm giọng Kokoro chạy ngoại tuyến. Chọn giọng để dạy hoặc nghe thử trước." : "Chưa tìm thấy Kokoro. BiliClass đang dùng giọng Windows trên máy."; Layout.fillWidth: true }
+            Card {
+                objectName: "multilingualVoiceCard"; Layout.fillWidth: true; padding: 18
+                ColumnLayout { width: parent.width; spacing: 10
+                    Title { text: "Một giọng cho tiếng Việt và tiếng Anh" }
+                    Hint { text: "Giọng VieNeu đọc Việt, Anh và câu xen hai ngôn ngữ. Bài giảng và mascot dùng chung giọng đã lưu, chạy ngoại tuyến."; Layout.fillWidth: true }
+                    Hint { visible: !bridge.vieneuReady; color: "#ba581a"; text: "Chưa tìm thấy bộ giọng VieNeu. Hãy cài bản BiliClass đầy đủ để sử dụng giọng đa ngôn ngữ."; Layout.fillWidth: true }
+                    GridLayout {
+                        objectName: "multilingualVoiceGrid"; Layout.fillWidth: true
+                        columns: width >= 900 ? 3 : width >= 600 ? 2 : 1; rowSpacing: 10; columnSpacing: 12
                         Repeater {
-                            model: bridge.englishVoices
+                            model: bridge.multilingualVoices
                             Frame {
                                 id: voiceOption
                                 required property var modelData
                                 required property int index
-                                objectName: "settingsVoiceOption" + index
-                                Layout.fillWidth: true; padding: 9
-                                background: Rectangle { radius: 10; color: bridge.voiceSettings.en === voiceOption.modelData.id ? "#eef6ff" : "#fbfdff"; border.color: bridge.voiceSettings.en === voiceOption.modelData.id ? page.blue : page.line }
-                                contentItem: ColumnLayout { spacing: 2
-                                    RowLayout { Layout.fillWidth: true; spacing: 5
-                                        RadioButton { objectName: "selectVoice" + voiceOption.index; text: voiceOption.modelData.name; font.pixelSize: 12; Layout.fillWidth: true; Layout.minimumWidth: 0; checked: bridge.voiceSettings.en === voiceOption.modelData.id; onClicked: bridge.setVoice("en", voiceOption.index) }
-                                        SoftButton { objectName: "previewVoice" + voiceOption.index; text: "Nghe thử"; iconName: "play"; implicitHeight: 34; enabled: !bridge.busy; onClicked: bridge.previewVoiceChoice(voiceOption.index, voiceSample.text) }
+                                objectName: "multilingualVoiceOption" + index
+                                Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; padding: 7
+                                background: Rectangle { radius: 10; color: page.draftVoice === voiceOption.modelData.id ? "#eef6ff" : "#fbfdff"; border.color: page.draftVoice === voiceOption.modelData.id ? page.blue : page.line }
+                                contentItem: ColumnLayout { spacing: 3
+                                    RadioButton {
+                                        objectName: "selectMultilingualVoice" + voiceOption.index
+                                        text: voiceOption.modelData.name; font.pixelSize: 13; Layout.fillWidth: true
+                                        checked: page.draftVoice === voiceOption.modelData.id
+                                        onClicked: page.draftVoice = voiceOption.modelData.id
                                     }
-                                    Hint { text: voiceOption.modelData.detail || "Giọng Windows dự phòng"; Layout.fillWidth: true; leftPadding: 10; font.pixelSize: 11 }
+                                    Hint { text: voiceOption.modelData.detail + " · Việt + Anh"; leftPadding: 12; font.pixelSize: 12; Layout.fillWidth: true }
                                 }
                             }
                         }
-                        ColumnLayout { Layout.fillWidth: true; spacing: 6
-                            Label { text: "Câu nghe thử tiếng Anh"; color: page.ink }
-                            Field { id: voiceSample; objectName: "settingsVoiceSample"; text: "Good morning, class. Let's explore today's lesson together."; maximumLength: 250; Layout.fillWidth: true }
-                        }
-                        RowLayout { Layout.fillWidth: true; SaveButton { objectName: "previewEnglishVoice"; text: "▶  Nghe thử English"; enabled: !bridge.busy && bridge.englishVoices.length > 0; onClicked: bridge.previewVoice(voiceSample.text) } SoftButton { text: "Dừng đọc"; onClicked: bridge.stopSpeech() } Item { Layout.fillWidth: true } }
-                        Hint { text: "Lần nghe đầu cần nạp model. Âm thanh được lưu theo nội dung, giọng và tốc độ."; Layout.fillWidth: true }
                     }
-                }
-                Card {
-                    objectName: "voiceVietnameseCard"
-                    Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; Layout.alignment: Qt.AlignTop
-                    ColumnLayout { width: parent.width; spacing: 12
-                        Title { text: "Giọng đọc tiếng Việt" }
-                        Hint { text: bridge.vieneuReady ? "Bốn giọng VieNeu ngoại tuyến cho bài giảng tiếng Việt và VI Rescue." : bridge.vietnameseVoices.length ? "Chưa có VieNeu; đang dùng giọng tiếng Việt Windows tạm thời." : "Chưa có bộ giọng tiếng Việt trong bản này."; Layout.fillWidth: true }
-                        Repeater {
-                            model: bridge.vietnameseVoices
-                            Frame {
-                                id: viVoiceOption
-                                required property var modelData
-                                required property int index
-                                objectName: "settingsVietnameseVoiceOption" + index
-                                Layout.fillWidth: true; padding: 9
-                                background: Rectangle { radius: 10; color: bridge.voiceSettings.vi === viVoiceOption.modelData.id ? "#eef6ff" : "#fbfdff"; border.color: bridge.voiceSettings.vi === viVoiceOption.modelData.id ? page.blue : page.line }
-                                contentItem: ColumnLayout { spacing: 2
-                                    RowLayout { Layout.fillWidth: true; spacing: 5
-                                        RadioButton { objectName: "selectVietnameseVoice" + viVoiceOption.index; text: viVoiceOption.modelData.name; font.pixelSize: 12; Layout.fillWidth: true; Layout.minimumWidth: 0; checked: bridge.voiceSettings.vi === viVoiceOption.modelData.id; onClicked: bridge.setVoice("vi", viVoiceOption.index) }
-                                        SoftButton { objectName: "previewVietnameseVoice" + viVoiceOption.index; text: "Nghe thử"; iconName: "play"; implicitHeight: 34; enabled: !bridge.busy; onClicked: bridge.previewVietnameseVoiceChoice(viVoiceOption.index, vietnameseVoiceSample.text) }
-                                    }
-                                    Hint { text: viVoiceOption.modelData.detail || "Giọng có sẵn trong Windows"; Layout.fillWidth: true; leftPadding: 10; font.pixelSize: 11 }
-                                }
-                            }
-                        }
-                        ColumnLayout { Layout.fillWidth: true; spacing: 6
-                            Label { text: "Câu nghe thử tiếng Việt"; color: page.ink }
-                            Field { id: vietnameseVoiceSample; objectName: "settingsVietnameseVoiceSample"; text: "Chào các em. Hôm nay chúng ta sẽ khám phá một ý tưởng mới."; maximumLength: 250; Layout.fillWidth: true }
-                        }
-                        RowLayout { Layout.fillWidth: true
-                            SaveButton { objectName: "previewSelectedVietnameseVoice"; text: "▶ Nghe thử tiếng Việt"; enabled: !bridge.busy && bridge.vietnameseVoices.length > 0; onClicked: bridge.previewVietnameseVoice(vietnameseVoiceSample.text) }
-                            Item { Layout.fillWidth: true }
-                        }
-                        Hint { text: "VieNeu có thể cần khoảng nửa phút để nạp lần đầu. Chỉ phát giọng khi bấm đọc hoặc chuẩn bị âm thanh."; Layout.fillWidth: true }
+                    RowLayout { Layout.fillWidth: true
+                        Label { text: "Tốc độ đọc"; color: page.ink; font.weight: Font.DemiBold; Layout.fillWidth: true }
+                        Label { objectName: "settingsVoiceSpeedLabel"; text: Math.round([.82, .88, .94, 1, 1.06, 1.12, 1.18][page.draftRate + 3] * 100) + "%"; color: page.blue; font.weight: Font.Bold; font.pixelSize: 18 }
                     }
-                }
-            }
-            Card { Layout.fillWidth: true
-                RowLayout { width: parent.width; spacing: 14
-                    Label { text: "Tốc độ đọc chung cho tiếng Anh và tiếng Việt"; color: page.ink; Layout.fillWidth: true; wrapMode: Text.WordWrap }
-                    Choice { id: voiceRate; objectName: "settingsVoiceRate"; model: ["Rất chậm", "Chậm", "Hơi chậm", "Bình thường", "Hơi nhanh", "Nhanh", "Rất nhanh"]; currentIndex: bridge.voiceSettings.rate + 3; Layout.preferredWidth: 220; onActivated: bridge.setVoiceRate(currentIndex - 3) }
+                    RowLayout { Layout.fillWidth: true; spacing: 14
+                        Hint { text: "Chậm" }
+                        Slider {
+                            id: voiceRate; objectName: "settingsVoiceRate"; Layout.fillWidth: true
+                            from: -3; to: 3; stepSize: 1; snapMode: Slider.SnapAlways
+                            value: page.draftRate; onMoved: page.draftRate = Math.round(value)
+                            enabled: bridge.multilingualVoices.length > 0
+                            Accessible.name: "Tốc độ đọc từ 82 đến 118 phần trăm"
+                        }
+                        Hint { text: "Nhanh" }
+                        SoftButton { objectName: "resetVoiceSpeed"; text: "100%"; onClicked: page.draftRate = 0 }
+                    }
+                    Label { text: "Câu nghe thử Việt–Anh"; color: page.ink }
+                    Field { id: voiceSample; objectName: "settingsVoiceSample"; text: "Chào các em. Good morning, class. Hôm nay chúng ta tìm hiểu năng lượng, energy."; maximumLength: 250; Layout.fillWidth: true }
+                    RowLayout { Layout.fillWidth: true; spacing: 10
+                        SoftButton { objectName: "previewMultilingualVoice"; text: "Nghe thử"; iconName: "play"; enabled: !bridge.busy && !!page.draftVoice; onClicked: bridge.previewMultilingualVoice(page.draftVoice, page.draftRate, voiceSample.text) }
+                        SoftButton { objectName: "stopVoicePreview"; text: "Dừng đọc"; onClicked: bridge.stopSpeech() }
+                        Item { Layout.fillWidth: true }
+                        SaveButton { objectName: "saveMultilingualVoice"; text: "Lưu giọng và tốc độ"; enabled: !bridge.busy && !!page.draftVoice; onClicked: bridge.saveMultilingualVoice(page.draftVoice, page.draftRate) }
+                    }
+                    Hint { objectName: "voiceSaveStatus"; text: page.voiceDirty ? "Chưa lưu thay đổi. Nghe thử để kiểm tra giọng và tốc độ trước khi lưu." : "Bài giảng và mascot đang dùng giọng cùng tốc độ đã lưu."; Layout.fillWidth: true }
+                    Hint { text: "Lần nghe đầu cần nạp model. Tốc độ thay đổi nhưng giữ cao độ giọng. Có thể sửa câu nghe thử để kiểm tra thuật ngữ môn học."; Layout.fillWidth: true }
                 }
             }
         }

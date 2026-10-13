@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "biliclass"
-version = "1.0.0rc16"
+version = "1.0.0rc17"
 description = "BiliClass ChatGPT-browser lesson conversion and offline teaching assistant"
 requires-python = ">=3.12,<3.14"
 dependencies = [
@@ -17,7 +17,6 @@ dependencies = [
   "cryptography>=50,<51",
   "psutil>=6,<8",
   "pywin32>=308; sys_platform == 'win32'",
-  "sherpa-onnx==1.13.8; sys_platform == 'win32'",
   "vieneu==3.8.3; sys_platform == 'win32'",
   "python-pptx>=1,<2",
   "python-docx>=1.1,<2",

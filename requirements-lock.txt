@@ -94,8 +94,6 @@ semantic-version==2.10.0
 sentencepiece==0.2.2
 setuptools==84.0.0
 shellingham==1.5.4
-sherpa-onnx==1.13.8
-sherpa-onnx-core==1.13.8
 shiboken6==6.11.2
 six==1.17.0
 soundfile==0.14.0
