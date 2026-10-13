@@ -279,7 +279,7 @@ def test_real_browser_upload_download_and_repeat_does_not_send_twice(browser_fix
     assert len(captured["sends"]) == 1
 
 
-def test_hidden_browser_send_uses_keyboard_when_pointer_is_blocked(browser_fixture):
+def test_hidden_browser_send_activates_button_when_pointer_is_blocked(browser_fixture):
     adapter, accounts, request, captured, source = browser_fixture
     captured["html"] = FIXTURE.replace('<script>', '''<script>
 const blocker=document.createElement('div'), r=document.querySelector('#send').getBoundingClientRect();
@@ -291,24 +291,59 @@ document.body.appendChild(blocker);
     assert len(captured["sends"]) == 1
 
 
-def test_key_timeout_after_send_observes_receipt_without_pressing_again(browser_fixture, monkeypatch):
+def test_click_timeout_after_send_observes_receipt_without_clicking_again(browser_fixture, monkeypatch):
     from playwright.sync_api import Locator, TimeoutError
 
     adapter, accounts, request, captured, source = browser_fixture
-    original, activations = Locator.press, []
+    original, activations = Locator.evaluate, []
 
-    def interrupted(locator, key, **options):
-        result = original(locator, key, **options)
-        if locator.get_attribute("id") == "send":
-            activations.append(key)
-            raise TimeoutError("Fixture timeout after the browser delivered Enter")
+    def interrupted(locator, expression, *args, **options):
+        result = original(locator, expression, *args, **options)
+        if "button.click()" in expression:
+            activations.append(expression)
+            raise TimeoutError("Fixture timeout after the browser delivered click")
         return result
 
-    monkeypatch.setattr(Locator, "press", interrupted)
+    monkeypatch.setattr(Locator, "evaluate", interrupted)
     result = adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
     assert Path(result["path"]).read_bytes() == source.read_bytes()
-    assert activations == ["Enter"] and len(captured["sends"]) == 1
+    assert len(activations) == 1 and len(captured["sends"]) == 1
     assert read_record(request["folder"], accounts.get()["id"])["state"] == "completed"
+
+
+def test_send_button_works_when_composer_consumes_enter(browser_fixture):
+    adapter, accounts, request, captured, source = browser_fixture
+    captured["html"] = FIXTURE.replace('<script>', '''<script>
+document.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); e.stopImmediatePropagation(); } }, true);
+''')
+    result = adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+    assert Path(result["path"]).read_bytes() == source.read_bytes()
+    assert len(captured["sends"]) == 1
+
+
+@pytest.mark.parametrize("prompt_matches", [True, False])
+def test_recovery_expands_long_message_but_requires_complete_prompt(browser_fixture, prompt_matches):
+    from app.browser_receipt import save_intent
+    adapter, accounts, request, captured, source = browser_fixture
+    record = read_record(request["folder"], accounts.get()["id"])
+    record.update(state="submitting", user_before=0, assistant_before=0)
+    save_intent(request["folder"], record, request["prompt"])
+    adapter.write_record(request["folder"], record)
+    actual = request["prompt"] if prompt_matches else request["prompt"][:-100] + 'different ending'
+    captured["html"] = receipt_fixture_html(actual).replace(
+        "user.textContent=", "user.dataset.fullPrompt=").replace(
+        "document.querySelector('#messages').prepend(user);",
+        "user.textContent='Truncated teacher prompt'; const expand=document.createElement('button'); "
+        "expand.textContent='Show more'; expand.onclick=()=>{ user.textContent=user.dataset.fullPrompt; }; "
+        "user.append(expand); document.querySelector('#messages').prepend(user);")
+    if prompt_matches:
+        result = adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+        assert Path(result["path"]).read_bytes() == source.read_bytes()
+    else:
+        with pytest.raises(BrowserProblem) as exc:
+            adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+        assert exc.value.code == "receipt"
+    assert not captured["sends"]
 
 
 def receipt_fixture_html(prompt, *, duplicate=False, conversation="/c/receipt-one"):
@@ -564,8 +599,9 @@ def test_uncertain_send_is_not_repeated(browser_fixture):
     record = read_record(request["folder"], accounts.get()["id"])
     record["state"] = "submitting"
     write_record(request["folder"], record)
-    with pytest.raises(BrowserProblem, match="không gửi trùng"):
+    with pytest.raises(BrowserProblem) as exc:
         adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+    assert exc.value.code == "receipt"
     assert not captured["sends"]
 
 

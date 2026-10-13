@@ -46,8 +46,20 @@ def matching_users(page, prompt):
     wanted = normalized(prompt)
     # The web may put filenames/role labels around the prompt. Require the
     # complete text, not a title, filename or an assistant's quoted reply.
-    return [index for index, node in enumerate(page.locator(USER).all())
-            if wanted and wanted in normalized(node.inner_text())]
+    matches = []
+    for index, node in enumerate(page.locator(USER).all()):
+        if wanted and wanted in normalized(node.inner_text()):
+            matches.append(index)
+            continue
+        # Long teacher prompts are truncated by the current web. Expand only
+        # user-message prose; never relax the complete-text comparison.
+        for button in node.get_by_role("button", name=re.compile(
+                r"^(Show more|Xem thêm|Hiển thị thêm)$", re.I)).all():
+            if button.is_visible():
+                button.click(timeout=5000)
+        if wanted and wanted in normalized(node.inner_text()):
+            matches.append(index)
+    return matches
 
 
 def wait_receipt(page, folder, record, prompt, cancel, *, previous_url="", timeout=40):
@@ -107,7 +119,7 @@ def recover_submission(context, page, folder, record, request, cancel, *, limit=
         if indices and indices[0] >= record.get("user_before", 0):
             matches.append(url)
     if not matches:
-        raise web.BrowserProblem("receipt", "Chưa thấy xác nhận gửi trong các cuộc trò chuyện gần đây; tool đang tự kiểm tra lại trên tài khoản này, không gửi trùng bài.")
+        raise web.BrowserProblem("receipt", "Chưa tìm được xác nhận gửi trong các cuộc trò chuyện gần đây. Đã giữ yêu cầu để kiểm tra; không gửi lại khi kết quả gửi chưa rõ.")
     if len(matches) != 1:
         raise web.BrowserProblem("submission", "Chưa xác định được duy nhất cuộc trò chuyện đã gửi. Yêu cầu được giữ; cần mở browser kiểm tra, không gửi lại bài.")
     web.navigate(page, matches[0], cancel)

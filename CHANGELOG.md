@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.0rc21 — 13/10/2026 — Tiến trình rõ ràng và sửa bước gửi
+
+- Kích hoạt nút Gửi trực tiếp một lần, tránh phím Enter bị ô soạn thảo giữ lại hoặc tooltip che nút. Vẫn lưu ý định gửi trước thao tác và không bấm lại khi chưa rõ kết quả.
+- Khi tìm lại yêu cầu bị mất xác nhận, mở nội dung người dùng bị thu gọn rồi so khớp toàn bộ prompt; không nhận nhầm bài cùng mẫu nhưng khác tên/nội dung.
+- Giao diện “Tạo bài giảng song ngữ” diễn giải công việc theo nội dung/bố cục/kiểm tra/trình chiếu; không hiện thao tác prompt/browser/ChatGPT ở tiến trình và chân cửa sổ.
+- Giữ phần trăm theo các mốc thực tế, bỏ dòng giải thích phần trăm; tác vụ đã dừng ghi rõ tạm dừng, lỗi đăng nhập/xác minh/hạn mức vẫn có hướng xử lý.
+- Giữ thử lại tự động có giới hạn, model/suy luận, kiểm tra chất lượng, giọng đọc nền và quyền duyệt bài của giáo viên. Không bảo đảm mọi lỗi hoặc mọi bài trên web đều tự hoàn tất.
+
 ## 1.0.0rc20 — 13/10/2026 — Logo hồ sơ và copyright
 
 - Hiện logo trường đã lưu cạnh tên giáo viên ở chân thanh bên; giữ đúng tỷ lệ ảnh, tự cập nhật khi thay/bỏ logo và dùng chữ cái tên khi không có ảnh.

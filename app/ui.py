@@ -411,7 +411,9 @@ class Bridge(QObject):
 
     @Property("QVariantMap", notify=changed)
     def browserState(self):
-        return self._browser_state
+        from .conversion_presentation import display_state
+
+        return display_state(self._browser_state)
 
     @Slot(str)
     def _on_browser_progress(self, message):
@@ -508,6 +510,7 @@ class Bridge(QObject):
                 pass
         self._browser_state.update(running=False, phase="error", message=message, errorCode=code,
                                    waiting=False, needsLogin=code in {"login", "verification", "auth_response"})
+        self.changed.emit()
 
     def _resume_browser_startup(self):
         from .browser_dispatch import startup_resume

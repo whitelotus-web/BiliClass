@@ -1,5 +1,28 @@
 # Trạng thái BiliClass
 
+RC21: sửa kích hoạt nút gửi trực tiếp thay Enter và mở nội dung user thu gọn
+trước khi so khớp đầy đủ để tìm lại xác nhận. Tiến trình và footer dùng thông
+tin phù hợp giáo viên, tách khỏi chẩn đoán kỹ thuật trong bản ghi. Tác vụ dừng
+vẫn báo tạm dừng, không dùng loading để che lỗi hoặc tăng % theo thời gian.
+Kiểm tra bài cũ trên Chrome thật chỉ đọc: tài khoản vẫn đăng nhập, bản nháp
+đầu vào còn trong composer nhưng chưa thấy xác nhận phù hợp; không tự gửi
+lại một lượt cũ chưa rõ kết quả. 112 ca browser/dispatch/progress qua; một ca
+chỉ so chuỗi lỗi cũ đã đổi sang kiểm tra mã lỗi và hành vi không gửi lại,
+chạy riêng qua (tổng 113 ca). Smoke Qt tiến trình mọi stage/lỗi qua, không
+warning. Handoff Qt toàn luồng qua: gửi/nhận tự động bằng fixture, prompt đúng
+preview, tiến trình/lỗi, byte PPTX, Office preview thật, duyệt bài, ánh xạ
+mascot và mở lại bài. Fixture giọng đọc cập nhật theo worker nền RC19 và
+khử trùng hai đoạn VI/EN, không chạy voice thật hoặc gửi ChatGPT trong smoke.
+
+RC20 đã phát hành từ commit `420d757b7f97b69a88535badac503af585671f20`:
+ZIP Windows 679.265.709 byte, SHA-256
+`ea187617445cbb23ac94d4261cd7457110ced48c7fb0334e43e5bba4387dfd5c`.
+Cài vào đường dẫn Unicode, hai trang Qt, mẫu, một speaker VieNeu Việt/Anh,
+classroom process, backup và gỡ giữ thư viện đều qua. Kiểm tra ở máy hiện tại,
+không coi là chứng nhận Windows sạch. Máy chạy nguồn có tiêu đề
+“Bản phát triển từ mã nguồn” và không hiện cập nhật bộ cài; không suy ra RC
+chỉ từ ảnh giao diện nguồn.
+
 RC20 nguồn đã kiểm tra ngày 13/10/2026: logo trường đã lưu hiển thị ở hồ sơ
 thanh bên, thay ảnh/bỏ ảnh cập nhật ngay và không kéo méo. Dòng copyright tác
 giả ở chân cửa sổ, riêng với trạng thái/lỗi và không tự thêm vào bài/prompt.

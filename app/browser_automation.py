@@ -483,10 +483,10 @@ def submit(page, folder, record, prompt, cancel, *, files=(), progress=None):
     sender = visible(attachment_scope(page), SEND)
     if not sender or not sender.is_enabled():
         raise BrowserProblem("interface", "Nút Gửi của ChatGPT chưa sẵn sàng.")
-    # Focus before recording intent: failure here cannot have sent anything.
-    # Keyboard activation works in the owned hidden Chrome window without
-    # pointer hit testing against floating tooltips/overlays.
-    sender.focus(timeout=10000)
+    # Activate the enabled web button directly, once. The current composer
+    # can consume Enter in its form handler even with the Send button focused.
+    # Native button.click avoids both that handler and pointer tooltip overlays
+    # in an owned hidden window; it does not call an endpoint or change the page.
     from .browser_receipt import save_intent, wait_receipt
 
     save_intent(folder, record, prompt)
@@ -499,10 +499,10 @@ def submit(page, folder, record, prompt, cancel, *, files=(), progress=None):
     from playwright.sync_api import TimeoutError
 
     try:
-        sender.press("Enter", timeout=10000)
+        sender.evaluate("button => { if (button.disabled) throw new Error('Send disabled'); button.click(); }")
     except TimeoutError:
         # The input may already have been delivered before navigation timed
-        # out. Observe the receipt; never press a second time here.
+        # out. Observe the receipt; never activate a second time here.
         check_cancel(cancel)
     if wait_receipt(page, folder, record, prompt, cancel, previous_url=previous_url):
         return

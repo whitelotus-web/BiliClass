@@ -41,7 +41,7 @@ from PySide6.QtQuick import QQuickWindow
 from PySide6.QtQuickControls2 import QQuickStyle
 from PySide6.QtTest import QTest
 
-from app import browser_audio, browser_automation
+from app import browser_automation, speech
 from app.chatgpt_handoff import load_request
 from app.document_limits import MAX_POWERPOINT_BYTES
 from app.library import Library
@@ -63,7 +63,7 @@ returned = workspace / "Bài ChatGPT trả về.pptx"
 deck = Presentation()
 for i in range(2):
     slide = deck.slides.add_slide(deck.slide_layouts[6])
-    slide.shapes.add_textbox(Inches(.5), Inches(.5), Inches(8), Inches(2)).text = "Bài giảng của thầy cô"
+    slide.shapes.add_textbox(Inches(.5), Inches(.5), Inches(8), Inches(2)).text = "Diện tích bằng 12 cm².\nThe area is 12 cm²."
     slide.notes_slide.notes_text_frame.text = 'VI: Diện tích bằng 12 cm².\nEN: The area is 12 cm².\nQUIZ: ' + json.dumps({
         "kind": "single", "vi": "Diện tích bằng bao nhiêu?", "en": "What is the area?",
         "options": [{"vi": "12 cm²", "en": "12 cm²"}, {"vi": "6 cm²", "en": "6 cm²"}],
@@ -71,6 +71,7 @@ for i in range(2):
 deck.save(source)
 deck.save(returned)
 digest = hashlib.sha256(returned.read_bytes()).hexdigest()
+speech.list_voices = lambda: [{"id": "vieneu:Mai Anh", "provider": "vieneu", "name": "Fixture voice", "language": "multilingual"}]
 bridge = Bridge(library)
 bridge.browserAI.saveOptions(False, False)  # New UI must override obsolete manual/audio options.
 account = bridge.browserAI.store.add("UI fixture")
@@ -93,14 +94,13 @@ def fake_convert(account, root, folder, cancel, progress, **options):
     return {"path": str(target), "url": "https://chatgpt.com/c/fixture"}
 
 
-def fake_narration(inspection, voices, directory, cancel, progress):
-    narration.extend(inspection["profile"]["units"])
-    progress.stage("audio", "Chuẩn bị giọng đọc 4/4…", 4, 4)
-    return {"complete": 4, "total": 4, "failed": 0, "skipped": 0}
+def fake_synthesis(text, voice, rate, directory, cancel):
+    narration.append(text)
+    return {"cached": True, "path": "fixture.wav"}
 
 
 browser_automation.convert = fake_convert
-browser_audio.prepare_narration = fake_narration
+speech.synthesize_background = fake_synthesis
 engine = QQmlApplicationEngine()
 warnings, failures, stages, opened = [], [], [], []
 engine.warnings.connect(lambda values: warnings.extend(map(str, values)))
@@ -475,11 +475,15 @@ def prepared():
     assert bridge.browserState["percent"] == 25 and bridge.browserState["waiting"]
     assert window.findChild(QObject, "browserConversionProgressBar").property("value") == 25
     assert window.findChild(QObject, "browserConversionPercent").property("text") == "25%"
-    assert "không cung cấp %" in window.findChild(QObject, "browserConversionProgressNote").property("text")
+    assert window.findChild(QObject, "browserConversionProgressNote") is None
+    assert window.findChild(QObject, "browserConversionStage").property("text") == "Biên soạn bài giảng song ngữ"
+    assert "ChatGPT" not in window.findChild(QObject, "browserConversionStatus").property("text")
     progress_state = dict(bridge.browserState)
     bridge._web_conversion_failure("Mạng bị gián đoạn")
     assert bridge.browserState["percent"] == 25 and not bridge.browserState["running"]
     assert window.findChild(QObject, "browserConversionPercent").property("text") == "25%"
+    assert "tạm dừng" in window.findChild(QObject, "browserConversionStatus").property("text")
+    assert window.findChild(QObject, "applicationStatusMessage").property("text") == bridge.browserState["displayMessage"]
     bridge._browser_state = progress_state
     bridge.changed.emit()
     assert QQuickWindow.grabWindow(window).save(str(reports / "browser-handoff.png"))
@@ -489,6 +493,10 @@ def prepared():
 
 
 def received():
+    if bridge.narrationPreparation.get("running"):
+        assert time.monotonic() < deadline, "Background fixture narration did not finish"
+        QTimer.singleShot(100, safe(received))
+        return
     assert not bridge.error, bridge.message
     assert bridge.browserState["percent"] == 100 and not bridge.browserState["running"]
     assert window.property("page") == "result"
@@ -496,8 +504,8 @@ def received():
     assert not window.findChild(QObject, "creationCustomSubject").property("text")
     result = bridge.quickResult
     assert result["external"] and result["draft"] and result["image"]
-    assert narration and all(unit["vi"] and unit["en"] for unit in narration)
-    assert result["audio"]["complete"] == 4
+    assert narration and any("area" in text for text in narration) and any("Diện tích" in text for text in narration)
+    assert bridge.narrationPreparation["complete"] == bridge.narrationPreparation["total"] == 2
     assert hashlib.sha256(Path(result["path"]).read_bytes()).hexdigest() == digest
     assert not any(s["approved"] for s in bridge.lesson["segments"])
     assert all(s["vi"] and s["en"] for s in bridge.lesson["segments"])

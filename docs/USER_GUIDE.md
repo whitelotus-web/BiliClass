@@ -1,8 +1,8 @@
-# BiliClass RC20 — hướng dẫn dùng thử
+# BiliClass RC21 — hướng dẫn dùng thử
 
 ## Cài lần đầu
 
-1. Mở [Release RC20](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc20), tải **BiliClass-RC20-Windows.zip** trong Assets.
+1. Mở [Release RC21](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc21), tải **BiliClass-RC21-Windows.zip** trong Assets.
 2. Giải nén toàn bộ bằng Windows; không chạy ứng dụng ngay trong cửa sổ ZIP.
 3. Chạy **Setup.cmd**. Bộ cài kiểm tra checksum, cài vào `%LOCALAPPDATA%/Programs/BiliClass/<version>` và tạo mục Start menu, không cần quyền quản trị.
 4. Mở BiliClass từ Start menu, vào **Cài đặt → Browser AI → Thêm tài khoản**, đăng nhập ChatGPT. Mỗi máy tự đăng nhập; không sao chép profile của người khác.
@@ -27,7 +27,7 @@ Xóa đưa bài vào thùng rác. Mở **Chia sẻ & quản lý → Thùng rác*
 3. Chọn một kiểu chuyển đổi: **Hai cột song ngữ** (Việt trái/Anh phải), **Song ngữ từng câu** (Việt trên/Anh dưới), **Tích hợp từ khóa** (Việt xen thuật ngữ Anh), **Tiếng Anh 100%** (chữ slide bằng Anh; lời đọc Việt lưu riêng trong ghi chú).
 4. Với PPTX, **Giữ bài giảng đầu vào** yêu cầu chỉnh bản sao của đúng PowerPoint nguồn, giữ số lượng/thứ tự slide và đối tượng tối đa. **Tạo theo mẫu mới** dùng nội dung nguồn trong mẫu Chuẩn lớp học, Trực quan hoặc Luyện tập & tương tác. Các mẫu có ảnh bố cục và ví dụ bốn phương pháp.
 5. Ghi lưu ý thêm nếu cần. Nút hiện/ẩn prompt cho xem chính xác yêu cầu chuẩn bị gửi.
-6. Bấm **Chuyển đổi bài giảng** một lần. Tool tải bản sao tài liệu và mẫu trống nếu dùng mẫu mới lên ChatGPT, gửi prompt, chờ nhận PPTX, kiểm tra và lưu bài. Đạt 100% thì mở bài; giọng đọc tự chuẩn bị tiếp ở nền với trạng thái riêng. Khi cần đọc, tool lấy âm thanh đã có hoặc tạo đoạn cần đọc. Khi chờ ChatGPT, % giữ ở mốc chờ vì web không cung cấp tiến độ tạo bài; đây không phải dự đoán thời gian. [Giữ phiên và mở bài nhanh hơn](SESSION_AND_SPEED.md).
+6. Bấm **Chuyển đổi bài giảng** một lần. BiliClass tự xử lý tài liệu, biên soạn, kiểm tra và lưu bài giảng. Tiến trình hiện phần trăm và nội dung công việc; đạt 100% thì mở bài. Giọng đọc tự chuẩn bị tiếp ở nền với trạng thái riêng. Khi cần đọc, BiliClass dùng âm thanh đã có hoặc chuẩn bị đoạn cần đọc. Phần trăm phản ánh các mốc đã hoàn tất; nếu chưa qua mốc tiếp theo thì có thể giữ nguyên. [Giữ phiên và mở bài nhanh hơn](SESSION_AND_SPEED.md).
 7. Xem bài và cảnh báo trước khi **Dùng để dạy**. Bản dịch, công thức, hình và hiệu ứng cần đối chiếu với nguồn. Quiz trong ghi chú được nhận thành bản nháp; chưa được tự duyệt.
 
 Thời gian phụ thuộc kích thước tệp, mạng và tài khoản Free/Plus. Khi web yêu cầu xác minh/đăng nhập hoặc hết hạn mức, tool báo để bạn xử lý; không bảo đảm mọi yêu cầu đều chạy hoàn toàn không can thiệp. Không gửi trùng yêu cầu đã gửi chỉ vì mất kết nối. Hạn mức không có số dư tin cậy thì không hiển thị số tự đoán.

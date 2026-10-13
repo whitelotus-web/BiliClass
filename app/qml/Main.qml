@@ -594,7 +594,7 @@ ApplicationWindow {
                     anchors.fill: parent; anchors.margins: 30; visible: root.page === "chatgpt"; clip: true; contentWidth: availableWidth
                     ColumnLayout {
                         width: parent.width; spacing: 18
-                        RowLayout { Heading { text: "Chuyển đổi với ChatGPT"; font.pixelSize: 28 } Item { Layout.fillWidth: true } Action { text: "Đổi cấu hình"; subtle: true; onClicked: root.go("new") } }
+                        RowLayout { Heading { text: "Tạo bài giảng song ngữ"; font.pixelSize: 28 } Item { Layout.fillWidth: true } Action { text: "Đổi cấu hình"; subtle: true; enabled: !bridge.browserState.running; onClicked: root.go("new") } }
                         Copy { Layout.fillWidth: true; text: (bridge.chatgptRequest.config || {}).title || "Chuẩn bị tài liệu trước khi gửi"; color: root.ink; font.pixelSize: 17 }
                         Surface {
                             visible: bridge.browserAI.automatic && bridge.browserState.phase !== "manual"
@@ -603,12 +603,12 @@ ApplicationWindow {
                                 id: autoBrowserSteps; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 21; spacing: 14
                                 RowLayout { Layout.fillWidth: true
                                     BusyIndicator { running: !!bridge.browserState.running; visible: running; implicitWidth: 34; implicitHeight: 34 }
-                                    Caption { text: bridge.browserState.running ? "Đang chuyển đổi bài giảng" : "Chuyển đổi tự động"; font.pixelSize: 18; Layout.fillWidth: true }
+                                    Caption { text: bridge.browserState.running ? "Đang tạo bài giảng" : bridge.browserState.phase === "error" ? "Chuyển đổi tạm dừng" : "Bài giảng song ngữ"; font.pixelSize: 18; Layout.fillWidth: true }
                                 }
-                                Copy { objectName: "browserConversionStatus"; text: bridge.browserState.message || "Yêu cầu đã chuẩn bị. Bấm Tiếp tục để gửi/chờ qua tài khoản đã chọn."; Layout.fillWidth: true; font.pixelSize: 15; color: root.ink }
+                                Copy { objectName: "browserConversionStatus"; text: bridge.browserState.displayMessage; Layout.fillWidth: true; font.pixelSize: 15; color: root.ink }
                                 RowLayout {
                                     Layout.fillWidth: true
-                                    Copy { objectName: "browserConversionStage"; text: bridge.browserState.stageLabel || "Chuẩn bị chuyển đổi"; Layout.fillWidth: true; color: root.ink }
+                                    Copy { objectName: "browserConversionStage"; text: bridge.browserState.displayStage; Layout.fillWidth: true; color: root.ink }
                                     Caption { objectName: "browserConversionPercent"; text: (bridge.browserState.percent || 0) + "%"; font.pixelSize: 22 }
                                 }
                                 ProgressBar {
@@ -620,18 +620,13 @@ ApplicationWindow {
                                         Rectangle { width: parent.width * parent.parent.visualPosition; height: parent.height; radius: 4.5; color: root.blue }
                                     }
                                 }
-                                Copy {
-                                    objectName: "browserConversionProgressNote"; Layout.fillWidth: true; font.pixelSize: 12
-                                    text: (bridge.browserState.waiting ? "Đang chờ phản hồi từ ChatGPT; web không cung cấp % tạo bài. " : "")
-                                        + "% tính theo các bước chuyển đổi, không phải thời gian còn lại."
-                                }
-                                Copy { Layout.fillWidth: true; text: bridge.browserAI.webMode ? "Gửi tài liệu → nhận PowerPoint song ngữ → chuẩn bị giọng đọc → xem trình chiếu → xác nhận để dạy." : "Đọc bài gốc → xử lý song ngữ → tạo PowerPoint tại máy → xem trình chiếu → xác nhận để dạy." }
+                                Copy { Layout.fillWidth: true; text: "Bài giảng song ngữ · Trình chiếu · Giọng đọc · Trợ giảng" }
                                 RowLayout { Layout.fillWidth: true
-                                    Action { objectName: "browserConversionResume"; text: bridge.browserAI.webMode && bridge.browserState.needsLogin ? "Đăng nhập và tiếp tục" : bridge.browserState.errorCode === "submission" ? "Kiểm tra yêu cầu đã gửi" : "Thử khôi phục lại"; primary: true; visible: !bridge.browserState.running; enabled: !bridge.busy && !bridge.browserAI.loginBusy && !!bridge.chatgptRequest.folder; onClicked: { if (bridge.browserAI.webMode && (bridge.browserState.needsLogin || bridge.browserState.errorCode === "submission")) bridge.reconnectBrowserAI(); else bridge.runBrowserAI() } }
+                                    Action { objectName: "browserConversionResume"; text: bridge.browserAI.webMode && bridge.browserState.needsLogin ? "Kết nối và tiếp tục" : bridge.browserState.errorCode === "submission" ? "Kiểm tra và tiếp tục" : "Tiếp tục chuyển đổi"; primary: true; visible: !bridge.browserState.running && bridge.browserState.phase !== "completed"; enabled: !bridge.busy && !bridge.browserAI.loginBusy && !!bridge.chatgptRequest.folder; onClicked: { if (bridge.browserAI.webMode && (bridge.browserState.needsLogin || bridge.browserState.errorCode === "submission")) bridge.reconnectBrowserAI(); else bridge.runBrowserAI() } }
                                     Action { objectName: "browserConversionCancel"; text: "Dừng"; visible: !!bridge.browserState.running; onClicked: bridge.cancelJob() }
                                     Action { text: "Đăng nhập / Browser AI"; visible: !!bridge.browserState.needsLogin && !bridge.browserState.running; enabled: !bridge.busy; onClicked: { root.go("settings"); settingsPanel.activeTab = 6 } }
                                 }
-                                Copy { text: bridge.browserAI.webMode ? "Tool tự gửi tài liệu, chờ và nhận PowerPoint. Bạn chỉ cần can thiệp khi web yêu cầu đăng nhập/xác minh, hết lượt hoặc kết quả chưa rõ." : "Các phần hoàn tất được lưu để dùng lại. Nếu kết nối bị ngắt giữa chừng, bạn sẽ xác nhận trước khi gửi lại phần chưa rõ kết quả."; Layout.fillWidth: true; font.pixelSize: 12 }
+                                Copy { text: bridge.browserState.running ? "BiliClass tự động xử lý. Bài giảng sẽ xuất hiện trong thư viện khi hoàn tất." : "Tài liệu và các phần đã hoàn tất được lưu để tiếp tục."; Layout.fillWidth: true; font.pixelSize: 12 }
                             }
                         }
                         Surface {
@@ -963,7 +958,7 @@ ApplicationWindow {
                     anchors.leftMargin: 25; anchors.rightMargin: 25; spacing: 5
                     RowLayout { Layout.fillWidth: true; spacing: 10
                         BusyIndicator { visible: bridge.busy; running: bridge.busy; Layout.preferredWidth: 23; Layout.preferredHeight: 23 }
-                        Label { id: statusMessage; objectName: "applicationStatusMessage"; text: bridge.message || "Sẵn sàng · Dữ liệu bài giảng được lưu tại máy"; color: bridge.error ? "#b14828" : root.muted; font.pixelSize: 11; wrapMode: Text.WordWrap; Layout.fillWidth: true; textFormat: Text.PlainText }
+                        Label { id: statusMessage; objectName: "applicationStatusMessage"; text: (root.page === "chatgpt" || bridge.browserState.running || bridge.browserState.phase === "error" && bridge.message === bridge.browserState.message) && bridge.browserAI.automatic ? bridge.browserState.displayMessage : bridge.message || "Sẵn sàng · Dữ liệu bài giảng được lưu tại máy"; color: bridge.error ? "#b14828" : root.muted; font.pixelSize: 11; wrapMode: Text.WordWrap; Layout.fillWidth: true; textFormat: Text.PlainText }
                         Action { visible: bridge.busy; text: "Dừng tác vụ"; implicitHeight: 30; onClicked: bridge.cancelJob() }
                     }
                     Label {
