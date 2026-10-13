@@ -162,6 +162,11 @@ class Bridge(QObject):
                     self._message = str(exc)
                 self.logger.info("Previous ChatGPT handoff is no longer available.")
         self.conversionProgress.connect(self._conversion_progress)
+        if self._chatgpt_request.get("config", {}).get("provider") == "browser_web":
+            from .browser_dispatch import startup_resume
+
+            if startup_resume(self._chatgpt_request["folder"]):
+                QTimer.singleShot(750, self._resume_browser_startup)
         self.powerpoint_worker = None
         self._powerpoint_lesson_id = None
         self._powerpoint_source_map = []
@@ -497,6 +502,13 @@ class Bridge(QObject):
         self._browser_state.update(running=False, phase="error", message=message, errorCode=code,
                                    waiting=False, needsLogin=code in {"login", "verification", "auth_response"})
 
+    def _resume_browser_startup(self):
+        from .browser_dispatch import startup_resume
+
+        if not self._busy and self._chatgpt_request and startup_resume(self._chatgpt_request["folder"]):
+            self.navigate.emit("chatgpt")
+            self._run_web_conversion()
+
     def _run_web_conversion(self):
         import json
 
@@ -531,7 +543,10 @@ class Bridge(QObject):
             if cached.get("state") != "completed" and quota_blocked(account):
                 self._browser_state.update(running=False, phase="error", needsLogin=False, errorCode="limit")
                 raise ValueError("Tài khoản của bài đã gửi đang hết lượt. Chờ hạn mức được cấp lại để tiếp tục đúng cuộc trò chuyện.")
-            read_record(folder, cached.get("account_id", account["id"]))
+            record = read_record(folder, cached.get("account_id", account["id"]))
+            record["auto_resume"] = True
+            write_record(folder, record)
+            (Path(folder) / "conversion-stopped").unlink(missing_ok=True)
         except (ValueError, KeyError, OSError, json.JSONDecodeError) as exc:
             self.inform(str(exc), True)
             return
@@ -1127,6 +1142,10 @@ class Bridge(QObject):
 
     @Slot()
     def cancelJob(self):
+        if self._browser_running and self._chatgpt_request:
+            # Separate marker: the worker may still flush its send journal as
+            # cancellation arrives. It must not overwrite the human's stop.
+            (Path(self._chatgpt_request["folder"]) / "conversion-stopped").touch()
         if self._busy:
             self.cancel_event.set()
             self.inform("Đang dừng sau bước xử lý hiện tại…")

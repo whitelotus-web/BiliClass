@@ -9,7 +9,7 @@ from PySide6.QtCore import Property, QObject, QThread, QTimer, Signal, Slot
 
 from . import browser_automation
 from .browser_accounts import BrowserAccounts
-from .browser_health import quota_blocked
+from .browser_health import AUTH_ERRORS, TEMPORARY_ERRORS, quota_blocked
 
 
 class WebLoginJob(QThread):
@@ -73,6 +73,8 @@ class WebBrowserAI(QObject):
             error = self.store.get(self.activeId).get("last_error", {})
         except ValueError:
             error = {}
+        if error.get("code") not in AUTH_ERRORS | TEMPORARY_ERRORS | {"limit"}:
+            error = {}
         self._error_code = error.get("code", "")
         self._error = bool(error)
         if error:
@@ -110,7 +112,8 @@ class WebBrowserAI(QObject):
                          "email": account.get("email", ""), "plan": account.get("plan", "unknown"),
                          "ready": connected, "limited": limited, "status": status, "color": color,
                          "checking": checking, "recheck": limited or code in {"network", "browser"},
-                         "error": account.get("last_error", {}).get("message", "")})
+                         "error": account.get("last_error", {}).get("message", "")
+                         if code in AUTH_ERRORS | TEMPORARY_ERRORS | {"limit"} else ""})
         return rows
 
     @Property(str, notify=changed)
@@ -355,7 +358,12 @@ class WebBrowserAI(QObject):
         if code in {"login", "verification", "auth_response"}:
             self.store.begin_login(account_id)
         self._restore_error()
-        self.inform(message)
+        # A PPTX/upload/acknowledgement error is a job error, not a second
+        # account's login failure. Its details remain on the conversion page.
+        if code in AUTH_ERRORS | TEMPORARY_ERRORS | {"limit"}:
+            self.inform(message)
+        else:
+            self.changed.emit()
 
     def conversionAccount(self, folder=""):
         journal = Path(folder) / "browser-job.json" if folder else None

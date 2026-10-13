@@ -279,6 +279,101 @@ def test_real_browser_upload_download_and_repeat_does_not_send_twice(browser_fix
     assert len(captured["sends"]) == 1
 
 
+def test_hidden_browser_send_uses_keyboard_when_pointer_is_blocked(browser_fixture):
+    adapter, accounts, request, captured, source = browser_fixture
+    captured["html"] = FIXTURE.replace('<script>', '''<script>
+const blocker=document.createElement('div'), r=document.querySelector('#send').getBoundingClientRect();
+blocker.style.cssText=`position:fixed;left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;z-index:999;background:transparent`;
+document.body.appendChild(blocker);
+''')
+    result = adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+    assert Path(result["path"]).read_bytes() == source.read_bytes()
+    assert len(captured["sends"]) == 1
+
+
+def test_key_timeout_after_send_observes_receipt_without_pressing_again(browser_fixture, monkeypatch):
+    from playwright.sync_api import Locator, TimeoutError
+
+    adapter, accounts, request, captured, source = browser_fixture
+    original, activations = Locator.press, []
+
+    def interrupted(locator, key, **options):
+        result = original(locator, key, **options)
+        if locator.get_attribute("id") == "send":
+            activations.append(key)
+            raise TimeoutError("Fixture timeout after the browser delivered Enter")
+        return result
+
+    monkeypatch.setattr(Locator, "press", interrupted)
+    result = adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+    assert Path(result["path"]).read_bytes() == source.read_bytes()
+    assert activations == ["Enter"] and len(captured["sends"]) == 1
+    assert read_record(request["folder"], accounts.get()["id"])["state"] == "completed"
+
+
+def receipt_fixture_html(prompt, *, duplicate=False):
+    # Actual message text is present only on conversation pages, not the home
+    # page. The chat history is ordinary, visible web UI.
+    history = '<nav><a href="/c/receipt-one">Recent chat</a>'
+    if duplicate:
+        history += '<a href="/c/receipt-two">Other chat</a>'
+    history += '</nav>'
+    return FIXTURE.replace('<div id="messages">', history + '<div id="messages">').replace(
+        "if (location.pathname.startsWith('/c/')) result();",
+        "if (location.pathname.startsWith('/c/')) { result(); const user=document.createElement('div');"
+        "user.setAttribute('data-message-author-role','user'); user.textContent=" + json.dumps(prompt) + ";"
+        "document.querySelector('#messages').prepend(user); }")
+
+
+def test_lost_first_ack_finds_chat_and_finishes_without_resubmit(browser_fixture, monkeypatch):
+    from app.browser_dispatch import convert_available
+
+    adapter, accounts, request, captured, source = browser_fixture
+    accounts.observe(accounts.get()["id"], "free")
+    original = adapter.submit
+
+    def lose_receipt(page, folder, record, *args, **options):
+        original(page, folder, record, *args, **options)
+        # Simulate a disconnected CDP client before the acknowledged URL was
+        # durably written. The server still has the original message/result.
+        record.update(state="submitting", url="", error="receipt")
+        adapter.write_record(folder, record)
+        captured["html"] = receipt_fixture_html(request["prompt"])
+        raise BrowserProblem("receipt", "Fixture lost acknowledgement")
+
+    monkeypatch.setattr(adapter, "submit", lose_receipt)
+    result = convert_available(accounts.candidates(), accounts.root, request["folder"], Event(), lambda _: None,
+                               retry_delays=(0,))
+    assert len(captured["sends"]) == 1 and captured["contexts"] == 2
+    assert Path(result["path"]).read_bytes() == source.read_bytes()
+    record = read_record(request["folder"], accounts.get()["id"])
+    assert record["url"] == "https://chatgpt.com/c/receipt-one" and record["state"] == "completed"
+
+
+@pytest.mark.parametrize("kind", ["legacy", "duplicate", "mismatch", "tampered"])
+def test_pending_send_is_received_only_on_unique_full_prompt_match(browser_fixture, kind):
+    from app.browser_receipt import save_intent
+
+    adapter, accounts, request, captured, source = browser_fixture
+    record = read_record(request["folder"], accounts.get()["id"])
+    record.update(state="submitting", user_before=0, assistant_before=0)
+    if kind == "tampered":
+        save_intent(request["folder"], record, request["prompt"])
+        (Path(request["folder"]) / "send-intent.txt").write_text("Changed prompt", encoding="utf-8")
+    adapter.write_record(request["folder"], record)
+    captured["html"] = receipt_fixture_html(request["prompt"] if kind != "mismatch" else "An unrelated request",
+                                           duplicate=kind == "duplicate")
+    if kind == "legacy":
+        result = adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+        assert Path(result["path"]).read_bytes() == source.read_bytes()
+    else:
+        with pytest.raises(BrowserProblem) as exc:
+            adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+        assert exc.value.code == ("record" if kind == "tampered" else "receipt" if kind == "mismatch" else "submission")
+        assert read_record(request["folder"], accounts.get()["id"])["state"] == "submitting"
+    assert not captured["sends"]
+
+
 def test_powerpoint_above_old_limit_uploads_downloads_stores_and_reopens(browser_fixture):
     import hashlib
     import shutil

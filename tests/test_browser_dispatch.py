@@ -184,7 +184,7 @@ def test_attachment_or_editor_failure_after_submit_never_reuploads(tmp_path, sta
     assert attempts == [plus]
 
 
-def test_unknown_send_is_not_retried_even_on_transport_failure(tmp_path):
+def test_unknown_send_reopens_only_same_account_to_find_receipt(tmp_path):
     store, plus, _free = accounts_fixture(tmp_path)
     attempts = []
 
@@ -198,7 +198,7 @@ def test_unknown_send_is_not_retried_even_on_transport_failure(tmp_path):
     with pytest.raises(BrowserProblem):
         convert_available(store.candidates(), store.root, tmp_path, Event(), lambda _: None,
                           converter=converter, retry_delays=(0, 0))
-    assert attempts == [plus]
+    assert attempts == [plus, plus, plus]
 
 
 def test_already_received_file_can_be_imported_without_session_or_quota(tmp_path):
@@ -232,3 +232,26 @@ def test_recovery_has_a_bound_and_cancellation_stops_before_reopen(tmp_path):
         convert_available(store.candidates(), store.root, tmp_path, cancel, lambda _: cancel.set(),
                           converter=converter, retry_delays=(1,))
     assert exc.value.code == "cancelled" and attempts == [plus]
+
+
+@pytest.mark.parametrize("state,error,resumes", [("prepared", "upload", True),
+    ("submitting", "receipt", True), ("waiting", "browser", True), ("completed", "", True),
+    ("waiting", "verification", False), ("waiting", "limit", False), ("waiting", "no_file", False),
+    ("waiting", "cancelled", False)])
+def test_startup_recovery_requires_saved_authorization_and_obeys_stop(tmp_path, state, error, resumes):
+    from app.browser_dispatch import startup_resume
+
+    _store, plus, _free = accounts_fixture(tmp_path)
+    record = read_record(tmp_path, plus)
+    record.update(state=state, error=error, url="" if state in {"prepared", "submitting"} else "https://chatgpt.com/c/fixture")
+    write_record(tmp_path, record)
+    assert not startup_resume(tmp_path)
+    record["auto_resume"] = True
+    write_record(tmp_path, record)
+    assert startup_resume(tmp_path) == resumes
+    (tmp_path / "conversion-stopped").touch()
+    assert not startup_resume(tmp_path)
+    (tmp_path / "conversion-stopped").unlink()
+    record["lesson_id"] = "already-saved"
+    write_record(tmp_path, record)
+    assert not startup_resume(tmp_path)

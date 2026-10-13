@@ -337,6 +337,8 @@ def read_record(folder, account_id):
         raise BrowserProblem("record", "Trạng thái yêu cầu Browser AI không hợp lệ.")
     if record.get("url") and not conversation_url(record["url"]):
         raise BrowserProblem("record", "Địa chỉ cuộc trò chuyện trong yêu cầu không hợp lệ.")
+    if record.get("send_sha256") and not re.fullmatch(r"[a-f0-9]{64}", str(record["send_sha256"])):
+        raise BrowserProblem("record", "Dấu kiểm tra prompt đã gửi không hợp lệ.")
     for key in ("assistant_before", "user_before"):
         if key in record and (type(record[key]) is not int or record[key] < 0):
             raise BrowserProblem("record", "Trạng thái câu trả lời Browser AI không hợp lệ.")
@@ -481,27 +483,30 @@ def submit(page, folder, record, prompt, cancel, *, files=(), progress=None):
     sender = visible(attachment_scope(page), SEND)
     if not sender or not sender.is_enabled():
         raise BrowserProblem("interface", "Nút Gửi của ChatGPT chưa sẵn sàng.")
+    # Focus before recording intent: failure here cannot have sent anything.
+    # Keyboard activation works in the owned hidden Chrome window without
+    # pointer hit testing against floating tooltips/overlays.
+    sender.focus(timeout=10000)
+    from .browser_receipt import save_intent, wait_receipt
+
+    save_intent(folder, record, prompt)
     # Persist BEFORE click: a crash or unknown response must not trigger a duplicate send.
     previous_url = page.url
     record.update(state="submitting", assistant_before=page.locator(ASSISTANT).count(),
                   user_before=page.locator(USER).count(),
                   assistant_ids_before=[key for node in page.locator(ASSISTANT).all() if (key := reply_key(node))])
     write_record(folder, record)
-    sender.click(timeout=10000)
-    deadline = time.monotonic() + 40
-    while time.monotonic() < deadline:
+    from playwright.sync_api import TimeoutError
+
+    try:
+        sender.press("Enter", timeout=10000)
+    except TimeoutError:
+        # The input may already have been delivered before navigation timed
+        # out. Observe the receipt; never press a second time here.
         check_cancel(cancel)
-        page_problem(page)
-        # A follow-up already has a conversation URL. Confirm a new message
-        # instead of mistaking that old URL for acknowledgement of this send.
-        acknowledged = (page.url != previous_url or page.locator(USER).count() > record["user_before"]
-                        or page.locator(ASSISTANT).count() > record["assistant_before"])
-        if conversation_url(page.url) and acknowledged:
-            record.update(state="waiting", url=page.url)
-            write_record(folder, record)
-            return
-        page.wait_for_timeout(200)
-    raise BrowserProblem("submission", "Có thể prompt đã gửi nhưng chưa xác nhận được cuộc trò chuyện. Kiểm tra browser; app không tự gửi lại.")
+    if wait_receipt(page, folder, record, prompt, cancel, previous_url=previous_url):
+        return
+    raise BrowserProblem("receipt", "Đang tìm lại xác nhận gửi trên tài khoản này; tool không gửi lại prompt.")
 
 
 def reply_key(node):
@@ -736,8 +741,15 @@ def _convert_locked(account, request_folder, cancel, progress, *, timeout, obser
                 page = context.pages[0] if context.pages else context.new_page()
                 page.set_default_timeout(10000)
                 stage = "session"
-                navigate(page, record["url"] or CHATGPT, cancel)
-                require_account(page, cancel)
+                if record["state"] == "submitting":
+                    from .browser_receipt import recover_submission
+
+                    stage = "receipt"
+                    progress("Đang tìm lại yêu cầu đã gửi trong tài khoản cũ; không gửi trùng bài…")
+                    page = recover_submission(context, page, folder, record, request, cancel)
+                else:
+                    navigate(page, record["url"] or CHATGPT, cancel)
+                    require_account(page, cancel)
                 if record["state"] == "prepared" and conversation_url(page.url):
                     raise BrowserProblem("interface", "Web mở lại cuộc trò chuyện cũ. Tạo chat mới trước khi chuyển đổi bài mới.")
                 stage = "model"
@@ -757,10 +769,6 @@ def _convert_locked(account, request_folder, cancel, progress, *, timeout, obser
                     submit(page, folder, record, request["prompt"], cancel, files=files, progress=progress)
                 elif not record["url"]:
                     raise BrowserProblem("submission", "Chưa rõ yêu cầu trước đã gửi hay chưa. Kiểm tra browser; app không gửi trùng.")
-                elif record["state"] == "submitting":
-                    # Resume a possibly sent follow-up by waiting, never by resending.
-                    record["state"] = "waiting"
-                    write_record(folder, record)
                 stage = "waiting"
                 waiting_stage = "refine_wait" if record.get("quality_stage") in {"submitting", "waiting"} else "waiting"
                 emit_progress(progress, waiting_stage, "Đã gửi yêu cầu; đang chờ ChatGPT trả PowerPoint…")
@@ -792,6 +800,7 @@ def _convert_locked(account, request_folder, cancel, progress, *, timeout, obser
         from playwright.sync_api import TimeoutError
 
         code = exc.code if isinstance(exc, BrowserProblem) else "download" if stage == "download" else (
+            "receipt" if record["state"] == "submitting" else
             "upload" if stage == "upload" and isinstance(exc, TimeoutError) and record["state"] == "prepared" else "browser")
         record.update(error=code, stage=stage, failure_type=type(exc).__name__)
         # Keep the last durable send state and conversation URL for safe resume.
@@ -802,4 +811,6 @@ def _convert_locked(account, request_folder, cancel, progress, *, timeout, obser
             raise BrowserProblem("upload", "Chưa tải xong tài liệu lên ChatGPT. Chưa gửi bài; phiên đăng nhập vẫn được giữ.") from exc
         if code == "download":
             raise BrowserProblem(code, "Chưa tải được PowerPoint kết quả. Phiên đăng nhập và cuộc trò chuyện được giữ để tự thử lại.") from exc
+        if code == "receipt":
+            raise BrowserProblem(code, "Chưa nhận xác nhận gửi từ web; đang tự tìm lại cuộc trò chuyện, không gửi trùng bài.") from exc
         raise BrowserProblem(code, "Browser mất kết nối hoặc giao diện ChatGPT đã đổi. Yêu cầu được giữ lại để kiểm tra/tiếp tục.") from exc

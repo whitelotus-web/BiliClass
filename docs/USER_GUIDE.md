@@ -1,8 +1,8 @@
-# BiliClass RC17 — hướng dẫn dùng thử
+# BiliClass RC18 — hướng dẫn dùng thử
 
 ## Cài lần đầu
 
-1. Mở [Release RC17](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc17), tải **BiliClass-RC17-Windows.zip** trong Assets.
+1. Mở [Release RC18](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc18), tải **BiliClass-RC18-Windows.zip** trong Assets.
 2. Giải nén toàn bộ bằng Windows; không chạy ứng dụng ngay trong cửa sổ ZIP.
 3. Chạy **Setup.cmd**. Bộ cài kiểm tra checksum, cài vào `%LOCALAPPDATA%/Programs/BiliClass/<version>` và tạo mục Start menu, không cần quyền quản trị.
 4. Mở BiliClass từ Start menu, vào **Cài đặt → Browser AI → Thêm tài khoản**, đăng nhập ChatGPT. Mỗi máy tự đăng nhập; không sao chép profile của người khác.

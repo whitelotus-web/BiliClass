@@ -492,7 +492,7 @@ Item {
                                         onClicked: bridge.browserAI.remove(accountRow.accountId)
                                     }
                                 }
-                                Hint { visible: !!accountRow.modelData.error && !accountRow.modelData.checking; text: accountRow.modelData.error; color: "#ab5b20"; Layout.fillWidth: true }
+                                Hint { objectName: "browserProfileError"; visible: !!accountRow.modelData.error && !accountRow.modelData.checking; text: accountRow.modelData.error; color: "#ab5b20"; Layout.fillWidth: true }
                             }
                         }
                     }
@@ -528,7 +528,7 @@ Item {
                     }
                     }
                     RowLayout {
-                        visible: bridge.browserAI.loginBusy || bridge.browserAI.hasError; Layout.fillWidth: true; spacing: 10
+                        visible: bridge.browserAI.loginBusy || (!bridge.browserAI.webMode && bridge.browserAI.hasError); Layout.fillWidth: true; spacing: 10
                         BusyIndicator { visible: bridge.browserAI.loginBusy; running: visible; implicitWidth: 24; implicitHeight: 24 }
                         Hint { objectName: "browserAccountStatus"; text: bridge.browserAI.message; Layout.fillWidth: true; color: bridge.browserAI.hasError ? "#ab5b20" : page.blue }
                     }

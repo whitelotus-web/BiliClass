@@ -12,19 +12,34 @@ def unsent(record):
 
 
 def recoverable(record):
-    return unsent(record) or record["state"] == "waiting" and web.conversation_url(record["url"])
+    return (unsent(record) or record["state"] == "submitting"
+            or record["state"] == "waiting" and web.conversation_url(record["url"]))
 
 
 def temporary_failure(code, record):
     # Upload/editor retries are safe only before submission. Once sent,
     # recovery stays on the saved conversation and never reuploads the source.
-    return (recoverable(record) and code in {"network", "browser", "download"}
+    return (recoverable(record) and code in {"network", "browser", "download", "receipt"}
             or unsent(record) and code in {"upload", "interface"}
             or record["state"] == "waiting" and web.conversation_url(record["url"]) and code == "timeout")
 
 
+def startup_resume(folder):
+    """Resume only a previously authorized automatic job, never a user stop."""
+    folder = Path(folder)
+    if (folder / "conversion-stopped").exists():
+        return False
+    try:
+        raw = json.loads((folder / "browser-job.json").read_text(encoding="utf-8"))
+        record = web.read_record(folder, raw["account_id"])
+    except (OSError, ValueError, KeyError):
+        return False
+    return (record.get("auto_resume") is True and not record.get("lesson_id")
+            and record.get("error", "") in {"", "network", "browser", "receipt", "upload", "interface", "timeout", "download"})
+
+
 def convert_available(accounts, root, folder, cancel, progress, *, observed=None, failed=None, converter=None,
-                      retry_delays=(2, 5)):
+                      retry_delays=(2, 5, 10)):
     converter = converter or web.convert
     journal = Path(folder) / "browser-job.json"
     record = web.read_record(folder, json.loads(journal.read_text(encoding="utf-8"))["account_id"]) if journal.is_file() else None
@@ -58,7 +73,9 @@ def convert_available(accounts, root, folder, cancel, progress, *, observed=None
                 record = web.read_record(folder, account["id"])
                 if (temporary_failure(exc.code, record)
                         and attempt < len(retry_delays) and not cancel.is_set()):
-                    progress(f"Kết nối tạm gián đoạn; tự khôi phục lần {attempt+1}/{len(retry_delays)} trong cùng cuộc trò chuyện…"
+                    progress(f"Tự tìm lại xác nhận gửi lần {attempt+1}/{len(retry_delays)}; giữ tài khoản, không gửi trùng…"
+                             if record["state"] == "submitting" else
+                             f"Kết nối tạm gián đoạn; tự khôi phục lần {attempt+1}/{len(retry_delays)} trong cùng cuộc trò chuyện…"
                              if record["url"] else f"Tự khôi phục Chrome lần {attempt+1}/{len(retry_delays)} để tiếp tục tải tài liệu…")
                     if cancel.wait(retry_delays[attempt]):
                         web.check_cancel(cancel)

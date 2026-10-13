@@ -221,6 +221,15 @@ def step():
             assert attempts[3] == attempts[4], "Retry must reopen the failed new account, not add/reopen a different profile"
             plus_id = bridge.browserAI.activeId
             assert free_id != plus_id
+            bridge.browserAI._failed(free_id, "receipt", "Fixture acknowledgement error belongs to the lesson")
+            assert not bridge.browserAI.hasError
+            assert all(row["status"] == "Đã đăng nhập" and not row["error"] for row in bridge.browserAI.accounts)
+            bridge.browserAI._failed(plus_id, "browser", "Fixture connection error for Plus only")
+            assert profile_value(free_id, "browserProfileState") == "Đã đăng nhập"
+            assert not profile_value(free_id, "browserProfileError")
+            assert "Plus only" in profile_value(plus_id, "browserProfileError")
+            bridge.browserAI._observed(plus_id, "plus", "Fixture model")
+            stages.append("Job acknowledgement errors do not mark sessions disconnected; connection errors stay on their own profile")
             capture("plus-preferred.png")
             assert bridge.browserAI.store.preferred()["id"] == plus_id
             assert window.findChild(QObject, "browserProfiles").property("count") == 2
