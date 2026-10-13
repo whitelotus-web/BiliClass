@@ -6,7 +6,19 @@ from dataclasses import asdict
 from pathlib import Path
 from threading import Event
 
-from PySide6.QtCore import QCoreApplication, QEvent, Property, QObject, QPoint, QStandardPaths, QThread, QTimer, QUrl, Signal, Slot
+from PySide6.QtCore import (
+    Property,
+    QCoreApplication,
+    QEvent,
+    QObject,
+    QPoint,
+    QStandardPaths,
+    QThread,
+    QTimer,
+    QUrl,
+    Signal,
+    Slot,
+)
 from PySide6.QtGui import QDesktopServices, QFont, QFontDatabase, QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuick import QQuickWindow
@@ -1416,6 +1428,76 @@ class Bridge(QObject):
     @Slot()
     def inspectSlideQuality(self):
         self._refresh_slide_speech()
+
+    @Property(str, notify=changed)
+    def slideQualityDetails(self):
+        from .slide_quality import grouped_quality_messages
+
+        messages = grouped_quality_messages(self._lesson.get("slide_quality", {}))
+        # Keep specific teacher checks even when no native issue explains them.
+        if not messages:
+            import re
+
+            notes = self._lesson.get("external_deck", {}).get("review_notes", [])
+            bodies = list(dict.fromkeys(re.sub(r"^Slide \d+[: ]+CHECK:\s*", "", n) for n in notes
+                                        if "CHECK:" in n and " · CHECK:" not in n))
+            messages = ["Cần rà soát · " + n for n in bodies]
+        return "\n\n".join(messages)
+
+    @Slot()
+    def repairConvertedLesson(self):
+        from .slide_refinement import repair_existing
+        from .slide_repair import repair_and_inspect
+
+        if self._busy or not self._lesson.get("external_deck") or self.powerpoint_worker is not None:
+            return
+        lesson = dict(self._lesson)
+        try:
+            path = verified_presentation(lesson, self.library.directory)
+        except ValueError as exc:
+            self.inform(str(exc), True)
+            return
+        original = self.library.directory / "chatgpt" / lesson["external_deck"].get("request_id", "")
+        account = {}
+        original_is_local = original.resolve().parent == (self.library.directory / "chatgpt").resolve()
+        if original_is_local and (original / "browser-job.json").is_file():
+            try:
+                record = json.loads((original / "browser-job.json").read_text(encoding="utf-8"))
+                account = self._browser_ai.store.get(record["account_id"])
+            except (OSError, ValueError, KeyError):
+                pass
+
+        def work():
+            if account and (original / "config.json").is_file():
+                return repair_existing(account, self._browser_ai.store.root, original, path,
+                                       self.library.directory, lesson["id"], lesson["revision"], self.cancel_event,
+                                       lambda message: self.logger.info("Lesson repair: %s", message))
+            return repair_and_inspect(path, self.library.directory, mode=lesson.get("conversion_format", ""),
+                                      cancel=self.cancel_event)
+
+        def completed(result):
+            if self._lesson.get("id") != lesson["id"] or self.cancel_event.is_set():
+                return
+            inspection = result["inspection"]
+            from .slide_quality import quality_messages
+
+            inspection["review_notes"] = list(dict.fromkeys(inspection["review_notes"] + quality_messages(inspection["slide_quality"])))
+            if Path(result["path"]).resolve() != Path(path).resolve():
+                source = self.library.store_source(Path(result["path"]))
+                self._lesson = self.library.replace_external_presentation(lesson["id"], lesson["revision"], source, inspection)
+                self.openLesson(lesson["id"])
+            else:
+                self._lesson = self.library.update_slide_inspection(lesson["id"], inspection)
+                self.changed.emit()
+            failures = inspection["slide_quality"]["counts"]["FAIL"]
+            self.inform(result.get("message") or
+                        (f"Đã tự sửa và kiểm tra lại. Còn {failures} slide cần hoàn thiện; xem chi tiết." if failures
+                         else "Đã sửa các lỗi kiểm tra được. Xem lại nội dung và xác nhận để dạy."), bool(failures))
+            folder = original if original_is_local and (original / "config.json").is_file() else self.library.directory / "temp" / "narration" / lesson["id"]
+            self._start_narration(self._lesson, folder, inspection)
+
+        self.launch(work, completed)
+        self.inform("Đang tự sửa và kiểm tra lại bài giảng…")
 
     @Slot()
     def pauseEnglish(self):

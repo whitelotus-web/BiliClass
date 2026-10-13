@@ -1,8 +1,8 @@
-# BiliClass RC24 — hướng dẫn dùng thử
+# BiliClass RC25 — hướng dẫn dùng thử
 
 ## Cài lần đầu
 
-1. Mở [Release RC24](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc24), tải **BiliClass-RC24-Windows.zip** trong Assets.
+1. Mở [Release RC25](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc25), tải **BiliClass-RC25-Windows.zip** trong Assets.
 2. Giải nén toàn bộ bằng Windows; không chạy ứng dụng ngay trong cửa sổ ZIP.
 3. Chạy **Setup.cmd**. Bộ cài kiểm tra checksum, cài vào `%LOCALAPPDATA%/Programs/BiliClass/<version>` và tạo mục Start menu, không cần quyền quản trị.
 4. Mở BiliClass từ Start menu, vào **Cài đặt → Browser AI → Thêm tài khoản**, đăng nhập ChatGPT. Mỗi máy tự đăng nhập; không sao chép profile của người khác.
@@ -14,7 +14,7 @@ Portable: chạy `BiliClass/BiliClass.exe` trong thư mục đã giải nén. Gi
 
 Trong Cài đặt, Browser AI ở vị trí thứ hai, Song ngữ ở cuối. Nút **Mở tài khoản** trên mỗi profile mở đúng phiên Chrome đã lưu, không tạo tài khoản mới; khi đóng cửa sổ hoặc bấm Kiểm tra và lưu, tool xác minh lại phiên. Hoàn tất tác vụ/profile đang mở trước khi mở tài khoản khác.
 
-Logo tải ở **Chung** cũng hiện cạnh tên giáo viên ở chân thanh bên. Không có logo thì hiện chữ cái tên; thay/bỏ logo cập nhật ngay. Tùy chọn hiện hồ sơ trên bài giảng chỉ điều khiển phần hồ sơ trong bài. Thông báo bản quyền hiển thị riêng ở chân cửa sổ BiliClass, không được tự thêm vào tài liệu hoặc prompt của giáo viên:
+Logo tải ở **Chung** cũng hiện cạnh tên giáo viên ở chân thanh bên. Không có logo thì hiện chữ cái tên; thay/bỏ logo cập nhật ngay. Tùy chọn hiện hồ sơ trên bài giảng chỉ điều khiển phần hồ sơ trong bài. Thông báo bản quyền được căn giữa dưới phiên bản ở thanh bên, không được tự thêm vào tài liệu hoặc prompt của giáo viên:
 
 ```text
 © 2026 Nguyễn Diệu Linh
@@ -50,7 +50,9 @@ Mascot nổi trên nền trong suốt. Kéo để đổi vị trí, nhấp để
 
 **Đọc tiếng Anh** đọc hàng đợi từ chữ English thực trên slide, gồm tiêu đề và thân bài xác định được, không chỉ EN trong ghi chú. Có Tạm dừng/Tiếp tục, Dừng và Đọc lại; đổi slide/bước hoạt ảnh thì dừng. Phần ảnh, công thức hoặc hoạt ảnh chưa xác minh được sẽ báo cần kiểm tra và không tự đọc. Không có English thì báo rõ.
 
-RC14 kiểm tra/render từng slide sau khi nhận bài. Với lỗi kỹ thuật hoặc thân bài thiếu bản Anh, tool yêu cầu ChatGPT sửa tối đa một lượt trong cùng cuộc trò chuyện (dùng thêm hạn mức web), rồi kiểm tra lại. Lỗi FAIL chặn xác nhận Dùng để dạy; xem thông tin lỗi của slide để sửa/nhận lại. CHECK cần giáo viên đối chiếu. Bài cũ có nút Kiểm tra toàn bộ slide. Chi tiết và giới hạn: [Smart Slides & English Reader](SMART_SLIDES_READER.md).
+RC25 kiểm tra/render từng slide, sửa cỡ chữ bị tràn và đồng nhất font tiêu đề trên bản sao bằng PowerPoint. Tiêu đề Việt ở trên, Anh ngay dưới, cùng font, Anh nhỏ hơn và in nghiêng. Hai cột thân bài được đối chiếu riêng; hình khoa học có thể dùng một vùng riêng cạnh hai cột. Chỉ dịch tiêu đề hoặc thêm lời Anh trong ghi chú chưa được coi là dịch đủ nội dung.
+
+Nếu còn lỗi có thể xử lý, tool yêu cầu sửa trong cùng cuộc trò chuyện tối đa ba lượt, chỉ nhận bản có kiểm tra cải thiện và không mất tài nguyên gốc. Dừng khi không cải thiện, cần đăng nhập/xác minh hoặc hết hạn mức; giữ bản tốt nhất và tiến trình để tiếp tục, không gửi lại yêu cầu chưa rõ xác nhận. Bài đã lưu có nút **Tự sửa bài giảng**. Bản sửa tạo phiên bản mới, giữ bản trước, không tự duyệt bài hoặc quiz. Lỗi cần sửa chặn xác nhận Dùng để dạy; các phần cần rà soát vẫn cần giáo viên đối chiếu. Chi tiết lỗi được nhóm theo loại và số slide trong **Xem chi tiết**.
 
 ## Quiz và báo cáo
 

@@ -268,7 +268,14 @@ ApplicationWindow {
                 }
                 Action { text: "Hướng dẫn · F1"; implicitHeight: 32; subtle: true; onClicked: helpDialog.open() }
                 Action { objectName: "checkUpdatesButton"; text: bridge.updateState.checking ? "Đang kiểm tra…" : "Kiểm tra cập nhật"; implicitHeight: 32; subtle: true; enabled: !bridge.updateState.checking && !bridge.updateState.downloading; onClicked: bridge.checkForUpdates(false) }
-                Copy { objectName: "sidebarAppVersion"; text: (bridge.developmentMode ? "Bản nguồn · " : "Phiên bản · ") + bridge.appVersion; font.pixelSize: 9; Layout.topMargin: 6 }
+                Copy { objectName: "sidebarAppVersion"; text: (bridge.developmentMode ? "Bản nguồn · " : "Phiên bản · ") + bridge.appVersion; font.pixelSize: 9; Layout.topMargin: 6; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
+                Label {
+                    objectName: "applicationCopyright"
+                    text: "© 2026 Nguyễn Diệu Linh\nGiáo viên Tin học - Trường THPT Vân Cốc\nAll rights reserved."
+                    color: root.muted; font.pixelSize: 9; textFormat: Text.PlainText
+                    wrapMode: Text.WordWrap; Layout.fillWidth: true
+                    horizontalAlignment: Text.AlignHCenter; Layout.topMargin: 3
+                }
             }
         }
         ColumnLayout {
@@ -666,7 +673,7 @@ ApplicationWindow {
                     anchors.fill: parent; anchors.margins: 28; visible: root.page === "result"; clip: true; contentWidth: availableWidth
                     ColumnLayout {
                         width: parent.width; spacing: 18
-                        Action { objectName: "backToLibraryButton"; text: "Trở lại thư viện"; iconName: "back"; subtle: true; implicitHeight: 32; enabled: !bridge.busy; onClicked: root.requestAction(function() { bridge.returnToLibrary() }) }
+                        Action { objectName: "backToLibraryButton"; text: "Trở lại thư viện"; iconName: "back"; subtle: true; implicitHeight: 32; Layout.alignment: Qt.AlignRight; enabled: !bridge.busy; onClicked: root.requestAction(function() { bridge.returnToLibrary() }) }
                         RowLayout {
                             Layout.fillWidth: true
                             ColumnLayout {
@@ -696,6 +703,7 @@ ApplicationWindow {
                                 const missing = (bridge.quickResult.missing || []).length;
                                 return counts.FAIL ? counts.FAIL + " slide cần sửa trước khi dùng để dạy." : missing ? missing + " phần còn thiếu nội dung song ngữ." : counts.CHECK ? counts.CHECK + " slide cần rà soát nội dung trước khi dạy." : bridge.lesson.external_deck && !bridge.lesson.slide_quality ? "Bài giảng cần được rà soát trước khi dạy." : "Xem lại nội dung và lời đọc trước khi dạy."
                             } }
+                            Action { objectName: "repairConvertedLessonButton"; text: "Tự sửa bài giảng"; visible: !!bridge.lesson.external_deck; enabled: !bridge.busy && !bridge.powerpointState.active && !bridge.powerpointState.starting; onClicked: bridge.repairConvertedLesson() }
                             Action { objectName: "resultDetailsButton"; text: root.resultDetails ? "Ẩn chi tiết" : "Xem chi tiết"; subtle: true; implicitHeight: 32; onClicked: root.resultDetails = !root.resultDetails }
                         }
                         ProgressBar { visible: bridge.busy; indeterminate: true; Layout.fillWidth: true }
@@ -743,7 +751,7 @@ ApplicationWindow {
                                 Copy { objectName: "currentSlideQuality"; visible: !!bridge.lesson.slide_quality && !!bridge.quickResult.path; Layout.fillWidth: true; color: "#a66318"; text: { const rows = (bridge.lesson.slide_quality || {}).slides || []; const row = rows[(bridge.quickResult.slide || 1) - 1]; return row ? "Slide " + row.slide + ": " + (row.status === "FAIL" ? "Cần sửa" : row.status === "CHECK" ? "Cần rà soát" : "Đã kiểm tra") + "\n" + row.issues.map(function(i) { return i.message || i.code }).join("\n") : "" } }
                                 Copy { visible: !!bridge.lesson.conversion_format && (bridge.lesson.questions || []).length > 0; text: (bridge.lesson.questions || []).filter(function(q) { return !q.approved }).length + " câu hỏi nháp · xem và duyệt riêng trong Chỉnh sửa chi tiết → Trợ giảng & Quiz."; Layout.fillWidth: true }
                                 Copy { Layout.fillWidth: true; text: (bridge.quickResult.missing || []).length ? "Chưa đủ song ngữ: " + bridge.quickResult.missing.slice(0, 8).join(", ") : "Kiểm tra thuật ngữ, số liệu và ý nghĩa trong bản trình chiếu. Trợ giảng, quiz và giọng đọc có thể bổ sung khi cần." }
-                                Copy { objectName: "returnedDeckReviewNotes"; Layout.fillWidth: true; visible: (bridge.quickResult.warnings || []).length > 0 || (((bridge.lesson.external_deck || {}).review_notes || []).length > 0); text: (bridge.quickResult.warnings || []).length ? bridge.quickResult.warnings.join("\n") : ((bridge.lesson.external_deck || {}).review_notes || []).join("\n"); color: "#a66318" }
+                                Copy { objectName: "returnedDeckReviewNotes"; Layout.fillWidth: true; visible: !!bridge.slideQualityDetails; text: bridge.slideQualityDetails; color: "#a66318" }
                                 Copy { Layout.fillWidth: true; visible: (((bridge.lesson.source || {}).warnings || []).length > 0); text: ((bridge.lesson.source || {}).warnings || []).slice(0, 3).join("\n") }
                             }
                         }
@@ -976,13 +984,6 @@ ApplicationWindow {
                         BusyIndicator { visible: bridge.busy; running: bridge.busy; Layout.preferredWidth: 23; Layout.preferredHeight: 23 }
                         Label { id: statusMessage; objectName: "applicationStatusMessage"; text: (root.page === "chatgpt" || bridge.browserState.running || bridge.browserState.phase === "error" && bridge.message === bridge.browserState.message) && bridge.browserAI.automatic ? bridge.browserState.displayMessage : bridge.message || "Sẵn sàng · Dữ liệu bài giảng được lưu tại máy"; color: bridge.error ? "#b14828" : root.muted; font.pixelSize: 11; wrapMode: Text.WordWrap; Layout.fillWidth: true; textFormat: Text.PlainText }
                         Action { visible: bridge.busy; text: "Dừng tác vụ"; implicitHeight: 30; onClicked: bridge.cancelJob() }
-                    }
-                    Label {
-                        objectName: "applicationCopyright"
-                        text: "© 2026 Nguyễn Diệu Linh\nGiáo viên Tin học - Trường THPT Vân Cốc\nAll rights reserved."
-                        color: root.muted; font.pixelSize: 10; textFormat: Text.PlainText
-                        wrapMode: Text.WordWrap; Layout.maximumWidth: footerContent.width * 0.5
-                        horizontalAlignment: Text.AlignRight
                     }
                 }
             }

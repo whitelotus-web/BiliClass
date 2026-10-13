@@ -1,5 +1,24 @@
 # Trạng thái BiliClass
 
+Ngày 14/10/2026 — nguồn RC25 thêm Tự sửa bài giảng cho bài đã lưu và kiểm
+tra/sửa tự động sau chuyển đổi. Sửa tràn chữ bằng PowerPoint trên bản sao,
+đồng nhất font tiêu đề Việt trên/Anh dưới (Anh nhỏ, nghiêng), giữ nguyên các
+ZIP part không liên quan. Sửa bằng web dùng đúng tài khoản/cuộc trò chuyện,
+tối đa ba lượt khi có cải thiện; giữ bản tốt nhất và bản trước, không gửi
+trùng lượt chưa rõ xác nhận. Bổ sung kiểm tra thân bài thiếu English và hai
+cột theo vùng nội dung, không ép English qua nửa toàn slide khi có hình
+khoa học cạnh bên. Sửa nhận nhầm dấu xuống dòng mềm thành mã rác. Báo cáo
+nhóm theo lỗi/slide; Trở lại thư viện bên phải; bản quyền căn giữa dưới phiên
+bản ở thanh bên. Không tự duyệt bài, trợ giảng hoặc quiz sau khi thay tệp.
+
+Kiểm chứng: lượt rộng 143 ca browser/speech/prompt/handoff/render cache qua;
+sau hoàn thiện thêm đường sửa bài đã lưu, 56 ca liên quan chạy lại qua.
+Qt handoff toàn luồng qua với Office preview thật, web/voice fixture; Qt
+Settings 1080×700 và ảnh kết quả đã xem, không warning. Đã thực sự mở Chrome
+đúng profile và nhận xác nhận người dùng đã vào chat/đóng cửa sổ. Lượt sửa
+web thật đang chờ kết quả; chưa chứng nhận bản dịch/bố cục bài thật hoàn tất.
+Thư viện, tài khoản, file bài và model không vào Git.
+
 Ngày 14/10/2026 — đã phát hành [RC24](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc24)
 từ commit ứng dụng `b8566bfa07cdfc5795d38986ec679e4d55eec0f3`. ZIP
 667.886.514 byte, SHA-256

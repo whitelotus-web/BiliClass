@@ -576,6 +576,35 @@ class Library:
         self._write(lesson)
         return lesson
 
+    def replace_external_presentation(self, lesson_id, expected_revision, source, inspection):
+        """Save a verified correction as a revision, retaining the teacher's lesson ID."""
+        from .chatgpt_handoff import text_signature
+
+        lesson = self.get(lesson_id)
+        if lesson["revision"] != expected_revision:
+            raise RevisionConflict("Bài đã thay đổi trong lúc sửa. Mở lại bài để kiểm tra.")
+        if not lesson.get("external_deck") or inspection["total"] != lesson["external_deck"]["total"]:
+            raise ValueError("Bản sửa không giữ đúng số slide của bài hiện tại.")
+        if inspection["slide_speech"]["sha256"] != source["sha256"]:
+            raise ValueError("Bản sửa và dữ liệu kiểm tra không khớp.")
+        units = inspection["profile"]["units"]
+        if len(units) != len(lesson["segments"]):
+            raise ValueError("Bản sửa không khớp các phần trợ giảng của bài hiện tại.")
+        for segment, unit in zip(lesson["segments"], units, strict=True):
+            segment.update(vi=unit.get("vi", ""), en=unit.get("en", ""), approved=False,
+                           source_text=unit.get("text", segment.get("source_text", "")))
+            for support in segment.get("support", []):
+                support["approved"] = False
+        lesson.update(source=source, slide_speech=inspection["slide_speech"], slide_quality=inspection["slide_quality"],
+                      revision=lesson["revision"] + 1, updated_at=now())
+        lesson.pop("prepared", None)
+        lesson["external_deck"].update(sha256=source["sha256"], reviewed_revision=0,
+                                       text_signature=text_signature(lesson), review_notes=inspection.get("review_notes", []))
+        for question in lesson.get("questions", []):
+            question["approved"] = False
+        self._write(lesson)
+        return lesson
+
     def save_support(self, lesson_id, segment_id, item, item_id=""):
         from .content import validate_support
         lesson = self.get(lesson_id)

@@ -565,6 +565,7 @@ def test_attachment_notice_does_not_dismiss_failure_or_verification(browser_fixt
 
 
 def test_free_quality_correction_reuses_chat_files_and_happens_once(browser_fixture, monkeypatch):
+    monkeypatch.setattr("app.slide_repair.repair_layout", lambda path, *a, **kw: {"path": str(path), "changes": []})
     from app import browser_capabilities, slide_quality
 
     adapter, accounts, request, captured, source = browser_fixture

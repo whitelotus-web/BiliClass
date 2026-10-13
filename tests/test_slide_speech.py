@@ -188,6 +188,62 @@ def test_garbage_and_quiz_contradiction_block_classroom_confirmation(tmp_path):
         library.close()
 
 
+def test_powerpoint_soft_line_break_is_not_technical_garbage(tmp_path):
+    from app.slide_speech import speech_problem
+
+    deck = Presentation()
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    textbox(slide, "Bước 2: Nhập hàm số\vQuan sát đồ thị vận tốc và gia tốc.")
+    path = tmp_path / "soft-break.pptx"
+    deck.save(path)
+    inspection = inspect_returned_deck(path, conversion_format="parallel_columns")
+    assert not any(i["code"] == "technical_text" for i in inspection["slide_quality"]["slides"][0]["issues"])
+    assert speech_problem("19wx568") == "technical_text"
+    assert speech_problem("Energy\x0cwrong") == "technical_text"
+
+
+def test_notes_and_a_long_english_title_cannot_replace_visible_body_translation(tmp_path):
+    deck = Presentation()
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    textbox(slide, "Velocity and acceleration in simple harmonic motion", y=.1, name="BCL_EN_title")
+    textbox(slide, "Vận tốc thay đổi theo thời gian và bằng đạo hàm của li độ. " * 5, y=2)
+    slide.notes_slide.notes_text_frame.text = "VI: Quan sát vận tốc.\nEN: " + "Velocity is the time derivative of displacement. " * 5
+    path = tmp_path / "title-only-translation.pptx"
+    deck.save(path)
+    report = inspect_returned_deck(path, conversion_format="parallel_columns")["slide_quality"]
+    assert any(i["code"] == "english_body_missing" and i["severity"] == "FAIL" for i in report["slides"][0]["issues"])
+
+
+def test_parallel_columns_reject_stacked_body_but_accept_separate_left_and_right(tmp_path):
+    vi = "Vận tốc là đạo hàm của li độ theo thời gian. Vận tốc thay đổi khi vật dao động."
+    en = "Velocity is the time derivative of displacement. It changes as the object oscillates."
+    for stacked in (True, False):
+        deck = Presentation()
+        slide = deck.slides.add_slide(deck.slide_layouts[6])
+        first = textbox(slide, vi, x=.3, y=2)
+        if stacked:
+            first.text += "\n" + en
+        else:
+            textbox(slide, en, x=5.1, y=2)
+        path = tmp_path / ("stacked.pptx" if stacked else "columns.pptx")
+        deck.save(path)
+        report = inspect_returned_deck(path, conversion_format="parallel_columns")["slide_quality"]
+        assert any(i["code"] == "parallel_columns_missing" for i in report["slides"][0]["issues"]) == stacked
+
+
+def test_language_columns_can_share_half_the_slide_beside_a_large_diagram(tmp_path):
+    deck = Presentation()
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    vi = textbox(slide, "Vận tốc bằng đạo hàm của li độ theo thời gian, thay đổi khi vật dao động.", x=.2, y=2)
+    vi.width = Inches(2)
+    en = textbox(slide, "Velocity is the time derivative of displacement and changes during oscillation.", x=2.3, y=2)
+    en.width = Inches(2)
+    path = tmp_path / "columns-beside-diagram.pptx"
+    deck.save(path)
+    report = inspect_returned_deck(path, conversion_format="parallel_columns")["slide_quality"]
+    assert not any(i["code"] == "parallel_columns_missing" for i in report["slides"][0]["issues"])
+
+
 def test_english_only_remaining_vietnamese_is_not_pass_and_hash_changes_with_edits(tmp_path):
     deck = Presentation()
     slide = deck.slides.add_slide(deck.slide_layouts[6])

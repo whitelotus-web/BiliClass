@@ -11,6 +11,8 @@ MESSAGES = {
     "suspicious_code": "Có chuỗi nghi là mã rác; cần đối chiếu với nguồn.",
     "suspicious_character": "Có chữ thường lạc giữa tiêu đề; cần đối chiếu, không tự đọc.",
     "english_body_missing": "Thân bài Việt dài nhưng phần Anh chỉ ngắn như tiêu đề; cần bổ sung bản dịch từ nguồn.",
+    "translation_coverage": "Phần Anh ngắn hơn nhiều so với nội dung Việt; cần đối chiếu đủ từng ý.",
+    "parallel_columns_missing": "Thân bài chưa được tách thành Việt bên trái và Anh bên phải.",
     "formula_needs_review": "Công thức/ký hiệu cần kiểm tra cách đọc theo ngữ cảnh.",
     "image_or_formula_needs_review": "Chữ/công thức trong ảnh chưa được xác minh; chưa chứng nhận đủ song ngữ/lời đọc.",
     "language_needs_review": "Có vùng chưa xác định chắc ngôn ngữ; không tự đọc như tiếng Anh.",
@@ -52,6 +54,8 @@ def inspect_quality(deck, speech, mode="", source_total=None):
         spoken = speech["slides"][index-1]
         issues = [{"code": code, "severity": "CHECK"} for code in spoken["issues"]]
         shapes = objects(slide)
+        if mode in {"parallel_columns", "sentence_pairs"}:
+            issues.extend(bilingual_issues(shapes, spoken, deck.slide_width, deck.slide_height, mode))
         for item in shapes:
             if not item["text"]:
                 continue
@@ -99,6 +103,66 @@ def inspect_quality(deck, speech, mode="", source_total=None):
     report = {"schema_version": 1, "sha256": speech["sha256"], "slides": rows,
               "scope": "native object/speech checks and Office text geometry; no automatic OCR or semantic/animation certification"}
     return update_status(report)
+
+
+def bilingual_issues(items, spoken, width, height, mode):
+    """Check native body text and placement; notes never substitute visible English."""
+    from .slide_speech import VI_MARKS, normalized
+
+    text_items = [i for i in items if i["text"].strip() and i["source_type"] in {"shape", "table"}]
+    # A short bilingual chapter/title alone is allowed to be stacked and centered.
+    if (len({i["shape_id"] for i in text_items}) == 1
+            and sum(len(i["text"]) for i in text_items) < 160):
+        return []
+    title_ids = {s["source"]["shape_id"] for s in spoken.get("englishSpeechSegments", []) if s["kind"] == "title"}
+    vi = [i for i in text_items if any(c in VI_MARKS for c in i["text"].casefold())
+          and len(normalized(i["text"])) >= 45
+          and (i["shape_id"] not in title_ids or len(normalized(i["text"])) > 160)
+          and (i["y"] > height * .20 or len(i["text"]) > 120)]
+    if not vi:
+        return []
+    english = [s for s in spoken.get("englishSpeechSegments", [])
+               if s["kind"] != "title" and len(normalized(s["english_text"])) >= 20]
+    vi_size = sum(len(normalized(i["text"])) for i in vi)
+    en_size = sum(len(normalized(s["english_text"])) for s in english)
+    issues = []
+    if en_size < max(15, vi_size * .25):
+        issues.append({"code": "english_body_missing", "severity": "FAIL"})
+    elif en_size < vi_size * .55:
+        issues.append({"code": "translation_coverage", "severity": "CHECK"})
+    if mode == "parallel_columns" and english:
+        by_id = {i["shape_id"]: i for i in text_items if i["cell"] is None}
+        vi_ids = {i["shape_id"] for i in vi if i["cell"] is None}
+        en_ids = {s["source"]["shape_id"] for s in english if s["source"]["cell"] is None}
+        def paired_columns(left):
+            for shape_id in en_ids:
+                right = by_id.get(shape_id)
+                if not right:
+                    continue
+                overlap = min(left["y"] + left["h"], right["y"] + right["h"]) - max(left["y"], right["y"])
+                if (overlap > min(left["h"], right["h"]) * .2
+                        and right["x"] >= left["x"] + left["w"] - width * .02):
+                    return True
+            return False
+
+        # Two language columns may share the left part of a slide while a
+        # scientific diagram occupies its right part. Check their relationship,
+        # not whether English crosses the midpoint of the whole slide.
+        if vi_ids & en_ids or any(not paired_columns(by_id[i]) for i in vi_ids):
+            issues.append({"code": "parallel_columns_missing", "severity": "FAIL"})
+    return issues
+
+
+def grouped_quality_messages(report):
+    groups = {}
+    for row in report.get("slides", []):
+        for issue in row["issues"]:
+            if issue["code"] == "visual_review":
+                continue
+            groups.setdefault((issue["severity"], issue["code"]), set()).add(row["slide"])
+    return [f"{'Cần sửa' if severity == 'FAIL' else 'Cần rà soát'} · Slide "
+            + ", ".join(str(n) for n in sorted(numbers)) + ": " + MESSAGES.get(code, code)
+            for (severity, code), numbers in sorted(groups.items(), key=lambda item: item[0][0] != "FAIL")]
 
 
 def update_status(report):

@@ -14,7 +14,7 @@ from urllib.parse import urlsplit
 from .browser_accounts import profile_lock
 from .browser_health import retry_delay
 from .chatgpt_handoff import inspect_returned_deck, load_request
-from .conversion_progress import emit_progress, scoped_progress
+from .conversion_progress import emit_progress
 from .document_limits import MAX_POWERPOINT_BYTES, document_limit
 
 CHATGPT = "https://chatgpt.com/"
@@ -679,65 +679,9 @@ def convert(account, root, request_folder, cancel, progress, *, timeout=900, obs
 
 
 def check_and_refine(page, folder, record, request, pending, cancel, progress, timeout):
-    """One durable, same-conversation correction; never loop or switch accounts."""
-    from .slide_quality import quality_messages, render_quality
+    from .slide_refinement import refine
 
-    config = request["config"]
-    source = folder / config["source_file"]
-    inspection = inspect_returned_deck(pending, source, config.get("conversion_format", ""), config["style"])
-    emit_progress(progress, "quality", "Đang kiểm tra bản PowerPoint đã nhận…")
-    quality = render_quality(pending, folder, inspection["slide_quality"], cancel, progress)
-    (folder / "quality-before.json").write_text(json.dumps(quality, ensure_ascii=False, indent=2), encoding="utf-8")
-    actionable = [row for row in quality["slides"] if any(
-        issue["severity"] == "FAIL" or issue["code"] in {"english_body_missing", "possible_overlap"}
-        for issue in row["issues"])]
-    if not actionable or record.get("quality_followups", 0):
-        return
-    # Mark BEFORE attaching/submitting. If interrupted, resume only an acknowledged send.
-    record["quality_followups"] = 1
-    record["quality_stage"] = "preparing"
-    write_record(folder, record)
-    prompt = ("BiliClass vừa render và kiểm tra bản PPTX bạn trả. Hãy SỬA BẢN SAO của tệp PPTX mới nhất "
-              "bạn vừa tạo trong cùng cuộc trò chuyện; dùng lại tệp và tài liệu nguồn đã có ở đây, "
-              "không cần người dùng tải lại tệp. "
-              "theo đúng tài liệu/cấu hình bốn phương pháp đã gửi; không gửi lại bản cũ, không thêm kiến thức. "
-              "Giữ số/thứ tự slide khi giữ nguồn. Chỉ sửa ký tự bất thường khi đối chiếu chắc với nguồn. "
-              "Dàn lại hình và chữ, giữ hình/công thức/nhãn/trục; bổ sung đầy đủ bản dịch thân bài, không chỉ tiêu đề. "
-              "Tiêu đề độc lập: Việt trên/Anh dưới, English 100% chỉ Anh. Không đọc đáp án ẩn; sửa EN và SPEECH "
-              "để khớp chữ thực trên slide. Sau sửa render lại nếu có công cụ, báo phần CHECK còn lại, "
-              "xuất lại FILE .pptx chỉnh sửa được với link tải. Ảnh đính kèm chỉ là ảnh kiểm tra bản lỗi, không là kiến thức mới.\n\n"
-              + "\n".join(quality_messages({"slides": actionable}, limit=90)))
-    # The result and original source already belong to this conversation.
-    # Do not upload both again or spend limited Free uploads on a report
-    # already included in the prompt. Paid profiles may attach two examples.
-    report_text = folder / "bao-cao-can-sua.txt"
-    report_text.write_text("\n".join(quality_messages(quality, limit=300)), encoding="utf-8")
-    files = ([folder / row["render_image"] for row in actionable[:2] if row.get("render_image")]
-             if record.get("plan") in {"plus", "pro", "business", "enterprise", "edu", "go"} else [])
-    emit_progress(progress, "refine", "Phát hiện lỗi slide; đang yêu cầu ChatGPT sửa một lượt trong đúng cuộc trò chuyện…")
-    record["quality_stage"] = "submitting"
-    write_record(folder, record)
-    submit(page, folder, record, prompt, cancel, files=files, progress=progress)
-    record["quality_stage"] = "waiting"
-    write_record(folder, record)
-    emit_progress(progress, "refine_wait", "Đã gửi yêu cầu sửa; đang chờ ChatGPT trả PowerPoint…")
-    link = wait_result(page, folder, record, cancel, progress, timeout)
-    emit_progress(progress, "refine_download", "Đang nhận PowerPoint sau sửa…")
-    download = receive_download(page, link, cancel, progress=progress)
-    downloaded = download.path()
-    if (Path(download.suggested_filename).suffix.casefold() != ".pptx" or not downloaded
-            or Path(downloaded).stat().st_size > MAX_POWERPOINT_BYTES):
-        raise BrowserProblem("download", "Bản sửa ChatGPT chưa phải PPTX hợp lệ; giữ bản nháp và cuộc trò chuyện.")
-    corrected = folder / "ket-qua-sau-kiem-tra.pptx"
-    download.save_as(str(corrected))
-    after = inspect_returned_deck(corrected, source, config.get("conversion_format", ""), config["style"])
-    render_quality(corrected, folder, after["slide_quality"], cancel, scoped_progress(progress, "refine_quality"))
-    (folder / "quality-after.json").write_text(json.dumps(after["slide_quality"], ensure_ascii=False, indent=2), encoding="utf-8")
-    check_cancel(cancel)
-    pending.replace(folder / "ban-nhap-truoc-sua.pptx")
-    corrected.replace(pending)
-    record["quality_stage"] = "checked"
-    write_record(folder, record)
+    return refine(page, folder, record, request, pending, cancel, progress, timeout)
 
 
 def _convert_locked(account, request_folder, cancel, progress, *, timeout, observed):

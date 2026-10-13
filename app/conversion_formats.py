@@ -14,13 +14,14 @@ MAX_TEACHER_NOTES = 6000
 
 METHODS = {
     "parallel_columns": """Giữ nguyên 100% câu chữ tiếng Việt; dịch đầy đủ từng câu/ý sang tiếng Anh tương ứng 1:1.
-Việt bên trái – Anh bên phải trên chính slide đó, căn tương ứng tiêu đề, định nghĩa, câu hỏi, lời giải và kết luận.
-Không dồn Việt lên trên/Anh xuống dưới ở slide có nội dung; ngoại lệ slide tiêu đề độc lập theo quy tắc chung. Không tạo slide English riêng. Hình/công thức có thể ở giữa hai vùng.
-Với bảng, đối chiếu từng hàng/ô. Chữ Việt giữ màu gốc, English có thể dùng xanh đậm; hai cột có phân cấp cân đối.""",
+Thân bài Việt bên trái – Anh bên phải trên chính slide đó, căn từng định nghĩa, câu hỏi, phương án, lời giải và kết luận tương ứng.
+Hai cột là hai vùng text riêng, không ghép hai ngôn ngữ trong cùng một hộp thân bài. Mọi tiêu đề Việt trên – Anh dưới theo quy tắc chung. Không tạo slide English riêng.
+Chia vùng nội dung thành hai cột rộng tương đương, chừa khoảng giữa 3–5% chiều rộng. Đặt hình/công thức trong vùng riêng còn trống; không để ảnh che hai cột.
+Với bảng, đối chiếu từng hàng/ô. English cùng font với Việt, màu đen trên nền sáng, nhỏ hơn khoảng 10–20%; bảo đảm dễ đọc.""",
     "sentence_pairs": """Giữ nguyên 100% câu chữ tiếng Việt; mỗi câu/ý có bản dịch tiếng Anh đầy đủ 1:1 ngay bên dưới.
 Việt trên – Anh dưới theo từng cặp, kể cả tiêu đề, chú thích, câu hỏi và từng bước giải; không gộp nhiều câu.
 Không chia hai cột, không dồn English xuống cuối slide, không tạo slide English riêng.
-English có thể in nghiêng/xanh đậm, đặt gần câu Việt; công thức dùng chung không cần nhân đôi.""",
+English cùng font với Việt, nhỏ hơn khoảng 10–20%, màu đen trên nền sáng, có thể in nghiêng; đặt gần câu Việt. Công thức dùng chung không cần nhân đôi.""",
     "integrated_keywords": """Giữ nguyên kiến thức, trình tự và cấu trúc câu tiếng Việt; chỉ tích hợp thuật ngữ chuyên môn quan trọng.
 Lần đầu: thuật ngữ Việt (English), ví dụ vận tốc (velocity). Lần sau có thể dùng English thay đúng thuật ngữ đó.
 Chọn từ khóa theo môn/ngữ cảnh, nhất quán toàn bài; khoảng 1–3 từ khóa/câu khi phù hợp, không bắt buộc mọi câu.
@@ -70,7 +71,8 @@ def conversion_prompt(config, source_name, preset):
     )
     notes = config.get("teacher_notes", "").strip()
     layout_rules = """TỐI ƯU HÌNH THỨC, GIỮ NGUYÊN NỘI DUNG
-- Ngoại lệ cho slide CHỈ có tiêu đề chương/phần/tên bài: ba kiểu song ngữ đều dùng Việt trên – English ngay dưới, thành nhóm căn giữa; không ép chia hai cột, không thêm diễn giải. English 100% chỉ có tiêu đề Anh.
+- TIÊU ĐỀ chương/phần/tên bài: với hai kiểu song ngữ và tích hợp từ khóa, Việt trên – English ngay dưới; cùng font chữ, English in nghiêng, nhỏ hơn Việt khoảng 20–25%, màu đen trên nền sáng (màu sáng tương phản trên nền tối). English 100% chỉ dùng tiêu đề Anh. Đây là vùng tiêu đề riêng, không nằm trong hai cột thân bài.
+- Slide CHỈ có tiêu đề: căn giữa nhóm tiêu đề, không thêm diễn giải. English 100% chỉ có tiêu đề Anh.
 - Phân loại từng slide: tiêu đề, lý thuyết, hình/đồ thị, công thức, ví dụ/bài tập, câu hỏi, lời giải/kết luận; bố cục theo nội dung, không ép mọi slide giống nhau.
 - Hình/đồ thị/công thức: giữ nội dung, nhãn, trục, số liệu, tỷ lệ; được di chuyển/đổi kích thước giữ tỷ lệ, không cắt ký hiệu, vẽ lại hình hoặc che chữ/hình khoa học.
 - Phân biệt nền có kiến thức với trang trí: dùng vùng trống, giảm/dời trang trí phụ, thêm nền sáng/mờ SAU chữ nếu cần; không phủ lên hình có kiến thức. Giữ PowerPoint gốc không được thay cả background; mẫu mới được dùng nền tối giản theo mẫu.
@@ -115,6 +117,9 @@ PHƯƠNG PHÁP ĐÃ CHỌN
 {speech_rules}
 
 BẢO TOÀN NỘI DUNG VÀ KIỂM TRA
+- Lập danh sách đầy đủ các vùng nội dung của từng slide trước khi sửa, gồm cả thân bài, bảng, chú thích và chữ trong ảnh. Dịch từng vùng tương ứng, không chỉ tiêu đề. Bản dịch chỉ nằm trong Speaker Notes KHÔNG thay thế chữ English phải hiển thị trên slide.
+- Thực hiện theo thứ tự: dịch đủ nội dung → bố trí đúng kiểu chuyển đổi → đặt hình/công thức trong vùng riêng → áp dụng font/giãn dòng → kiểm tra bản render → tạo notes từ chính nội dung đã hoàn tất. Không chỉ thêm một đoạn English vào cuối hộp Việt cũ.
+- Kiểm tra đủ từng câu/ý, câu hỏi và phương án với nguồn; không coi slide đạt yêu cầu nếu English thân bài còn thiếu hoặc hai cột chưa đúng. Chỗ thực sự không đọc được phải ghi CHECK cụ thể, không thay toàn bộ nội dung bằng cảnh báo chung.
 - Không tự viết lại kiến thức, tóm tắt, thêm đáp án hoặc bỏ tiêu đề, định nghĩa, hoạt động, bài tập, lời giải/kết luận.
 - Giữ phép toán, dấu, số mũ/chỉ số, số liệu, đơn vị, điều kiện và ký hiệu; chỉ dịch giải thích tự nhiên.
 - English chính xác theo môn, tự nhiên, phù hợp khối lớp; thuật ngữ nhất quán, tránh từ/câu khó không cần thiết.
@@ -122,10 +127,7 @@ BẢO TOÀN NỘI DUNG VÀ KIỂM TRA
 - Phần đã English/song ngữ đúng: không dịch lặp; sắp xếp theo phương pháp đã chọn. Chỗ nghi sai ghi CHECK, không tự sửa kiến thức.
 - Đọc chữ trong ảnh/scan, đánh dấu số/công thức/chữ chưa chắc; không đoán, thay hình hoặc lấy hình Internet/AI khác.
 - Không biến cả slide thành ảnh tĩnh, video hay PDF; giữ bảng/công thức chỉnh sửa được nếu nguồn có.
-- Kiểm tra từng slide với nguồn: đầy đủ nội dung, cặp câu/thuật ngữ, công thức, hình, font, tràn chữ và hoạt ảnh.
-- Báo cáo số slide nguồn/kết quả, điều chỉnh bố cục, ảnh/chữ/hiệu ứng chưa giữ được; không khẳng định bảo toàn khi chưa kiểm chứng.
-- Nếu truy xuất được, thống kê đối tượng, hình, bảng/công thức, hoạt ảnh, âm thanh/video trước và sau;
-  nếu không kiểm chứng được thì ghi rõ chưa kiểm chứng, không đưa số liệu giả. Đối chiếu dữ kiện trong đề, hình và đáp án.
+- Đối chiếu dữ kiện trong đề, hình và đáp án; báo cáo ngắn số slide nguồn/kết quả và hạn chế cụ thể. Không cần thống kê dài từng đối tượng hoặc lặp lại yêu cầu; không khẳng định bảo toàn khi chưa kiểm chứng.
 
 LỜI ĐỌC CHO VOICE VÀ MASCOT
 - Mỗi slide có Speaker Notes thật trong PPTX; giữ ghi chú gốc, thêm khối BILICLASS_NOTES: riêng ở cuối.

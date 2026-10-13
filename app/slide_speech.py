@@ -15,7 +15,8 @@ SCHEMA = 1
 VI_MARKS = set("ăâđêôơưáàảãạắằẳẵặấầẩẫậéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ")
 TERMS = set("velocity acceleration kinetic potential mechanical energy work power force momentum mass speed displacement amplitude frequency period equilibrium oscillation gravity gravitational spring elastic friction conservation joule watt definition conclusion evidence answer question activity exercise solution distance height horizontal vertical positive negative maximum minimum chapter lesson introduction summary objective objectives sequences arithmetic geometric progression cell photosynthesis noun verb water oxygen hydrogen carbon atom molecule electron proton neutron voltage current resistance derivative integral triangle rectangle square volume area history geography computer software hardware technology art music physical education language literature culture environment ecosystem temperature pressure density heat magnetic electric thermal chemical biology chemistry physics mathematics".split())
 KINDS = {"title", "body", "caption", "question", "option", "keyword"}
-TECHNICAL = re.compile(r"BILICLASS_NOTES|englishSpeechSegments|^\s*(?:CHECK|QUIZ|SPEECH)\s*:|https?://|\b19wx568\b|\b(?:CHAPTER|CHƯƠNG)\s+s\s*\d|\ufffd|[\x00-\x08\x0b\x0c\x0e-\x1f]", re.I)
+# PowerPoint uses vertical tab for a normal soft line break (<a:br>).
+TECHNICAL = re.compile(r"BILICLASS_NOTES|englishSpeechSegments|^\s*(?:CHECK|QUIZ|SPEECH)\s*:|https?://|\b19wx568\b|\b(?:CHAPTER|CHƯƠNG)\s+s\s*\d|\ufffd|[\x00-\x08\x0c\x0e-\x1f]", re.I)
 
 
 @lru_cache(maxsize=32)
