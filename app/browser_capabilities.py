@@ -1,6 +1,7 @@
 """Read public web controls only; never infer entitlement from stored model names."""
 
 import re
+import time
 
 PICKER = ('[data-testid="model-switcher-dropdown-button"], [data-testid="model-picker-button"], '
           'button[aria-label="Choose model"], button[aria-label="Chọn mô hình"]')
@@ -134,18 +135,21 @@ def select_best_model(page):
         return "Mặc định của web"
     try:
         picker.click(timeout=3000)
-        page.wait_for_timeout(250)
         options = []
-        for panel in page.locator('[role="menu"], [role="listbox"], [role="dialog"]').all():
-            if not panel.is_visible():
-                continue
-            for item in panel.locator('[role="menuitemradio"], [role="menuitem"], [role="radio"], [role="option"], button').all():
-                if not eligible(item):
+        deadline = time.monotonic() + 3
+        while not options and time.monotonic() < deadline:
+            for panel in page.locator('[role="menu"], [role="listbox"], [role="dialog"]').all():
+                if not panel.is_visible():
                     continue
-                label = item.inner_text().strip()
-                rank = model_priority(label)
-                if rank is not None:
-                    options.append((rank, item, label.splitlines()[0]))
+                for item in panel.locator('[role="menuitemradio"], [role="menuitem"], [role="radio"], [role="option"], button').all():
+                    if not eligible(item):
+                        continue
+                    label = item.inner_text().strip()
+                    rank = model_priority(label)
+                    if rank is not None:
+                        options.append((rank, item, label.splitlines()[0]))
+            if not options:
+                page.wait_for_timeout(100)
         if not options:
             raise BrowserProblem("model", "Chưa đọc được các model được phép dùng trên web ChatGPT. Chưa gửi bài.")
         _, choice, label = max(options, key=lambda option: option[0])

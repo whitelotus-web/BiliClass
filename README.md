@@ -6,7 +6,9 @@ RC14 thêm [kiểm tra slide và English Reader](docs/SMART_SLIDES_READER.md): l
 
 ## Cài để dùng trên máy khác
 
-Tải **BiliClass-RC15-Windows.zip** tại [Release RC15](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc15), giải nén toàn bộ rồi chạy **Setup.cmd**. Không tải “Source code” nếu chỉ muốn cài và dùng. Không cần Python hoặc API key.
+Tải **BiliClass-RC16-Windows.zip** tại [Release RC16](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc16), giải nén toàn bộ rồi chạy **Setup.cmd**. Không tải “Source code” nếu chỉ muốn cài và dùng. Không cần Python hoặc API key.
+
+RC16 có [thanh tiến trình % và tối ưu xử lý trên máy](docs/CONVERSION_PROGRESS.md): dùng lại ảnh/đo bố cục đã kiểm tra, tránh voice trùng và chờ menu model sẵn sàng. % giữ ở mốc chờ khi ChatGPT đang tạo bài; không đoán % xử lý bên trong web.
 
 Máy cần Windows 10/11 64-bit, Google Chrome để đăng nhập ChatGPT và Microsoft PowerPoint bản desktop để trình chiếu/giữ hiệu ứng. Kết nối Internet cần khi đăng nhập và chuyển đổi; giọng đọc Kokoro English/VieNeu Việt và các mẫu đã nằm trong gói. Việc tạo tệp/hạn mức phụ thuộc tài khoản ChatGPT Free/Plus của người dùng.
 

@@ -1,5 +1,16 @@
 # Backlog và nghiệm thu
 
+## RC16 — Tiến trình và tốc độ chuyển đổi
+
+- [x] % theo các mốc thật, số slide/đoạn voice; mốc chờ ChatGPT không tự tăng theo thời gian.
+- [x] Tiến trình lưu riêng, không lùi khi thử lại; 100% sau khi lưu bài, vẫn cần giáo viên kiểm tra.
+- [x] Dùng lại ảnh/phép đo Office theo hash PPTX/PNG và phiên bản cache, kể cả nhập thư viện và xem slide.
+- [x] Render tiếp slide chưa có; Office lỗi/ảnh hỏng/cache khác phiên bản phải kiểm tra lại.
+- [x] Voice bỏ tác vụ trùng, dùng WAV hợp lệ sẵn có, báo lỗi giọng mà giữ PowerPoint.
+- [x] Chờ menu model sẵn sàng có giới hạn; xác nhận model trước khi upload, giữ retry cùng cuộc trò chuyện.
+- [x] Unit/fixture browser, hai smoke Qt và đo Office thật với dữ liệu riêng đã qua; xem CONVERSION_PROGRESS.md.
+- [ ] Nghiệm thu tốc độ toàn bộ chuyển đổi bài thật trên ChatGPT Free/Plus và máy thứ hai; thời gian web không do tool quyết định.
+
 ## RC14 — Smart Bilingual Slides & Mascot English Reader
 
 Task: `biliclass-smart-slides-mascot-reader`. Phạm vi và giới hạn: [SMART_SLIDES_READER](SMART_SLIDES_READER.md).

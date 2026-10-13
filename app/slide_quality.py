@@ -118,29 +118,49 @@ def quality_messages(report, limit=80):
             for row in report["slides"] for issue in row["issues"]][:limit]
 
 
-def render_quality(path, directory, report, cancel=None, progress=None):
+def render_quality(path, directory, report, cancel=None, progress=None, *, reuse_directory=None):
     """Render every slide and measure actual text bounds using installed PowerPoint."""
-    import psutil
-    import pythoncom
-    import win32com.client
+    from .conversion_progress import emit_progress
+    from .slide_render_cache import RENDER_CODES, RenderCache
 
-    folder = Path(directory) / "temp" / "slide-quality" / report["sha256"][:24]
-    folder.mkdir(parents=True, exist_ok=True)
-    existing = any((p.info["name"] or "").lower() == "powerpnt.exe" for p in psutil.process_iter(["name"]))
-    office = deck = None
-    pythoncom.CoInitialize()
+    cache = RenderCache(path, directory, report, reuse_directory)
+    folder = cache.folder
+    remaining, complete, reused = [], 0, 0
+    total = len(report["slides"])
+    for row in report["slides"]:
+        row["issues"] = [issue for issue in row["issues"] if issue["code"] not in RENDER_CODES]
+        row.update(rendered=False, render_image="")
+        if cancel and cancel.is_set():
+            remaining.append(row)
+        elif cache.reuse(row):
+            complete += 1
+            reused += 1
+            emit_progress(progress, "quality", f"Dùng lại ảnh đã kiểm tra {complete}/{total} slide…", complete, total)
+        else:
+            remaining.append(row)
+    office = deck = com = None
+    existing = True
     try:
-        office = win32com.client.DispatchEx("PowerPoint.Application")
-        deck = office.Presentations.Open(str(Path(path).resolve()), ReadOnly=True, Untitled=False, WithWindow=False)
-        height = round(1600*deck.PageSetup.SlideHeight/deck.PageSetup.SlideWidth)
-        for row in report["slides"]:
+        if remaining and not (cancel and cancel.is_set()):
+            import psutil
+            import pythoncom
+            import win32com.client
+
+            existing = any((p.info["name"] or "").lower() == "powerpnt.exe" for p in psutil.process_iter(["name"]))
+            pythoncom.CoInitialize()
+            com = pythoncom
+            office = win32com.client.DispatchEx("PowerPoint.Application")
+            deck = office.Presentations.Open(str(Path(path).resolve()), ReadOnly=True, Untitled=False, WithWindow=False)
+            height = round(1600*deck.PageSetup.SlideHeight/deck.PageSetup.SlideWidth)
+        for row in remaining:
             if cancel and cancel.is_set():
                 break
-            if progress:
-                progress(f"Kiểm tra ảnh và lời đọc slide {row['slide']}/{len(report['slides'])}…")
-            image = folder / f"slide-{row['slide']}.png"
+            emit_progress(progress, "quality", f"Kiểm tra ảnh và lời đọc slide {row['slide']}/{total}…", complete, total)
+            image = cache.image(row["slide"])
             slide = deck.Slides(row["slide"])
-            slide.Export(str(image.resolve()), "PNG", 1600, height)
+            temporary = image.with_name(image.stem + "-pending.png")
+            slide.Export(str(temporary.resolve()), "PNG", 1600, height)
+            temporary.replace(image)
             row.update(rendered=True, render_image=image.relative_to(directory).as_posix())
             for shape in slide.Shapes:
                 try:
@@ -159,6 +179,9 @@ def render_quality(path, directory, report, cancel=None, progress=None):
                             row["issues"].append({"code": "low_contrast", "severity": "CHECK", "shape_id": shape.Id})
                 except Exception:
                     continue
+            cache.save_row(row)
+            complete += 1
+            emit_progress(progress, "quality", f"Đã kiểm tra {complete}/{total} slide…", complete, total)
     except Exception:
         # Missing Office must not discard a returned deck or imply a successful visual check.
         pass
@@ -175,9 +198,12 @@ def render_quality(path, directory, report, cancel=None, progress=None):
             except Exception:
                 pass
         office = deck = None
-        pythoncom.CoUninitialize()
+        if com:
+            com.CoUninitialize()
     for row in report["slides"]:
         row["issues"].append({"code": "visual_review" if row["rendered"] else "render_unavailable", "severity": "CHECK"})
     update_status(report)
+    report["render_cache"] = {"reused": reused, "rendered": complete-reused, "total": total}
+    cache.save()
     (folder / "report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     return report

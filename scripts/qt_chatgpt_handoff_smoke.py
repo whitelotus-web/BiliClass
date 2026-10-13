@@ -81,6 +81,7 @@ sent, narration = [], []
 
 def fake_convert(account, root, folder, cancel, progress, **options):
     sent.append(load_request(folder))
+    progress.stage("waiting", "ChatGPT đang tạo PowerPoint…")
     while not release_web.wait(.05):
         if cancel.is_set():
             raise browser_automation.BrowserProblem("cancelled", "Đã hủy.")
@@ -94,6 +95,7 @@ def fake_convert(account, root, folder, cancel, progress, **options):
 
 def fake_narration(inspection, voices, directory, cancel, progress):
     narration.extend(inspection["profile"]["units"])
+    progress.stage("audio", "Chuẩn bị giọng đọc 4/4…", 4, 4)
     return {"complete": 4, "total": 4, "failed": 0, "skipped": 0}
 
 
@@ -454,7 +456,7 @@ def compact():
 
 def prepared():
     assert time.monotonic() < deadline, "Automatic request was not started"
-    if not sent:
+    if not sent or bridge.browserState.get("percent") != 25:
         QTimer.singleShot(100, safe(prepared))
         return
     assert not bridge.error, bridge.message
@@ -470,6 +472,16 @@ def prepared():
     assert bridge.browserAI.automatic and bridge.browserAI.audio
     assert opened == [], "Automatic conversion must not launch a manual web handoff"
     assert Path(request["bundle"]).is_file()
+    assert bridge.browserState["percent"] == 25 and bridge.browserState["waiting"]
+    assert window.findChild(QObject, "browserConversionProgressBar").property("value") == 25
+    assert window.findChild(QObject, "browserConversionPercent").property("text") == "25%"
+    assert "không cung cấp %" in window.findChild(QObject, "browserConversionProgressNote").property("text")
+    progress_state = dict(bridge.browserState)
+    bridge._web_conversion_failure("Mạng bị gián đoạn")
+    assert bridge.browserState["percent"] == 25 and not bridge.browserState["running"]
+    assert window.findChild(QObject, "browserConversionPercent").property("text") == "25%"
+    bridge._browser_state = progress_state
+    bridge.changed.emit()
     assert QQuickWindow.grabWindow(window).save(str(reports / "browser-handoff.png"))
     stages.append("One conversion click overrides old manual/audio settings; sent prompt equals preview; web send/receive fixture runs automatically")
     release_web.set()
@@ -478,6 +490,7 @@ def prepared():
 
 def received():
     assert not bridge.error, bridge.message
+    assert bridge.browserState["percent"] == 100 and not bridge.browserState["running"]
     assert window.property("page") == "result"
     assert window.findChild(QObject, "lessonSubject").property("currentIndex") == -1
     assert not window.findChild(QObject, "creationCustomSubject").property("text")

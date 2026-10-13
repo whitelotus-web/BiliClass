@@ -14,6 +14,7 @@ from urllib.parse import urlsplit
 from .browser_accounts import profile_lock
 from .browser_health import retry_delay
 from .chatgpt_handoff import inspect_returned_deck, load_request
+from .conversion_progress import emit_progress, scoped_progress
 from .document_limits import MAX_POWERPOINT_BYTES, document_limit
 
 CHATGPT = "https://chatgpt.com/"
@@ -579,7 +580,8 @@ def wait_result(page, folder, record, cancel, progress, timeout=900):
                     last_progress = time.monotonic()
                     last_text, stable_since = "", time.monotonic()
                 elif time.monotonic() - stable_since > 15:
-                    raise BrowserProblem("no_file", "ChatGPT chưa trả file PowerPoint. Mở cuộc trò chuyện để kiểm tra khả năng tạo tệp của tài khoản.")
+                    raise BrowserProblem("no_file", "ChatGPT chưa trả tệp PowerPoint dù tool đã yêu cầu xuất tệp thêm một lần. "
+                                         "Đã giữ tài liệu và cuộc trò chuyện; cần kiểm tra câu trả lời/khả năng tạo tệp trên web.")
         if time.monotonic() - last_progress > 20:
             progress("ChatGPT đang tạo PowerPoint; tool sẽ tự nhận tệp và chuẩn bị giọng đọc…")
             last_progress = time.monotonic()
@@ -655,6 +657,7 @@ def check_and_refine(page, folder, record, request, pending, cancel, progress, t
     config = request["config"]
     source = folder / config["source_file"]
     inspection = inspect_returned_deck(pending, source, config.get("conversion_format", ""), config["style"])
+    emit_progress(progress, "quality", "Đang kiểm tra bản PowerPoint đã nhận…")
     quality = render_quality(pending, folder, inspection["slide_quality"], cancel, progress)
     (folder / "quality-before.json").write_text(json.dumps(quality, ensure_ascii=False, indent=2), encoding="utf-8")
     actionable = [row for row in quality["slides"] if any(
@@ -680,13 +683,15 @@ def check_and_refine(page, folder, record, request, pending, cancel, progress, t
     report_text.write_text("\n".join(quality_messages(quality, limit=300)), encoding="utf-8")
     files[1] = report_text
     files.extend(folder / row["render_image"] for row in actionable[:8] if row.get("render_image"))
-    progress("Phát hiện lỗi slide; đang yêu cầu ChatGPT sửa một lượt trong đúng cuộc trò chuyện…")
+    emit_progress(progress, "refine", "Phát hiện lỗi slide; đang yêu cầu ChatGPT sửa một lượt trong đúng cuộc trò chuyện…")
     record["quality_stage"] = "submitting"
     write_record(folder, record)
     submit(page, folder, record, prompt, cancel, files=files, progress=progress)
     record["quality_stage"] = "waiting"
     write_record(folder, record)
+    emit_progress(progress, "refine_wait", "Đã gửi yêu cầu sửa; đang chờ ChatGPT trả PowerPoint…")
     link = wait_result(page, folder, record, cancel, progress, timeout)
+    emit_progress(progress, "refine_download", "Đang nhận PowerPoint sau sửa…")
     download = receive_download(page, link, cancel, progress=progress)
     downloaded = download.path()
     if (Path(download.suggested_filename).suffix.casefold() != ".pptx" or not downloaded
@@ -695,7 +700,7 @@ def check_and_refine(page, folder, record, request, pending, cancel, progress, t
     corrected = folder / "ket-qua-sau-kiem-tra.pptx"
     download.save_as(str(corrected))
     after = inspect_returned_deck(corrected, source, config.get("conversion_format", ""), config["style"])
-    render_quality(corrected, folder, after["slide_quality"], cancel, progress)
+    render_quality(corrected, folder, after["slide_quality"], cancel, scoped_progress(progress, "refine_quality"))
     (folder / "quality-after.json").write_text(json.dumps(after["slide_quality"], ensure_ascii=False, indent=2), encoding="utf-8")
     check_cancel(cancel)
     pending.replace(folder / "ban-nhap-truoc-sua.pptx")
@@ -725,7 +730,7 @@ def _convert_locked(account, request_folder, cancel, progress, *, timeout, obser
     stage = "starting"
     try:
         with sync_playwright() as playwright:
-            progress("Đang mở phiên ChatGPT chạy ngầm…")
+            emit_progress(progress, "session", "Đang mở phiên ChatGPT chạy ngầm…")
             context = open_context(playwright, account, background=True, cancel=cancel)
             try:
                 page = context.pages[0] if context.pages else context.new_page()
@@ -736,6 +741,7 @@ def _convert_locked(account, request_folder, cancel, progress, *, timeout, obser
                 if record["state"] == "prepared" and conversation_url(page.url):
                     raise BrowserProblem("interface", "Web mở lại cuộc trò chuyện cũ. Tạo chat mới trước khi chuyển đổi bài mới.")
                 stage = "model"
+                emit_progress(progress, "model", "Đang kiểm tra model và suy luận được tài khoản cho phép…")
                 plan = detect_plan(page, PROFILE)
                 if record["state"] == "prepared":
                     model = select_best_model(page)
@@ -747,7 +753,7 @@ def _convert_locked(account, request_folder, cancel, progress, *, timeout, obser
                     observed(account["id"], plan, record.get("model", ""))
                 if record["state"] == "prepared":
                     stage = "upload"
-                    progress("Đang đính kèm tài liệu và gửi prompt đã cấu hình…")
+                    emit_progress(progress, "upload", "Đang đính kèm tài liệu và gửi prompt đã cấu hình…")
                     submit(page, folder, record, request["prompt"], cancel, files=files, progress=progress)
                 elif not record["url"]:
                     raise BrowserProblem("submission", "Chưa rõ yêu cầu trước đã gửi hay chưa. Kiểm tra browser; app không gửi trùng.")
@@ -756,9 +762,11 @@ def _convert_locked(account, request_folder, cancel, progress, *, timeout, obser
                     record["state"] = "waiting"
                     write_record(folder, record)
                 stage = "waiting"
+                waiting_stage = "refine_wait" if record.get("quality_stage") in {"submitting", "waiting"} else "waiting"
+                emit_progress(progress, waiting_stage, "Đã gửi yêu cầu; đang chờ ChatGPT trả PowerPoint…")
                 link = wait_result(page, folder, record, cancel, progress, timeout)
                 stage = "download"
-                progress("Đang tải và kiểm tra PowerPoint kết quả…")
+                emit_progress(progress, "download", "Đang tải và kiểm tra PowerPoint kết quả…")
                 download = receive_download(page, link, cancel, progress=progress)
                 if Path(download.suggested_filename).suffix.casefold() != ".pptx":
                     raise BrowserProblem("download", "Tệp web trả về không phải PowerPoint .pptx.")

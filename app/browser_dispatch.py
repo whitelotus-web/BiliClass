@@ -58,8 +58,8 @@ def convert_available(accounts, root, folder, cancel, progress, *, observed=None
                 record = web.read_record(folder, account["id"])
                 if (temporary_failure(exc.code, record)
                         and attempt < len(retry_delays) and not cancel.is_set()):
-                    progress("Kết nối tạm gián đoạn; đang tự khôi phục và tiếp tục bài đã gửi…"
-                             if record["url"] else "Đang tự khôi phục Chrome để tiếp tục tải tài liệu…")
+                    progress(f"Kết nối tạm gián đoạn; tự khôi phục lần {attempt+1}/{len(retry_delays)} trong cùng cuộc trò chuyện…"
+                             if record["url"] else f"Tự khôi phục Chrome lần {attempt+1}/{len(retry_delays)} để tiếp tục tải tài liệu…")
                     if cancel.wait(retry_delays[attempt]):
                         web.check_cancel(cancel)
                     continue

@@ -6,11 +6,18 @@ from pathlib import Path
 
 def render_slide(path, slide, directory):
     """Render one generated slide, including presentations made from documents."""
+    from .slide_render_cache import RenderCache, digest
+
+    sha256 = digest(path)
+    cache = RenderCache(path, directory, {"sha256": sha256})
+    row = {"slide": slide, "issues": []}
+    if cache.reuse(row):
+        return str(cache.image(slide))
     import psutil
     import pythoncom
     import win32com.client
 
-    key = hashlib.sha256(Path(path).read_bytes()).hexdigest()[:24]
+    key = sha256[:24]
     folder = Path(directory) / "temp/lesson-preview-images" / key
     folder.mkdir(parents=True, exist_ok=True)
     image = folder / f"slide-{slide}.png"

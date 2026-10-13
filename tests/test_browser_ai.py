@@ -163,7 +163,7 @@ def test_draft_audio_never_approves_or_plays_and_does_not_discard_other_voice(mo
     monkeypatch.setattr(speech, "play", lambda *_: pytest.fail("Draft audio must not play"))
     result = prepare_narration({"profile": {"units": units}}, {"vi": "unavailable", "en": "good", "rate": 0},
                                tmp_path, Event(), lambda _: None)
-    assert result == {"complete": 1, "skipped": 1, "failed": 1, "total": 3}
+    assert result == {"complete": 1, "cached": 0, "duplicates": 0, "skipped": 1, "failed": 1, "total": 3}
     assert len(calls) == 2 and not any(u["approved"] for u in units)
     cancelled = Event()
     cancelled.set()
@@ -979,6 +979,15 @@ def test_current_web_composer_saves_real_profile_identity_and_sends_full_prompt(
     assert " ".join(captured["sends"][0]["prompt"].split()) == " ".join(request["prompt"].split())
     record = read_record(request["folder"], accounts.get()["id"])
     assert record["model"] == "GPT-6 Luna" and record["reasoning"] == "Đã bật suy luận trên web"
+
+
+def test_slow_model_menu_is_waited_for_and_highest_model_selected_before_send(browser_fixture):
+    adapter, accounts, request, captured, _ = browser_fixture
+    captured["html"] = models_fixture("Plus").replace(
+        "document.querySelector('#model-menu').hidden=false",
+        "setTimeout(() => {document.querySelector('#model-menu').hidden=false}, 800)")
+    adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+    assert len(captured["sends"]) == 1 and captured["sends"][0]["model"] == "Astra"
 
 
 def test_highest_model_must_be_confirmed_before_any_upload_or_send(browser_fixture):

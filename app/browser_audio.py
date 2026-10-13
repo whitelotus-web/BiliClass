@@ -3,6 +3,7 @@
 
 def prepare_narration(inspection, voices, directory, cancel, progress):
     from . import speech
+    from .conversion_progress import emit_progress
     from .slide_speech import speech_chunks
 
     data = inspection.get("slide_speech")
@@ -21,18 +22,25 @@ def prepare_narration(inspection, voices, directory, cancel, progress):
             tasks.extend((part, voices[language]) for part in speech_chunks(text))
         except ValueError:
             skipped += 1
-    complete, errors = 0, []
+    duplicates = len(tasks)
+    tasks = list(dict.fromkeys(tasks))
+    duplicates -= len(tasks)
+    complete, cached, errors = 0, 0, []
+    emit_progress(progress, "audio", f"Chuẩn bị {len(tasks)} đoạn giọng đọc khác nhau…", 0, len(tasks))
     for index, (text, voice) in enumerate(tasks, 1):
         if cancel.is_set():
             break
         if len(text) > 5000:
             skipped += 1
             continue
-        progress(f"Chuẩn bị giọng đọc {index}/{len(tasks)}…")
+        emit_progress(progress, "audio", f"Chuẩn bị giọng đọc {index}/{len(tasks)}…", index-1, len(tasks))
         try:
-            speech.synthesize(text, voice, voices["rate"], directory)
+            result = speech.synthesize(text, voice, voices["rate"], directory)
+            cached += bool(result and result.get("cached"))
             complete += 1
         except Exception:
             # One unavailable voice must not discard a completed PowerPoint.
             errors.append(voice)
-    return {"complete": complete, "skipped": skipped, "failed": len(errors), "total": len(tasks)+skipped}
+        emit_progress(progress, "audio", f"Đã xử lý {index}/{len(tasks)} đoạn giọng đọc…", index, len(tasks))
+    return {"complete": complete, "cached": cached, "duplicates": duplicates,
+            "skipped": skipped, "failed": len(errors), "total": len(tasks)+skipped}
