@@ -6,7 +6,7 @@ RC14 thêm [kiểm tra slide và English Reader](docs/SMART_SLIDES_READER.md): l
 
 ## Cài để dùng trên máy khác
 
-Tải **BiliClass-RC21-Windows.zip** tại [Release RC21](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc21), giải nén toàn bộ rồi chạy **Setup.cmd**. Không tải “Source code” nếu chỉ muốn cài và dùng. Không cần Python hoặc API key.
+Tải **BiliClass-RC23-Windows.zip** tại [Release RC23](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc23), giải nén toàn bộ rồi chạy **Setup.cmd**. Không tải “Source code” nếu chỉ muốn cài và dùng. Không cần Python hoặc API key.
 
 RC16 có [thanh tiến trình % và tối ưu xử lý trên máy](docs/CONVERSION_PROGRESS.md): dùng lại ảnh/đo bố cục đã kiểm tra, tránh voice trùng và chờ menu model sẵn sàng. % giữ ở mốc chờ khi ChatGPT đang tạo bài; không đoán % xử lý bên trong web.
 
@@ -15,6 +15,16 @@ Máy cần Windows 10/11 64-bit, Google Chrome để đăng nhập ChatGPT và M
 Sau khi cài, mở BiliClass từ Start menu → **Cài đặt → Browser AI → Thêm tài khoản** và tự đăng nhập ChatGPT trên máy đó. Phiên đăng nhập và bài học riêng không được chuyển qua GitHub. Muốn dùng portable, chạy `BiliClass/BiliClass.exe` và giữ nguyên toàn bộ thư mục `_internal`, `models`, `licenses`.
 
 App tự kiểm tra bản mới khi mở. Khi có phiên bản mới, chọn **Cập nhật**; app tải/xác minh gói rồi cài và mở lại. Dữ liệu nằm riêng tại `%LOCALAPPDATA%/BiliClass` nên được giữ qua cập nhật. Không cần tự tải và cài lại mỗi lần.
+
+Nếu bản cũ chưa có **Kiểm tra cập nhật**, cài gói Windows mới một lần để có
+nút này. RC23 hiển thị nút và số phiên bản ở cả bản nguồn lẫn bản cài, giữ
+nút trên màn hình ở cửa sổ thấp. Bản nguồn có thể cài gói Windows đã phát
+hành qua nút cập nhật mà không ghi đè checkout Git.
+
+RC23 thu gọn báo cáo slide vào **Xem chi tiết**, vẫn giữ cảnh báo các slide
+cần sửa trước khi dạy. Giọng đọc chuẩn bị ở nền, dùng lại WAV đã có và có
+giới hạn luồng CPU để tránh tranh tài nguyên; đọc chi tiết và số đo tại
+[Giữ phiên và tối ưu tốc độ](docs/SESSION_AND_SPEED.md).
 
 RC17 dùng [một giọng VieNeu cho Việt và Anh](docs/MULTILINGUAL_VOICE.md), có sáu giọng nam/nữ, nghe thử tốc độ trước khi lưu.
 

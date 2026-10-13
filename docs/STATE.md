@@ -1,5 +1,19 @@
 # Trạng thái BiliClass
 
+Ngày 13/10/2026 — đã phát hành [RC23](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc23)
+từ commit ứng dụng `4a57d1d1f3cbeb1dafffd33c14fe9feac4f62c0c`. ZIP
+667.886.101 byte, SHA-256
+`f84e807cb6aaa67b7cdd429f5677b2a5edf6e4a1131d05223bb3e402dec5832c`;
+asset và checksum được đối chiếu sau tải lên. Build ban đầu 2.004,10 giây
+trên ổ dự án đang chậm; kiểm tra Unicode bắt được lỗi dò DLL nên chưa phát
+hành gói đó. Bản sửa dùng PyInstaller xây lại Python archive/executable
+từ toàn bộ 60 module app hiện tại, giữ runtime/model/QML không thay đổi.
+Gói sửa qua CRC/manifest, cài/gỡ Unicode trên ổ hệ thống, Qt 1366×850 và
+portable 1080×700 không warning; VieNeu Việt/Anh/mixed/tốc độ/cache, lớp học
+process/WebSocket, mẫu và sao lưu qua. Đây là kiểm tra trên máy hiện tại,
+chưa chứng nhận Windows sạch. Đã cài RC23 và mở lại bài đang lưu qua đường
+dẫn ứng dụng chuẩn; thư viện/phiên không được đưa vào Git hay gửi lại bài.
+
 Ngày 13/10/2026 — nguồn RC23: thu gọn báo cáo vào Xem chi tiết, giữ cảnh báo
 slide cần sửa trước khi dạy; âm thanh nền có trạng thái gọn và tín hiệu Qt
 riêng. Nút cập nhật/phiên bản luôn hiện kể cả bản nguồn và cửa sổ thấp, có

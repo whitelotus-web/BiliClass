@@ -27,6 +27,13 @@ speaker và seed; mỗi cấu hình có lượt làm nóng. Đây là mẫu th�
 này, không phải cam kết tăng tốc tương đương trên mọi bài/máy. Không dùng
 thời gian nạp model để so sánh vì cache hệ điều hành đã ấm.
 
+Đo lặp sau sửa đường dẫn Unicode với cùng bốn câu: cấu hình mặc định mất
+15,610 giây, cấu hình handle OpenBLAS một luồng mất 15,063 giây (giảm 3,5%).
+Một lượt chạy trong lúc đóng gói mất 27,657 giây nên không dùng để so sánh
+tăng tốc. Kết quả thay đổi theo tải máy; số đo không chứng minh toàn bộ
+quy trình nhanh hơn 17%. Lợi ích dùng lại cache và giảm dựng lại giao diện
+là riêng với thời gian suy luận tạo âm thanh mới.
+
 Trước warmup, chỉ xếp đoạn còn thiếu hoặc WAV hỏng vào hàng đợi. Bài đã có
 đủ âm thanh không khởi động QThread/nạp model và không đặt tiến độ về 0.
 Kiểm tra chỉ đọc bài đã lưu 48 slide: 137/137 WAV hợp lệ, lập kế hoạch cache
