@@ -119,9 +119,15 @@ def _vieneu_engine(root):
 
 def _synthesize_vieneu(text, voice_id, rate, temporary):
     import numpy as np
+    from threadpoolctl import threadpool_limits
 
     engine = _vieneu_engine(str(vieneu_root()))
-    samples = np.asarray(engine.infer(text, voice=voice_id.split(":", 1)[1]), dtype=np.float32)
+    # ONNX already owns four CPU threads. The small NumPy projection heads
+    # were starting another full BLAS pool for every token. One BLAS thread
+    # measured faster without changing the model, precision or audio cache.
+    # All inference callers share synthesis_turn(), including the reader.
+    with threadpool_limits(limits=1, user_api="blas"):
+        samples = np.asarray(engine.infer(text, voice=voice_id.split(":", 1)[1]), dtype=np.float32)
     if not samples.size or samples.ndim != 1 or not np.isfinite(samples).all():
         raise RuntimeError("VieNeu không tạo được âm thanh cho đoạn này.")
     if rate:

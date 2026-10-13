@@ -54,7 +54,7 @@ def _valid_url(url, tag, name):
             and not parsed.fragment and parsed.path == DOWNLOAD_PREFIX + tag + "/" + name)
 
 
-def check_for_update(current=__version__, fetch=None):
+def check_for_update(current=__version__, fetch=None, *, include_current=False):
     """Include prereleases: GitHub's /releases/latest endpoint omits them."""
     releases = (fetch or _fetch_json)(RELEASES_API)
     if not isinstance(releases, list):
@@ -63,7 +63,8 @@ def check_for_update(current=__version__, fetch=None):
     for release in releases:
         tag = release.get("tag_name", "")
         try:
-            if release.get("draft") or version_key(tag) <= version_key(current):
+            candidate, installed = version_key(tag), version_key(current)
+            if release.get("draft") or candidate < installed or (candidate == installed and not include_current):
                 continue
             name = _asset_name(tag)
         except ValueError:

@@ -85,7 +85,9 @@ def test_english_only_deck_keeps_private_pair_and_unapproved_quiz_after_review_a
     spoken = []
     monkeypatch.setattr("app.speech.synthesize", lambda text, *args: spoken.append(text))
     assert prepare_narration(inspection, {"vi": "vi", "en": "en", "rate": 1}, tmp_path, Event(), lambda _: None)["complete"] == 2
-    assert spoken == [unit["vi"], unit["en"]]
+    # Background preparation prioritizes English for the slide reader;
+    # this order does not change the teacher's chosen playback language.
+    assert spoken == [unit["en"], unit["vi"]]
     library = Library(tmp_path / "library")
     try:
         lesson = library.create_external_lesson(config("english_only"), library.store_source(path), inspection)

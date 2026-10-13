@@ -58,6 +58,8 @@ class Bridge(QObject):
     mascotStateChanged = Signal()
     mascotPreferencesSaved = Signal(bool)
     updateChanged = Signal()
+    updateAvailable = Signal()
+    narrationChanged = Signal()
     updateProgress = Signal(int)
     inputAssessmentChanged = Signal()
     comparisonReady = Signal()
@@ -107,7 +109,10 @@ class Bridge(QObject):
         from .narration_preparation import NarrationPreparation
 
         self.narration_preparation = NarrationPreparation(library.directory / "audio", self)
-        self.narration_preparation.changed.connect(self.changed)
+        self.narration_preparation.changed.connect(self.narrationChanged)
+        # Changing the selected lesson must also refresh the filtered audio
+        # state. Audio-only progress never travels back to the broad signal.
+        self.changed.connect(self.narrationChanged)
         self.changed.connect(self._pause_narration)
         self.english_reader.changed.connect(self._pause_narration)
         self._message = ""
@@ -597,13 +602,13 @@ class Bridge(QObject):
             self.openLesson(lesson["id"])
             self._start_narration(lesson, folder, inspection)
             failures = lesson.get("slide_quality", {}).get("counts", {}).get("FAIL", 0)
-            message = (f"Đã nhận bản nháp; {failures} slide có lỗi cần sửa. Xem báo cáo kiểm tra." if failures
-                       else "Đã nhận bản nháp. Xem ảnh và các điểm CHECK trước khi Dùng để dạy.")
+            message = (f"Bài giảng đã lưu. Cần sửa {failures} slide trước khi dùng để dạy." if failures
+                       else "Bài giảng đã lưu. Xem lại nội dung trước khi dùng để dạy.")
             self.inform(message, bool(failures))
 
         self.launch(work, completed)
 
-    @Property("QVariantMap", notify=changed)
+    @Property("QVariantMap", notify=narrationChanged)
     def narrationPreparation(self):
         state = self.narration_preparation.state
         return state if state.get("lesson_id") == self._lesson.get("id") else {}
@@ -1052,14 +1057,14 @@ class Bridge(QObject):
 
     @Slot(bool)
     def checkForUpdates(self, silent=False):
-        if self.developmentMode:
-            if not silent:
-                self.inform("Bản mã nguồn được cập nhật bằng Git; cập nhật tự động dành cho bản Windows đóng gói.")
-            return
         if self.update_worker and self.update_worker.isRunning():
             return
         self._set_update_state(checking=True, message="Đang kiểm tra phiên bản…")
-        self.update_worker = Job(check_for_update, self)
+        # Source users can install the published Windows app without pulling
+        # Git or overwriting their checkout. A manual check may offer the same
+        # version's installer; normal installed-app checks never downgrade.
+        self.update_worker = Job(lambda: check_for_update(
+            include_current=self.developmentMode and not silent), self)
 
         def completed(result, error):
             if error:
@@ -1070,6 +1075,8 @@ class Bridge(QObject):
                 self._update_release = result
                 self._set_update_state(checking=False, available=True, version=result["version"],
                                        message="Đã có BiliClass " + result["version"])
+                if not silent:
+                    self.updateAvailable.emit()
             else:
                 self._update_release = None
                 self._set_update_state(checking=False, available=False, message="Đang dùng bản mới nhất.")
@@ -2233,7 +2240,8 @@ def run(args):
         bridge.openLesson(lesson_id)
     elif args.page in {"editor", "result"} and library.list_lessons():
         bridge.openLesson(library.list_lessons()[0]["id"])
-    window.setProperty("page", "settings" if args.page == "browser-ai" else args.page)
+    window.setProperty("page", "result" if lesson_id and args.page == "home" else
+                       "settings" if args.page == "browser-ai" else args.page)
     if args.page == "browser-ai":
         window.findChild(QObject, "settingsPage").setProperty("activeTab", 6)
 

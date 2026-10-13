@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "biliclass"
-version = "1.0.0rc22"
+version = "1.0.0rc23"
 description = "BiliClass ChatGPT-browser lesson conversion and offline teaching assistant"
 requires-python = ">=3.12,<3.14"
 dependencies = [
@@ -25,6 +25,7 @@ dependencies = [
   "qrcode[pil]>=8,<9",
   "pypdfium2>=5,<6",
   "onnxruntime>=1.18,<2",
+  "threadpoolctl>=3.6,<4",
 ]
 
 [project.optional-dependencies]

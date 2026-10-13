@@ -51,6 +51,13 @@ def test_release_selection_includes_rc_and_rejects_untrusted_assets():
     assert check_for_update("1.0.0rc11", fetch=lambda _: [{**releases[0], "draft": True}]) is None
 
 
+def test_source_may_offer_same_version_installer_but_never_downgrades():
+    releases = [release("1.0.0rc22"), release("1.0.0rc21"), release("1.0.0rc23", digest="")]
+    assert check_for_update("1.0.0rc22", fetch=lambda _: releases) is None
+    assert check_for_update("1.0.0rc22", fetch=lambda _: releases, include_current=True)["version"] == "1.0.0rc22"
+    assert check_for_update("1.0.0rc23", fetch=lambda _: releases, include_current=True) is None
+
+
 def test_download_verifies_digest_and_extracts_package(tmp_path):
     payload = archive_bytes()
     progress = []

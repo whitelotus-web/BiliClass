@@ -41,7 +41,7 @@ from PySide6.QtQuick import QQuickWindow
 from PySide6.QtQuickControls2 import QQuickStyle
 from PySide6.QtTest import QTest
 
-from app import browser_automation, speech
+from app import browser_automation, speech, ui
 from app.chatgpt_handoff import load_request
 from app.document_limits import MAX_POWERPOINT_BYTES
 from app.library import Library
@@ -195,6 +195,9 @@ def wait_idle(action):
 
 
 def start():
+    update = window.findChild(QObject, "checkUpdatesButton")
+    assert update and update.property("visible") and update.property("enabled")
+    assert bridge.appVersion in window.findChild(QObject, "sidebarAppVersion").property("text")
     assert not window.findChild(QObject, "createLessonButton").property("enabled")
     assert window.findChild(QObject, "lessonSubject").property("currentIndex") == -1
     assert not window.findChild(QObject, "lessonSubject").property("editable")
@@ -439,6 +442,9 @@ def prompt_shown():
 
 
 def compact():
+    update = window.findChild(QObject, "checkUpdatesButton")
+    point = update.mapToScene(QPointF(0, 0))
+    assert 0 < point.y() < window.height() - update.height(), "Update button must remain visible at 1080x700"
     footer = window.findChild(QObject, "createLessonButton")
     point = footer.mapToScene(QPointF(0, 0))
     assert 0 < point.y() < window.height() - footer.height(), "Conversion button must remain on screen"
@@ -471,7 +477,7 @@ def prepared():
     assert request["prompt"] == preview_prompt == sent[0]["prompt"]
     assert bridge.browserAI.automatic and bridge.browserAI.audio
     assert opened == [], "Automatic conversion must not launch a manual web handoff"
-    assert Path(request["bundle"]).is_file()
+    assert request["bundle"] == "" and not (Path(request["folder"]) / "goi-gui-chatgpt.zip").exists()
     assert bridge.browserState["percent"] == 25 and bridge.browserState["waiting"]
     assert window.findChild(QObject, "browserConversionProgressBar").property("value") == 25
     assert window.findChild(QObject, "browserConversionPercent").property("text") == "25%"
@@ -512,9 +518,19 @@ def received():
     assert bridge.lesson["conversion_format"] == "parallel_columns"
     assert len(bridge.lesson["questions"]) == 2 and not any(q["approved"] for q in bridge.lesson["questions"])
     assert all("QUIZ:" not in s["en"] for s in bridge.lesson["segments"])
+    assert not window.property("resultDetails")
+    assert not window.findChild(QObject, "lessonDetailsPanel").property("visible")
+    assert not window.findChild(QObject, "returnedDeckReviewNotes").property("visible")
+    assert not window.findChild(QObject, "currentSlideQuality").property("visible")
+    summary = window.findChild(QObject, "lessonReviewSummary").property("text")
+    assert summary and "FAIL" not in summary and "CHECK" not in summary
+    assert "/" not in window.findChild(QObject, "narrationPreparationStatus").property("text")
+    assert QQuickWindow.grabWindow(window).save(str(reports / "returned-pptx.png"))
+    click("resultDetailsButton")
     assert window.findChild(QObject, "returnedDeckReviewNotes").property("visible")
     assert "Kiểm tra hoạt ảnh" in window.findChild(QObject, "returnedDeckReviewNotes").property("text")
-    assert QQuickWindow.grabWindow(window).save(str(reports / "returned-pptx.png"))
+    assert QQuickWindow.grabWindow(window).save(str(reports / "returned-pptx-details.png"))
+    click("resultDetailsButton")
     click("useConvertedLessonButton")
     assert window.findChild(QObject, "wholeLessonReview").property("visible")
     sessions = []
@@ -529,6 +545,35 @@ def received():
     assert bridge.quickResult["external"] and not bridge.quickResult["draft"]
     assert bridge.quickResult["segment_map"]
     stages.append("Reopen saved presentation retains returned file, confirmation and slide mapping")
+    assert not window.property("resultDetails")
+    broad, audio_only = [], []
+    bridge.changed.connect(lambda: broad.append(True))
+    bridge.narrationChanged.connect(lambda: audio_only.append(True))
+    bridge.narration_preparation.changed.emit()
+    assert len(audio_only) == 1 and not broad, "Audio progress must not rebuild every lesson view"
+    window.setProperty("page", "settings")
+    checks = []
+
+    def check_update(**options):
+        checks.append(options)
+        return {"version": bridge.appVersion}
+
+    ui.check_for_update = check_update
+    click("checkUpdatesButton")
+    QTimer.singleShot(100, safe(lambda: updated(checks)))
+
+
+def updated(checks):
+    if bridge.update_worker is not None:
+        assert time.monotonic() < deadline, "Update fixture did not finish"
+        QTimer.singleShot(100, safe(lambda: updated(checks)))
+        return
+    assert checks == [{"include_current": True}]
+    assert window.property("page") == "settings", "Manual check must not discard the current page"
+    assert window.findChild(QObject, "updateDialog").property("visible")
+    assert window.findChild(QObject, "installUpdateButton").property("enabled")
+    assert bridge.updateState["available"] and bridge.updateState["version"] == bridge.appVersion
+    stages.append("Collapsed result report, compact sidebar and source update check from Settings with installer dialog")
     assert not warnings, warnings
     app.exit(0)
 

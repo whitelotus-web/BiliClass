@@ -3,7 +3,7 @@ import wave
 from threading import Event, Thread
 
 from app import speech
-from app.narration_preparation import NarrationJob
+from app.narration_preparation import NarrationJob, NarrationPreparation
 
 VOICE = "vieneu:Mai Anh"
 
@@ -90,3 +90,35 @@ def test_cancelled_background_waiter_does_not_take_engine_turn(monkeypatch, tmp_
 
     with pytest.raises(InterruptedError):
         speech.synthesize_background("Cancelled.", VOICE, 0, tmp_path, cancel)
+
+
+def test_prefetch_only_synthesizes_missing_or_corrupt_audio_and_keeps_total(monkeypatch, tmp_path):
+    texts = ["Đã có.", "Chưa có.", "Cache hỏng."]
+    write_wave(tmp_path / (speech.audio_key(texts[0], VOICE, 0) + ".wav"))
+    (tmp_path / (speech.audio_key(texts[2], VOICE, 0) + ".wav")).write_bytes(b"broken")
+    inspection = {"profile": {"units": [{"vi": text, "en": ""} for text in texts]}}
+    job = NarrationJob(inspection, {"vi": VOICE, "rate": 0}, tmp_path, None)
+    calls = []
+    monkeypatch.setattr(speech, "synthesize_background", lambda text, *args: calls.append(text) or {"cached": False})
+    job.run()
+    assert calls == texts[1:]
+    assert job.result["complete"] == job.result["total"] == 3
+    assert job.result["cached"] == 1 and job.result["failed"] == 0
+    changed_speed = NarrationJob(inspection, {"vi": VOICE, "rate": 1}, tmp_path, None)
+    assert changed_speed.initial_cached == 0 and len(changed_speed.tasks) == 3
+
+
+def test_reopen_fully_cached_lesson_does_not_start_model_or_reset_progress(monkeypatch, tmp_path):
+    text = "Giọng đọc đã sẵn sàng."
+    write_wave(tmp_path / (speech.audio_key(text, VOICE, 0) + ".wav"))
+    inspection = {"profile": {"units": [{"vi": text, "en": ""}, {"vi": text, "en": ""}]}}
+    monkeypatch.setattr(NarrationJob, "start", lambda _: (_ for _ in ()).throw(AssertionError("Must not start a worker")))
+    monkeypatch.setattr(speech, "_vieneu_engine", lambda *_: (_ for _ in ()).throw(AssertionError("Must not load model")))
+    preparation = NarrationPreparation(tmp_path, None)
+    preparation.start("cached-lesson", inspection, {"voice": VOICE, "vi": VOICE, "rate": 0}, tmp_path)
+    assert preparation.worker is None and not preparation.state["running"]
+    assert preparation.state["complete"] == preparation.state["cached"] == preparation.state["total"] == 1
+    assert preparation.state["duplicates"] == 1 and not preparation.state["cancelled"]
+    import json
+
+    assert json.loads((tmp_path / "narration-progress.json").read_text(encoding="utf-8"))["complete"] == 1

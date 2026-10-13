@@ -1,4 +1,53 @@
-# Giữ phiên Chrome và mở bài nhanh hơn — RC19
+# Giữ phiên Chrome và mở bài nhanh hơn
+
+## RC23: giao diện gọn và giọng đọc nhanh hơn
+
+Báo cáo slide/lời đọc được thu gọn mặc định vào **Xem chi tiết**. Màn kết
+quả vẫn báo rõ số slide cần sửa hoặc cần rà soát, không tự duyệt bài hay
+câu hỏi. Âm thanh chuẩn bị ở nền; số đoạn nằm trong chi tiết. Một lỗi âm
+thanh không làm mất PowerPoint đã lưu. Không dùng loading để che lỗi.
+
+Nút **Kiểm tra cập nhật** hiện ở cả bản nguồn lẫn bản Windows. Thanh điều
+hướng cuộn riêng khi cửa sổ thấp để giữ nút cập nhật và phiên bản trên màn
+hình. Kiểm tra bằng tay có hộp cập nhật ngay tại trang đang mở. Bản nguồn
+có thể cài gói Windows cùng phiên bản; cơ chế này không kéo Git/ghi đè
+checkout, không hạ phiên bản và vẫn kiểm tra checksum/manifest của gói.
+
+VieNeu vẫn dùng model FP32, cùng giọng/tốc độ, một engine và quyền ưu tiên
+lượt đọc đang được yêu cầu. NumPy/BLAS chỉ dùng một luồng trong lúc model
+suy luận, tránh tranh CPU với bốn luồng ONNX; khôi phục cấu hình BLAS khi
+ra khỏi lượt gọi, kể cả khi lỗi. Không đổi khóa cache hay tạo lại âm thanh
+đã có. Tăng số worker dùng chung engine không an toàn với trạng thái model,
+nên không gọi đồng thời nhiều lượt trên cùng engine.
+
+Đo bốn câu Việt/Anh tổng 21,28 giây âm thanh trên i7-8700 (6 nhân/12 luồng):
+4 luồng ONNX + BLAS mặc định 12 luồng mất 17,766 giây; 4 ONNX + 1 BLAS mất
+14,734 giây (giảm khoảng 17%); 2 ONNX + 1 BLAS mất 15,812 giây. Cùng model,
+speaker và seed; mỗi cấu hình có lượt làm nóng. Đây là mẫu thử trên máy
+này, không phải cam kết tăng tốc tương đương trên mọi bài/máy. Không dùng
+thời gian nạp model để so sánh vì cache hệ điều hành đã ấm.
+
+Trước warmup, chỉ xếp đoạn còn thiếu hoặc WAV hỏng vào hàng đợi. Bài đã có
+đủ âm thanh không khởi động QThread/nạp model và không đặt tiến độ về 0.
+Kiểm tra chỉ đọc bài đã lưu 48 slide: 137/137 WAV hợp lệ, lập kế hoạch cache
+mất 0,032 giây, không phát âm thanh, không gửi lại bài hoặc thay đổi dữ liệu
+giáo viên. Tiến độ âm thanh có tín hiệu Qt riêng, không dựng lại toàn bộ
+giao diện/preview sau mỗi đoạn; checkpoint lưu tối đa một lần/giây và luôn
+lưu lúc kết thúc/dừng. Khi đổi giọng hoặc tốc độ, kiểm tra đúng khóa mới.
+
+Chế độ chuyển đổi tự động không nén thêm ZIP tài liệu vốn không được dùng:
+gửi đúng tệp nguồn/mẫu đã lưu và xác minh hash. Các gói thủ công cũ vẫn mở
+được. Không giảm bước kiểm tra slide, chất lượng model hay xử lý xác minh.
+Thời gian web tạo/sửa PowerPoint vẫn phụ thuộc tài khoản, mạng và dịch vụ;
+những thay đổi trên tăng tốc phần việc tại máy, không bảo đảm toàn bộ bài
+hoàn thành trong một thời gian cố định.
+
+137 ca kiểm tra liên quan qua. Smoke Qt toàn luồng qua với Office preview
+thật, web/voice fixture, không QML warning: báo cáo thu gọn/mở chi tiết,
+nút cập nhật ở 1080×700, kiểm tra từ Cài đặt, quyền duyệt cả bài/quiz và
+thông báo tiến độ âm thanh không kích hoạt dựng lại mọi view.
+
+## Cơ chế giữ phiên và âm thanh nền từ RC19
 
 Chrome riêng của từng tài khoản dùng chế độ khôi phục phiên khi mở lại. Tool
 chỉ sửa tùy chọn startup trong profile riêng khi Chrome đã đóng; giữ nguyên

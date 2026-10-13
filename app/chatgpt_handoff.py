@@ -164,7 +164,21 @@ def prepare_request(directory, config, source_path=None, text=""):
             config["template_sha256"] = hashlib.sha256(sample.read_bytes()).hexdigest()
             attachments.append("mau-biliclass.pptx")
             (folder / "config.json").write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
-        (folder / "HUONG-DAN.txt").write_text(
+        # Automatic conversion uploads the validated files directly. PPTX is
+        # already compressed; creating a second, unused ZIP delayed startup
+        # and doubled disk traffic for large lessons.
+        archive = None if config.get("provider") == "browser_web" else _manual_bundle(folder, attachments)
+    except Exception:
+        # Only the freshly created, resolved UUID folder may be removed.
+        if folder.resolve().parent == (Path(directory) / "chatgpt").resolve():
+            shutil.rmtree(folder)
+        raise
+    return {"folder": str(folder.resolve()), "bundle": str(archive.resolve()) if archive else "", "prompt": prompt,
+            "config": config, "attachments": attachments}
+
+
+def _manual_bundle(folder, attachments):
+    (folder / "HUONG-DAN.txt").write_text(
             "1. Mở ChatGPT bằng tài khoản của thầy cô.\n"
             "2. Sao chép nội dung PROMPT.txt và đính kèm: " + ", ".join(attachments) + ".\n"
             "3. Nếu cần đối chiếu thiết kế/hình trong PowerPoint, đính kèm thêm ảnh các slide quan trọng.\n"
@@ -173,17 +187,11 @@ def prepare_request(directory, config, source_path=None, text=""):
             "Với bài mới trong BiliClass, chọn tài liệu và cấu hình rồi bấm Chuyển đổi bài giảng. Tool tự gửi/nhận qua tài khoản đã đăng nhập và chuẩn bị giọng đọc Việt–Anh.\n"
             "Giải nén gói ZIP trước khi đính kèm thủ công.\n",
             encoding="utf-8")
-        archive = folder / "goi-gui-chatgpt.zip"
-        with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as output:
-            for name in ["PROMPT.txt", "config.json", "HUONG-DAN.txt", *attachments]:
-                output.write(folder / name, name)
-    except Exception:
-        # Only the freshly created, resolved UUID folder may be removed.
-        if folder.resolve().parent == (Path(directory) / "chatgpt").resolve():
-            shutil.rmtree(folder)
-        raise
-    return {"folder": str(folder.resolve()), "bundle": str(archive.resolve()), "prompt": prompt,
-            "config": config, "attachments": attachments}
+    archive = folder / "goi-gui-chatgpt.zip"
+    with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as output:
+        for name in ["PROMPT.txt", "config.json", "HUONG-DAN.txt", *attachments]:
+            output.write(folder / name, name)
+    return archive
 
 
 def load_request(folder):
@@ -198,7 +206,8 @@ def load_request(folder):
         template = folder / "mau-biliclass.pptx"
         if not template.is_file() or hashlib.sha256(template.read_bytes()).hexdigest() != config["template_sha256"]:
             raise ValueError("Mẫu của gói ChatGPT đã thay đổi. Tạo lại gói trước khi tiếp tục.")
-    return {"folder": str(folder.resolve()), "bundle": str((folder / "goi-gui-chatgpt.zip").resolve()),
+    archive = folder / "goi-gui-chatgpt.zip"
+    return {"folder": str(folder.resolve()), "bundle": str(archive.resolve()) if archive.is_file() else "",
             "prompt": (folder / "PROMPT.txt").read_text(encoding="utf-8"), "config": config,
             "attachments": [name] + (["mau-biliclass.pptx"] if (folder / "mau-biliclass.pptx").is_file() else [])}
 

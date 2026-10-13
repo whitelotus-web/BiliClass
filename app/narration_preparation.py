@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 from threading import Event
+from time import monotonic
 
 from PySide6.QtCore import QObject, QThread, Signal, Slot
 
@@ -17,11 +18,17 @@ class NarrationJob(QThread):
         super().__init__(parent)
         self.tasks, self.skipped, self.duplicates = narration_tasks(inspection, voices)
         self.rate, self.directory = voices["rate"], directory
+        self.total = len(self.tasks)
+        missing = [(text, voice) for text, voice in self.tasks if not speech.valid_audio(
+            Path(directory) / (speech.audio_key(text, voice, self.rate) + ".wav"))]
+        self.initial_cached = self.total - len(missing)
+        self.tasks = missing
         self.cancel, self.paused = Event(), Event()
         self.result = {}
 
     def run(self):
-        complete = cached = failed = consecutive = 0
+        complete = cached = self.initial_cached
+        failed = consecutive = 0
         try:
             for text, voice in self.tasks:
                 while self.paused.is_set() and not self.cancel.is_set():
@@ -39,14 +46,14 @@ class NarrationJob(QThread):
                     failed += 1
                     consecutive += 1
                 self.result = {"complete": complete, "cached": cached, "failed": failed,
-                               "total": len(self.tasks), "skipped": self.skipped,
+                               "total": self.total, "skipped": self.skipped,
                                "duplicates": self.duplicates}
                 self.progressed.emit(dict(self.result))
                 if consecutive >= 3:
                     break  # A missing/broken engine must not fail once per slide.
         finally:
             self.result = {"complete": complete, "cached": cached, "failed": failed,
-                           "total": len(self.tasks), "skipped": self.skipped,
+                           "total": self.total, "skipped": self.skipped,
                            "duplicates": self.duplicates, "cancelled": self.cancel.is_set()}
 
 
@@ -61,6 +68,7 @@ class NarrationPreparation(QObject):
         self.state = {}
         self.path = None
         self.paused = False
+        self.last_checkpoint = 0
 
     def start(self, lesson_id, inspection, voices, folder):
         request = lesson_id, inspection, dict(voices), folder
@@ -71,9 +79,19 @@ class NarrationPreparation(QObject):
         self.path = Path(folder) / "narration-progress.json"
         self.worker = NarrationJob(inspection, voices, self.directory, self)
         self.worker.paused.set() if self.paused else self.worker.paused.clear()
-        self.state = {"lesson_id": lesson_id, "running": True, "complete": 0, "failed": 0,
+        self.state = {"lesson_id": lesson_id, "running": bool(self.worker.tasks),
+                      "complete": self.worker.initial_cached, "cached": self.worker.initial_cached, "failed": 0,
                       "voice": voices.get("voice", ""), "rate": voices["rate"],
-                      "total": len(self.worker.tasks), "message": "Giọng đọc đang được chuẩn bị tự động ở nền. Có thể xem bài ngay."}
+                      "total": self.worker.total, "skipped": self.worker.skipped,
+                      "duplicates": self.worker.duplicates, "cancelled": False,
+                      "message": "Giọng đọc đang được chuẩn bị. Bạn có thể xem bài ngay."}
+        if not self.worker.tasks:
+            self.state["message"] = self._completion_message(self.state)
+            self.worker.deleteLater()
+            self.worker = None
+            self._persist()
+            self.changed.emit()
+            return
         self.worker.progressed.connect(self._progress)
         self.worker.finished.connect(self._finished)
         self._persist()
@@ -89,8 +107,9 @@ class NarrationPreparation(QObject):
     def _progress(self, result):
         if self.sender() is not self.worker:
             return
-        self.state.update(result, message=f"Giọng đọc: {result['complete']}/{result['total']} đoạn · tự chuẩn bị ở nền.")
-        self._persist()
+        self.state.update(result)
+        if monotonic() - self.last_checkpoint >= 1:
+            self._persist()
         self.changed.emit()
 
     @Slot()
@@ -99,12 +118,7 @@ class NarrationPreparation(QObject):
         if worker is not self.worker:
             return
         self.state.update(worker.result, running=False)
-        if worker.result["cancelled"]:
-            self.state["message"] = "Đã dừng chuẩn bị nền; âm thanh đã tạo được giữ lại. Giọng đọc vẫn được tạo khi dùng."
-        elif worker.result["failed"] or worker.result["skipped"]:
-            self.state["message"] = "Một số lời đọc chưa tạo được. PowerPoint đã lưu; kiểm tra giọng đọc và nội dung."
-        else:
-            self.state["message"] = f"Đã chuẩn bị {worker.result['complete']}/{worker.result['total']} đoạn giọng đọc."
+        self.state["message"] = self._completion_message(self.state)
         self.worker = None
         self._persist()
         self.changed.emit()
@@ -118,8 +132,17 @@ class NarrationPreparation(QObject):
             temporary = self.path.with_suffix(".tmp")
             temporary.write_text(json.dumps({"version": 1, **self.state}, ensure_ascii=False), encoding="utf-8")
             temporary.replace(self.path)
+            self.last_checkpoint = monotonic()
         except OSError:
             pass  # An optional cache checkpoint cannot invalidate a saved lesson.
+
+    @staticmethod
+    def _completion_message(result):
+        if result.get("cancelled"):
+            return "Giọng đọc đã tạo được giữ lại; phần còn thiếu sẽ được chuẩn bị khi dùng."
+        if result.get("failed") or result.get("skipped"):
+            return "Một số lời đọc cần kiểm tra. Bài giảng đã được lưu."
+        return "Giọng đọc sẵn sàng."
 
     def cancel(self):
         self.pending = None

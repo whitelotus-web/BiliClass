@@ -9,7 +9,7 @@ ApplicationWindow {
     visible: true
     width: 1366; height: 850
     minimumWidth: 1080; minimumHeight: 700
-    title: bridge.developmentMode ? "BiliClass · Bản phát triển từ mã nguồn" : "BiliClass · Không gian bài giảng song ngữ"
+    title: "BiliClass · " + bridge.appVersion + (bridge.developmentMode ? " · Bản nguồn" : " · Không gian bài giảng song ngữ")
     color: "#f3f7fc"
     property string page: "home"
     onPageChanged: {
@@ -119,6 +119,7 @@ ApplicationWindow {
     }
     Connections {
         target: bridge
+        function onUpdateAvailable() { updateDialog.open() }
         function onPowerpointSlideChanged(slide) { if (!root.dirty) bridge.followPowerPoint() }
         function onPowerpointStarted() {
             if (bridge.mascotSettings.visible) {
@@ -127,7 +128,7 @@ ApplicationWindow {
             }
         }
         function onProjectClassroomRequested() { projector.quiz = true; bridge.showProjector(projector, bridge.screens.length > 1 ? 1 : 0) }
-        function onNavigate(destination) { root.page = destination === "browser-settings" ? "settings" : destination; if (destination === "browser-settings") settingsPanel.activeTab = 6; root.loadFields(); if (destination === "result" || destination === "editor") { titleInput.text = ""; subjectInput.currentIndex = -1; customSubjectInput.text = ""; pasteInput.text = ""; teacherNotesInput.text = ""; root.inputDocumentError = ""; root.preferredCreationDesign = 0; root.selectedFile = ""; root.selectedFileName = "" } }
+        function onNavigate(destination) { root.page = destination === "browser-settings" ? "settings" : destination; if (destination === "result") root.resultDetails = false; if (destination === "browser-settings") settingsPanel.activeTab = 6; root.loadFields(); if (destination === "result" || destination === "editor") { titleInput.text = ""; subjectInput.currentIndex = -1; customSubjectInput.text = ""; pasteInput.text = ""; teacherNotesInput.text = ""; root.inputDocumentError = ""; root.preferredCreationDesign = 0; root.selectedFile = ""; root.selectedFileName = "" } }
         function onSelectionChanged() { root.loadFields() }
         function onComparisonReady() { comparisonDialog.open() }
         function onChanged() { root.presentationContent = bridge.presentationContent(root.rescue); root.refreshTemplate() }
@@ -208,23 +209,31 @@ ApplicationWindow {
                     Label { text: "Bili<span style='color:#ff7d2b'>Class</span>"; textFormat: Text.RichText; color: root.ink; font.pixelSize: 25; font.weight: Font.Bold }
                 }
                 Copy { text: "CÙNG DẠY. CÙNG TIẾN XA."; font.pixelSize: 9; font.letterSpacing: 0.8; Layout.bottomMargin: 31 }
-                Repeater {
-                    model: [{key:"home", label:"Trang chủ", icon:"home"}, {key:"library", label:"Bài giảng", icon:"lessons"}, {key:"classroom", label:"Lớp học", icon:"classroom"}, {key:"reports", label:"Báo cáo", icon:"reports"}, {key:"reference", label:"Dữ liệu trợ giảng", icon:"data"}, {key:"settings", label:"Cài đặt", icon:"settings"}]
-                    delegate: Button {
-                        required property var modelData
-                        objectName: "navigation" + modelData.key
-                        readonly property bool selected: root.page === modelData.key || (modelData.key === "library" && ["editor", "new", "result", "chatgpt"].indexOf(root.page) >= 0)
-                        Layout.fillWidth: true; implicitHeight: 48; leftPadding: 14
-                        onClicked: root.go(modelData.key)
-                        background: Rectangle { radius: 10; color: parent.selected ? "#eaf3ff" : parent.hovered ? "#f4f7fc" : "transparent" }
-                        contentItem: RowLayout {
-                            spacing: 13
-                            Image { source: "../assets/navigation/" + modelData.icon + (selected ? "-active" : "") + ".png"; sourceSize.width: 64; sourceSize.height: 64; fillMode: Image.PreserveAspectFit; Layout.preferredWidth: 29; Layout.preferredHeight: 29 }
-                            Label { text: modelData.label; font.pixelSize: 14; font.weight: selected ? Font.DemiBold : Font.Normal; color: selected ? root.blue : root.muted; Layout.fillWidth: true }
+                ScrollView {
+                    id: sidebarNavigation; objectName: "sidebarNavigation"
+                    Layout.fillWidth: true; Layout.fillHeight: true
+                    clip: true; contentWidth: availableWidth
+                    ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                    ColumnLayout {
+                        width: sidebarNavigation.availableWidth; spacing: 8
+                        Repeater {
+                            model: [{key:"home", label:"Trang chủ", icon:"home"}, {key:"library", label:"Bài giảng", icon:"lessons"}, {key:"classroom", label:"Lớp học", icon:"classroom"}, {key:"reports", label:"Báo cáo", icon:"reports"}, {key:"reference", label:"Dữ liệu trợ giảng", icon:"data"}, {key:"settings", label:"Cài đặt", icon:"settings"}]
+                            delegate: Button {
+                                required property var modelData
+                                objectName: "navigation" + modelData.key
+                                readonly property bool selected: root.page === modelData.key || (modelData.key === "library" && ["editor", "new", "result", "chatgpt"].indexOf(root.page) >= 0)
+                                Layout.fillWidth: true; implicitHeight: 48; leftPadding: 14
+                                onClicked: root.go(modelData.key)
+                                background: Rectangle { radius: 10; color: parent.selected ? "#eaf3ff" : parent.hovered ? "#f4f7fc" : "transparent" }
+                                contentItem: RowLayout {
+                                    spacing: 13
+                                    Image { source: "../assets/navigation/" + modelData.icon + (selected ? "-active" : "") + ".png"; sourceSize.width: 64; sourceSize.height: 64; fillMode: Image.PreserveAspectFit; Layout.preferredWidth: 29; Layout.preferredHeight: 29 }
+                                    Label { text: modelData.label; font.pixelSize: 14; font.weight: selected ? Font.DemiBold : Font.Normal; color: selected ? root.blue : root.muted; Layout.fillWidth: true }
+                                }
+                            }
                         }
                     }
                 }
-                Item { Layout.fillHeight: true }
                 Button {
                     objectName: "openCompanion"
                     visible: bridge.mascotSettings.visible
@@ -258,8 +267,8 @@ ApplicationWindow {
                     ColumnLayout { spacing: 3; Label { text: bridge.settings.teacher; color: root.ink; font.pixelSize: 12; elide: Text.ElideRight; Layout.maximumWidth: 110 } Copy { text: bridge.settings.school || "Giáo viên · Local"; font.pixelSize: 10; elide: Text.ElideRight; Layout.maximumWidth: 130 } }
                 }
                 Action { text: "Hướng dẫn · F1"; implicitHeight: 32; subtle: true; onClicked: helpDialog.open() }
-                Action { visible: !bridge.developmentMode; text: bridge.updateState.checking ? "Đang kiểm tra…" : "Kiểm tra cập nhật"; implicitHeight: 32; subtle: true; enabled: !bridge.updateState.checking && !bridge.updateState.downloading; onClicked: bridge.checkForUpdates(false) }
-                Copy { text: bridge.developmentMode ? "Bản phát triển từ mã nguồn" : "Bản dùng thử · " + bridge.appVersion; font.pixelSize: 9; Layout.topMargin: 12 }
+                Action { objectName: "checkUpdatesButton"; text: bridge.updateState.checking ? "Đang kiểm tra…" : "Kiểm tra cập nhật"; implicitHeight: 32; subtle: true; enabled: !bridge.updateState.checking && !bridge.updateState.downloading; onClicked: bridge.checkForUpdates(false) }
+                Copy { objectName: "sidebarAppVersion"; text: (bridge.developmentMode ? "Bản nguồn · " : "Phiên bản · ") + bridge.appVersion; font.pixelSize: 9; Layout.topMargin: 6 }
             }
         }
         ColumnLayout {
@@ -316,7 +325,7 @@ ApplicationWindow {
                             ColumnLayout { anchors.fill: parent; anchors.margins: 17; spacing: 8
                                 RowLayout { Layout.fillWidth: true; spacing: 12
                                     ColumnLayout { Layout.fillWidth: true; spacing: 3
-                                        Caption { text: "Có BiliClass " + bridge.updateState.version + " mới"; font.pixelSize: 15 }
+                                        Caption { text: "Bản cài BiliClass " + bridge.updateState.version; font.pixelSize: 15 }
                                         Copy { text: bridge.updateState.message; Layout.fillWidth: true }
                                     }
                                     Action { text: bridge.updateState.ready ? "Mở bản mới" : "Cập nhật"; primary: true; enabled: !bridge.updateState.downloading && !bridge.busy && !root.classroom.running; onClicked: bridge.updateState.ready ? bridge.applyDownloadedUpdate() : bridge.downloadUpdate() }
@@ -681,9 +690,17 @@ ApplicationWindow {
                             Action { objectName: "downloadPresentationButton"; visible: !!bridge.quickResult.path; text: "Tải PowerPoint"; iconName: "download"; enabled: !bridge.busy; onClicked: presentationSave.open() }
                             Action { objectName: "useConvertedLessonButton"; visible: !!bridge.quickResult.path; text: "Dùng để dạy"; primary: true; enabled: !bridge.busy && !bridge.powerpointState.active && !bridge.powerpointState.starting; onClicked: { if (bridge.quickResult.draft) wholeLessonReview.open(); else bridge.useConvertedLesson() } }
                         }
+                        RowLayout { Layout.fillWidth: true; visible: !!bridge.quickResult.path || !!bridge.quickResult.missing
+                            Copy { objectName: "lessonReviewSummary"; Layout.fillWidth: true; color: "#a66318"; text: {
+                                const counts = (bridge.lesson.slide_quality || {}).counts || {};
+                                const missing = (bridge.quickResult.missing || []).length;
+                                return counts.FAIL ? counts.FAIL + " slide cần sửa trước khi dùng để dạy." : missing ? missing + " phần còn thiếu nội dung song ngữ." : counts.CHECK ? counts.CHECK + " slide cần rà soát nội dung trước khi dạy." : bridge.lesson.external_deck && !bridge.lesson.slide_quality ? "Bài giảng cần được rà soát trước khi dạy." : "Xem lại nội dung và lời đọc trước khi dạy."
+                            } }
+                            Action { objectName: "resultDetailsButton"; text: root.resultDetails ? "Ẩn chi tiết" : "Xem chi tiết"; subtle: true; implicitHeight: 32; onClicked: root.resultDetails = !root.resultDetails }
+                        }
                         ProgressBar { visible: bridge.busy; indeterminate: true; Layout.fillWidth: true }
                         Surface {
-                            Layout.fillWidth: true; implicitHeight: Math.max(280, Math.min(520, root.height - 430)); color: "#e9eef5"
+                            Layout.fillWidth: true; implicitHeight: Math.max(250, Math.min(490, root.height - 490)); color: "#e9eef5"
                             Image { objectName: "convertedSlideImage"; anchors.fill: parent; anchors.margins: 6; source: bridge.quickResult.image || ""; fillMode: Image.PreserveAspectFit }
                             ColumnLayout {
                                 visible: !bridge.quickResult.image; anchors.centerIn: parent; width: parent.width - 70; spacing: 12
@@ -697,6 +714,7 @@ ApplicationWindow {
                             Copy { text: "Slide " + (bridge.quickResult.slide || 1) + " / " + (bridge.quickResult.total || 0); color: root.ink }
                             Action { text: "›"; implicitHeight: 34; enabled: !bridge.busy && (bridge.quickResult.slide || 1) < bridge.quickResult.total; onClicked: bridge.previewConvertedSlide(bridge.quickResult.slide + 1) }
                             Item { Layout.fillWidth: true }
+                            Copy { objectName: "narrationPreparationStatus"; visible: !!bridge.narrationPreparation.message; text: bridge.narrationPreparation.message || ""; Layout.maximumWidth: 450; color: bridge.narrationPreparation.failed || bridge.narrationPreparation.skipped ? "#a66318" : root.muted }
                         }
                         RowLayout {
                             Layout.fillWidth: true; visible: !!bridge.powerpointState.active || !!bridge.powerpointState.starting
@@ -712,22 +730,20 @@ ApplicationWindow {
                             Action { text: "Dừng đọc"; onClicked: bridge.stopSpeech() }
                             Action { text: "Đọc lại"; enabled: !bridge.busy; onClicked: bridge.readSlideEnglish() }
                         }
-                        Copy { objectName: "narrationPreparationStatus"; visible: !!bridge.narrationPreparation.message; text: bridge.narrationPreparation.message || ""; Layout.fillWidth: true; color: bridge.narrationPreparation.failed ? "#a66318" : root.muted }
-                        RowLayout { Layout.fillWidth: true; visible: !!bridge.lesson.external_deck
-                            Copy { text: (bridge.lesson.slide_quality || {}).counts ? "Kiểm tra slide: " + (bridge.lesson.slide_quality.counts.FAIL || 0) + " FAIL · " + (bridge.lesson.slide_quality.counts.CHECK || 0) + " CHECK" : "Chưa kiểm tra toàn bộ slide và lời đọc"; Layout.fillWidth: true }
-                            Action { objectName: "inspectSlideQualityButton"; text: bridge.lesson.slide_quality && bridge.lesson.slide_quality.counts ? "Kiểm tra lại" : "Kiểm tra toàn bộ slide"; enabled: !bridge.busy && !bridge.powerpointState.active; onClicked: bridge.inspectSlideQuality() }
-                        }
-                        Copy { objectName: "currentSlideQuality"; visible: !!bridge.lesson.slide_quality && !!bridge.quickResult.path; Layout.fillWidth: true; color: "#a66318"; text: { const rows = (bridge.lesson.slide_quality || {}).slides || []; const row = rows[(bridge.quickResult.slide || 1) - 1]; return row ? "Slide " + row.slide + ": " + row.status + "\n" + row.issues.map(function(i) { return i.message || i.code }).join("\n") : "" } }
-                        Copy { objectName: "returnedDeckReviewNotes"; visible: (((bridge.lesson.external_deck || {}).review_notes || []).length > 0); text: ((bridge.lesson.external_deck || {}).review_notes || []).slice(0, 2).join("\n"); textFormat: Text.PlainText; color: "#a66318"; Layout.fillWidth: true }
-                        Copy { visible: !!bridge.lesson.conversion_format && (bridge.lesson.questions || []).length > 0; text: (bridge.lesson.questions || []).filter(function(q) { return !q.approved }).length + " câu hỏi nháp · xem và duyệt riêng trong Chỉnh sửa chi tiết → Trợ giảng & Quiz."; Layout.fillWidth: true }
-                        Action { objectName: "resultDetailsButton"; visible: !!bridge.quickResult.path || !!bridge.quickResult.missing; text: root.resultDetails ? "Ẩn báo cáo" : "Xem báo cáo kiểm tra"; subtle: true; implicitHeight: 32; onClicked: root.resultDetails = !root.resultDetails }
                         Surface {
-                            visible: root.resultDetails || !!bridge.quickResult.missing && bridge.quickResult.missing.length > 0
+                            objectName: "lessonDetailsPanel"; visible: root.resultDetails
                             Layout.fillWidth: true; implicitHeight: resultInfo.height + 32
                             ColumnLayout {
                                 id: resultInfo; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 16; spacing: 10
+                                RowLayout { Layout.fillWidth: true; visible: !!bridge.lesson.external_deck
+                                    Copy { Layout.fillWidth: true; text: (bridge.lesson.slide_quality || {}).counts ? "Kiểm tra slide: " + (bridge.lesson.slide_quality.counts.FAIL || 0) + " cần sửa · " + (bridge.lesson.slide_quality.counts.CHECK || 0) + " cần rà soát" : "Chưa kiểm tra toàn bộ slide và lời đọc" }
+                                    Action { objectName: "inspectSlideQualityButton"; text: bridge.lesson.slide_quality && bridge.lesson.slide_quality.counts ? "Kiểm tra lại" : "Kiểm tra toàn bộ slide"; enabled: !bridge.busy && !bridge.powerpointState.active; onClicked: bridge.inspectSlideQuality() }
+                                }
+                                Copy { visible: !!bridge.narrationPreparation.total; text: "Giọng đọc: " + (bridge.narrationPreparation.complete || 0) + "/" + bridge.narrationPreparation.total + " đoạn đã sẵn sàng"; Layout.fillWidth: true }
+                                Copy { objectName: "currentSlideQuality"; visible: !!bridge.lesson.slide_quality && !!bridge.quickResult.path; Layout.fillWidth: true; color: "#a66318"; text: { const rows = (bridge.lesson.slide_quality || {}).slides || []; const row = rows[(bridge.quickResult.slide || 1) - 1]; return row ? "Slide " + row.slide + ": " + (row.status === "FAIL" ? "Cần sửa" : row.status === "CHECK" ? "Cần rà soát" : "Đã kiểm tra") + "\n" + row.issues.map(function(i) { return i.message || i.code }).join("\n") : "" } }
+                                Copy { visible: !!bridge.lesson.conversion_format && (bridge.lesson.questions || []).length > 0; text: (bridge.lesson.questions || []).filter(function(q) { return !q.approved }).length + " câu hỏi nháp · xem và duyệt riêng trong Chỉnh sửa chi tiết → Trợ giảng & Quiz."; Layout.fillWidth: true }
                                 Copy { Layout.fillWidth: true; text: (bridge.quickResult.missing || []).length ? "Chưa đủ song ngữ: " + bridge.quickResult.missing.slice(0, 8).join(", ") : "Kiểm tra thuật ngữ, số liệu và ý nghĩa trong bản trình chiếu. Trợ giảng, quiz và giọng đọc có thể bổ sung khi cần." }
-                                Copy { Layout.fillWidth: true; visible: (bridge.quickResult.warnings || []).length > 0; text: (bridge.quickResult.warnings || []).slice(0, 8).join("\n"); color: "#a66318" }
+                                Copy { objectName: "returnedDeckReviewNotes"; Layout.fillWidth: true; visible: (bridge.quickResult.warnings || []).length > 0 || (((bridge.lesson.external_deck || {}).review_notes || []).length > 0); text: (bridge.quickResult.warnings || []).length ? bridge.quickResult.warnings.join("\n") : ((bridge.lesson.external_deck || {}).review_notes || []).join("\n"); color: "#a66318" }
                                 Copy { Layout.fillWidth: true; visible: (((bridge.lesson.source || {}).warnings || []).length > 0); text: ((bridge.lesson.source || {}).warnings || []).slice(0, 3).join("\n") }
                             }
                         }
@@ -1111,7 +1127,22 @@ ApplicationWindow {
         onAccepted: bridge.saveSegment(viEdit.text, enEdit.text, true, lockedCheck.checked)
     }
     Dialog { id: busyDialog; anchors.centerIn: parent; modal: true; title: "Đang xử lý bài học"; standardButtons: Dialog.Ok; Copy { text: "Hãy chờ tác vụ hiện tại hoàn tất trước khi đóng ứng dụng." } }
-    Dialog { id: updateBusyDialog; anchors.centerIn: parent; modal: true; title: "Đang tải bản cập nhật"; standardButtons: Dialog.Ok; Copy { text: "Chờ tải xong hoặc bấm Hủy tải ở Trang chủ trước khi đóng ứng dụng." } }
+    Dialog { id: updateBusyDialog; anchors.centerIn: parent; modal: true; title: "Đang tải bản cập nhật"; standardButtons: Dialog.Ok; Copy { text: "Chờ tải xong hoặc bấm Hủy tải trước khi đóng ứng dụng." } }
+    Dialog {
+        id: updateDialog; objectName: "updateDialog"; anchors.centerIn: parent; modal: true
+        title: "Cập nhật BiliClass"; width: Math.min(540, root.width - 80)
+        contentItem: ColumnLayout { spacing: 16
+            Caption { text: "Bản cài BiliClass " + bridge.updateState.version; Layout.fillWidth: true }
+            Copy { text: bridge.developmentMode ? "Cài bản Windows đầy đủ để sử dụng và cập nhật thuận tiện. Thư viện bài giảng được giữ lại; thư mục mã nguồn vẫn giữ nguyên." : "Bản mới được tải, kiểm tra và cài tự động. Thư viện bài giảng được giữ lại."; Layout.fillWidth: true }
+            Copy { text: bridge.updateState.message; Layout.fillWidth: true }
+            ProgressBar { visible: bridge.updateState.downloading; Layout.fillWidth: true; value: bridge.updateState.progress / 100 }
+            RowLayout { Layout.fillWidth: true; Item { Layout.fillWidth: true }
+                Action { text: "Đóng"; onClicked: updateDialog.close() }
+                Action { visible: bridge.updateState.downloading; text: "Hủy tải"; onClicked: bridge.cancelUpdate() }
+                Action { objectName: "installUpdateButton"; text: bridge.updateState.ready ? "Mở bản mới" : "Cập nhật"; primary: true; enabled: !bridge.updateState.downloading && !bridge.busy && !root.classroom.running; onClicked: bridge.updateState.ready ? bridge.applyDownloadedUpdate() : bridge.downloadUpdate() }
+            }
+        }
+    }
     Dialog { id: deleteTermDialog; property string termId: ""; anchors.centerIn: parent; modal: true; title: "Xóa thuật ngữ này?"; standardButtons: Dialog.Ok | Dialog.Cancel; onAccepted: bridge.deleteTerm(termId) }
     Dialog {
         id: readinessDialog; objectName: "readinessDialog"; anchors.centerIn: parent; modal: true; title: "Chuẩn bị bài giảng"; width: 730; height: Math.min(root.height - 50, 670)

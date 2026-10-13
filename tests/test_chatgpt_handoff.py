@@ -77,6 +77,27 @@ def test_text_template_bundle_and_invalid_native_option(tmp_path):
         make_prompt(config(level=True), "file")
 
 
+@pytest.mark.parametrize("style", ["source", "template"])
+def test_automatic_request_skips_unused_zip_and_preserves_attachments(tmp_path, style):
+    original = returned_deck(tmp_path / "Bài nguồn.pptx")
+    before = original.read_bytes()
+    request = prepare_request(tmp_path / "library", config(style=style, provider="browser_web"), original)
+    from pathlib import Path
+
+    folder = Path(request["folder"])
+    assert request["bundle"] == "" and not (folder / "goi-gui-chatgpt.zip").exists()
+    assert not (folder / "HUONG-DAN.txt").exists()
+    assert (folder / request["attachments"][0]).read_bytes() == before == original.read_bytes()
+    assert load_request(folder) == request
+    if style == "template":
+        assert (folder / "mau-biliclass.pptx").is_file()
+        (folder / "mau-biliclass.pptx").write_bytes(b"tampered")
+    else:
+        (folder / request["attachments"][0]).write_bytes(b"tampered")
+    with pytest.raises(ValueError, match="đã thay đổi"):
+        load_request(folder)
+
+
 def test_returned_notes_supply_mascot_pair_without_changing_presentation(tmp_path):
     path = returned_deck(tmp_path / "result.pptx")
     before = path.read_bytes()

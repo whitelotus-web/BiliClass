@@ -1,5 +1,17 @@
 # Trạng thái BiliClass
 
+Ngày 13/10/2026 — nguồn RC23: thu gọn báo cáo vào Xem chi tiết, giữ cảnh báo
+slide cần sửa trước khi dạy; âm thanh nền có trạng thái gọn và tín hiệu Qt
+riêng. Nút cập nhật/phiên bản luôn hiện kể cả bản nguồn và cửa sổ thấp, có
+hộp cài bản Windows tại trang đang mở. Tạo giọng chỉ xếp phần chưa có WAV;
+đủ cache thì không nạp model hoặc chạy warmup. BLAS một luồng trong suy
+luận, cùng model FP32/khóa cache, giảm khoảng 17% trên mẫu Việt/Anh đã đo.
+Chuyển đổi tự động bỏ ZIP tài liệu không dùng, giữ hash/tệp đính kèm và
+tương thích gói cũ. 137 ca liên quan và smoke Qt toàn quy trình qua (Office
+preview thật, web/voice fixture, không warning). Kiểm tra chỉ đọc bài thật:
+137/137 cache sẵn sàng trong 0,032 giây, không nạp model/gửi bài mới/duyệt
+nội dung. Phạm vi và giới hạn tại [Session and speed](SESSION_AND_SPEED.md).
+
 Ngày 13/10/2026 — đã phát hành [RC22](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc22)
 từ commit `e64c256728da477b45227bbe7d1eaeef2715ca4d`. ZIP 679.268.868 byte,
 SHA-256 `6b93e62926a937ecb926dd7c70b3cada1f2b4828c1183c53d208ebbb3b652cbf`;
