@@ -14,7 +14,16 @@ Qt Browser AI, startup resume, luồng lưu trước âm thanh bị chặn/lỗi
 thật PowerPoint/VieNeu/MCI đều qua, không QML warning. Hai profile Free trên
 máy đã kiểm tra lại thành công, không gửi bài mới. Không coi fixture là bằng
 chứng một bài mới đã hoàn tất trên ChatGPT; không bảo đảm web không thu hồi
-phiên hoặc luôn tạo được PPTX. Bộ cài RC19 đang được tạo từ mốc nguồn này.
+phiên hoặc luôn tạo được PPTX.
+
+Ngày 13/10/2026 — đã phát hành [RC19](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc19),
+commit ứng dụng `b9016f580385887b53deb9572cd6689be403d323`. Build một lần từ
+mốc nguồn đã kiểm tra; ZIP có 3.879 tệp, 679.265.177 byte, SHA-256
+`f43f83a20fe90c67a18b515e572fff3d4fe36c0e29708459f17c7aa5292c3de8`;
+GitHub đã xác nhận digest và dung lượng. Bộ cài ở thư mục Unicode riêng qua
+manifest, Qt nhập bài/Browser AI, mẫu/ảnh xem trước, VieNeu cùng giọng Việt/Anh,
+tiến trình lớp học và sao lưu; gỡ giữ thư viện. Kiểm tra không dùng cache phát
+triển. Phạm vi là máy Windows hiện tại, chưa chứng nhận Windows sạch/máy thứ hai.
 
 Ngày 13/10/2026 — đã phát hành [RC18](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc18),
 commit ứng dụng `61264c90dce533da69cce963516faa4a08997c28`. ZIP có 3.879 tệp,
