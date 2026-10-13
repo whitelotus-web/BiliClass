@@ -7,10 +7,13 @@ hộp cài bản Windows tại trang đang mở. Tạo giọng chỉ xếp phầ
 đủ cache thì không nạp model hoặc chạy warmup. BLAS một luồng trong suy
 luận, cùng model FP32/khóa cache, giảm khoảng 17% trên mẫu Việt/Anh đã đo.
 Chuyển đổi tự động bỏ ZIP tài liệu không dùng, giữ hash/tệp đính kèm và
-tương thích gói cũ. 137 ca liên quan và smoke Qt toàn quy trình qua (Office
+tương thích gói cũ. 138 ca liên quan và smoke Qt toàn quy trình qua (Office
 preview thật, web/voice fixture, không warning). Kiểm tra chỉ đọc bài thật:
 137/137 cache sẵn sàng trong 0,032 giây, không nạp model/gửi bài mới/duyệt
 nội dung. Phạm vi và giới hạn tại [Session and speed](SESSION_AND_SPEED.md).
+Kiểm tra gói cài đã phát hiện lỗi mở lại DLL từ đường dẫn có dấu; bản sửa
+Windows dùng handle DLL đã nạp để điều chỉnh OpenBLAS, giữ khôi phục luồng.
+Ca DLL thật ở thư mục tiếng Việt qua; bản lỗi chưa được phát hành.
 
 Ngày 13/10/2026 — đã phát hành [RC22](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc22)
 từ commit `e64c256728da477b45227bbe7d1eaeef2715ca4d`. ZIP 679.268.868 byte,

@@ -42,7 +42,13 @@ Thời gian web tạo/sửa PowerPoint vẫn phụ thuộc tài khoản, mạng 
 những thay đổi trên tăng tốc phần việc tại máy, không bảo đảm toàn bộ bài
 hoàn thành trong một thời gian cố định.
 
-137 ca kiểm tra liên quan qua. Smoke Qt toàn luồng qua với Office preview
+Kiểm tra gói cài phát hiện bộ dò DLL của threadpoolctl có thể trả đường dẫn
+không mở lại được khi thư mục cài có dấu tiếng Việt. Trên Windows, BiliClass
+điều chỉnh OpenBLAS qua handle của DLL đã nạp, không mở lại theo tên đường
+dẫn; vẫn lưu/khôi phục số luồng sau lượt gọi. Thử DLL thật trong thư mục có
+dấu và kiểm tra khôi phục khi lỗi đều qua. Không sửa thư viện hệ thống.
+
+138 ca kiểm tra liên quan qua. Smoke Qt toàn luồng qua với Office preview
 thật, web/voice fixture, không QML warning: báo cáo thu gọn/mở chi tiết,
 nút cập nhật ở 1080×700, kiểm tra từ Cài đặt, quyền duyệt cả bài/quiz và
 thông báo tiến độ âm thanh không kích hoạt dựng lại mọi view.

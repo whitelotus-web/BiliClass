@@ -1,10 +1,16 @@
 """The speech engine must not leave a process-wide BLAS limit behind."""
 
+import ctypes
+import os
+import shutil
+from uuid import uuid4
+
 import numpy as np
 import pytest
 from threadpoolctl import threadpool_info
 
 from app import speech
+from app.voice_threads import _blas_controls, blas_budget
 
 
 @pytest.mark.parametrize("failure", [False, True])
@@ -31,3 +37,29 @@ def test_blas_budget_is_limited_only_during_inference(monkeypatch, tmp_path, fai
         assert speech.valid_audio(path)
     assert calls == [("Xin chào. Hello.", "Mai Anh")]
     assert threadpool_info() == before
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows live DLL control")
+def test_unicode_dll_is_controlled_by_its_loaded_handle_without_path_reload(tmp_path):
+    source = next(pool["filepath"] for pool in threadpool_info() if pool["internal_api"] == "openblas")
+    folder = tmp_path / "Cài đặt tiếng Việt – giọng đọc"
+    folder.mkdir()
+    destination = folder / ("libscipy_openblas_biliclass_test_" + uuid4().hex + ".dll")
+    shutil.copyfile(source, destination)
+    library = ctypes.CDLL(str(destination))
+    try:
+        native = next(control for control in _blas_controls() if control[0] == library._handle)
+        previous = native[1]()
+        with blas_budget():
+            assert native[1]() == 1
+        assert native[1]() == previous
+        with pytest.raises(RuntimeError, match="stop"):
+            with blas_budget():
+                assert native[1]() == 1
+                raise RuntimeError("stop")
+        assert native[1]() == previous
+    finally:
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel.FreeLibrary.argtypes = [ctypes.c_void_p]
+        kernel.FreeLibrary.restype = ctypes.c_int
+        assert kernel.FreeLibrary(library._handle)
