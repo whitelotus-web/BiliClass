@@ -1,5 +1,15 @@
 # Trạng thái BiliClass
 
+Ngày 13/10/2026 — đã phát hành [RC21](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc21)
+từ commit ứng dụng `8ad9710545e51d636996717ce3131c0b7d5ac0b4`.
+Build một lần sau kiểm tra nguồn, 574,26 giây. ZIP Windows 679.268.139 byte,
+SHA-256 `73e567a56d598a3ea766639bbf05b38e5e88bdd1f478463cb393039cc1b4b424`.
+CRC/manifest/checksum qua; cài/gỡ Unicode, Qt 1366×850, portable Qt 1080×700,
+giọng VieNeu Việt/Anh/mixed/tốc độ/cache, lớp học process/WebSocket, mẫu và
+sao lưu qua, không warning Qt. Bài đang dở của giáo viên không bị gửi lại.
+Phạm vi/bằng chứng ở reports/rc21-progress và
+reports/release/1.0.0rc21-52a8494a (dữ liệu thử nghiệm ngoài Git).
+
 RC21: sửa kích hoạt nút gửi trực tiếp thay Enter và mở nội dung user thu gọn
 trước khi so khớp đầy đủ để tìm lại xác nhận. Tiến trình và footer dùng thông
 tin phù hợp giáo viên, tách khỏi chẩn đoán kỹ thuật trong bản ghi. Tác vụ dừng
