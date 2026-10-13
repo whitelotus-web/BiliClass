@@ -403,6 +403,27 @@ def clear_draft_attachments(page, files, cancel):
     raise BrowserProblem("upload", "Chưa làm sạch được tệp đính kèm của lần thử trước. Chưa gửi bài.")
 
 
+def dismiss_attachment_notice(page):
+    """Close the successful chat-only attachment notice, never manage storage.
+
+    ChatGPT can accept a file into this chat even when its reusable file
+    storage is full. That informational modal must not cover the later
+    download. Upload failures, limits and verification dialogs stay visible.
+    """
+    for dialog in page.get_by_role("dialog").all():
+        if not dialog.is_visible():
+            continue
+        text = " ".join(dialog.inner_text().casefold().replace("’", "'").split())
+        if ("file added to chat only" not in text
+                or "you don't have enough storage space left to save this file" not in text):
+            continue
+        close = dialog.get_by_role("button", name="Close dialog", exact=True)
+        if close.count() == 1 and close.is_visible() and close.is_enabled():
+            close.click(timeout=5000)
+            return True
+    return False
+
+
 def wait_upload(page, files, cancel, timeout=None, *, progress=None, prompt=None):
     from playwright.sync_api import TimeoutError
 
@@ -451,6 +472,7 @@ def wait_upload(page, files, cancel, timeout=None, *, progress=None, prompt=None
                 restored = True
                 continue
         if attached and sending and sending.is_enabled() and not loading:
+            dismiss_attachment_notice(page)
             return
         if progress and time.monotonic() - last_progress >= 20:
             progress("Đang tải tài liệu lên ChatGPT; tool sẽ tự gửi khi tệp sẵn sàng…")
@@ -597,6 +619,7 @@ def wait_result(page, folder, record, cancel, progress, timeout=900):
 def receive_download(page, entry, cancel, timeout=45, progress=None):
     """Accept direct links or the file-preview → Download file UI."""
     check_cancel(cancel)
+    dismiss_attachment_notice(page)
     downloads = []
 
     def received(download):
@@ -674,7 +697,9 @@ def check_and_refine(page, folder, record, request, pending, cancel, progress, t
     record["quality_followups"] = 1
     record["quality_stage"] = "preparing"
     write_record(folder, record)
-    prompt = ("BiliClass vừa render và kiểm tra bản PPTX bạn trả. Hãy SỬA BẢN SAO trong cùng cuộc trò chuyện, "
+    prompt = ("BiliClass vừa render và kiểm tra bản PPTX bạn trả. Hãy SỬA BẢN SAO của tệp PPTX mới nhất "
+              "bạn vừa tạo trong cùng cuộc trò chuyện; dùng lại tệp và tài liệu nguồn đã có ở đây, "
+              "không cần người dùng tải lại tệp. "
               "theo đúng tài liệu/cấu hình bốn phương pháp đã gửi; không gửi lại bản cũ, không thêm kiến thức. "
               "Giữ số/thứ tự slide khi giữ nguồn. Chỉ sửa ký tự bất thường khi đối chiếu chắc với nguồn. "
               "Dàn lại hình và chữ, giữ hình/công thức/nhãn/trục; bổ sung đầy đủ bản dịch thân bài, không chỉ tiêu đề. "
@@ -682,12 +707,13 @@ def check_and_refine(page, folder, record, request, pending, cancel, progress, t
               "để khớp chữ thực trên slide. Sau sửa render lại nếu có công cụ, báo phần CHECK còn lại, "
               "xuất lại FILE .pptx chỉnh sửa được với link tải. Ảnh đính kèm chỉ là ảnh kiểm tra bản lỗi, không là kiến thức mới.\n\n"
               + "\n".join(quality_messages({"slides": actionable}, limit=90)))
-    files = [pending, folder / "quality-before.json"]
-    # JSON is not a user input format; pass the report as TXT to the normal uploader.
+    # The result and original source already belong to this conversation.
+    # Do not upload both again or spend limited Free uploads on a report
+    # already included in the prompt. Paid profiles may attach two examples.
     report_text = folder / "bao-cao-can-sua.txt"
     report_text.write_text("\n".join(quality_messages(quality, limit=300)), encoding="utf-8")
-    files[1] = report_text
-    files.extend(folder / row["render_image"] for row in actionable[:8] if row.get("render_image"))
+    files = ([folder / row["render_image"] for row in actionable[:2] if row.get("render_image")]
+             if record.get("plan") in {"plus", "pro", "business", "enterprise", "edu", "go"} else [])
     emit_progress(progress, "refine", "Phát hiện lỗi slide; đang yêu cầu ChatGPT sửa một lượt trong đúng cuộc trò chuyện…")
     record["quality_stage"] = "submitting"
     write_record(folder, record)

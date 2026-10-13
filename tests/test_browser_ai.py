@@ -517,6 +517,90 @@ function showFile() {
     assert Path(result["path"]).read_bytes() == source.read_bytes() and len(captured["sends"]) == 1
 
 
+@pytest.mark.parametrize("notice_at", ["attachment", "result"])
+def test_chat_only_storage_notice_cannot_block_upload_or_download(browser_fixture, notice_at):
+    adapter, accounts, request, captured, source = browser_fixture
+    notice = """function attachmentNotice() {
+    const dialog=document.createElement('div'); dialog.setAttribute('role','dialog');
+    dialog.style='position:fixed;inset:0;background:white;z-index:9999';
+    dialog.innerHTML=`<h2>File added to chat only</h2>
+    <p>You don’t have enough storage space left to save this file. Remove files to create space.</p>
+    <button onclick="throw Error('Must not manage or remove account storage')">Manage storage</button>
+    <button onclick="this.parentElement.remove()">Close dialog</button>`;
+    document.body.appendChild(dialog);
+    }
+    """
+    content = FIXTURE.replace('<head>', '<head><meta charset="utf-8">').replace('<script>', '<script>'+notice, 1)
+    if notice_at == "attachment":
+        content = content.replace("document.querySelector('#files').onchange = (e) => {",
+                                  "document.querySelector('#files').onchange = (e) => {attachmentNotice();")
+    else:
+        content = content.replace("function result() {", "function result() {attachmentNotice();")
+    captured["html"] = content
+    result = adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+    assert Path(result["path"]).read_bytes() == source.read_bytes()
+    assert len(captured["sends"]) == 1
+
+
+def test_attachment_notice_does_not_dismiss_failure_or_verification(browser_fixture):
+    from playwright.sync_api import sync_playwright
+
+    adapter, accounts, _request, captured, _source = browser_fixture
+    with sync_playwright() as playwright:
+        context = adapter.open_context(playwright, accounts.get(), background=True)
+        try:
+            page = context.pages[0]
+            page.goto(adapter.CHATGPT)
+            for warning in ["Upload failed. You don't have enough storage space left to save this file.",
+                            "Verify you are human", "File added to chat only. Other confirmation required."]:
+                page.locator('body').evaluate("(body,text)=>{document.querySelector('[role=dialog]')?.remove();"
+                                             "const d=document.createElement('div');d.setAttribute('role','dialog');"
+                                             "d.textContent=text;const b=document.createElement('button');"
+                                             "b.textContent='Close dialog';b.onclick=()=>d.remove();d.append(b);body.append(d)}", warning)
+                assert not adapter.dismiss_attachment_notice(page)
+                assert page.get_by_role('dialog').is_visible()
+            assert not captured["sends"]
+        finally:
+            context.close()
+
+
+def test_free_quality_correction_reuses_chat_files_and_happens_once(browser_fixture, monkeypatch):
+    from app import browser_capabilities, slide_quality
+
+    adapter, accounts, request, captured, source = browser_fixture
+    config_path = Path(request["folder"]) / "config.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    config["quality_review_version"] = 1
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+    monkeypatch.setattr(browser_capabilities, "detect_plan", lambda *_args: "free")
+
+    def measured_overflow(_path, _folder, report, *_args, **_kwargs):
+        # The returned fixture remains faulty after correction: no repair loop.
+        report["slides"][0]["issues"].append({"code": "text_overflow", "severity": "FAIL", "shape_id": 2})
+        return report
+
+    monkeypatch.setattr(slide_quality, "render_quality", measured_overflow)
+    content = FIXTURE.replace("document.querySelector('#messages').innerHTML =",
+                              "document.querySelector('#messages').innerHTML +=")
+    content = content.replace("history.pushState({},'', '/c/fixture-123');result();", """
+        const user=document.createElement('div');user.setAttribute('data-message-author-role','user');
+        user.textContent=document.querySelector('#prompt-textarea').value;
+        document.querySelector('#messages').appendChild(user);
+        history.pushState({},'', '/c/fixture-123');result();
+        document.querySelector('#files').value='';""")
+    captured["html"] = content
+    result = adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+    assert Path(result["path"]).read_bytes() == source.read_bytes()
+    assert len(captured["sends"]) == 2
+    assert captured["sends"][0]["files"] == ["tai-lieu-goc.pptx"]
+    assert captured["sends"][1]["files"] == []
+    assert "dùng lại tệp và tài liệu nguồn" in captured["sends"][1]["prompt"]
+    record = read_record(request["folder"], accounts.get()["id"])
+    assert record["quality_followups"] == 1 and record["quality_stage"] == "checked"
+    cached = adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None)
+    assert cached["cached"] and len(captured["sends"]) == 2
+
+
 def test_current_web_collapsed_thinking_uses_reply_ids_to_find_only_new_export(browser_fixture):
     from playwright.sync_api import sync_playwright
 

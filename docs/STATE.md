@@ -1,5 +1,23 @@
 # Trạng thái BiliClass
 
+Ngày 13/10/2026 — nguồn RC22 xử lý thông báo dung lượng kho tệp khi web đã
+nhận tệp vào cuộc trò chuyện: chỉ đóng đúng hộp “File added to chat only”,
+không bấm quản lý/xóa kho tệp và không che lỗi tải tệp, hạn mức hay xác minh.
+Kiểm tra bằng Chrome với overlay thực tại bước đính kèm và nhận kết quả.
+Lượt sửa chất lượng dùng lại PPTX/tài liệu của đúng cuộc trò chuyện; báo cáo
+được đưa trong prompt. Free không tải lại PPTX, báo cáo hoặc ảnh kiểm tra;
+gói trả phí đính kèm tối đa hai ảnh ví dụ. Giữ một lượt sửa có bản ghi và
+không tự duyệt bài/câu hỏi. Nhóm browser/account/dispatch/health 121 ca qua,
+ca Free sửa một lần và cache không gửi lại qua; smoke Qt toàn quy trình qua
+với Office preview thật, không QML warning. Web/voice trong smoke dùng fixture.
+
+Kiểm tra trực tiếp sau khi giáo viên cho phép gửi lại một lần: đã nhận được
+PPTX thật 48 slide, lưu vào thư viện; 69 tệp media giữ nguyên byte, 41 slide
+giữ cấu trúc timing và đủ 48 notes VI:/EN:. Tác vụ không cần lượt yêu cầu
+xuất tệp thêm. Bản nhận đầu có 36 FAIL/12 CHECK khi render và đo bằng Office;
+không coi việc nhận tệp là xác nhận đủ chất lượng để dạy. Bài và bằng chứng
+chi tiết thuộc thư viện cá nhân/reports ngoài Git.
+
 Ngày 13/10/2026 — đã phát hành [RC21](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc21)
 từ commit ứng dụng `8ad9710545e51d636996717ce3131c0b7d5ac0b4`.
 Build một lần sau kiểm tra nguồn, 574,26 giây. ZIP Windows 679.268.139 byte,
