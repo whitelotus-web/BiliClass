@@ -1,5 +1,25 @@
 # Trạng thái BiliClass
 
+Ngày 14/10/2026 — đã phát hành [RC26](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc26)
+từ commit ứng dụng `1710537f8816da747392ab81c68c1718de451d08`. ZIP
+667.914.274 byte, SHA-256
+`a125a43534f511a6dca768ef4c52d9616df4424a6cb09fa6dc85a61fbfb731e7`.
+Build 62 module app trong 5,95 giây, đối chiếu toàn bộ runtime/model dùng
+lại từ manifest RC25. 28 ca phục hồi/sửa bài liên quan, ruff, Qt nguồn và
+bộ cài 1366×850/1080×700 qua; cài/gỡ Unicode và CRC/checksum qua. Đã cài và
+mở đúng RC26 qua đường dẫn chuẩn; đọc UI xác nhận nút sửa/cập nhật, Trở lại
+thư viện bên phải, bản quyền ở thanh bên dưới phiên bản. Updater từ RC24
+nhận đúng RC26 với dung lượng/checksum khớp.
+
+Nghiệm thu thật: tài khoản vào được chat sau xác minh trực tiếp. Lượt sửa
+đã gửi một lần; thông báo gián đoạn vẫn còn sau hai lần nối lại. Chưa nhận
+được tệp sửa web, không tuyên bố bài đã hoàn tất. Bản sửa cục bộ được lưu
+thành revision mới, còn 5 slide cần sửa (14, 26, 28, 35, 47); tiến trình
+web được chuyển theo revision để tiếp tục đúng lượt đã gửi. Đối chiếu
+xác nhận nguyên văn native, Notes, media và cây timing không đổi so với
+bản trước; giữ nguồn/bản trước, không tự duyệt bài hoặc câu hỏi. Tài liệu,
+âm thanh, profile, báo cáo, model và EXE không vào Git.
+
 Ngày 14/10/2026 — đợt nghiệm thu bài thật phát hiện thông báo web “Connection
 interrupted. Waiting for the complete answer” trong role=status, ngoài nội
 dung trả lời, trong khi nút Stop vẫn hiện. Đây là nguyên nhân lượt sửa giữ
