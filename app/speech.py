@@ -5,9 +5,10 @@ import json
 import os
 import sys
 import wave
+from contextlib import contextmanager
 from functools import lru_cache
 from pathlib import Path
-from threading import Lock
+from threading import Condition, local
 from uuid import uuid4
 
 VIENEU_VERSION = "vieneu-v3-turbo-onnx-fp32-61b85e3-3.8.3-multilingual-wsola1"
@@ -20,7 +21,10 @@ VIENEU_VOICES = (
     {"id": "vieneu:Quang Sơn", "name": "Quang Sơn · Nam Trung", "detail": "Tự nhiên, mạch lạc"},
 )
 _VIENEU_BY_ID = {voice["id"]: voice for voice in VIENEU_VOICES}
-_ENGINE_LOCK = Lock()
+_ENGINE_TURN = Condition()
+_ENGINE_BUSY = False
+_FOREGROUND_WAITERS = 0
+_SYNTHESIS_CONTEXT = local()
 # Keep adjustments modest: very slow inference can sound less natural.
 _SPEEDS = (0.82, 0.88, 0.94, 1.0, 1.06, 1.12, 1.18)
 
@@ -116,9 +120,8 @@ def _vieneu_engine(root):
 def _synthesize_vieneu(text, voice_id, rate, temporary):
     import numpy as np
 
-    with _ENGINE_LOCK:
-        engine = _vieneu_engine(str(vieneu_root()))
-        samples = np.asarray(engine.infer(text, voice=voice_id.split(":", 1)[1]), dtype=np.float32)
+    engine = _vieneu_engine(str(vieneu_root()))
+    samples = np.asarray(engine.infer(text, voice=voice_id.split(":", 1)[1]), dtype=np.float32)
     if not samples.size or samples.ndim != 1 or not np.isfinite(samples).all():
         raise RuntimeError("VieNeu không tạo được âm thanh cho đoạn này.")
     if rate:
@@ -129,6 +132,44 @@ def _synthesize_vieneu(text, voice_id, rate, temporary):
     with wave.open(str(temporary), "wb") as writer:
         writer.setparams((1, 2, 48000, 0, "NONE", "not compressed"))
         writer.writeframes(pcm.tobytes())
+
+
+@contextmanager
+def synthesis_turn():
+    """One engine; requested playback takes the next turn before warmup."""
+    global _ENGINE_BUSY, _FOREGROUND_WAITERS
+    cancel = getattr(_SYNTHESIS_CONTEXT, "cancel", None)
+    foreground = cancel is None
+    with _ENGINE_TURN:
+        if foreground:
+            _FOREGROUND_WAITERS += 1
+        try:
+            while _ENGINE_BUSY or (not foreground and _FOREGROUND_WAITERS):
+                if cancel is not None and cancel.is_set():
+                    raise InterruptedError("Đã dừng chuẩn bị giọng đọc nền.")
+                _ENGINE_TURN.wait(.1)
+            if cancel is not None and cancel.is_set():
+                raise InterruptedError("Đã dừng chuẩn bị giọng đọc nền.")
+            _ENGINE_BUSY = True
+        finally:
+            if foreground:
+                _FOREGROUND_WAITERS -= 1
+    try:
+        yield
+    finally:
+        with _ENGINE_TURN:
+            _ENGINE_BUSY = False
+            _ENGINE_TURN.notify_all()
+
+
+def synthesize_background(text, voice_id, rate, directory, cancel):
+    """A lower priority cache request, without a second model instance."""
+    previous = getattr(_SYNTHESIS_CONTEXT, "cancel", None)
+    _SYNTHESIS_CONTEXT.cancel = cancel
+    try:
+        return synthesize(text, voice_id, rate, directory)
+    finally:
+        _SYNTHESIS_CONTEXT.cancel = previous
 
 
 def synthesize(text, voice_id, rate, directory):
@@ -143,15 +184,20 @@ def synthesize(text, voice_id, rate, directory):
     destination = root / (audio_key(text, voice_id, rate) + ".wav")
     if valid_audio(destination):
         return {"path": str(destination), "cached": True}
-    temporary = root / (str(uuid4()) + ".wav")
-    try:
-        _synthesize_vieneu(text, voice_id, rate, temporary)
-        if not valid_audio(temporary):
-            raise ValueError("Giọng đọc không tạo được âm thanh hợp lệ.")
-        temporary.replace(destination)
-        return {"path": str(destination), "cached": False}
-    finally:
-        temporary.unlink(missing_ok=True)
+    with synthesis_turn():
+        # Another reader/warmup may have completed this exact chunk while we
+        # waited. Reuse it instead of running inference twice.
+        if valid_audio(destination):
+            return {"path": str(destination), "cached": True}
+        temporary = root / (str(uuid4()) + ".wav")
+        try:
+            _synthesize_vieneu(text, voice_id, rate, temporary)
+            if not valid_audio(temporary):
+                raise ValueError("Giọng đọc không tạo được âm thanh hợp lệ.")
+            temporary.replace(destination)
+            return {"path": str(destination), "cached": False}
+        finally:
+            temporary.unlink(missing_ok=True)
 
 
 def play(path):

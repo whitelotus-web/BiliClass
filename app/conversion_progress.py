@@ -55,12 +55,18 @@ class ConversionProgress:
             pass
         self.elapsed = self.state["elapsedSeconds"]
         self.persisted = None
+        self.stage_started = time.monotonic()
+        self.stage_seconds = {}
 
     def __call__(self, message):
         self.state["message"] = message
         self._emit()
 
     def stage(self, stage, message, done=None, total=None):
+        if stage != self.state["stage"]:
+            previous = self.state["stage"]
+            self.stage_seconds[previous] = self.stage_seconds.get(previous, 0) + time.monotonic() - self.stage_started
+            self.stage_started = time.monotonic()
         start, end, label = STAGES[stage]
         counted = type(total) is int and total > 0 and type(done) is int
         done = min(total, max(0, done)) if counted else 0
@@ -76,7 +82,10 @@ class ConversionProgress:
         checkpoint = (self.state["stage"], self.state["percent"])
         if self.persisted == checkpoint:
             return
-        saved = {"version": 1, **self.state}
+        durations = {**self.stage_seconds}
+        current = self.state["stage"]
+        durations[current] = durations.get(current, 0) + time.monotonic() - self.stage_started
+        saved = {"version": 1, **self.state, "stageSeconds": {k: round(v, 2) for k, v in durations.items()}}
         try:
             temporary = self.path.with_suffix(".tmp")
             temporary.write_text(json.dumps(saved, ensure_ascii=False), encoding="utf-8")

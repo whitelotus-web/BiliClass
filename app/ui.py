@@ -104,6 +104,12 @@ class Bridge(QObject):
         self.english_reader.changed.connect(self.changed)
         self.english_reader.speakingChanged.connect(self._english_speaking)
         self.english_reader.failed.connect(lambda message: self.inform(message, True))
+        from .narration_preparation import NarrationPreparation
+
+        self.narration_preparation = NarrationPreparation(library.directory / "audio", self)
+        self.narration_preparation.changed.connect(self.changed)
+        self.changed.connect(self._pause_narration)
+        self.english_reader.changed.connect(self._pause_narration)
         self._message = ""
         self._error = False
         self._logo_revision = 0
@@ -162,6 +168,7 @@ class Bridge(QObject):
                     self._message = str(exc)
                 self.logger.info("Previous ChatGPT handoff is no longer available.")
         self.conversionProgress.connect(self._conversion_progress)
+        QTimer.singleShot(1100, self._resume_saved_narration)
         if self._chatgpt_request.get("config", {}).get("provider") == "browser_web":
             from .browser_dispatch import startup_resume
 
@@ -512,7 +519,6 @@ class Bridge(QObject):
     def _run_web_conversion(self):
         import json
 
-        from .browser_audio import prepare_narration
         from .browser_automation import read_record, write_record
         from .browser_dispatch import convert_available
         from .browser_health import quota_blocked
@@ -526,10 +532,11 @@ class Bridge(QObject):
             journal = Path(folder) / "browser-job.json"
             cached = json.loads(journal.read_text(encoding="utf-8")) if journal.is_file() else {}
             if cached.get("lesson_id"):
-                self.library.get(cached["lesson_id"])
+                lesson = self.library.get(cached["lesson_id"])
                 self._browser_state = {"running": False, "phase": "completed", "percent": 100, "waiting": False,
                                        "stageLabel": "Đã nhận và lưu bài giảng", "message": "Mở lại PowerPoint đã nhận."}
                 self.openLesson(cached["lesson_id"])
+                self._start_narration(lesson, folder)
                 return
             if self._browser_ai.finishProbeBeforeConversion(folder):
                 self.inform("Đang kết thúc kiểm tra phiên trước khi chuyển đổi…")
@@ -550,7 +557,6 @@ class Bridge(QObject):
         except (ValueError, KeyError, OSError, json.JSONDecodeError) as exc:
             self.inform(str(exc), True)
             return
-        voices, audio = dict(self.voiceSettings), self._browser_ai.audio
         self._browser_running = True
         self._browser_state = {"running": True, "phase": "working", "message": "Đang mở phiên web ChatGPT…"}
         progress = ConversionProgress(folder, self.browserConversionProgress.emit)
@@ -573,31 +579,61 @@ class Bridge(QObject):
             render_quality(self.library.directory / "sources" / source["file"], self.library.directory,
                            inspection["slide_quality"], self.cancel_event, progress.scope("import"), reuse_directory=folder)
             inspection["review_notes"] = list(dict.fromkeys(inspection["review_notes"] + quality_messages(inspection["slide_quality"])))
-            narration = prepare_narration(inspection, voices, self.library.directory / "audio", self.cancel_event,
-                                          progress) if audio else {}
-            progress.stage("save", "Đang lưu bài giảng và lời đọc…")
-            return config, source, inspection, narration, result["account_id"]
+            progress.stage("save", "Đang lưu PowerPoint và nội dung trợ giảng…")
+            return config, source, inspection, result["account_id"]
 
         def completed(result):
-            config, source, inspection, narration, used_account = result
+            config, source, inspection, used_account = result
             lesson = self.library.create_external_lesson(config, source, inspection)
             record = read_record(folder, used_account)
             record["lesson_id"] = lesson["id"]
             write_record(folder, record)
-            progress.stage("completed", "Đã nhận và lưu PowerPoint cùng lời đọc.")
+            progress.stage("completed", "Đã nhận và lưu PowerPoint. Giọng đọc tiếp tục chuẩn bị ở nền.")
             self._browser_running = False
             self._browser_state.update(running=False, phase="completed", message="Đã nhận PowerPoint từ ChatGPT.")
             self.openLesson(lesson["id"])
-            self._quick_result["audio"] = narration
+            self._start_narration(lesson, folder, inspection)
             failures = lesson.get("slide_quality", {}).get("counts", {}).get("FAIL", 0)
             message = (f"Đã nhận bản nháp; {failures} slide có lỗi cần sửa. Xem báo cáo kiểm tra." if failures
                        else "Đã nhận bản nháp. Xem ảnh và các điểm CHECK trước khi Dùng để dạy.")
-            audio_failed = narration.get("failed", 0)
-            if audio_failed:
-                message += f" {audio_failed} đoạn chưa tạo được giọng đọc; kiểm tra giọng đã chọn. PowerPoint và âm thanh đã tạo được giữ lại."
-            self.inform(message, bool(failures or audio_failed))
+            self.inform(message, bool(failures))
 
         self.launch(work, completed)
+
+    @Property("QVariantMap", notify=changed)
+    def narrationPreparation(self):
+        state = self.narration_preparation.state
+        return state if state.get("lesson_id") == self._lesson.get("id") else {}
+
+    @Slot()
+    def _pause_narration(self):
+        self.narration_preparation.pause(self._busy or self._speaking
+                                        or self.english_reader.state in {"preparing", "reading", "paused"})
+
+    def _start_narration(self, lesson, folder, inspection=None):
+        if not self._browser_ai.audio:
+            return
+        voices = dict(self.voiceSettings)
+        if not voices.get("voice"):
+            return
+        if inspection is None:
+            inspection = {"profile": {"units": [{"vi": s["vi"], "en": s["en"]} for s in lesson["segments"]]},
+                          "slide_speech": lesson.get("slide_speech", {})}
+        self.narration_preparation.start(lesson["id"], inspection, voices, folder)
+
+    @Slot()
+    def _resume_saved_narration(self):
+        if self._busy or not self._chatgpt_request or self.narration_preparation.worker is not None:
+            return
+        folder = Path(self._chatgpt_request["folder"])
+        try:
+            record = json.loads((folder / "browser-job.json").read_text(encoding="utf-8"))
+            if not record.get("lesson_id") or (folder / "conversion-stopped").exists():
+                return
+            lesson = self.library.get(record["lesson_id"])
+            self._start_narration(lesson, folder)
+        except (OSError, ValueError, KeyError):
+            pass
 
 
     @Slot()
@@ -1184,6 +1220,7 @@ class Bridge(QObject):
             return
         self.stopSpeech()
         # One atomic preference prevents a half-saved voice/rate combination.
+        self.narration_preparation.cancel()
         self.library.set_setting("voice_options", {"voice": voice, "rate": rate})
         self.inform("Đã lưu giọng chung và tốc độ cho tiếng Việt, tiếng Anh và mascot.")
 
@@ -2239,6 +2276,7 @@ def run(args):
         bridge.worker.wait()  # closing is disabled while jobs run; also safe on OS shutdown
     bridge.library.close()
     bridge.english_reader.shutdown()
+    bridge.narration_preparation.shutdown()
     speech.stop()
     del engine
     return result

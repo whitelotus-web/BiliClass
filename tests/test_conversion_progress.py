@@ -59,3 +59,18 @@ def test_legacy_callbacks_still_receive_only_text():
     messages = []
     emit_progress(messages.append, "audio", "one voice", 1, 2)
     assert messages == ["one voice"]
+
+
+def test_stage_timings_record_real_wait_without_advancing_percentage(tmp_path, monkeypatch):
+    clock = [100.0]
+    monkeypatch.setattr("app.conversion_progress.time.monotonic", lambda: clock[0])
+    sink = ConversionProgress(tmp_path, lambda _: None)
+    sink.stage("upload", "attach")
+    clock[0] += 20
+    sink.stage("waiting", "generation")
+    clock[0] += 240
+    sink.stage("download", "receive")
+    saved = json.loads((tmp_path / "conversion-progress.json").read_text())
+    assert saved["stageSeconds"]["upload"] == 20
+    assert saved["stageSeconds"]["waiting"] == 240
+    assert saved["percent"] == 55

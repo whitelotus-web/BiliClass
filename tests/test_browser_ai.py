@@ -311,10 +311,10 @@ def test_key_timeout_after_send_observes_receipt_without_pressing_again(browser_
     assert read_record(request["folder"], accounts.get()["id"])["state"] == "completed"
 
 
-def receipt_fixture_html(prompt, *, duplicate=False):
+def receipt_fixture_html(prompt, *, duplicate=False, conversation="/c/receipt-one"):
     # Actual message text is present only on conversation pages, not the home
     # page. The chat history is ordinary, visible web UI.
-    history = '<nav><a href="/c/receipt-one">Recent chat</a>'
+    history = f'<nav><a href="{conversation}">Recent chat</a>'
     if duplicate:
         history += '<a href="/c/receipt-two">Other chat</a>'
     history += '</nav>'
@@ -334,11 +334,16 @@ def test_lost_first_ack_finds_chat_and_finishes_without_resubmit(browser_fixture
 
     def lose_receipt(page, folder, record, *args, **options):
         original(page, folder, record, *args, **options)
+        sent_url = record["url"]
         # Simulate a disconnected CDP client before the acknowledged URL was
         # durably written. The server still has the original message/result.
         record.update(state="submitting", url="", error="receipt")
         adapter.write_record(folder, record)
-        captured["html"] = receipt_fixture_html(request["prompt"])
+        # Session restore now brings the original tab back too. History must
+        # describe that same server conversation, not invent a second chat
+        # containing the identical message on every /c/ URL.
+        captured["sent_url"] = sent_url
+        captured["html"] = receipt_fixture_html(request["prompt"], conversation=sent_url.removeprefix("https://chatgpt.com"))
         raise BrowserProblem("receipt", "Fixture lost acknowledgement")
 
     monkeypatch.setattr(adapter, "submit", lose_receipt)
@@ -347,7 +352,7 @@ def test_lost_first_ack_finds_chat_and_finishes_without_resubmit(browser_fixture
     assert len(captured["sends"]) == 1 and captured["contexts"] == 2
     assert Path(result["path"]).read_bytes() == source.read_bytes()
     record = read_record(request["folder"], accounts.get()["id"])
-    assert record["url"] == "https://chatgpt.com/c/receipt-one" and record["state"] == "completed"
+    assert record["url"] == captured["sent_url"] and record["state"] == "completed"
 
 
 @pytest.mark.parametrize("kind", ["legacy", "duplicate", "mismatch", "tampered"])

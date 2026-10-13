@@ -4,6 +4,7 @@ Uses Chrome's supported debugging interface. No personal profile, imported
 cookies, browser fingerprint changes or verification bypass.
 """
 
+import json
 import os
 import re
 import shutil
@@ -11,6 +12,7 @@ import subprocess
 import time
 from pathlib import Path
 from threading import Event
+from uuid import uuid4
 
 
 class ChromeSessionError(ValueError):
@@ -47,6 +49,32 @@ def background_position():
     return -3000, 0
 
 
+def preserve_session(profile):
+    """Restore session cookies in this idle, tool-owned profile on next launch.
+
+    Chrome drops session-only cookies on a normal fresh startup. Use its
+    ordinary Continue where you left off preference; never copy or rewrite
+    cookies, tokens or the teacher's personal Chrome settings.
+    """
+    path = profile / "Default" / "Preferences"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        preferences = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+        if not isinstance(preferences, dict) or not isinstance(preferences.get("session", {}), dict):
+            raise ValueError("Invalid Chrome preferences")
+        if preferences.get("session", {}).get("restore_on_startup") == 1:
+            return
+        preferences.setdefault("session", {})["restore_on_startup"] = 1
+        temporary = path.with_name(f"Preferences.biliclass-{uuid4()}.tmp")
+        try:
+            temporary.write_text(json.dumps(preferences, ensure_ascii=False), encoding="utf-8")
+            temporary.replace(path)
+        finally:
+            temporary.unlink(missing_ok=True)
+    except (OSError, ValueError) as exc:
+        raise ChromeSessionError("Chưa lưu được cấu hình giữ phiên Chrome. Hồ sơ hiện tại được giữ nguyên; kiểm tra quyền ghi trên máy.") from exc
+
+
 class PlainChromeLogin:
     """Human sign-in in Chrome with no driver/debug connection attached."""
 
@@ -56,9 +84,10 @@ class PlainChromeLogin:
             raise ChromeSessionError("Hồ sơ đăng nhập Chrome không hợp lệ.")
         require_idle_profile(profile)
         profile.mkdir(parents=True, exist_ok=True)
+        preserve_session(profile)
         self.process = subprocess.Popen(
             [str(chrome_executable()), f"--user-data-dir={profile}", "--no-first-run",
-             "--no-default-browser-check", "--new-window", url],
+             "--no-default-browser-check", "--restore-last-session", url],
             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
         )
@@ -76,7 +105,9 @@ class PlainChromeLogin:
             import win32process
 
             def close_window(hwnd, _):
-                if win32process.GetWindowThreadProcessId(hwnd)[1] == self.process.pid and win32gui.IsWindowVisible(hwnd):
+                if (win32process.GetWindowThreadProcessId(hwnd)[1] == self.process.pid
+                        and win32gui.GetClassName(hwnd) == "Chrome_WidgetWin_1"
+                        and win32gui.IsWindowVisible(hwnd)):
                     win32gui.PostMessage(hwnd, win32con.WM_CLOSE, 0, 0)
             win32gui.EnumWindows(close_window, None)
         else:
@@ -190,17 +221,20 @@ def open_chrome(playwright, account, *, background, cancel=None, timeout=30):
         raise ChromeSessionError("Đã hủy mở Chrome.")
     require_idle_profile(profile)
     profile.mkdir(parents=True, exist_ok=True)
+    preserve_session(profile)
     # Only remove a stale endpoint after checking no native Chrome owns it.
     (profile / "DevToolsActivePort").unlink(missing_ok=True)
     arguments = [str(chrome_executable()), f"--user-data-dir={profile}",
                  "--remote-debugging-address=127.0.0.1", "--remote-debugging-port=0",
                  "--no-first-run", "--no-default-browser-check", "--disable-session-crashed-bubble",
+                 "--restore-last-session",
                  "--window-size=1360,900"]
     left, top = background_position()
     if background:
         arguments.extend([f"--window-position={left},{top}", "--disable-backgrounding-occluded-windows",
                           "--disable-renderer-backgrounding", "--disable-background-timer-throttling"])
-    arguments.append("about:blank")
+    if not (profile / "Default" / "Sessions").is_dir():
+        arguments.append("about:blank")
     startup = None
     if os.name == "nt" and background:
         # Keep ordinary Chrome and the saved profile, with only its owned
@@ -228,6 +262,16 @@ def open_chrome(playwright, account, *, background, cancel=None, timeout=30):
                     raise ChromeSessionError("Chrome chưa tạo được hồ sơ riêng. Đóng cửa sổ đó và thử lại.")
                 context = ChromeSession(browser, process)
                 context.set_default_timeout(5000)
+                if not context.pages:
+                    # Restoring session cookies can expose the context before
+                    # Chrome has restored its first tab. Do not accumulate a
+                    # new blank tab on each health probe/conversion retry.
+                    from playwright.sync_api import TimeoutError
+
+                    try:
+                        context.wait_for_event("page", timeout=1500)
+                    except TimeoutError:
+                        context.new_page()
                 if background and context.pages:
                     try:
                         session = context.new_cdp_session(context.pages[0])

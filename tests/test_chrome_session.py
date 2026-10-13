@@ -58,6 +58,22 @@ def test_cancel_before_start_never_launches_chrome(tmp_path, monkeypatch):
         open_chrome(None, accounts.get(), background=True, cancel=cancel)
 
 
+def test_session_restore_preserves_other_preferences_and_refuses_corrupt_file(tmp_path):
+    import json
+
+    from app.chrome_session import preserve_session
+
+    path = tmp_path / "Default" / "Preferences"
+    path.parent.mkdir()
+    path.write_text(json.dumps({"unrelated": {"value": 7}, "session": {"other": True}}))
+    preserve_session(tmp_path)
+    assert json.loads(path.read_text()) == {"unrelated": {"value": 7}, "session": {"other": True, "restore_on_startup": 1}}
+    path.write_text("broken-profile")
+    with pytest.raises(ChromeSessionError):
+        preserve_session(tmp_path)
+    assert path.read_text() == "broken-profile"
+
+
 def test_native_chrome_persists_only_its_own_fixture_session_and_closes_process(tmp_path):
     """Real Chrome, fake local session; no ChatGPT request or real credentials."""
     from playwright.sync_api import sync_playwright
@@ -70,7 +86,7 @@ def test_native_chrome_persists_only_its_own_fixture_session_and_closes_process(
         process = context.process
         try:
             context.route("**/*", lambda r: r.fulfill(content_type="text/html", body="<title>Fixture</title>",
-                          headers={"Set-Cookie": "fixture_session=fixture-only; Path=/; Max-Age=600; Secure; HttpOnly"}))
+                          headers={"Set-Cookie": "fixture_session=fixture-only; Path=/; Secure; HttpOnly"}))
             page = context.pages[0]
             page.goto(url)
             page.evaluate("localStorage.setItem('fixture_marker', 'fixture-only')")
@@ -92,7 +108,7 @@ def test_native_chrome_persists_only_its_own_fixture_session_and_closes_process(
         assert process.poll() is not None
 
         seen = []
-        for item, expected in ((first, "fixture-only"), (second, None)):
+        for item, expected in ((first, "fixture-only"), (first, "fixture-only"), (second, None)):
             context = open_chrome(playwright, accounts.get(item["id"]), background=True)
             process = context.process
             try:
@@ -100,6 +116,7 @@ def test_native_chrome_persists_only_its_own_fixture_session_and_closes_process(
                     seen.append((item["id"], request.request.headers.get("cookie", "")))
                     request.fulfill(content_type="text/html", body="<title>Fixture</title>")
                 context.route("**/*", route)
+                assert len(context.pages) == 1, "Health/retry launches must not accumulate blank tabs"
                 page = context.pages[0]
                 page.goto(url)
                 assert page.evaluate("localStorage.getItem('fixture_marker')") == expected
@@ -125,15 +142,18 @@ def test_plain_chrome_login_saves_session_without_debugging_and_closes_only_owne
     loaded, requests, launched = Event(), [], []
 
     class Handler(BaseHTTPRequestHandler):
+        issued = False
+
         def do_GET(self):
             requests.append((self.path, self.headers.get("Cookie", "")))
             self.send_response(200)
             self.send_header("Content-Type", "text/html")
-            if self.path == "/sign-in":
+            if self.path == "/sign-in" and not Handler.issued:
+                Handler.issued = True
                 self.send_header("Set-Cookie", "fixture_saved=fixture-only; Path=/; Max-Age=600; HttpOnly")
             self.end_headers()
-            self.wfile.write(b"<title>BiliClass local fixture</title><h1>Fixture</h1>")
-            if self.path == "/sign-in":
+            self.wfile.write(b"<title>BiliClass local fixture</title><h1>Fixture</h1><script>if(location.pathname==='/sign-in')fetch('/ready')</script>")
+            if self.path == "/ready" and "fixture_saved=fixture-only" in self.headers.get("Cookie", ""):
                 loaded.set()
 
         def log_message(self, *_):

@@ -1,16 +1,17 @@
 """Pre-render extracted narration as draft audio; never approve or play it."""
 
 
-def prepare_narration(inspection, voices, directory, cancel, progress):
-    from . import speech
-    from .conversion_progress import emit_progress
+def narration_tasks(inspection, voices):
     from .slide_speech import speech_chunks
 
     data = inspection.get("slide_speech")
     if data:
-        texts = [(unit["vi"], "vi") for unit in inspection["profile"]["units"] if unit["vi"].strip()]
-        texts.extend((segment["english_text"], "en") for slide in data["slides"]
-                     for segment in slide["englishSpeechSegments"] if segment["status"] == "ready")
+        from itertools import zip_longest
+
+        vietnamese = [(unit["vi"], "vi") for unit in inspection["profile"]["units"] if unit["vi"].strip()]
+        english = [(segment["english_text"], "en") for slide in data["slides"]
+                   for segment in slide["englishSpeechSegments"] if segment["status"] == "ready"]
+        texts = [item for pair in zip_longest(english, vietnamese) for item in pair if item]
     else:
         texts = [(unit[language], language) for unit in inspection["profile"]["units"]
                  for language in ("vi", "en") if unit[language].strip()]
@@ -25,6 +26,14 @@ def prepare_narration(inspection, voices, directory, cancel, progress):
     duplicates = len(tasks)
     tasks = list(dict.fromkeys(tasks))
     duplicates -= len(tasks)
+    return tasks, skipped, duplicates
+
+
+def prepare_narration(inspection, voices, directory, cancel, progress):
+    from . import speech
+    from .conversion_progress import emit_progress
+
+    tasks, skipped, duplicates = narration_tasks(inspection, voices)
     complete, cached, errors = 0, 0, []
     emit_progress(progress, "audio", f"Chuẩn bị {len(tasks)} đoạn giọng đọc khác nhau…", 0, len(tasks))
     for index, (text, voice) in enumerate(tasks, 1):

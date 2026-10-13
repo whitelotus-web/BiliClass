@@ -6,7 +6,7 @@ RC14 thêm [kiểm tra slide và English Reader](docs/SMART_SLIDES_READER.md): l
 
 ## Cài để dùng trên máy khác
 
-Tải **BiliClass-RC18-Windows.zip** tại [Release RC18](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc18), giải nén toàn bộ rồi chạy **Setup.cmd**. Không tải “Source code” nếu chỉ muốn cài và dùng. Không cần Python hoặc API key.
+Tải **BiliClass-RC19-Windows.zip** tại [Release RC19](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc19), giải nén toàn bộ rồi chạy **Setup.cmd**. Không tải “Source code” nếu chỉ muốn cài và dùng. Không cần Python hoặc API key.
 
 RC16 có [thanh tiến trình % và tối ưu xử lý trên máy](docs/CONVERSION_PROGRESS.md): dùng lại ảnh/đo bố cục đã kiểm tra, tránh voice trùng và chờ menu model sẵn sàng. % giữ ở mốc chờ khi ChatGPT đang tạo bài; không đoán % xử lý bên trong web.
 
@@ -19,6 +19,8 @@ App tự kiểm tra bản mới khi mở. Khi có phiên bản mới, chọn **C
 RC17 dùng [một giọng VieNeu cho Việt và Anh](docs/MULTILINGUAL_VOICE.md), có sáu giọng nam/nữ, nghe thử tốc độ trước khi lưu.
 
 RC18 [tự khôi phục xác nhận gửi](docs/BROWSER_RECOVERY.md) khi Chrome gián đoạn, tiếp tục đúng chat và không gửi trùng. Tác vụ đã lưu được tiếp tục sau khởi động lại, trừ khi giáo viên bấm Dừng hoặc web yêu cầu can thiệp.
+
+RC19 [giữ phiên Chrome và mở bài trước khi tạo đủ âm thanh](docs/SESSION_AND_SPEED.md). Giọng đọc tự chuẩn bị ở nền, có trạng thái riêng và ưu tiên đoạn đang cần đọc. 100% chuyển đổi nghĩa là đã nhận/kiểm tra/lưu PowerPoint; việc chuẩn bị âm thanh còn lại không chặn xem bài.
 
 ## Chuyển đổi và dạy
 

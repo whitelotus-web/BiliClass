@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.0rc19 — 13/10/2026 — Giữ phiên và tách giọng đọc nền
+
+- Chrome riêng khôi phục phiên khi mở lại; giữ cookie phiên qua các lượt xử lý nền, kiểm tra profile bận/cấu hình hỏng trước khi chạy.
+- Nhận, kiểm tra và lưu PowerPoint trước; giọng đọc tự chuẩn bị ở nền với trạng thái riêng, không chặn xem bài hoặc mất bài khi TTS lỗi.
+- Ưu tiên lượt tạo giọng khi thầy cô cần đọc, tránh hai lần tạo cùng WAV, giữ cache khi dừng và tiếp tục âm thanh của bài đã lưu sau khởi động lại.
+- Ghi thời gian từng bước để chẩn đoán chờ lâu; giữ model, retry cùng chat, duyệt slide và cấu trúc Cài đặt hiện tại. Bằng chứng/phạm vi: docs/SESSION_AND_SPEED.md.
+
 ## 1.0.0rc18 — 13/10/2026 — Tự khôi phục Browser AI
 
 - Gửi bằng bàn phím sau khi kiểm tra tài liệu/prompt, lưu ý định gửi và theo dõi xác nhận; timeout không bấm gửi lần hai.

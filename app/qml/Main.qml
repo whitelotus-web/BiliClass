@@ -703,6 +703,7 @@ ApplicationWindow {
                             Action { text: "Dừng đọc"; onClicked: bridge.stopSpeech() }
                             Action { text: "Đọc lại"; enabled: !bridge.busy; onClicked: bridge.readSlideEnglish() }
                         }
+                        Copy { objectName: "narrationPreparationStatus"; visible: !!bridge.narrationPreparation.message; text: bridge.narrationPreparation.message || ""; Layout.fillWidth: true; color: bridge.narrationPreparation.failed ? "#a66318" : root.muted }
                         RowLayout { Layout.fillWidth: true; visible: !!bridge.lesson.external_deck
                             Copy { text: (bridge.lesson.slide_quality || {}).counts ? "Kiểm tra slide: " + (bridge.lesson.slide_quality.counts.FAIL || 0) + " FAIL · " + (bridge.lesson.slide_quality.counts.CHECK || 0) + " CHECK" : "Chưa kiểm tra toàn bộ slide và lời đọc"; Layout.fillWidth: true }
                             Action { objectName: "inspectSlideQualityButton"; text: bridge.lesson.slide_quality && bridge.lesson.slide_quality.counts ? "Kiểm tra lại" : "Kiểm tra toàn bộ slide"; enabled: !bridge.busy && !bridge.powerpointState.active; onClicked: bridge.inspectSlideQuality() }

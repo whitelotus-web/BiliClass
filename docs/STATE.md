@@ -1,5 +1,21 @@
 # Trạng thái BiliClass
 
+RC19 nguồn đã kiểm tra ngày 13/10/2026: giữ phiên Chrome qua các lượt chạy nền,
+không thêm tab trắng mỗi lần kiểm tra; lưu/mở PowerPoint trước rồi tự chuẩn bị
+âm thanh ở nền, ưu tiên lượt cần đọc và chống tạo trùng WAV. Cấu trúc Settings
+và quyền duyệt slide giữ nguyên. Phạm vi/bằng chứng tại [SESSION_AND_SPEED](SESSION_AND_SPEED.md).
+
+78 ca core qua; lượt rộng browser/Chrome 78/79 qua, một fixture dùng hai URL
+giả cho cùng yêu cầu nên bị chặn đúng bởi quy tắc không gửi trùng sau session
+restore. Fixture sửa dùng cùng URL như server thật: 14 ca khôi phục/Chrome qua,
+chín ca Chrome chạy lại qua, gồm cookie phiên/local storage, profile tách biệt,
+không thêm tab trắng và Chrome đăng nhập thường với cookie có thời hạn.
+Qt Browser AI, startup resume, luồng lưu trước âm thanh bị chặn/lỗi và reader
+thật PowerPoint/VieNeu/MCI đều qua, không QML warning. Hai profile Free trên
+máy đã kiểm tra lại thành công, không gửi bài mới. Không coi fixture là bằng
+chứng một bài mới đã hoàn tất trên ChatGPT; không bảo đảm web không thu hồi
+phiên hoặc luôn tạo được PPTX. Bộ cài RC19 đang được tạo từ mốc nguồn này.
+
 Ngày 13/10/2026 — đã phát hành [RC18](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc18),
 commit ứng dụng `61264c90dce533da69cce963516faa4a08997c28`. ZIP có 3.879 tệp,
 679.257.153 byte, SHA-256 `2e37853924f4845b56d989a553f871259ec119e895d23b40867f6b816d902994`;
