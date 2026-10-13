@@ -1,5 +1,14 @@
 # Trạng thái BiliClass
 
+Ngày 13/10/2026 — nguồn RC24 đổi chân cửa sổ thành ba dòng: © 2026 Nguyễn
+Diệu Linh; Giáo viên Tin học - Trường THPT Vân Cốc; All rights reserved.
+Thông báo và trạng thái tác vụ đứng cạnh nhau, không chèn vào slide hoặc
+prompt. Kiểm tra Qt Settings 1366×850 và 1080×700 qua, nhìn rõ ba dòng và
+nút cập nhật; không warning. Đã sửa thứ tự đóng ứng dụng để hủy QML trước
+khi đóng thư viện, tránh binding đọc database đã đóng; kiểm tra cả hai
+lượt thoát không có diagnostics. Smoke menu/editor dùng dữ liệu riêng và
+8 ca cập nhật qua. Runtime/model/phiên tài khoản không đổi.
+
 Ngày 13/10/2026 — đã phát hành [RC23](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc23)
 từ commit ứng dụng `4a57d1d1f3cbeb1dafffd33c14fe9feac4f62c0c`. ZIP
 667.886.101 byte, SHA-256

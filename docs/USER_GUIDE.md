@@ -1,8 +1,8 @@
-# BiliClass RC21 — hướng dẫn dùng thử
+# BiliClass RC24 — hướng dẫn dùng thử
 
 ## Cài lần đầu
 
-1. Mở [Release RC21](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc21), tải **BiliClass-RC21-Windows.zip** trong Assets.
+1. Mở [Release RC24](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc24), tải **BiliClass-RC24-Windows.zip** trong Assets.
 2. Giải nén toàn bộ bằng Windows; không chạy ứng dụng ngay trong cửa sổ ZIP.
 3. Chạy **Setup.cmd**. Bộ cài kiểm tra checksum, cài vào `%LOCALAPPDATA%/Programs/BiliClass/<version>` và tạo mục Start menu, không cần quyền quản trị.
 4. Mở BiliClass từ Start menu, vào **Cài đặt → Browser AI → Thêm tài khoản**, đăng nhập ChatGPT. Mỗi máy tự đăng nhập; không sao chép profile của người khác.
@@ -14,7 +14,15 @@ Portable: chạy `BiliClass/BiliClass.exe` trong thư mục đã giải nén. Gi
 
 Trong Cài đặt, Browser AI ở vị trí thứ hai, Song ngữ ở cuối. Nút **Mở tài khoản** trên mỗi profile mở đúng phiên Chrome đã lưu, không tạo tài khoản mới; khi đóng cửa sổ hoặc bấm Kiểm tra và lưu, tool xác minh lại phiên. Hoàn tất tác vụ/profile đang mở trước khi mở tài khoản khác.
 
-Logo tải ở **Chung** cũng hiện cạnh tên giáo viên ở chân thanh bên. Không có logo thì hiện chữ cái tên; thay/bỏ logo cập nhật ngay. Tùy chọn hiện hồ sơ trên bài giảng chỉ điều khiển phần hồ sơ trong bài. Copyright tác giả hiển thị riêng ở chân cửa sổ BiliClass, không được tự thêm vào tài liệu hoặc prompt của giáo viên.
+Logo tải ở **Chung** cũng hiện cạnh tên giáo viên ở chân thanh bên. Không có logo thì hiện chữ cái tên; thay/bỏ logo cập nhật ngay. Tùy chọn hiện hồ sơ trên bài giảng chỉ điều khiển phần hồ sơ trong bài. Thông báo bản quyền hiển thị riêng ở chân cửa sổ BiliClass, không được tự thêm vào tài liệu hoặc prompt của giáo viên:
+
+```text
+© 2026 Nguyễn Diệu Linh
+Giáo viên Tin học - Trường THPT Vân Cốc
+All rights reserved.
+```
+
+“All rights reserved.” thông báo bảo lưu quyền, không phải thủ tục đăng ký bản quyền. [WIPO giải thích về ký hiệu © và bảo hộ tự động](https://www.wipo.int/en/web/copyright/faq-copyright). Các giấy phép thành phần bên thứ ba vẫn nằm trong thư mục `licenses` của bản cài.
 
 ## Tạo bài giảng
 

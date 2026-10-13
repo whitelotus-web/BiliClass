@@ -968,10 +968,10 @@ ApplicationWindow {
                 objectName: "applicationFooter"
                 Layout.fillWidth: true; implicitHeight: footerContent.implicitHeight + 16
                 color: bridge.error ? "#fff0eb" : bridge.busy ? "#eaf3ff" : "#ffffff"
-                ColumnLayout {
+                RowLayout {
                     id: footerContent
                     anchors.left: parent.left; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                    anchors.leftMargin: 25; anchors.rightMargin: 25; spacing: 5
+                    anchors.leftMargin: 25; anchors.rightMargin: 25; spacing: 18
                     RowLayout { Layout.fillWidth: true; spacing: 10
                         BusyIndicator { visible: bridge.busy; running: bridge.busy; Layout.preferredWidth: 23; Layout.preferredHeight: 23 }
                         Label { id: statusMessage; objectName: "applicationStatusMessage"; text: (root.page === "chatgpt" || bridge.browserState.running || bridge.browserState.phase === "error" && bridge.message === bridge.browserState.message) && bridge.browserAI.automatic ? bridge.browserState.displayMessage : bridge.message || "Sẵn sàng · Dữ liệu bài giảng được lưu tại máy"; color: bridge.error ? "#b14828" : root.muted; font.pixelSize: 11; wrapMode: Text.WordWrap; Layout.fillWidth: true; textFormat: Text.PlainText }
@@ -979,9 +979,10 @@ ApplicationWindow {
                     }
                     Label {
                         objectName: "applicationCopyright"
-                        text: "Copyright 2026: Nguyễn Diệu Linh - Giáo viên Tin học - Trường THPT Vân Cốc"
+                        text: "© 2026 Nguyễn Diệu Linh\nGiáo viên Tin học - Trường THPT Vân Cốc\nAll rights reserved."
                         color: root.muted; font.pixelSize: 10; textFormat: Text.PlainText
-                        wrapMode: Text.WordWrap; Layout.fillWidth: true; horizontalAlignment: Text.AlignRight
+                        wrapMode: Text.WordWrap; Layout.maximumWidth: footerContent.width * 0.5
+                        horizontalAlignment: Text.AlignRight
                     }
                 }
             }

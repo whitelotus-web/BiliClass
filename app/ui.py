@@ -6,7 +6,7 @@ from dataclasses import asdict
 from pathlib import Path
 from threading import Event
 
-from PySide6.QtCore import Property, QObject, QPoint, QStandardPaths, QThread, QTimer, QUrl, Signal, Slot
+from PySide6.QtCore import QCoreApplication, QEvent, Property, QObject, QPoint, QStandardPaths, QThread, QTimer, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices, QFont, QFontDatabase, QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuick import QQuickWindow
@@ -2285,9 +2285,12 @@ def run(args):
         bridge.powerpoint_worker.wait()  # Helper supervisor has its own bounded shutdown.
     if bridge.worker:
         bridge.worker.wait()  # closing is disabled while jobs run; also safe on OS shutdown
-    bridge.library.close()
     bridge.english_reader.shutdown()
     bridge.narration_preparation.shutdown()
     speech.stop()
+    # QML bindings may still read the library while their objects are destroyed.
+    engine.deleteLater()
+    QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+    bridge.library.close()
     del engine
     return result
