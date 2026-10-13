@@ -1,5 +1,31 @@
 # Trạng thái BiliClass
 
+Ngày 13/10/2026 — đã phát hành [RC18](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc18),
+commit ứng dụng `61264c90dce533da69cce963516faa4a08997c28`. ZIP có 3.879 tệp,
+679.257.153 byte, SHA-256 `2e37853924f4845b56d989a553f871259ec119e895d23b40867f6b816d902994`;
+GitHub đã xác nhận digest và dung lượng. Cài/gỡ vào thư mục Unicode riêng qua:
+Qt nhập bài/Browser AI, VieNeu cùng speaker Việt/Anh, templates, lớp học và
+sao lưu, gỡ giữ thư viện. Đây là kiểm tra trên máy hiện tại, chưa phải chứng
+nhận Windows sạch/máy thứ hai. RC18 đã mở đúng bài vừa nhận, cửa sổ phản hồi,
+nhãn phiên bản và Slide 1/79 xác nhận qua UI Automation.
+
+RC18 khôi phục xác nhận gửi, không gửi lại bài khi chưa rõ trạng thái, tự tiếp
+tục tác vụ đã cho phép sau khởi động lại và giữ lệnh Dừng. Lỗi tác vụ không
+được dùng làm lỗi đăng nhập chung của các profile. Chrome fixture kiểm tra
+overlay, timeout sau phím gửi, mất URL, nhận lại không gửi trùng và chat không
+khớp/trùng; Qt Browser AI và Qt startup timer/Dừng qua, không có QML warning.
+Bộ kiểm tra rộng có 130 case qua và một assertion câu thông báo cũ thất bại;
+sau sửa câu thông báo, riêng case đó qua. Bộ dispatch/health/progress 49 case,
+bốn case nhận xác nhận và các smoke Qt cuối đều qua. Chi tiết: [BROWSER_RECOVERY](BROWSER_RECOVERY.md).
+
+Yêu cầu thật bị kẹt đã tìm lại trên chính profile, nhận PPTX 75.246.124 byte,
+lưu 79 slide và tạo 238/238 đoạn giọng đọc, 151 tác vụ trùng được gộp, không
+có lỗi âm thanh; dữ liệu riêng không đưa vào Git/release. Kiểm tra slide báo
+34 CHECK và 45 FAIL (chủ yếu chữ tràn/đối tượng vượt mép, có cảnh báo văn bản
+kỹ thuật). Bài giữ bản nháp, cần đối chiếu/sửa; chưa khẳng định sẵn sàng dạy.
+Yêu cầu cũ không có cờ `quality_review_version`, nên không tự thêm lượt sửa
+web vào yêu cầu này. Luồng tạo bài mới hiện có kiểm tra và một lượt sửa có giới hạn.
+
 [RC17 đã phát hành](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc17),
 commit ứng dụng `5551e17d6bf1456fded89f9dd05e9f2c981795dc`. ZIP có 3.879 tệp,
 679.251.550 byte, SHA-256 `6de934458266044d3ba779b095bb5b0687f771dd0fb34310bfa364846f5f7b8b`;

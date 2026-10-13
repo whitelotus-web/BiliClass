@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.0rc18 — 13/10/2026 — Tự khôi phục Browser AI
+
+- Gửi bằng bàn phím sau khi kiểm tra tài liệu/prompt, lưu ý định gửi và theo dõi xác nhận; timeout không bấm gửi lần hai.
+- Tự khôi phục Chrome có giới hạn, tìm lại chat duy nhất có nguyên văn prompt khi URL chưa kịp lưu; giữ tài khoản/chat đã gửi và không gửi trùng.
+- Tự tiếp tục tác vụ đã được lưu sau khởi động lại, gồm phần nhập bài/lời đọc từ PPTX đã nhận. Tác vụ đã bấm Dừng hoặc đã lưu xong không tự chạy lại.
+- Tách lỗi bài khỏi đăng nhập; lỗi phiên chỉ hiện trên đúng profile, bỏ thông báo lỗi chung bị lặp. Giữ sáu giọng VieNeu và kiểm tra slide/duyệt bài hiện có.
+- Chrome fixture và Qt xác minh khôi phục/cancel/không gửi trùng; bộ cài chạy kiểm tra riêng không dùng cache phát triển. Giới hạn và bằng chứng tại docs/BROWSER_RECOVERY.md và docs/STATE.md.
+
 ## 1.0.0rc15 — 12/10/2026 — Quản lý thư viện và tải bài
 
 - Thư viện có Sửa/Xóa trên từng bài, ngày/giờ tạo và sắp xếp mới tạo/tạo lâu nhất/mới cập nhật. Bài cũ lấy ngày từ lịch sử còn giữ; ngày ước tính được ghi rõ.
