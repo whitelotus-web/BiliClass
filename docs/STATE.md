@@ -1,5 +1,25 @@
 # Trạng thái BiliClass
 
+Ngày 13/10/2026 — đã phát hành [RC22](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc22)
+từ commit `e64c256728da477b45227bbe7d1eaeef2715ca4d`. ZIP 679.268.868 byte,
+SHA-256 `6b93e62926a937ecb926dd7c70b3cada1f2b4828c1183c53d208ebbb3b652cbf`;
+asset và checksum đã được đối chiếu sau tải lên. Build một lần sau kiểm tra
+nguồn, 572,04 giây. Archive CRC/manifest qua. Do ổ chứa dự án đang có hàng
+đợi I/O cao, kiểm tra cài/gỡ được thực hiện từ ZIP giải nén trong thư mục thử
+trên ổ hệ thống: Unicode, Qt 1366×850 và portable 1080×700 qua, không warning;
+VieNeu Việt/Anh/mixed/tốc độ/cache, mẫu, lớp học process/WebSocket và sao lưu
+qua bằng runtime đóng gói. Đây là kiểm tra trên máy hiện tại với dữ liệu
+riêng, chưa phải chứng nhận một Windows sạch. Báo cáo thuộc reports ngoài Git.
+
+Đã nhận và lưu bản PPTX thật sau một lượt sửa trong cùng cuộc trò chuyện:
+48 slide, 48 notes VI:/EN:, 69 media giữ nguyên byte và 41 slide giữ timing.
+Office render đủ 48 slide; lỗi giảm từ 36 FAIL/12 CHECK xuống 15 FAIL/33 CHECK.
+Kiểm tra ảnh vẫn thấy chỗ tràn/che chữ, nên chưa chứng nhận sẵn sàng dạy và
+không tự duyệt nội dung/câu hỏi. Đã tạo đủ 137/137 đoạn WAV bằng cùng giọng
+đa ngôn ngữ, không lỗi/bỏ qua; kiểm tra cache và mẫu WAV có tín hiệu qua,
+không phát âm thanh trong kiểm tra. Bản nháp trước được giữ trong thùng rác
+có thể khôi phục. Không đưa bài, prompt, âm thanh hay phiên tài khoản lên Git.
+
 Ngày 13/10/2026 — nguồn RC22 xử lý thông báo dung lượng kho tệp khi web đã
 nhận tệp vào cuộc trò chuyện: chỉ đóng đúng hộp “File added to chat only”,
 không bấm quản lý/xóa kho tệp và không che lỗi tải tệp, hạn mức hay xác minh.
