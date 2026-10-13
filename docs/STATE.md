@@ -1,5 +1,15 @@
 # Trạng thái BiliClass
 
+[RC17 đã phát hành](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc17),
+commit ứng dụng `5551e17d6bf1456fded89f9dd05e9f2c981795dc`. ZIP có 3.879 tệp,
+679.251.550 byte, SHA-256 `6de934458266044d3ba779b095bb5b0687f771dd0fb34310bfa364846f5f7b8b`;
+GitHub xác nhận digest và updater RC16 chọn đúng RC17. Cài/gỡ bản đã đóng gói
+ở đường dẫn Unicode qua, không dùng cache phát triển: Qt nhập bài/Browser AI,
+VieNeu VI/EN/câu xen với cùng speaker, tốc độ/cache, templates, lớp học và sao
+lưu đều qua; gỡ giữ thư viện riêng. Giới hạn: chưa chứng nhận Windows sạch/máy
+thứ hai hay phát âm mọi thuật ngữ. Đã mở RC17 tại Giọng đọc trên máy này, xác
+nhận cửa sổ phản hồi và nhãn phiên bản đúng. Hướng dẫn: [USER_GUIDE](USER_GUIDE.md).
+
 Ngày 13/10/2026 — RC17: chuyển sang một giọng VieNeu chung Việt/Anh/câu xen,
 sáu preset (3 nam/3 nữ), draft chọn giọng/tốc độ 82–118%, nghe thử rồi lưu nguyên
 tử. English Reader, lời đọc Việt, audio chuyển đổi và mascot cùng ID/tốc độ.
