@@ -1,5 +1,23 @@
 # Trạng thái BiliClass
 
+Ngày 14/10/2026 — nguồn RC27 tách bước bài giảng và giọng đọc theo yêu cầu.
+Nhận/kiểm tra/lưu PPTX rồi dừng tại màn kết quả, cho tải tệp hoặc xác nhận
+dạy không voice. Chọn Anh, Việt hoặc Việt + Anh và bấm Tạo giọng đọc mới
+chạy VieNeu cục bộ; không tự tạo khi chuyển đổi, sửa bài hoặc mở lại app.
+Tiến độ riêng, Dừng giữ WAV, tiếp tục dùng cache; ghi lại giọng/tốc độ và
+ngôn ngữ theo từng bài, phát hiện âm thanh thiếu/hỏng/cũ. Thư viện hiển thị
+Chỉ bài giảng song ngữ hoặc Có giọng theo ngôn ngữ. Tạo giọng không đổi
+PPTX, ngày tạo, revision, trạng thái duyệt; các lỗi slide vẫn chặn dạy.
+
+Kiểm chứng: 50 ca narration/reader/library/pack/readiness/cache qua; ruff
+và diff check qua. Qt toàn luồng với Office preview thật và web/voice
+fixture qua: nhận bài không chạy giọng, tải tệp nguyên byte, tạo/hủy/tiếp
+tục EN/VI/both, không gửi thêm web, cập nhật nhãn thư viện, giữ duyệt bài
+và quiz độc lập. Qt lỗi voice riêng qua: model lỗi không làm mất PPTX hoặc
+tự duyệt. Ảnh kết quả 1366×850 và 1080×700 đã xem, không QML warning.
+Không dùng fixture để khẳng định bản dịch bài thật đã hoàn thiện. Tách
+bước giảm phần chờ giọng bắt buộc, không cam kết tăng tốc dịch vụ web.
+
 Ngày 14/10/2026 — đã phát hành [RC26](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc26)
 từ commit ứng dụng `1710537f8816da747392ab81c68c1718de451d08`. ZIP
 667.914.274 byte, SHA-256

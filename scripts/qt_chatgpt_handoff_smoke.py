@@ -9,6 +9,7 @@ import sys
 import tempfile
 import time
 import traceback
+import wave
 from pathlib import Path
 from threading import Event
 
@@ -77,6 +78,7 @@ bridge.browserAI.saveOptions(False, False)  # New UI must override obsolete manu
 account = bridge.browserAI.store.add("UI fixture")
 bridge.browserAI.store.observe(account["id"], "free", identity={"name": "Cô giáo thử", "email": "fixture@example.test"})
 release_web = Event()
+release_voice = Event()
 sent, narration = [], []
 
 
@@ -95,8 +97,16 @@ def fake_convert(account, root, folder, cancel, progress, **options):
 
 
 def fake_synthesis(text, voice, rate, directory, cancel):
+    while not release_voice.wait(.02):
+        if cancel.is_set():
+            raise InterruptedError("Cancelled fixture voice")
     narration.append(text)
-    return {"cached": True, "path": "fixture.wav"}
+    target = Path(directory) / (speech.audio_key(text, voice, rate) + ".wav")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with wave.open(str(target), "wb") as output:
+        output.setparams((1, 2, 24000, 0, "NONE", "not compressed"))
+        output.writeframes(b"\x01\x00" * 100)
+    return {"cached": False, "path": str(target)}
 
 
 browser_automation.convert = fake_convert
@@ -475,7 +485,7 @@ def prepared():
     assert request["config"]["subject"] == custom_subject
     assert "Hai cột" in request["prompt"] and "Giữ theme" in request["prompt"]
     assert request["prompt"] == preview_prompt == sent[0]["prompt"]
-    assert bridge.browserAI.automatic and bridge.browserAI.audio
+    assert bridge.browserAI.automatic and not bridge.browserAI.audio
     assert opened == [], "Automatic conversion must not launch a manual web handoff"
     assert request["bundle"] == "" and not (Path(request["folder"]) / "goi-gui-chatgpt.zip").exists()
     assert bridge.browserState["percent"] == 25 and bridge.browserState["waiting"]
@@ -493,16 +503,12 @@ def prepared():
     bridge._browser_state = progress_state
     bridge.changed.emit()
     assert QQuickWindow.grabWindow(window).save(str(reports / "browser-handoff.png"))
-    stages.append("One conversion click overrides old manual/audio settings; sent prompt equals preview; web send/receive fixture runs automatically")
+    stages.append("One conversion click runs web fixture automatically; audio is deferred to the explicit second step")
     release_web.set()
     QTimer.singleShot(100, safe(lambda: wait_idle(received)))
 
 
 def received():
-    if bridge.narrationPreparation.get("running"):
-        assert time.monotonic() < deadline, "Background fixture narration did not finish"
-        QTimer.singleShot(100, safe(received))
-        return
     assert not bridge.error, bridge.message
     assert bridge.browserState["percent"] == 100 and not bridge.browserState["running"]
     assert window.property("page") == "result"
@@ -510,8 +516,17 @@ def received():
     assert not window.findChild(QObject, "creationCustomSubject").property("text")
     result = bridge.quickResult
     assert result["external"] and result["draft"] and result["image"]
-    assert narration and any("area" in text for text in narration) and any("Diện tích" in text for text in narration)
-    assert bridge.narrationPreparation["complete"] == bridge.narrationPreparation["total"] == 2
+    assert not narration and not bridge.narrationBusy
+    assert bridge.lessonNarration["status"] == "none"
+    assert not bridge.audioAvailable["en"] and not bridge.audioAvailable["vi"]
+    window.setWidth(1080)
+    window.setHeight(700)
+    app.processEvents()
+    assert window.findChild(QObject, "createLessonNarrationButton").property("visible")
+    assert QQuickWindow.grabWindow(window).save(str(reports / "returned-pptx-1080.png"))
+    window.setWidth(1366)
+    window.setHeight(850)
+    app.processEvents()
     assert hashlib.sha256(Path(result["path"]).read_bytes()).hexdigest() == digest
     assert not any(s["approved"] for s in bridge.lesson["segments"])
     assert all(s["vi"] and s["en"] for s in bridge.lesson["segments"])
@@ -526,6 +541,70 @@ def received():
     assert summary and "FAIL" not in summary and "CHECK" not in summary
     assert "/" not in window.findChild(QObject, "narrationPreparationStatus").property("text")
     assert QQuickWindow.grabWindow(window).save(str(reports / "returned-pptx.png"))
+    bridge.downloadPresentation(QUrl.fromLocalFile(str(workspace / "Tải không voice.pptx")).toString())
+    QTimer.singleShot(100, safe(lambda: wait_idle(start_voice)))
+
+
+def start_voice():
+    assert (workspace / "Tải không voice.pptx").read_bytes() == returned.read_bytes()
+    assert not narration and not any(s["approved"] for s in bridge.lesson["segments"])
+    click("narrationEnglish")
+    click("createLessonNarrationButton")
+    assert bridge.narrationBusy and bridge.lessonNarration["running"]
+    assert window.findChild(QObject, "lessonNarrationProgressBar").property("visible")
+    assert bridge.browserState["percent"] == 100 and len(sent) == 1
+    assert QQuickWindow.grabWindow(window).save(str(reports / "voice-preparing.png"))
+    click("cancelLessonNarrationButton")
+    QTimer.singleShot(100, safe(voice_cancelled))
+
+
+def voice_cancelled():
+    if bridge.narrationBusy:
+        assert time.monotonic() < deadline
+        QTimer.singleShot(100, safe(voice_cancelled))
+        return
+    assert not narration and not bridge.lessonNarration["ready"]
+    release_voice.set()
+    click("createLessonNarrationButton")
+    QTimer.singleShot(100, safe(english_ready))
+
+
+def english_ready():
+    if bridge.narrationBusy:
+        assert time.monotonic() < deadline
+        QTimer.singleShot(100, safe(english_ready))
+        return
+    assert bridge.lessonNarration["ready"] and bridge.lessonNarration["mode"] == "en"
+    assert len(narration) == 1 and "area" in narration[0]
+    assert not bridge.audioAvailable["vi"]
+    click("narrationVietnamese")
+    click("createLessonNarrationButton")
+    QTimer.singleShot(100, safe(vietnamese_ready))
+
+
+def vietnamese_ready():
+    if bridge.narrationBusy:
+        assert time.monotonic() < deadline
+        QTimer.singleShot(100, safe(vietnamese_ready))
+        return
+    assert bridge.lessonNarration["ready"] and bridge.lessonNarration["mode"] == "vi"
+    assert len(narration) == 2 and "Diện tích" in narration[1]
+    assert not bridge.audioAvailable["en"]
+    click("narrationBoth")
+    click("createLessonNarrationButton")
+    assert not bridge.narrationBusy and bridge.lessonNarration["ready"]
+    assert bridge.narrationPreparation["complete"] == bridge.narrationPreparation["total"] == 2
+    assert len(narration) == 2 and len(sent) == 1
+    assert bridge.library.get(bridge.lesson["id"])["narration"]["mode"] == "both"
+    assert not any(s["approved"] for s in bridge.lesson["segments"])
+    window.setProperty("page", "library")
+    app.processEvents()
+    assert "Việt + Anh" in visual_value("lessonNarrationBadge_" + bridge.lesson["id"], "target.text")
+    assert QQuickWindow.grabWindow(window).save(str(reports / "library-voice.png"))
+    window.setProperty("page", "result")
+    app.processEvents()
+    assert QQuickWindow.grabWindow(window).save(str(reports / "voice-ready.png"))
+    stages.append("Pause at saved PPTX without synthesis; download exact PPTX; cancel and explicitly create EN/VI/both locally; reuse WAVs and library badge")
     click("resultDetailsButton")
     assert window.findChild(QObject, "returnedDeckReviewNotes").property("visible")
     assert "Cần rà soát" in window.findChild(QObject, "returnedDeckReviewNotes").property("text")

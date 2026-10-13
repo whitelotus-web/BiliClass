@@ -39,15 +39,20 @@ def collect_audio(library, lesson):
     selections = voice_settings(library)
     saved = library.setting("voice_options", {})
     saved = saved if isinstance(saved, dict) else {}
+    narration = lesson.get("narration", {})
+    narration = narration if isinstance(narration, dict) else {}
     records, files = [], {}
     for segment in lesson["segments"]:
         if not segment.get("approved"):
             continue
         for language in ("vi", "en"):
+            if narration.get("mode") == "none" or narration.get("mode") in {"vi", "en"} and narration["mode"] != language:
+                continue
             # A machine can export its prepared WAVs even if its model was
             # removed. Preserve old-language cached audio without offering
             # those legacy engines as new voice choices.
-            candidates = [(selections["voice"], selections["rate"]),
+            candidates = [(narration.get("voice", ""), narration.get("rate", 0)),
+                          (selections["voice"], selections["rate"]),
                           (saved.get("voice", ""), saved.get("rate", 0)),
                           (library.setting("voice_" + language, ""), library.setting("voice_rate", 0))]
             path = None

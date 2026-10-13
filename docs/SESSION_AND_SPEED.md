@@ -1,5 +1,26 @@
 # Giữ phiên Chrome và mở bài nhanh hơn
 
+## RC27: hai bước, giọng đọc chỉ tạo khi được chọn
+
+Quy trình hiện tại thay thế cơ chế tự tạo/khôi phục giọng ở RC19–RC23
+bên dưới. Bước chuyển đổi dừng khi đã nhận, kiểm tra và lưu PowerPoint.
+Màn kết quả cho tải tệp và xác nhận để dạy không có voice. Bước **Tạo
+giọng đọc** chỉ bắt đầu khi giáo viên chọn Anh, Việt hoặc Việt + Anh và
+bấm nút. Không tự chạy khi nhận bài, sửa bài hoặc mở lại tool.
+
+Giọng tạo cục bộ bằng model đã cài, có phần trăm riêng; lỗi hoặc Dừng
+không làm mất PPTX. Kế hoạch ghi lại ngôn ngữ, giọng, tốc độ và dấu vân
+tay nội dung; không đổi revision/ngày tạo/quyền duyệt chỉ vì tạo âm thanh.
+Khôi phục bằng nút chỉ tạo WAV còn thiếu/hỏng và dùng lại phần đúng cache.
+Đổi nội dung làm giọng cũ cần cập nhật. Thư viện đọc trạng thái cache thật,
+không nạp model hoặc tự tạo WAV để đánh dấu Có giọng.
+
+Tách bước giúp dùng bài không voice ngay khi PowerPoint được lưu; chọn một
+ngôn ngữ giảm phần lời phải tạo. Không tăng số worker dùng chung model,
+không giảm kiểm tra slide và không bảo đảm rút ngắn thời gian web tạo/sửa
+tệp. PowerPoint tải về giữ nguyên tệp, voice phục vụ reader/mascot trong
+BiliClass. Các số đo CPU và cache lịch sử bên dưới vẫn là số đo riêng.
+
 ## RC23: giao diện gọn và giọng đọc nhanh hơn
 
 Báo cáo slide/lời đọc được thu gọn mặc định vào **Xem chi tiết**. Màn kết

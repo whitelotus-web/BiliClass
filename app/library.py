@@ -118,10 +118,13 @@ class Library:
         self.db.close()
 
     def list_lessons(self, order="updated_desc", *, trash=False):
+        from .lesson_narration import audio_status
         from .readiness import preparation_current
+        from .speech import voice_settings
 
         rows = self.db.execute("SELECT * FROM lessons ORDER BY updated_at DESC").fetchall()
         result = []
+        voices = voice_settings(self)
         for row in rows:
             lesson = json.loads(row["content"])
             if bool(lesson.get("deleted_at")) != trash:
@@ -139,6 +142,7 @@ class Library:
                     "created_at_estimated": lesson.get("created_at_estimated", False),
                     "deleted_at": lesson.get("deleted_at", ""),
                     "slides_count": lesson.get("external_deck", {}).get("total", 0),
+                    "narration": audio_status(lesson, self.directory, voices),
                 }
             )
         if order not in {"created_desc", "created_asc", "updated_desc"}:
@@ -538,7 +542,21 @@ class Library:
         }
         lesson["slide_speech"] = inspection.get("slide_speech", {})
         lesson["slide_quality"] = inspection.get("slide_quality", {})
+        lesson["narration"] = {"version": 2, "mode": "none"}
         self._write(lesson)
+        return lesson
+
+    def update_narration(self, lesson_id, record):
+        """Save derived audio state without changing content, review or creation time."""
+        from .lesson_narration import signature
+
+        lesson = self.get(lesson_id)
+        if record.get("signature") != signature(lesson):
+            raise RevisionConflict("Nội dung bài đã đổi trong lúc tạo giọng. Âm thanh đã tạo vẫn được giữ.")
+        lesson["narration"] = dict(record)
+        with self.db:
+            self.db.execute("UPDATE lessons SET content=? WHERE id=?",
+                            (json.dumps(lesson, ensure_ascii=False), lesson_id))
         return lesson
 
     def update_slide_inspection(self, lesson_id, inspection):

@@ -77,7 +77,7 @@ class SpeechJob(QThread):
         try:
             self.value = speech.synthesize(*self.arguments), ""
         except Exception:
-            self.value = None, "Chưa tạo được giọng English. Kiểm tra model/giọng trong Cài đặt."
+            self.value = None, "Chưa tạo được giọng đọc. Kiểm tra giọng trong Cài đặt."
 
 
 class EnglishReader(QObject):
@@ -117,7 +117,7 @@ class EnglishReader(QObject):
             self._error(str(exc))
             return
         if not chunks:
-            self._state("stopped", "Slide này chưa có nội dung tiếng Anh để đọc.")
+            self._state("stopped", "Chưa có nội dung phù hợp để đọc.")
             return
         self.queue, self.voice, self.rate = chunks, voice, rate
         self.position = 0
@@ -128,7 +128,7 @@ class EnglishReader(QObject):
         if self.position >= len(self.queue):
             self.player.stop()
             self.timer.stop()
-            self._state("stopped", "Đã đọc xong tiếng Anh của phần slide hiện tại.")
+            self._state("stopped", "Đã đọc xong phần đang chọn.")
             return
         generation = self.generation
         if self.state != "paused":
@@ -154,7 +154,7 @@ class EnglishReader(QObject):
         if generation != self.generation or not self.queue:
             return
         if not result or result[1]:
-            self._error(result[1] if result else "Chưa tạo được âm thanh English.")
+            self._error(result[1] if result else "Chưa tạo được âm thanh.")
             return
         try:
             self.player.play(result[0]["path"])

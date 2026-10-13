@@ -75,10 +75,22 @@ def main():
                 timer = QTimer()
                 timer.setInterval(20)
                 checked = False
+                voice_requested = False
 
                 def tick():
-                    nonlocal checked
+                    nonlocal checked, voice_requested
                     ticks.append(time.monotonic())
+                    if bridge._lesson and not bridge.busy and not voice_requested:
+                        try:
+                            assert bridge._browser_state["percent"] == 100
+                            assert not entered.is_set() and not bridge.narrationBusy
+                            assert bridge.lessonNarration["status"] == "none"
+                            voice_requested = True
+                            bridge.createLessonNarration("en")
+                        except BaseException as exc:
+                            failures.append(str(exc))
+                            release.set()
+                            app.quit()
                     if entered.is_set() and not checked:
                         try:
                             record = read_record(folder, account["id"])
@@ -119,7 +131,7 @@ def main():
                 assert checked and len(ticks) >= 2 and not failures, failures
                 assert not warnings, warnings[:3]
                 report = {"status": "passed", "elapsed_seconds": round(time.monotonic()-started, 2),
-                          "qt_ticks": len(ticks), "scope": "Saved PowerPoint and 100% before blocked speech finishes; draft preserved; voice failure cannot undo lesson; real QML, no web submission"}
+                          "qt_ticks": len(ticks), "scope": "Saved PowerPoint and pause without voice; explicit local EN generation remains responsive; voice failure cannot undo lesson or approve it; real QML, no web submission"}
                 path = ROOT / "reports/app/narration-preparation.json"
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(json.dumps(report, indent=2), encoding="utf-8")

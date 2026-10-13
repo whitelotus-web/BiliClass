@@ -15,6 +15,7 @@ from PySide6.QtQuickControls2 import QQuickStyle
 
 from app import speech
 from app.chatgpt_handoff import inspect_returned_deck
+from app.lesson_narration import make_plan
 from app.library import Library
 from app.paths import RESOURCE_ROOT
 from app.ui import Bridge
@@ -82,6 +83,9 @@ def main():
             assert voice.startswith("vieneu:") and voice == bridge.voiceSettings["vi"], "Shared multilingual voice missing"
             for text in paragraphs:
                 speech.synthesize(text, voice, bridge.voiceSettings["rate"], library.directory / "audio")
+            plan, _ = make_plan(bridge.lesson, "en", bridge.voiceSettings)
+            bridge._lesson = library.update_narration(lesson["id"], plan)
+            bridge.narrationChanged.emit()
             bridge.startPowerPoint()
             wait(lambda: bridge.powerpointState.get("active"))
             assert not plays and bridge.englishReaderState["state"] == "stopped"

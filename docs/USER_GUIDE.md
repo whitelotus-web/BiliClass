@@ -1,8 +1,8 @@
-# BiliClass RC26 — hướng dẫn dùng thử
+# BiliClass RC27 — hướng dẫn dùng thử
 
 ## Cài lần đầu
 
-1. Mở [Release RC26](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc26), tải **BiliClass-RC26-Windows.zip** trong Assets.
+1. Mở [Release RC27](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc27), tải **BiliClass-RC27-Windows.zip** trong Assets.
 2. Giải nén toàn bộ bằng Windows; không chạy ứng dụng ngay trong cửa sổ ZIP.
 3. Chạy **Setup.cmd**. Bộ cài kiểm tra checksum, cài vào `%LOCALAPPDATA%/Programs/BiliClass/<version>` và tạo mục Start menu, không cần quyền quản trị.
 4. Mở BiliClass từ Start menu, vào **Cài đặt → Browser AI → Thêm tài khoản**, đăng nhập ChatGPT. Mỗi máy tự đăng nhập; không sao chép profile của người khác.
@@ -35,8 +35,9 @@ Xóa đưa bài vào thùng rác. Mở **Chia sẻ & quản lý → Thùng rác*
 3. Chọn một kiểu chuyển đổi: **Hai cột song ngữ** (Việt trái/Anh phải), **Song ngữ từng câu** (Việt trên/Anh dưới), **Tích hợp từ khóa** (Việt xen thuật ngữ Anh), **Tiếng Anh 100%** (chữ slide bằng Anh; lời đọc Việt lưu riêng trong ghi chú).
 4. Với PPTX, **Giữ bài giảng đầu vào** yêu cầu chỉnh bản sao của đúng PowerPoint nguồn, giữ số lượng/thứ tự slide và đối tượng tối đa. **Tạo theo mẫu mới** dùng nội dung nguồn trong mẫu Chuẩn lớp học, Trực quan hoặc Luyện tập & tương tác. Các mẫu có ảnh bố cục và ví dụ bốn phương pháp.
 5. Ghi lưu ý thêm nếu cần. Nút hiện/ẩn prompt cho xem chính xác yêu cầu chuẩn bị gửi.
-6. Bấm **Chuyển đổi bài giảng** một lần. BiliClass tự xử lý tài liệu, biên soạn, kiểm tra và lưu bài giảng. Tiến trình hiện phần trăm và nội dung công việc; đạt 100% thì mở bài. Giọng đọc tự chuẩn bị tiếp ở nền với trạng thái riêng. Khi cần đọc, BiliClass dùng âm thanh đã có hoặc chuẩn bị đoạn cần đọc. Phần trăm phản ánh các mốc đã hoàn tất; nếu chưa qua mốc tiếp theo thì có thể giữ nguyên. [Giữ phiên và mở bài nhanh hơn](SESSION_AND_SPEED.md).
-7. Xem bài và cảnh báo trước khi **Dùng để dạy**. Bản dịch, công thức, hình và hiệu ứng cần đối chiếu với nguồn. Quiz trong ghi chú được nhận thành bản nháp; chưa được tự duyệt.
+6. Bấm **Chuyển đổi bài giảng** một lần. BiliClass tự xử lý tài liệu, biên soạn, kiểm tra và lưu bài giảng. Tiến trình đạt 100% thì mở bài và **dừng ở bước bài giảng song ngữ**. Bạn có thể tải PowerPoint ngay, xem bài rồi dùng để dạy mà không tạo voice. [Giữ phiên và mở bài nhanh hơn](SESSION_AND_SPEED.md).
+7. Nếu cần giọng, chọn **Tiếng Anh**, **Tiếng Việt** hoặc **Việt + Anh**, rồi bấm **Tạo giọng đọc** ngay trên màn bài giảng. Đây là bước riêng chạy trên máy, không gửi lại tài liệu; dùng giọng đa ngôn ngữ và tốc độ đã lưu trong Cài đặt. Có tiến độ riêng và nút Dừng; dừng/lỗi giữ các WAV đã tạo. Bấm tiếp tục chỉ tạo phần còn thiếu. Mở lại bài không tự chạy bước này. Thư viện đánh dấu Chỉ bài giảng song ngữ, Có giọng Tiếng Anh/Tiếng Việt/Việt + Anh, hoặc Giọng đọc chưa đủ/cần cập nhật.
+8. Xem bài và cảnh báo trước khi **Dùng để dạy**. Bản dịch, công thức, hình và hiệu ứng cần đối chiếu với nguồn. Có voice không có nghĩa là đã duyệt nội dung; quiz vẫn là bản nháp cần duyệt riêng. Slide có lỗi cần sửa chặn xác nhận dạy và tạo voice cho tới khi hoàn thiện.
 
 Thời gian phụ thuộc kích thước tệp, mạng và tài khoản Free/Plus. Khi web yêu cầu xác minh/đăng nhập hoặc hết hạn mức, tool báo để bạn xử lý; không bảo đảm mọi yêu cầu đều chạy hoàn toàn không can thiệp. Không gửi trùng yêu cầu đã gửi chỉ vì mất kết nối. Hạn mức không có số dư tin cậy thì không hiển thị số tự đoán.
 
@@ -44,11 +45,11 @@ RC26 nhận diện thông báo gián đoạn luồng trả lời ngay cả khi w
 
 ## Dạy với PowerPoint, giọng và mascot
 
-Màn slide có **Trở lại thư viện**, **Tải PowerPoint** và **Dùng để dạy**. Tải PowerPoint lưu nguyên tệp đang xem vào vị trí bạn chọn, giữ hình/hiệu ứng trong tệp đó; không tự tạo lại mẫu mới. Muốn mở file bằng PowerPoint hoặc sửa/gửi gói bài, dùng **Thao tác khác**. Không ghi đè file trong thư viện nguồn.
+Màn slide có **Trở lại thư viện**, **Tải PowerPoint** và **Dùng để dạy**. Tải PowerPoint lưu nguyên tệp đang xem vào vị trí bạn chọn, giữ hình/hiệu ứng trong tệp đó; không tự tạo lại mẫu mới hoặc nhúng các WAV vừa tạo. Voice lưu riêng trong thư viện để BiliClass đọc với mascot. Muốn mở file bằng PowerPoint hoặc sửa/gửi gói bài, dùng **Thao tác khác**. Không ghi đè file trong thư viện nguồn.
 
 **Dùng để dạy** mở bài kết quả bằng PowerPoint toàn màn hình. PowerPoint thực thi các hiệu ứng trong tệp; BiliClass theo slide thực tế để đọc Anh/Việt và cung cấp trợ giảng.
 
-Mascot nổi trên nền trong suốt. Kéo để đổi vị trí, nhấp để mở/thu các nút đọc, tiến/lùi slide và trợ giảng. Có thể mở lại từ thanh bên nếu đã ẩn. Giọng được chọn độc lập trong Cài đặt → Giọng đọc. Âm thanh đã chuẩn bị chạy trên máy, không cần gọi ChatGPT mỗi khi đọc.
+Mascot nổi trên nền trong suốt. Kéo để đổi vị trí, nhấp để mở/thu các nút đọc, tiến/lùi slide và trợ giảng. Có thể mở lại từ thanh bên nếu đã ẩn. Bài không có voice vẫn trình chiếu và dùng quiz/điều khiển slide; nút đọc chỉ bật cho ngôn ngữ đã chọn ở bước tạo giọng. Âm thanh dùng đúng giọng/tốc độ lúc tạo, không cần gọi ChatGPT mỗi khi đọc. Muốn đổi giọng hoặc tốc độ của bài đã tạo âm thanh, lưu cấu hình mới rồi bấm Tạo lại giọng đọc.
 
 **Đọc tiếng Anh** đọc hàng đợi từ chữ English thực trên slide, gồm tiêu đề và thân bài xác định được, không chỉ EN trong ghi chú. Có Tạm dừng/Tiếp tục, Dừng và Đọc lại; đổi slide/bước hoạt ảnh thì dừng. Phần ảnh, công thức hoặc hoạt ảnh chưa xác minh được sẽ báo cần kiểm tra và không tự đọc. Không có English thì báo rõ.
 

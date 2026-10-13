@@ -70,8 +70,8 @@ class NarrationPreparation(QObject):
         self.paused = False
         self.last_checkpoint = 0
 
-    def start(self, lesson_id, inspection, voices, folder):
-        request = lesson_id, inspection, dict(voices), folder
+    def start(self, lesson_id, inspection, voices, folder, metadata=None):
+        request = lesson_id, inspection, dict(voices), folder, metadata
         if self.worker is not None:
             self.pending = request
             self.worker.cancel.set()
@@ -79,12 +79,12 @@ class NarrationPreparation(QObject):
         self.path = Path(folder) / "narration-progress.json"
         self.worker = NarrationJob(inspection, voices, self.directory, self)
         self.worker.paused.set() if self.paused else self.worker.paused.clear()
-        self.state = {"lesson_id": lesson_id, "running": bool(self.worker.tasks),
+        self.state = {**(metadata or {}), "lesson_id": lesson_id, "running": bool(self.worker.tasks),
                       "complete": self.worker.initial_cached, "cached": self.worker.initial_cached, "failed": 0,
                       "voice": voices.get("voice", ""), "rate": voices["rate"],
                       "total": self.worker.total, "skipped": self.worker.skipped,
                       "duplicates": self.worker.duplicates, "cancelled": False,
-                      "message": "Giọng đọc đang được chuẩn bị. Bạn có thể xem bài ngay."}
+                      "message": "Đang tạo giọng đọc trên máy…"}
         if not self.worker.tasks:
             self.state["message"] = self._completion_message(self.state)
             self.worker.deleteLater()
@@ -139,7 +139,9 @@ class NarrationPreparation(QObject):
     @staticmethod
     def _completion_message(result):
         if result.get("cancelled"):
-            return "Giọng đọc đã tạo được giữ lại; phần còn thiếu sẽ được chuẩn bị khi dùng."
+            return "Đã dừng tạo giọng. Các đoạn đã tạo được giữ lại để tiếp tục."
+        if not result.get("total"):
+            return "Chưa có nội dung phù hợp để tạo giọng đọc."
         if result.get("failed") or result.get("skipped"):
             return "Một số lời đọc cần kiểm tra. Bài giảng đã được lưu."
         return "Giọng đọc sẵn sàng."

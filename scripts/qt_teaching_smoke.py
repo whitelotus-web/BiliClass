@@ -31,6 +31,7 @@ def main():
 
     from app import speech, ui
     from app.chatgpt_handoff import inspect_returned_deck
+    from app.lesson_narration import make_plan
     from app.library import Library
     from app.paths import RESOURCE_ROOT
     from app.ui import Bridge
@@ -108,6 +109,9 @@ def main():
             print("English audio prepared", flush=True)
             bridge.openLesson(lesson["id"])
             wait(lambda: not bridge.busy)
+            plan, _ = make_plan(bridge.lesson, "en", bridge.voiceSettings)
+            bridge._lesson = library.update_narration(lesson["id"], plan)
+            bridge.narrationChanged.emit()
             assert not bridge.error, bridge.message
             # A saved position on the teacher's other screen must not keep the
             # mascot away from the actual slideshow when starting a new show.

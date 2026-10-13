@@ -6,7 +6,7 @@ RC14 thêm [kiểm tra slide và English Reader](docs/SMART_SLIDES_READER.md): l
 
 ## Cài để dùng trên máy khác
 
-Tải **BiliClass-RC26-Windows.zip** tại [Release RC26](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc26), giải nén toàn bộ rồi chạy **Setup.cmd**. Không tải “Source code” nếu chỉ muốn cài và dùng. Không cần Python hoặc API key.
+Tải **BiliClass-RC27-Windows.zip** tại [Release RC27](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc27), giải nén toàn bộ rồi chạy **Setup.cmd**. Không tải “Source code” nếu chỉ muốn cài và dùng. Không cần Python hoặc API key.
 
 RC16 có [thanh tiến trình % và tối ưu xử lý trên máy](docs/CONVERSION_PROGRESS.md): dùng lại ảnh/đo bố cục đã kiểm tra, tránh voice trùng và chờ menu model sẵn sàng. % giữ ở mốc chờ khi ChatGPT đang tạo bài; không đoán % xử lý bên trong web.
 
@@ -22,7 +22,7 @@ nút trên màn hình ở cửa sổ thấp. Bản nguồn có thể cài gói W
 hành qua nút cập nhật mà không ghi đè checkout Git.
 
 RC23 thu gọn báo cáo slide vào **Xem chi tiết**, vẫn giữ cảnh báo các slide
-cần sửa trước khi dạy. Giọng đọc chuẩn bị ở nền, dùng lại WAV đã có và có
+cần sửa trước khi dạy. Giọng đọc dùng lại WAV đã có và có
 giới hạn luồng CPU để tránh tranh tài nguyên; đọc chi tiết và số đo tại
 [Giữ phiên và tối ưu tốc độ](docs/SESSION_AND_SPEED.md).
 
@@ -30,7 +30,7 @@ RC17 dùng [một giọng VieNeu cho Việt và Anh](docs/MULTILINGUAL_VOICE.md)
 
 RC18 [tự khôi phục xác nhận gửi](docs/BROWSER_RECOVERY.md) khi Chrome gián đoạn, tiếp tục đúng chat và không gửi trùng. Tác vụ đã lưu được tiếp tục sau khởi động lại, trừ khi giáo viên bấm Dừng hoặc web yêu cầu can thiệp.
 
-RC19 [giữ phiên Chrome và mở bài trước khi tạo đủ âm thanh](docs/SESSION_AND_SPEED.md). Giọng đọc tự chuẩn bị ở nền, có trạng thái riêng và ưu tiên đoạn đang cần đọc. 100% chuyển đổi nghĩa là đã nhận/kiểm tra/lưu PowerPoint; việc chuẩn bị âm thanh còn lại không chặn xem bài.
+RC27 tách thành [hai bước độc lập](docs/SESSION_AND_SPEED.md): nhận/kiểm tra/lưu PowerPoint rồi dừng tại màn bài giảng. Có thể tải hoặc dạy không cần voice. Khi muốn, chọn Anh, Việt hoặc Việt + Anh rồi bấm **Tạo giọng đọc** để chạy trên máy với tiến độ riêng. Mở lại bài không tự tạo âm thanh; thư viện đánh dấu ngôn ngữ đã có giọng.
 
 RC21 sửa bước kích hoạt nút gửi và tìm lại prompt dài bị thu gọn. Màn hình chuyển đổi hiển thị tiến trình chuẩn bị, biên soạn, kiểm tra và lưu bài giảng; các chi tiết vận chuyển nằm trong bản ghi. Tác vụ đã dừng vẫn báo tạm dừng và giữ bài, không giả vờ tiếp tục loading.
 
@@ -40,8 +40,9 @@ RC21 sửa bước kích hoạt nút gửi và tìm lại prompt dài bị thu g
 2. Điền tên bài, môn, cấp/khối lớp và ghi chú thêm nếu cần.
 3. Chọn một kiểu: **Hai cột song ngữ**, **Song ngữ từng câu**, **Tích hợp từ khóa**, **Tiếng Anh 100%**.
 4. Với PPTX, chọn giữ thiết kế PowerPoint đầu vào hoặc mẫu mới. Tài liệu khác dùng mẫu mới. Ba mẫu **Chuẩn lớp học**, **Trực quan**, **Luyện tập & tương tác** có ảnh xem trước rõ.
-5. Bấm **Chuyển đổi bài giảng**. BiliClass gửi bản sao nguồn và prompt qua Chrome, nhận PPTX, chuẩn bị giọng Việt–Anh. Chỉ cần can thiệp khi web yêu cầu đăng nhập/xác minh, hết lượt hoặc kết quả cần kiểm tra.
-6. Xem lại rồi bấm **Dùng để dạy**. PowerPoint trình chiếu toàn màn hình; mascot nổi có thể kéo, nhấp để mở đọc Anh/Việt và điều khiển slide. Quiz nhận từ ChatGPT là bản nháp cần duyệt riêng.
+5. Bấm **Chuyển đổi bài giảng**. BiliClass nhận, kiểm tra và lưu PPTX, rồi dừng để bạn xem bài và **Tải PowerPoint**. Voice không bắt buộc. Chỉ cần can thiệp khi web yêu cầu đăng nhập/xác minh, hết lượt hoặc kết quả cần kiểm tra.
+6. Nếu cần voice, chọn **Tiếng Anh**, **Tiếng Việt** hoặc **Việt + Anh**, bấm **Tạo giọng đọc**. Tool dùng giọng/tốc độ đã lưu trong Cài đặt, chạy trên máy và dùng lại các đoạn âm thanh đã có. PowerPoint tải về không tự nhúng voice; âm thanh dùng trong trợ giảng BiliClass.
+7. Xem lại rồi bấm **Dùng để dạy**, có hoặc không có voice. PowerPoint trình chiếu toàn màn hình; mascot nổi có thể kéo, điều khiển slide và đọc ngôn ngữ đã chuẩn bị. Quiz là bản nháp cần duyệt riêng.
 
 Mẫu gửi ChatGPT chỉ chứa bố cục trống, không chứa kiến thức bài minh họa. Prompt tách quy tắc môn/độ tuổi khỏi kiểu ngôn ngữ, giữ hình/công thức và số lượng/thứ tự slide khi chọn PowerPoint gốc. Nội dung, bản dịch và hiệu ứng vẫn cần giáo viên đối chiếu trước khi dạy.
 
