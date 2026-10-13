@@ -1,5 +1,17 @@
 # Trạng thái BiliClass
 
+Ngày 14/10/2026 — đã phát hành [RC24](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc24)
+từ commit ứng dụng `b8566bfa07cdfc5795d38986ec679e4d55eec0f3`. ZIP
+667.886.514 byte, SHA-256
+`24372c264c594fa129f95e2c7cdec90344ebd07d2e7f3882f605a6af8204103d`.
+PyInstaller xây lại 60 module app trong 13,20 giây; runtime/model tái sử
+dụng từ RC23 được đối chiếu toàn bộ checksum. Thay EXE, Main.qml và thông
+tin build; ZIP structure/CRC, manifest bộ cài, cài/gỡ đường dẫn tiếng Việt
+và Qt 1366×850/1080×700 qua trên máy hiện tại. Đã cài/mở RC24 qua đường
+dẫn chuẩn; đọc UI xác nhận ba dòng bản quyền, phiên bản và nút cập nhật.
+Updater công khai từ RC23 thấy đúng RC24 với dung lượng/checksum khớp.
+Không đưa thư viện, âm thanh, model hoặc phiên tài khoản vào Git.
+
 Ngày 13/10/2026 — nguồn RC24 đổi chân cửa sổ thành ba dòng: © 2026 Nguyễn
 Diệu Linh; Giáo viên Tin học - Trường THPT Vân Cốc; All rights reserved.
 Thông báo và trạng thái tác vụ đứng cạnh nhau, không chèn vào slide hoặc
