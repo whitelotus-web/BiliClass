@@ -1,6 +1,15 @@
 # Trạng thái BiliClass
 
-Ngày 14/10/2026 — nguồn RC33 sửa bước nhận tệp: ưu tiên liên kết tải trong
+Ngày 14/10/2026 — đã phát hành [RC33](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc33)
+từ commit ứng dụng `cbcc984b246efc6b0265371627fc749e5e1b2a5c`; xây lại 79
+module. ZIP 668.053.129 byte, SHA-256
+`fc1856415556a2216c7cd47225d290dc511c29b34b4f8e4cea16ecf2e96b2142`.
+Đã kiểm tra SHA/CRC toàn bộ 4.007 tệp ZIP, cài/gỡ Unicode và Qt đóng gói ở
+1366×850, 1080×700 không warning. Updater RC32 nhận RC33 đúng dung lượng và
+checksum. Đã cài và mở RC33 độc lập; Start menu trỏ đúng bản, đối chiếu
+trước/sau vẫn 6 bài, 638 WAV, 2 profile, nguồn bài không đổi.
+
+RC33 sửa bước nhận tệp: ưu tiên liên kết tải trong
 câu trả lời, nhận dạng thẻ xem trước/nút Download mới và chỉ chọn đúng tên
 tệp. Theo dõi lỗi truyền tệp do thao tác web phát sinh, thử nhận lại một lần
 rồi tạm dừng rõ ràng; không tự gửi lại cả bài, đổi tài khoản hoặc coi tài
