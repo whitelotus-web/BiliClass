@@ -1,5 +1,27 @@
 # Trạng thái BiliClass
 
+Ngày 14/10/2026 — đã phát hành [RC30](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc30)
+từ commit ứng dụng `a9371ef27033ea988e3e1b220e93c5c813060482`. ZIP
+667.963.330 byte, SHA-256
+`a1b1018a1c8817346cedacccdaf09a7ede16f288b6a74020791002179910667c`.
+67 module ứng dụng được xây lại; runtime/model giữ nguyên được đối chiếu
+manifest RC29. Checksum/CRC, cài/gỡ Unicode, Qt 1366×850 và 1080×700 qua,
+không warning. Bản đóng gói giữ đúng đồng hồ checkpoint 01:01:45 khi tạm
+dừng và không tự gửi trong fixture. Updater từ RC29 nhận RC30 với dung
+lượng/checksum khớp.
+
+Đã cài và mở RC30 độc lập trên máy này. Tiếp tục đúng lượt sửa của Bài 6
+đang dở, kiểm tra qua UI thật: đồng hồ từ 00:27:45 lên 00:27:51, hiện Đang
+xử lý, có nút Dừng và Kiểm tra cập nhật. Thời gian tính phần tác vụ hoạt
+động, không cộng thời gian đã tạm dừng. Đối chiếu trước/sau giữ nguyên sáu
+bài cũ, source/revision/ngày tạo/quyền duyệt, 638 WAV và hai profile.
+
+Kiểm tra Bài 6 thật đã tải được PPTX hợp lệ 75.239.195 byte trong đúng
+cuộc trò chuyện sau một lượt khôi phục bàn giao có đối chiếu prompt;
+không gửi lại bài nguồn. Đã kiểm tra cục bộ rồi tiếp tục lượt sửa bố cục
+đầu tiên trong bản cài. Chưa chứng nhận đã hoàn thiện mọi slide hoặc nhập
+vào thư viện khi bước sửa còn chạy. Không tự tạo voice ở bước nhận bài.
+
 Ngày 14/10/2026 — nguồn RC30 sửa lỗi dừng quan sát ở 15 phút dù web còn chạy
 và Tiếp tục dùng lại khoảng chờ đã hết. Bài dài được gia hạn theo dõi từng
 5 phút khi có trạng thái đang xử lý, tối đa 60 phút quan sát/lượt. Đọc lại chat
