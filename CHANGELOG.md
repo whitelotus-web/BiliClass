@@ -5,6 +5,7 @@
 - Thêm thời gian xử lý HH:MM:SS trên màn chuyển đổi, tự cập nhật mỗi giây; đứng lại khi tạm dừng/hoàn tất và cộng tiếp phần đã lưu khi tiếp tục. Không đếm ngược thời gian hoàn tất do dịch vụ web không cung cấp dự báo đáng tin cậy.
 - Lưu thời gian chờ theo từng yêu cầu đã gửi. Kết nối lại hoặc khởi động lại không mở thêm 15 phút chờ cho cùng yêu cầu; vẫn nhận file đã sẵn sàng khi mở lại. Không tự nối lại vô hạn sau khi hết ngân sách chờ hoặc hết hai lần khôi phục luồng.
 - Nhận biết cuộc trò chuyện dừng ở hoạt động xử lý mà chưa có câu trả lời cuối: sau một khoảng không thay đổi, chỉ yêu cầu hoàn tất tệp một lần khi xác minh nguyên prompt của lượt cuối. Không tải lại/gửi lại bài gốc hoặc lấy nhầm tệp đính kèm đầu vào.
+- Hỗ trợ thẻ tệp dạng link mở preview và preview trong tab mới, chỉ kích hoạt nút tải của đúng tên tệp; không nhận nhầm tệp đính kèm nguồn hoặc thẻ khác.
 - Thời gian từng giai đoạn được giữ qua các lần tiếp tục; thông báo phân biệt đang chạy với đã tạm dừng. Giữ bước tạo voice riêng sau khi lưu PowerPoint.
 - Ghi nhận hướng tối ưu dịch theo cụm và dựng file tại máy tại [kế hoạch tăng tốc](docs/CONVERSION_SPEED_PLAN.md). Chưa bật xử lý đa tab/tài khoản hoặc loại bỏ profile Gemini chỉ từ đề xuất này.
 

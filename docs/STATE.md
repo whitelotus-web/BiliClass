@@ -18,6 +18,15 @@ yêu cầu hoàn tất tệp, không gửi lại bài nguồn; chưa nhận đư
 trong phiên kiểm tra 5 phút. Không dùng kiểm thử fixture để chứng nhận
 bài thực đã hoàn thành. Xem [đề xuất tăng tốc và vai trò Gemini](CONVERSION_SPEED_PLAN.md).
 
+Bổ sung trong cùng phiên RC29: sau yêu cầu hoàn tất, web xuất hiện liên kết
+PowerPoint 48 slide, nhưng thao tác mở liên kết chưa phát sinh tệp tải xuống
+hợp lệ trong kiểm tra trực tiếp. Chưa nhập hoặc chứng nhận bài đó vào thư viện.
+Bổ sung hỗ trợ thẻ tệp dạng link mở preview và preview trong tab mới; chỉ
+thao tác nút tải có cùng tên tệp, không dùng tab phục hồi cũ hoặc tệp nguồn.
+Khả năng đó được kiểm tra bằng fixture; chưa coi là đã xử lý xong liên kết
+cụ thể trên tài khoản thật. Cần ưu tiên luồng dựng PPTX cục bộ nếu dịch vụ
+không bàn giao được file ổn định.
+
 Ngày 14/10/2026 — đã phát hành [RC28](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc28)
 từ commit ứng dụng `755d6ee3b2537b317eddea66348bd38fb0ea1607`. ZIP
 667.952.420 byte, SHA-256

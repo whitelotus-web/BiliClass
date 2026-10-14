@@ -498,7 +498,8 @@ def test_filename_button_downloads_real_pptx_and_never_matches_user_source(brows
             context.close()
 
 
-def test_file_preview_download_uses_matching_artifact_and_sends_once(browser_fixture):
+@pytest.mark.parametrize('pressable', [False, True])
+def test_file_preview_download_uses_matching_artifact_and_sends_once(browser_fixture, pressable):
     adapter, accounts, request, captured, source = browser_fixture
     captured["html"] = FIXTURE.replace(
         '<a href="/backend-api/files/result.pptx">bai-giang-song-ngu.pptx</a>',
@@ -513,8 +514,27 @@ function showFile() {
     document.body.appendChild(other);
 }
 ''', 1)
+    if pressable:
+        captured['html'] = captured['html'].replace(
+            '<button aria-label="bai-giang-song-ngu.pptx" onclick="showFile()">PPTX</button>',
+            '<span role="link" data-d-component="pressable" aria-label="Open Download bai-giang-song-ngu.pptx" onclick="showFile()">bai-giang-song-ngu.pptx</span>')
     result = adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
     assert Path(result["path"]).read_bytes() == source.read_bytes() and len(captured["sends"]) == 1
+
+
+def test_result_preview_in_new_tab_downloads_matching_file_without_resubmission(browser_fixture):
+    adapter, accounts, request, captured, source = browser_fixture
+    captured['html'] = FIXTURE.replace(
+        '<a href="/backend-api/files/result.pptx">bai-giang-song-ngu.pptx</a>',
+        '<span role="link" data-d-component="pressable" aria-label="Open Download bai-giang-song-ngu.pptx" onclick="showPreview()">bai-giang-song-ngu.pptx</span>')
+    captured['html'] = captured['html'].replace('</script>', '''
+function showPreview(){window.open('/preview');}
+if(location.pathname==='/preview'){
+ document.body.innerHTML=`<section><h3>bai-giang-song-ngu.pptx</h3><button aria-label="Download file" onclick="location.href='/backend-api/files/result.pptx'">Download</button></section>`;
+}
+</script>''')
+    result = adapter.convert(accounts.get(), accounts.root, request['folder'], Event(), lambda _: None, timeout=10)
+    assert Path(result['path']).read_bytes() == source.read_bytes() and len(captured['sends']) == 1
 
 
 @pytest.mark.parametrize("notice_at", ["attachment", "result"])

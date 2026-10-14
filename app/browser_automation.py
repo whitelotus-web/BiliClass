@@ -704,13 +704,20 @@ def receive_download(page, entry, cancel, timeout=45, progress=None):
     check_cancel(cancel)
     dismiss_attachment_notice(page)
     downloads = []
+    watched = [page]
 
     def received(download):
         downloads.append(download)
+    def opened(popup):
+        # A result may open a new preview tab. Existing restored tabs are not
+        # candidates, and no links in those tabs are ever activated here.
+        watched.append(popup)
+        popup.on('download', received)
     page.on("download", received)
+    page.context.on('page', opened)
     try:
         filename = entry.get_attribute("aria-label") or entry.inner_text().strip()
-        is_button = entry.evaluate("e => e.tagName === 'BUTTON' || e.getAttribute('role') === 'button'")
+        filename = re.sub(r'^(?:(?:Open|Mở|Download|Tải xuống|Tải tệp xuống)\s+)+', '', filename, flags=re.I)
         if progress:
             progress("Đang mở thẻ PowerPoint từ câu trả lời ChatGPT…")
         try:
@@ -725,9 +732,11 @@ def receive_download(page, entry, cancel, timeout=45, progress=None):
             if downloads:
                 return downloads[0]
             page_problem(page)
-            if is_button and not preview_clicked:
+            if not preview_clicked:
                 matches = []
-                for button in page.get_by_role("button", name=download_label).all():
+                buttons = [button for preview in watched if not preview.is_closed()
+                           for button in preview.get_by_role('button', name=download_label).all()]
+                for button in buttons:
                     if not button.is_visible() or not button.is_enabled():
                         continue
                     # Preview is portaled outside the assistant answer. Match
@@ -753,7 +762,9 @@ def receive_download(page, entry, cancel, timeout=45, progress=None):
             page.wait_for_timeout(200)
         raise BrowserProblem("download", "Chưa tải được PowerPoint từ nút tệp của ChatGPT. Tool giữ cuộc trò chuyện để tự thử lại.")
     finally:
-        page.remove_listener("download", received)
+        page.context.remove_listener('page', opened)
+        for preview in watched:
+            preview.remove_listener('download', received)
 
 
 def convert(account, root, request_folder, cancel, progress, *, timeout=900, observed=None):
