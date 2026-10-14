@@ -627,20 +627,24 @@ ApplicationWindow {
                                 RowLayout {
                                     Layout.fillWidth: true
                                     Copy { objectName: "browserConversionStage"; text: bridge.browserState.displayStage; Layout.fillWidth: true; color: root.ink }
-                                    Caption { objectName: "browserConversionPercent"; text: bridge.browserState.running && bridge.browserState.waiting ? "Đang xử lý" : (bridge.browserState.percent || 0) + "%"; font.pixelSize: bridge.browserState.running && bridge.browserState.waiting ? 15 : 22 }
+                                    Caption { objectName: "browserConversionPercent"; text: (bridge.browserState.percent || 0) + "%"; font.pixelSize: 22 }
                                 }
                                 ProgressBar {
                                     id: conversionBar; objectName: "browserConversionProgressBar"; Layout.fillWidth: true
                                     from: 0; to: 100; value: bridge.browserState.percent || 0
-                                    indeterminate: !!bridge.browserState.running && !!bridge.browserState.waiting
+                                    indeterminate: false
                                     background: Rectangle { implicitHeight: 9; radius: 4.5; color: "#e8eff9" }
                                     contentItem: Item {
                                         implicitHeight: 9; clip: true
-                                        Rectangle { visible: !conversionBar.indeterminate; width: parent.width * conversionBar.visualPosition; height: parent.height; radius: 4.5; color: root.blue }
                                         Rectangle {
-                                            id: conversionPulse; objectName: "browserConversionPulse"
-                                            visible: conversionBar.indeterminate; width: parent.width * 0.24; height: parent.height; radius: 4.5; color: root.blue
-                                            NumberAnimation on x { from: -conversionPulse.width; to: conversionPulse.parent.width; duration: 1500; loops: Animation.Infinite; running: conversionBar.indeterminate && conversionBar.visible && root.visible }
+                                            id: conversionCompletedFill; objectName: "browserConversionCompletedFill"
+                                            width: parent.width * conversionBar.visualPosition; height: parent.height; radius: 4.5; color: root.blue; clip: true
+                                            Rectangle {
+                                                id: conversionPulse; objectName: "browserConversionPulse"
+                                                visible: !!bridge.browserState.running && !!bridge.browserState.waiting
+                                                width: parent.width * 0.32; height: parent.height; radius: 4.5; color: "#ffffff"; opacity: 0.32
+                                                NumberAnimation on x { from: -conversionPulse.width; to: conversionPulse.parent.width; duration: 1500; loops: Animation.Infinite; running: conversionPulse.visible && conversionBar.visible && root.visible }
+                                            }
                                         }
                                     }
                                 }
@@ -654,7 +658,7 @@ ApplicationWindow {
                                 Copy { Layout.fillWidth: true; text: "Bài giảng song ngữ · Trình chiếu · Giọng đọc · Trợ giảng" }
                                 RowLayout { Layout.fillWidth: true
                                     Action { objectName: "browserConversionResume"; text: bridge.browserAI.webMode && bridge.browserState.needsLogin ? "Kết nối và tiếp tục" : bridge.browserState.errorCode === "submission" ? "Kiểm tra và tiếp tục" : "Tiếp tục chuyển đổi"; primary: true; visible: !bridge.browserState.running && bridge.browserState.phase !== "completed"; enabled: !bridge.busy && !bridge.browserAI.loginBusy && !!bridge.chatgptRequest.folder; onClicked: { if (bridge.browserAI.webMode && (bridge.browserState.needsLogin || bridge.browserState.errorCode === "submission")) bridge.reconnectBrowserAI(); else bridge.runBrowserAI() } }
-                                    Action { objectName: "browserConversionCancel"; text: "Dừng"; visible: !!bridge.browserState.running; onClicked: bridge.cancelJob() }
+                                    Action { id: conversionCancel; objectName: "browserConversionCancel"; text: "Dừng"; visible: !!bridge.browserState.running; onClicked: bridge.cancelJob() }
                                     Action { text: "Đăng nhập / Browser AI"; visible: !!bridge.browserState.needsLogin && !bridge.browserState.running; enabled: !bridge.busy; onClicked: { root.go("settings"); settingsPanel.activeTab = 6 } }
                                 }
                                 Copy { text: bridge.browserState.running ? "BiliClass tự động xử lý. Bài giảng sẽ xuất hiện trong thư viện khi hoàn tất." : "Tài liệu và các phần đã hoàn tất được lưu để tiếp tục."; Layout.fillWidth: true; font.pixelSize: 12 }
@@ -1032,7 +1036,7 @@ ApplicationWindow {
                     RowLayout { Layout.fillWidth: true; spacing: 10
                         BusyIndicator { visible: bridge.busy; running: bridge.busy; Layout.preferredWidth: 23; Layout.preferredHeight: 23 }
                         Label { id: statusMessage; objectName: "applicationStatusMessage"; text: (root.page === "chatgpt" || bridge.browserState.running || bridge.browserState.phase === "error" && bridge.message === bridge.browserState.message) && bridge.browserAI.automatic ? bridge.browserState.displayMessage : bridge.message || "Sẵn sàng · Dữ liệu bài giảng được lưu tại máy"; color: bridge.error ? "#b14828" : root.muted; font.pixelSize: 11; wrapMode: Text.WordWrap; Layout.fillWidth: true; textFormat: Text.PlainText }
-                        Action { visible: bridge.busy; text: "Dừng tác vụ"; implicitHeight: 30; onClicked: bridge.cancelJob() }
+                        Action { objectName: "applicationCancel"; visible: bridge.busy && !conversionCancel.visible; text: "Dừng tác vụ"; implicitHeight: 30; onClicked: bridge.cancelJob() }
                     }
                 }
             }

@@ -521,8 +521,20 @@ def prepared():
     assert request["bundle"] == "" and not (Path(request["folder"]) / "goi-gui-chatgpt.zip").exists()
     assert bridge.browserState["percent"] == 25 and bridge.browserState["waiting"]
     assert window.findChild(QObject, "browserConversionProgressBar").property("value") == 25
-    assert window.findChild(QObject, "browserConversionPercent").property("text") == "Đang xử lý"
-    assert window.findChild(QObject, 'browserConversionProgressBar').property('indeterminate')
+    assert window.findChild(QObject, "browserConversionPercent").property("text") == "25%"
+    assert not window.findChild(QObject, 'browserConversionProgressBar').property('indeterminate')
+    fill = window.findChild(QObject, 'browserConversionCompletedFill')
+    assert abs(fill.property('width') / fill.parent().property('width') - .25) < .01
+    assert window.findChild(QObject, 'browserConversionPulse').property('visible')
+    assert window.findChild(QObject, 'browserConversionCancel').property('visible')
+    assert not window.findChild(QObject, 'applicationCancel').property('visible')
+    window.setProperty('page', 'home')
+    app.processEvents()
+    assert not window.findChild(QObject, 'browserConversionCancel').property('visible')
+    assert window.findChild(QObject, 'applicationCancel').property('visible')
+    window.setProperty('page', 'chatgpt')
+    app.processEvents()
+    assert not window.findChild(QObject, 'applicationCancel').property('visible')
     initial_pulse = window.findChild(QObject, 'browserConversionPulse').property('x')
     assert window.findChild(QObject, "browserConversionProgressNote") is None
     assert window.findChild(QObject, "browserConversionStage").property("text") == "Biên soạn bài giảng song ngữ"
@@ -538,6 +550,7 @@ def prepared():
     assert bridge.browserState["percent"] == 25 and not bridge.browserState["running"]
     assert window.findChild(QObject, "browserConversionPercent").property("text") == "25%"
     assert not window.findChild(QObject, 'browserConversionProgressBar').property('indeterminate')
+    assert not window.findChild(QObject, 'browserConversionPulse').property('visible')
     assert "tạm dừng" in window.findChild(QObject, "browserConversionStatus").property("text")
     assert window.findChild(QObject, "applicationStatusMessage").property("text") == bridge.browserState["displayMessage"]
     paused_clock = bridge.conversionClock

@@ -1,5 +1,15 @@
 # Trạng thái BiliClass
 
+Ngày 14/10/2026 — nguồn RC31 gọn lại điều khiển chuyển đổi: chỉ hiện Dừng
+trong khung tác vụ; nút Dừng tác vụ ở chân cửa sổ vẫn dùng được khi sang
+trang khác. Luôn hiện % theo mốc công việc, kể cả lúc chờ; hiệu ứng chuyển
+động chỉ nằm trong phần thanh đã hoàn tất, đồng hồ tiếp tục chạy. Không
+ước lượng % theo thời gian hoặc đổi chính sách chờ/gửi/khôi phục của RC30.
+Kiểm chứng: 9 ca tiến độ/thông báo qua; Qt toàn luồng với Office preview
+thật và web/voice fixture qua, không warning, gồm 25% trong lúc chờ,
+thanh đúng 1/4, hiệu ứng chạy/dừng, đồng hồ sau 15 phút và chỉ một nút
+Dừng, chuyển trang vẫn có nút dừng chung. Không can thiệp lượt thật đang chạy.
+
 Ngày 14/10/2026 — đã phát hành [RC30](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc30)
 từ commit ứng dụng `a9371ef27033ea988e3e1b220e93c5c813060482`. ZIP
 667.963.330 byte, SHA-256
