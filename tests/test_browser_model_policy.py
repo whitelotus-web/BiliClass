@@ -21,12 +21,14 @@ def test_confirmed_highest_controls_saved(service, model, reasoning, monkeypatch
 
 @pytest.mark.parametrize("service", ['chatgpt','gemini'])
 def test_unconfirmed_fast_default_blocks_submission(service, monkeypatch):
+    from types import SimpleNamespace
+
     monkeypatch.setattr(models,'select_best_model',lambda _:'Fast')
     monkeypatch.setattr(models,'select_reasoning',lambda _:'Theo tùy chọn web đang có')
     monkeypatch.setattr(gemini,'select_model',lambda _:'Fast')
     monkeypatch.setattr('app.browser_reasoning.select_effort',lambda *a,**kw:'Theo tùy chọn web đang có')
     with pytest.raises(BrowserProblem) as exc:
-        prepare_models(None,service)
+        prepare_models(SimpleNamespace(wait_for_timeout=lambda _: None),service)
     assert exc.value.code=='model'
 
 

@@ -1,11 +1,40 @@
 # Trạng thái BiliClass
 
-Ngày 14/10/2026 — nguồn RC32: chuyển đổi thích ứng theo nội dung, nhóm JSON
-và nhóm slide trực quan, tối đa hai tab cùng profile, cache bản dịch/checkpoint
-riêng, media nhẹ khi truyền và phục hồi byte gốc khi ghép. Prompt mới gọn hơn;
-render/đo chữ tại máy và dùng lại slide không đổi. Voice vẫn là bước riêng.
-Chi tiết phạm vi, cách tiếp tục và giới hạn trong [HYBRID_CONVERSION.md](HYBRID_CONVERSION.md).
-Không coi kiểm thử fixture là số đo thời gian chuyển đổi trên tài khoản thật.
+Ngày 14/10/2026 — nguồn RC33 sửa bước nhận tệp: ưu tiên liên kết tải trong
+câu trả lời, nhận dạng thẻ xem trước/nút Download mới và chỉ chọn đúng tên
+tệp. Theo dõi lỗi truyền tệp do thao tác web phát sinh, thử nhận lại một lần
+rồi tạm dừng rõ ràng; không tự gửi lại cả bài, đổi tài khoản hoặc coi tài
+khoản mất đăng nhập vì lỗi tệp. Chờ ngắn khi ô soạn thảo có trước nút Think
+để xác nhận cấu hình trước khi gửi. Các tab Cài đặt và bước voice riêng giữ nguyên.
+
+66 ca kiểm tra liên quan qua; Qt startup/resume và giao diện 1366×850 không
+cảnh báo. Trên bài đang dở, bản sửa nhận ra lỗi tải thật trong 3,95 giây.
+Web có câu trả lời và thẻ tệp nhưng cả bản đầy đủ, bản xuất lại và bản nhẹ
+đều không tải được, khung xem tệp của web cũng báo không mở được. Chưa nhận
+được PowerPoint, chưa nhập bài mới/chạy voice và chưa xác nhận bài hoàn tất.
+Giữ đúng bản ghi tệp đầy đủ; loại gói trung gian khỏi ứng viên nhập bài.
+Chi tiết giới hạn: [DOWNLOAD_RECOVERY.md](DOWNLOAD_RECOVERY.md).
+
+Ngày 14/10/2026 — đã phát hành [RC32](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc32)
+từ commit ứng dụng `0444cc5cd42e26927ca4409235f7c1db7d66a691`, xây lại 79 module.
+ZIP 668.051.037 byte, SHA-256
+`8f46440193d77c8f21505f1db0db7fb68ff85c5726e8ee08358f94d49b488f64`.
+Checksum từng tệp/CRC ZIP, cài/gỡ Unicode và Qt bản đóng gói ở hai kích thước qua;
+updater RC31 nhận RC32 với dung lượng và checksum khớp. Đã cài/mở RC32 độc lập;
+Start menu trỏ đúng bản. Đối chiếu trước/sau: 6 bài, 638 WAV, 2 profile giữ nguyên.
+
+RC32 chuyển đổi thích ứng theo nội dung: nhóm JSON và nhóm slide trực quan,
+tối đa hai tab cùng profile, cache bản dịch/checkpoint riêng, media nhẹ khi
+truyền và phục hồi byte gốc khi ghép. Prompt mới gọn hơn; render/đo chữ tại máy
+và dùng lại slide không đổi. Voice vẫn là bước riêng. Phạm vi và giới hạn:
+[HYBRID_CONVERSION.md](HYBRID_CONVERSION.md).
+
+94 ca xử lý/cấu hình, 4 ca Chrome mô phỏng và Qt toàn luồng qua. Office render
+bốn kiểu và mở/đối chiếu sáu trang từ hai bài có media lớn: năm trang trùng
+pixel, một trang có thay đổi nhỏ vị trí dòng chữ khi Office dàn lại (0,253%
+pixel khác). Không coi mở/render thành công là chứng nhận nội dung/hiệu ứng.
+Phép thử tài khoản web thật dừng ở Cloudflare trước khi gửi; chưa công bố thời
+gian AI chuyển đổi trọn bài. Bài đang dở giữ cơ chế cũ, không tự gửi lại.
 
 Ngày 14/10/2026 — đã phát hành [RC31](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc31)
 từ commit ứng dụng `e3949b2048aab27100608a058a5ff437445d7bc0`. ZIP

@@ -537,6 +537,111 @@ if(location.pathname==='/preview'){
     assert Path(result['path']).read_bytes() == source.read_bytes() and len(captured['sends']) == 1
 
 
+@pytest.mark.parametrize('label',['Download file','Download'])
+def test_current_preview_card_downloads_directly_without_loading_preview(browser_fixture,label):
+    adapter,accounts,request,captured,source=browser_fixture
+    captured['html']=FIXTURE.replace(
+        '<a href="/backend-api/files/result.pptx">bai-giang-song-ngu.pptx</a>',
+        '<section><span>bai-giang-song-ngu.pptx</span>'
+        '<button aria-label="Open preview of bai-giang-song-ngu.pptx" onclick="badPreview()">PPTX</button>'
+        f'<button aria-label="{label}" onclick="downloadDirect()">Download</button></section>'
+        '<section><span>other.pptx</span><button aria-label="Download file" onclick="wrongArtifact()">Download</button></section>')
+    captured['html']=captured['html'].replace('<script>', '''<script>
+function badPreview(){throw Error('Preview must not open');}
+function downloadDirect(){location.href='/backend-api/files/result.pptx';}
+function wrongArtifact(){throw Error('Wrong artifact');}
+''',1)
+    result=adapter.convert(accounts.get(),accounts.root,request['folder'],Event(),lambda _:None,timeout=10)
+    assert Path(result['path']).read_bytes()==source.read_bytes() and len(captured['sends'])==1
+
+
+def test_missing_own_download_never_uses_a_sibling_artifact(browser_fixture):
+    from playwright.sync_api import sync_playwright
+    adapter,accounts,_,_,_=browser_fixture
+    with sync_playwright() as playwright:
+        context=adapter.open_context(playwright,accounts.get(),background=True)
+        try:
+            page=context.new_page()
+            page.set_content('<div data-message-author-role="assistant"><section><span>lesson.pptx</span>'
+                '<button aria-label="Open preview of lesson.pptx">PPTX</button></section>'
+                '<section><span>other.pptx</span><button aria-label="Download file" '
+                'onclick="window.wrongDownload=true">Download</button></section></div>')
+            with pytest.raises(BrowserProblem,match='Chưa tải được PowerPoint'):
+                adapter.receive_download(page,adapter.result_link(page),Event(),timeout=.3)
+            assert not page.evaluate('Boolean(window.wrongDownload)')
+        finally:
+            context.close()
+
+
+def test_answer_download_link_is_preferred_to_a_preview_card_without_dil_marker(browser_fixture):
+    from playwright.sync_api import sync_playwright
+
+    adapter, accounts, _, _, _ = browser_fixture
+    with sync_playwright() as playwright:
+        context = adapter.open_context(playwright, accounts.get(), background=True)
+        try:
+            page = context.pages[0]
+            page.set_content('<div data-message-author-role="assistant">'
+                '<span role="link" tabindex="0" aria-label="Open 📥 Tải lesson.pptx">📥 Tải lesson.pptx</span>'
+                '<button aria-label="Open preview of lesson.pptx"></button></div>')
+            assert adapter.result_link(page).get_attribute('role') == 'link'
+        finally:
+            context.close()
+
+
+def test_interrupted_file_fetch_is_detected_before_download_timeout(tmp_path):
+    import time
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    from threading import Thread
+
+    from playwright.sync_api import sync_playwright
+
+    from app import browser_automation as adapter
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            if self.path == '/result':
+                self.send_header('Content-Type', 'application/octet-stream')
+                self.send_header('Content-Disposition', 'attachment; filename="lesson.pptx"')
+                self.send_header('Content-Length', '100000')
+                self.end_headers()
+                self.wfile.write(b'incomplete stream')
+                self.close_connection = True
+            else:
+                self.send_header('Content-Type', 'text/html; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(b'<div data-message-author-role="assistant"><span role="link" '
+                    b'tabindex="0" aria-label="Open lesson.pptx" '
+                    b'onclick="fetch(\'/result\').then(r=>r.blob()).catch(()=>{})">lesson.pptx</span></div>')
+
+        def log_message(self, *_):
+            pass
+
+    server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    accounts = BrowserAccounts(tmp_path)
+    accounts.add('Interrupted download fixture')
+    try:
+        with sync_playwright() as playwright:
+            context = adapter.open_context(playwright, accounts.get(), background=True)
+            try:
+                page = context.pages[0]
+                page.goto(f'http://127.0.0.1:{server.server_port}/')
+                started = time.monotonic()
+                with pytest.raises(BrowserProblem) as error:
+                    adapter.receive_download(page, adapter.result_link(page), Event(), timeout=10)
+                assert error.value.code == 'file_transfer'
+                assert time.monotonic() - started < 5
+            finally:
+                context.close()
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=3)
+
+
 @pytest.mark.parametrize("notice_at", ["attachment", "result"])
 def test_chat_only_storage_notice_cannot_block_upload_or_download(browser_fixture, notice_at):
     adapter, accounts, request, captured, source = browser_fixture
@@ -1213,6 +1318,22 @@ def test_required_highest_model_and_reasoning_are_verified_before_real_chrome_su
     assert record['highest_model_verified'] and record['reasoning_verified']
     assert record['model'] == ('GPT-6 Luna' if plan=='Free' else 'Astra')
     assert record['reasoning'] == ('Đã bật suy luận trên web' if plan=='Free' else 'Suy luận trên web: High')
+    assert len(captured['sends']) == 1
+
+
+def test_restored_composer_waits_for_think_control_before_sending(browser_fixture):
+    adapter, accounts, request, captured, _ = browser_fixture
+    config_path = Path(request['folder']) / 'config.json'
+    config = json.loads(config_path.read_text(encoding='utf-8'))
+    config['require_highest_model'] = True
+    config_path.write_text(json.dumps(config), encoding='utf-8')
+    captured['html'] = models_fixture('Free').replace('<textarea id="prompt-textarea">',
+        '<button id="hydrating-think" hidden aria-pressed="true">Think</button>'
+        '<textarea id="prompt-textarea">').replace('</script>',
+        'setTimeout(()=>document.querySelector("#hydrating-think").hidden=false,1200);</script>')
+    adapter.convert(accounts.get(), accounts.root, request['folder'], Event(), lambda _: None, timeout=10)
+    record = read_record(request['folder'], accounts.get()['id'])
+    assert record['reasoning_verified'] and record['reasoning'] == 'Đã bật suy luận trên web'
     assert len(captured['sends']) == 1
 
 

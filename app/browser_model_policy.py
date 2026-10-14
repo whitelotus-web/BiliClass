@@ -5,6 +5,20 @@ import re
 
 def prepare_models(page, service):
     from .browser_automation import BrowserProblem
+
+    # Restored chats can show their composer before the web has hydrated the
+    # model/Think controls. Retry the readback briefly, before any send intent.
+    for attempt in range(3):
+        try:
+            return _prepare_models(page, service)
+        except BrowserProblem as exc:
+            if exc.code != 'model' or attempt == 2:
+                raise
+            page.wait_for_timeout(1000)
+
+
+def _prepare_models(page, service):
+    from .browser_automation import BrowserProblem
     from .browser_reasoning import select_effort
 
     if service == "gemini":

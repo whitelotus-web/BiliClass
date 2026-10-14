@@ -22,7 +22,7 @@ def temporary_failure(code, record):
     # recovery stays on the saved conversation and never reuploads the source.
     if record.get('wait_exhausted') or record.get('recovery_exhausted'):
         return False
-    return (recoverable(record) and code in {"network", "browser", "download", "receipt"}
+    return (recoverable(record) and code in {"network", "browser", "download", "file_transfer", "receipt"}
             or unsent(record) and code in {"upload", "interface"}
             or record["state"] == "waiting" and conversation_url(record["url"]) and code == "timeout")
 
@@ -81,7 +81,8 @@ def convert_available(accounts, root, folder, cancel, progress, *, observed=None
                 last_error = exc
                 record = web.read_record(folder, account["id"])
                 if (temporary_failure(exc.code, record)
-                        and attempt < len(retry_delays) and not cancel.is_set()):
+                        and attempt < min(len(retry_delays), 1 if exc.code == 'file_transfer' else len(retry_delays))
+                        and not cancel.is_set()):
                     progress(f"Tự tìm lại xác nhận gửi lần {attempt+1}/{len(retry_delays)}; giữ tài khoản, không gửi trùng…"
                              if record["state"] == "submitting" else
                              f"Kết nối tạm gián đoạn; tự khôi phục lần {attempt+1}/{len(retry_delays)} trong cùng cuộc trò chuyện…"

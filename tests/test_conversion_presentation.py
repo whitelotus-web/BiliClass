@@ -23,3 +23,11 @@ def test_account_action_and_completion_remain_truthful():
     assert "xác minh" in display_state({"phase": "error", "errorCode": "verification"})["displayMessage"]
     assert "hết lượt" in display_state({"phase": "error", "errorCode": "limit"})["displayMessage"]
     assert "Đã lưu" in display_state({"phase": "completed"})["displayStage"]
+
+
+def test_failed_file_transfer_does_not_claim_completion_or_expired_login():
+    shown = display_state({'running': False, 'phase': 'error', 'errorCode': 'file_transfer',
+                           'stage': 'download', 'percent': 55})
+    assert 'chưa hoàn tất' in shown['displayMessage']
+    assert 'đăng nhập' not in shown['displayMessage']
+    assert shown['percent'] == 55 and shown['displayStage'] == 'Chuyển đổi tạm dừng'

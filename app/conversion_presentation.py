@@ -7,7 +7,7 @@ STAGE_COPY = {
     "model": ("Chuẩn bị nội dung", "Đang chuẩn bị xử lý nội dung bài học."),
     "upload": ("Xử lý tài liệu", "Đang xử lý tài liệu gốc và yêu cầu của thầy cô."),
     "waiting": ("Biên soạn bài giảng song ngữ", "Đang biên soạn nội dung và bố cục bài giảng song ngữ."),
-    "download": ("Hoàn thiện bài giảng", "Đang hoàn thiện bản PowerPoint song ngữ."),
+    "download": ("Nhận tệp bài giảng", "Đang nhận bản PowerPoint song ngữ và chuẩn bị kiểm tra."),
     "quality": ("Kiểm tra bài giảng", "Đang kiểm tra nội dung, bố cục và lời đọc của từng slide."),
     "refine": ("Điều chỉnh bài giảng", "Đang điều chỉnh các phần cần hoàn thiện."),
     "refine_wait": ("Hoàn thiện nội dung", "Đang hoàn thiện nội dung và cách trình bày."),
@@ -20,6 +20,8 @@ STAGE_COPY = {
 }
 
 ERROR_COPY = {
+    "file_transfer": "Chưa nhận được tệp PowerPoint do đường tải bị gián đoạn. Bài gốc và cấu hình đã được giữ; bài chưa hoàn tất.",
+    "download": "Chưa lưu được tệp bài giảng đã tạo. Kết quả và bài đang làm được giữ để tiếp tục nhận tệp.",
     "translation_result": "Một phần nội dung chưa có kết quả hợp lệ. Các phần đã xong được giữ để tiếp tục.",
     "timeout": "Chưa nhận được kết quả sau khoảng theo dõi. Bài đang làm đã được giữ; bấm Tiếp tục để kiểm tra kết quả và tiếp tục xử lý.",
     "network": "Kết nối xử lý gián đoạn sau các lần khôi phục. Tác vụ đã tạm dừng và giữ bài; cần tiếp tục hoặc mở tài khoản để kiểm tra kết quả.",

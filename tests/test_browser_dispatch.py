@@ -234,6 +234,29 @@ def test_recovery_has_a_bound_and_cancellation_stops_before_reopen(tmp_path):
     assert exc.value.code == "cancelled" and attempts == [plus]
 
 
+def test_failed_result_transfer_retries_once_without_switching_or_restarting_on_launch(tmp_path):
+    from app.browser_dispatch import startup_resume
+
+    store, plus, _free = accounts_fixture(tmp_path)
+    record = read_record(tmp_path, plus)
+    record.update(state='waiting', url='https://chatgpt.com/c/fixture', auto_resume=True)
+    write_record(tmp_path, record)
+    calls = []
+
+    def converter(account, _root, folder, *_args, **_options):
+        calls.append(account['id'])
+        record['error'] = 'file_transfer'
+        write_record(folder, record)
+        raise BrowserProblem('file_transfer', 'Known result stream interrupted')
+
+    with pytest.raises(BrowserProblem):
+        convert_available(store.candidates(), store.root, tmp_path, Event(), lambda _: None,
+                          converter=converter, retry_delays=(0, 0, 0))
+    assert calls == [plus, plus] and not startup_resume(tmp_path)
+    store.login_error(plus, 'file_transfer', 'File transfer failed')
+    assert store.get(plus)['ready'] and not store.get(plus).get('connection_retry_at')
+
+
 @pytest.mark.parametrize("state,error,resumes", [("prepared", "upload", True),
     ("submitting", "receipt", True), ("waiting", "browser", True), ("completed", "", True),
     ("waiting", "verification", False), ("waiting", "limit", False), ("waiting", "no_file", False),

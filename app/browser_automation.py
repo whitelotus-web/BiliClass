@@ -587,18 +587,18 @@ def result_link(page, assistant_before=0, *, assistant_ids_before=None):
                 or parsed.scheme == "https" and (parsed.hostname == "chatgpt.com"
                 or (parsed.hostname or "").endswith(".oaiusercontent.com"))):
             return anchor
+    # Prefer the answer's direct download control over the artifact's preview
+    # button. The current web can render this link without an href or DIL marker.
+    for link in message.locator('[role="link"]:not([href])').all()[::-1]:
+        label = (link.inner_text() + " " + (link.get_attribute("aria-label") or ""))
+        if re.search(r"\.pptx\b", label, re.I) and link.is_visible() and link.is_enabled():
+            return link
     # The current web UI can render an artifact as a filename button rather
     # than an anchor. Only inspect the latest assistant answer, never user
     # attachments/sidebar files; the downloaded bytes are validated below.
     for button in message.get_by_role("button", name=re.compile(r"^[^/\\\n]{1,240}\.pptx$", re.I)).all()[::-1]:
         if button.is_visible() and button.is_enabled():
             return button
-    # Current ChatGPT renders sandbox downloads as DIL pressable links with
-    # no href. Click the web control; do not extract tokens or call its APIs.
-    for link in message.locator('[role="link"][data-d-component="pressable"]:not([href])').all()[::-1]:
-        label = (link.inner_text() + " " + (link.get_attribute("aria-label") or ""))
-        if re.search(r"\.pptx\b", label, re.I) and link.is_visible() and link.is_enabled():
-            return link
     return None
 
 
@@ -783,6 +783,30 @@ def receive_download(page, entry, cancel, timeout=45, progress=None):
     dismiss_attachment_notice(page)
     downloads = []
     watched = [page]
+    transfers = set()
+    failed_transfer = False
+
+    def response_seen(response):
+        # Observe only the file transfer initiated by the normal web control.
+        # Never fetch its URL or treat unrelated failed web assets as a result.
+        from email.message import Message
+        from urllib.parse import unquote
+
+        header = Message()
+        header['Content-Disposition'] = response.headers.get('content-disposition', '')
+        name = header.get_filename()
+        if name and unquote(name).casefold() == filename.casefold():
+            transfers.add(response.request)
+
+    def transfer_failed(request):
+        nonlocal failed_transfer
+        if request in transfers and request.failure != 'net::ERR_ABORTED':
+            failed_transfer = True
+
+    def watch(target):
+        target.on('download', received)
+        target.on('response', response_seen)
+        target.on('requestfailed', transfer_failed)
 
     def received(download):
         downloads.append(download)
@@ -790,50 +814,83 @@ def receive_download(page, entry, cancel, timeout=45, progress=None):
         # A result may open a new preview tab. Existing restored tabs are not
         # candidates, and no links in those tabs are ever activated here.
         watched.append(popup)
-        popup.on('download', received)
-    page.on("download", received)
-    page.context.on('page', opened)
+        watch(popup)
     try:
-        filename = entry.get_attribute("aria-label") or entry.inner_text().strip()
-        filename = re.sub(r'^(?:(?:Open|Mở|Download|Tải xuống|Tải tệp xuống)\s+)+', '', filename, flags=re.I)
+        def clean_label(value):
+            return re.sub(r'^(?:[\s📥⬇️]+|(?:Open(?:ing)?(?:\s+preview(?:\s+of)?)?|Preview(?:\s+of)?|'
+                          r'Mở(?:\s+(?:bản\s+)?xem\s+trước(?:\s+của)?)?|Xem trước|'
+                          r'Download(?:\s+file)?|Tải(?:\s+(?:tệp xuống|tệp|xuống))?)\s+)+', '',
+                          value.strip(), flags=re.I)
+        filename = clean_label(entry.get_attribute('aria-label') or entry.inner_text())
+        watch(page)
+        page.context.on('page', opened)
+        download_label = re.compile(r'^(Download(?: file)?|Tải tệp xuống|Tải xuống)$',re.I)
+        file_label=re.compile(r'^[^/\\\n]{1,240}\.pptx$',re.I)
+
+        def matching_button(buttons):
+            for button in buttons:
+                if not button.is_visible() or not button.is_enabled():
+                    continue
+                for panel in button.locator('xpath=ancestor::*').all()[::-1][:5]:
+                    if (panel.evaluate("e => ['HTML','BODY','MAIN'].includes(e.tagName)")
+                            or panel.get_by_role('button',name=download_label).count()!=1):
+                        continue
+                    labels=[node.inner_text() for node in panel.get_by_text(file_label).all()]
+                    labels.extend(node.get_attribute('aria-label') or node.inner_text()
+                                  for node in panel.get_by_role('button',name=file_label).all())
+                    if any(clean_label(label).casefold()!=filename.casefold() for label in labels):
+                        continue  # An ancestor shared with another file is not a matching card.
+                    if (panel.get_by_text(filename,exact=True).count()
+                            or panel.get_by_role('button',name=filename,exact=True).count()):
+                        return button
+            return None
+
+        # Current web cards have an overlaid "Open preview of <name>" control
+        # and a sibling Download button. Opening the large PPTX preview first
+        # can stall. Activate only the download bound to this result card.
+        adjacent=[]
+        panels=(entry.locator('xpath=ancestor::*').all()[::-1][:5]
+                if entry.evaluate("e=>e.tagName==='BUTTON'") else [])
+        for panel in panels:
+            if panel.evaluate("e => ['HTML','BODY','MAIN'].includes(e.tagName)"):
+                break
+            candidate=matching_button(panel.get_by_role('button',name=download_label).all())
+            if candidate is not None:
+                adjacent.append(candidate)
+                break
+        direct=adjacent[0] if adjacent else None
         if progress:
-            progress("Đang mở thẻ PowerPoint từ câu trả lời ChatGPT…")
+            progress("Đang tải PowerPoint từ đúng thẻ kết quả…" if direct is not None else
+                     "Đang mở thẻ PowerPoint từ câu trả lời ChatGPT…")
         try:
-            entry.click(timeout=10000)
+            if direct is not None:
+                direct.press('Enter',timeout=10000)
+            else:
+                entry.click(timeout=10000)
         except Exception as exc:
             raise BrowserProblem("download", "Chưa mở được thẻ PowerPoint của ChatGPT. Tool giữ kết quả để thử lại.") from exc
         deadline = time.monotonic() + timeout
-        preview_clicked = False
-        download_label = re.compile(r"^(Download file|Tải tệp xuống|Tải xuống)$", re.I)
+        preview_clicked = direct is not None
         while time.monotonic() < deadline:
             check_cancel(cancel)
             if downloads:
                 return downloads[0]
+            if failed_transfer:
+                raise BrowserProblem('file_transfer',
+                    'Đường tải tệp kết quả đã bị ngắt. Bài gốc, cấu hình và cuộc trò chuyện được giữ; chưa có PowerPoint hoàn chỉnh trên máy.')
             page_problem(page)
             if not preview_clicked:
-                matches = []
                 buttons = [button for preview in watched if not preview.is_closed()
                            for button in preview.get_by_role('button', name=download_label).all()]
-                for button in buttons:
-                    if not button.is_visible() or not button.is_enabled():
-                        continue
-                    # Preview is portaled outside the assistant answer. Match
-                    # its filename locally, never a page-wide Download button.
-                    for panel in button.locator('xpath=ancestor::*').all()[::-1][:5]:
-                        if (panel.evaluate("e => ['HTML','BODY','MAIN'].includes(e.tagName)")
-                                or panel.get_by_role("button", name=download_label).count() != 1):
-                            continue
-                        if panel.get_by_text(filename, exact=True).count() or panel.get_by_role("button", name=filename, exact=True).count():
-                            matches.append(button)
-                            break
-                if matches:
+                match=matching_button(buttons)
+                if match is not None:
                     if progress:
                         progress("Đang bấm tải PowerPoint từ thẻ tệp ChatGPT…")
                     try:
                         # The web card overlays its open-file button across
                         # the download icon. Keyboard activation targets the
                         # enabled Download button, rather than that overlay.
-                        matches[-1].press("Enter", timeout=10000)
+                        match.press("Enter", timeout=10000)
                     except Exception as exc:
                         raise BrowserProblem("download", "Chưa bấm được nút tải trong thẻ PowerPoint. Tool giữ kết quả để thử lại.") from exc
                     preview_clicked = True
@@ -843,6 +900,8 @@ def receive_download(page, entry, cancel, timeout=45, progress=None):
         page.context.remove_listener('page', opened)
         for preview in watched:
             preview.remove_listener('download', received)
+            preview.remove_listener('response', response_seen)
+            preview.remove_listener('requestfailed', transfer_failed)
 
 
 def convert(account, root, request_folder, cancel, progress, *, timeout=900, observed=None):
