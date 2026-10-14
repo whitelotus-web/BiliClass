@@ -873,6 +873,10 @@ def _convert_locked(account, request_folder, cancel, progress, *, timeout, obser
             raise BrowserProblem("result", "PowerPoint đã tải bị thay đổi. Nhận lại kết quả từ cuộc trò chuyện trước khi dùng.")
         inspect_returned_deck(target)
         return {"path": str(target), "url": record["url"], "cached": True}
+    if request['config'].get('conversion_engine') == 'hybrid_v1':
+        from .browser_translation import convert_locked
+
+        return convert_locked(account,request,cancel,progress,timeout=timeout,observed=observed)
     files = [folder / name for name in request["attachments"]]
     if any(p.parent != folder or not p.is_file() or p.stat().st_size > document_limit(p) for p in files):
         raise BrowserProblem("attachments", "Tài liệu hoặc mẫu đã thiếu/thay đổi. Chuẩn bị gói mới trước khi gửi.")

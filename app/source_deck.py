@@ -178,6 +178,16 @@ def _rels_path(part):
     return posixpath.join(posixpath.dirname(part), "_rels", posixpath.basename(part) + ".rels")
 
 
+def source_slide_parts(path):
+    """Read actual ZIP part names before python-pptx normalizes slide names."""
+    with zipfile.ZipFile(path) as archive:
+        presentation = _xml(archive.read('ppt/presentation.xml'))
+        relations = _xml(archive.read('ppt/_rels/presentation.xml.rels'))
+    parts = {row.get('Id'):_part_relative('ppt/presentation.xml',row.get('Target',''))
+             for row in relations if row.get('Type','').endswith('/slide')}
+    return [parts[row.get('{'+NS['r']+'}id')] for row in presentation.find('p:sldIdLst',NS)]
+
+
 def _clone_owned_part(part, index, entries, types, cloned):
     """PowerPoint requires each duplicated chart to own its chart/workbook parts."""
     if part in cloned:

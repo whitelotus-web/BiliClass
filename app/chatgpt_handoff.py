@@ -60,6 +60,10 @@ def make_prompt(config, source_name):
     config = validate_config(config)
     preset = next(p for p in catalog()["presets"] if p["id"] == config["preset"])
     if config.get("conversion_format"):
+        if config.get('prompt_speed_version') == 1 and config.get('browser_service','chatgpt') == 'chatgpt':
+            from .conversion_prompt_fast import conversion_prompt
+
+            return conversion_prompt(config,source_name,preset)
         from .conversion_formats import conversion_prompt
 
         return conversion_prompt(config, source_name, preset)
@@ -154,6 +158,14 @@ def prepare_request(directory, config, source_path=None, text=""):
     folder.mkdir(parents=True)
     try:
         (folder / config["source_file"]).write_bytes(data)
+        if (config.get('speed_pipeline') == 1 and suffix == '.pptx' and config['style'] == 'source'
+                and config.get('browser_service','chatgpt') == 'chatgpt' and config.get('provider') == 'browser_web'):
+            from .native_bilingual import extract
+            from .translation_batches import signature
+
+            manifest = extract(folder / config['source_file'],config['conversion_format'])
+            (folder/'native-input.json').write_text(json.dumps(manifest,ensure_ascii=False),encoding='utf-8')
+            config.update(conversion_engine='hybrid_v1',native_input_sha256=signature(manifest))
         prompt = make_prompt(config, config["source_file"])
         (folder / "PROMPT.txt").write_text(prompt, encoding="utf-8")
         (folder / "config.json").write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -231,9 +243,11 @@ def inspect_returned_deck(path, source_path=None, conversion_format="", requeste
     units = text_blocks(deck)
     blocks, render_only, questions, review_notes = [], [], [], []
     source_total = None
+    source_deck = None
     if source_path and requested_style == "source" and Path(source_path).suffix.lower() == ".pptx":
         inspect_zip(Path(source_path))
-        source_total = len(Presentation(source_path).slides)
+        source_deck = Presentation(source_path)
+        source_total = len(source_deck.slides)
         if source_total != len(deck.slides):
             review_notes.append(f"Số slide đã thay đổi: nguồn {source_total}, kết quả {len(deck.slides)}. "
                                 "Chưa đạt yêu cầu giữ đúng số slide; cần kiểm tra hoặc chuyển đổi lại.")
@@ -281,7 +295,7 @@ def inspect_returned_deck(path, source_path=None, conversion_format="", requeste
     from .slide_speech import deck_speech
 
     speech_data = deck_speech(path, deck, conversion_format, profile["units"])
-    quality = inspect_quality(deck, speech_data, conversion_format, source_total)
+    quality = inspect_quality(deck, speech_data, conversion_format, source_total,source_deck=source_deck)
     review_notes.extend(quality_messages(quality))
     return {"blocks": blocks, "profile": profile, "total": len(deck.slides), "render_only": render_only,
             "questions": questions, "review_notes": review_notes,

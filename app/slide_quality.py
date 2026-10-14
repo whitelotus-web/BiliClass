@@ -29,6 +29,8 @@ MESSAGES = {
     "render_unavailable": "Chưa render được bằng PowerPoint; không chứng nhận bố cục.",
     "visual_review": "Ảnh đã render; hình khoa học, tương phản và hiệu ứng vẫn cần đối chiếu.",
     "slide_count": "Số slide không khớp yêu cầu giữ PowerPoint đầu vào.",
+    "source_motion_position": "Vị trí ngoài khung thuộc hiệu ứng di chuyển có sẵn trong nguồn; cần xem khi trình chiếu, không tự dời đối tượng.",
+    "source_workspace": "Giữ nguyên đối tượng phụ nằm hoàn toàn ngoài trang chiếu của bản gốc; không đưa vào lời đọc.",
     "vietnamese_remaining": "Chế độ English 100% còn chữ Việt trong đối tượng văn bản.",
 }
 
@@ -46,7 +48,7 @@ def contrast_ratio(first, second):
     return (b+.05)/(a+.05)
 
 
-def inspect_quality(deck, speech, mode="", source_total=None):
+def inspect_quality(deck, speech, mode="", source_total=None, *, source_deck=None):
     from .slide_speech import VI_MARKS
 
     rows = []
@@ -54,6 +56,22 @@ def inspect_quality(deck, speech, mode="", source_total=None):
         spoken = speech["slides"][index-1]
         issues = [{"code": code, "severity": "CHECK"} for code in spoken["issues"]]
         shapes = objects(slide)
+        workspace = []
+        if source_deck is not None and len(source_deck.slides) == len(deck.slides):
+            original_slide = source_deck.slides[index-1]
+            original = {item['shape_id']:item for item in objects(original_slide)}
+            animated = set(original_slide._element.xpath('.//p:spTgt/@spid')) | set(slide._element.xpath('.//p:spTgt/@spid'))
+            for item in shapes:
+                before = original.get(item['shape_id'])
+                if (before is not None and before['text'] == item['text']
+                        and not animated.intersection(map(str,item['ancestors']))
+                        and all(abs(item[key]-before[key]) <= 12700 for key in ('x','y','w','h'))
+                        and (before['x']+before['w'] <= 0 or before['y']+before['h'] <= 0
+                             or before['x'] >= source_deck.slide_width or before['y'] >= source_deck.slide_height)):
+                    workspace.append(item['shape_id'])
+            shapes = [item for item in shapes if item['shape_id'] not in workspace]
+            if workspace:
+                issues.append({'code':'source_workspace','severity':'CHECK'})
         if mode in {"parallel_columns", "sentence_pairs"}:
             issues.extend(bilingual_issues(shapes, spoken, deck.slide_width, deck.slide_height, mode))
         for item in shapes:
@@ -99,9 +117,31 @@ def inspect_quality(deck, speech, mode="", source_total=None):
             issues.append({"code": "slide_count", "severity": "FAIL"})
         unique = {json.dumps(issue, sort_keys=True): issue for issue in issues}
         rows.append({"slide": index, "slide_id": slide.slide_id, "issues": list(unique.values()),
+                     "source_workspace_shapes":workspace,
                      "rendered": False, "render_image": "", "status": "CHECK"})
     report = {"schema_version": 1, "sha256": speech["sha256"], "slides": rows,
               "scope": "native object/speech checks and Office text geometry; no automatic OCR or semantic/animation certification"}
+    if source_deck is not None and len(source_deck.slides)==len(deck.slides):
+        for row,source,target in zip(rows,source_deck.slides,deck.slides,strict=True):
+            motion = {int(value) for value in source._element.xpath('.//p:animMotion//p:spTgt/@spid') if value.isdigit()}
+            motion &= {int(value) for value in target._element.xpath('.//p:animMotion//p:spTgt/@spid') if value.isdigit()}
+            if not motion:
+                continue
+            original = {item['shape_id']:item for item in objects(source)}
+            positions,unchanged = [],[]
+            for item in objects(target):
+                before = original.get(item['shape_id'])
+                if before is None or not motion.intersection(before['ancestors']):
+                    continue
+                if any(abs(item[key]-before[key])>12700 for key in ('x','y','w','h')):
+                    continue
+                if (before['x']>=0 and before['y']>=0 and before['x']+before['w']<=source_deck.slide_width
+                        and before['y']+before['h']<=source_deck.slide_height):
+                    continue
+                positions.append(item['shape_id'])
+                if item['text']==before['text']:
+                    unchanged.append(item['shape_id'])
+            row.update(source_motion_shapes=positions,source_motion_unchanged_text=unchanged)
     return update_status(report)
 
 
@@ -166,6 +206,18 @@ def grouped_quality_messages(report):
 
 
 def update_status(report):
+    for row in report['slides']:
+        outside = set(row.get('source_motion_shapes',[]))
+        unchanged = set(row.get('source_motion_unchanged_text',[]))
+        for issue in row['issues']:
+            if (issue['code'] in {'text_overflow','small_text'}
+                    and issue.get('shape_id') in row.get('source_workspace_shapes',[])):
+                issue['severity']='CHECK'
+            if (issue['code']=='outside_slide' and issue.get('shape_id') in outside
+                    or issue['code']=='text_overflow' and issue.get('shape_id') in unchanged):
+                issue['severity']='CHECK'
+        if outside and not any(i['code']=='source_motion_position' for i in row['issues']):
+            row['issues'].append({'code':'source_motion_position','severity':'CHECK'})
     for row in report["slides"]:
         for issue in row["issues"]:
             issue["message"] = MESSAGES.get(issue["code"], issue["code"])

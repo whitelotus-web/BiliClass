@@ -2,10 +2,11 @@
 
 import hashlib
 import json
+import os
 import shutil
 from pathlib import Path
 
-VERSION = 1
+VERSION = 2
 NATIVE_CODES = {"text_overflow", "low_contrast"}
 RENDER_CODES = NATIVE_CODES | {"visual_review", "render_unavailable"}
 
@@ -28,6 +29,14 @@ class RenderCache:
         if reuse_directory is not None:
             self.sources.append(Path(reuse_directory) / "temp" / "slide-quality" / self.sha256[:24])
         self.caches = []
+        from .slide_fingerprint import SlideFingerprints, environment_key
+
+        self.environment=environment_key()
+        self.slide_keys=SlideFingerprints(path).keys()
+        self.shared=self.directory/'temp/slide-quality/by-slide'
+        self.shared_sources=[self.shared]
+        if reuse_directory is not None:
+            self.shared_sources.append(Path(reuse_directory)/'temp/slide-quality/by-slide')
         for folder in self.sources:
             try:
                 cache = json.loads((folder / "render-cache.json").read_text(encoding="utf-8"))
@@ -42,12 +51,25 @@ class RenderCache:
 
     def reuse(self, row):
         number = str(row["slide"])
-        for folder, entries in self.caches:
+        key=self.slide_keys.get(number) if self.slide_keys is not None else None
+        if self.slide_keys is not None and key is None:
+            return False
+        candidates=[]
+        for folder,entries in self.caches:
+            if number in entries:
+                candidates.append((folder/f'slide-{number}.png',entries[number]))
+        if key:
+            for shared in self.shared_sources:
+                try:
+                    item=json.loads((shared/(key+'.json')).read_text(encoding='utf-8'))
+                    candidates.append((shared/(key+'.png'),item))
+                except (OSError,ValueError,TypeError):
+                    continue
+        for image,item in candidates:
             try:
-                item = entries[number]
-                image = folder / f"slide-{number}.png"
                 issues = item["issues"]
-                if (not isinstance(issues, list) or any(issue.get("code") not in NATIVE_CODES
+                if (item.get('environment')!=self.environment or (key and item.get('slide_key')!=key)
+                        or not isinstance(issues, list) or any(issue.get("code") not in NATIVE_CODES
                         or issue.get("severity") not in {"FAIL", "CHECK"} for issue in issues)
                         or digest(image) != item["image_sha256"]):
                     continue
@@ -70,8 +92,27 @@ class RenderCache:
     def save_row(self, row):
         self.rows[str(row["slide"])] = {
             "image_sha256": digest(self.image(row["slide"])),
-            "issues": [issue for issue in row["issues"] if issue["code"] in NATIVE_CODES],
+            "issues": [dict(issue,severity='FAIL' if issue['code']=='text_overflow' else issue['severity'])
+                       for issue in row["issues"] if issue["code"] in NATIVE_CODES],
+            'environment':self.environment,
+            'slide_key':self.slide_keys.get(str(row['slide'])) if self.slide_keys is not None else None,
         }
+        item=self.rows[str(row['slide'])]
+        key=item['slide_key']
+        if key:
+            self.shared.mkdir(parents=True,exist_ok=True)
+            image=self.shared/(key+'.png')
+            if not image.exists() or digest(image)!=item['image_sha256']:
+                temporary=image.with_suffix('.png.tmp')
+                temporary.unlink(missing_ok=True)
+                try:
+                    os.link(self.image(row['slide']),temporary)
+                except OSError:
+                    shutil.copyfile(self.image(row['slide']),temporary)
+                temporary.replace(image)
+            temporary=self.shared/(key+'.json.tmp')
+            temporary.write_text(json.dumps(item),encoding='utf-8')
+            temporary.replace(self.shared/(key+'.json'))
         self.save()
 
     def save(self):

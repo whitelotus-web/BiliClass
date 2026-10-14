@@ -1,5 +1,12 @@
 # Trạng thái BiliClass
 
+Ngày 14/10/2026 — nguồn RC32: chuyển đổi thích ứng theo nội dung, nhóm JSON
+và nhóm slide trực quan, tối đa hai tab cùng profile, cache bản dịch/checkpoint
+riêng, media nhẹ khi truyền và phục hồi byte gốc khi ghép. Prompt mới gọn hơn;
+render/đo chữ tại máy và dùng lại slide không đổi. Voice vẫn là bước riêng.
+Chi tiết phạm vi, cách tiếp tục và giới hạn trong [HYBRID_CONVERSION.md](HYBRID_CONVERSION.md).
+Không coi kiểm thử fixture là số đo thời gian chuyển đổi trên tài khoản thật.
+
 Ngày 14/10/2026 — đã phát hành [RC31](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc31)
 từ commit ứng dụng `e3949b2048aab27100608a058a5ff437445d7bc0`. ZIP
 667.963.406 byte, SHA-256

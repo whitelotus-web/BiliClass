@@ -213,10 +213,16 @@ def _notes_metadata(notes):
     return segments[:1000], malformed
 
 
-def inspect_slide(slide, number, mode="", notes_en=""):
+def inspect_slide(slide, number, mode="", notes_en="", bounds=None):
     notes = slide.notes_slide.notes_text_frame.text if slide.has_notes_slide else ""
     metadata, malformed = _notes_metadata(notes)
     items = objects(slide)
+    if bounds:
+        animated = set(slide._element.xpath('.//p:spTgt/@spid'))
+        width,height = bounds
+        items = [item for item in items if animated.intersection(map(str,item['ancestors']))
+                 or not (item['x']+item['w'] <= 0 or item['y']+item['h'] <= 0
+                         or item['x'] >= width or item['y'] >= height)]
     animations = animation_rules(slide)
     segments, issues, seen = [], [], set()
     if malformed:
@@ -300,7 +306,8 @@ def inspect_slide(slide, number, mode="", notes_en=""):
 
 def deck_speech(path, deck, mode="", pairs=()):
     return {"schema_version": SCHEMA, "sha256": hashlib.sha256(Path(path).read_bytes()).hexdigest(),
-            "slides": [inspect_slide(slide, i, mode, pairs[i - 1].get("en", "") if i <= len(pairs) else "")
+            "slides": [inspect_slide(slide, i, mode, pairs[i - 1].get("en", "") if i <= len(pairs) else "",
+                                     bounds=(deck.slide_width,deck.slide_height))
                        for i, slide in enumerate(deck.slides, 1)]}
 
 

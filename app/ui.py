@@ -515,6 +515,10 @@ class Bridge(QObject):
         if conversion_format:
             config.update(conversion_format=conversion_format, provider="browser_web" if automatic else "manual_web",
                           teacher_notes=teacher_notes)
+            if automatic:
+                config['prompt_speed_version'] = 1
+            if automatic and style == 'source' and self._browser_ai.service == 'chatgpt':
+                config['speed_pipeline'] = 1
 
         if automatic:
             import time

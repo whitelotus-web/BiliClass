@@ -9,6 +9,8 @@ STAGES = {
     "model": (5, 8, "Chọn model và suy luận"),
     "upload": (8, 25, "Tải tài liệu và gửi yêu cầu"),
     "waiting": (25, 25, "Chờ ChatGPT tạo PowerPoint"),
+    "translate": (25, 55, "Biên soạn từng phần bài giảng"),
+    "assemble": (55, 60, "Hoàn thiện PowerPoint tại máy"),
     "download": (55, 60, "Nhận PowerPoint"),
     "quality": (60, 72, "Kiểm tra slide và lời đọc"),
     "refine": (73, 75, "Gửi yêu cầu sửa slide"),
@@ -78,7 +80,7 @@ class ConversionProgress:
         percent = start + int((end-start)*done/total) if counted else start
         self.state.update(percent=max(self.state["percent"], percent), stage=stage, stageLabel=label,
                           done=done, total=total if counted else 0,
-                          waiting=stage in {"waiting", "refine_wait"}, message=message)
+                          waiting=stage in {"waiting", "refine_wait", "translate"}, message=message)
         self._emit()
 
     def finish(self):

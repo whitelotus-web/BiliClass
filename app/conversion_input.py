@@ -43,7 +43,8 @@ def creation_config(title, subject, education, grade, conversion_format, preset,
         raise ValueError("Chọn khối lớp thuộc cấp học đã chọn.")
     return format_config({"title": title.strip(), "subject": subject.strip(),
         "education_level": education, "grade": grade, "teacher_notes": teacher_notes.strip(),
-        "conversion_format": conversion_format, "preset": preset, "style": style, "provider": "browser_web"})
+        "conversion_format": conversion_format, "preset": preset, "style": style, "provider": "browser_web",
+        "prompt_speed_version":1})
 
 
 def prompt_preview(config, file_url="", text=""):

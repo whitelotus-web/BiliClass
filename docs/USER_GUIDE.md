@@ -1,4 +1,9 @@
-# BiliClass RC31 — hướng dẫn dùng thử
+# BiliClass RC32 — hướng dẫn dùng thử
+
+RC32 tối ưu yêu cầu giữ PowerPoint gốc: tự chọn xử lý chữ theo nhóm hoặc xử lý
+slide phức tạp, giảm dữ liệu video phải truyền và dùng lại phần đã hoàn tất.
+Xem [cơ chế và giới hạn](HYBRID_CONVERSION.md). Tài khoản và thư viện vẫn lưu
+riêng trên máy. Bài đang dở giữ cơ chế cũ; nâng cấp không tự gửi lại bài.
 
 Màn chuyển đổi luôn hiện **% theo các mốc công việc đã hoàn tất**. Khi đang
 chờ, phần thanh đã hoàn tất có hiệu ứng chuyển động và đồng hồ tiếp tục
@@ -17,7 +22,7 @@ lưu trước; tạo giọng đọc là bước riêng nếu thầy cô cần.
 
 ## Cài lần đầu
 
-1. Mở [Release RC31](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc31), tải **BiliClass-RC31-Windows.zip** trong Assets.
+1. Mở [Release RC32](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc32), tải **BiliClass-RC32-Windows.zip** trong Assets.
 2. Giải nén toàn bộ bằng Windows; không chạy ứng dụng ngay trong cửa sổ ZIP.
 3. Chạy **Setup.cmd**. Bộ cài kiểm tra checksum, cài vào `%LOCALAPPDATA%/Programs/BiliClass/<version>` và tạo mục Start menu, không cần quyền quản trị.
 4. Mở BiliClass từ Start menu, vào **Cài đặt → Browser AI**, chọn **ChatGPT hoặc Gemini**, bấm **Thêm tài khoản** để đăng nhập. Mỗi máy tự đăng nhập; không sao chép profile của người khác. Có thể thêm nhiều tài khoản độc lập cho từng dịch vụ và tích chọn tài khoản cụ thể để chuyển đổi, hoặc dùng Tự chọn tài khoản đang kết nối.

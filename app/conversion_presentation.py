@@ -1,6 +1,8 @@
 """Teacher-facing conversion copy; transport diagnostics stay in job records."""
 
 STAGE_COPY = {
+    "translate": ("Biên soạn bài giảng", "Đang hoàn thiện từng phần nội dung song ngữ."),
+    "assemble": ("Hoàn thiện bài giảng", "Đang hoàn thiện bản PowerPoint song ngữ."),
     "session": ("Chuẩn bị bài giảng", "Đang chuẩn bị bài giảng theo cấu hình đã chọn."),
     "model": ("Chuẩn bị nội dung", "Đang chuẩn bị xử lý nội dung bài học."),
     "upload": ("Xử lý tài liệu", "Đang xử lý tài liệu gốc và yêu cầu của thầy cô."),
@@ -18,6 +20,7 @@ STAGE_COPY = {
 }
 
 ERROR_COPY = {
+    "translation_result": "Một phần nội dung chưa có kết quả hợp lệ. Các phần đã xong được giữ để tiếp tục.",
     "timeout": "Chưa nhận được kết quả sau khoảng theo dõi. Bài đang làm đã được giữ; bấm Tiếp tục để kiểm tra kết quả và tiếp tục xử lý.",
     "network": "Kết nối xử lý gián đoạn sau các lần khôi phục. Tác vụ đã tạm dừng và giữ bài; cần tiếp tục hoặc mở tài khoản để kiểm tra kết quả.",
     "model": "Chưa xác nhận được lựa chọn model và suy luận phù hợp. Mở tài khoản trong Browser AI để kiểm tra; bài chưa được gửi bằng cấu hình thấp hơn.",
