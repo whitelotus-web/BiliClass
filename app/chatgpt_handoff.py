@@ -34,6 +34,8 @@ LAYOUT_LABELS = {
 
 
 def validate_config(config):
+    from .browser_services import service_spec
+    service_spec(config.get("browser_service", "chatgpt"))
     result = dict(config)
     if result.get("provider") == "chatgpt_plan":
         raise ValueError("Yêu cầu OAuth cũ đã ngừng hỗ trợ. Tài liệu và kết quả đã lưu vẫn giữ nguyên; tạo yêu cầu mới với một trong bốn kiểu chuyển đổi qua Browser AI.")

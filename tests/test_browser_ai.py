@@ -1177,6 +1177,25 @@ def test_upgrade_labels_are_not_plan_or_model_entitlements():
     assert model_priority("GPT-6.1 Sol") > model_priority("GPT-6 Sol") > model_priority("GPT-6 Luna")
 
 
+@pytest.mark.parametrize("plan", ['Free','Plus'])
+def test_required_highest_model_and_reasoning_are_verified_before_real_chrome_submit(browser_fixture, plan):
+    adapter, accounts, request, captured, _ = browser_fixture
+    config_path = Path(request['folder']) / 'config.json'
+    config = json.loads(config_path.read_text(encoding='utf-8'))
+    config['require_highest_model'] = True
+    config_path.write_text(json.dumps(config), encoding='utf-8')
+    think = '<button aria-pressed="false" onclick="this.setAttribute(\'aria-pressed\',\'true\')">Think</button>'
+    high = '''<button id="effort" onclick="document.querySelector('#efforts').hidden=false">Standard</button>
+    <div id="efforts" role="menu" hidden><button role="menuitemradio" onclick="document.querySelector('#effort').textContent='High';this.setAttribute('aria-checked','true');this.parentNode.hidden=true">High</button></div>'''
+    captured['html'] = models_fixture(plan).replace('<textarea id="prompt-textarea">', (think if plan=='Free' else high) + '<textarea id="prompt-textarea">')
+    adapter.convert(accounts.get(),accounts.root,request['folder'],Event(),lambda *_:None,timeout=10)
+    record = read_record(request['folder'],accounts.get()['id'])
+    assert record['highest_model_verified'] and record['reasoning_verified']
+    assert record['model'] == ('GPT-6 Luna' if plan=='Free' else 'Astra')
+    assert record['reasoning'] == ('Đã bật suy luận trên web' if plan=='Free' else 'Suy luận trên web: High')
+    assert len(captured['sends']) == 1
+
+
 @pytest.mark.parametrize("composer_label", ["Ask ChatGPT", "Hỏi ChatGPT"])
 def test_current_web_composer_saves_real_profile_identity_and_sends_full_prompt(browser_fixture, composer_label):
     adapter, accounts, request, captured, _ = browser_fixture

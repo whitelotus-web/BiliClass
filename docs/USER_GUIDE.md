@@ -1,11 +1,11 @@
-# BiliClass RC27 — hướng dẫn dùng thử
+# BiliClass RC28 — hướng dẫn dùng thử
 
 ## Cài lần đầu
 
-1. Mở [Release RC27](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc27), tải **BiliClass-RC27-Windows.zip** trong Assets.
+1. Mở [Release RC28](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc28), tải **BiliClass-RC28-Windows.zip** trong Assets.
 2. Giải nén toàn bộ bằng Windows; không chạy ứng dụng ngay trong cửa sổ ZIP.
 3. Chạy **Setup.cmd**. Bộ cài kiểm tra checksum, cài vào `%LOCALAPPDATA%/Programs/BiliClass/<version>` và tạo mục Start menu, không cần quyền quản trị.
-4. Mở BiliClass từ Start menu, vào **Cài đặt → Browser AI → Thêm tài khoản**, đăng nhập ChatGPT. Mỗi máy tự đăng nhập; không sao chép profile của người khác.
+4. Mở BiliClass từ Start menu, vào **Cài đặt → Browser AI**, chọn **ChatGPT hoặc Gemini**, bấm **Thêm tài khoản** để đăng nhập. Mỗi máy tự đăng nhập; không sao chép profile của người khác. Có thể thêm nhiều tài khoản độc lập cho từng dịch vụ và tích chọn tài khoản cụ thể để chuyển đổi, hoặc dùng Tự chọn tài khoản đang kết nối.
 5. Chọn/nghe thử giọng trong tab Giọng đọc và kéo tốc độ, sau đó bấm Lưu giọng và tốc độ.
 
 Yêu cầu: Windows 10/11 64-bit; Google Chrome; Microsoft PowerPoint desktop để giữ trình chiếu, animation và điều khiển slide. Cần Internet khi chuyển đổi bằng ChatGPT. Bộ cài đã có sáu giọng VieNeu đa ngôn ngữ, một giọng đọc cả Việt và Anh, mẫu và ảnh xem trước; không cần Python, API key hay tải model riêng.
@@ -13,6 +13,8 @@ Yêu cầu: Windows 10/11 64-bit; Google Chrome; Microsoft PowerPoint desktop đ
 Portable: chạy `BiliClass/BiliClass.exe` trong thư mục đã giải nén. Giữ nguyên `_internal`, `models`, `licenses`. Không mở đồng thời bản nguồn và bản cài với cùng thư viện.
 
 Trong Cài đặt, Browser AI ở vị trí thứ hai, Song ngữ ở cuối. Nút **Mở tài khoản** trên mỗi profile mở đúng phiên Chrome đã lưu, không tạo tài khoản mới; khi đóng cửa sổ hoặc bấm Kiểm tra và lưu, tool xác minh lại phiên. Hoàn tất tác vụ/profile đang mở trước khi mở tài khoản khác.
+
+Lựa chọn ChatGPT/Gemini áp dụng cho bài mới. Bài đã gửi tiếp tục đúng dịch vụ và profile cũ, không gửi lại sang dịch vụ khác khi bạn đổi cài đặt. Trước lượt gửi/sửa, tool chọn và xác nhận model/suy luận mạnh nhất trong các lựa chọn đọc được và được phép dùng. Không thấy hoặc không xác nhận được lựa chọn thì báo cần kiểm tra tài khoản, không tự gửi bằng Fast/Instant. Gemini chưa công bố gói tin cậy trong giao diện thì hiện Chưa rõ gói, không đoán Pro từ nút nâng cấp. Tệp gửi Gemini tối đa 100 MB; quyền tải tệp/Canvas/Slides tùy tài khoản. [Chi tiết Browser AI](BROWSER_SERVICES.md).
 
 Logo tải ở **Chung** cũng hiện cạnh tên giáo viên ở chân thanh bên. Không có logo thì hiện chữ cái tên; thay/bỏ logo cập nhật ngay. Tùy chọn hiện hồ sơ trên bài giảng chỉ điều khiển phần hồ sơ trong bài. Thông báo bản quyền được căn giữa dưới phiên bản ở thanh bên, không được tự thêm vào tài liệu hoặc prompt của giáo viên:
 

@@ -166,7 +166,7 @@ def step():
         assert time.monotonic() < deadline, "Web UI flow timed out"
         if phase == "start":
             QMetaObject.invokeMethod(window.findChild(QObject, "helpDialog"), "close", Qt.DirectConnection)
-            assert window.findChild(QObject, "browserAccountAdd").property("text") == "Đăng nhập ChatGPT"
+            assert window.findChild(QObject, "browserAccountAdd").property("text") == "Thêm tài khoản"
             capture("login.png")
             click("browserAccountAdd")
             phase = "closed"
@@ -242,7 +242,7 @@ def step():
             assert not bridge.browserAI.store.get(free_id)["ready"]
             assert bridge.browserAI.store.get(plus_id)["ready"] and bridge.browserAI.store.get(plus_id)["quota_limited"]
             assert sends == [free_id], "Limited Plus must switch to Free before sending exactly once"
-            assert window.findChild(QObject, "browserConversionResume").property("text") == "Đăng nhập và tiếp tục"
+            assert window.findChild(QObject, "browserConversionResume").property("text") == "Kết nối và tiếp tục", (bridge.browserState, bridge.message)
             reopened = Bridge(library)
             assert reopened.browserState["needsLogin"] and reopened.chatgptRequest["folder"] == bridge.chatgptRequest["folder"]
             reopened.browserAI.shutdown()
@@ -266,8 +266,8 @@ def step():
             assert bridge.lesson["external_deck"] and bridge.quickResult["image"]
             assert Path(bridge.quickResult["path"]).read_bytes() == source.read_bytes()
             assert not any(segment["approved"] for segment in bridge.lesson["segments"])
-            if bridge.voiceSettings["en"]:
-                assert audio, "Requested narration must be prepared"
+            assert not audio and not bridge.narrationBusy
+            assert bridge.lessonNarration["status"] == "none"
             assert window.property("page") == "result"
             lesson_id = bridge.lesson["id"]
             capture("result.png")
@@ -308,7 +308,7 @@ def step():
         elif phase == "cached" and not bridge.busy:
             assert not bridge.error and bridge.lesson["id"] == lesson_id
             assert len(sends) == 1 and not bridge.browserAI.accounts
-            stages.append("PPTX/narration received; Office preview rendered; teacher approval kept; cached lesson opens without accounts/resend")
+            stages.append("PPTX received without automatic voice; Office preview rendered; teacher approval kept; cached lesson opens without accounts/resend")
             application.quit()
             return
     except Exception:

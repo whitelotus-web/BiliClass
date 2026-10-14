@@ -402,6 +402,14 @@ Item {
         ColumnLayout {
             visible: page.activeTab === 6; Layout.fillWidth: true; spacing: 14
             onVisibleChanged: { if (visible && bridge.browserAI.webMode) bridge.browserAI.refreshAccounts() }
+            RowLayout {
+                Layout.fillWidth: true; spacing: 22
+                ButtonGroup { id: browserServices }
+                RadioButton { objectName: "browserServiceChatGPT"; text: "ChatGPT"; ButtonGroup.group: browserServices; checked: bridge.browserAI.service === "chatgpt"; enabled: !bridge.busy && !bridge.browserAI.loginBusy; onClicked: bridge.browserAI.chooseService("chatgpt") }
+                RadioButton { objectName: "browserServiceGemini"; text: "Gemini"; ButtonGroup.group: browserServices; checked: bridge.browserAI.service === "gemini"; enabled: !bridge.busy && !bridge.browserAI.loginBusy; onClicked: bridge.browserAI.chooseService("gemini") }
+                Item { Layout.fillWidth: true }
+            }
+            Hint { Layout.fillWidth: true; text: "Bài mới dùng dịch vụ và tài khoản đã chọn. Model và suy luận được kiểm tra theo quyền tài khoản trước khi gửi." }
             Card {
                 Layout.fillWidth: true
                 ColumnLayout { width: parent.width; spacing: 18
@@ -409,12 +417,12 @@ Item {
                         Layout.fillWidth: true; spacing: 14
                         ColumnLayout {
                             Layout.fillWidth: true; spacing: 6
-                            Title { text: "Tài khoản ChatGPT" }
-                            Hint { text: bridge.browserAI.webMode ? "Đăng nhập ChatGPT qua Chrome. BiliClass kiểm tra và tự lưu phiên trên máy." : "Đăng nhập một lần. BiliClass tự lưu kết nối trên máy."; Layout.fillWidth: true }
+                            Title { text: "Tài khoản " + bridge.browserAI.serviceLabel }
+                            Hint { text: "Đăng nhập qua Chrome riêng cho từng tài khoản. BiliClass kiểm tra và lưu phiên trên máy."; Layout.fillWidth: true }
                         }
                         SaveButton {
                             objectName: "browserAccountAdd"
-                            text: bridge.browserAI.disconnectBusy ? "Đang xóa…" : bridge.browserAI.webMode && bridge.browserAI.loginAwaitingConfirmation ? "Kiểm tra và lưu" : bridge.browserAI.loginBusy ? "Hủy" : bridge.browserAI.webMode ? (bridge.browserAI.accounts.length ? "Thêm tài khoản" : "Đăng nhập ChatGPT") : bridge.browserAI.activeId ? "Đăng nhập lại" : "Đăng nhập ChatGPT"
+                            text: bridge.browserAI.disconnectBusy ? "Đang xóa…" : bridge.browserAI.loginAwaitingConfirmation ? "Kiểm tra và lưu" : bridge.browserAI.loginBusy ? "Hủy" : "Thêm tài khoản"
                             enabled: !bridge.busy && !bridge.browserAI.disconnectBusy
                             onClicked: bridge.browserAI.connectAccount()
                         }
@@ -453,7 +461,9 @@ Item {
                     Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: page.line }
                     ColumnLayout {
                         visible: bridge.browserAI.webMode; Layout.fillWidth: true; spacing: 18
-                        Hint { objectName: "browserEmptyAccounts"; visible: bridge.browserAI.accounts.length === 0; text: "Chưa có tài khoản. Đăng nhập ChatGPT để bắt đầu."; Layout.fillWidth: true }
+                        ButtonGroup { id: browserAccountChoices }
+                        RadioButton { objectName: "browserAccountAutomatic"; text: "Tự chọn tài khoản đang kết nối"; checked: !bridge.browserAI.selectedAccount; ButtonGroup.group: browserAccountChoices; enabled: !bridge.busy && !bridge.browserAI.loginBusy; onClicked: bridge.browserAI.chooseAccount("") }
+                        Hint { objectName: "browserEmptyAccounts"; visible: bridge.browserAI.accounts.length === 0; text: "Chưa có tài khoản " + bridge.browserAI.serviceLabel + ". Bấm Thêm tài khoản để đăng nhập."; Layout.fillWidth: true }
                         Repeater {
                             id: browserProfiles; objectName: "browserProfiles"
                             model: bridge.browserAI.webMode ? bridge.browserAI.accounts : []
@@ -467,6 +477,7 @@ Item {
                                 Rectangle { visible: accountRow.index > 0; Layout.fillWidth: true; implicitHeight: 1; color: page.line }
                                 RowLayout {
                                     Layout.fillWidth: true; spacing: 16
+                                    RadioButton { objectName: "browserProfileSelect_" + accountRow.accountId; checked: bridge.browserAI.selectedAccount === accountRow.accountId; ButtonGroup.group: browserAccountChoices; enabled: !bridge.busy && !bridge.browserAI.loginBusy; Accessible.name: "Dùng tài khoản " + (accountRow.modelData.name || accountRow.modelData.label); onClicked: bridge.browserAI.chooseAccount(accountRow.accountId) }
                                     Rectangle { objectName: "browserProfileLight"; implicitWidth: 9; implicitHeight: 9; radius: 5; color: accountRow.modelData.color; Accessible.name: accountRow.modelData.status }
                                     ColumnLayout {
                                         Layout.fillWidth: true; spacing: 5

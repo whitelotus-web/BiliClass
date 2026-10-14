@@ -5,6 +5,7 @@ from pathlib import Path
 
 from . import browser_automation as web
 from .browser_health import quota_blocked, temporary_blocked
+from .browser_services import backend_for, conversation_url
 
 
 def unsent(record):
@@ -13,7 +14,7 @@ def unsent(record):
 
 def recoverable(record):
     return (unsent(record) or record["state"] == "submitting"
-            or record["state"] == "waiting" and web.conversation_url(record["url"]))
+            or record["state"] == "waiting" and conversation_url(record["url"]))
 
 
 def temporary_failure(code, record):
@@ -21,7 +22,7 @@ def temporary_failure(code, record):
     # recovery stays on the saved conversation and never reuploads the source.
     return (recoverable(record) and code in {"network", "browser", "download", "receipt"}
             or unsent(record) and code in {"upload", "interface"}
-            or record["state"] == "waiting" and web.conversation_url(record["url"]) and code == "timeout")
+            or record["state"] == "waiting" and conversation_url(record["url"]) and code == "timeout")
 
 
 def startup_resume(folder):
@@ -40,9 +41,11 @@ def startup_resume(folder):
 
 def convert_available(accounts, root, folder, cancel, progress, *, observed=None, failed=None, converter=None,
                       retry_delays=(2, 5, 10)):
-    converter = converter or web.convert
     journal = Path(folder) / "browser-job.json"
     record = web.read_record(folder, json.loads(journal.read_text(encoding="utf-8"))["account_id"]) if journal.is_file() else None
+    config_path = Path(folder) / "config.json"
+    service = json.loads(config_path.read_text(encoding="utf-8")).get("browser_service", "chatgpt") if config_path.is_file() else "chatgpt"
+    accounts = [a for a in accounts if a.get("service", "chatgpt") == service]
     if record and not unsent(record):
         eligible = [a for a in accounts if a["id"] == record["account_id"]]
     else:
@@ -62,11 +65,12 @@ def convert_available(accounts, root, folder, cancel, progress, *, observed=None
             if not unsent(record):
                 raise web.BrowserProblem("submission", "Trạng thái gửi đã đổi. Giữ tài khoản của bài đang làm để kiểm tra.")
             record["account_id"] = account["id"]
+            record["browser_service"] = service
             record["error"] = ""
             web.write_record(folder, record)
         for attempt in range(len(retry_delays) + 1):
             try:
-                result = converter(account, root, folder, cancel, progress, observed=observed)
+                result = (converter or backend_for(account).convert)(account, root, folder, cancel, progress, observed=observed)
                 return dict(result, account_id=account["id"])
             except web.BrowserProblem as exc:
                 last_error = exc

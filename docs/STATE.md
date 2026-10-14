@@ -1,5 +1,26 @@
 # Trạng thái BiliClass
 
+Ngày 14/10/2026 — nguồn RC28 thêm Browser AI ChatGPT/Gemini, nhiều profile
+riêng và lựa chọn tài khoản cụ thể hoặc tự chọn trong dịch vụ đã tích.
+Yêu cầu ghi dịch vụ ngay khi chuẩn bị; lượt đã gửi giữ đúng account/chat
+khi đổi cài đặt, không gửi chéo dịch vụ. Profile ChatGPT cũ mặc định thuộc
+ChatGPT, không dời hoặc xuất phiên. Trước lượt gửi mới/xuất tệp/sửa bài,
+chọn model/suy luận mạnh nhất trong điều khiển được phép dùng và đọc lại;
+không xác nhận được thì chặn gửi. Gemini hỗ trợ PPTX trực tiếp hoặc Google
+Slides → PowerPoint; cùng kiểm tra và lượt sửa có giới hạn như ChatGPT.
+
+Kiểm chứng: 210 ca hồi quy browser/account/recovery/model/prompt/quality/
+voice qua; 7 ca Gemini chạy lại sau hoàn thiện qua, gồm menu chậm và hạn mức
+không bị coi là mất đăng nhập. Chrome thật dùng fixture cục bộ kiểm chứng
+Pro/effort cao, version Pro cao hơn, tải trực tiếp và qua menu Slides,
+khôi phục chưa rõ xác nhận không gửi lại, lượt sửa cùng chat chọn lại
+model/suy luận. Qt source toàn luồng Gemini và quản lý/phục hồi ChatGPT
+qua với Office preview thật, web/voice fixture; ảnh Settings 1366×850 và
+1080×700 đã xem, không warning. Rà soát giữ luồng hai bước, không tạo voice
+khi nhận bài; source QA có trong cấu hình thực sự gửi. Ruff/diff check qua.
+Chưa nghiệm thu chuyển đổi bằng tài khoản Gemini thật: cần giáo viên đăng
+nhập Google riêng; không dùng fixture để chứng nhận mọi menu hoặc bài thật.
+
 Ngày 14/10/2026 — đã phát hành [RC27](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc27)
 từ commit ứng dụng `eecf83519685e31a40fdab322de1ede2a6417af1`. ZIP
 667.923.267 byte, SHA-256

@@ -96,6 +96,8 @@ SPEECH: {"version":1,"segments":[{"shape_id":17,"paragraph":0,"text":"English đ
         "Các lưu ý sau hướng dẫn cách chuyển đổi và giảng dạy; không tự chép chúng lên slide.\n"
         "Áp dụng cùng kiểu chuyển đổi và thiết kế đã chọn; nếu có mâu thuẫn, ghi rõ trong CHECK.\n"
         + notes + "\n") if notes else ""
+    export_guidance = ("Dùng khả năng tạo tệp của Gemini; nếu kết quả nằm trong Canvas, tạo bản trình bày xuất được sang Google Slides rồi tải Microsoft PowerPoint (.pptx). Không thay bằng HTML, PDF, ảnh tĩnh hoặc chỉ mã tạo file. Nếu không có quyền tạo/xuất PPTX, nói rõ giới hạn, không báo đã hoàn tất."
+                       if config.get("browser_service") == "gemini" else "")
     return f"""Bạn là chuyên gia biên dịch học thuật Việt–Anh, chỉnh sửa PowerPoint và giảng dạy theo môn/khối đã chọn.
 Tạo FILE POWERPOINT (.pptx) chỉnh sửa được từ tài liệu đính kèm. Không chỉ trả lời bằng dàn ý.
 
@@ -147,6 +149,7 @@ CÂU HỎI HIỂU BÀI CHO TRỢ LÝ (KHÔNG THÊM SLIDE)
 - BiliClass nhập câu hỏi ở trạng thái bản nháp; giáo viên duyệt riêng trước khi sử dụng với lớp.
 
 BÀN GIAO
+{export_guidance}
 - Xuất một bai-giang-song-ngu.pptx tải xuống được, mở/chỉnh sửa/trình chiếu trong Microsoft PowerPoint.
 - Kiểm tra lại file đã xuất, gồm notes VI:/EN:, câu hỏi và CHECK. Nếu không tạo được PPTX, nói rõ giới hạn.
 - Không hỏi lại cấu hình đã có. Không gửi dữ liệu tài khoản/mật khẩu/học sinh vào bài.

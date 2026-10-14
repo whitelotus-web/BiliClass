@@ -373,8 +373,9 @@ class Bridge(QObject):
         from .conversion_input import creation_config, prompt_preview
 
         try:
-            return prompt_preview(creation_config(title, subject, education, grade, conversion_format, preset, style, teacher_notes),
-                                  file_url, text)
+            config = creation_config(title, subject, education, grade, conversion_format, preset, style, teacher_notes)
+            config["browser_service"] = self._browser_ai.service
+            return prompt_preview(config, file_url, text)
         except ValueError as exc:
             return {"prompt": str(exc), "ready": False}
 
@@ -412,13 +413,15 @@ class Bridge(QObject):
                 raise ValueError("Chọn một nguồn: tài liệu hoặc nội dung dán vào.")
             if file_url:
                 path = local_document(file_url)
+                if self._browser_ai.service == "gemini" and path.stat().st_size > 100 * 1024**2:
+                    raise ValueError("Tài liệu gửi Gemini tối đa 100 MB. Giảm dung lượng hoặc chọn ChatGPT trong Browser AI.")
                 if style == "source" and path.suffix.casefold() != ".pptx":
                     raise ValueError("Giữ thiết kế gốc cần tệp PPTX; tài liệu khác dùng mẫu mới.")
             self._browser_ai.saveOptions(True, False)
             try:
                 self._browser_ai.store.preferred()
                 if self._browser_ai.loginBusy and not self._browser_ai.job.check_only:
-                    raise ValueError("Chờ đăng nhập ChatGPT xong trước khi chuyển đổi.")
+                    raise ValueError("Chờ đăng nhập tài khoản xong trước khi chuyển đổi.")
             except ValueError:
                 self.navigate.emit("browser-settings")
                 raise
@@ -468,7 +471,8 @@ class Bridge(QObject):
         path = Path(QUrl(file_url).toLocalFile()) if file_url else None
         config = {"title": title, "subject": subject, "education_level": education, "grade": grade,
                   "level": level, "layout": layout, "preset": preset, "style": style, "mode": mode,
-                  "provider": "browser_web" if automatic else "manual_web"}
+                  "provider": "browser_web" if automatic else "manual_web", "browser_service": self._browser_ai.service,
+                  "require_highest_model": True, "quality_review_version": 1}
         if conversion_format:
             config.update(conversion_format=conversion_format, provider="browser_web" if automatic else "manual_web",
                           teacher_notes=teacher_notes)
@@ -571,7 +575,7 @@ class Bridge(QObject):
             if cached.get("state") != "completed" and quota_blocked(account):
                 self._browser_state.update(running=False, phase="error", needsLogin=False, errorCode="limit")
                 raise ValueError("Tài khoản của bài đã gửi đang hết lượt. Chờ hạn mức được cấp lại để tiếp tục đúng cuộc trò chuyện.")
-            record = read_record(folder, cached.get("account_id", account["id"]))
+            record = read_record(folder, cached.get("account_id", account["id"]), service=account.get("service", "chatgpt"))
             record["auto_resume"] = True
             write_record(folder, record)
             (Path(folder) / "conversion-stopped").unlink(missing_ok=True)
@@ -579,9 +583,9 @@ class Bridge(QObject):
             self.inform(str(exc), True)
             return
         self._browser_running = True
-        self._browser_state = {"running": True, "phase": "working", "message": "Đang mở phiên web ChatGPT…"}
+        self._browser_state = {"running": True, "phase": "working", "message": "Đang chuẩn bị bài giảng…"}
         progress = ConversionProgress(folder, self.browserConversionProgress.emit)
-        progress.stage("session", "Đang mở phiên web ChatGPT…")
+        progress.stage("session", "Đang chuẩn bị bài giảng…")
 
         def work():
             result = convert_available(accounts, self._browser_ai.store.root, folder, self.cancel_event,
@@ -611,7 +615,7 @@ class Bridge(QObject):
             write_record(folder, record)
             progress.stage("completed", "Đã nhận và lưu bài giảng song ngữ.")
             self._browser_running = False
-            self._browser_state.update(running=False, phase="completed", message="Đã nhận PowerPoint từ ChatGPT.")
+            self._browser_state.update(running=False, phase="completed", message="Đã nhận bài giảng song ngữ.")
             self.openLesson(lesson["id"])
             failures = lesson.get("slide_quality", {}).get("counts", {}).get("FAIL", 0)
             message = (f"Bài giảng đã lưu. Cần sửa {failures} slide trước khi dùng để dạy." if failures

@@ -65,7 +65,8 @@ def refinement_prompt(config, report):
 
 
 def refine(page, folder, record, request, pending, cancel, progress, timeout):
-    from . import browser_automation as web
+    from .browser_services import backend_for
+    web = backend_for({"service": request["config"].get("browser_service", "chatgpt")})
 
     folder, pending = Path(folder), Path(pending)
     config = request["config"]
@@ -132,7 +133,8 @@ def refine(page, folder, record, request, pending, cancel, progress, timeout):
 
 def repair_existing(account, root, original_folder, path, directory, lesson_id, revision, cancel, progress):
     """Repair a saved lesson without resending its original conversion request."""
-    from . import browser_automation as web
+    from .browser_services import backend_for
+    web = backend_for(account)
     from .browser_accounts import profile_lock
     from .chatgpt_handoff import load_request
 
@@ -166,6 +168,7 @@ def repair_existing(account, root, original_folder, path, directory, lesson_id, 
         web.write_record(folder, record)
     else:
         record = web.read_record(folder, account["id"])
+    record["require_highest_model"] = config.get("require_highest_model", True)
     try:
         from playwright.sync_api import sync_playwright
 
@@ -175,16 +178,21 @@ def repair_existing(account, root, original_folder, path, directory, lesson_id, 
                 page = context.pages[0] if context.pages else context.new_page()
                 page.set_default_timeout(10000)
                 if record["state"] == "submitting":
-                    from .browser_receipt import recover_submission
-
-                    page = recover_submission(context, page, folder, record, request, cancel)
+                    if account.get("service", "chatgpt") == "gemini":
+                        web.recover_submission(page, folder, record, cancel)
+                    else:
+                        from .browser_receipt import recover_submission
+                        page = recover_submission(context, page, folder, record, request, cancel)
                 else:
                     web.navigate(page, record["url"], cancel)
                     web.require_account(page, cancel)
                 if record.get("quality_stage") not in {"submitting", "waiting"}:
                     from .browser_capabilities import select_best_model, select_reasoning
 
-                    record.update(model=select_best_model(page), reasoning=select_reasoning(page))
+                    if account.get("service", "chatgpt") == "gemini":
+                        record.update(model=web.select_model(page), reasoning="Theo quyền trên Gemini")
+                    else:
+                        record.update(model=select_best_model(page), reasoning=select_reasoning(page))
                     web.write_record(folder, record)
                 if record.get("quality_stage") in {"submitting", "waiting"}:
                     link = web.wait_result(page, folder, record, cancel, progress, 900)

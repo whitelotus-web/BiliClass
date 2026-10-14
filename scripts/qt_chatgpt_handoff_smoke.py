@@ -5,6 +5,7 @@ preview rendering is real; there are no uploads or teacher-library changes.
 """
 import hashlib
 import json
+import os
 import sys
 import tempfile
 import time
@@ -42,7 +43,7 @@ from PySide6.QtQuick import QQuickWindow
 from PySide6.QtQuickControls2 import QQuickStyle
 from PySide6.QtTest import QTest
 
-from app import browser_automation, speech, ui
+from app import browser_automation, gemini_automation, speech, ui
 from app.chatgpt_handoff import load_request
 from app.document_limits import MAX_POWERPOINT_BYTES
 from app.library import Library
@@ -74,9 +75,14 @@ deck.save(returned)
 digest = hashlib.sha256(returned.read_bytes()).hexdigest()
 speech.list_voices = lambda: [{"id": "vieneu:Mai Anh", "provider": "vieneu", "name": "Fixture voice", "language": "multilingual"}]
 bridge = Bridge(library)
+service = os.environ.get("BILICLASS_SMOKE_SERVICE", "chatgpt")
+bridge.browserAI.store.choose_service(service)
 bridge.browserAI.saveOptions(False, False)  # New UI must override obsolete manual/audio options.
 account = bridge.browserAI.store.add("UI fixture")
 bridge.browserAI.store.observe(account["id"], "free", identity={"name": "Cô giáo thử", "email": "fixture@example.test"})
+if service == "gemini":
+    other = bridge.browserAI.store.add("Gemini other")
+    bridge.browserAI.store.observe(other["id"], "pro", identity={"name":"Other", "email":"other@example.test"})
 release_web = Event()
 release_voice = Event()
 sent, narration = [], []
@@ -84,6 +90,8 @@ sent, narration = [], []
 
 def fake_convert(account, root, folder, cancel, progress, **options):
     sent.append(load_request(folder))
+    assert sent[-1]["config"]["browser_service"] == service
+    assert sent[-1]["config"]["require_highest_model"] and sent[-1]["config"]["quality_review_version"] == 1
     progress.stage("waiting", "ChatGPT đang tạo PowerPoint…")
     while not release_web.wait(.05):
         if cancel.is_set():
@@ -92,8 +100,8 @@ def fake_convert(account, root, folder, cancel, progress, **options):
     target = Path(folder) / "bai-giang-song-ngu.pptx"
     target.write_bytes(returned.read_bytes())
     browser_automation.write_record(folder, {"account_id": account["id"], "state": "completed", "followups": 0,
-        "url": "https://chatgpt.com/c/fixture", "sha256": digest})
-    return {"path": str(target), "url": "https://chatgpt.com/c/fixture"}
+        "browser_service": service, "url": "https://gemini.google.com/app/fixture" if service == "gemini" else "https://chatgpt.com/c/fixture", "sha256": digest})
+    return {"path": str(target), "url": "https://gemini.google.com/app/fixture" if service == "gemini" else "https://chatgpt.com/c/fixture"}
 
 
 def fake_synthesis(text, voice, rate, directory, cancel):
@@ -110,6 +118,7 @@ def fake_synthesis(text, voice, rate, directory, cancel):
 
 
 browser_automation.convert = fake_convert
+gemini_automation.convert = fake_convert
 speech.synthesize_background = fake_synthesis
 engine = QQmlApplicationEngine()
 warnings, failures, stages, opened = [], [], [], []
@@ -205,6 +214,27 @@ def wait_idle(action):
 
 
 def start():
+    if service == "gemini":
+        window.setProperty("page", "settings")
+        window.findChild(QObject, "settingsPage").setProperty("activeTab", 6)
+        app.processEvents()
+        click("browserServiceChatGPT")
+        assert bridge.browserAI.service == "chatgpt" and not bridge.browserAI.accounts
+        click("browserServiceGemini")
+        assert bridge.browserAI.service == "gemini" and len(bridge.browserAI.accounts) == 2
+        click("browserProfileSelect_" + account["id"])
+        assert bridge.browserAI.selectedAccount == account["id"]
+        assert bridge.browserAI.store.preferred()["id"] == account["id"]
+        assert QQuickWindow.grabWindow(window).save(str(reports / "gemini-settings.png"))
+        window.setWidth(1080)
+        window.setHeight(700)
+        app.processEvents()
+        assert QQuickWindow.grabWindow(window).save(str(reports / "gemini-settings-1080.png"))
+        window.setWidth(1366)
+        window.setHeight(850)
+        window.setProperty("page", "new")
+        app.processEvents()
+        stages.append("Service radios filter independent profiles; pin Gemini Free over another Pro; provider/highest-model/quality policy reach actual conversion config")
     update = window.findChild(QObject, "checkUpdatesButton")
     assert update and update.property("visible") and update.property("enabled")
     assert bridge.appVersion in window.findChild(QObject, "sidebarAppVersion").property("text")

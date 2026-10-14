@@ -17,6 +17,7 @@ from .browser_health import (
     retry_delay,
     temporary_blocked,
 )
+from .browser_services import service_spec
 
 
 class ProfileBusy(ValueError):
@@ -29,15 +30,19 @@ class BrowserAccounts:
         self.root.mkdir(parents=True, exist_ok=True)
         self.path = self.root / "accounts.json"
         self.data = {"version": 1, "active": "", "automatic": True, "audio": True, "accounts": [],
-                     "selection": "auto", "pending_login": ""}
+                     "selection": "auto", "pending_login": "", "service": "chatgpt", "service_selection": {}}
         if self.path.exists():
             loaded = json.loads(self.path.read_text(encoding="utf-8"))
             if loaded.get("version") != 1 or not isinstance(loaded.get("accounts"), list):
                 raise ValueError("Danh sách Browser AI không hợp lệ.")
             self.data.update(loaded)
+            service_spec(self.data["service"])
+            if not isinstance(self.data["service_selection"], dict):
+                raise ValueError("Lựa chọn tài khoản Browser AI không hợp lệ.")
             migrated = False
             for account in self.data["accounts"]:
                 self.profile(account["id"])
+                service_spec(account.get("service", "chatgpt"))
                 if account.get("channel") not in {"msedge", "chrome"}:
                     raise ValueError("Browser của tài khoản không hợp lệ.")
                 if account.get("profile_layout") != "chrome-v1":
@@ -84,14 +89,16 @@ class BrowserAccounts:
                 if target.resolve().parent != parent.resolve() or target.is_symlink():
                     raise ValueError("Đường dẫn hồ sơ Chrome không hợp lệ.")
                 return dict(item, channel="chrome", profile=str(target))
-        raise ValueError("Đăng nhập ChatGPT trong Cài đặt → Browser AI.")
+        raise ValueError("Đăng nhập " + service_spec(self.data["service"])["label"] + " trong Cài đặt → Browser AI.")
 
-    def add(self, label, channel="chrome"):
+    def add(self, label, channel="chrome", *, service=None):
+        service = service or self.data["service"]
+        service_spec(service)
         label = label.strip()
         if not label or len(label) > 100 or channel != "chrome":
             raise ValueError("Hồ sơ ChatGPT dùng Google Chrome; tên tối đa 100 ký tự.")
         item = {"id": str(uuid4()), "label": label, "channel": channel, "profile_layout": "chrome-v1",
-                "status": "Chưa đăng nhập", "plan": "unknown", "ready": False}
+                "status": "Chưa đăng nhập", "plan": "unknown", "ready": False, "service": service}
         self.profile(item["id"]).mkdir(parents=True)
         self.data["accounts"].append(item)
         if not self.data["active"]:
@@ -104,6 +111,20 @@ class BrowserAccounts:
         self.data["pending_login"] = ""
         self.data["active"] = account_id
         self.data["selection"] = "auto"
+        self.save()
+
+    def choose_service(self, service):
+        service_spec(service)
+        self.data.update(service=service, pending_login="")
+        self.save()
+
+    def choose_account(self, account_id):
+        service = self.data["service"]
+        if account_id and self.get(account_id).get("service", "chatgpt") != service:
+            raise ValueError("Chọn tài khoản thuộc dịch vụ đang dùng.")
+        self.data["service_selection"][service] = account_id
+        if account_id:
+            self.data["active"] = account_id
         self.save()
 
     def prefer_paid(self):
@@ -146,21 +167,29 @@ class BrowserAccounts:
                 self.save()
                 return
 
-    def candidates(self):
-        priority = {"plus": 3, "pro": 3, "business": 3, "enterprise": 3, "edu": 3, "go": 2, "free": 1}
+    def candidates(self, service=None):
+        service = service or self.data["service"]
+        service_spec(service)
+        selected = self.data["service_selection"].get(service, "")
+        priority = {"plus": 3, "pro": 3, "ultra": 4, "business": 3, "enterprise": 3, "edu": 3, "go": 2, "free": 1}
         ready = [a for a in self.data["accounts"] if a.get("ready")
+                 and a.get("service", "chatgpt") == service and (not selected or a["id"] == selected)
                  and not quota_blocked(a) and not temporary_blocked(a)]
         ready.sort(key=lambda a: (priority.get(a.get("plan"), 0), a["id"] == self.data["active"]), reverse=True)
         return [self.get(a["id"]) for a in ready]
 
-    def preferred(self):
-        candidates = self.candidates()
+    def preferred(self, service=None):
+        service = service or self.data["service"]
+        selected = self.data["service_selection"].get(service, "")
+        scoped = [a for a in self.data["accounts"] if a.get("service", "chatgpt") == service
+                  and (not selected or a["id"] == selected)]
+        candidates = self.candidates(service)
         if not candidates:
-            if any(a.get("ready") and quota_blocked(a) for a in self.data["accounts"]):
+            if any(a.get("ready") and quota_blocked(a) for a in scoped):
                 raise ValueError("Các tài khoản còn đăng nhập đã hết lượt dùng. Chờ hạn mức được cấp lại; không cần đăng nhập lại.")
-            if any(a.get("ready") for a in self.data["accounts"]):
+            if any(a.get("ready") for a in scoped):
                 raise ValueError("Kết nối browser tạm gián đoạn. Tool giữ phiên và sẽ kiểm tra lại; không cần đăng nhập lại.")
-            raise ValueError("Đăng nhập ChatGPT trong Cài đặt → Browser AI.")
+            raise ValueError("Đăng nhập " + service_spec(service)["label"] + " trong Cài đặt → Browser AI.")
         return candidates[0]
 
     def observe(self, account_id, plan, model="", identity=None):
@@ -216,6 +245,9 @@ class BrowserAccounts:
             if target.exists():
                 shutil.rmtree(target)
             self.data["accounts"] = [a for a in self.data["accounts"] if a["id"] != item["id"]]
+            for service, selected in list(self.data["service_selection"].items()):
+                if selected == account_id:
+                    self.data["service_selection"][service] = ""
             if self.data.get("pending_login") == account_id:
                 self.data["pending_login"] = ""
             if self.data["active"] == account_id:

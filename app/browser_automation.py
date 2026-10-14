@@ -325,17 +325,28 @@ def write_record(folder, record):
     temporary.replace(target)
 
 
-def read_record(folder, account_id):
+def read_record(folder, account_id, service=None):
     target = Path(folder) / "browser-job.json"
     if not target.exists():
-        return {"account_id": account_id, "state": "prepared", "url": "", "followups": 0}
+        record = {"account_id": account_id, "state": "prepared", "url": "", "followups": 0}
+        if service:
+            from .browser_services import service_spec
+            service_spec(service)
+            record["browser_service"] = service
+        return record
     record = json.loads(target.read_text(encoding="utf-8"))
     if record.get("account_id") != account_id:
         raise BrowserProblem("account", "Yêu cầu này dùng tài khoản khác. Chọn lại tài khoản đã gửi để tiếp tục.")
     if (record.get("state") not in {"prepared", "submitting", "waiting", "completed"}
             or type(record.get("followups")) is not int or not 0 <= record["followups"] <= 1):
         raise BrowserProblem("record", "Trạng thái yêu cầu Browser AI không hợp lệ.")
-    if record.get("url") and not conversation_url(record["url"]):
+    from .browser_services import conversation_url as provider_url
+    from .browser_services import service_spec
+    stored_service = record.get("browser_service", "chatgpt")
+    service_spec(stored_service)
+    if service and service != stored_service:
+        raise BrowserProblem("account", "Yêu cầu này thuộc dịch vụ khác; giữ đúng tài khoản đã gửi.")
+    if record.get("url") and not provider_url(record["url"], stored_service):
         raise BrowserProblem("record", "Địa chỉ cuộc trò chuyện trong yêu cầu không hợp lệ.")
     if record.get("send_sha256") and not re.fullmatch(r"[a-f0-9]{64}", str(record["send_sha256"])):
         raise BrowserProblem("record", "Dấu kiểm tra prompt đã gửi không hợp lệ.")
@@ -491,6 +502,10 @@ def fill_prompt(page, prompt):
 
 
 def submit(page, folder, record, prompt, cancel, *, files=(), progress=None):
+    if record.get("require_highest_model"):
+        from .browser_model_policy import prepare_models
+        record.update(prepare_models(page, "chatgpt"))
+        write_record(folder, record)
     fill_prompt(page, prompt)
     if files:
         wait_upload(page, files, cancel, progress=progress, prompt=prompt)
@@ -636,7 +651,7 @@ def wait_result(page, folder, record, cancel, progress, timeout=900):
                     raise BrowserProblem("no_file", "ChatGPT chưa trả tệp PowerPoint dù tool đã yêu cầu xuất tệp thêm một lần. "
                                          "Đã giữ tài liệu và cuộc trò chuyện; cần kiểm tra câu trả lời/khả năng tạo tệp trên web.")
         if time.monotonic() - last_progress > 20:
-            progress("ChatGPT đang tạo PowerPoint; tool sẽ tự nhận tệp và chuẩn bị giọng đọc…")
+            progress("Đang biên soạn bài giảng song ngữ…")
             last_progress = time.monotonic()
         page.wait_for_timeout(500)
     raise BrowserProblem("timeout", "Chưa nhận PowerPoint trong thời gian chờ. Yêu cầu đã được giữ để tiếp tục, không gửi lại prompt.")
@@ -718,6 +733,9 @@ def _convert_locked(account, request_folder, cancel, progress, *, timeout, obser
     request = load_request(request_folder)
     folder = Path(request["folder"])
     record = read_record(folder, account["id"])
+    if account.get("service", "chatgpt") != "chatgpt" or request["config"].get("browser_service", "chatgpt") != "chatgpt":
+        raise BrowserProblem("account", "Yêu cầu này thuộc dịch vụ khác; không gửi sang ChatGPT.")
+    record["require_highest_model"] = request["config"].get("require_highest_model", False)
     target = folder / "bai-giang-song-ngu.pptx"
     if record["state"] == "completed" and target.is_file():
         if target.stat().st_size > MAX_POWERPOINT_BYTES or record.get("sha256") != hashlib.sha256(target.read_bytes()).hexdigest():

@@ -6,13 +6,15 @@ RC14 thêm [kiểm tra slide và English Reader](docs/SMART_SLIDES_READER.md): l
 
 ## Cài để dùng trên máy khác
 
-Tải **BiliClass-RC27-Windows.zip** tại [Release RC27](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc27), giải nén toàn bộ rồi chạy **Setup.cmd**. Không tải “Source code” nếu chỉ muốn cài và dùng. Không cần Python hoặc API key.
+Tải **BiliClass-RC28-Windows.zip** tại [Release RC28](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc28), giải nén toàn bộ rồi chạy **Setup.cmd**. Không tải “Source code” nếu chỉ muốn cài và dùng. Không cần Python hoặc API key.
 
 RC16 có [thanh tiến trình % và tối ưu xử lý trên máy](docs/CONVERSION_PROGRESS.md): dùng lại ảnh/đo bố cục đã kiểm tra, tránh voice trùng và chờ menu model sẵn sàng. % giữ ở mốc chờ khi ChatGPT đang tạo bài; không đoán % xử lý bên trong web.
 
 Máy cần Windows 10/11 64-bit, Google Chrome để đăng nhập ChatGPT và Microsoft PowerPoint bản desktop để trình chiếu/giữ hiệu ứng. Kết nối Internet cần khi đăng nhập và chuyển đổi; sáu giọng VieNeu chung Việt/Anh và các mẫu đã nằm trong gói. Việc tạo tệp/hạn mức phụ thuộc tài khoản ChatGPT Free/Plus của người dùng.
 
-Sau khi cài, mở BiliClass từ Start menu → **Cài đặt → Browser AI → Thêm tài khoản** và tự đăng nhập ChatGPT trên máy đó. Phiên đăng nhập và bài học riêng không được chuyển qua GitHub. Muốn dùng portable, chạy `BiliClass/BiliClass.exe` và giữ nguyên toàn bộ thư mục `_internal`, `models`, `licenses`.
+Sau khi cài, mở **Cài đặt → Browser AI**, chọn **ChatGPT hoặc Gemini**, bấm **Thêm tài khoản** và tự đăng nhập trên máy đó. Mỗi profile Chrome độc lập, thêm nhiều tài khoản cho mỗi dịch vụ. Tích chọn tài khoản cụ thể hoặc để tool tự chọn tài khoản đang kết nối của dịch vụ đã chọn. Bài mới gửi prompt/tài liệu qua dịch vụ đó; bài đã gửi giữ dịch vụ/tài khoản/cuộc trò chuyện cũ khi tiếp tục. Không tự chuyển từ Gemini sang ChatGPT hoặc ngược lại khi hết lượt.
+
+RC28 kiểm tra model và suy luận cao nhất đọc được trong các lựa chọn đang được web cấp quyền trước mỗi lượt gửi/sửa. Không mua gói hoặc đoán quyền từ tên Free/Plus/Pro; lựa chọn chưa xác nhận được thì dừng trước khi gửi. Gemini nhận PPTX trực tiếp hoặc xuất qua Google Slides → Microsoft PowerPoint nếu web hỗ trợ. [Cách dùng và giới hạn nghiệm thu](docs/BROWSER_SERVICES.md). Phiên đăng nhập và bài học riêng không được chuyển qua GitHub. Muốn dùng portable, chạy `BiliClass/BiliClass.exe` và giữ nguyên toàn bộ thư mục `_internal`, `models`, `licenses`.
 
 App tự kiểm tra bản mới khi mở. Khi có phiên bản mới, chọn **Cập nhật**; app tải/xác minh gói rồi cài và mở lại. Dữ liệu nằm riêng tại `%LOCALAPPDATA%/BiliClass` nên được giữ qua cập nhật. Không cần tự tải và cài lại mỗi lần.
 

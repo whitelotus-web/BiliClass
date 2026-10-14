@@ -559,7 +559,7 @@ ApplicationWindow {
                                 }
                                 RowLayout {
                                     Layout.fillWidth: true
-                                    Caption { text: "Ghi chú thêm cho ChatGPT · không bắt buộc"; Layout.fillWidth: true }
+                                    Caption { text: "Ghi chú thêm · không bắt buộc"; Layout.fillWidth: true }
                                     Copy { text: teacherNotesInput.text.trim().length + " / 6.000"; color: teacherNotesInput.text.trim().length > 6000 ? "#ab5b20" : root.muted; font.pixelSize: 11 }
                                 }
                                 ScrollView {
@@ -580,7 +580,7 @@ ApplicationWindow {
                                 anchors.fill: parent; anchors.margins: 14; spacing: 8
                                 RowLayout {
                                     id: promptHeader; Layout.fillWidth: true
-                                    Caption { text: "03   Prompt gửi ChatGPT" }
+                                    Caption { text: "03   Nội dung yêu cầu" }
                                     Item { Layout.fillWidth: true }
                                     Action { objectName: "creationPromptToggle"; text: root.creationPromptVisible ? "Ẩn prompt" : "Hiện prompt"; iconName: "view"; subtle: true; implicitHeight: 30; onClicked: root.creationPromptVisible = !root.creationPromptVisible }
                                 }
@@ -590,7 +590,7 @@ ApplicationWindow {
                                 }
                             }
                         }
-                        Action { text: "Tiếp tục gói ChatGPT đã chuẩn bị"; visible: !!bridge.chatgptRequest.folder; subtle: true; onClicked: root.go("chatgpt") }
+                        Action { text: "Tiếp tục bài đang chuẩn bị"; visible: !!bridge.chatgptRequest.folder; subtle: true; onClicked: root.go("chatgpt") }
                     }
                 }
                 Rectangle {
@@ -602,7 +602,7 @@ ApplicationWindow {
                         ColumnLayout {
                             Layout.fillWidth: true; spacing: 3
                             Copy { text: "Nhận bài giảng song ngữ trước · tạo giọng đọc sau nếu cần."; Layout.fillWidth: true; font.pixelSize: 12 }
-                            Action { text: "Tài khoản: " + bridge.browserAI.activeLabel + " · Browser AI"; subtle: true; implicitHeight: 28; onClicked: { root.go("settings"); settingsPanel.activeTab = 6 } }
+                            Action { text: bridge.browserAI.serviceLabel + ": " + bridge.browserAI.activeLabel + " · Browser AI"; subtle: true; implicitHeight: 28; onClicked: { root.go("settings"); settingsPanel.activeTab = 6 } }
                         }
                         Action { objectName: "createLessonButton"; text: bridge.busy ? "Đang chuẩn bị…" : "Chuyển đổi bài giảng"; primary: true; enabled: !bridge.busy && !root.inputDocumentError && root.creationPrompt.ready; onClicked: bridge.convertDocument(titleInput.text, root.creationSubject, educationInput.currentText, gradeInput.currentText, pasteInput.text, root.selectedFile, root.conversionFormats[creationFormat.currentIndex].id, ["standard", "visual", "practice"][creationPreset.currentIndex], root.creationKeepSource ? "source" : "template", teacherNotesInput.text) }
                     }

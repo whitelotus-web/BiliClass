@@ -3,8 +3,9 @@
 import re
 
 LEVELS = (
+    (7, "Deep Think", r"deep\s*think"),
     (6, "Extra high", r"extra\s*high|maximum|max|cao nhất|rất cao"),
-    (5, "Extended", r"extended|mở rộng"),
+    (5, "Extended", r"extended|mở rộng|suy (?:luận|nghĩ) phức tạp|complex(?: reasoning)?"),
     (4, "High", r"high|cao"),
     (3, "Standard", r"standard|medium|tiêu chuẩn|trung bình"),
     (2, "Think", r"think(?:ing)?|suy nghĩ|suy luận|tư duy"),
@@ -43,16 +44,16 @@ def eligible(item):
             and not item.locator(MESSAGE_ANCESTORS).count())
 
 
-def select_effort(page):
+def select_effort(page, *, composer=None, model_picker=None):
     from playwright.sync_api import Error
 
     from .browser_automation import COMPOSER, BrowserProblem, visible
     from .browser_capabilities import PICKER
 
-    prompt = visible(page, COMPOSER)
+    prompt = visible(page, composer or COMPOSER)
     if not prompt:
         raise BrowserProblem("interface", "Chưa tìm được ô prompt để chọn suy luận. Chưa gửi bài.")
-    scope = prompt.locator("xpath=ancestor::*[self::form or @data-type='unified-composer'][1]")
+    scope = prompt.locator("xpath=ancestor::*[self::form or @data-type='unified-composer' or contains(@class,'input-area-container')][1]")
     if not scope.count():
         scope = prompt.locator("..")
     offered, verified, visited = False, "", set()
@@ -91,8 +92,8 @@ def select_effort(page):
                     offered = True
                     break
             if picker is None:
-                candidates = [b for b in buttons if re.match(r"^(?:Tools|Công cụ|Add files and more|Thêm ảnh và tệp|\+)$", label(b), re.I)]
-                candidates += [b for b in page.locator(PICKER).all()[:4] if eligible(b)]
+                candidates = [b for b in buttons if re.match(r"^(?:Tools|Công cụ|Add files and more|Upload & tools|Thêm ảnh và tệp|\+)$", label(b), re.I)]
+                candidates += [b for b in page.locator(model_picker or PICKER).all()[:4] if eligible(b)]
                 picker = next((b for b in candidates if label(b) not in visited), None)
             if picker is None:
                 break

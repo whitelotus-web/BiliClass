@@ -18,6 +18,7 @@ STAGE_COPY = {
 }
 
 ERROR_COPY = {
+    "model": "Chưa xác nhận được lựa chọn model và suy luận phù hợp. Mở tài khoản trong Browser AI để kiểm tra; bài chưa được gửi bằng cấu hình thấp hơn.",
     "login": "Kết nối tài khoản đã hết hạn. Đăng nhập lại để tiếp tục; tài liệu đã được giữ.",
     "verification": "Tài khoản cần xác minh. Mở tài khoản để hoàn tất xác minh, sau đó BiliClass sẽ tiếp tục.",
     "auth_response": "Chưa xác nhận được kết nối tài khoản. Mở tài khoản để đăng nhập lại.",
