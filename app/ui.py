@@ -73,6 +73,7 @@ class Bridge(QObject):
     updateAvailable = Signal()
     narrationChanged = Signal()
     lessonsChanged = Signal()
+    conversionClockChanged = Signal()
     updateProgress = Signal(int)
     inputAssessmentChanged = Signal()
     comparisonReady = Signal()
@@ -157,6 +158,12 @@ class Bridge(QObject):
         self._browser_ai.progress.connect(self._on_browser_progress)
         self.browserConversionProgress.connect(self._on_conversion_progress)
         self._browser_state = {"running": False, "phase": "idle", "message": ""}
+        self._browser_clock_mark = None
+        self._conversion_progress_sink = None
+        self._conversion_clock_timer = QTimer(self)
+        self._conversion_clock_timer.setInterval(1000)
+        self._conversion_clock_timer.timeout.connect(self._tick_conversion_clock)
+        self._conversion_clock_timer.start()
         self._browser_running = False
         saved_request = self.library.setting("chatgpt_request_folder", "")
         if saved_request:
@@ -437,6 +444,34 @@ class Bridge(QObject):
 
         return display_state(self._browser_state)
 
+    @Property("QVariantMap", notify=conversionClockChanged)
+    def conversionClock(self):
+        import time
+
+        seconds = self._browser_state.get('elapsedSeconds', 0)
+        if self._browser_state.get('running') and self._browser_clock_mark is not None:
+            seconds += max(0, int(time.monotonic() - self._browser_clock_mark))
+        hours, rest = divmod(int(seconds), 3600)
+        minutes, seconds = divmod(rest, 60)
+        label = f'{hours:02d}:{minutes:02d}:{seconds:02d}'
+        status = 'Đang xử lý' if self._browser_state.get('running') else 'Đã hoàn tất' if self._browser_state.get('phase') == 'completed' else 'Đã tạm dừng'
+        return {'seconds': hours * 3600 + minutes * 60 + seconds, 'label': label, 'status': status,
+                'longWait': bool(self._browser_state.get('running') and self._browser_state.get('waiting')
+                                 and hours * 3600 + minutes * 60 + seconds >= 300)}
+
+    @Slot()
+    def _tick_conversion_clock(self):
+        if self._browser_state.get('running'):
+            self.conversionClockChanged.emit()
+
+    def _freeze_conversion_clock(self):
+        if self._conversion_progress_sink is not None:
+            self._conversion_progress_sink.finish()
+            self._conversion_progress_sink = None
+        self._browser_state['elapsedSeconds'] = self.conversionClock['seconds']
+        self._browser_clock_mark = None
+        self.conversionClockChanged.emit()
+
     @Slot(str)
     def _on_browser_progress(self, message):
         self._browser_state.update(message=message)
@@ -444,7 +479,11 @@ class Bridge(QObject):
 
     @Slot(object)
     def _on_conversion_progress(self, event):
+        import time
+
         self._browser_state.update(event)
+        self._browser_clock_mark = time.monotonic()
+        self.conversionClockChanged.emit()
         self.inform(event["message"])
 
     @Slot(str, str, str, str, str, str, int, str, str, str, str)
@@ -524,6 +563,7 @@ class Bridge(QObject):
 
     def _web_conversion_failure(self, message):
         """Expose the durable job error instead of guessing from translated text."""
+        self._freeze_conversion_clock()
         code = "browser"
         if self._chatgpt_request.get("config", {}).get("provider") == "browser_web":
             try:
@@ -533,6 +573,7 @@ class Bridge(QObject):
                 pass
         self._browser_state.update(running=False, phase="error", message=message, errorCode=code,
                                    waiting=False, needsLogin=code in {"login", "verification", "auth_response"})
+        self.conversionClockChanged.emit()
         self.changed.emit()
 
     def _resume_browser_startup(self):
@@ -585,6 +626,7 @@ class Bridge(QObject):
         self._browser_running = True
         self._browser_state = {"running": True, "phase": "working", "message": "Đang chuẩn bị bài giảng…"}
         progress = ConversionProgress(folder, self.browserConversionProgress.emit)
+        self._conversion_progress_sink = progress
         progress.stage("session", "Đang chuẩn bị bài giảng…")
 
         def work():
@@ -614,8 +656,10 @@ class Bridge(QObject):
             record["lesson_id"] = lesson["id"]
             write_record(folder, record)
             progress.stage("completed", "Đã nhận và lưu bài giảng song ngữ.")
+            self._freeze_conversion_clock()
             self._browser_running = False
             self._browser_state.update(running=False, phase="completed", message="Đã nhận bài giảng song ngữ.")
+            self.conversionClockChanged.emit()
             self.openLesson(lesson["id"])
             failures = lesson.get("slide_quality", {}).get("counts", {}).get("FAIL", 0)
             message = (f"Bài giảng đã lưu. Cần sửa {failures} slide trước khi dùng để dạy." if failures
@@ -1231,9 +1275,11 @@ class Bridge(QObject):
         try:
             if self.cancel_event.is_set():
                 if self._browser_running:
+                    self._freeze_conversion_clock()
                     self._browser_running = False
                     self._browser_state.update(running=False, phase="cancelled", waiting=False,
                                                message="Đã dừng; có thể tiếp tục yêu cầu đã gửi.")
+                    self.conversionClockChanged.emit()
                 if self.classroom.runtime and not self.classroom.joinUrl:
                     self.classroom.disconnect()
                 self.inform(

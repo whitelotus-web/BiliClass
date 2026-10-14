@@ -524,13 +524,24 @@ def prepared():
     assert window.findChild(QObject, "browserConversionProgressNote") is None
     assert window.findChild(QObject, "browserConversionStage").property("text") == "Biên soạn bài giảng song ngữ"
     assert "ChatGPT" not in window.findChild(QObject, "browserConversionStatus").property("text")
+    initial_clock_text = window.findChild(QObject, 'browserConversionElapsed').property('text')
+    QTest.qWait(2100)
+    assert bridge.conversionClock['seconds'] >= 2
+    assert bridge.conversionClock['status'] == 'Đang xử lý'
+    assert initial_clock_text != window.findChild(QObject, 'browserConversionElapsed').property('text')
     progress_state = dict(bridge.browserState)
     bridge._web_conversion_failure("Mạng bị gián đoạn")
     assert bridge.browserState["percent"] == 25 and not bridge.browserState["running"]
     assert window.findChild(QObject, "browserConversionPercent").property("text") == "25%"
     assert "tạm dừng" in window.findChild(QObject, "browserConversionStatus").property("text")
     assert window.findChild(QObject, "applicationStatusMessage").property("text") == bridge.browserState["displayMessage"]
+    paused_clock = bridge.conversionClock
+    QTest.qWait(1100)
+    assert bridge.conversionClock == paused_clock
+    assert paused_clock['status'] == 'Đã tạm dừng'
     bridge._browser_state = progress_state
+    bridge._browser_clock_mark = time.monotonic()
+    bridge.conversionClockChanged.emit()
     bridge.changed.emit()
     assert QQuickWindow.grabWindow(window).save(str(reports / "browser-handoff.png"))
     stages.append("One conversion click runs web fixture automatically; audio is deferred to the explicit second step")
@@ -541,6 +552,7 @@ def prepared():
 def received():
     assert not bridge.error, bridge.message
     assert bridge.browserState["percent"] == 100 and not bridge.browserState["running"]
+    assert bridge.conversionClock['status'] == 'Đã hoàn tất'
     assert window.property("page") == "result"
     assert window.findChild(QObject, "lessonSubject").property("currentIndex") == -1
     assert not window.findChild(QObject, "creationCustomSubject").property("text")

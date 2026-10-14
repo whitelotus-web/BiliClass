@@ -1,5 +1,31 @@
 # Khôi phục chuyển đổi Browser AI — RC18
 
+## Bổ sung RC29 — 14/10/2026
+
+Ngân sách chờ mặc định 900 giây được lưu theo hash prompt đã gửi, tính tổng
+thời gian chờ thực trong các lần nối lại. Đóng/mở lại hoặc retry không cấp
+thêm 900 giây cho cùng lượt; thời gian app tạm dừng không bị cộng. Yêu cầu
+xuất/sửa tiếp theo có hash mới được theo dõi riêng. Đã hết ngân sách thì
+vẫn kiểm tra và nhận file sẵn có trước khi báo hết chờ, nhưng không tiếp
+tục vòng đợi hoặc tự khởi động lại. Đây là giới hạn chờ mỗi lượt, không phải
+cam kết toàn bộ bài sẽ xong trong 15 phút.
+
+Nếu cuộc trò chuyện chỉ còn bản tóm tắt hoạt động xử lý, không có câu trả
+lời cuối và không có điều khiển đang tạo, theo dõi thêm 60 giây không đổi.
+Chỉ gửi một yêu cầu hoàn tất tệp khi so khớp toàn bộ prompt trong lượt người
+dùng cuối cùng. Không đoán rằng tóm tắt hoạt động là kết quả; không tải lại
+bài gốc. Lượt xuất cũng không có tệp thì giữ cuộc trò chuyện và báo cần kiểm
+tra thay vì tiếp tục gửi vô hạn. Đây là khôi phục có giới hạn, không bảo đảm
+dịch vụ có thể xuất PPTX cho mọi tài khoản/tài liệu.
+
+Màn chuyển đổi có HH:MM:SS cập nhật mỗi giây, phân biệt đang chạy, tạm dừng
+và hoàn tất. Thời gian dừng không làm đồng hồ tăng; mở lại đọc checkpoint.
+Phần trăm vẫn theo mốc công việc thật, không có countdown giả. Nhật ký và
+tệp cá nhân không đưa vào Git. Định hướng tăng tốc tiếp theo:
+[dịch theo cụm và xử lý PPTX cục bộ](CONVERSION_SPEED_PLAN.md).
+
+## Cơ chế trước RC29
+
 Ngày 13/10/2026, nhật ký một bài đang chuyển đổi dừng ở `submitting`, chưa lưu
 được URL, với `TimeoutError` ở bước gửi. Kiểm tra trên cùng profile tìm thấy
 nguyên văn prompt trong cuộc trò chuyện và nhận được PPTX 75.246.124 byte.

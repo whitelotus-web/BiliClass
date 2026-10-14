@@ -20,6 +20,8 @@ def recoverable(record):
 def temporary_failure(code, record):
     # Upload/editor retries are safe only before submission. Once sent,
     # recovery stays on the saved conversation and never reuploads the source.
+    if record.get('wait_exhausted') or record.get('recovery_exhausted'):
+        return False
     return (recoverable(record) and code in {"network", "browser", "download", "receipt"}
             or unsent(record) and code in {"upload", "interface"}
             or record["state"] == "waiting" and conversation_url(record["url"]) and code == "timeout")
@@ -36,6 +38,7 @@ def startup_resume(folder):
     except (OSError, ValueError, KeyError):
         return False
     return (record.get("auto_resume") is True and not record.get("lesson_id")
+            and not record.get('wait_exhausted') and not record.get('recovery_exhausted')
             and record.get("error", "") in {"", "network", "browser", "receipt", "upload", "interface", "timeout", "download"})
 
 

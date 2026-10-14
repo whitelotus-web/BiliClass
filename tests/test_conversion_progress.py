@@ -74,3 +74,21 @@ def test_stage_timings_record_real_wait_without_advancing_percentage(tmp_path, m
     assert saved["stageSeconds"]["upload"] == 20
     assert saved["stageSeconds"]["waiting"] == 240
     assert saved["percent"] == 55
+
+
+def test_wait_heartbeat_and_final_pause_persist_time_without_advancing_percent(tmp_path,monkeypatch):
+    clock=[100.0]
+    monkeypatch.setattr('app.conversion_progress.time.monotonic',lambda:clock[0])
+    sink=ConversionProgress(tmp_path,lambda _:None)
+    sink.stage('waiting','wait')
+    clock[0]+=300
+    sink('still waiting')
+    assert json.loads(sink.path.read_text(encoding='utf-8'))['elapsedSeconds']==300
+    clock[0]+=12
+    sink.finish()
+    clock[0]+=3600
+    sink.finish()
+    assert json.loads(sink.path.read_text(encoding='utf-8'))['elapsedSeconds']==312
+    assert sink.state['percent']==25
+    next_run=ConversionProgress(tmp_path,lambda _:None)
+    assert next_run.state['elapsedSeconds']==312

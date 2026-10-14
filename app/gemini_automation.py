@@ -398,15 +398,23 @@ def result_link(page, record):
 
 
 def wait_result(page, folder, record, cancel, progress, timeout=900):
-    deadline = time.monotonic() + timeout
+    from .browser_wait import ResponseWait
+
+    with ResponseWait(folder, record, timeout) as budget:
+        return _wait_result(page, folder, record, cancel, progress, budget)
+
+
+def _wait_result(page, folder, record, cancel, progress, budget):
     last_text, stable_since, last_progress = "", time.monotonic(), 0
-    while time.monotonic() < deadline:
+    while True:
         check_cancel(cancel)
         page_problem(page)
         if not visible(page, STOP):
             entry = result_link(page, record)
             if entry:
                 return entry
+            if budget.checkpoint() <= 0:
+                break
             reply = _latest(page, record)
             text = reply.inner_text() if reply is not None else ""
             if text != last_text:
@@ -419,6 +427,8 @@ def wait_result(page, folder, record, cancel, progress, timeout=900):
                     last_text, stable_since = "", time.monotonic()
                 else:
                     raise BrowserProblem("no_file", "Gemini chưa trả PowerPoint tải được. Bài và cuộc trò chuyện đã được giữ; cần kiểm tra quyền tạo/xuất tệp của tài khoản.")
+        if budget.checkpoint() <= 0:
+            break
         if time.monotonic() - last_progress > 20:
             emit_progress(progress, "waiting", "Đang biên soạn bài giảng…")
             last_progress = time.monotonic()

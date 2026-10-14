@@ -33,6 +33,9 @@ ASSISTANT = ('[data-message-author-role="assistant"], '
 USER = ('[data-message-author-role="user"], [data-chatgpt-search-unit-key$=":user"]'
         ':not(:has([data-message-author-role="user"]))')
 MESSAGE_ANCESTORS = 'xpath=ancestor-or-self::*[@data-message-author-role or @data-chatgpt-search-message-ids]'
+# Activity summaries are not final answers or downloadable results.
+ACTIVITY = '[data-markdown-text-style="assistant-message"][data-markdown-text-tone="tertiary"]'
+INCOMPLETE_ANSWER_GRACE = 60
 LOGIN = '[data-testid="login-button"], [data-testid="login-button-header"]'
 VERIFICATION_MESSAGE = (
     "ChatGPT yêu cầu xác minh Cloudflare. Phiên và bài đang làm đã được giữ. "
@@ -527,6 +530,8 @@ def submit(page, folder, record, prompt, cancel, *, files=(), progress=None):
     from .browser_receipt import save_intent, wait_receipt
 
     save_intent(folder, record, prompt)
+    record.pop('recovery_exhausted', None)
+    record.pop('wait_exhausted', None)
     # Persist BEFORE click: a crash or unknown response must not trigger a duplicate send.
     previous_url = page.url
     record.update(state="submitting", assistant_before=page.locator(ASSISTANT).count(),
@@ -605,10 +610,17 @@ def interrupted_answer(page):
 
 
 def wait_result(page, folder, record, cancel, progress, timeout=900):
-    deadline = time.monotonic() + timeout
+    from .browser_wait import ResponseWait
+
+    with ResponseWait(folder, record, timeout) as budget:
+        return _wait_result(page, folder, record, cancel, progress, budget)
+
+
+def _wait_result(page, folder, record, cancel, progress, budget):
     last_progress = 0
     last_text, stable_since = "", time.monotonic()
-    while time.monotonic() < deadline:
+    activity_text, activity_since = '', time.monotonic()
+    while True:
         check_cancel(cancel)
         page_problem(page)
         generating = visible(page, STOP)
@@ -617,12 +629,16 @@ def wait_result(page, folder, record, cancel, progress, timeout=900):
         link = result_link(page, before, assistant_ids_before=ids)
         if link and not generating:
             return link
+        if budget.checkpoint() <= 0:
+            break
         if interrupted_answer(page):
             key = record.get("send_sha256", "")
             if record.get("stream_reconnect_key") != key:
                 record.update(stream_reconnect_key=key, stream_reconnects=0)
             attempts = record.get("stream_reconnects", 0)
             if attempts >= 2 or not conversation_url(record.get("url", "")):
+                record['recovery_exhausted'] = True
+                write_record(folder, record)
                 raise BrowserProblem("network", "Kết nối xử lý đang gián đoạn. Bài và lượt đã gửi được giữ để tiếp tục.")
             record.update(stream_reconnects=attempts + 1, error="")
             write_record(folder, record)
@@ -634,6 +650,32 @@ def wait_result(page, folder, record, cancel, progress, timeout=900):
             last_text, stable_since = "", time.monotonic()
             continue
         message = latest_reply(page, before, ids)
+        if message is None and not generating:
+            activity = page.locator(ACTIVITY).all()
+            # A stopped stream can leave only activity summaries, without an
+            # assistant answer. Never mistake these for a completed response.
+            current = '\n'.join(node.inner_text() for node in activity if node.is_visible())
+            if current != activity_text:
+                activity_text, activity_since = current, time.monotonic()
+            if current.strip() and time.monotonic() - activity_since >= INCOMPLETE_ANSWER_GRACE:
+                from .browser_receipt import intent_prompt, matching_users
+
+                prompt = intent_prompt(folder, record, load_request(folder))
+                matches = matching_users(page, prompt)
+                users = page.locator(USER)
+                if matches != [users.count() - 1] or matches[0] < record.get('user_before', 0):
+                    raise BrowserProblem('submission', 'Chưa xác định được lượt xử lý đang dở. Giữ cuộc trò chuyện; không gửi lại bài.')
+                if record.get('followups', 0):
+                    raise BrowserProblem('no_file', 'Lượt xử lý dừng trước khi có PowerPoint. Đã giữ bài và cuộc trò chuyện để kiểm tra.')
+                record['followups'] = 1
+                write_record(folder, record)
+                progress('Đang khôi phục phần kết quả chưa hoàn tất…')
+                submit(page, folder, record, EXPORT_PROMPT, cancel)
+                activity_text, activity_since = '', time.monotonic()
+                last_text, stable_since = '', time.monotonic()
+                continue
+        else:
+            activity_text, activity_since = '', time.monotonic()
         if message is not None and not generating:
             text = message.inner_text()
             if text != last_text:

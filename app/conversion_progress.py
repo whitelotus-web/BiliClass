@@ -43,6 +43,7 @@ class ConversionProgress:
         self.started = time.monotonic()
         self.state = {"percent": 0, "stage": "session", "stageLabel": STAGES["session"][2],
                       "done": 0, "total": 0, "waiting": False, "elapsedSeconds": 0}
+        previous = {}
         try:
             previous = json.loads(self.path.read_text(encoding="utf-8"))
             if (isinstance(previous, dict) and previous.get("version") == 1 and previous.get("stage") in STAGES
@@ -54,9 +55,13 @@ class ConversionProgress:
         except (OSError, ValueError, TypeError):
             pass
         self.elapsed = self.state["elapsedSeconds"]
+        self.ended = None
         self.persisted = None
+        self.last_saved = None
         self.stage_started = time.monotonic()
-        self.stage_seconds = {}
+        durations = previous.get('stageSeconds', {}) if isinstance(previous, dict) else {}
+        self.stage_seconds = {key: value for key, value in durations.items()
+                              if key in STAGES and type(value) in (int, float) and 0 <= value < 10**9} if isinstance(durations, dict) else {}
 
     def __call__(self, message):
         self.state["message"] = message
@@ -76,21 +81,27 @@ class ConversionProgress:
                           waiting=stage in {"waiting", "refine_wait"}, message=message)
         self._emit()
 
-    def _emit(self):
-        self.state["elapsedSeconds"] = self.elapsed + int(time.monotonic()-self.started)
+    def finish(self):
+        if self.ended is None:
+            self.ended = time.monotonic()
+        self._emit(force=True)
+
+    def _emit(self, force=False):
+        self.state["elapsedSeconds"] = self.elapsed + int((self.ended if self.ended is not None else time.monotonic())-self.started)
         self.notify({**self.state, "emittedAtMs": int(time.time()*1000)})
         checkpoint = (self.state["stage"], self.state["percent"])
-        if self.persisted == checkpoint:
+        if not force and self.persisted == checkpoint and self.last_saved is not None and time.monotonic() - self.last_saved < 5:
             return
         durations = {**self.stage_seconds}
         current = self.state["stage"]
-        durations[current] = durations.get(current, 0) + time.monotonic() - self.stage_started
+        durations[current] = durations.get(current, 0) + (self.ended if self.ended is not None else time.monotonic()) - self.stage_started
         saved = {"version": 1, **self.state, "stageSeconds": {k: round(v, 2) for k, v in durations.items()}}
         try:
             temporary = self.path.with_suffix(".tmp")
             temporary.write_text(json.dumps(saved, ensure_ascii=False), encoding="utf-8")
             temporary.replace(self.path)
             self.persisted = checkpoint
+            self.last_saved = time.monotonic()
         except OSError:
             # Progress persistence must never cause a repeat of a web submission.
             pass

@@ -255,3 +255,23 @@ def test_startup_recovery_requires_saved_authorization_and_obeys_stop(tmp_path, 
     record["lesson_id"] = "already-saved"
     write_record(tmp_path, record)
     assert not startup_resume(tmp_path)
+
+
+@pytest.mark.parametrize('flag',['wait_exhausted','recovery_exhausted'])
+def test_exhausted_wait_or_recovery_never_restarts_on_retry_or_app_start(tmp_path,flag):
+    from app.browser_dispatch import startup_resume
+
+    store,plus,_=accounts_fixture(tmp_path)
+    record=read_record(tmp_path,plus)
+    record.update(state='waiting',url='https://chatgpt.com/c/fixture',auto_resume=True)
+    write_record(tmp_path,record)
+    calls=[]
+    def converter(account,_root,folder,*args,**kw):
+        calls.append(account['id'])
+        record[flag]=True
+        record['error']='timeout' if flag=='wait_exhausted' else 'network'
+        write_record(folder,record)
+        raise BrowserProblem(record['error'],'Already exhausted')
+    with pytest.raises(BrowserProblem):
+        convert_available(store.candidates(),store.root,tmp_path,Event(),lambda _:None,converter=converter,retry_delays=(0,0))
+    assert calls==[plus] and not startup_resume(tmp_path)

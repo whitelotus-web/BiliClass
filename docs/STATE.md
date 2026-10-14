@@ -1,5 +1,23 @@
 # Trạng thái BiliClass
 
+Ngày 14/10/2026 — nguồn RC29 thêm đồng hồ chuyển đổi HH:MM:SS, đứng khi
+tạm dừng/hoàn tất, giữ tổng thời gian và thời gian từng bước khi mở lại.
+Ngân sách chờ 900 giây được dùng chung cho các lần nối lại cùng lượt gửi;
+hết chờ/hết khôi phục không tự mở thêm vòng đợi. Cuộc trò chuyện dừng ở
+tóm tắt hoạt động được kiểm tra thêm và chỉ yêu cầu hoàn tất tệp một lần
+khi so khớp prompt cuối, không gửi lại file gốc.
+
+Kiểm chứng nguồn: 137 ca browser/ChatGPT/Gemini/khôi phục/chờ/tiến độ/
+thông báo qua; Qt toàn luồng với Office preview thật và web/voice fixture
+qua, gồm đồng hồ tự tăng, đứng khi dừng, nhãn hoàn tất và giữ bước voice
+riêng. Ruff và diff check qua. Bài thực đang dở có tệp nguồn khoảng 71 MB,
+lượt tải khoảng 21 giây, bước chờ đã ghi gần 24 phút và hai lần kết nối lại.
+Kiểm tra cùng profile thấy vẫn đăng nhập, chỉ có hoạt động xử lý chưa có
+file cuối. Thử khôi phục có giới hạn trong đúng chat đã xác nhận một lượt
+yêu cầu hoàn tất tệp, không gửi lại bài nguồn; chưa nhận được PPTX cuối
+trong phiên kiểm tra 5 phút. Không dùng kiểm thử fixture để chứng nhận
+bài thực đã hoàn thành. Xem [đề xuất tăng tốc và vai trò Gemini](CONVERSION_SPEED_PLAN.md).
+
 Ngày 14/10/2026 — đã phát hành [RC28](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc28)
 từ commit ứng dụng `755d6ee3b2537b317eddea66348bd38fb0ea1607`. ZIP
 667.952.420 byte, SHA-256

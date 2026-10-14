@@ -1414,3 +1414,69 @@ def test_stream_reconnections_are_durable_and_bounded_even_when_stop_button_rema
             assert not adapter.interrupted_answer(page)
         finally:
             context.close()
+
+
+def test_stopped_activity_without_answer_gets_one_export_only_after_matching_prompt(browser_fixture, monkeypatch):
+    from html import escape
+
+    from playwright.sync_api import sync_playwright
+
+    from app.browser_receipt import save_intent
+
+    adapter, accounts, request, captured, _source = browser_fixture
+    monkeypatch.setattr(adapter, 'INCOMPLETE_ANSWER_GRACE', .1)
+    record = {'account_id': accounts.get()['id'], 'state': 'waiting', 'url': 'https://chatgpt.com/c/fixture-123',
+              'followups': 0, 'assistant_before': 0, 'assistant_ids_before': [], 'user_before': 0}
+    save_intent(request['folder'], record, request['prompt'])
+    markup = ('<div data-chatgpt-search-unit-key="turn:0:user" data-chatgpt-search-message-ids="source">'
+              + escape(request['prompt']) + '</div><div data-markdown-text-style="assistant-message" '
+              'data-markdown-text-tone="tertiary">Prepared the slides</div>')
+    with sync_playwright() as driver:
+        context = adapter.open_context(driver, accounts.get(), background=True)
+        try:
+            page = context.pages[0]
+            page.goto(record['url'])
+            page.locator('#messages').evaluate('(e, html) => e.innerHTML = html', markup)
+            entry = adapter.wait_result(page, request['folder'], record, Event(), lambda _: None, timeout=10)
+            assert '.pptx' in entry.inner_text()
+            assert record['followups'] == 1 and len(captured['sends']) == 1
+            assert captured['sends'][0]['prompt'] == adapter.EXPORT_PROMPT and not captured['sends'][0]['files']
+            # An unrelated last user turn must not receive an export request.
+            record.update(followups=0, assistant_before=0, assistant_ids_before=[], user_before=0)
+            save_intent(request['folder'], record, request['prompt'])
+            page.locator('#messages').evaluate('(e, html) => e.innerHTML = html', markup.replace(escape(request['prompt']), 'Different request'))
+            with pytest.raises(BrowserProblem) as exc:
+                adapter.wait_result(page, request['folder'], record, Event(), lambda _: None, timeout=10)
+            assert exc.value.code == 'submission' and len(captured['sends']) == 1
+            # An acknowledged export that stalls is not sent a second time.
+            record.update(followups=1)
+            save_intent(request['folder'], record, request['prompt'])
+            page.locator('#messages').evaluate('(e, html) => e.innerHTML = html', markup)
+            with pytest.raises(BrowserProblem) as exc:
+                adapter.wait_result(page, request['folder'], record, Event(), lambda _: None, timeout=10)
+            assert exc.value.code == 'no_file' and len(captured['sends']) == 1
+        finally:
+            context.close()
+
+
+def test_exhausted_response_wait_can_receive_ready_file_but_never_starts_another_wait(browser_fixture):
+    from playwright.sync_api import sync_playwright
+
+    adapter, accounts, request, captured, _source = browser_fixture
+    record = {'account_id': accounts.get()['id'], 'state': 'waiting', 'url': 'https://chatgpt.com/c/fixture-123',
+              'followups': 0, 'send_sha256': 'a' * 64, 'assistant_before': 0,
+              'response_wait': {'key': 'a' * 64, 'seconds': 900}}
+    with sync_playwright() as driver:
+        context = adapter.open_context(driver, accounts.get(), background=True)
+        try:
+            page = context.pages[0]
+            page.goto(record['url'])
+            assert adapter.wait_result(page, request['folder'], record, Event(), lambda _: None)
+            page.locator('#messages').evaluate('e => e.replaceChildren()')
+            for _ in range(2):
+                with pytest.raises(BrowserProblem) as exc:
+                    adapter.wait_result(page, request['folder'], record, Event(), lambda _: None)
+                assert exc.value.code == 'timeout' and record['wait_exhausted']
+            assert not captured['sends']
+        finally:
+            context.close()

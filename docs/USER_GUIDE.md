@@ -1,8 +1,15 @@
-# BiliClass RC28 — hướng dẫn dùng thử
+# BiliClass RC29 — hướng dẫn dùng thử
+
+Màn chuyển đổi hiện thời gian xử lý **giờ:phút:giây**. Đồng hồ đứng lại khi
+tạm dừng; tiếp tục sẽ cộng thời gian đã lưu. Nếu báo tạm dừng thì chờ ở màn
+hình đó không làm bài tự hoàn thành. Tool lưu bài đang làm và cuộc trò chuyện
+để kiểm tra/tiếp tục, không tự gửi lại toàn bộ tài liệu. Không có đếm ngược
+chính xác vì dịch vụ web không cung cấp thời điểm hoàn tất. PowerPoint được
+lưu trước; tạo giọng đọc là bước riêng nếu thầy cô cần.
 
 ## Cài lần đầu
 
-1. Mở [Release RC28](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc28), tải **BiliClass-RC28-Windows.zip** trong Assets.
+1. Mở [Release RC29](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc29), tải **BiliClass-RC29-Windows.zip** trong Assets.
 2. Giải nén toàn bộ bằng Windows; không chạy ứng dụng ngay trong cửa sổ ZIP.
 3. Chạy **Setup.cmd**. Bộ cài kiểm tra checksum, cài vào `%LOCALAPPDATA%/Programs/BiliClass/<version>` và tạo mục Start menu, không cần quyền quản trị.
 4. Mở BiliClass từ Start menu, vào **Cài đặt → Browser AI**, chọn **ChatGPT hoặc Gemini**, bấm **Thêm tài khoản** để đăng nhập. Mỗi máy tự đăng nhập; không sao chép profile của người khác. Có thể thêm nhiều tài khoản độc lập cho từng dịch vụ và tích chọn tài khoản cụ thể để chuyển đổi, hoặc dùng Tự chọn tài khoản đang kết nối.
