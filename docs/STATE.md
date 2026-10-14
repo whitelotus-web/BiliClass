@@ -1,5 +1,19 @@
 # Trạng thái BiliClass
 
+Ngày 14/10/2026 — đã phát hành [RC31](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc31)
+từ commit ứng dụng `e3949b2048aab27100608a058a5ff437445d7bc0`. ZIP
+667.963.406 byte, SHA-256
+`65b19c46e527e5b708ed77a3ec3d09d3e009b3916ebf3d253045f1955d11b19b`.
+67 module ứng dụng xây lại trong 12,09 giây; đối chiếu toàn bộ runtime/model
+giữ nguyên với manifest RC30. ZIP/checksum/CRC, cài/gỡ Unicode, Qt hai kích
+thước không warning và bản đóng gói đọc checkpoint 01:01:45/25% qua. Updater
+từ RC30 nhận RC31 với dung lượng/checksum khớp.
+
+Đã cài RC31 vào đường dẫn chuẩn, Start menu trỏ đúng phiên bản. Giữ cửa sổ
+RC30 đang chuyển Bài 5, chưa mở thêm RC31 với cùng thư viện. Giao diện mới
+áp dụng khi kết thúc lượt hiện tại rồi mở lại từ Start menu. Bước kiểm tra
+bản đóng gói dùng thư viện riêng, không gửi tài liệu thật.
+
 Ngày 14/10/2026 — nguồn RC31 gọn lại điều khiển chuyển đổi: chỉ hiện Dừng
 trong khung tác vụ; nút Dừng tác vụ ở chân cửa sổ vẫn dùng được khi sang
 trang khác. Luôn hiện % theo mốc công việc, kể cả lúc chờ; hiệu ứng chuyển
