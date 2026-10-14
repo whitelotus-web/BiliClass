@@ -1,5 +1,21 @@
 # Trạng thái BiliClass
 
+Ngày 14/10/2026 — nguồn RC30 sửa lỗi dừng quan sát ở 15 phút dù web còn chạy
+và Tiếp tục dùng lại khoảng chờ đã hết. Bài dài được gia hạn theo dõi từng
+5 phút khi có trạng thái đang xử lý, tối đa 60 phút quan sát/lượt. Đọc lại chat
+có giới hạn khi trạng thái im lặng. Với luồng đã ngắt sau hai lần nối lại và
+ít nhất 15 phút, xác minh nguyên prompt cuối rồi khôi phục bàn giao tối đa
+một lần; ưu tiên nhận file sẵn có, không gửi lại bài nguồn hay hạ model.
+
+Giai đoạn chưa đếm được phần hoàn tất hiện Đang xử lý và thanh chuyển động,
+đồng hồ vẫn tăng; giai đoạn có mốc thực hiện phần trăm. Giữ Dừng, đăng nhập/
+xác minh/hạn mức và bước voice riêng. Kiểm chứng: 51 ca chính sách chờ/
+khôi phục/tiến độ/copy, 15 ca dịch vụ/Gemini, các ca Chrome chờ quá 15 phút,
+đọc lại chat im lặng, đối chiếu timeout và khôi phục bàn giao đúng prompt qua;
+Qt với Office preview thật/web/voice fixture qua, gồm đồng hồ chạy sau 15
+phút, thanh chuyển động và dừng đúng trạng thái. Chưa chứng nhận bài thật
+hoàn thành chỉ từ nhãn hoặc liên kết trên web.
+
 Ngày 14/10/2026 — đã phát hành [RC29](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc29)
 từ commit ứng dụng `782e7708a4b9a3ebfc51a29c7d098820d6b8fbef`. ZIP
 667.958.926 byte, SHA-256

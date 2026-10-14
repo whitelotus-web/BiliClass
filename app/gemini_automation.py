@@ -409,7 +409,8 @@ def _wait_result(page, folder, record, cancel, progress, budget):
     while True:
         check_cancel(cancel)
         page_problem(page)
-        if not visible(page, STOP):
+        generating = visible(page, STOP)
+        if not generating:
             entry = result_link(page, record)
             if entry:
                 return entry
@@ -427,7 +428,7 @@ def _wait_result(page, folder, record, cancel, progress, budget):
                     last_text, stable_since = "", time.monotonic()
                 else:
                     raise BrowserProblem("no_file", "Gemini chưa trả PowerPoint tải được. Bài và cuộc trò chuyện đã được giữ; cần kiểm tra quyền tạo/xuất tệp của tài khoản.")
-        if budget.checkpoint() <= 0:
+        if budget.checkpoint() <= 0 and not budget.extend_active(bool(generating)):
             break
         if time.monotonic() - last_progress > 20:
             emit_progress(progress, "waiting", "Đang biên soạn bài giảng…")

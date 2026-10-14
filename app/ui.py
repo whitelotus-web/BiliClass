@@ -617,6 +617,9 @@ class Bridge(QObject):
                 self._browser_state.update(running=False, phase="error", needsLogin=False, errorCode="limit")
                 raise ValueError("Tài khoản của bài đã gửi đang hết lượt. Chờ hạn mức được cấp lại để tiếp tục đúng cuộc trò chuyện.")
             record = read_record(folder, cached.get("account_id", account["id"]), service=account.get("service", "chatgpt"))
+            if record.get('wait_exhausted') and record.get('send_sha256'):
+                record['timeout_probe_key'] = record['send_sha256']
+            record.pop('recovery_exhausted', None)
             record["auto_resume"] = True
             write_record(folder, record)
             (Path(folder) / "conversion-stopped").unlink(missing_ok=True)

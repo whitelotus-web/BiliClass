@@ -627,15 +627,21 @@ ApplicationWindow {
                                 RowLayout {
                                     Layout.fillWidth: true
                                     Copy { objectName: "browserConversionStage"; text: bridge.browserState.displayStage; Layout.fillWidth: true; color: root.ink }
-                                    Caption { objectName: "browserConversionPercent"; text: (bridge.browserState.percent || 0) + "%"; font.pixelSize: 22 }
+                                    Caption { objectName: "browserConversionPercent"; text: bridge.browserState.running && bridge.browserState.waiting ? "Đang xử lý" : (bridge.browserState.percent || 0) + "%"; font.pixelSize: bridge.browserState.running && bridge.browserState.waiting ? 15 : 22 }
                                 }
                                 ProgressBar {
-                                    objectName: "browserConversionProgressBar"; Layout.fillWidth: true
+                                    id: conversionBar; objectName: "browserConversionProgressBar"; Layout.fillWidth: true
                                     from: 0; to: 100; value: bridge.browserState.percent || 0
+                                    indeterminate: !!bridge.browserState.running && !!bridge.browserState.waiting
                                     background: Rectangle { implicitHeight: 9; radius: 4.5; color: "#e8eff9" }
                                     contentItem: Item {
-                                        implicitHeight: 9
-                                        Rectangle { width: parent.width * parent.parent.visualPosition; height: parent.height; radius: 4.5; color: root.blue }
+                                        implicitHeight: 9; clip: true
+                                        Rectangle { visible: !conversionBar.indeterminate; width: parent.width * conversionBar.visualPosition; height: parent.height; radius: 4.5; color: root.blue }
+                                        Rectangle {
+                                            id: conversionPulse; objectName: "browserConversionPulse"
+                                            visible: conversionBar.indeterminate; width: parent.width * 0.24; height: parent.height; radius: 4.5; color: root.blue
+                                            NumberAnimation on x { from: -conversionPulse.width; to: conversionPulse.parent.width; duration: 1500; loops: Animation.Infinite; running: conversionBar.indeterminate && conversionBar.visible && root.visible }
+                                        }
                                     }
                                 }
                                 RowLayout {

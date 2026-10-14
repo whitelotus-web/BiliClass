@@ -275,3 +275,22 @@ def test_exhausted_wait_or_recovery_never_restarts_on_retry_or_app_start(tmp_pat
     with pytest.raises(BrowserProblem):
         convert_available(store.candidates(),store.root,tmp_path,Event(),lambda _:None,converter=converter,retry_delays=(0,0))
     assert calls==[plus] and not startup_resume(tmp_path)
+
+
+def test_old_fifteen_minute_timeout_gets_one_startup_probe_but_hard_cap_does_not(tmp_path):
+    from app.browser_dispatch import startup_resume
+
+    _store, plus, _free = accounts_fixture(tmp_path)
+    record = read_record(tmp_path, plus)
+    record.update(state='waiting', url='https://chatgpt.com/c/fixture', error='timeout', auto_resume=True,
+                  wait_exhausted=True, send_sha256='a'*64,
+                  response_wait={'key':'a'*64, 'seconds':900.2, 'limit':900})
+    write_record(tmp_path, record)
+    assert startup_resume(tmp_path)
+    record['timeout_probe_key'] = record['send_sha256']
+    write_record(tmp_path, record)
+    assert not startup_resume(tmp_path)
+    record.pop('timeout_probe_key')
+    record['response_wait'].update(seconds=3600, limit=3600)
+    write_record(tmp_path, record)
+    assert not startup_resume(tmp_path)

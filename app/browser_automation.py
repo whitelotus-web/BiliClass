@@ -36,6 +36,7 @@ MESSAGE_ANCESTORS = 'xpath=ancestor-or-self::*[@data-message-author-role or @dat
 # Activity summaries are not final answers or downloadable results.
 ACTIVITY = '[data-markdown-text-style="assistant-message"][data-markdown-text-tone="tertiary"]'
 INCOMPLETE_ANSWER_GRACE = 60
+STALE_RESPONSE_GRACE = 180
 LOGIN = '[data-testid="login-button"], [data-testid="login-button-header"]'
 VERIFICATION_MESSAGE = (
     "ChatGPT yêu cầu xác minh Cloudflare. Phiên và bài đang làm đã được giữ. "
@@ -44,6 +45,8 @@ VERIFICATION_MESSAGE = (
 EXPORT_PROMPT = (
     "Hãy hoàn tất tệp bai-giang-song-ngu.pptx chỉnh sửa được theo yêu cầu đã gửi và cung cấp liên kết tải .pptx "
     "trong câu trả lời. Không chỉ đưa dàn ý hoặc đường dẫn nội bộ dạng văn bản. "
+    "Dùng bản song ngữ đã tạo trong cuộc trò chuyện: nếu tệp đã sẵn sàng, cung cấp liên kết tải ngay; "
+    "không dựng lại hoặc lặp kiểm kê/render toàn bộ bài. Nếu còn thiếu, chỉ hoàn thiện phần còn thiếu. "
     "Nếu không thể tạo tệp trong phiên này, hãy nói rõ giới hạn."
 )
 
@@ -616,10 +619,56 @@ def wait_result(page, folder, record, cancel, progress, timeout=900):
         return _wait_result(page, folder, record, cancel, progress, budget)
 
 
+def finish_interrupted_answer(page, folder, record, cancel, progress):
+    """One finalization recovery for an old, repeatedly interrupted first turn.
+
+    Stop only the verified stalled turn after two stream reconnects and at
+    least 15 minutes of observation. A healthy active response is untouched.
+    Then ask for the existing file once, without reuploading the source.
+    """
+    if (record.get('followups', 0) or record.get('quality_stage') in {'submitting', 'waiting'}
+            or record.get('response_wait', {}).get('seconds', 0) < 900
+            or record.get('stream_reconnects', 0) < 2
+            or not conversation_url(record.get('url', '')) or not interrupted_answer(page)):
+        return False
+    from .browser_receipt import intent_prompt, matching_users
+
+    prompt = intent_prompt(folder, record, load_request(folder))
+    matches = matching_users(page, prompt)
+    if matches != [page.locator(USER).count() - 1] or matches[0] < record.get('user_before', 0):
+        raise BrowserProblem('submission', 'Chưa xác định được đúng yêu cầu đang dở; giữ nguyên cuộc trò chuyện để kiểm tra.')
+    recovery = record.get('finalization_recovery', {})
+    stop = visible(page, STOP)
+    if stop:
+        if recovery.get('stop_requested'):
+            return False
+        record['finalization_recovery'] = {'key': record.get('send_sha256'), 'stop_requested': True}
+        write_record(folder, record)
+        progress('Đang khôi phục bước hoàn tất bài giảng…')
+        stop.click(timeout=5000)
+        deadline = time.monotonic() + 20
+        while visible(page, STOP) and time.monotonic() < deadline:
+            check_cancel(cancel)
+            page_problem(page)
+            page.wait_for_timeout(250)
+        if visible(page, STOP):
+            return False
+        page.wait_for_timeout(500)
+    if result_link(page, record.get('assistant_before', 0), assistant_ids_before=record.get('assistant_ids_before')):
+        return True
+    record['followups'] = 1
+    write_record(folder, record)
+    submit(page, folder, record, EXPORT_PROMPT, cancel)
+    return True
+
+
 def _wait_result(page, folder, record, cancel, progress, budget):
+    from .browser_wait import stale_refresh
+
     last_progress = 0
     last_text, stable_since = "", time.monotonic()
     activity_text, activity_since = '', time.monotonic()
+    terminal_grace = None
     while True:
         check_cancel(cancel)
         page_problem(page)
@@ -629,14 +678,21 @@ def _wait_result(page, folder, record, cancel, progress, budget):
         link = result_link(page, before, assistant_ids_before=ids)
         if link and not generating:
             return link
-        if budget.checkpoint() <= 0:
-            break
+        remaining = budget.checkpoint()
+        if remaining <= 0 and budget.extend_active(bool(generating)):
+            progress('Bài giảng vẫn đang được xử lý; tiếp tục theo dõi kết quả tự động…')
+            remaining = budget.checkpoint()
         if interrupted_answer(page):
             key = record.get("send_sha256", "")
             if record.get("stream_reconnect_key") != key:
                 record.update(stream_reconnect_key=key, stream_reconnects=0)
             attempts = record.get("stream_reconnects", 0)
             if attempts >= 2 or not conversation_url(record.get("url", "")):
+                if (attempts >= 2 and conversation_url(record.get('url', ''))
+                        and finish_interrupted_answer(page, folder, record, cancel, progress)):
+                    last_text, stable_since = '', time.monotonic()
+                    activity_text, activity_since = '', time.monotonic()
+                    continue
                 record['recovery_exhausted'] = True
                 write_record(folder, record)
                 raise BrowserProblem("network", "Kết nối xử lý đang gián đoạn. Bài và lượt đã gửi được giữ để tiếp tục.")
@@ -650,14 +706,37 @@ def _wait_result(page, folder, record, cancel, progress, budget):
             last_text, stable_since = "", time.monotonic()
             continue
         message = latest_reply(page, before, ids)
+        text = message.inner_text() if message is not None else ''
+        current = page.locator(ACTIVITY).evaluate_all(
+            "nodes => nodes.filter(e => e.getClientRects().length).map(e => e.innerText).join('\\n')")
+        signature = text[-4000:] + '\n' + current[-4000:]
+        if stale_refresh(record, signature, generating=bool(generating) and conversation_url(record.get('url', '')),
+                         after=STALE_RESPONSE_GRACE):
+            write_record(folder, record)
+            progress('Đang kiểm tra và đồng bộ kết quả bài giảng…')
+            navigate(page, record['url'], cancel)
+            require_account(page, cancel)
+            last_text, stable_since = '', time.monotonic()
+            activity_text, activity_since = '', time.monotonic()
+            continue
+        # A turn that finished near the limit gets a short reconciliation,
+        # including the existing single export request. Never reupload/resend.
+        exhausted = remaining <= 0
+        if exhausted:
+            if generating or not (text.strip() or current.strip()):
+                break
+            terminal_grace = terminal_grace or time.monotonic()
+            if time.monotonic() - terminal_grace >= min(20, budget.timeout):
+                break
+        else:
+            terminal_grace = None
         if message is None and not generating:
-            activity = page.locator(ACTIVITY).all()
             # A stopped stream can leave only activity summaries, without an
             # assistant answer. Never mistake these for a completed response.
-            current = '\n'.join(node.inner_text() for node in activity if node.is_visible())
             if current != activity_text:
                 activity_text, activity_since = current, time.monotonic()
-            if current.strip() and time.monotonic() - activity_since >= INCOMPLETE_ANSWER_GRACE:
+            grace = min(INCOMPLETE_ANSWER_GRACE, 5) if exhausted else INCOMPLETE_ANSWER_GRACE
+            if current.strip() and time.monotonic() - activity_since >= grace:
                 from .browser_receipt import intent_prompt, matching_users
 
                 prompt = intent_prompt(folder, record, load_request(folder))
@@ -677,7 +756,6 @@ def _wait_result(page, folder, record, cancel, progress, budget):
         else:
             activity_text, activity_since = '', time.monotonic()
         if message is not None and not generating:
-            text = message.inner_text()
             if text != last_text:
                 last_text, stable_since = text, time.monotonic()
             if text.strip() and not link and time.monotonic() - stable_since > 4:

@@ -1500,3 +1500,140 @@ def test_exhausted_response_wait_can_receive_ready_file_but_never_starts_another
             assert not captured['sends']
         finally:
             context.close()
+
+
+def test_active_generation_after_fifteen_minutes_finishes_without_another_send(browser_fixture):
+    from playwright.sync_api import sync_playwright
+
+    adapter, accounts, request, captured, _source = browser_fixture
+    record = {'account_id': accounts.get()['id'], 'state':'waiting', 'url':'https://chatgpt.com/c/fixture-123',
+              'followups':0, 'send_sha256':'a'*64, 'assistant_before':0,
+              'response_wait':{'key':'a'*64, 'seconds':900.3, 'limit':900}}
+    with sync_playwright() as driver:
+        context = adapter.open_context(driver, accounts.get(), background=True)
+        try:
+            page = context.pages[0]
+            page.goto(record['url'])
+            page.set_content('''<button data-testid="stop-button">Stop</button>
+<script>window.stopCount=0;document.querySelector('button').onclick=()=>window.stopCount++;setTimeout(()=>document.body.innerHTML='<div data-message-author-role="assistant"><a href="/backend-api/files/result.pptx">result.pptx</a></div>',700)</script>''')
+            entry = adapter.wait_result(page, request['folder'], record, Event(), lambda _: None)
+            assert entry and record['response_wait']['limit'] > 900
+            assert not record['wait_exhausted'] and not captured['sends']
+            assert page.evaluate('window.stopCount') == 0
+        finally:
+            context.close()
+
+
+def test_silent_generation_refreshes_saved_chat_and_receives_without_resending(browser_fixture, monkeypatch):
+    from playwright.sync_api import sync_playwright
+
+    adapter, accounts, request, captured, _source = browser_fixture
+    monkeypatch.setattr(adapter, 'STALE_RESPONSE_GRACE', .1)
+    record = {'account_id': accounts.get()['id'], 'state':'waiting', 'url':'https://chatgpt.com/c/fixture-123',
+              'followups':0, 'send_sha256':'a'*64, 'assistant_before':0}
+    with sync_playwright() as driver:
+        context = adapter.open_context(driver, accounts.get(), background=True)
+        try:
+            page = context.pages[0]
+            page.goto(record['url'])
+            page.set_content('<button data-testid="stop-button">Stop</button>')
+            entry = adapter.wait_result(page, request['folder'], record, Event(), lambda _: None, timeout=10)
+            assert entry and record['response_watch']['refreshes'] == 1
+            assert page.url == record['url'] and not captured['sends']
+        finally:
+            context.close()
+
+
+def test_expired_wait_can_finish_a_stopped_answer_with_one_export(browser_fixture):
+    from html import escape
+    from threading import Timer
+
+    from playwright.sync_api import sync_playwright
+
+    from app.browser_receipt import save_intent
+
+    adapter, accounts, request, captured, _source = browser_fixture
+    captured['html'] = FIXTURE.replace("document.querySelector('#messages').innerHTML = ",
+                                       "document.querySelector('#messages').innerHTML += ")
+    record = {'account_id':accounts.get()['id'], 'state':'waiting', 'url':'https://chatgpt.com/c/fixture-old',
+              'followups':0, 'assistant_before':0, 'assistant_ids_before':[], 'user_before':0}
+    save_intent(request['folder'], record, request['prompt'])
+    record['response_wait'] = {'key':record['send_sha256'], 'seconds':900.1, 'limit':900}
+    cancel = Event()
+    timer = Timer(20, cancel.set)
+    with sync_playwright() as driver:
+        context = adapter.open_context(driver, accounts.get(), background=True)
+        try:
+            page = context.pages[0]
+            page.goto(record['url'])
+            markup = '<div data-message-author-role="user">'+escape(request['prompt'])+'</div>'
+            markup += '<div data-message-author-role="assistant">Prepared; ready to export the file.</div>'
+            page.locator('#messages').evaluate('(e, html)=>e.innerHTML=html', markup)
+            timer.start()
+            entry = adapter.wait_result(page, request['folder'], record, cancel, lambda _:None)
+            assert entry and record['followups'] == 1 and not record['wait_exhausted']
+            assert len(captured['sends']) == 1 and captured['sends'][0]['prompt'] == adapter.EXPORT_PROMPT
+            assert not captured['sends'][0]['files']
+        finally:
+            timer.cancel()
+            context.close()
+
+
+@pytest.mark.parametrize('matching,file_ready,blocked', [(True, False, ''), (False, False, ''), (True, True, ''),
+    (True, False, 'already_requested'), (True, False, 'already_stopped'), (True, False, 'quality')])
+def test_old_interrupted_turn_is_finalized_once_only_after_exact_user_match(browser_fixture, matching, file_ready, blocked):
+    from html import escape
+    from threading import Timer
+
+    from playwright.sync_api import sync_playwright
+
+    from app.browser_receipt import save_intent
+
+    adapter, accounts, request, captured, _source = browser_fixture
+    record = {'account_id':accounts.get()['id'], 'state':'waiting', 'url':'https://chatgpt.com/c/fixture-old',
+              'followups':0, 'assistant_before':0, 'assistant_ids_before':[], 'user_before':0}
+    save_intent(request['folder'], record, request['prompt'])
+    record.update(stream_reconnect_key=record['send_sha256'], stream_reconnects=2,
+                  response_wait={'key':record['send_sha256'], 'seconds':900.1, 'limit':1200, 'base_limit':900})
+    if blocked == 'already_requested':
+        record['followups'] = 1
+    elif blocked == 'already_stopped':
+        record['finalization_recovery'] = {'key':record['send_sha256'], 'stop_requested':True}
+    elif blocked == 'quality':
+        record['quality_stage'] = 'waiting'
+    cancel = Event()
+    timer = Timer(20, cancel.set)
+    with sync_playwright() as driver:
+        context = adapter.open_context(driver, accounts.get(), background=True)
+        try:
+            page = context.pages[0]
+            page.goto(record['url'])
+            prompt = request['prompt'] if matching else 'Unrelated lesson request'
+            page.locator('#messages').evaluate('(e,html)=>e.innerHTML=html', '<div data-message-author-role="user">'+escape(prompt)+'</div>')
+            if file_ready:
+                page.locator('#messages').evaluate('''e=>e.insertAdjacentHTML('beforeend','<div data-message-author-role="assistant"><a href="/backend-api/files/result.pptx">result.pptx</a></div>')''')
+            page.evaluate('''() => {
+              window.stopCount=0;
+              let stop=document.createElement('button');stop.id='stalled';stop.dataset.testid='stop-button';stop.textContent='Stop';
+              let notice=document.createElement('div');notice.id='interrupted';notice.setAttribute('role','status');notice.textContent='Connection interrupted. Waiting for the complete answer';
+              stop.onclick=()=>{window.stopCount++;stop.remove();notice.remove();};document.body.append(stop,notice);
+            }''')
+            timer.start()
+            if matching and not blocked:
+                entry = adapter.wait_result(page, request['folder'], record, cancel, lambda _:None)
+                assert entry and page.evaluate('window.stopCount') == 1
+                assert record['finalization_recovery']['stop_requested']
+                if file_ready:
+                    assert not captured['sends'] and record['followups'] == 0
+                else:
+                    assert record['followups'] == 1
+                    assert len(captured['sends']) == 1 and captured['sends'][0]['prompt'] == adapter.EXPORT_PROMPT
+                    assert not captured['sends'][0]['files']
+            else:
+                with pytest.raises(BrowserProblem) as exc:
+                    adapter.wait_result(page, request['folder'], record, cancel, lambda _:None)
+                assert exc.value.code == ('network' if blocked else 'submission') and not captured['sends']
+                assert page.evaluate('window.stopCount') == 0
+        finally:
+            timer.cancel()
+            context.close()

@@ -92,6 +92,7 @@ def fake_convert(account, root, folder, cancel, progress, **options):
     sent.append(load_request(folder))
     assert sent[-1]["config"]["browser_service"] == service
     assert sent[-1]["config"]["require_highest_model"] and sent[-1]["config"]["quality_review_version"] == 1
+    progress.elapsed += 901  # Exercise a still-active turn beyond the old 15-minute cutoff.
     progress.stage("waiting", "ChatGPT đang tạo PowerPoint…")
     while not release_web.wait(.05):
         if cancel.is_set():
@@ -520,19 +521,23 @@ def prepared():
     assert request["bundle"] == "" and not (Path(request["folder"]) / "goi-gui-chatgpt.zip").exists()
     assert bridge.browserState["percent"] == 25 and bridge.browserState["waiting"]
     assert window.findChild(QObject, "browserConversionProgressBar").property("value") == 25
-    assert window.findChild(QObject, "browserConversionPercent").property("text") == "25%"
+    assert window.findChild(QObject, "browserConversionPercent").property("text") == "Đang xử lý"
+    assert window.findChild(QObject, 'browserConversionProgressBar').property('indeterminate')
+    initial_pulse = window.findChild(QObject, 'browserConversionPulse').property('x')
     assert window.findChild(QObject, "browserConversionProgressNote") is None
     assert window.findChild(QObject, "browserConversionStage").property("text") == "Biên soạn bài giảng song ngữ"
     assert "ChatGPT" not in window.findChild(QObject, "browserConversionStatus").property("text")
     initial_clock_text = window.findChild(QObject, 'browserConversionElapsed').property('text')
     QTest.qWait(2100)
-    assert bridge.conversionClock['seconds'] >= 2
+    assert bridge.conversionClock['seconds'] >= 903
     assert bridge.conversionClock['status'] == 'Đang xử lý'
     assert initial_clock_text != window.findChild(QObject, 'browserConversionElapsed').property('text')
+    assert initial_pulse != window.findChild(QObject, 'browserConversionPulse').property('x')
     progress_state = dict(bridge.browserState)
     bridge._web_conversion_failure("Mạng bị gián đoạn")
     assert bridge.browserState["percent"] == 25 and not bridge.browserState["running"]
     assert window.findChild(QObject, "browserConversionPercent").property("text") == "25%"
+    assert not window.findChild(QObject, 'browserConversionProgressBar').property('indeterminate')
     assert "tạm dừng" in window.findChild(QObject, "browserConversionStatus").property("text")
     assert window.findChild(QObject, "applicationStatusMessage").property("text") == bridge.browserState["displayMessage"]
     paused_clock = bridge.conversionClock

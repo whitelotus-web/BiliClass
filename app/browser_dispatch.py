@@ -37,8 +37,10 @@ def startup_resume(folder):
         record = web.read_record(folder, raw["account_id"])
     except (OSError, ValueError, KeyError):
         return False
+    from .browser_wait import timeout_probe_available
+
     return (record.get("auto_resume") is True and not record.get("lesson_id")
-            and not record.get('wait_exhausted') and not record.get('recovery_exhausted')
+            and (not record.get('wait_exhausted') or timeout_probe_available(record)) and not record.get('recovery_exhausted')
             and record.get("error", "") in {"", "network", "browser", "receipt", "upload", "interface", "timeout", "download"})
 
 

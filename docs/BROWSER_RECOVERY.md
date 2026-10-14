@@ -1,5 +1,31 @@
 # Khôi phục chuyển đổi Browser AI — RC18
 
+## Bổ sung RC30 — 14/10/2026
+
+RC29 dừng quan sát ở 900 giây ngay cả khi web còn xử lý. Nút Tiếp tục cũng
+đọc lại cùng khoảng chờ đã hết, nên có thể dừng ngay lần nữa. RC30 giữ nguyên
+lượt/chat đã gửi, đọc trạng thái hiện tại và gia hạn quan sát từng 300 giây
+chỉ khi web còn điều khiển đang xử lý. Tổng quan sát tối đa 3.600 giây/lượt;
+thời gian app thực sự tạm dừng không cộng. Đây không phải dự báo thời gian
+hoàn tất. Khi trả lời đã kết thúc gần mốc chờ, cho một khoảng đối chiếu ngắn
+để nhận kết quả hoặc dùng đúng lượt yêu cầu xuất tệp còn lại.
+
+Trạng thái đang chạy không thay đổi 180 giây được đọc lại cùng URL, tối đa
+ba lần/lượt. Nếu web báo đứt luồng thực, đã nối lại hai lần và đã quan sát ít
+nhất 900 giây, xác minh toàn bộ prompt trong lượt người dùng cuối trước khi
+khôi phục bước hoàn tất. Chỉ dừng luồng bị kẹt đó một lần, ưu tiên nhận tệp
+nếu đã xuất hiện; nếu chưa có, dùng một lượt yêu cầu xuất bản đã tạo. Không
+click Skip, không tải lại nguồn, không gửi mới bài gốc hay hạ model/suy luận.
+Nếu không xác minh đúng chat, đã dùng lượt xuất hoặc phục hồi không thành
+công thì giữ bài và báo giới hạn, không tiếp tục gửi vô hạn.
+
+Timeout cũ đủ điều kiện được kiểm tra lại tự động một lần khi mở app mới;
+đánh dấu kiểm tra trước chạy để không lặp mỗi lần khởi động. Nút Tiếp tục
+cho phép kiểm tra lại chủ động, không tự gửi lại bài. Lệnh Dừng và hạn mức/
+đăng nhập/xác minh vẫn được tôn trọng. Thanh chờ chạy chuyển động, không
+giả tỷ lệ phần trăm của việc web làm; đồng hồ chạy khi tác vụ thực sự đang
+được theo dõi và dừng khi công việc tạm dừng.
+
 ## Bổ sung RC29 — 14/10/2026
 
 Ngân sách chờ mặc định 900 giây được lưu theo hash prompt đã gửi, tính tổng

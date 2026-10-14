@@ -18,7 +18,7 @@ STAGE_COPY = {
 }
 
 ERROR_COPY = {
-    "timeout": "Đã hết khoảng chờ của lượt xử lý này. Bài và phần đã làm được giữ lại; chờ thêm ở màn hình tạm dừng sẽ không làm tác vụ tiếp tục.",
+    "timeout": "Chưa nhận được kết quả sau khoảng theo dõi. Bài đang làm đã được giữ; bấm Tiếp tục để kiểm tra kết quả và tiếp tục xử lý.",
     "network": "Kết nối xử lý gián đoạn sau các lần khôi phục. Tác vụ đã tạm dừng và giữ bài; cần tiếp tục hoặc mở tài khoản để kiểm tra kết quả.",
     "model": "Chưa xác nhận được lựa chọn model và suy luận phù hợp. Mở tài khoản trong Browser AI để kiểm tra; bài chưa được gửi bằng cấu hình thấp hơn.",
     "login": "Kết nối tài khoản đã hết hạn. Đăng nhập lại để tiếp tục; tài liệu đã được giữ.",

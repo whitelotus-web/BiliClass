@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.0rc30 — 14/10/2026 — Theo dõi bài dài và khôi phục bước hoàn tất
+
+- Sửa dừng sớm ở mốc 15 phút: khi web còn xử lý, tiếp tục theo dõi từng khoảng 5 phút trong cùng lượt đã gửi, có giới hạn tổng 60 phút theo dõi thực. Không tạo yêu cầu mới hoặc tải lại tài liệu để gia hạn.
+- Sửa Tiếp tục dùng lại khoảng chờ đã hết: đọc lại kết quả; nếu lượt vẫn chạy thì tiếp tục, nếu đã xong thì nhận tệp. Bài timeout cũ được kiểm tra tự động một lần sau nâng cấp; lệnh Dừng của giáo viên vẫn được giữ.
+- Tự đọc lại cuộc trò chuyện tối đa ba lần khi trạng thái đang chạy không thay đổi trong ba phút. Nếu luồng bị ngắt sau hai lần kết nối lại và đã chờ ít nhất 15 phút, xác minh nguyên prompt cuối rồi thử khôi phục bàn giao một lần; ưu tiên nhận file sẵn có, chỉ yêu cầu xuất bản đã tạo khi cần. Không dừng lượt khỏe, không gửi lại bài gốc, không lặp xuất tệp vô hạn.
+- Trong giai đoạn chờ chưa đếm được số phần hoàn tất, hiện Đang xử lý với thanh chuyển động và đồng hồ thay cho phần trăm 25% đứng yên. Các giai đoạn có mốc thực vẫn hiện phần trăm; tác vụ thật sự tạm dừng thì đồng hồ đứng đúng trạng thái.
+- Prompt hoàn tất yêu cầu dùng bản đã tạo, tránh dựng lại/kiểm kê/render lại cả bài khi chỉ còn bước bàn giao. Tạo voice vẫn là bước riêng sau khi lưu PPTX.
+
 ## 1.0.0rc29 — 14/10/2026 — Thời gian chuyển đổi và giới hạn chờ
 
 - Thêm thời gian xử lý HH:MM:SS trên màn chuyển đổi, tự cập nhật mỗi giây; đứng lại khi tạm dừng/hoàn tất và cộng tiếp phần đã lưu khi tiếp tục. Không đếm ngược thời gian hoàn tất do dịch vụ web không cung cấp dự báo đáng tin cậy.
