@@ -1,5 +1,23 @@
 # Trạng thái BiliClass
 
+Ngày 14/10/2026 — đã phát hành [RC28](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc28)
+từ commit ứng dụng `755d6ee3b2537b317eddea66348bd38fb0ea1607`. ZIP
+667.952.420 byte, SHA-256
+`ac74f7c91d3d7da8ab6af6199e71b9b8788383c1d9d7cde79151570716978411`.
+PyInstaller xây lại 66 module app trong 11,81 giây; toàn bộ runtime/model
+giữ nguyên được đối chiếu manifest RC27. Main.qml/SettingsPage.qml và danh
+tính build cập nhật. Checksum/CRC, cài/gỡ Unicode, Qt hai kích thước không
+warning qua. Bản đóng gói thực thi lựa chọn Gemini, lọc hai profile riêng,
+tích tài khoản và xác nhận ghi trên máy; chuyển lại ChatGPT giữ profile
+cũ, không đăng nhập/gửi web trong fixture bản cài.
+
+Đã cài và mở RC28 ở Browser AI trên máy hiện tại, đọc UI xác nhận lựa chọn
+dịch vụ/tài khoản và nút cập nhật. Updater từ RC27 nhận RC28 với dung lượng/
+checksum khớp. Đối chiếu trước/sau giữ nguyên sáu bài, source/revision/
+ngày tạo/quyền duyệt, 638 WAV và hai profile cũ. Chưa tạo profile hoặc thử
+chuyển đổi bằng tài khoản Gemini thật; giáo viên cần đăng nhập Google lần
+đầu. Không tuyên bố mọi giao diện web/bài giảng thực đã được nghiệm thu.
+
 Ngày 14/10/2026 — nguồn RC28 thêm Browser AI ChatGPT/Gemini, nhiều profile
 riêng và lựa chọn tài khoản cụ thể hoặc tự chọn trong dịch vụ đã tích.
 Yêu cầu ghi dịch vụ ngay khi chuẩn bị; lượt đã gửi giữ đúng account/chat
