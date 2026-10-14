@@ -1,5 +1,23 @@
 # Trạng thái BiliClass
 
+Ngày 14/10/2026 — đã phát hành [RC29](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc29)
+từ commit ứng dụng `782e7708a4b9a3ebfc51a29c7d098820d6b8fbef`. ZIP
+667.958.926 byte, SHA-256
+`4e6eb2b23987f4de402b3adda619007068bceec0d32662ce8f14101d57b40fdb`.
+PyInstaller xây 67 module app; lượt cuối 12,44 giây. Runtime/model giữ
+nguyên từ RC28 đã đối chiếu manifest; checksum/CRC, cài/gỡ Unicode và Qt
+1366×850/1080×700 qua. Bản đóng gói đọc checkpoint 01:01:45, đứng khi tạm
+dừng, hiện 25%, nút tiếp tục và cập nhật; không mở browser/gửi bài trong fixture.
+Sau bổ sung preview, 12 ca tải/preview qua và ca tab mới đã sửa fixture qua.
+
+Đã cài và mở RC29 theo đường dẫn chuẩn trên máy này, xác nhận tiêu đề phiên
+bản, thời gian bài đang dở 00:33:26 đứng khi tạm dừng và nút cập nhật. Updater
+từ RC28 nhận RC29 với dung lượng/checksum đúng. Đối chiếu trước/sau giữ nguyên
+sáu bài, source/revision/ngày tạo/quyền duyệt, 638 WAV và hai profile. Không
+nhập bài thật đang dở thành thành công vì chưa tải được tệp hợp lệ, dù web
+đã hiện liên kết. Chưa triển khai chia cụm/đa tab để dịch hoặc ẩn Gemini;
+các mục đó là đề xuất trong tài liệu tăng tốc, không phải tính năng đã nghiệm thu.
+
 Ngày 14/10/2026 — nguồn RC29 thêm đồng hồ chuyển đổi HH:MM:SS, đứng khi
 tạm dừng/hoàn tất, giữ tổng thời gian và thời gian từng bước khi mở lại.
 Ngân sách chờ 900 giây được dùng chung cho các lần nối lại cùng lượt gửi;
