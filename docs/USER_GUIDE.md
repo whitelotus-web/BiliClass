@@ -1,5 +1,8 @@
 # BiliClass RC35 — hướng dẫn dùng thử
 
+RC35 hiện là nguồn/bản kiểm thử, chưa phát hành qua cập nhật tự động.
+Mục tải và cài bên dưới vẫn trỏ đến bản phát hành RC34 đã có.
+
 RC35 giảm công việc lặp khi mở/nhập bài, kiểm tra slide và đổi tốc độ voice.
 Sau khi nhận PowerPoint, bài được lưu trước; thầy cô tải bài hoặc chọn tạo
 giọng Việt, Anh hay cả hai. Đổi nhanh/chậm dùng lại WAV gốc đã tạo. Nếu ổ lưu

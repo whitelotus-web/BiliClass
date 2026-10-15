@@ -25,6 +25,13 @@ Chưa xác định chắc nguyên nhân timeout; không quy hết lỗi đó cho
 dung lượng và không coi bộ browser đã đạt. RC35 hiện là nguồn/bản kiểm thử,
 chưa phát hành cập nhật tự động thay RC34.
 
+Nguồn RC35: `a4ede3c3aae317940eceecf8fa60ee1f4bb6e25f`, đã đẩy lên private
+origin. Xây lại đủ 83 module bằng PyInstaller trong 18,92 s. Bản thử
+đóng gói mở màn tạo bài 1366×850 và Cài đặt 1080×700, không warning Qt.
+Dùng dữ liệu thử riêng trên F, liên kết runtime/model RC34 không đổi;
+đây không phải kiểm chứng bộ cài mới hoặc máy Windows sạch. Chưa tạo
+GitHub Release RC35, chưa thay bản cài đang dùng.
+
 Ngày 15/10/2026 — nguồn RC34 sửa đọc JSON, kiểm tra số sát chữ, lưu/phục hồi
 kết quả nhóm và xác nhận gửi khi web thu gọn lịch sử. Dùng lại phiên đang
 mở; không báo mất mạng chỉ vì lượt suy luận đang chạy chưa đổi nội dung.
