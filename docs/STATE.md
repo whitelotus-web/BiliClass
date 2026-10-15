@@ -13,6 +13,20 @@ khoảng ngắt UI lớn nhất 47 ms, nút Dừng phản hồi khoảng 359 ms.
 thử UI có kiểm soát; chưa phải benchmark chuyển đổi cả bài. Theo yêu cầu
 người dùng đã dừng lượt đang treo, không tự tiếp tục/gửi lại khi mở tool.
 
+Qt toàn luồng chín giai đoạn qua, gồm nhập bài, voice VI/EN/cả hai, nhãn thư
+viện và mở lại/trình chiếu; web/voice dùng fixture, preview Office thật. Nguồn
+RC37 `4ddbdf59101fd70ae3c57fae922260aef7ea89a9` đã lên private origin. Xây
+một lần 87 module; Qt đóng gói ở 1366×850 và 1080×700 không warning, đúng
+version/icon. SHA-256 EXE:
+`2509242c3ce9c0b054d94aa06e918b009230a87ea189d5cdcde8818bb331f8cb`.
+Đây là bản thử với native runtime/model RC34 liên kết không đổi, chưa phải
+phát hành cập nhật tự động.
+
+Đã mở RC37 độc lập với thư viện thật; cửa sổ qua 15/15 kiểm tra phản hồi,
+thời gian lâu nhất 125 ms. Đối chiếu giữ nguyên nội dung bảy bài đã lưu
+và metadata 638 WAV. Lượt chuyển đổi bị treo được bỏ khỏi yêu cầu hiện hành
+theo yêu cầu người dùng và không tự chạy lại. Desktop dùng shortcut RC37.
+
 Ngày 15/10/2026 — RC36 thêm mẫu nghe thử đóng sẵn cho sáu preset VieNeu, tab
 Thông tin BiliClass thay Song ngữ theo yêu cầu, icon cửa sổ/taskbar/EXE và
 shortcut Desktop. Qt Settings đủ tám kiểm tra có phát âm thử qua; Qt luồng

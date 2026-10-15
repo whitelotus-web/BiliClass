@@ -57,6 +57,17 @@ không gửi lại yêu cầu ChatGPT để kiểm tra lỗi giao diện.
   **0,047 s**; nút Dừng nhận và đặt cờ hủy trong khoảng **0,359 s**.
 - Test vẫn kiểm tra nhãn giọng sau tạo VI/EN/cả hai, chỉ đợi snapshot bất
   đồng bộ bằng khoảng chờ có giới hạn; không bỏ assertion về nội dung nhãn.
+- Qt toàn luồng chín giai đoạn qua: nhận PPTX, kiểm tra/nhập thư viện, tải
+  không voice, tạo/hủy/tái dùng voice VI/EN/cả hai, nhãn thư viện và trình chiếu.
+  Preview dùng Office thật; web và giọng dùng fixture, không gửi bài giáo viên.
+- Bản đóng gói từ `4ddbdf59101fd70ae3c57fae922260aef7ea89a9` xây một lần đủ
+  87 module, Qt hai kích thước 1366×850 và 1080×700 qua, không warning; icon
+  native/EXE và phiên bản RC37 đúng. Native runtime/model RC34 được liên kết
+  không đổi trong bản thử tại máy, chưa kiểm tra bộ cài trên Windows sạch.
+- Đã mở RC37 độc lập bằng thư viện thật: 15/15 lần gửi thông điệp kiểm tra
+  cửa sổ đều có phản hồi, lâu nhất khoảng 0,125 s. Đối chiếu dữ liệu trước/sau
+  giữ nguyên nội dung bảy bài đã lưu và metadata của 638 WAV. Đã bỏ con trỏ
+  lượt đang dở theo yêu cầu; lượt đó không tự tiếp tục khi khởi động.
 
 Các phép thử phản hồi dùng tiến độ/tác vụ âm thanh mô phỏng và dữ liệu riêng.
 Chúng xác nhận sửa nghẽn giao diện, không phải chứng nhận mọi bản dịch, mọi
