@@ -7,6 +7,7 @@ Push-Location -LiteralPath $projectRoot
 try {
     & .\.venv\Scripts\python.exe -m PyInstaller --noconfirm --windowed --onedir `
       --name BiliClass --distpath $distPath --paths . `
+      --icon 'app/assets/brand/biliclass.ico' `
       --add-data 'app/qml;app/qml' `
       --add-data 'app/assets;app/assets' `
       --add-data 'app/student_web;app/student_web' `

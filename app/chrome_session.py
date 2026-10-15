@@ -33,6 +33,10 @@ def require_idle_profile(profile):
             if (process.info["name"] or "").casefold() not in {"chrome.exe", "chrome", "google-chrome", "google chrome"}:
                 continue
             args = process.cmdline() or []
+            # Crashpad can outlive Browser.close(). It carries user-data-dir
+            # for crash reports but does not own Chrome's profile singleton.
+            if '--type=crashpad-handler' in args:
+                continue
             for index, arg in enumerate(args):
                 value = (arg.split("=", 1)[1] if arg.startswith("--user-data-dir=") else
                          args[index + 1] if arg == "--user-data-dir" and index + 1 < len(args) else "")
@@ -264,6 +268,10 @@ def open_chrome(playwright, account, *, background, cancel=None, timeout=30):
                     raise ChromeSessionError("Chrome chưa tạo được hồ sơ riêng. Đóng cửa sổ đó và thử lại.")
                 context = ChromeSession(browser, process)
                 context.set_default_timeout(5000)
+                # A fresh Windows profile can spend ~16s initializing Chrome's
+                # network service before its first request (even localhost).
+                # Keep element checks short; navigation gets the startup budget.
+                context.set_default_navigation_timeout(30000)
                 if not context.pages:
                     # Restoring session cookies can expose the context before
                     # Chrome has restored its first tab. Do not accumulate a
@@ -271,10 +279,20 @@ def open_chrome(playwright, account, *, background, cancel=None, timeout=30):
                     from playwright.sync_api import TimeoutError
 
                     try:
-                        context.wait_for_event("page", timeout=1500)
-                    except TimeoutError:
-                        context.new_page()
+                        context.wait_for_event("page", timeout=max(1000, int((deadline-time.monotonic())*1000)))
+                    except TimeoutError as exc:
+                        # Creating a blank tab here races Chrome's still pending
+                        # restoration and accumulates one extra tab per launch.
+                        raise ChromeSessionError("Chrome chưa khôi phục xong phiên. Phiên được giữ để thử lại.") from exc
                 if background and context.pages:
+                    def keep_hidden(page):
+                        # Session restoration/new tabs can create a native
+                        # window after the initial hide. Track only this owner.
+                        page.on('domcontentloaded', lambda: hide_owned_windows(process))
+                        hide_owned_windows(process)
+                    context.on('page', keep_hidden)
+                    for page in context.pages:
+                        keep_hidden(page)
                     try:
                         session = context.new_cdp_session(context.pages[0])
                         window = session.send("Browser.getWindowForTarget")

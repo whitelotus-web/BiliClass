@@ -86,14 +86,14 @@ Item {
                     {name: "Chung", icon: "settings", tabId: 0}, {name: "Browser AI", icon: "bilingual", tabId: 6},
                     {name: "Giọng đọc", icon: "voice", tabId: 2}, {name: "Mascot", icon: "mascot", tabId: 3},
                     {name: "Lớp học", icon: "classroom", tabId: 4}, {name: "Dữ liệu", icon: "data", tabId: 5},
-                    {name: "Song ngữ", icon: "bilingual", tabId: 1}
+                    {name: "Thông tin BiliClass", icon: "about", tabId: 1}
                 ]
                 Button {
                     id: tab
                     required property var modelData
                     required property int index
                     objectName: "settingsTab" + modelData.tabId
-                    Layout.fillWidth: true; Layout.preferredWidth: 1; implicitHeight: 57
+                    Layout.fillWidth: true; Layout.preferredWidth: modelData.tabId === 1 ? 1.35 : 1; implicitHeight: 57
                     onClicked: page.activeTab = modelData.tabId
                     background: Rectangle {
                         color: page.activeTab === tab.modelData.tabId ? "#e7f2ff" : tab.hovered ? "#f5f8fc" : "transparent"
@@ -102,8 +102,8 @@ Item {
                     }
                     contentItem: RowLayout {
                         spacing: 7
-                        Image { source: "../assets/navigation/" + tab.modelData.icon + (page.activeTab === tab.modelData.tabId ? "-active" : "") + ".png"; sourceSize.width: 64; sourceSize.height: 64; fillMode: Image.PreserveAspectFit; Layout.preferredWidth: 27; Layout.preferredHeight: 27 }
-                        Label { text: tab.modelData.name; color: page.activeTab === tab.modelData.tabId ? page.blue : page.ink; font.pixelSize: 13; font.weight: page.activeTab === tab.modelData.tabId ? Font.Bold : Font.DemiBold; elide: Text.ElideRight; Layout.fillWidth: true }
+                        Image { source: tab.modelData.tabId === 1 ? "../assets/brand/biliclass.svg" : "../assets/navigation/" + tab.modelData.icon + (page.activeTab === tab.modelData.tabId ? "-active" : "") + ".png"; sourceSize.width: 64; sourceSize.height: 64; fillMode: Image.PreserveAspectFit; Layout.preferredWidth: 27; Layout.preferredHeight: 27 }
+                        Label { text: tab.modelData.name; color: page.activeTab === tab.modelData.tabId ? page.blue : page.ink; font.pixelSize: 13; font.weight: page.activeTab === tab.modelData.tabId ? Font.Bold : Font.DemiBold; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                     }
                 }
             }
@@ -169,25 +169,32 @@ Item {
         ColumnLayout {
             visible: page.activeTab === 1; Layout.fillWidth: true; spacing: 14
             Card {
-                Layout.fillWidth: true
-                ColumnLayout { width: parent.width; spacing: 13
-                    Title { text: "Bốn kiểu chuyển đổi bài giảng" }
-                    Hint { text: "Chọn một phương pháp tại bước nhập tài liệu; mỗi phương pháp quy định cả ngôn ngữ và bố cục. Không cần chọn level riêng."; Layout.fillWidth: true }
-                    Repeater {
-                        model: bridge.conversionFormats
-                        Frame { id: levelGuide; required property var modelData; required property int index
-                            objectName: "settingsConversionFormat" + index; Layout.fillWidth: true; padding: 12
-                            background: Rectangle { radius: 10; color: "#fbfdff"; border.color: page.line }
-                            contentItem: RowLayout { spacing: 14
-                                Label { text: String(levelGuide.index + 1); color: page.blue; font.pixelSize: 17; font.bold: true }
-                                ColumnLayout { Layout.fillWidth: true; spacing: 2
-                                    Label { text: levelGuide.modelData.label; color: page.ink; font.pixelSize: 14; font.bold: true }
-                                    Hint { text: levelGuide.modelData.detail; Layout.fillWidth: true }
-                                }
-                            }
+                objectName: "aboutBiliClassCard"; Layout.fillWidth: true; padding: 22
+                ColumnLayout { width: parent.width; spacing: 17
+                    RowLayout { Layout.fillWidth: true; spacing: 22
+                        Image { objectName: "aboutBiliClassLogo"; source: "../assets/brand/biliclass.svg"; sourceSize.width: 224; sourceSize.height: 224; Layout.preferredWidth: 88; Layout.preferredHeight: 88; fillMode: Image.PreserveAspectFit; Accessible.name: "Logo BiliClass" }
+                        ColumnLayout { Layout.fillWidth: true; spacing: 8
+                            Label { text: "Bili<span style='color:#ff7d2b'>Class</span>"; textFormat: Text.RichText; color: page.ink; font.pixelSize: 34; font.bold: true }
+                            Label { text: "CÙNG DẠY. CÙNG TIẾN XA."; color: page.muted; font.pixelSize: 10; font.letterSpacing: 1.2 }
+                            Hint { text: "Không gian bài giảng song ngữ"; font.pixelSize: 16; Layout.fillWidth: true }
                         }
                     }
-                    Hint { text: "Tiếng Anh 100% áp dụng cho chữ hiển thị trên slide. Lời đọc Việt–Anh và câu hỏi của trợ lý được lưu riêng trong ghi chú; câu hỏi cần duyệt trước khi dùng."; Layout.fillWidth: true }
+                    Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: page.line }
+                    RowLayout { Layout.fillWidth: true; spacing: 20
+                        ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.alignment: Qt.AlignTop; spacing: 6
+                            Hint { text: "PHIÊN BẢN"; font.pixelSize: 10; font.letterSpacing: 1 }
+                            Title { objectName: "aboutBiliClassVersion"; text: bridge.appVersion }
+                            Hint { text: bridge.developmentMode ? "Đang chạy từ mã nguồn" : "Ứng dụng BiliClass cho Windows"; Layout.fillWidth: true }
+                            SoftButton { objectName: "aboutCheckUpdate"; text: bridge.updateState.checking ? "Đang kiểm tra…" : "Kiểm tra cập nhật"; iconName: "refresh"; enabled: !bridge.updateState.checking && !bridge.updateState.downloading; onClicked: bridge.checkForUpdates(false) }
+                        }
+                        ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 2; Layout.alignment: Qt.AlignTop; spacing: 7
+                            Hint { text: "BẢN QUYỀN"; font.pixelSize: 10; font.letterSpacing: 1 }
+                            Title { objectName: "aboutBiliClassCopyright"; text: "Copyright © 2026 Nguyễn Diệu Linh"; font.pixelSize: 17; Layout.fillWidth: true }
+                            Hint { text: "Giáo viên Tin học · Trường THPT Vân\u00a0Cốc"; Layout.fillWidth: true }
+                            Hint { text: "All rights reserved."; font.pixelSize: 11; Layout.topMargin: 4 }
+                        }
+                    }
+                    Hint { text: "Chuyển tài liệu thành bài giảng Việt–Anh, trình chiếu và đồng hành cùng thầy cô với giọng đọc, mascot trợ giảng. Thư viện bài giảng được lưu trên máy."; Layout.fillWidth: true }
                 }
             }
         }
@@ -241,7 +248,7 @@ Item {
                         SoftButton { objectName: "resetVoiceSpeed"; text: "100%"; onClicked: page.draftRate = 0 }
                     }
                     Label { text: "Câu nghe thử Việt–Anh"; color: page.ink }
-                    Field { id: voiceSample; objectName: "settingsVoiceSample"; text: "Chào các em. Good morning, class. Hôm nay chúng ta tìm hiểu năng lượng, energy."; maximumLength: 250; Layout.fillWidth: true }
+                    Field { id: voiceSample; objectName: "settingsVoiceSample"; text: "Xin chào các em. Let's learn together."; maximumLength: 250; Layout.fillWidth: true }
                     RowLayout { Layout.fillWidth: true; spacing: 10
                         SoftButton { objectName: "previewMultilingualVoice"; text: "Nghe thử"; iconName: "play"; enabled: !bridge.busy && !!page.draftVoice; onClicked: bridge.previewMultilingualVoice(page.draftVoice, page.draftRate, voiceSample.text) }
                         SoftButton { objectName: "stopVoicePreview"; text: "Dừng đọc"; onClicked: bridge.stopSpeech() }
@@ -249,7 +256,7 @@ Item {
                         SaveButton { objectName: "saveMultilingualVoice"; text: "Lưu giọng và tốc độ"; enabled: !bridge.busy && !!page.draftVoice; onClicked: bridge.saveMultilingualVoice(page.draftVoice, page.draftRate) }
                     }
                     Hint { objectName: "voiceSaveStatus"; text: page.voiceDirty ? "Chưa lưu thay đổi. Nghe thử để kiểm tra giọng và tốc độ trước khi lưu." : "Bài giảng và mascot đang dùng giọng cùng tốc độ đã lưu."; Layout.fillWidth: true }
-                    Hint { text: "Lần nghe đầu cần nạp model. Tốc độ thay đổi nhưng giữ cao độ giọng. Có thể sửa câu nghe thử để kiểm tra thuật ngữ môn học."; Layout.fillWidth: true }
+                    Hint { text: "Câu mẫu có sẵn để nghe nhanh. Khi nhập câu riêng, lần đầu cần chuẩn bị giọng; các lần nghe lại được lưu để phát nhanh hơn. Đổi tốc độ vẫn giữ cao độ giọng."; Layout.fillWidth: true }
                 }
             }
         }

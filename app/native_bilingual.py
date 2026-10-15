@@ -3,7 +3,6 @@
 import copy
 import posixpath
 import re
-import textwrap
 import zipfile
 from pathlib import Path
 
@@ -11,6 +10,7 @@ from lxml import etree
 
 from .source_deck import NS, _bytes, _part_relative, _rels_path, _size, _xml, source_slide_parts
 from .translation_batches import TOKEN, lock_numbers, restore
+from .native_layout import can_fit, fit_body
 
 
 def leaves(shapes):
@@ -37,8 +37,7 @@ def _title_height(shape, shapes, deck):
     size=_size(shape.text_frame,shape)
     required=int(((size+max(18,size*.8))*1.12)*12700+shape.text_frame.margin_top+shape.text_frame.margin_bottom)
     height=max(shape.height,required)
-    if shape.top+height>deck.slide_height:
-        return None
+    height=min(height, deck.slide_height-shape.top)
     for other in shapes:
         if other.shape_id==shape.shape_id:
             continue
@@ -46,22 +45,28 @@ def _title_height(shape, shapes, deck):
             continue  # A full-slide decorative background remains behind the title.
         if (shape.left<other.left+other.width and shape.left+shape.width>other.left
                 and other.top>=shape.top+shape.height-12700 and other.top<shape.top+height):
-            return None
-    return height
+            height=min(height, other.top-shape.top)
+    return height if height >= shape.height and can_fit(shape, '', title_height=height) else None
 
 
 def _fits_bilingual(shape,mode):
-    # Assembly keeps the source font. Assuming 18 pt here admitted boxes that
-    # overflowed at their actual 24–40 pt size and required another web round.
-    size=_size(shape.text_frame,shape)
-    width=(shape.width-shape.text_frame.margin_left-shape.text_frame.margin_right)/12700
-    height=(shape.height-shape.text_frame.margin_top-shape.text_frame.margin_bottom)/12700
-    if mode=='parallel_columns':
-        width*=.47
-    columns=max(1,int(width/(size*.6)))
-    lines=sum(max(1,len(textwrap.wrap(line,columns))) for line in shape.text.splitlines())
-    factor=2.3 if mode=='sentence_pairs' else 1.3
-    return lines*factor*size*1.15<=height
+    return can_fit(shape,mode)
+
+
+def _body_height(shape, shapes, deck, mode):
+    """Use only genuinely empty space below a text box; never move a picture."""
+    height = min(deck.slide_height-shape.top, shape.height+max(shape.height//2, 48*12700))
+    for other in shapes:
+        if other.shape_id == shape.shape_id:
+            continue
+        if not (other.has_text_frame and other.text.strip()) and other.width*other.height > deck.slide_width*deck.slide_height*.6:
+            continue
+        if (shape.left < other.left+other.width and shape.left+shape.width > other.left
+                and other.top+other.height > shape.top+shape.height
+                and other.top < shape.top+height):
+            # An already overlapping decoration/figure forbids expansion too.
+            height = min(height, max(shape.height, other.top-shape.top-12700))
+    return height if height > shape.height and can_fit(shape, mode, height=height) else None
 
 
 def extract(source, mode):
@@ -105,7 +110,7 @@ def extract(source, mode):
             if mode == 'parallel_columns' and shape.has_text_frame and (
                     transform is None or transform.get('rot') not in {None,'0'}):
                 unsupported.append(f'Slide {index}: hộp chữ xoay hoặc thiếu tọa độ riêng')
-            title_height=None
+            title_height=layout_height=None
             shape_title=(shape.has_text_frame and (shape.is_placeholder and int(shape.placeholder_format.type) in {1,3}
                 or 0<=shape.top<deck.slide_height*.18 and shape.width>deck.slide_width*.22 and len(shape.text)<180))
             if shape.has_text_frame and shape.text.strip():
@@ -117,7 +122,9 @@ def extract(source, mode):
                     if title_height is None:
                         unsupported.append(f'Slide {index}: cần dành vùng cho tiêu đề song ngữ')
                 elif len(shape.text)>12 and not _fits_bilingual(shape,mode):
-                    unsupported.append(f'Slide {index}: cần dàn lại vùng chữ chật')
+                    layout_height=_body_height(shape,shapes,deck,mode)
+                    if layout_height is None:
+                        unsupported.append(f'Slide {index}: cần dàn lại vùng chữ chật')
             if shape._element.xpath('.//a:graphicData[not(a:tbl)]'):
                 unsupported.append(f'Slide {index}: sơ đồ cần xử lý trực quan')
             if shape.has_chart:
@@ -170,6 +177,7 @@ def extract(source, mode):
                         'slide':index,'shape_id':shape.shape_id,'body':body_index,'paragraph':paragraph_index,
                         'text':text,'numbers':numbers,'xml_locks':xml_locks,'language':language,
                         'raw':raw,'title':bool(shape_title),'title_height':title_height,'part':original_parts[index-1],
+                        'layout_height':layout_height,
                         'font_size':round(_size(shape.text_frame,shape)*100) if shape.has_text_frame else 1800})
     if mode != 'english_only' and english > max(5, len(units)*.35):
         unsupported.append('Nguồn có nhiều vùng English/song ngữ cần ghép cặp trực quan')
@@ -179,7 +187,7 @@ def extract(source, mode):
     if any(not reason.startswith('Slide ') for reason in unsupported):
         visual = set(range(1,len(deck.slides)+1))
     native = [unit for unit in units if unit['slide'] not in visual]
-    return {'version':1,'eligible':bool(units or visual),'reasons':list(dict.fromkeys(unsupported)),
+    return {'version':2,'eligible':bool(units or visual),'reasons':list(dict.fromkeys(unsupported)),
             'slides':len(deck.slides),'units':native,'visual_slides':sorted(visual),
             'text_characters':sum(len(u['text']) for u in native)}
 
@@ -292,6 +300,11 @@ def assemble(source, destination, manifest, translations, mode):
                 continue  # Keep exact XML only when the validated response agrees.
             bodies = ([shape.find('p:txBody', NS)] if shape.tag == f'{{{NS["p"]}}}sp' else
                       shape.findall('.//a:tc/a:txBody', NS))
+            if manifest.get('version', 1) >= 2:
+                height=max((u.get('layout_height') or 0 for u in units),default=0)
+                extent=shape.find('p:spPr/a:xfrm/a:ext',NS)
+                if extent is not None and height:
+                    extent.set('cy',str(height))
             clone = copy.deepcopy(shape)
             clone_bodies = ([clone.find('p:txBody', NS)] if shape.tag == f'{{{NS["p"]}}}sp' else
                             clone.findall('.//a:tc/a:txBody', NS))
@@ -339,6 +352,10 @@ def assemble(source, destination, manifest, translations, mode):
                 if shape.tag != f'{{{NS["p"]}}}sp':
                     raise ValueError('Bảng này cần dàn hai cột bằng luồng trực quan.')
                 _pair_columns(tree,shape,clone)
+                if manifest.get('version', 1) >= 2:
+                    fit_body(clone, max(u['font_size'] for u in units))
+            if manifest.get('version', 1) >= 2:
+                fit_body(shape, max(u['font_size'] for u in units))
         entries[part] = _bytes(tree)
     # python-pptx creates only the notes plumbing in a temporary copy. Keep its
     # slide XML out of the output so unsupported source extensions stay intact.

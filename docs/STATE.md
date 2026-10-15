@@ -1,5 +1,21 @@
 # Trạng thái BiliClass
 
+Ngày 15/10/2026 — RC36 thêm mẫu nghe thử đóng sẵn cho sáu preset VieNeu, tab
+Thông tin BiliClass thay Song ngữ theo yêu cầu, icon cửa sổ/taskbar/EXE và
+shortcut Desktop. Qt Settings đủ tám kiểm tra có phát âm thử qua; Qt luồng
+bài giảng chín giai đoạn qua. Mẫu nghe thử không nạp model; câu tự nhập vẫn
+tổng hợp theo nội dung. [Chi tiết và giới hạn](OPTIMIZATION_RC36.md).
+
+Luồng JSON → ChatGPT → PowerPoint local đã hoàn tất với tài khoản thật trên
+bài mẫu một slide trong **29,42 s**, một lượt, không đính kèm PPTX/không sửa,
+không FAIL; đã nhìn bản render hai cột. RC36 mở rộng dàn chữ local có giới hạn:
+Bài 6 mới phân loại 20/79 slide hai cột local so với 4/79 ở RC35. Chưa phải
+benchmark toàn bài; slide ảnh/hiệu ứng phức tạp vẫn cần nhóm trực quan.
+
+Browser fixture vẫn có lỗi profile mới/khôi phục tab; chưa phát hành RC36 qua
+cập nhật tự động và chưa kết luận ứng dụng đã ổn định toàn diện. Bản nháp
+79 slide cũ chưa được ghi đè hoặc tự duyệt thành hoàn thiện.
+
 Ngày 15/10/2026 — RC35 triển khai tối ưu lõi: dùng lại WAV gốc khi đổi
 tốc độ, nhập bài nguyên tử trên worker, giữ giao diện phản hồi khi xác minh
 PowerPoint, dùng lại cache render qua các lượt sửa và kiểm tra dung lượng

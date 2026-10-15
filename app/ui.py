@@ -1371,6 +1371,7 @@ class Bridge(QObject):
 
     @Slot(str, int, str)
     def previewMultilingualVoice(self, voice, rate, sample):
+        from .voice_preview import preview
         if voice not in {v["id"] for v in self._voices} or not -3 <= rate <= 3:
             self.inform("Chọn giọng và tốc độ hợp lệ để nghe thử.", True)
             return
@@ -1379,9 +1380,15 @@ class Bridge(QObject):
             self.inform("Câu nghe thử cần từ 1 đến 250 ký tự.", True)
             return
         self.stopSpeech()
+        generation = self._speech_generation
+        def completed(result):
+            if generation != self._speech_generation:
+                return
+            self._play_audio(result["path"])
+            self.inform("Đang nghe thử giọng và tốc độ; chưa thay cấu hình đã lưu.")
         self.launch(
-            lambda: speech.synthesize(sample, voice, rate, self.library.directory / "audio"),
-            lambda result: (self._play_audio(result["path"]), self.inform("Đang nghe thử giọng và tốc độ; chưa thay cấu hình đã lưu.")),
+            lambda: preview(sample, voice, rate, self.library.directory / "audio"),
+            completed,
         )
 
     @Slot(str, str, result="QVariantList")
@@ -2413,9 +2420,10 @@ class Bridge(QObject):
 
 
 def run(args):
+    from .branding import configure_application
+
     app = QGuiApplication([])
-    app.setApplicationName("BiliClass")
-    app.setOrganizationName("BiliClass")
+    configure_application(app)
     QQuickStyle.setStyle("Basic")
     for font in (RESOURCE_ROOT / "assets").glob("*.ttf"):
         QFontDatabase.addApplicationFont(str(font))

@@ -1,0 +1,13 @@
+{
+  "engine": "vieneu-v3-turbo-onnx-fp32-61b85e3-3.8.3-multilingual-wsola1",
+  "text": "Xin chào các em. Let's learn together.",
+  "source": "Built-in VieNeu voices; locally generated BiliClass preview sentence.",
+  "files": {
+    "54a10bc6dd016ebafb9a5a52f51e8726f571281f6a781fdf06d3c2edbc3f22c5.wav": "b382c2dfd6153cde7c199ac3cfa053651f6d65687b7a611330d84cdb3b535515",
+    "9a2aa655e863e0430267969fb657e98105d69fe576415d8ad6b1fa9d69b23839.wav": "727d3b1855c1e3528ab94024e5ac9ea7c9dbfe184dbc6d874284423e991c2e0e",
+    "d99333b56f4a745df3ecf13407769096db8997e7b5aadf658c8b9d07577c386b.wav": "fafdb22882a780dc143f885b7e8f4d1b5fd6e4f0535e884109e38f74834d844e",
+    "1e01c72b7bf7708c6c6d3f75cf6f72584253b3b7a48d8f5c42e7498952f4e87b.wav": "7233f04a49602e8b3a186f82e2d69683db147a057b77c3735cf79dac6502a35b",
+    "ea20d656558c3caabdfbf9cb618503a72da057581bab51245ad8253426a0b184.wav": "585fc0a8b185abec8cae22665df5a4a88c6e1d8cc400acad1abdb4250c9c83ed",
+    "a40439e62c4f3be321a80f5e56d1f3242651ddfe7e8112c2f288b185fba779bf.wav": "cde8fec57869f9ee2036b27d02705657a03e10e2c3f16580795336e97fa390fa"
+  }
+}

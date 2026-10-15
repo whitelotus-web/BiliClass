@@ -126,10 +126,19 @@ def navigate(page, url, cancel):
     from playwright.sync_api import TimeoutError
 
     check_cancel(cancel)
+    initial = page.url in {'about:blank', 'chrome://newtab/', ''}
     try:
         page.goto(url, wait_until="commit", timeout=20000)
     except TimeoutError as exc:
         check_cancel(cancel)
+        if initial:
+            # Native Chrome may still be initializing its network service. The
+            # original GET continues after Playwright's timeout. Observe that
+            # same navigation briefly, without issuing another GET or send.
+            deadline = time.monotonic() + 15
+            while page.url in {'about:blank', 'chrome://newtab/', ''} and time.monotonic() < deadline:
+                check_cancel(cancel)
+                page.wait_for_timeout(250)
         if urlsplit(page.url).hostname not in {"chatgpt.com", "auth.openai.com", "auth0.openai.com"}:
             raise BrowserProblem("network", "Chưa tải được ChatGPT. Kiểm tra mạng rồi mở lại; phiên đăng nhập được giữ.") from exc
     check_cancel(cancel)

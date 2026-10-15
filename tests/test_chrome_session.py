@@ -54,6 +54,18 @@ def test_profile_probe_reads_command_lines_only_for_chrome(tmp_path, monkeypatch
     assert reads == [True]
 
 
+def test_lingering_crash_reporter_is_not_a_live_profile_owner(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    import psutil
+    from app.chrome_session import require_idle_profile
+
+    profile = tmp_path/'chrome'
+    monkeypatch.setattr(psutil, 'process_iter', lambda *_: [SimpleNamespace(
+        info={'name': 'chrome.exe'}, cmdline=lambda: ['chrome.exe', '--type=crashpad-handler',
+                                                     f'--user-data-dir={profile}'])])
+    require_idle_profile(profile)
+
+
 @pytest.mark.parametrize("content", ["9222\nws://foreign.invalid/devtools/browser/a", "0\n/devtools/browser/a",
                                     "99999\n/devtools/browser/a", "9222\n/devtools/browser/a?token=x"])
 def test_devtools_endpoint_never_uses_a_foreign_host_or_invalid_port(tmp_path, content):

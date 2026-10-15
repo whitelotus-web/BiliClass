@@ -43,6 +43,16 @@ Kokoro/SAPI bên dưới là lịch sử RC7–RC16, không phải danh sách gi
 
 Bản ứng dụng hiện tại dành để kiểm thử tại máy, chưa phải gói phát hành thương mại. Giữ nguyên thư mục `_internal`, các license kèm thư viện và thông tin gói model khi sao chép.
 
+## Câu nghe thử đóng sẵn trong RC36
+
+Sáu WAV tại `app/assets/voice-previews/` được tạo cục bộ bằng các preset VieNeu
+hiện có của ứng dụng: Mai Anh, Thùy Dung, Hải Đăng, Thái Sơn, Ngọc Trân và
+Quang Sơn. Nội dung chung là “Xin chào các em. Let's learn together.”; không
+có bài giáo viên, mẫu thu cá nhân hoặc voice cloning. Manifest lưu phiên bản
+engine và SHA-256 từng WAV; script `scripts/build_voice_previews.py` tái tạo
+các mẫu. Các thông báo VieNeu/model/codec bên dưới vẫn áp dụng. Không thêm
+model hoặc dịch vụ giọng mới.
+
 ## Kokoro English TTS trong RC7
 
 - Model **Kokoro 82M v1.0** và 5 giọng `af_heart`, `af_bella`, `am_michael`, `bf_emma`, `bm_george`: một model chung, lấy từ gói `kokoro-multi-lang-v1_0` của sherpa-onnx. Nguồn: https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_0.tar.bz2 ; SHA-256 archive: `c5f7e2d2caf082bc1d20fb70334a61d99d20b484500aad32e7cf84c128ea3298`. Gói model có `LICENSE` Apache-2.0 và được giữ trong `models/kokoro-multi-lang-v1_0/`.

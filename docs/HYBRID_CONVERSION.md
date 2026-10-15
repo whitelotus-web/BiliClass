@@ -1,5 +1,9 @@
 # Chuyển đổi theo nhóm nội dung — RC32
 
+RC36 bổ sung dàn chữ có giới hạn trong vùng trống, tăng số slide xử lý bằng
+JSON/local. Luồng đã chạy với ChatGPT thật trên bài mẫu một slide trong 29,42 s;
+chưa có số đo toàn bài lớn. [Phạm vi và kiểm chứng RC36](OPTIMIZATION_RC36.md).
+
 Yêu cầu mới ở chế độ giữ PowerPoint gốc với ChatGPT tự phân loại slide trước
 khi gửi. Bài đang dở từ bản cũ tiếp tục theo bản ghi cũ, không gửi lại để đổi
 cơ chế. Giữ model/suy luận cao nhất tài khoản thực sự cho phép; không thêm API

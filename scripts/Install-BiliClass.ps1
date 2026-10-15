@@ -26,6 +26,7 @@ if ($installPath -eq [IO.Path]::GetPathRoot($installPath).TrimEnd('\')) { throw 
 if (Test-Path -LiteralPath (Join-Path $installPath 'library.db')) { throw 'Select an application folder separate from the lesson library.' }
 if (-not $Uninstall -and (Test-Path -LiteralPath $installPath) -and -not (Test-Path -LiteralPath $markerPath) -and (Get-ChildItem -LiteralPath $installPath -Force | Select-Object -First 1)) { throw 'Use an empty folder or an existing verified BiliClass installation.' }
 $shortcutPath = Join-Path ([Environment]::GetFolderPath('Programs')) 'BiliClass.lnk'
+$desktopShortcutPath = Join-Path ([Environment]::GetFolderPath('Desktop')) 'BiliClass.lnk'
 if ($Uninstall) {
     if (-not (Test-Path -LiteralPath $markerPath)) { throw 'Not a verified BiliClass installation.' }
     $marker = Get-Content -LiteralPath $markerPath -Raw | ConvertFrom-Json
@@ -34,10 +35,12 @@ if ($Uninstall) {
     if ($running) { throw 'Close this BiliClass installation before uninstalling.' }
     # The absolute named install directory and marker were verified above. User lesson data is elsewhere.
     Remove-Item -LiteralPath $installPath -Recurse -Force
-    if (-not $NoShortcuts -and (Test-Path -LiteralPath $shortcutPath)) {
+    foreach ($ownedShortcutPath in @($shortcutPath, $desktopShortcutPath)) {
+      if (-not $NoShortcuts -and (Test-Path -LiteralPath $ownedShortcutPath)) {
         $shell = New-Object -ComObject WScript.Shell
-        $shortcut = $shell.CreateShortcut($shortcutPath)
-        if ($shortcut.TargetPath.StartsWith($installPath + '\', [StringComparison]::OrdinalIgnoreCase)) { Remove-Item -LiteralPath $shortcutPath }
+        $shortcut = $shell.CreateShortcut($ownedShortcutPath)
+        if ($shortcut.TargetPath.StartsWith($installPath + '\', [StringComparison]::OrdinalIgnoreCase)) { Remove-Item -LiteralPath $ownedShortcutPath }
+      }
     }
     Write-Output 'BiliClass removed. Lesson libraries and backups were preserved.'
     exit 0
@@ -65,11 +68,14 @@ Move-Item -LiteralPath $staging -Destination $versionPath
 Copy-Item -LiteralPath $MyInvocation.MyCommand.Path -Destination (Join-Path $installPath 'Install-BiliClass.ps1') -Force
 if (-not $NoShortcuts) {
     $shell = New-Object -ComObject WScript.Shell
-    $shortcut = $shell.CreateShortcut($shortcutPath)
-    $shortcut.TargetPath = Join-Path $versionPath 'BiliClass.exe'
-    $shortcut.WorkingDirectory = $versionPath
-    $shortcut.Description = 'BiliClass - English Vietnamese teaching workspace'
-    $shortcut.Save()
+    foreach ($ownedShortcutPath in @($shortcutPath, $desktopShortcutPath)) {
+        $shortcut = $shell.CreateShortcut($ownedShortcutPath)
+        $shortcut.TargetPath = Join-Path $versionPath 'BiliClass.exe'
+        $shortcut.WorkingDirectory = $versionPath
+        $shortcut.Description = 'BiliClass - English Vietnamese teaching workspace'
+        $shortcut.IconLocation = (Join-Path $versionPath 'BiliClass.exe') + ',0'
+        $shortcut.Save()
+    }
 }
 Write-Output ('Installed BiliClass ' + $manifest.version + ' at ' + $versionPath)
 Write-Output 'Lesson data is preserved across installs. Start BiliClass from the Start menu.'

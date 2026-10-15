@@ -37,6 +37,9 @@ def main():
     reports = Path(__file__).resolve().parents[1] / "reports" / "app"
     reports.mkdir(parents=True, exist_ok=True)
     app = QGuiApplication([])
+    from app.branding import configure_application
+    configure_application(app)
+    assert not app.windowIcon().isNull()
     QQuickStyle.setStyle("Basic")
     for path in (RESOURCES / "assets").glob("*.ttf"):
         QFontDatabase.addApplicationFont(str(path))
@@ -140,12 +143,23 @@ def main():
         checks.append("core settings tabs; multi-subject teacher profile and school logo persist; projector profile can be hidden")
 
         click("settingsTab1")
-        assert control("settingsConversionFormat3")
+        assert control("aboutBiliClassCard").isVisible()
+        assert control("aboutBiliClassVersion").property("text") == bridge.appVersion
+        assert control("aboutBiliClassCopyright").property("text") == "Copyright © 2026 Nguyễn Diệu Linh"
+        assert control("aboutBiliClassLogo").property("source").toString().endswith('brand/biliclass.svg')
+        assert control("aboutCheckUpdate")
+        assert window.findChild(QObject, "settingsConversionFormat3") is None
         assert window.findChild(QObject, "settingsLevel4") is None
         assert window.findChild(QObject, "saveLevel") is None
         assert "level" not in bridge.settings
-        shot("bilingual")
-        checks.append("Four unified conversion methods are informational in settings; existing lesson unchanged")
+        shot("about")
+        window.resize(1080, 700)
+        pump(250)
+        assert control("aboutBiliClassCopyright").width() > 250
+        shot("about-small")
+        window.resize(1366, 850)
+        pump(200)
+        checks.append("About replaces bilingual guide; logo, actual version, copyright and updater; window icon; 1080px layout")
         assert bridge.lesson["level"] == 2
 
         click("settingsTab2")
