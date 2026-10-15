@@ -321,6 +321,8 @@ class WebBrowserAI(QObject):
 
     @Slot()
     def refreshAccounts(self):
+        if getattr(self.bridge, 'googleTranslation', False):
+            return
         if self.job or self.bridge.busy:
             return
         due = self.store.due_accounts()

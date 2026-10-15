@@ -1,5 +1,16 @@
 # Trạng thái BiliClass
 
+Ngày 15/10/2026 — RC38 chuyển luồng mặc định sang Google Cloud Translation
+NMT: chỉ gửi chữ, dựng PowerPoint tại máy, voice là bước tùy chọn sau khi lưu.
+Browser AI tạm ẩn và không chạy lại job web cũ. Thêm nhiều key mã hóa DPAPI,
+nhóm dự án/ngân sách ký tự cục bộ, cache và hai worker dịch có giới hạn.
+Không coi 500.000 ký tự là hạn mức riêng mỗi key hoặc đọc được số dư Google.
+[Cách dùng, kiểm chứng và giới hạn](GOOGLE_TRANSLATION_RC38.md).
+
+Đã bỏ nút Kiểm tra cập nhật ở sidebar; giữ tại Cài đặt → Thông tin BiliClass.
+RC38 cần nhập key hợp lệ để kiểm tra trực tuyến; chưa có benchmark Google
+trên bài thực tế, không công bố toàn bộ bài/môn đã hoàn thiện tự động.
+
 Ngày 15/10/2026 — RC37 sửa lần treo RC36 đang chuyển đổi: stack Qt chính
 đang quét trạng thái WAV của danh sách/thùng rác do mỗi thông báo tiến độ
 phát tín hiệu thay đổi toàn màn hình. Tiến độ nay dùng tín hiệu riêng;

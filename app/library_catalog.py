@@ -100,7 +100,7 @@ class LibraryCatalog(QObject):
     @Slot()
     def _finished(self):
         worker = self.sender()
-        if worker is not self.worker:
+        if worker is None or worker is not self.worker:
             return
         self.worker = None
         if not self._pending and not self._closed and worker.result is not None:

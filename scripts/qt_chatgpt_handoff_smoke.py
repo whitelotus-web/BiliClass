@@ -74,7 +74,7 @@ deck.save(source)
 deck.save(returned)
 digest = hashlib.sha256(returned.read_bytes()).hexdigest()
 speech.list_voices = lambda: [{"id": "vieneu:Mai Anh", "provider": "vieneu", "name": "Fixture voice", "language": "multilingual"}]
-bridge = Bridge(library)
+bridge = Bridge(library, translation_engine='browser_web')
 service = os.environ.get("BILICLASS_SMOKE_SERVICE", "chatgpt")
 bridge.browserAI.store.choose_service(service)
 bridge.browserAI.saveOptions(False, False)  # New UI must override obsolete manual/audio options.
@@ -236,8 +236,8 @@ def start():
         window.setProperty("page", "new")
         app.processEvents()
         stages.append("Service radios filter independent profiles; pin Gemini Free over another Pro; provider/highest-model/quality policy reach actual conversion config")
-    update = window.findChild(QObject, "checkUpdatesButton")
-    assert update and update.property("visible") and update.property("enabled")
+    assert window.findChild(QObject, "checkUpdatesButton") is None
+    assert window.findChild(QObject, "aboutCheckUpdate")
     assert bridge.appVersion in window.findChild(QObject, "sidebarAppVersion").property("text")
     assert not window.findChild(QObject, "createLessonButton").property("enabled")
     assert window.findChild(QObject, "lessonSubject").property("currentIndex") == -1
@@ -483,9 +483,7 @@ def prompt_shown():
 
 
 def compact():
-    update = window.findChild(QObject, "checkUpdatesButton")
-    point = update.mapToScene(QPointF(0, 0))
-    assert 0 < point.y() < window.height() - update.height(), "Update button must remain visible at 1080x700"
+    assert window.findChild(QObject, "checkUpdatesButton") is None
     footer = window.findChild(QObject, "createLessonButton")
     point = footer.mapToScene(QPointF(0, 0))
     assert 0 < point.y() < window.height() - footer.height(), "Conversion button must remain on screen"
@@ -709,7 +707,8 @@ def vietnamese_ready():
         return {"version": bridge.appVersion}
 
     ui.check_for_update = check_update
-    click("checkUpdatesButton")
+    click("settingsTab1")
+    click("aboutCheckUpdate")
     QTimer.singleShot(100, safe(lambda: updated(checks)))
 
 

@@ -47,10 +47,11 @@ ApplicationWindow {
     property var classroom: bridge.classroomContext
     property string profileLabel: [bridge.settings.teacher, bridge.settings.school].filter(function(value) { return !!value }).join("  ·  ")
     readonly property var conversionFormats: bridge.conversionFormats
+    readonly property var selectedConversionFormat: conversionFormats[Math.min(Math.max(0, creationFormat.currentIndex), conversionFormats.length - 1)]
     readonly property string creationSubject: subjectInput.currentText === "Khác" ? customSubjectInput.text.trim() : subjectInput.currentText
     readonly property var creationPrompt: page === "new" ? bridge.conversionPromptPreview(
         titleInput.text, creationSubject, educationInput.currentText, gradeInput.currentText, pasteInput.text,
-        selectedFile, conversionFormats[creationFormat.currentIndex].id,
+        selectedFile, selectedConversionFormat.id,
         ["standard", "visual", "practice"][creationPreset.currentIndex], creationKeepSource ? "source" : "template", teacherNotesInput.text) : ({prompt: "", ready: false})
     property var templatePages: bridge.templatePages(rescue)
     property int templatePageIndex: 0
@@ -268,7 +269,6 @@ ApplicationWindow {
                     ColumnLayout { spacing: 3; Label { text: bridge.settings.teacher; color: root.ink; font.pixelSize: 12; elide: Text.ElideRight; Layout.maximumWidth: 110 } Copy { text: bridge.settings.school || "Giáo viên · Local"; font.pixelSize: 10; elide: Text.ElideRight; Layout.maximumWidth: 130 } }
                 }
                 Action { text: "Hướng dẫn · F1"; implicitHeight: 32; subtle: true; onClicked: helpDialog.open() }
-                Action { objectName: "checkUpdatesButton"; text: bridge.updateState.checking ? "Đang kiểm tra…" : "Kiểm tra cập nhật"; implicitHeight: 32; subtle: true; enabled: !bridge.updateState.checking && !bridge.updateState.downloading; onClicked: bridge.checkForUpdates(false) }
                 Copy { objectName: "sidebarAppVersion"; text: (bridge.developmentMode ? "Bản nguồn · " : "Phiên bản · ") + bridge.appVersion; font.pixelSize: 9; Layout.topMargin: 6; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
                 Label {
                     objectName: "applicationCopyright"
@@ -525,7 +525,7 @@ ApplicationWindow {
                                         }
                                     }
                                 }
-                                Copy { objectName: "creationFormatDescription"; visible: false; text: root.conversionFormats[creationFormat.currentIndex].detail }
+                                Copy { objectName: "creationFormatDescription"; visible: false; text: root.selectedConversionFormat.detail }
                                 Caption { text: "Thiết kế bài giảng" }
                                 GridLayout {
                                     id: creationWorkflow; objectName: "creationWorkflow"
@@ -535,8 +535,8 @@ ApplicationWindow {
                                     ConversionChoice {
                                         choiceName: "creationKeepOriginal"
                                         choiceGroup: designChoices
-                                        label: "Giữ thiết kế PowerPoint gốc"
-                                        detail: root.creationPowerPoint ? "Dùng đúng PowerPoint đầu vào: giữ thiết kế, hình, thứ tự slide và hiệu ứng; chuyển ngôn ngữ theo kiểu đã chọn." : root.creationCanKeepSource ? "Chọn tệp PPTX để giữ thiết kế, hình, thứ tự slide và hiệu ứng của PowerPoint đầu vào." : "Word/PDF/ảnh hoặc nội dung dán không có thiết kế PowerPoint gốc; dùng mẫu mới."
+                                        label: bridge.googleTranslation ? "Ưu tiên thiết kế PowerPoint gốc" : "Giữ thiết kế PowerPoint gốc"
+                                        detail: bridge.googleTranslation ? "Giữ vùng chữ vừa khung; bài phức tạp sẽ dàn lại bằng mẫu mới, có thể đổi số slide. Chữ trong ảnh/biểu đồ cần đối chiếu." : root.creationPowerPoint ? "Dùng đúng PowerPoint đầu vào: giữ thiết kế, hình, thứ tự slide và hiệu ứng; chuyển ngôn ngữ theo kiểu đã chọn." : root.creationCanKeepSource ? "Chọn tệp PPTX để giữ thiết kế, hình, thứ tự slide và hiệu ứng của PowerPoint đầu vào." : "Word/PDF/ảnh hoặc nội dung dán không có thiết kế PowerPoint gốc; dùng mẫu mới."
                                         selected: creationWorkflow.currentIndex === 0
                                         enabled: root.creationCanKeepSource; Layout.fillWidth: true; Layout.preferredWidth: 1
                                         onChosen: { root.preferredCreationDesign = 0; creationWorkflow.currentIndex = 0 }
@@ -552,17 +552,19 @@ ApplicationWindow {
                                     }
                                 }
                                 RowLayout {
-                                    visible: !root.creationKeepSource; Layout.fillWidth: true
+                                    visible: !bridge.googleTranslation && !root.creationKeepSource; Layout.fillWidth: true
                                     Caption { text: "Mẫu BiliClass" }
                                     Choice { id: creationPreset; objectName: "creationPreset"; model: ["Chuẩn lớp học", "Trực quan", "Luyện tập & tương tác"]; Layout.fillWidth: true }
-                                    Action { objectName: "creationTemplatesButton"; text: "Xem slide mẫu"; iconName: "view"; onClicked: { templateGallery.forCreation = true; templateGallery.preset = ["standard", "visual", "practice"][creationPreset.currentIndex]; templateGallery.level = root.conversionFormats[creationFormat.currentIndex].level; templateGallery.layout = root.conversionFormats[creationFormat.currentIndex].layout; templateGallery.open() } }
+                                    Action { objectName: "creationTemplatesButton"; text: "Xem slide mẫu"; iconName: "view"; onClicked: { templateGallery.forCreation = true; templateGallery.preset = ["standard", "visual", "practice"][creationPreset.currentIndex]; templateGallery.level = root.selectedConversionFormat.level; templateGallery.layout = root.selectedConversionFormat.layout; templateGallery.open() } }
                                 }
                                 RowLayout {
+                                    visible: !bridge.googleTranslation
                                     Layout.fillWidth: true
                                     Caption { text: "Ghi chú thêm · không bắt buộc"; Layout.fillWidth: true }
                                     Copy { text: teacherNotesInput.text.trim().length + " / 6.000"; color: teacherNotesInput.text.trim().length > 6000 ? "#ab5b20" : root.muted; font.pixelSize: 11 }
                                 }
                                 ScrollView {
+                                    visible: !bridge.googleTranslation
                                     Layout.fillWidth: true; Layout.preferredHeight: 90; clip: true
                                     TextArea {
                                         id: teacherNotesInput; objectName: "creationTeacherNotes"
@@ -575,6 +577,7 @@ ApplicationWindow {
                             }
                         }
                         Surface {
+                            visible: !bridge.googleTranslation
                             Layout.fillWidth: true; implicitHeight: promptHeader.height + 28 + (root.creationPromptVisible ? 278 : 0)
                             ColumnLayout {
                                 anchors.fill: parent; anchors.margins: 14; spacing: 8
@@ -602,9 +605,9 @@ ApplicationWindow {
                         ColumnLayout {
                             Layout.fillWidth: true; spacing: 3
                             Copy { text: "Nhận bài giảng song ngữ trước · tạo giọng đọc sau nếu cần."; Layout.fillWidth: true; font.pixelSize: 12 }
-                            Action { text: bridge.browserAI.serviceLabel + ": " + bridge.browserAI.activeLabel + " · Browser AI"; subtle: true; implicitHeight: 28; onClicked: { root.go("settings"); settingsPanel.activeTab = 6 } }
+                            Action { text: bridge.googleTranslation ? "Google Dịch · " + (bridge.googleSettings.state.configured ? "Đã lưu API key" : "Cần thêm API key") : bridge.browserAI.serviceLabel + ": " + bridge.browserAI.activeLabel + " · Browser AI"; subtle: true; implicitHeight: 28; onClicked: { root.go("settings"); settingsPanel.activeTab = 6 } }
                         }
-                        Action { objectName: "createLessonButton"; text: bridge.busy ? "Đang chuẩn bị…" : "Chuyển đổi bài giảng"; primary: true; enabled: !bridge.busy && !root.inputDocumentError && root.creationPrompt.ready; onClicked: bridge.convertDocument(titleInput.text, root.creationSubject, educationInput.currentText, gradeInput.currentText, pasteInput.text, root.selectedFile, root.conversionFormats[creationFormat.currentIndex].id, ["standard", "visual", "practice"][creationPreset.currentIndex], root.creationKeepSource ? "source" : "template", teacherNotesInput.text) }
+                        Action { objectName: "createLessonButton"; text: bridge.busy ? "Đang chuẩn bị…" : "Chuyển đổi bài giảng"; primary: true; enabled: !bridge.busy && !root.inputDocumentError && root.creationPrompt.ready; onClicked: bridge.convertDocument(titleInput.text, root.creationSubject, educationInput.currentText, gradeInput.currentText, pasteInput.text, root.selectedFile, root.selectedConversionFormat.id, ["standard", "visual", "practice"][creationPreset.currentIndex], root.creationKeepSource ? "source" : "template", teacherNotesInput.text) }
                     }
                 }
 
@@ -615,7 +618,7 @@ ApplicationWindow {
                         RowLayout { Heading { text: "Tạo bài giảng song ngữ"; font.pixelSize: 28 } Item { Layout.fillWidth: true } Action { text: "Đổi cấu hình"; subtle: true; enabled: !bridge.browserState.running; onClicked: root.go("new") } }
                         Copy { Layout.fillWidth: true; text: (bridge.chatgptRequest.config || {}).title || "Chuẩn bị tài liệu trước khi gửi"; color: root.ink; font.pixelSize: 17 }
                         Surface {
-                            visible: bridge.browserAI.automatic && bridge.browserState.phase !== "manual"
+                            visible: bridge.googleTranslation || bridge.browserAI.automatic && bridge.browserState.phase !== "manual"
                             Layout.fillWidth: true; implicitHeight: autoBrowserSteps.height + 42
                             ColumnLayout {
                                 id: autoBrowserSteps; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 21; spacing: 14
@@ -657,15 +660,15 @@ ApplicationWindow {
                                 Copy { objectName: "browserConversionLongWait"; Layout.fillWidth: true; visible: !!bridge.conversionClock.longWait; text: "Bài đang mất nhiều thời gian hơn thường lệ. BiliClass vẫn theo dõi kết quả và sẽ báo ngay nếu cần bạn xử lý."; color: "#a66318"; font.pixelSize: 12 }
                                 Copy { Layout.fillWidth: true; text: "Bài giảng song ngữ · Trình chiếu · Giọng đọc · Trợ giảng" }
                                 RowLayout { Layout.fillWidth: true
-                                    Action { objectName: "browserConversionResume"; text: bridge.browserAI.webMode && bridge.browserState.needsLogin ? "Kết nối và tiếp tục" : bridge.browserState.errorCode === "submission" ? "Kiểm tra và tiếp tục" : "Tiếp tục chuyển đổi"; primary: true; visible: !bridge.browserState.running && bridge.browserState.phase !== "completed"; enabled: !bridge.busy && !bridge.browserAI.loginBusy && !!bridge.chatgptRequest.folder; onClicked: { if (bridge.browserAI.webMode && (bridge.browserState.needsLogin || bridge.browserState.errorCode === "submission")) bridge.reconnectBrowserAI(); else bridge.runBrowserAI() } }
+                                    Action { objectName: "browserConversionResume"; text: !bridge.googleTranslation && bridge.browserAI.webMode && bridge.browserState.needsLogin ? "Kết nối và tiếp tục" : bridge.browserState.errorCode === "submission" ? "Kiểm tra và tiếp tục" : "Tiếp tục chuyển đổi"; primary: true; visible: !bridge.browserState.running && bridge.browserState.phase !== "completed"; enabled: !bridge.busy && (bridge.googleTranslation || !bridge.browserAI.loginBusy) && !!bridge.chatgptRequest.folder; onClicked: { if (!bridge.googleTranslation && bridge.browserAI.webMode && (bridge.browserState.needsLogin || bridge.browserState.errorCode === "submission")) bridge.reconnectBrowserAI(); else bridge.runBrowserAI() } }
                                     Action { id: conversionCancel; objectName: "browserConversionCancel"; text: "Dừng"; visible: !!bridge.browserState.running; onClicked: bridge.cancelJob() }
-                                    Action { text: "Đăng nhập / Browser AI"; visible: !!bridge.browserState.needsLogin && !bridge.browserState.running; enabled: !bridge.busy; onClicked: { root.go("settings"); settingsPanel.activeTab = 6 } }
+                                    Action { text: bridge.googleTranslation ? "Cấu hình Google Dịch" : "Đăng nhập / Browser AI"; visible: !bridge.browserState.running && (bridge.googleTranslation || !!bridge.browserState.needsLogin); enabled: !bridge.busy; onClicked: { root.go("settings"); settingsPanel.activeTab = 6 } }
                                 }
                                 Copy { text: bridge.browserState.running ? "BiliClass tự động xử lý. Bài giảng sẽ xuất hiện trong thư viện khi hoàn tất." : "Tài liệu và các phần đã hoàn tất được lưu để tiếp tục."; Layout.fillWidth: true; font.pixelSize: 12 }
                             }
                         }
                         Surface {
-                            visible: !bridge.browserAI.automatic || bridge.browserState.phase === "manual"
+                            visible: !bridge.googleTranslation && (!bridge.browserAI.automatic || bridge.browserState.phase === "manual")
                             Layout.fillWidth: true; implicitHeight: chatgptSteps.height + 42
                             ColumnLayout {
                                 id: chatgptSteps; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 21; spacing: 18
@@ -681,7 +684,7 @@ ApplicationWindow {
                                 Action { objectName: "receiveChatGPTDeckButton"; text: "Nhận PowerPoint từ ChatGPT"; iconName: "download"; primary: true; enabled: !bridge.busy && !!bridge.chatgptRequest.folder; onClicked: chatgptDeckOpen.open() }
                             }
                         }
-                        Action { text: chatgptPromptPreview.visible ? "Ẩn prompt" : "Xem prompt đã cấu hình"; subtle: true; onClicked: chatgptPromptPreview.visible = !chatgptPromptPreview.visible }
+                        Action { visible: !bridge.googleTranslation; text: chatgptPromptPreview.visible ? "Ẩn prompt" : "Xem prompt đã cấu hình"; subtle: true; onClicked: chatgptPromptPreview.visible = !chatgptPromptPreview.visible }
                         ScrollView { id: chatgptPromptPreview; visible: false; Layout.fillWidth: true; Layout.preferredHeight: 240; clip: true
                             TextArea { readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; font.pixelSize: 13; text: bridge.chatgptRequest.prompt || ""; color: root.ink }
                         }
@@ -1035,7 +1038,7 @@ ApplicationWindow {
                     anchors.leftMargin: 25; anchors.rightMargin: 25; spacing: 18
                     RowLayout { Layout.fillWidth: true; spacing: 10
                         BusyIndicator { visible: bridge.busy; running: bridge.busy; Layout.preferredWidth: 23; Layout.preferredHeight: 23 }
-                        Label { id: statusMessage; objectName: "applicationStatusMessage"; text: (root.page === "chatgpt" || bridge.browserState.running || bridge.browserState.phase === "error" && bridge.message === bridge.browserState.message) && bridge.browserAI.automatic ? bridge.browserState.displayMessage : bridge.message || "Sẵn sàng · Dữ liệu bài giảng được lưu tại máy"; color: bridge.error ? "#b14828" : root.muted; font.pixelSize: 11; wrapMode: Text.WordWrap; Layout.fillWidth: true; textFormat: Text.PlainText }
+                        Label { id: statusMessage; objectName: "applicationStatusMessage"; text: (root.page === "chatgpt" || bridge.browserState.running || bridge.browserState.phase === "error" && bridge.message === bridge.browserState.message) && (bridge.googleTranslation || bridge.browserAI.automatic) ? bridge.browserState.displayMessage : bridge.message || "Sẵn sàng · Dữ liệu bài giảng được lưu tại máy"; color: bridge.error ? "#b14828" : root.muted; font.pixelSize: 11; wrapMode: Text.WordWrap; Layout.fillWidth: true; textFormat: Text.PlainText }
                         Action { objectName: "applicationCancel"; visible: bridge.busy && !conversionCancel.visible; text: "Dừng tác vụ"; implicitHeight: 30; onClicked: bridge.cancelJob() }
                     }
                 }
@@ -1252,7 +1255,7 @@ ApplicationWindow {
     TemplateGallery {
         id: templateGallery; objectName: "templateGallery"
         bridge: root.bridgeRef
-        conversionFormat: forCreation ? root.conversionFormats[creationFormat.currentIndex].id
+        conversionFormat: forCreation ? root.selectedConversionFormat.id
             : ({split_view:"parallel_columns", line_pair:"sentence_pairs", keyword_overlay:"integrated_keywords", english_rescue:"english_only"})[layout] || "sentence_pairs"
         onApplyPreset: function(preset) {
             if (forCreation) creationPreset.currentIndex = ["standard", "visual", "practice"].indexOf(preset)

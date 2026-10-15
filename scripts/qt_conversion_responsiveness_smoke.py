@@ -62,7 +62,7 @@ with tempfile.TemporaryDirectory(prefix='biliclass-responsive-', ignore_cleanup_
         lesson = library.create(f'Bài {index}', 'Vật lý', 'THPT', '11', [('Năng lượng', 'Energy')])
         if index < 4:
             library.trash_lesson(lesson['id'])
-    bridge = Bridge(library)
+    bridge = Bridge(library, translation_engine='browser_web')
     folder = Path(directory) / 'chatgpt' / 'fixture'
     folder.mkdir(parents=True)
     bridge._chatgpt_request = {'folder': str(folder), 'config': {'title': 'Kiểm tra giao diện phản hồi'}}

@@ -148,6 +148,7 @@ def main():
         assert control("aboutBiliClassCopyright").property("text") == "Copyright © 2026 Nguyễn Diệu Linh"
         assert control("aboutBiliClassLogo").property("source").toString().endswith('brand/biliclass.svg')
         assert control("aboutCheckUpdate")
+        assert window.findChild(QObject, "checkUpdatesButton") is None
         assert window.findChild(QObject, "settingsConversionFormat3") is None
         assert window.findChild(QObject, "settingsLevel4") is None
         assert window.findChild(QObject, "saveLevel") is None
@@ -298,13 +299,12 @@ def main():
         control("lessonTitle").setProperty("text", "Bài kiểm tra cấu hình")
         control("lessonSubject").setProperty("currentIndex", bridge.conversionSubjects.index("Sinh học"))
         control("lessonContent").setProperty("text", "Hãy quan sát mẫu vật.")
-        control("creationFormat").setProperty("currentIndex", 3)
+        control("creationFormat").setProperty("currentIndex", len(bridge.conversionFormats) - 1)
         control("creationGrade").setProperty("currentIndex", 2)
-        assert control("creationFormat").property("currentIndex") == 3
+        assert control("creationFormat").property("currentIndex") == len(bridge.conversionFormats) - 1
         assert control("creationGrade").property("currentText") == "12"
-        # The automatic workflow now requires a ready browser account. This
-        # settings test has no account and must not create or send a web request;
-        # qt_chatgpt_handoff_smoke separately tests the complete conversion flow.
+        # This test has no API key and must not send a translation request.
+        # qt_google_translation_smoke covers the new API workflow separately.
         assert not bridge.chatgptRequest
         checks.append("new lesson uses its local grade/method; no account or uploads in settings smoke")
 

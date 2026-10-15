@@ -104,8 +104,9 @@ class Bridge(QObject):
     def updateApplying(self):
         return self._update_applying
 
-    def __init__(self, library, browser_ai_factory=WebBrowserAI):
+    def __init__(self, library, browser_ai_factory=WebBrowserAI, *, translation_engine='google_translate'):
         super().__init__()
+        self._translation_engine = translation_engine
         self.library = library
         self.logger = configure_logging(library.directory)
         try:
@@ -166,7 +167,12 @@ class Bridge(QObject):
         self._comparison = {}
         self._quick_result = {}
         self._chatgpt_request = {}
+        from .google_settings import GoogleSettings
+
+        self._google_settings = GoogleSettings(self)
         self._browser_ai = browser_ai_factory(self)
+        if self.googleTranslation and hasattr(self._browser_ai, '_health_timer'):
+            self._browser_ai._health_timer.stop()
         self._browser_ai.progress.connect(self._on_browser_progress)
         self.browserConversionProgress.connect(self._on_conversion_progress)
         self._browser_state = {"running": False, "phase": "idle", "message": ""}
@@ -177,7 +183,7 @@ class Bridge(QObject):
         self._conversion_clock_timer.timeout.connect(self._tick_conversion_clock)
         self._conversion_clock_timer.start()
         self._browser_running = False
-        saved_request = self.library.setting("chatgpt_request_folder", "")
+        saved_request = self.library.setting("chatgpt_request_folder", "") if not self.googleTranslation else ''
         if saved_request:
             try:
                 from .chatgpt_handoff import load_request
@@ -207,6 +213,16 @@ class Bridge(QObject):
                     self._message = str(exc)
                 self.logger.info("Previous ChatGPT handoff is no longer available.")
         self.conversionProgress.connect(self._conversion_progress)
+        if self.googleTranslation:
+            saved_google = self.library.setting('google_request_folder', '')
+            if saved_google:
+                try:
+                    from .google_conversion import load
+                    self._chatgpt_request = load(self.library.directory, saved_google, verify_source=False)
+                    self._browser_state.update(phase='error', errorCode='api_resume',
+                        message='Bài trước đã lưu; bấm Tiếp tục để dùng lại các phần đã dịch.')
+                except (ValueError, OSError, KeyError):
+                    self.logger.info('Previous Google conversion is unavailable.')
         if self._chatgpt_request.get("config", {}).get("provider") == "browser_web":
             from .browser_dispatch import startup_resume
 
@@ -366,11 +382,19 @@ class Bridge(QObject):
     def browserAI(self):
         return self._browser_ai
 
+    @Property(bool, constant=True)
+    def googleTranslation(self):
+        return self._translation_engine == 'google_translate'
+
+    @Property(QObject, constant=True)
+    def googleSettings(self):
+        return self._google_settings
+
     @Property("QVariantList", constant=True)
     def conversionFormats(self):
         from .conversion_formats import FORMATS
 
-        return [dict(item) for item in FORMATS]
+        return [dict(item) for item in FORMATS if not self.googleTranslation or item['id'] != 'integrated_keywords']
 
     @Property("QVariantList", constant=True)
     def conversionSubjects(self):
@@ -394,6 +418,8 @@ class Bridge(QObject):
 
         try:
             config = creation_config(title, subject, education, grade, conversion_format, preset, style, teacher_notes)
+            if self.googleTranslation:
+                return {'prompt': '', 'ready': bool(title.strip() and subject.strip() and (file_url or text.strip()))}
             config["browser_service"] = self._browser_ai.service
             return prompt_preview(config, file_url, text)
         except ValueError as exc:
@@ -425,6 +451,10 @@ class Bridge(QObject):
         from .conversion_input import creation_config, local_document
 
         if self._busy:
+            return
+        if self.googleTranslation:
+            self._prepare_google(title, subject, education, grade, text, file_url,
+                                 conversion_format, preset, style)
             return
         try:
             config = validate_config(creation_config(title, subject, education, grade, conversion_format, preset, style, teacher_notes))
@@ -518,6 +548,9 @@ class Bridge(QObject):
 
     def _prepareChatGPT(self, title, subject, education, grade, text, file_url, level, layout, preset, style, mode, automatic,
                         conversion_format=None, teacher_notes=""):
+        if self.googleTranslation:
+            self.inform('Luồng web chat đang tạm ẩn. Dùng Chuyển đổi bài giảng với Google Dịch.')
+            return
         from .chatgpt_handoff import prepare_request
 
         if self._busy:
@@ -560,11 +593,77 @@ class Bridge(QObject):
 
     @Slot()
     def runBrowserAI(self):
-        self._run_web_conversion()
+        if self.googleTranslation:
+            self._run_google_conversion()
+        else:
+            self._run_web_conversion()
 
     @Slot()
     def retryBrowserAI(self):
-        self._run_web_conversion()
+        self.runBrowserAI()
+
+    def _prepare_google(self, title, subject, education, grade, text, file_url, mode, preset, style):
+        from .chatgpt_handoff import validate_config
+        from .conversion_input import creation_config, local_document
+        from .google_conversion import prepare
+
+        try:
+            config = validate_config(creation_config(title, subject, education, grade, mode, preset, style))
+            if not self._google_settings.state.get('configured'):
+                self.navigate.emit('browser-settings')
+                raise ValueError('Thêm API key trong Cài đặt → Google Dịch trước khi chuyển đổi.')
+            if bool(file_url) == bool(text.strip()):
+                raise ValueError('Chọn một nguồn: tài liệu hoặc nội dung dán vào.')
+            path = local_document(file_url) if file_url else None
+            self._chatgpt_request = {'config': {**config, 'provider': 'google_translate'}}
+            self._browser_state = {'running': True, 'phase': 'working', 'stage': 'session',
+                'percent': 0, 'elapsedSeconds': 0, 'waiting': False}
+            import time
+            self._browser_clock_mark = time.monotonic()
+            self._browser_running = True
+            self.navigate.emit('chatgpt')
+
+            def prepared(job):
+                self._chatgpt_request = job
+                self.changed.emit()
+                self._run_google_conversion()
+
+            self.launch(lambda: prepare(self.library.directory, config, path, text), prepared)
+        except (ValueError, OSError) as exc:
+            self.inform(str(exc), True)
+
+    def _run_google_conversion(self):
+        from .conversion_progress import ConversionProgress
+        from .google_conversion import convert, load
+
+        if self._busy or not self._chatgpt_request.get('folder'):
+            return
+        try:
+            job = load(self.library.directory, self._chatgpt_request['folder'], verify_source=False)
+        except (ValueError, OSError, KeyError) as exc:
+            self.inform(str(exc), True)
+            return
+        self._browser_running = True
+        self._browser_state = {'running': True, 'phase': 'working', 'percent': 0,
+                              'stage': 'session', 'elapsedSeconds': self._browser_state.get('elapsedSeconds', 0)}
+        progress = ConversionProgress(job['folder'], self.browserConversionProgress.emit)
+        self._conversion_progress_sink = progress
+        progress.stage('session', 'Đang chuẩn bị bài giảng.')
+        budget = self.library.setting('google_character_budget', 500_000)
+
+        def completed(result):
+            lesson, preview = result
+            progress.stage('completed', 'Đã lưu bài giảng song ngữ.')
+            self._freeze_conversion_clock()
+            self._browser_running = False
+            self._browser_state.update(running=False, phase='completed', percent=100, waiting=False)
+            self._google_settings.refresh()
+            self._show_lesson(lesson, preview)
+            failures = lesson.get('slide_quality', {}).get('counts', {}).get('FAIL', 0)
+            self.inform(f'Đã lưu bài giảng. Còn {failures} slide cần sửa.' if failures else
+                        'Đã lưu bài giảng song ngữ. Có thể tải về hoặc tạo giọng đọc nếu cần.', bool(failures))
+
+        self.launch(lambda: convert(self.library.directory, job, self.cancel_event, progress, budget=budget), completed)
 
     @Slot()
     def reconnectBrowserAI(self):
@@ -582,6 +681,8 @@ class Bridge(QObject):
 
     def _web_conversion_failure(self, message, error_code=None):
         """Expose the durable job error instead of guessing from translated text."""
+        if self.googleTranslation:
+            self._google_settings.refresh()
         self._freeze_conversion_clock()
         code = error_code or "browser"
         if not error_code and self._chatgpt_request.get("config", {}).get("provider") == "browser_web":
@@ -596,6 +697,8 @@ class Bridge(QObject):
         self.changed.emit()
 
     def _resume_browser_startup(self):
+        if self.googleTranslation:
+            return
         from .browser_dispatch import startup_resume
 
         if not self._busy and self._chatgpt_request and startup_resume(self._chatgpt_request["folder"]):
@@ -603,6 +706,8 @@ class Bridge(QObject):
             self._run_web_conversion()
 
     def _run_web_conversion(self):
+        if self.googleTranslation:
+            return
         import json
 
         from .browser_automation import read_record, write_record
@@ -790,6 +895,8 @@ class Bridge(QObject):
 
     @Slot()
     def useManualChatGPT(self):
+        if self.googleTranslation:
+            return
         from .chatgpt_handoff import make_prompt
 
         if self._busy or not self._chatgpt_request:
@@ -802,6 +909,8 @@ class Bridge(QObject):
 
     @Slot()
     def openChatGPT(self):
+        if self.googleTranslation:
+            return
         if not QDesktopServices.openUrl(QUrl("https://chatgpt.com/")):
             self.inform("Chưa mở được browser. Mở https://chatgpt.com rồi sao chép prompt và đính kèm tài liệu.", True)
         else:
@@ -1337,7 +1446,7 @@ class Bridge(QObject):
 
     @Slot()
     def cancelJob(self):
-        if self._browser_running and self._chatgpt_request:
+        if self._browser_running and self._chatgpt_request.get('folder') and not self.googleTranslation:
             # Separate marker: the worker may still flush its send journal as
             # cancellation arrives. It must not overwrite the human's stop.
             (Path(self._chatgpt_request["folder"]) / "conversion-stopped").touch()
@@ -2351,6 +2460,9 @@ class Bridge(QObject):
             self._catalog.shutdown()
             self.library.close()
             self.library = replacement
+            self._google_settings.refresh()
+            self._chatgpt_request = {}
+            self._browser_state = {'running': False, 'phase': 'idle', 'message': ''}
             self._catalog.replace_library(replacement)
             try:
                 ensure_builtin_foundation(self.library)

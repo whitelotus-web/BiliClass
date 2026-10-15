@@ -83,7 +83,7 @@ Item {
             Layout.fillWidth: true; spacing: 5
             Repeater {
                 model: [
-                    {name: "Chung", icon: "settings", tabId: 0}, {name: "Browser AI", icon: "bilingual", tabId: 6},
+                    {name: "Chung", icon: "settings", tabId: 0}, {name: bridge.googleTranslation ? "Google Dịch" : "Browser AI", icon: "bilingual", tabId: 6},
                     {name: "Giọng đọc", icon: "voice", tabId: 2}, {name: "Mascot", icon: "mascot", tabId: 3},
                     {name: "Lớp học", icon: "classroom", tabId: 4}, {name: "Dữ liệu", icon: "data", tabId: 5},
                     {name: "Thông tin BiliClass", icon: "about", tabId: 1}
@@ -415,7 +415,60 @@ Item {
             }
         }
         ColumnLayout {
-            visible: page.activeTab === 6; Layout.fillWidth: true; spacing: 14
+            visible: bridge.googleTranslation && page.activeTab === 6; Layout.fillWidth: true; spacing: 14
+            onVisibleChanged: if (visible) bridge.googleSettings.refresh()
+            Card {
+                Layout.fillWidth: true
+                ColumnLayout { width: parent.width; spacing: 14
+                    Title { text: "Google Cloud Translation" }
+                    Hint { text: "Dịch phần chữ Việt–Anh, sắp xếp PowerPoint tại máy. Giọng đọc được tạo riêng sau khi bài giảng đã lưu."; Layout.fillWidth: true }
+                    Hint { text: "Bật Cloud Translation API và thanh toán trên Google Cloud. Google có tín dụng miễn phí cho 500.000 ký tự/tháng theo điều kiện của dự án/tài khoản thanh toán, không phải mỗi API key. BiliClass không đọc được số dư này."; Layout.fillWidth: true }
+                    Label { text: "API key · mỗi key một dòng"; color: page.ink; font.bold: true }
+                    ScrollView {
+                        Layout.fillWidth: true; Layout.preferredHeight: 130; clip: true
+                        TextArea {
+                            id: googleKeys; objectName: "googleApiKeys"; selectByMouse: true; wrapMode: TextEdit.NoWrap
+                            placeholderText: "Tên dự án | API_KEY\nTên dự án khác | API_KEY\nHoặc chỉ nhập key trên mỗi dòng"
+                            color: page.ink; font.pixelSize: 13
+                            background: Rectangle { radius: 9; color: "#fbfdff"; border.color: page.line }
+                        }
+                    }
+                    Hint { text: "Key cùng dự án phải dùng cùng tên nhóm. Các dòng chỉ có key dùng chung nhóm Mặc định. Key được dùng theo thứ tự đã lưu; lỗi key/hạn mức xác định sẽ chuyển sang key khả dụng tiếp theo. Không tự đổi key khi yêu cầu còn chưa rõ kết quả."; Layout.fillWidth: true }
+                    RowLayout { Layout.fillWidth: true; spacing: 12
+                        Hint { text: "Giới hạn cục bộ mỗi nhóm/tháng (ký tự)"; Layout.fillWidth: true }
+                        SpinBox { id: googleBudget; objectName: "googleCharacterBudget"; from: 1; to: 500000; value: bridge.googleSettings.state.budget || 500000; editable: true; Layout.preferredWidth: 175 }
+                        SaveButton { objectName: "saveGoogleApiKeys"; text: "Lưu cấu hình"; enabled: !bridge.busy; onClicked: { if (bridge.googleSettings.save(googleKeys.text, googleBudget.value)) googleKeys.clear() } }
+                    }
+                    Hint { text: "Bộ đếm theo tháng UTC chỉ tính yêu cầu từ thư viện BiliClass này, gồm cả phần bảo vệ số liệu và các lần gửi chưa rõ kết quả. Không đảm bảo miễn phí nếu dự án còn được dùng ở ứng dụng/máy khác. Hãy đặt quota trong Google Cloud để kiểm soát chi phí."; Layout.fillWidth: true }
+                    Hint { text: "Key được mã hóa theo tài khoản Windows, không đi cùng gói bài giảng hay bản sao lưu. Sang máy khác cần nhập lại key."; Layout.fillWidth: true }
+                }
+            }
+            Card {
+                Layout.fillWidth: true
+                ColumnLayout { width: parent.width; spacing: 13
+                    RowLayout { Layout.fillWidth: true
+                        Title { text: "Key đã lưu"; Layout.fillWidth: true }
+                        SoftButton { objectName: "recheckGoogleApiKeys"; text: "Cho phép thử lại key"; enabled: !bridge.busy; onClicked: bridge.googleSettings.recheck() }
+                    }
+                    Hint { visible: !bridge.googleSettings.state.configured; text: bridge.googleSettings.state.message || "Chưa có API key. Thêm key ở trên để bắt đầu."; Layout.fillWidth: true }
+                    Repeater {
+                        model: bridge.googleSettings.state.keys
+                        delegate: RowLayout {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            ColumnLayout { Layout.fillWidth: true; spacing: 4
+                                Label { text: modelData.project + " · " + modelData.label; color: page.ink; font.bold: true; Layout.fillWidth: true; elide: Text.ElideRight }
+                                Hint { text: "Đã ghi nhận " + modelData.used.toLocaleString(Qt.locale("vi_VN")) + " ký tự · " + (modelData.blocked ? "Cần kiểm tra key/hạn mức" : "Chưa xác minh hạn mức Google Cloud"); Layout.fillWidth: true }
+                            }
+                            SoftButton { text: "Xóa key"; enabled: !bridge.busy; onClicked: bridge.googleSettings.remove(modelData.id) }
+                        }
+                    }
+                }
+            }
+        }
+
+        ColumnLayout {
+            visible: !bridge.googleTranslation && page.activeTab === 6; Layout.fillWidth: true; spacing: 14
             onVisibleChanged: { if (visible && bridge.browserAI.webMode) bridge.browserAI.refreshAccounts() }
             RowLayout {
                 Layout.fillWidth: true; spacing: 22

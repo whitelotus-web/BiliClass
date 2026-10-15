@@ -20,6 +20,17 @@ STAGE_COPY = {
 }
 
 ERROR_COPY = {
+    'api_layout': 'Một vùng chữ chưa vừa trang chiếu. Cần rút ngắn tên bài hoặc tách ý nguồn; phần đã dịch được giữ lại.',
+    'api_busy': 'Bài đang chạy trong cửa sổ BiliClass khác. Mở cửa sổ đó để theo dõi; không cần gửi lại.',
+    'api_settings': 'Kiểm tra cấu hình Google Dịch trong Cài đặt. Các phần đã hoàn tất được giữ lại.',
+    'api_key': 'API key chưa hợp lệ hoặc dự án chưa bật dịch vụ/thanh toán. Kiểm tra trong Cài đặt → Google Dịch.',
+    'api_budget': 'Các key đã đạt giới hạn cục bộ hoặc chưa dùng được. Kiểm tra hạn mức và thanh toán Google Cloud; các phần đã dịch được giữ lại.',
+    'api_network': 'Kết nối Google Dịch gián đoạn sau các lần thử lại. Phần đã dịch được giữ để tiếp tục.',
+    'api_rate': 'Dịch vụ đang giới hạn tần suất. Phần đã dịch được giữ để tiếp tục sau.',
+    'api_quota': 'Hạn mức Google Cloud của dự án chưa cho phép tiếp tục. Kiểm tra trong Cài đặt → Google Dịch.',
+    'api_result': 'Một phần bản dịch chưa hợp lệ. Phần đã hoàn tất được giữ lại; chưa đánh dấu bài đã hoàn thiện.',
+    'api_request': 'Google Dịch chưa chấp nhận yêu cầu. Kiểm tra cấu hình dự án và API key.',
+    'api_resume': 'Bài trước đang dở. Bấm Tiếp tục để dùng lại các phần đã dịch và hoàn thiện bài.',
     "storage": "Ổ đĩa lưu dữ liệu không đủ dung lượng để tiếp tục. Giải phóng dung lượng rồi tiếp tục; bài và các phần đã lưu vẫn được giữ.",
     "conversation": "Không mở lại được phiên xử lý của bài. Phần đã hoàn tất được giữ nguyên; mở tài khoản để kiểm tra trước khi tiếp tục.",
     "file_transfer": "Chưa nhận được tệp PowerPoint do đường tải bị gián đoạn. Bài gốc và cấu hình đã được giữ; bài chưa hoàn tất.",

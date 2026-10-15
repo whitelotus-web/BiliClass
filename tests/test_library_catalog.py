@@ -17,6 +17,18 @@ def pump_until(app, condition, timeout=8):
     app.processEvents()
 
 
+def test_late_finished_signal_after_shutdown_has_no_worker(tmp_path):
+    app = QCoreApplication.instance() or QCoreApplication([])
+    library = Library(tmp_path)
+    owner = QObject()
+    catalog = LibraryCatalog(library, owner)
+    catalog.shutdown()
+    app.processEvents()
+    catalog._finished()
+    assert catalog.worker is None
+    library.close()
+
+
 def test_read_only_catalog_connection_never_writes_or_changes_data_version(tmp_path):
     library = Library(tmp_path)
     library.create('Bài học', 'Toán', 'THCS', '6', [('Một phần tư', 'One quarter')])

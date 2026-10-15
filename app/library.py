@@ -552,7 +552,7 @@ class Library:
         lesson["questions"] = [{**question, "concept_id": segments[question["locator"]], "approved": False}
                                for question in inspection.get("questions", []) if question["locator"] in segments]
         lesson["external_deck"] = {
-            "provider": "chatgpt_browser", "request_id": config.get("request_id", ""),
+            "provider": "google_translate" if config.get('provider') == 'google_translate' else "chatgpt_browser", "request_id": config.get("request_id", ""),
             "requested_style": config["style"], "original_source_sha256": config.get("source_sha256", ""),
             "sha256": source["sha256"], "total": inspection["total"],
             "text_signature": text_signature(lesson), "reviewed_revision": 0,
