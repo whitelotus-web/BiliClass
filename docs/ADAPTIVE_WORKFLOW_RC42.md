@@ -104,3 +104,17 @@ không chắc vẫn có giới hạn. Voice lưu ở thư viện BiliClass, **ch
 Bài giảng thật, key, cache, báo cáo, audio và EXE nằm ngoài Git. RC42 là bản
 thử độc lập tại máy; không tự coi là bộ cài đã phát hành trên GitHub Releases
 hoặc đã thử trên Windows sạch.
+
+## Bản độc lập đã mở tại máy
+
+- Phiên bản `1.0.0rc42`, mã nguồn `1964f3dd925bbe50bb185a8cefba80e90ec24ea5`.
+- EXE SHA-256 `a21ca0e6258d83d6ee57ef1451f5df2a6850c0249210ac93a4b86971462073ae`.
+- Biên dịch 94 module ứng dụng, dùng runtime/model RC34 không đổi qua
+  junction. Đã thử EXE ở màn tạo bài 1366×850 và Google Dịch 1080×700,
+  đúng phiên bản/icon, không cảnh báo QML và thoát bình thường.
+- Mở độc lập bằng shortcut **BiliClass RC42** ở desktop. Đóng RC41 đúng
+  cách trước khi thay cửa sổ; không ép dừng Office hay app khác.
+- Sau khi mở, cửa sổ đáp ứng đủ 15 lần đo. 15 bản ghi bài và 638 WAV
+  không đổi giữa hai snapshot trước/sau lần khởi động này; không tự tiếp
+  tục yêu cầu chuyển đổi cũ. Số liệu này không bao gồm các bản nháp được
+  tạo có chủ đích trong các ca chuyển thử trước đó.
