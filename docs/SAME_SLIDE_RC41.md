@@ -49,7 +49,7 @@ căn chữ sau đó không gửi lại tài liệu hay dịch lại toàn bài.
 ## Giới hạn cần giữ rõ
 
 Chữ trong ảnh, nhãn SmartArt/biểu đồ và bitmap fallback chưa được OCR/dịch.
-Khung ngắn không thể chia có thể cần cỡ chữ tới 14pt; báo cáo vẫn cảnh báo
+Khung ngắn không thể chia và nhãn có thể nhỏ hơn 18pt; báo cáo vẫn cảnh báo
 chữ nhỏ. Từ chuyên môn do Google dịch cần giáo viên đối chiếu theo ngữ cảnh.
 Giữ/sao chép timing không chứng nhận mọi trạng thái click, trigger hay hình
 khoa học. Không tự duyệt bài, không xóa CHECK để tạo cảm giác đã hoàn thiện.
@@ -57,3 +57,15 @@ khoa học. Không tự duyệt bài, không xóa CHECK để tạo cảm giác 
 Key, bài giảng thật, bản dịch cache, ảnh render, thư viện và EXE không đưa vào
 Git. RC41 là mốc mã nguồn/bản thử tại máy; bộ cài trên GitHub Releases được
 quản lý riêng, không tự nhận đã phát hành qua nút cập nhật.
+
+## Bản thử độc lập đã mở
+
+- Phiên bản `1.0.0rc41`, nguồn `6c9206a198979b5c153019941faaa3b82ec1597f`.
+- SHA-256 EXE: `745041318703e927f6a23ef3c95e28112b89a3c62f3e3e26f581e38ce57afac5`.
+- Biên dịch 91 module ứng dụng; dùng lại runtime/model RC34 không đổi qua
+  junction tại máy, không phải bộ cài đã nghiệm thu trên Windows sạch.
+- EXE chạy màn tạo bài 1366×850 và Google Dịch 1080×700, đúng phiên bản/icon,
+  thoát đúng và không cảnh báo QML. Sau đó mở bài thật từ thư viện bằng EXE.
+- Cửa sổ phản hồi đủ 15 lần đo sau khi khởi động. 11 bản ghi bài và 638 WAV
+  giữ nguyên giữa hai snapshot trước/sau mở app; không tự tiếp tục tác vụ cũ.
+- Shortcut desktop `BiliClass RC41`; bản PowerPoint kiểm tra nằm ngoài Git.
