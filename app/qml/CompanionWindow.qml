@@ -87,10 +87,9 @@ Window {
             anchors.fill: parent
             character: bridge.settings.mascot
             expression: bridge.mascotState
-            accessories: false
+            subject: bridge.lesson.subject || ""
+            accessories: bridge.mascotSettings.accessories
             reducedMotion: bridge.mascotSettings.reduced_motion
-            scale: mascotMouse.containsMouse && !reducedMotion ? 1.05 : 1
-            Behavior on scale { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
         }
         MouseArea {
             id: mascotMouse

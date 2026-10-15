@@ -17,7 +17,8 @@ from .google_translation import TranslationProblem, Translator, chunks
 def prepare(directory, config, source=None, text=''):
     from .document_limits import check_document_size
 
-    config = {**config, 'provider': 'google_translate', 'request_id': uuid4().hex}
+    config = {**config, 'provider': 'google_translate', 'request_id': uuid4().hex,
+              'adaptive_bilingual':config.get('conversion_format')=='parallel_columns'}
     folder = Path(directory) / 'google_jobs' / config['request_id']
     folder.mkdir(parents=True)
     if source:
@@ -128,7 +129,7 @@ def _template(path, config, pairs, cancel, source=None):
             y = 1.95
             for vi_line, en_line in zip(left, right, strict=True):
                 height = max(max(1, len(textwrap.wrap(vi_line, 29))) * 22,
-                             max(1, len(textwrap.wrap(en_line, 32))) * 20) * 1.25 / 72
+                             max(1, len(textwrap.wrap(en_line, 32))) * 20) * 1.4 / 72
                 if y + height > 6.75:
                     raise TranslationProblem('api_layout', 'Các cặp nội dung quá dài để căn hàng; tách ngắn ý nguồn.')
                 box(slide, vi_line, .55, y, 5.9, height, 22)
@@ -143,14 +144,14 @@ def _template(path, config, pairs, cancel, source=None):
             for vi_line, en_line in zip(left, right, strict=True):
                 for text, size, italic in [(vi_line, 22, False), (en_line, 20, True)]:
                     columns = max(1, int(12.2 * 72 / (size * .65)))
-                    height = max(1, len(textwrap.wrap(text, columns))) * size * 1.25 / 72
+                    height = max(1, len(textwrap.wrap(text, columns))) * size * 1.4 / 72
                     if y + height > 6.75:
                         raise TranslationProblem('api_layout', 'Các cặp nội dung quá dài; tách ngắn ý nguồn.')
                     box(slide, text, .55, y, 12.2, height, size, italic=italic)
                     y += height + .08
         else:
             box(slide, en, .55, 1.5, 12.2, 5.2, 23)
-        box(slide, locator, .55, 7.02, 12.2, .25, 10)
+        box(slide, f'Page {len(deck.slides)}' if mode=='english_only' else locator, .55, 7.02, 12.2, .25, 10).name='BCL_DECORATION locator'
         slide.notes_slide.notes_text_frame.text = 'BILICLASS_NOTES:\nVI: ' + vi + '\nEN: ' + en
     # Ordinary source pictures are retained on separate visual pages. No
     # picture is allowed to sit on top of a translated text region.
@@ -167,10 +168,13 @@ def _template(path, config, pairs, cancel, source=None):
                 visual.shapes.add_picture(io.BytesIO(picture.image.blob),
                     int(Inches(.55) + picture.left * scale), int(Inches(.7) + picture.top * scale),
                     width=int(picture.width * scale), height=int(picture.height * scale))
-            box(visual, f'Slide {index} · Hình gốc / Original visuals', .55, 7.02, 12.2, .25, 10)
+            box(visual, f'Slide {index} · Original visuals' if mode=='english_only' else f'Slide {index} · Hình gốc / Original visuals', .55, 7.02, 12.2, .25, 10).name='BCL_DECORATION locator'
             visual.notes_slide.notes_text_frame.text = 'CHECK: Hình từ nguồn; chữ trong ảnh chưa được dịch/xác minh. Hiệu ứng và đối tượng nhúng cần đối chiếu nguồn.'
     if not len(deck.slides):
         raise ValueError('Không tìm thấy nội dung để tạo PowerPoint.')
+    from .local_template_style import decorate
+
+    decorate(deck, config)
     pending = path.with_suffix('.pending.pptx')
     try:
         deck.save(pending)
@@ -223,7 +227,6 @@ def convert(directory, job, cancel, progress, *, budget=500_000, translator=None
 
 
 def _convert(directory, job, cancel, progress, *, budget=500_000, translator=None):
-    from .chatgpt_handoff import inspect_returned_deck
     from .lesson_import import save_conversion
     from .library import Library
     from .native_bilingual import assemble, extract
@@ -247,7 +250,8 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
             return lesson, external_preview(lesson, directory)
     source = folder / config['source_file']
     progress.stage('upload', 'Đang đọc nội dung tài liệu.')
-    manifest = extract(source, config['conversion_format'], preserve_design=True, same_slide=True) if source.suffix == '.pptx' and config['style'] == 'source' else None
+    manifest = extract(source, config['conversion_format'], preserve_design=True,
+                       same_slide=config['conversion_format']!='english_only') if source.suffix == '.pptx' and config['style'] == 'source' else None
     use_native = manifest is not None
     warnings = []
     target = folder / 'result.pptx'
@@ -270,6 +274,8 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
             warnings.append('Một số khung nhiều đoạn được chia thành trang tiếp nối; mỗi trang vẫn có cả Việt và Anh cùng hình gốc.')
         if manifest.get('visual_slides'):
             warnings.append('Hình, hiệu ứng, biểu đồ và đối tượng nhúng được giữ từ nguồn. Chữ nằm trong ảnh/biểu đồ chưa được dịch tự động; cần đối chiếu khi trình chiếu.')
+        if manifest.get('font_fallbacks'):
+            warnings.append('Font nhúng chưa có trên máy được thay bằng Arial cho cả Việt–Anh để tránh lỗi ký tự khi thêm bản dịch.')
     if not use_native:
         from .importers import extraction_warnings, parse_document
         from .input_analysis import language_of
@@ -311,12 +317,22 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
                 packed.append((locator, vi, en))
         _template(target, config, packed, cancel, source)
         config['style'] = 'template'
+        warnings.append('Mẫu mới dựng tại máy; bố cục, ghi chú và chuyển trang mờ nhẹ do BiliClass tạo. Hiệu ứng, biểu đồ và đối tượng nhúng gốc không được tái dựng trong mẫu mới.')
     if cancel.is_set():
         raise InterruptedError('Đã dừng; bản dịch đã được lưu.')
-    progress.stage('quality', 'Đang kiểm tra nội dung và bố cục.')
-    inspection = inspect_returned_deck(target, source if use_native else None,
-                                      config['conversion_format'], config['style'],
-                                      layout_plan=manifest.get('layout_plan') if use_native else None)
+    from .slide_repair import repair_and_inspect
+
+    # Render once before publishing. Local repairs reuse unchanged slide PNGs;
+    # no browser round-trip, retranslation, narration or unbounded retries.
+    progress.stage('quality','Đang hoàn thiện bản trình chiếu.')
+    checked=repair_and_inspect(target,directory,source=source if use_native else None,
+                              mode=config['conversion_format'],style=config['style'],cancel=cancel,
+                              progress=progress.scope('quality'),
+                              layout_plan=manifest.get('layout_plan') if use_native else None)
+    target=Path(checked['path'])
+    inspection=checked['inspection']
+    (folder/'automatic-layout-check.json').write_text(json.dumps({
+        'changes':checked['changes'],'counts':inspection['slide_quality']['counts']}),encoding='utf-8')
     inspection['review_notes'] = list(dict.fromkeys(inspection['review_notes'] + warnings))
     progress.stage('save', 'Đang lưu bài giảng song ngữ.')
     with closing(Library(directory)) as library:

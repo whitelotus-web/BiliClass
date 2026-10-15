@@ -69,7 +69,7 @@ with tempfile.TemporaryDirectory(prefix='biliclass-google-ui-', ignore_cleanup_e
     bridge._browser_ai.signIn = lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError('Browser must stay disabled'))
     assert bridge.googleTranslation and not bridge._browser_ai._health_timer.isActive()
     assert not bridge.chatgptRequest
-    assert len(bridge.conversionFormats) == 3
+    assert [row['id'] for row in bridge.conversionFormats] == ['parallel_columns','english_only']
     warnings = []
     engine = QQmlApplicationEngine()
     engine.warnings.connect(lambda rows: warnings.extend(str(row) for row in rows))
@@ -158,6 +158,7 @@ with tempfile.TemporaryDirectory(prefix='biliclass-google-ui-', ignore_cleanup_e
     (reports / 'qt-flow.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
     print(json.dumps(result, ensure_ascii=False))
     window.close()
+    bridge.slidePreview.shutdown()
     bridge._catalog.shutdown()
     bridge.classroom.disconnect()
     engine.deleteLater()

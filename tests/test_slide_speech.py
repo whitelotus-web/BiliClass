@@ -311,3 +311,18 @@ def test_tagged_english_keeps_isolated_source_identifier_without_accepting_vietn
     assert not english_text('Con lắc Đ dao động.',tagged=True)
     assert not english_text('The answer by Đức is shown below.',tagged=True)
     assert english_text('Predict what happens when pendulum Đ oscillates.')
+
+
+def test_numeric_fragments_in_vietnamese_are_not_english_narration(tmp_path):
+    deck=Presentation()
+    slide=deck.slides.add_slide(deck.slide_layouts[6])
+    shape=textbox(slide, '0,1 = 10A2 + 0,02A => A = 0,099m (loại nghiệm âm).')
+    shape.text_frame.paragraphs[0].clear()
+    for text in ['0,1 = 10A2 + 0,02A => A = 0,099m (','loại nghiệm âm',').']:
+        run=shape.text_frame.paragraphs[0].add_run()
+        run.text=text
+        run._r.get_or_add_rPr().set('lang','en-US')
+    textbox(slide,'The amplitude of the oscillation decreases gradually.',x=5,y=2)
+    inspected=inspect_slide(slide,1,'parallel_columns')
+    texts=[s['english_text'] for s in inspected['englishSpeechSegments'] if s['status']=='ready']
+    assert texts==['The amplitude of the oscillation decreases gradually.']

@@ -261,7 +261,7 @@ def main():
         control("settingsContentScroll").property("contentItem").setProperty("contentY", 0)
         pump(200)
         shot("mascot-compact")
-        click("mascotSlideLumi")
+        click("mascotLumi")
         pump(150)
         preview_top = control("mascotMiniSlide").mapToScene(QPointF(0, 0)).y()
         assert 250 <= preview_top < window.height() - 50, preview_top

@@ -3,7 +3,7 @@
 FORMATS = [
     {"id": "parallel_columns", "label": "Hai cột song ngữ", "detail": "Việt bên trái – Anh bên phải, đối chiếu đầy đủ từng ý.",
      "level": 3, "layout": "split_view"},
-    {"id": "sentence_pairs", "label": "Song ngữ từng câu", "detail": "Câu Việt ở trên – bản dịch Anh ngay dưới, theo từng câu hoặc bước giải.",
+    {"id": "sentence_pairs", "label": "Song ngữ từng câu", "detail": "Ý Việt trên – Anh ngay dưới. Hợp bài ít chữ; bài nhiều chữ nên chọn hai cột.",
      "level": 3, "layout": "line_pair"},
     {"id": "integrated_keywords", "label": "Tích hợp từ khóa", "detail": "Giữ câu tiếng Việt, tích hợp có chọn lọc thuật ngữ tiếng Anh.",
      "level": 0, "layout": "keyword_overlay"},

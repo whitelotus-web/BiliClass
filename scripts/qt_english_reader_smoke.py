@@ -78,7 +78,7 @@ def main():
         bridge.english_reader.player.play = play
         try:
             bridge.openLesson(lesson["id"])
-            wait(lambda: not bridge.busy)
+            wait(lambda: not bridge.busy and not bridge.previewBusy)
             voice = bridge.voiceSettings["en"]
             assert voice.startswith("vieneu:") and voice == bridge.voiceSettings["vi"], "Shared multilingual voice missing"
             for text in paragraphs:
@@ -132,6 +132,10 @@ def main():
             if bridge.worker:
                 bridge.worker.wait()
             window.close()
+            bridge.slidePreview.shutdown()
+            bridge._catalog.shutdown()
+            bridge.narration_preparation.shutdown()
+            bridge.classroom.disconnect()
             library.close()
             for handler in bridge.logger.handlers:
                 handler.close()

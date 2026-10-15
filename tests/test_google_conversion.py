@@ -82,6 +82,38 @@ def test_changed_source_cannot_resume(tmp_path):
         load(tmp_path, job['folder'])
 
 
+def test_only_final_checked_artifact_is_published_without_retranslation(tmp_path, monkeypatch):
+    import hashlib
+    from pathlib import Path
+    from app.chatgpt_handoff import inspect_returned_deck
+
+    KeyStore(tmp_path).add('AIza' + 'a' * 35)
+    checks, requests = [], []
+
+    def checked(path, directory, **kwargs):
+        checks.append(Path(path))
+        candidate = Path(path).with_name('checked.pptx')
+        deck = Presentation(path)
+        deck.core_properties.comments = 'Local QA final artifact'
+        deck.save(candidate)
+        inspection = inspect_returned_deck(candidate)
+        inspection['review_notes'].append('Review retained after automatic QA')
+        return {'path': str(candidate), 'inspection': inspection, 'changes': [{'operation': 'fixture-fit'}]}
+
+    def translated(*args):
+        requests.append(1)
+        return transport(*args)
+
+    monkeypatch.setattr('app.slide_repair.repair_and_inspect', checked)
+    job = prepare(tmp_path, config(), text='Năng lượng được bảo toàn.')
+    lesson, preview = convert(tmp_path, job, Event(), ConversionProgress(job['folder'], lambda _: None),
+                              translator=Translator(tmp_path, transport=translated))
+    assert len(checks) == len(requests) == 1
+    assert lesson['source']['sha256'] == hashlib.sha256(checks[0].with_name('checked.pptx').read_bytes()).hexdigest()
+    assert Presentation(preview['path']).core_properties.comments == 'Local QA final artifact'
+    assert 'Review retained after automatic QA' in lesson['external_deck']['review_notes']
+
+
 def test_google_job_cannot_load_outside_current_library(tmp_path):
     with pytest.raises(ValueError):
         load(tmp_path, tmp_path.parent)

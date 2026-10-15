@@ -23,6 +23,25 @@ def failure_keys(report):
             for row in report["slides"] for issue in row["issues"] if issue["severity"] == "FAIL"}
 
 
+def retain_improved_pages(current, candidate, before, after, directory):
+    """An unsuccessful page must not discard independently verified page fixes."""
+    from .source_deck import source_slide_parts
+
+    wanted = failure_keys(before)
+    remaining = failure_keys(after)
+    selected = {number for number in range(1,len(before['slides'])+1)
+                if {key for key in remaining if key[0]==number} < {key for key in wanted if key[0]==number}}
+    if not selected:
+        return None, set()
+    parts, adjusted = source_slide_parts(current), source_slide_parts(candidate)
+    with zipfile.ZipFile(candidate) as archive:
+        replacements = {parts[n-1]:archive.read(adjusted[n-1]) for n in selected}
+    target = Path(directory)/'temp/slide-repair'/uuid4().hex/'selected-pages.pptx'
+    target.parent.mkdir(parents=True)
+    _write_copy(current,target,replacements)
+    return target,selected
+
+
 def actionable_rows(report):
     return [row for row in report["slides"] if any(
         i["severity"] == "FAIL" or i["code"] in {"english_body_missing", "translation_coverage"}
@@ -116,14 +135,16 @@ def normalize_titles(path, directory, mode):
     from pptx import Presentation
 
     from .slide_speech import VI_MARKS, english_text
+    from .source_deck import source_slide_parts
 
     if mode not in {"parallel_columns", "sentence_pairs", "integrated_keywords"}:
         return {"path": str(path), "changes": []}
     deck = Presentation(path)
+    parts = source_slide_parts(path)
     replacements, changes = {}, []
     with zipfile.ZipFile(path) as archive:
         for number, slide in enumerate(deck.slides, 1):
-            part = str(slide.part.partname).lstrip("/")
+            part = parts[number - 1]
             root = etree.fromstring(archive.read(part))
             for shape in root.xpath(".//p:sp", namespaces=NS):
                 body = shape.find("p:txBody", NS)
@@ -257,10 +278,10 @@ def repair_layout(path, directory, report, cancel=None, progress=None):
     folder = directory / "temp" / "slide-repair" / uuid4().hex
     folder.mkdir(parents=True)
     # Slide part numbers are not necessarily presentation order after edits.
-    from pptx import Presentation
+    from .source_deck import source_slide_parts
 
-    presentation = Presentation(path)
-    parts = {number: str(presentation.slides[number-1].part.partname).lstrip("/") for number in targets}
+    ordered_parts = source_slide_parts(path)
+    parts = {number: ordered_parts[number - 1] for number in targets}
     replacements, roots = {}, {}
     with zipfile.ZipFile(path) as archive:
         for number, part in parts.items():
@@ -295,9 +316,10 @@ def repair_layout(path, directory, report, cancel=None, progress=None):
         (folder / "unavailable.txt").write_text(type(exc).__name__ + ": " + str(exc), encoding="utf-8")
         return {"path": str(path), "changes": [], "unavailable": True}
     changes = []
+    fitted_parts = source_slide_parts(fitted)
     with zipfile.ZipFile(fitted) as archive:
         for number, part in parts.items():
-            office_root = etree.fromstring(archive.read(part))
+            office_root = etree.fromstring(archive.read(fitted_parts[number - 1]))
             for shape_id in targets[number]:
                 original, adjusted = _shape(roots[number], shape_id), _shape(office_root, shape_id)
                 if original is None or adjusted is None:
@@ -351,9 +373,19 @@ def repair_and_inspect(path, directory, *, source=None, mode="", style="source",
         after = inspect_returned_deck(candidate, source, mode, style, layout_plan=layout_plan)
         render_quality(candidate, directory, after["slide_quality"], cancel, progress)
         remaining = failure_keys(after["slide_quality"])
-        if not remaining < before or any(not r["rendered"] for r in after["slide_quality"]["slides"]):
-            break  # A different/regressed failure is not an improvement.
-        history.extend(result["changes"])
+        changes=result['changes']
+        if not remaining < before:
+            selected,pages=retain_improved_pages(current,candidate,inspection['slide_quality'],after['slide_quality'],directory)
+            if selected is None:
+                break
+            candidate=selected
+            after=inspect_returned_deck(candidate, source, mode, style, layout_plan=layout_plan)
+            render_quality(candidate,directory,after['slide_quality'],cancel,progress)
+            remaining=failure_keys(after['slide_quality'])
+            changes=[row for row in changes if row['slide'] in pages]
+        if not remaining < before or any(not r['rendered'] for r in after['slide_quality']['slides']):
+            break  # Never publish a regression or a page that has not been rendered.
+        history.extend(changes)
         current, inspection = candidate, after
     inspection["slide_quality"]["local_repairs"] = history
     return {"path": str(current), "inspection": inspection, "changes": history}

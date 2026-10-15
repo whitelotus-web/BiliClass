@@ -238,7 +238,7 @@ def _candidates(item, mode, metadata):
         elif mode == "integrated_keywords" or any(c in VI_MARKS for c in line.casefold()):
             output.extend(part for part in re.findall(r"\(([^()]+)\)", line) if english_text(part))
     # Language-tagged runs preserve embedded terms, but never trust a Vietnamese run tagged en.
-    if not output:
+    if not output and (mode == 'integrated_keywords' or not any(c in VI_MARKS for c in text.casefold())):
         tagged = []
         for run in item["runs"]:
             props = run._r.find("{http://schemas.openxmlformats.org/drawingml/2006/main}rPr")
@@ -289,10 +289,16 @@ def inspect_slide(slide, number, mode="", notes_en="", bounds=None):
                  or not (item['x']+item['w'] <= 0 or item['y']+item['h'] <= 0
                          or item['x'] >= width or item['y'] >= height)]
     animations = animation_rules(slide)
+    shape_lengths={}
+    for item in items:
+        if item['source_type'] in {'shape','table'}:
+            shape_lengths[item['shape_id']]=shape_lengths.get(item['shape_id'],0)+len(normalized(item['text']))
     segments, issues, seen = [], [], set()
     if malformed:
         issues.append("speech_metadata_invalid")
     for item in items:
+        if item['name'].startswith('BCL_DECORATION '):
+            continue  # Our page counter/branding is visible layout, not lecture speech.
         if item["source_type"] in {"image", "object", "chart", "formula"}:
             if item["source_type"] in {"image", "chart", "formula"} or item["shape"]._element.xpath('.//*[local-name()="m"]'):
                 issues.append("image_or_formula_needs_review")
@@ -318,7 +324,9 @@ def inspect_slide(slide, number, mode="", notes_en="", bounds=None):
             if re.match(r"^(?:Question|Exercise)\s*\d*\s*[:.)]", text, re.I):
                 kind = "question"
             if (item["shape"].is_placeholder and item["shape"].placeholder_format.type in (1, 3)
-                    and not item['name'].startswith('BCL_BODY ')):
+                    and not item['name'].startswith('BCL_BODY ')
+                    and shape_lengths.get(item['shape_id'],0)<=180
+                    and (not bounds or item['h']<bounds[1]*.3)):
                 kind = "title"
             if item["name"].startswith("BCL_EN_title"):
                 kind = "title"

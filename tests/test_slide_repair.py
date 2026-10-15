@@ -96,6 +96,46 @@ def test_layout_rejects_stale_report_and_never_touches_original(tmp_path):
     assert source.read_bytes() == before
 
 
+def test_repair_handles_source_and_office_using_different_slide_part_names(tmp_path, monkeypatch):
+    import hashlib
+    from lxml import etree
+    from app.slide_repair import NS
+
+    source = tmp_path / 'original.pptx'
+    shape_id = presentation(source)
+
+    def rename_slide(before, after, old, new, fit=False):
+        with zipfile.ZipFile(before) as a, zipfile.ZipFile(after, 'w') as b:
+            for item in a.infolist():
+                data = a.read(item)
+                name = item.filename.replace(old, new)
+                if name.endswith(('.xml', '.rels')):
+                    data = data.replace(old.encode(), new.encode())
+                if fit and name == 'ppt/slides/slide1.xml':
+                    root = etree.fromstring(data)
+                    for props in root.xpath('.//a:rPr', namespaces=NS):
+                        props.set('sz', '1400')
+                    data = etree.tostring(root)
+                b.writestr(name, data)
+
+    reordered = tmp_path / 'reordered.pptx'
+    rename_slide(source, reordered, 'slide1.xml', 'slide37.xml')
+    original = reordered.read_bytes()
+    report = {'sha256': hashlib.sha256(original).hexdigest(), 'slides': [
+        {'slide': 1, 'issues': [{'code': 'text_overflow', 'shape_id': shape_id}]}]}
+    monkeypatch.setattr('app.slide_repair._office_fit',
+                        lambda before, after, *_: rename_slide(before, after, 'slide37.xml', 'slide1.xml', True))
+    repaired = repair_layout(reordered, tmp_path, report)
+    assert repaired['changes'] and reordered.read_bytes() == original
+    with zipfile.ZipFile(repaired['path']) as archive:
+        assert 'ppt/slides/slide37.xml' in archive.namelist()
+        root = etree.fromstring(archive.read('ppt/slides/slide37.xml'))
+        assert set(root.xpath('.//a:rPr/@sz', namespaces=NS)) == {'1400'}
+    # Styling also follows the presentation relationship, not assumed filenames.
+    styled = normalize_titles(reordered, tmp_path, 'parallel_columns')
+    assert styled['changes']
+
+
 def test_regression_cannot_hide_an_incorrect_quiz_answer():
     def q(code): return {"slides": [{"slide": 1, "issues": [{"severity": "FAIL", "code": code}]}]}
     assert not improved(q("text_overflow"), q("quiz_mismatch"))
@@ -106,6 +146,30 @@ def test_reducing_overflows_cannot_hide_new_missing_body_translation():
         {"severity": "FAIL", "code": "text_overflow", "shape_id": n} for n in (1, 2, 3)]}]}
     after = {"slides": [{"slide": 1, "issues": [{"severity": "FAIL", "code": "english_body_missing"}]}]}
     assert not improved(before, after)
+
+
+def test_independent_page_fixes_are_kept_without_accepting_regression(tmp_path):
+    from app.slide_repair import retain_improved_pages
+    from app.source_deck import source_slide_parts
+
+    original = tmp_path/'original.pptx'
+    deck=Presentation()
+    for text in ['Original A', 'Original B']:
+        deck.slides.add_slide(deck.slide_layouts[6]).shapes.add_textbox(Inches(1), Inches(1), Inches(6), Inches(1)).text=text
+    deck.save(original)
+    for slide in deck.slides:
+        slide.shapes[0].text='Candidate'
+    candidate=tmp_path/'candidate.pptx'
+    deck.save(candidate)
+    def report(first, second):
+        return {'slides':[{'slide':n,'issues':[{'code':code,'severity':'FAIL','shape_id':1} for code in codes]}
+                          for n,codes in enumerate([first,second],1)]}
+    output,pages=retain_improved_pages(original,candidate,report(['text_overflow'],['text_overflow']),
+                                      report([],['english_body_missing']),tmp_path)
+    assert pages=={1}
+    assert [s.shapes[0].text for s in Presentation(output).slides]==['Candidate','Original B']
+    with zipfile.ZipFile(original) as a,zipfile.ZipFile(output) as b:
+        assert a.read(source_slide_parts(original)[1])==b.read(source_slide_parts(output)[1])
 
 
 def test_saved_correction_keeps_id_history_and_requires_new_teacher_confirmation(tmp_path):

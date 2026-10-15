@@ -106,6 +106,7 @@ def inspect_quality(deck, speech, mode="", source_total=None, *, source_deck=Non
             if not visible_pairs(tree,layout['pairs']):
                 issues.append({'code':'translation_pair_missing','severity':'FAIL'})
             inline_ids={pair['vi_shape'] for pair in layout['pairs'] if pair['inline']}
+            inline_ids.update(pair['en_shape'] for pair in layout['pairs'] if pair['inline'])
         if source_deck is not None and (layout_plan or len(source_deck.slides) == len(deck.slides)):
             original_slide = source_deck.slides[(layout['source_slide'] if layout else index)-1]
             original = {(item['shape_id'], item['paragraph'], tuple(item['cell'] or ())): item

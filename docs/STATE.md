@@ -1,5 +1,12 @@
 # Trạng thái BiliClass
 
+Ngày 16/10/2026 — RC42 gộp giao diện Google còn Song ngữ Việt–Anh tự căn và
+Tiếng Anh 100%, thêm ba theme dựng tại máy, tách worker/cache xem trước,
+QA/sửa cục bộ trước khi lưu và giữ bước voice riêng. Sửa tọa độ nhóm,
+font nhúng và tên part ở trang tiếp nối; làm gọn mascot/sidebar. Bài 6 thật
+vẫn còn 17 trang tràn chữ, chưa chứng nhận tự hoàn thiện mọi bài.
+[Bằng chứng, luồng voice và giới hạn](ADAPTIVE_WORKFLOW_RC42.md).
+
 Ngày 16/10/2026 — RC41 đưa Việt–Anh lên cùng slide; tiêu đề xếp hai dòng,
 vùng chữ được căn theo hình gốc. Khung nhiều đoạn quá chật dùng trang tiếp
 nối vẫn song ngữ, thay thế phương án tách ngôn ngữ của RC40. Kiểm tra từng

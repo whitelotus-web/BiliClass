@@ -266,9 +266,12 @@ ApplicationWindow {
                             Label { anchors.centerIn: parent; text: (bridge.settings.teacher || "G").charAt(0).toUpperCase(); color: "#ab611f"; font.weight: Font.Bold }
                         }
                     }
-                    ColumnLayout { spacing: 3; Label { text: bridge.settings.teacher; color: root.ink; font.pixelSize: 12; elide: Text.ElideRight; Layout.maximumWidth: 110 } Copy { text: bridge.settings.school || "Giáo viên · Local"; font.pixelSize: 10; elide: Text.ElideRight; Layout.maximumWidth: 130 } }
+                    ColumnLayout { Layout.fillWidth: true; spacing: 3
+                        Label { objectName: "sidebarTeacherName"; text: bridge.settings.teacher; color: root.ink; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText }
+                        Copy { text: bridge.settings.school || "Giáo viên · Local"; font.pixelSize: 10; Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText }
+                    }
                 }
-                Action { text: "Hướng dẫn · F1"; implicitHeight: 32; subtle: true; onClicked: helpDialog.open() }
+                Action { objectName: "sidebarHelpButton"; text: "Hướng dẫn · F1"; implicitHeight: 32; subtle: true; Layout.alignment: Qt.AlignHCenter; onClicked: helpDialog.open() }
                 Copy { objectName: "sidebarAppVersion"; text: (bridge.developmentMode ? "Bản nguồn · " : "Phiên bản · ") + bridge.appVersion; font.pixelSize: 9; Layout.topMargin: 6; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
                 Label {
                     objectName: "applicationCopyright"
@@ -536,7 +539,7 @@ ApplicationWindow {
                                         choiceName: "creationKeepOriginal"
                                         choiceGroup: designChoices
                                         label: "Giữ thiết kế PowerPoint gốc"
-                                        detail: bridge.googleTranslation ? "Giữ nền, hình và công thức gốc. Việt–Anh cùng slide; tiêu đề Việt trên, Anh dưới. Khung nhiều đoạn quá chật được chia thành trang tiếp nối vẫn song ngữ. Chữ trong ảnh/biểu đồ và hiệu ứng cần đối chiếu." : root.creationPowerPoint ? "Dùng đúng PowerPoint đầu vào: giữ thiết kế, hình, thứ tự slide và hiệu ứng; chuyển ngôn ngữ theo kiểu đã chọn." : root.creationCanKeepSource ? "Chọn tệp PPTX để giữ thiết kế, hình, thứ tự slide và hiệu ứng của PowerPoint đầu vào." : "Word/PDF/ảnh hoặc nội dung dán không có thiết kế PowerPoint gốc; dùng mẫu mới."
+                                        detail: bridge.googleTranslation ? "Giữ nền, hình và công thức. Song ngữ tự căn từng vùng; tiếng Anh 100% thay chữ tại vị trí gốc. Vùng quá chật có trang tiếp nối song ngữ. Chữ trong ảnh và hiệu ứng cần đối chiếu." : root.creationPowerPoint ? "Dùng đúng PowerPoint đầu vào: giữ thiết kế, hình, thứ tự slide và hiệu ứng; chuyển ngôn ngữ theo kiểu đã chọn." : root.creationCanKeepSource ? "Chọn tệp PPTX để giữ thiết kế, hình, thứ tự slide và hiệu ứng của PowerPoint đầu vào." : "Word/PDF/ảnh hoặc nội dung dán không có thiết kế PowerPoint gốc; dùng mẫu mới."
                                         selected: creationWorkflow.currentIndex === 0
                                         enabled: root.creationCanKeepSource; Layout.fillWidth: true; Layout.preferredWidth: 1
                                         onChosen: { root.preferredCreationDesign = 0; creationWorkflow.currentIndex = 0 }
@@ -545,17 +548,17 @@ ApplicationWindow {
                                         choiceName: "creationUseTemplate"
                                         choiceGroup: designChoices
                                         label: "Tạo theo mẫu mới"
-                                        detail: "Dùng nội dung và hình trong tài liệu, trình bày theo mẫu BiliClass."
+                                        detail: "Dàn trang tại máy theo mẫu BiliClass; ba phong cách có sẵn, chuyển trang mờ nhẹ. Hình gốc có trang riêng; không giữ hiệu ứng/đối tượng nhúng cũ."
                                         selected: creationWorkflow.currentIndex === 1
                                         Layout.fillWidth: true; Layout.preferredWidth: 1
                                         onChosen: { root.preferredCreationDesign = 1; creationWorkflow.currentIndex = 1 }
                                     }
                                 }
                                 RowLayout {
-                                    visible: !bridge.googleTranslation && !root.creationKeepSource; Layout.fillWidth: true
+                                    visible: !root.creationKeepSource; Layout.fillWidth: true
                                     Caption { text: "Mẫu BiliClass" }
                                     Choice { id: creationPreset; objectName: "creationPreset"; model: ["Chuẩn lớp học", "Trực quan", "Luyện tập & tương tác"]; Layout.fillWidth: true }
-                                    Action { objectName: "creationTemplatesButton"; text: "Xem slide mẫu"; iconName: "view"; onClicked: { templateGallery.forCreation = true; templateGallery.preset = ["standard", "visual", "practice"][creationPreset.currentIndex]; templateGallery.level = root.selectedConversionFormat.level; templateGallery.layout = root.selectedConversionFormat.layout; templateGallery.open() } }
+                                    Action { objectName: "creationTemplatesButton"; text: bridge.googleTranslation ? "Xem PowerPoint mẫu" : "Xem slide mẫu"; iconName: "view"; enabled: !bridge.busy; onClicked: { if (bridge.googleTranslation) bridge.openLocalTemplateSample(["standard", "visual", "practice"][creationPreset.currentIndex], root.selectedConversionFormat.id); else { templateGallery.forCreation = true; templateGallery.preset = ["standard", "visual", "practice"][creationPreset.currentIndex]; templateGallery.level = root.selectedConversionFormat.level; templateGallery.layout = root.selectedConversionFormat.layout; templateGallery.open() } } }
                                 }
                                 RowLayout {
                                     visible: !bridge.googleTranslation
@@ -708,6 +711,7 @@ ApplicationWindow {
                                 MenuItem { objectName: "editLessonDetailsButton"; text: "Sửa nội dung trợ giảng"; enabled: !bridge.busy && !bridge.powerpointState.active; onTriggered: bridge.editLesson(bridge.lesson.id) }
                                 MenuItem { text: "Sửa thông tin bài"; enabled: !bridge.busy && !bridge.powerpointState.active; onTriggered: { metadataDialog.lessonData = bridge.lesson; metadataDialog.open() } }
                                 MenuItem { objectName: "openConvertedDeckButton"; text: "Mở trong PowerPoint"; enabled: !!bridge.quickResult.path; onTriggered: bridge.openConvertedDeck() }
+                                MenuItem { text: root.resultDetails ? "Ẩn thông tin kiểm tra" : "Thông tin kiểm tra"; onTriggered: root.resultDetails = !root.resultDetails }
                                 MenuItem { objectName: "shareLessonPackButton"; text: "Gửi gói bài cho giáo viên khác…"; onTriggered: packSave.open() }
                                 MenuItem { text: "Chuyển đổi từ tài liệu khác…"; enabled: !bridge.powerpointState.active; onTriggered: root.go("new") }
                             }
@@ -721,21 +725,37 @@ ApplicationWindow {
                         }
                         RowLayout {
                             Layout.fillWidth: true; spacing: 12
-                            Copy { Layout.fillWidth: true; text: bridge.busy || bridge.error ? bridge.message : ((bridge.lesson.slide_quality || {}).counts || {}).FAIL ? "Bản trình chiếu còn lỗi cần sửa · Xem báo cáo trước khi dùng để dạy." : bridge.quickResult.path ? (bridge.lessonNarration.ready ? "Bài giảng và giọng đọc đã lưu. Xem lại nội dung trước khi dùng để dạy." : "Bài giảng song ngữ đã lưu. Bạn có thể tải PowerPoint ngay hoặc tạo thêm giọng đọc.") : bridge.quickResult.missing && bridge.quickResult.missing.length ? "Còn " + bridge.quickResult.missing.length + " phần cần sửa trước khi tạo bản trình chiếu." : "Tạo bản trình chiếu từ nội dung đã lưu. Muốn đổi phương pháp, chuyển đổi lại từ tài liệu gốc."; color: root.ink }
+                            Copy { Layout.fillWidth: true; text: bridge.busy ? "Đang hoàn thiện bài giảng…" : ((bridge.lesson.slide_quality || {}).counts || {}).FAIL ? "Bản nháp đã lưu. Một phần nội dung cần kiểm tra trước khi dùng để dạy." : bridge.quickResult.path ? (bridge.lessonNarration.ready ? "Bài giảng và giọng đọc đã lưu. Xem lại nội dung trước khi dùng để dạy." : "Bài giảng song ngữ đã lưu. Bạn có thể tải PowerPoint hoặc tạo thêm giọng đọc.") : "Tạo bản trình chiếu từ nội dung đã lưu."; color: root.ink }
                             Action { objectName: "convertCurrentLessonButton"; visible: !bridge.quickResult.path; text: "Xem trình chiếu"; primary: true; enabled: !bridge.busy; onClicked: bridge.convertCurrentLesson() }
                             Action { objectName: "downloadPresentationButton"; visible: !!bridge.quickResult.path; text: "Tải PowerPoint"; iconName: "download"; enabled: !bridge.busy; onClicked: presentationSave.open() }
-                            Action { objectName: "useConvertedLessonButton"; visible: !!bridge.quickResult.path; text: "Dùng để dạy"; primary: true; enabled: !bridge.busy && !bridge.powerpointState.active && !bridge.powerpointState.starting; onClicked: { if (bridge.quickResult.draft) wholeLessonReview.open(); else bridge.useConvertedLesson() } }
+                            Action { objectName: "useConvertedLessonButton"; visible: !!bridge.quickResult.path; text: "Dùng để dạy"; primary: true; enabled: !bridge.busy && !bridge.previewBusy && !bridge.powerpointState.active && !bridge.powerpointState.starting; onClicked: { if (bridge.quickResult.draft) wholeLessonReview.open(); else bridge.useConvertedLesson() } }
                         }
-                        RowLayout { Layout.fillWidth: true; visible: !!bridge.quickResult.path || !!bridge.quickResult.missing
+                        RowLayout { Layout.fillWidth: true; visible: root.resultDetails
                             Copy { objectName: "lessonReviewSummary"; Layout.fillWidth: true; color: "#a66318"; text: {
                                 const counts = (bridge.lesson.slide_quality || {}).counts || {};
                                 const missing = (bridge.quickResult.missing || []).length;
                                 return counts.FAIL ? counts.FAIL + " slide cần sửa trước khi dùng để dạy." : missing ? missing + " phần còn thiếu nội dung song ngữ." : counts.CHECK ? counts.CHECK + " slide cần rà soát nội dung trước khi dạy." : bridge.lesson.external_deck && !bridge.lesson.slide_quality ? "Bài giảng cần được rà soát trước khi dạy." : "Xem lại nội dung và lời đọc trước khi dạy."
                             } }
-                            Action { objectName: "repairConvertedLessonButton"; text: "Tự sửa bài giảng"; visible: !!bridge.lesson.external_deck; enabled: !bridge.busy && !bridge.powerpointState.active && !bridge.powerpointState.starting; onClicked: bridge.repairConvertedLesson() }
                             Action { objectName: "resultDetailsButton"; text: root.resultDetails ? "Ẩn chi tiết" : "Xem chi tiết"; subtle: true; implicitHeight: 32; onClicked: root.resultDetails = !root.resultDetails }
                         }
                         ProgressBar { visible: bridge.busy; indeterminate: true; Layout.fillWidth: true }
+                        Surface {
+                            objectName: "lessonSlidePreview"; Layout.fillWidth: true; implicitHeight: Math.max(260, Math.min(560, (root.height - 150) * .62)); color: "#e9eef5"
+                            Image { objectName: "convertedSlideImage"; anchors.fill: parent; anchors.margins: 6; source: bridge.quickResult.image || ""; fillMode: Image.PreserveAspectFit; asynchronous: true; cache: true; sourceSize.width: 1600; opacity: bridge.previewBusy ? .6 : 1 }
+                            BusyIndicator { anchors.centerIn: parent; running: bridge.previewBusy; visible: running }
+                            ColumnLayout {
+                                visible: !bridge.quickResult.image; anchors.centerIn: parent; width: parent.width - 70; spacing: 12
+                                Caption { text: bridge.busy ? "BiliClass đang tạo bài giảng…" : bridge.quickResult.path ? "Bản trình chiếu đã tạo" : "Từ tài liệu của thầy cô đến bài giảng song ngữ"; font.pixelSize: 19; Layout.alignment: Qt.AlignHCenter }
+                                Copy { text: bridge.quickResult.preview_note || "PowerPoint giữ thiết kế gốc. Tài liệu và ảnh được chuyển thành slide theo mẫu BiliClass."; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
+                            }
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true; visible: !!bridge.quickResult.path
+                            Action { text: "‹"; implicitHeight: 34; enabled: !bridge.busy && !bridge.powerpointState.active && !bridge.powerpointState.starting && (bridge.quickResult.slide || 1) > 1; onClicked: bridge.previewConvertedSlide(bridge.quickResult.slide - 1) }
+                            Copy { text: "Slide " + (bridge.quickResult.slide || 1) + " / " + (bridge.quickResult.total || 0); color: root.ink }
+                            Action { text: "›"; implicitHeight: 34; enabled: !bridge.busy && !bridge.powerpointState.active && !bridge.powerpointState.starting && (bridge.quickResult.slide || 1) < bridge.quickResult.total; onClicked: bridge.previewConvertedSlide(bridge.quickResult.slide + 1) }
+                            Item { Layout.fillWidth: true }
+                        }
                         Surface {
                             objectName: "lessonNarrationPanel"; visible: !!bridge.quickResult.path
                             Layout.fillWidth: true; implicitHeight: narrationForm.height + 28
@@ -752,32 +772,16 @@ ApplicationWindow {
                                     RadioButton { objectName: "narrationVietnamese"; text: "Tiếng Việt"; ButtonGroup.group: narrationLanguages; checked: root.narrationMode === "vi"; enabled: !bridge.narrationBusy; onClicked: root.narrationMode = "vi" }
                                     RadioButton { objectName: "narrationBoth"; text: "Việt + Anh"; ButtonGroup.group: narrationLanguages; checked: root.narrationMode === "both"; enabled: !bridge.narrationBusy; onClicked: root.narrationMode = "both" }
                                     Item { Layout.fillWidth: true }
-                                    Action { objectName: "createLessonNarrationButton"; primary: true; text: bridge.lessonNarration.running ? "Đang tạo giọng…" : bridge.lessonNarration.ready ? "Tạo lại giọng đọc" : bridge.lessonNarration.complete ? "Tiếp tục tạo giọng" : "Tạo giọng đọc"; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !bridge.powerpointState.starting && !(((bridge.lesson.slide_quality || {}).counts || {}).FAIL); onClicked: bridge.createLessonNarration(root.narrationMode) }
+                                    Action { objectName: "createLessonNarrationButton"; primary: true; text: bridge.lessonNarration.running ? "Đang tạo giọng…" : bridge.lessonNarration.ready ? "Tạo lại giọng đọc" : bridge.lessonNarration.complete ? "Tiếp tục tạo giọng" : "Tạo giọng đọc"; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !bridge.powerpointState.starting; onClicked: bridge.createLessonNarration(root.narrationMode) }
                                     Action { objectName: "cancelLessonNarrationButton"; text: "Dừng"; visible: !!bridge.lessonNarration.running; onClicked: bridge.cancelLessonNarration() }
                                 }
-                                Copy { Layout.fillWidth: true; font.pixelSize: 12; text: (((bridge.lesson.slide_quality || {}).counts || {}).FAIL) ? "Hoàn thiện các slide cần sửa trước khi tạo giọng đọc." : "Giọng và tốc độ dùng cấu hình trong Cài đặt → Giọng đọc. PowerPoint tải về giữ nguyên bài giảng."; color: (((bridge.lesson.slide_quality || {}).counts || {}).FAIL) ? "#a66318" : root.muted }
+                                Copy { Layout.fillWidth: true; font.pixelSize: 12; text: "Tạo lời đọc nhận diện được trên máy bằng giọng đã chọn trong Cài đặt. Có thể tải PowerPoint mà không cần tạo giọng."; color: root.muted }
                                 RowLayout { Layout.fillWidth: true; visible: !!bridge.lessonNarration.running
                                     ProgressBar { objectName: "lessonNarrationProgressBar"; Layout.fillWidth: true; from: 0; to: 100; value: bridge.lessonNarration.percent || 0 }
                                     Caption { objectName: "lessonNarrationPercent"; text: (bridge.lessonNarration.percent || 0) + "%" }
                                 }
                                 Copy { objectName: "narrationPreparationStatus"; Layout.fillWidth: true; visible: !!bridge.lessonNarration.message; text: bridge.lessonNarration.message || ""; color: root.muted; font.pixelSize: 12 }
                             }
-                        }
-                        Surface {
-                            Layout.fillWidth: true; implicitHeight: Math.max(180, Math.min(490, root.height - 640)); color: "#e9eef5"
-                            Image { objectName: "convertedSlideImage"; anchors.fill: parent; anchors.margins: 6; source: bridge.quickResult.image || ""; fillMode: Image.PreserveAspectFit }
-                            ColumnLayout {
-                                visible: !bridge.quickResult.image; anchors.centerIn: parent; width: parent.width - 70; spacing: 12
-                                Caption { text: bridge.busy ? "BiliClass đang tạo bài giảng…" : bridge.quickResult.path ? "Bản trình chiếu đã tạo" : "Từ tài liệu của thầy cô đến bài giảng song ngữ"; font.pixelSize: 19; Layout.alignment: Qt.AlignHCenter }
-                                Copy { text: bridge.quickResult.preview_note || "PowerPoint giữ thiết kế gốc. Tài liệu và ảnh được chuyển thành slide theo mẫu BiliClass."; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
-                            }
-                        }
-                        RowLayout {
-                            Layout.fillWidth: true; visible: !!bridge.quickResult.path
-                            Action { text: "‹"; implicitHeight: 34; enabled: !bridge.busy && (bridge.quickResult.slide || 1) > 1; onClicked: bridge.previewConvertedSlide(bridge.quickResult.slide - 1) }
-                            Copy { text: "Slide " + (bridge.quickResult.slide || 1) + " / " + (bridge.quickResult.total || 0); color: root.ink }
-                            Action { text: "›"; implicitHeight: 34; enabled: !bridge.busy && (bridge.quickResult.slide || 1) < bridge.quickResult.total; onClicked: bridge.previewConvertedSlide(bridge.quickResult.slide + 1) }
-                            Item { Layout.fillWidth: true }
                         }
                         RowLayout {
                             Layout.fillWidth: true; visible: !!bridge.powerpointState.active || !!bridge.powerpointState.starting

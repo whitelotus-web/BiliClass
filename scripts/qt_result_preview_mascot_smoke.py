@@ -1,0 +1,270 @@
+"""Disposable Qt flow: result order, queued preview, narration and mascot motion.
+
+PNG fixtures test preview caching only; they are never native QA evidence.
+No teacher library, API account, model or audio output is used.
+"""
+
+import hashlib
+import json
+import tempfile
+import time
+from pathlib import Path
+
+from PIL import Image
+from pptx import Presentation
+from pptx.util import Inches, Pt
+from PySide6.QtCore import QCoreApplication, QEvent, QEventLoop, QObject, QPointF, Qt, QTimer, QUrl
+from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication
+from PySide6.QtQml import QQmlApplicationEngine
+from PySide6.QtQuickControls2 import QQuickStyle
+from PySide6.QtTest import QTest
+
+from app.branding import configure_application
+from app.chatgpt_handoff import external_preview, inspect_returned_deck
+from app.conversion_input import creation_config
+from app.library import Library
+from app.paths import RESOURCE_ROOT
+from app.slide_fingerprint import environment_key
+from app.ui import Bridge
+
+
+def pump(ms=30):
+    loop = QEventLoop()
+    QTimer.singleShot(ms, loop.quit)
+    loop.exec()
+
+
+def until(check, timeout=15):
+    end = time.monotonic() + timeout
+    while not check():
+        assert time.monotonic() < end, "Qt result flow timed out"
+        pump(10)
+
+
+def control(root, name):
+    found = root.findChild(QObject, name)
+    if found is not None:
+        return found
+    pending = [root.contentItem()]
+    while pending:
+        item = pending.pop()
+        if item.objectName() == name:
+            return item
+        pending.extend(item.childItems())
+    raise AssertionError(name)
+
+
+def click(window, item):
+    parent = item.parentItem()
+    while parent is not None:
+        if parent.metaObject().indexOfProperty("contentY") >= 0:
+            y = item.mapToItem(parent, QPointF(0, 0)).y()
+            if y < 0 or y + item.height() > parent.height():
+                parent.setProperty(
+                    "contentY",
+                    max(
+                        0,
+                        min(
+                            parent.property("contentHeight") - parent.height(),
+                            parent.property("contentY") + y - 80,
+                        ),
+                    ),
+                )
+                pump(100)
+        parent = parent.parentItem()
+    point = item.mapToScene(QPointF(item.width() / 2, item.height() / 2)).toPoint()
+    assert item.isVisible() and item.isEnabled()
+    assert 0 <= point.y() < window.height(), point
+    QTest.mouseClick(window, Qt.LeftButton, Qt.NoModifier, point)
+    pump(80)
+
+
+def main():
+    app = QGuiApplication([])
+    configure_application(app)
+    QQuickStyle.setStyle("Basic")
+    for font in (RESOURCE_ROOT / "assets").glob("*.ttf"):
+        QFontDatabase.addApplicationFont(str(font))
+    app.setFont(QFont("Be Vietnam Pro", 10))
+    reports = Path("reports/rc42")
+    reports.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="biliclass-result-", ignore_cleanup_errors=True) as folder:
+        library = Library(Path(folder))
+        source = Path(folder) / "fixture.pptx"
+        deck = Presentation()
+        for number in (1, 2, 3):
+            slide = deck.slides.add_slide(deck.slide_layouts[6])
+            for text, lang, y in [
+                ("Năng lượng được bảo toàn.", "vi-VN", 1),
+                ("Energy is conserved.", "en-US", 3),
+            ]:
+                shape = slide.shapes.add_textbox(Inches(1), Inches(y), Inches(8), Inches(1))
+                shape.text = text
+                p = shape.text_frame.paragraphs[0]
+                p.font.name, p.font.size = "Arial", Pt(24)
+                p.font._rPr.set("lang", lang)
+        deck.save(source)
+        stored = library.store_source(source)
+        inspection = inspect_returned_deck(source)
+        lesson = library.create_external_lesson(
+            creation_config(
+                "Bài thử giao diện", "Vật lý", "THPT", "11", "parallel_columns", "standard", "source"
+            ),
+            stored,
+            inspection,
+        )
+        # A layout-only failure must not block safe, recognized speech.
+        lesson["slide_quality"]["counts"]["FAIL"] = 1
+        library.set_setting("teacher", "Cô Nguyễn Diệu Linh")
+        bridge = Bridge(library)
+        bridge._auto_reviewed = {lesson["id"]}
+        bridge._show_lesson(lesson, external_preview(lesson, library.directory))
+        digest = stored["sha256"]
+        cache = library.directory / "temp/slide-quality" / digest[:24]
+        cache.mkdir(parents=True, exist_ok=True)
+        entries = {}
+        for n, color in enumerate(["#dcecff", "#cce9d8", "#fff1d6"], 1):
+            png = cache / f"slide-{n}.png"
+            Image.new("RGB", (800, 450), color).save(png)
+            entries[str(n)] = {
+                "environment": environment_key(),
+                "image_sha256": hashlib.sha256(png.read_bytes()).hexdigest(),
+            }
+        (cache / "render-cache.json").write_text(
+            json.dumps({"version": 2, "sha256": digest, "slides": entries})
+        )
+        engine = QQmlApplicationEngine()
+        warnings = []
+        engine.warnings.connect(lambda rows: warnings.extend(map(str, rows)))
+        engine.rootContext().setContextProperty("bridge", bridge)
+        engine.load(QUrl.fromLocalFile(str(RESOURCE_ROOT / "qml/Main.qml")))
+        assert engine.rootObjects(), warnings
+        window = engine.rootObjects()[0]
+        window.resize(1366, 850)
+        window.setProperty("page", "result")
+        until(lambda: not bridge.previewBusy)
+        pump(200)
+        def c(name):
+            return control(window, name)
+        teacher = c("sidebarTeacherName")
+        assert teacher.property("text") == "Cô Nguyễn Diệu Linh"
+        assert not teacher.property("truncated")
+        help_button = c('sidebarHelpButton')
+        assert abs(help_button.x()+help_button.width()/2-help_button.parentItem().width()/2) <= 1
+        assert [row['label'] for row in bridge.conversionFormats] == ['Song ngữ Việt–Anh','Tiếng Anh 100%']
+        assert c("lessonSlidePreview").y() < c("lessonNarrationPanel").y()
+        assert not c("lessonDetailsPanel").isVisible()
+        assert window.findChild(QObject, "repairConvertedLessonButton") is None
+        assert window.grabWindow().save(str(reports / "result.png"))
+
+        # Deliberately slow the worker to exercise coalescing and UI ticking.
+        render = bridge.slidePreview.session.render
+        rendered = []
+
+        def delayed(*args):
+            time.sleep(0.15)
+            rendered.append(args[-1])
+            return render(*args)
+
+        bridge.slidePreview.session.render = delayed
+        beats = []
+        timer = QTimer()
+        timer.setInterval(20)
+        timer.timeout.connect(lambda: beats.append(time.monotonic()))
+        timer.start()
+        bridge.previewConvertedSlide(2)
+        bridge.previewConvertedSlide(1)
+        bridge.previewConvertedSlide(3)
+        assert bridge.previewBusy and not bridge.busy
+        until(lambda: not bridge.previewBusy)
+        assert bridge.quickResult["slide"] == 3 and bridge.quickResult["image"].endswith("slide-3.png")
+        assert rendered == [2, 3], rendered
+        assert len(beats) >= 8
+        timer.stop()
+        narration = []
+        bridge.narration_preparation.start = lambda *args: narration.append(args)
+        assert c("createLessonNarrationButton").isEnabled()
+        click(window, c("createLessonNarrationButton"))
+        assert len(narration) == 1 and narration[0][-1]["total"] > 0
+
+        window.setProperty("page", "settings")
+        pump(100)
+        click(window, c("settingsTab3"))
+        click(window, c("mascotLumi"))
+        assert c("mascotPreview").property("character") == "Lumi"
+        assert window.findChild(QObject, "mascotSlideLumi") is None
+        assert window.findChild(QObject, "mascotSlideMilo") is None
+        assert window.grabWindow().save(str(reports / "mascot-settings.png"))
+        engine.loadData(
+            b"""import QtQuick
+import QtQuick.Window
+Window { visible: true; width: 700; height: 470; color: "#f3f7fc"
+    Mascot { objectName: "miloMotion"; x: 20; y: 20; width: 310; height: 410; character: "Milo"; subject: "V\\u1eadt l\\u00fd" }
+    Mascot { objectName: "lumiMotion"; x: 370; y: 20; width: 310; height: 410; character: "Lumi"; subject: "To\\u00e1n h\\u1ecdc" }
+}""",
+            QUrl.fromLocalFile(str(RESOURCE_ROOT / "qml/ResultMotionSmoke.qml")),
+        )
+        motion = engine.rootObjects()[-1]
+        milo, lumi = control(motion, "miloMotion"), control(motion, "lumiMotion")
+        until(lambda: milo.property("motionActive") and lumi.property("motionActive"))
+        until(lambda: milo.property("blinkProgress") > 0.2, timeout=8)
+        for mascot in (milo, lumi):
+            mascot.setProperty("reducedMotion", True)
+            assert not mascot.property("motionActive") and mascot.property("blinkProgress") == 0
+            assert mascot.property("scale") == 1
+        pump(150)
+        assert motion.grabWindow().save(str(reports / "mascots-open.png"))
+        for mascot in (milo, lumi):
+            mascot.setProperty("blinkProgress", 1)
+        pump(150)
+        assert motion.grabWindow().save(str(reports / "mascots-blink.png"))
+        milo.setProperty("subject", "Tin học")
+        assert milo.findChild(QObject, "mascotSubjectBadge").property("visible")
+        for mascot in (milo, lumi):
+            mascot.setProperty("blinkProgress", 0)
+            mascot.setProperty("gestureFrame", 1)
+        pump(180)
+        assert motion.grabWindow().save(str(reports / "mascots-wave.png"))
+        milo.setProperty("reducedMotion", False)
+        milo.setProperty("y", 800)
+        until(lambda: not milo.property("motionActive"))
+        motion.close()
+        assert not warnings, warnings
+        report = {
+            "status": "passed",
+            "qml_warnings": warnings,
+            "queued_pages_rendered": rendered,
+            "ui_ticks_while_previewing": len(beats),
+            "narration_starts_with_layout_warning": True,
+            "preview_before_voice": True,
+            "full_teacher_name": True,
+            "mascot_checks": [
+                "card selection",
+                "blink timer",
+                "wave pose",
+                "no zoom",
+                "subject props",
+                "reduced motion",
+                "offscreen pause",
+                "sample buttons removed",
+            ],
+        }
+        (reports / "result-qt.json").write_text(
+            json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        print(json.dumps(report, ensure_ascii=False))
+        window.close()
+        bridge.slidePreview.shutdown()
+        bridge._catalog.shutdown()
+        bridge.browserAI.shutdown()
+        bridge.english_reader.shutdown()
+        bridge.narration_preparation.shutdown()
+        bridge.classroom.disconnect()
+        engine.deleteLater()
+        QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+        app.processEvents()
+        library.close()
+
+
+if __name__ == "__main__":
+    main()

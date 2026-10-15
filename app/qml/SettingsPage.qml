@@ -279,9 +279,9 @@ Item {
                 ]
                     Rectangle { id: mascotCard; required property var modelData; required property int index
                         readonly property bool chosen: page.selectedMascot === modelData.name
-                        Layout.row: 0; Layout.column: index; Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.preferredHeight: 337
+                        Layout.row: 0; Layout.column: index; Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.preferredHeight: 300
                         radius: 16; color: chosen ? "#f3f8ff" : "white"; border.color: chosen ? page.blue : page.line; border.width: chosen ? 2 : 1
-                        MouseArea { objectName: "mascot" + mascotCard.modelData.name; anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.selectedMascot = mascotCard.modelData.name }
+                        MouseArea { objectName: "mascot" + mascotCard.modelData.name; anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.showMascotPreview(mascotCard.modelData.name) }
                         ColumnLayout { anchors.fill: parent; anchors.margins: 13; spacing: 7
                             RowLayout { Layout.fillWidth: true
                                 Label { text: mascotCard.chosen ? "●  Đang chọn" : "○  Chọn bạn này"; color: mascotCard.chosen ? page.blue : page.muted; font.pixelSize: 12; font.bold: true }
@@ -304,16 +304,12 @@ Item {
                                 }
                             }
                             Item { Layout.fillHeight: true }
-                            RowLayout { Layout.fillWidth: true; spacing: 6
-                                SoftButton { text: "Nghe câu mẫu"; iconName: "play"; Layout.fillWidth: true; enabled: !bridge.busy; onClicked: { page.selectedMascot = mascotCard.modelData.name; bridge.previewVoice(page.mascotPreviewText) } }
-                                SoftButton { objectName: "mascotSlide" + mascotCard.modelData.name; text: "Xem trên slide"; Layout.fillWidth: true; onClicked: page.showMascotPreview(mascotCard.modelData.name) }
-                            }
                         }
                     }
                 }
                 Rectangle { id: stageCard
                     Layout.row: page.wideMascotLayout ? 0 : 1; Layout.column: page.wideMascotLayout ? 2 : 0
-                    Layout.columnSpan: page.wideMascotLayout ? 1 : 2; Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.preferredHeight: 337
+                    Layout.columnSpan: page.wideMascotLayout ? 1 : 2; Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.preferredHeight: 300
                     radius: 16; color: "white"; border.color: page.line
                     ColumnLayout { anchors.fill: parent; anchors.margins: 13; spacing: 8
                         RowLayout { Layout.fillWidth: true
@@ -338,7 +334,7 @@ Item {
                                 }
                             }
                         }
-                        Hint { text: "Ảnh mẫu dùng trạng thái thật; giọng English lấy từ tab Giọng đọc, không tự đổi theo Milo/Lumi."; Layout.fillWidth: true; font.pixelSize: 10 }
+                        Hint { text: "Chọn nhân vật để xem trước. Nghe thử và chọn giọng tại Cài đặt → Giọng đọc."; Layout.fillWidth: true; font.pixelSize: 10 }
                     }
                 }
             }
@@ -350,7 +346,7 @@ Item {
                         CheckBox { id: mascotVisible; objectName: "mascotVisible"; text: "Hiện khi dạy"; checked: bridge.mascotSettings.visible }
                         CheckBox { id: mascotExplanation; objectName: "mascotExplanation"; text: "Hiện khi giải thích"; checked: bridge.mascotSettings.show_explanation }
                         CheckBox { id: mascotQuiz; objectName: "mascotQuiz"; text: "Hiện khi quiz"; checked: bridge.mascotSettings.show_quiz }
-                        CheckBox { id: mascotAccessories; objectName: "mascotAccessories"; text: "Hiện nhãn môn học"; checked: bridge.mascotSettings.accessories }
+                        CheckBox { id: mascotAccessories; objectName: "mascotAccessories"; text: "Phụ kiện theo môn học"; checked: bridge.mascotSettings.accessories }
                         CheckBox { id: reducedMotion; objectName: "mascotReducedMotion"; text: "Giảm chuyển động"; checked: bridge.mascotSettings.reduced_motion }
                     }
                     Rectangle { Layout.fillWidth: true; height: 1; color: page.line }

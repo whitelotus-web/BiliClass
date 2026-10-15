@@ -1,7 +1,57 @@
 """Render a source/output pair with the installed PowerPoint, without editing it."""
 
 import hashlib
+import json
 from pathlib import Path
+
+
+def render_preview_pages(path,pages,directory,sha256):
+    """One Office open for a requested page and its immediate neighbours.
+
+    Caller has verified the deck hash and file stamp. This is a preview cache,
+    not evidence that native measurements or content checks have passed.
+    """
+    import pythoncom
+    import psutil
+    import win32com.client
+
+    from .slide_fingerprint import environment_key
+
+    folder=(Path(directory)/'temp/lesson-preview-images'/sha256[:24]).resolve()
+    folder.mkdir(parents=True,exist_ok=True)
+    index={'version':2,'sha256':sha256,'slides':{}}
+    try:
+        cached=json.loads((folder/'preview-cache.json').read_text(encoding='utf-8'))
+        if cached.get('sha256')==sha256 and cached.get('version')==2:
+            index=cached
+    except (OSError,ValueError):
+        pass
+    office=deck=None
+    existing=any((p.info['name'] or '').lower()=='powerpnt.exe' for p in psutil.process_iter(['name']))
+    pythoncom.CoInitialize()
+    try:
+        office=win32com.client.DispatchEx('PowerPoint.Application')
+        deck=office.Presentations.Open(str(Path(path).resolve()),ReadOnly=True,Untitled=False,WithWindow=False)
+        for page in pages:
+            if not 1<=page<=deck.Slides.Count:
+                raise ValueError('Slide xem trước không hợp lệ.')
+            image=folder/f'slide-{page}.png'
+            pending=image.with_suffix('.pending.png')
+            deck.Slides(page).Export(str(pending),'PNG',1600,round(1600*deck.PageSetup.SlideHeight/deck.PageSetup.SlideWidth))
+            pending.replace(image)
+            index['slides'][str(page)]={'image_sha256':hashlib.sha256(image.read_bytes()).hexdigest(),
+                                       'environment':environment_key()}
+        pending=folder/'preview-cache.tmp'
+        pending.write_text(json.dumps(index),encoding='utf-8')
+        pending.replace(folder/'preview-cache.json')
+        return folder,index
+    finally:
+        if deck is not None:
+            deck.Close()
+        if office is not None and not existing and office.Presentations.Count==0:
+            office.Quit()
+        office=deck=None
+        pythoncom.CoUninitialize()
 
 
 def render_slide(path, slide, directory):

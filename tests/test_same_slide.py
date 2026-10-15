@@ -60,6 +60,20 @@ def translations(manifest):
     return {unit["id"]: {"en": values[i]} for i, unit in enumerate(manifest["units"])}
 
 
+def test_english_only_keeps_source_art_without_visible_vietnamese(tmp_path):
+    source = fixture(tmp_path / 'original.pptx')
+    manifest = extract(source, 'english_only', preserve_design=True)
+    output = assemble(source, tmp_path / 'english.pptx', manifest, translations(manifest), 'english_only')
+    deck = Presentation(output)
+    text = '\n'.join(s.text for s in deck.slides[0].shapes if s.has_text_frame)
+    assert 'The energy' in text and 'The velocity' in text
+    assert 'Năng lượng' not in text and 'Cơ năng' not in text
+    assert any(int(s.shape_type) == 13 for s in deck.slides[0].shapes)
+    original = Presentation(source)
+    assert [(s.shape_id,s.left,s.top,s.width,s.height) for s in deck.slides[0].shapes] == [
+        (s.shape_id,s.left,s.top,s.width,s.height) for s in original.slides[0].shapes]
+
+
 @pytest.mark.parametrize("mode", ["parallel_columns", "sentence_pairs"])
 def test_both_languages_visible_on_each_source_page_and_resources_preserved(tmp_path, mode):
     source = fixture(tmp_path / "original.pptx")
@@ -155,6 +169,27 @@ def test_formula_variable_and_protected_xml_are_language_neutral(tmp_path):
     manifest = extract(source, "sentence_pairs", same_slide=True)
     unit = next(u for u in manifest["units"] if u["paragraph"] == 2)
     assert unit["text"] == "a⟦BLC0⟧" and unit["language"] == "neutral"
+
+
+def test_group_child_outside_in_local_coordinates_is_translated_when_visible(tmp_path):
+    deck=Presentation()
+    slide=deck.slides.add_slide(deck.slide_layouts[6])
+    group=slide.shapes.add_group_shape()
+    child=group.shapes.add_textbox(Inches(50),Inches(50),Inches(7),Inches(3))
+    child.text='Kéo quả nặng lệch khỏi vị trí cân bằng rồi buông tay.'
+    child.text_frame.paragraphs[0].font.size=Pt(24)
+    transform=group._element.find('p:grpSpPr/a:xfrm',NS)
+    transform.find('a:off',NS).set('x',str(Inches(1)))
+    transform.find('a:off',NS).set('y',str(Inches(2)))
+    source=tmp_path/'group.pptx'
+    deck.save(source)
+    manifest=extract(source,'parallel_columns',same_slide=True)
+    assert len(manifest['units'])==1 and manifest['units'][0]['shape_id']==child.shape_id
+    output=assemble(source,tmp_path/'output.pptx',manifest,
+                    {manifest['units'][0]['id']:{'en':'Displace the weight from equilibrium and release it.'}},'parallel_columns')
+    from app.slide_speech import objects
+    text=' '.join(item['text'] for item in objects(Presentation(output).slides[0]))
+    assert 'Kéo quả nặng' in text and 'Displace the weight' in text
 
 
 @pytest.mark.parametrize("mode", ["parallel_columns", "sentence_pairs"])

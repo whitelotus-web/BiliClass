@@ -80,9 +80,11 @@ def prepare(source, manifest):
     from pptx import Presentation
 
     from .native_bilingual import leaves
+    from .native_fonts import missing_embedded_fonts
     from .slide_speech import normalized, objects
 
     deck = Presentation(source)
+    manifest['font_fallbacks'] = missing_embedded_fonts(source)
     units_by_slide = {}
     for unit in manifest["units"]:
         units_by_slide.setdefault(unit["slide"], {}).setdefault(unit["shape_id"], []).append(unit)

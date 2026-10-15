@@ -128,9 +128,12 @@ def extract(source, mode, *, preserve_design=False, same_slide=False):
                and (text_count < 60 or picture_key(p) is None or len(picture_slides[picture_key(p)]) <= max(2,len(deck.slides)*.15)) for p in pictures):
             unsupported.append(f'Slide {index}: nội dung phụ thuộc ảnh')
         for shape in shapes:
-            fully_outside=(shape.left+shape.width<=0 or shape.top+shape.height<=0
-                or shape.left>=deck.slide_width or shape.top>=deck.slide_height)
-            if fully_outside and shape.shape_id not in motion:
+            box=visible_boxes.get(shape.shape_id)
+            x,y,w,h=((box[k] for k in ('x','y','w','h')) if box else
+                     (shape.left,shape.top,shape.width,shape.height))
+            fully_outside=(x+w<=0 or y+h<=0 or x>=deck.slide_width or y>=deck.slide_height)
+            animated=bool(motion.intersection(box.get('ancestors',[]))) if box else shape.shape_id in motion
+            if fully_outside and not animated:
                 continue  # Keep unused source workspace objects byte-for-byte.
             transform = shape._element.find('p:spPr/a:xfrm',NS)
             if mode == 'parallel_columns' and shape.has_text_frame and (
@@ -207,6 +210,8 @@ def extract(source, mode, *, preserve_design=False, same_slide=False):
                         language='neutral'
                     if re.fullmatch(r'[A-Za-zα-ωΑ-Ω]',raw) or len(raw)<=8 and re.search(r'[\d₀-₉/*^=]',raw) and re.fullmatch(r'[A-Za-zα-ωΑ-Ω\d₀-₉/*^=+().−-]+',raw):
                         language='neutral'
+                    if re.fullmatch(r'https?://\S+', raw):
+                        language='neutral'  # Source links have no translated counterpart.
                     if same_slide and re.match(r'^[A-D][.)]\s*',raw):
                         quantity=re.sub(r'^[A-D][.)]\s*','',raw)
                         quantity=re.sub(r'(?i)(?<![A-Za-z])(?:cm|mm|km|rad|kg|hz|m|s|ms)(?![A-Za-z])','',quantity)
@@ -239,6 +244,10 @@ def extract(source, mode, *, preserve_design=False, same_slide=False):
 
         manifest.update(same_slide=True, paired_slides=[])
         prepare(source,manifest)
+    elif preserve_design:
+        from .native_fonts import missing_embedded_fonts
+
+        manifest['font_fallbacks'] = missing_embedded_fonts(source)
     return manifest
 
 
@@ -375,6 +384,9 @@ def assemble(source, destination, manifest, translations, mode):
             if all(u['language'] == 'neutral' or u['language'] == 'en'
                    and translations[u['id']]['en'] == u['text'] for u in units):
                 continue  # Keep exact XML only when the validated response agrees.
+            from .native_fonts import normalize
+
+            normalize(shape,manifest.get('font_fallbacks',{}))
             bodies = ([shape.find('p:txBody', NS)] if shape.tag == f'{{{NS["p"]}}}sp' else
                       shape.findall('.//a:tc/a:txBody', NS))
             if together:

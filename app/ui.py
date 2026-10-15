@@ -85,6 +85,8 @@ class Bridge(QObject):
     comparisonReady = Signal()
     conversionProgress = Signal(int, int)
     browserConversionProgress = Signal(object)
+    quickResultChanged = Signal()
+    previewStateChanged = Signal()
 
     @Property(bool, constant=True)
     def developmentMode(self):
@@ -166,6 +168,12 @@ class Bridge(QObject):
         self._conversion_report = []
         self._comparison = {}
         self._quick_result = {}
+        from .slide_preview import SlidePreview
+
+        self.slidePreview=SlidePreview(library.directory,self)
+        self.slidePreview.ready.connect(self._preview_ready)
+        self.slidePreview.changed.connect(self.previewStateChanged)
+        self.changed.connect(self.quickResultChanged)
         self._chatgpt_request = {}
         from .google_settings import GoogleSettings
 
@@ -368,7 +376,7 @@ class Bridge(QObject):
     def comparison(self):
         return self._comparison
 
-    @Property("QVariantMap", notify=changed)
+    @Property("QVariantMap", notify=quickResultChanged)
     def quickResult(self):
         if self._quick_result.get("lesson_id") != self._lesson.get("id") or self._quick_result.get("revision") != self._lesson.get("revision"):
             return {}
@@ -394,7 +402,12 @@ class Bridge(QObject):
     def conversionFormats(self):
         from .conversion_formats import FORMATS
 
-        return [dict(item) for item in FORMATS if not self.googleTranslation or item['id'] != 'integrated_keywords']
+        if not self.googleTranslation:
+            return [dict(item) for item in FORMATS]
+        return [{**item, **({'label':'Song ngữ Việt–Anh',
+                    'detail':'Tự căn bố cục: hai cột khi đủ rộng; Việt trên–Anh dưới ở vùng hẹp. Mỗi trang có đủ hai ngôn ngữ.'}
+                    if item['id']=='parallel_columns' else {})}
+                for item in FORMATS if item['id'] in {'parallel_columns','english_only'}]
 
     @Property("QVariantList", constant=True)
     def conversionSubjects(self):
@@ -407,6 +420,8 @@ class Bridge(QObject):
         from .conversion_formats import format_spec
 
         if self._lesson.get("conversion_format"):
+            if self.googleTranslation and self._lesson['conversion_format']=='parallel_columns':
+                return 'Song ngữ Việt–Anh'
             return format_spec(self._lesson["conversion_format"])["label"]
         return "Bài đã lưu · cấu hình cũ"
 
@@ -845,9 +860,6 @@ class Bridge(QObject):
 
         if self._busy or not self._lesson or self.narrationBusy or self.powerpoint_worker is not None:
             return
-        if self._lesson.get("slide_quality", {}).get("counts", {}).get("FAIL", 0):
-            self.inform("Hoàn thiện các slide cần sửa trước khi tạo giọng đọc.", True)
-            return
         voices = dict(self.voiceSettings)
         if not voices.get("voice"):
             self.inform("Chọn giọng đọc trong Cài đặt → Giọng đọc trước khi tạo âm thanh.", True)
@@ -1047,6 +1059,24 @@ class Bridge(QObject):
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
         else:
             self.inform("Chưa có file PowerPoint mẫu trên máy này.", True)
+
+    @Slot(str, str)
+    def openLocalTemplateSample(self, preset, mode):
+        if self._busy or preset not in {'standard','visual','practice'} or mode not in {'parallel_columns','sentence_pairs','english_only'}:
+            return
+        def work():
+            from .google_conversion import _template
+            from threading import Event
+
+            folder=self.library.directory/'temp/template-samples'
+            folder.mkdir(parents=True,exist_ok=True)
+            target=folder/(preset+'-'+mode+'.pptx')
+            config={'title':'Năng lượng trong đời sống','english_title':'Energy in everyday life',
+                    'preset':preset,'conversion_format':mode}
+            _template(target,config,[('Bài mẫu', 'Năng lượng có thể chuyển từ dạng này sang dạng khác.\nHãy nêu một ví dụ trong đời sống.',
+                     'Energy can change from one form to another.\nGive an example from everyday life.')],Event())
+            return str(target)
+        self.launch(work,lambda path: QDesktopServices.openUrl(QUrl.fromLocalFile(path)))
 
     @Slot(bool, result="QVariantList")
     def templatePages(self, rescue):
@@ -1727,11 +1757,7 @@ class Bridge(QObject):
         if self._busy or not self._lesson.get("external_deck") or self.powerpoint_worker is not None:
             return
         lesson = dict(self._lesson)
-        try:
-            path = verified_presentation(lesson, self.library.directory)
-        except ValueError as exc:
-            self.inform(str(exc), True)
-            return
+        path=self.library.directory/'sources'/lesson['source']['file']
         original = self.library.directory / "chatgpt" / lesson["external_deck"].get("request_id", "")
         account = {}
         original_is_local = original.resolve().parent == (self.library.directory / "chatgpt").resolve()
@@ -1743,15 +1769,21 @@ class Bridge(QObject):
                 pass
 
         def work():
+            verified_presentation(lesson,self.library.directory)
             if account and (original / "config.json").is_file():
                 return repair_existing(account, self._browser_ai.store.root, original, path,
                                        self.library.directory, lesson["id"], lesson["revision"], self.cancel_event,
                                        lambda message: self.logger.info("Lesson repair: %s", message))
             from .google_conversion import original_source
-            return repair_and_inspect(path, self.library.directory, source=original_source(self.library.directory,lesson),
+            result=repair_and_inspect(path, self.library.directory, source=original_source(self.library.directory,lesson),
                                       mode=lesson.get("conversion_format", ""),
                                       cancel=self.cancel_event,
                                       layout_plan=lesson.get('external_deck', {}).get('layout_plan'))
+            if Path(result['path']).resolve()!=path.resolve():
+                from contextlib import closing
+                with closing(Library(self.library.directory)) as library:
+                    result['stored_source']=library.store_source(Path(result['path']))
+            return result
 
         def completed(result):
             if self._lesson.get("id") != lesson["id"] or self.cancel_event.is_set():
@@ -1761,12 +1793,14 @@ class Bridge(QObject):
 
             inspection["review_notes"] = list(dict.fromkeys(inspection["review_notes"] + quality_messages(inspection["slide_quality"])))
             if Path(result["path"]).resolve() != Path(path).resolve():
-                source = self.library.store_source(Path(result["path"]))
+                source = result.get('stored_source') or self.library.store_source(Path(result["path"]))
                 self._lesson = self.library.replace_external_presentation(lesson["id"], lesson["revision"], source, inspection)
                 self.openLesson(lesson["id"])
             else:
                 self._lesson = self.library.update_slide_inspection(lesson["id"], inspection)
                 self.changed.emit()
+                if not self.quickResult.get('image'):
+                    self.previewConvertedSlide(1)
             failures = inspection["slide_quality"]["counts"]["FAIL"]
             self.inform(result.get("message") or
                         (f"Đã tự sửa và kiểm tra lại. Còn {failures} slide cần hoàn thiện; xem chi tiết." if failures
@@ -1848,7 +1882,14 @@ class Bridge(QObject):
         self.changed.emit()
         self.selectionChanged.emit()
         self.navigate.emit("result")
-        if lesson.get("external_deck") and not self.quickResult.get("image"):
+        if (lesson.get('external_deck') and lesson.get('slide_quality',{}).get('counts',{}).get('FAIL')
+                and 'local_repairs' not in lesson.get('slide_quality',{})
+                and lesson['id'] not in getattr(self,'_auto_reviewed',set())):
+            if not hasattr(self,'_auto_reviewed'):
+                self._auto_reviewed=set()
+            self._auto_reviewed.add(lesson['id'])
+            QTimer.singleShot(0,self.repairConvertedLesson)
+        elif lesson.get('external_deck') and not self.quickResult.get('image'):
             self.previewConvertedSlide(1)
 
     @Slot(str)
@@ -1880,6 +1921,9 @@ class Bridge(QObject):
     @Slot()
     def startPowerPoint(self):
         if not self._lesson:
+            return
+        if self.previewBusy:
+            self.inform('Đang hoàn thiện ảnh xem trước. Bạn có thể mở trình chiếu ngay sau đó.')
             return
         if self.powerpoint_worker is not None:
             self.inform("PowerPoint đang mở hoặc đang đóng. Hãy chờ hoàn tất.")
@@ -1917,7 +1961,7 @@ class Bridge(QObject):
     def startBilingualPowerPoint(self):
         from .source_deck import prepare_source_deck
 
-        if not self._lesson or self._busy:
+        if not self._lesson or self._busy or self.previewBusy:
             return
         if self.powerpoint_worker is not None:
             self.inform("PowerPoint đang mở hoặc đang đóng. Hãy chờ hoàn tất.")
@@ -2061,26 +2105,28 @@ class Bridge(QObject):
 
     @Slot(int)
     def previewConvertedSlide(self, slide):
-        from .powerpoint_review import render_slide
-        from .quick_conversion import verify_preview
-
-        if self._busy or not self.quickResult:
+        if self._busy or self.powerpoint_worker is not None or not self.quickResult:
             return
         result = dict(self.quickResult)
         if not 1 <= slide <= result.get("total", 0):
             return
-        lesson, directory = self._lesson, self.library.directory
+        self._quick_result.update(slide=slide)
+        self.quickResultChanged.emit()
+        self.slidePreview.start(self._lesson,result,slide)
 
-        def render():
-            path = verify_preview(lesson, result, directory)
-            return QUrl.fromLocalFile(render_slide(path, slide, directory)).toString()
+    @Property(bool,notify=previewStateChanged)
+    def previewBusy(self):
+        return self.slidePreview.worker is not None
 
-        def rendered(image):
-            if result["revision"] == self._lesson.get("revision") and result["lesson_id"] == self._lesson.get("id"):
-                self._quick_result.update(image=image, slide=slide)
-                self.changed.emit()
-
-        self.launch(render, rendered)
+    @Slot(object)
+    def _preview_ready(self,result):
+        if (result['lesson_id']==self._lesson.get('id') and result['revision']==self._lesson.get('revision')
+                and result['slide']==self._quick_result.get('slide')):
+            if result.get('image'):
+                self._quick_result.update(image=result['image'],preview_note='')
+            else:
+                self._quick_result.update(image='',preview_note=result.get('error',''))
+            self.quickResultChanged.emit()
 
     @Slot()
     def openConvertedDeck(self):
@@ -2098,6 +2144,9 @@ class Bridge(QObject):
     def useConvertedLesson(self):
         from .quick_conversion import verify_preview
 
+        if self.previewBusy:
+            self.inform('Đang hoàn thiện ảnh xem trước. Bạn có thể mở trình chiếu ngay sau đó.')
+            return
         if self._busy or self.powerpoint_worker is not None:
             self.inform("Đóng phiên PowerPoint hiện tại trước khi mở phiên dạy mới.", True)
             return
@@ -2654,6 +2703,7 @@ def run(args):
     bridge.english_reader.shutdown()
     bridge._catalog.shutdown()
     bridge.narration_preparation.shutdown()
+    bridge.slidePreview.shutdown()
     speech.stop()
     # QML bindings may still read the library while their objects are destroyed.
     engine.deleteLater()
