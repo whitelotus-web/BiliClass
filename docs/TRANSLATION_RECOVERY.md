@@ -26,7 +26,11 @@ Các ca dữ liệu, Chrome mô phỏng và Qt/PowerPoint thật đã kiểm tra
 
 Trên Bài 6 ngày 15/10/2026: xác minh đủ 26 mục dịch và giữ 32 đơn vị nội dung đã xong; không gửi lại bài gốc. Nhận đủ gói XML của nhóm 64 slide, ghép lại được PowerPoint 40.401.075 byte, kiểm tra đúng số slide và media. Kiểm tra ban đầu vẫn có 9 slide FAIL và 55 CHECK, nên đây chưa phải bài đủ điều kiện dùng để dạy.
 
-Việc nhận gói thực tế có thao tác chẩn đoán; chưa chứng minh cơ chế dự phòng mới tự hoàn tất bài thật. Lượt sửa trên web còn chậm/gián đoạn, phiên sau có lúc tải trang không đầy đủ. Chưa công bố tốc độ trọn bài, chưa bảo đảm mọi bài chạy hoàn toàn không can thiệp. Không đổi cảnh báo thành PASS để che giới hạn này.
+Sau chẩn đoán, đã chạy lại bằng đúng cơ chế nhận dự phòng mới: tự nhận gói của lượt sửa, xác minh/ghép nhóm 64 slide và tiếp tục ghép bài tại máy, không tải lại nguồn. Lần tiếp tục cuối đi qua bước nhận ở khoảng giây 103 và hoàn tất file ở giây 233. Đây là thời gian tiếp tục từ checkpoint có sẵn; **không phải** thời gian chuyển đổi cả bài từ đầu.
+
+Đối chiếu số slide: nguồn và kết quả đều có **79 slide** (64 slide trực quan, 15 slide đi theo nhánh chữ). 32 là số đơn vị nội dung, không phải số slide. Ứng dụng RC34 đã tự nhập kết quả vào thư viện, ghi lesson_id và tiến độ 100%; thư viện có thêm đúng một bản nháp. Sau render/kiểm tra toàn bài còn **24 slide FAIL, 55 CHECK**, gồm tràn chữ, bố cục/cặp ngôn ngữ và chuỗi kỹ thuật. Voice chưa được bật cho bài lỗi. Bài chưa đạt điều kiện hoàn thiện để dạy ngay.
+
+Phiên web từng không tải được cuộc trò chuyện/lịch sử rồi truy cập được lại. Cửa sổ thật có một khoảng không phản hồi trong bước nhập/mở bài lớn, sau đó khôi phục và hiển thị kết quả; chưa coi toàn bộ quy trình đã mượt. Chưa công bố tốc độ trọn bài, chưa bảo đảm mọi bài chạy hoàn toàn không can thiệp. Không đổi cảnh báo thành PASS để che giới hạn này.
 
 Giữ nguyên bài nguồn, thư viện, phiên tài khoản và cấu hình. Tạo voice vẫn là bước riêng sau khi có PowerPoint, không tự tạo giọng đọc trong bước chuyển đổi.
 

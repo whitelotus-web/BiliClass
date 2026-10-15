@@ -6,12 +6,20 @@ mở; không báo mất mạng chỉ vì lượt suy luận đang chạy chưa �
 Lượt tự sửa tập trung vào lỗi FAIL, không bị các CHECK đầu bài che khuất.
 Thêm phương án nhận XML có checksum qua ảnh dữ liệu nếu tải tệp thất bại.
 
-Trên Bài 6: giữ 32 đơn vị nội dung hợp lệ, nhận và ghép được nhóm 64 slide
-40.401.075 byte, media không đổi. Kiểm tra ban đầu còn 9 slide FAIL;
-chưa coi bài đã hoàn tất. Nhận dữ liệu thực tế có thao tác chẩn đoán,
-chưa xác nhận cơ chế mới tự hoàn tất toàn bộ bài. Phiên web/lượt sửa vẫn
-chậm và có lúc tải trang không đầy đủ. Không công bố tốc độ trọn bài hoặc
-đảm bảo hoạt động hoàn toàn không can thiệp. [Chi tiết](TRANSLATION_RECOVERY.md).
+Đã phát hành và mở RC34 độc lập từ commit ứng dụng
+`0dd792f585411ce6c3fa7c97077cd3affd5f1fe5`, xây lại 81 module. ZIP
+668.072.453 byte, SHA-256
+`bbb6e4ba7f5f9ca4142b9d203a98cb26d83c7833750c690d219e9e5b05ea42f5`.
+SHA/CRC đủ 4.007 tệp, cài/gỡ Unicode, Qt đóng gói hai kích thước và updater
+RC33 → RC34 đúng checksum đều qua.
+
+Bài 6 đã tự nhận dữ liệu bằng cơ chế mới, ghép đủ **79 slide** và được
+ứng dụng nhập vào thư viện ở 100%. Không gửi lại nguồn. Bản nháp mới vẫn
+có **24 slide FAIL, 55 CHECK** sau kiểm tra tại máy; voice chưa bật cho
+bài lỗi. Có giai đoạn cửa sổ không phản hồi khi nhập/mở bài lớn rồi khôi
+phục. Chưa coi chất lượng/tốc độ toàn quy trình đã đạt yêu cầu.
+Giữ nguyên 6 bài cũ, thêm đúng 1 bản nháp; nguồn cũ, 638 WAV và 2 profile
+được đối chiếu giữ nguyên. [Chi tiết](TRANSLATION_RECOVERY.md).
 
 Ngày 14/10/2026 — đã phát hành [RC33](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc33)
 từ commit ứng dụng `cbcc984b246efc6b0265371627fc749e5e1b2a5c`; xây lại 79
