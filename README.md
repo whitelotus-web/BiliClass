@@ -2,25 +2,27 @@
 
 Ứng dụng Windows chuyển tài liệu của giáo viên thành bài giảng Anh–Việt, rồi trình chiếu bằng PowerPoint với giọng đọc và mascot trợ giảng. Hỗ trợ cấu hình từ lớp 1 đến lớp 12 và môn tự nhập.
 
-## Luồng hiện tại — RC39
+## Luồng hiện tại — RC40
 
 RC39 sửa lỗi đọc PowerPoint kế thừa cỡ chữ từ slide mẫu khiến tác vụ dừng trước bước dịch. Đã kiểm tra bằng API Google thật; [nguyên nhân và phạm vi kiểm chứng](docs/GOOGLE_DOCUMENT_FIX_RC39.md).
+
+RC40 giữ thiết kế gốc khi dịch, đọc thêm chữ kèm công thức và dùng cặp trang Việt–Anh cho slide kín/hiệu ứng. [Cách giữ thiết kế và giới hạn](docs/SOURCE_DESIGN_RC40.md).
 
 BiliClass dùng **Google Cloud Translation NMT** để dịch phần chữ rồi dựng PowerPoint tại máy. **Browser ChatGPT/Gemini được tạm ẩn**, không gửi prompt hoặc tự chạy lại lượt web cũ. Giọng đọc là bước tùy chọn sau khi bài song ngữ đã lưu.
 
 1. Bật Cloud Translation API và thanh toán trên Google Cloud; thêm key trong **Cài đặt → Google Dịch**. Mỗi dòng nhập `Tên dự án | API_KEY`, hoặc chỉ một key. Key cùng dự án phải ở cùng nhóm; các key không có tên nhóm dùng chung nhóm Mặc định.
 2. Chọn PowerPoint có chữ chỉnh sửa được, DOCX, PDF có chữ, TXT hoặc dán nội dung. Chọn **Hai cột**, **Từng cặp** hoặc **Tiếng Anh**.
 3. Bấm **Chuyển đổi bài giảng**. Phần chữ được chia cụm nhỏ, loại nội dung lặp, dịch bằng hai worker có giới hạn và lưu cache. Số liệu/công thức được bảo vệ; phần trăm và thời gian hiển thị trên cửa sổ.
-4. PPTX đủ điều kiện giữ thiết kế gốc; bài phức tạp được dàn mẫu mới có phân trang và thông báo phạm vi. Chữ trong ảnh, biểu đồ, công thức/hiệu ứng chưa kiểm chứng vẫn cần đối chiếu, không tự báo mọi bài đã hoàn thiện.
+4. Chọn giữ thiết kế PPTX: giữ nền, hình và hiệu ứng; slide đủ chỗ dùng song ngữ cùng trang, slide chật dùng cặp trang Việt–Anh kế tiếp. Có PowerPoint trên máy thì đo/căn phần chữ mới tối đa hai lượt. Chữ trong ảnh, nhãn biểu đồ và trạng thái hiệu ứng vẫn cần đối chiếu. Mẫu mới chỉ dùng khi giáo viên chọn hoặc nguồn không phải PPTX.
 5. Tải PowerPoint ngay, hoặc chọn giọng VI/EN/cả hai rồi **Tạo giọng đọc**. Giọng VieNeu dùng một preset đa ngôn ngữ và tốc độ đã lưu, chạy tại máy. Âm thanh dùng trong BiliClass; tải PPTX không tự nhúng voice.
 
 Google có tín dụng miễn phí cho 500.000 ký tự/tháng theo điều kiện Google; **không phải 500.000 ký tự cho mỗi key**. BiliClass có bộ đếm/ngân sách cục bộ theo nhóm dự án, không đọc được số dư miễn phí hay mức dùng trên máy khác. Đặt thêm quota trên Google Cloud để kiểm soát chi phí. Key mã hóa theo tài khoản Windows, không vào Git, gói bài hoặc bản sao lưu; sang máy khác phải nhập lại.
 
-[Cách dùng, quản lý nhiều key và giới hạn RC38](docs/GOOGLE_TRANSLATION_RC38.md). Kiểm thử API hiện dùng fixture; chưa có key thật để đo tốc độ/kiểm tra Google trên bài thực tế.
+[Cách dùng, quản lý nhiều key và giới hạn RC38](docs/GOOGLE_TRANSLATION_RC38.md). Đã chạy API thật trên một bài thực tế; kiểm thử hồi quy dùng fixture, không công bố tốc độ hoặc chất lượng bảo đảm cho mọi bài/môn.
 
 ## Cài và cập nhật
 
-Máy cần Windows 10/11 64-bit, Internet khi dịch và Microsoft PowerPoint desktop để xem/trình chiếu giữ hiệu ứng. Tải gói Windows tại [GitHub Releases](https://github.com/whitelotus-web/BiliClass/releases), giải nén toàn bộ và chạy **Setup.cmd**. **Mã nguồn mới và gói đã phát hành là hai bản riêng**; RC38 là bản thử tại máy, chưa tự xuất hiện trên kênh cập nhật. Các release browser cũ vẫn dùng cơ chế của phiên bản đó.
+Máy cần Windows 10/11 64-bit, Internet khi dịch và Microsoft PowerPoint desktop để xem/trình chiếu giữ hiệu ứng. Tải gói Windows tại [GitHub Releases](https://github.com/whitelotus-web/BiliClass/releases), giải nén toàn bộ và chạy **Setup.cmd**. **Mã nguồn mới và gói đã phát hành là hai bản riêng**; RC40 là bản thử tại máy, chưa tự xuất hiện trên kênh cập nhật. Các release browser cũ vẫn dùng cơ chế của phiên bản đó.
 
 Nút **Kiểm tra cập nhật** nằm trong **Cài đặt → Thông tin BiliClass**. Gói Windows có model, không cần Python. Muốn chạy từ source, xem phần dưới; cần thêm Google Cloud Translation API key cho luồng mới. Dữ liệu giáo viên ở `%LOCALAPPDATA%/BiliClass` được giữ riêng khi cập nhật và không nằm trên GitHub.
 

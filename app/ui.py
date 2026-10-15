@@ -1673,9 +1673,13 @@ class Bridge(QObject):
         slide = self._powerpoint_state.get("slide")
         path = Path(self.powerpoint_worker.path) if read_after and self.powerpoint_worker else verified_presentation(self._lesson, self.library.directory)
         mode = self._lesson.get("conversion_format", "")
+        layout_plan = self._lesson.get('external_deck', {}).get('layout_plan')
+        lesson = self._lesson
 
         def inspect():
-            inspection = inspect_returned_deck(path, conversion_format=mode)
+            from .google_conversion import original_source
+            source = original_source(self.library.directory,lesson)
+            inspection = inspect_returned_deck(path, source, conversion_format=mode, layout_plan=layout_plan)
             if not read_after:
                 render_quality(path, self.library.directory, inspection["slide_quality"], self.cancel_event)
                 from .slide_quality import quality_messages
@@ -1743,8 +1747,11 @@ class Bridge(QObject):
                 return repair_existing(account, self._browser_ai.store.root, original, path,
                                        self.library.directory, lesson["id"], lesson["revision"], self.cancel_event,
                                        lambda message: self.logger.info("Lesson repair: %s", message))
-            return repair_and_inspect(path, self.library.directory, mode=lesson.get("conversion_format", ""),
-                                      cancel=self.cancel_event)
+            from .google_conversion import original_source
+            return repair_and_inspect(path, self.library.directory, source=original_source(self.library.directory,lesson),
+                                      mode=lesson.get("conversion_format", ""),
+                                      cancel=self.cancel_event,
+                                      layout_plan=lesson.get('external_deck', {}).get('layout_plan'))
 
         def completed(result):
             if self._lesson.get("id") != lesson["id"] or self.cancel_event.is_set():

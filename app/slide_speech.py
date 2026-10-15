@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import math
 import re
 import unicodedata
 from functools import lru_cache
@@ -66,15 +67,55 @@ def english_text(text, *, tagged=False):
 
 def objects(slide):
     """Keep group ancestry and stable native IDs, including table cells."""
-    def walk(shapes, ancestors=(), inherited_hidden=False):
+    def compose(parent, local):
+        a,b,c,d,e,f = parent
+        g,h,i,j,k,l = local
+        return (a*g+c*h,b*g+d*h,a*i+c*j,b*i+d*j,a*k+c*l+e,b*k+d*l+f)
+
+    def bounds(shape, transform):
+        a,b,c,d,e,f = transform
+        x,y,w,h = shape.left,shape.top,shape.width,shape.height
+        angle = math.radians(shape.rotation)
+        cosine,sine = math.cos(angle),math.sin(angle)
+        points = []
+        for px,py in ((x,y),(x+w,y),(x,y+h),(x+w,y+h)):
+            rx,ry = px-x-w/2,py-y-h/2
+            px,py = x+w/2+rx*cosine-ry*sine,y+h/2+rx*sine+ry*cosine
+            points.append((a*px+c*py+e,b*px+d*py+f))
+        left,top = min(p[0] for p in points),min(p[1] for p in points)
+        return {'x':round(left),'y':round(top),
+                'w':round(max(p[0] for p in points)-left),'h':round(max(p[1] for p in points)-top)}
+
+    def group_transform(shape):
+        nodes = shape._element.xpath('./p:grpSpPr/a:xfrm')
+        if not nodes:
+            return (1,0,0,1,0,0)
+        node = nodes[0]
+        children = {etree.QName(child).localname:child for child in node}
+        offset,extent = children.get('chOff'),children.get('chExt')
+        if offset is None or extent is None or not int(extent.get('cx','0')) or not int(extent.get('cy','0')):
+            return (1,0,0,1,0,0)
+        sx,sy = shape.width/int(extent.get('cx')),shape.height/int(extent.get('cy'))
+        if node.get('flipH') in {'1','true'}:
+            sx = -sx
+        if node.get('flipV') in {'1','true'}:
+            sy = -sy
+        angle = math.radians(shape.rotation)
+        cosine,sine = math.cos(angle),math.sin(angle)
+        a,b,c,d = cosine*sx,sine*sx,-sine*sy,cosine*sy
+        cx = int(offset.get('x'))+int(extent.get('cx'))/2
+        cy = int(offset.get('y'))+int(extent.get('cy'))/2
+        return (a,b,c,d,shape.left+shape.width/2-a*cx-c*cy,shape.top+shape.height/2-b*cx-d*cy)
+
+    def walk(shapes, ancestors=(), inherited_hidden=False, transform=(1,0,0,1,0,0)):
         for shape in native_shapes(shapes):
             parents = (*ancestors, shape.shape_id)
             hidden = inherited_hidden or bool(shape._element.xpath('./*/p:cNvPr[@hidden="1" or @hidden="true"]'))
             if hasattr(shape, "shapes"):
-                yield from walk(shape.shapes, parents, hidden)
+                yield from walk(shape.shapes, parents, hidden, compose(transform,group_transform(shape)))
                 continue
             base = {"shape_id": shape.shape_id, "ancestors": list(parents), "name": shape.name,
-                    "x": int(shape.left), "y": int(shape.top), "w": int(shape.width), "h": int(shape.height),
+                    **bounds(shape, transform),
                     "shape": shape, "hidden": hidden}
             if shape.has_text_frame:
                 if shape._element.xpath('.//*[local-name()="oMath" or local-name()="oMathPara"]'):

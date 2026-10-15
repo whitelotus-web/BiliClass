@@ -33,6 +33,9 @@ MESSAGES = {
     "source_workspace": "Giữ nguyên đối tượng phụ nằm hoàn toàn ngoài trang chiếu của bản gốc; không đưa vào lời đọc.",
     "source_text_needs_review": "Chuỗi cần rà soát đã có nguyên văn và đúng vị trí trong nguồn; vẫn bỏ khỏi lời đọc, cần giáo viên kiểm tra.",
     "vietnamese_remaining": "Chế độ English 100% còn chữ Việt trong đối tượng văn bản.",
+    "source_language_pair": "Trang Việt và trang Anh kế tiếp cùng giữ thiết kế gốc; kiểm tra bản dịch và hiệu ứng khi trình chiếu.",
+    "source_frame_needs_review": "Khung chữ vượt mép đã có trong nguồn và được giữ đúng vị trí; cần đối chiếu phần chữ khi trình chiếu.",
+    "source_text_overflow": "PowerPoint đo được chữ tràn trong trang được giữ nguyên từ nguồn; cần rà soát bản gốc.",
 }
 
 
@@ -49,9 +52,33 @@ def contrast_ratio(first, second):
     return (b+.05)/(a+.05)
 
 
-def inspect_quality(deck, speech, mode="", source_total=None, *, source_deck=None):
+def validate_layout_plan(plan, total, source_total=None):
+    """Only an explicit, complete source mapping can explain additional pages."""
+    if plan is None:
+        return None
+    if not isinstance(plan, list) or len(plan) != total:
+        raise ValueError('Sơ đồ trang song ngữ không khớp PowerPoint.')
+    expected, index = 1, 0
+    while index < len(plan):
+        row = plan[index]
+        if (not isinstance(row, dict) or type(row.get('source_slide')) is not int
+                or row['source_slide'] != expected or row.get('role') not in {'vi','en','bilingual','original'}):
+            raise ValueError('Sơ đồ trang song ngữ sai thứ tự nguồn.')
+        if row['role'] == 'vi':
+            index += 1
+            if index >= len(plan) or plan[index] != {'source_slide':expected,'role':'en'}:
+                raise ValueError('Thiếu trang Anh tương ứng với trang Việt.')
+        expected += 1
+        index += 1
+    if source_total is not None and expected-1 != source_total:
+        raise ValueError('Sơ đồ trang song ngữ chưa đủ slide nguồn.')
+    return plan
+
+
+def inspect_quality(deck, speech, mode="", source_total=None, *, source_deck=None, layout_plan=None):
     from .slide_speech import VI_MARKS
 
+    layout_plan = validate_layout_plan(layout_plan, len(deck.slides), source_total)
     rows = []
     for index, slide in enumerate(deck.slides, 1):
         spoken = speech["slides"][index-1]
@@ -59,8 +86,9 @@ def inspect_quality(deck, speech, mode="", source_total=None, *, source_deck=Non
         shapes = objects(slide)
         workspace = []
         original = {}
-        if source_deck is not None and len(source_deck.slides) == len(deck.slides):
-            original_slide = source_deck.slides[index-1]
+        layout = layout_plan[index-1] if layout_plan else None
+        if source_deck is not None and (layout_plan or len(source_deck.slides) == len(deck.slides)):
+            original_slide = source_deck.slides[(layout['source_slide'] if layout else index)-1]
             original = {(item['shape_id'], item['paragraph'], tuple(item['cell'] or ())): item
                         for item in objects(original_slide)}
             animated = set(original_slide._element.xpath('.//p:spTgt/@spid')) | set(slide._element.xpath('.//p:spTgt/@spid'))
@@ -75,7 +103,23 @@ def inspect_quality(deck, speech, mode="", source_total=None, *, source_deck=Non
             shapes = [item for item in shapes if item['shape_id'] not in workspace]
             if workspace:
                 issues.append({'code':'source_workspace','severity':'CHECK'})
-        if mode in {"parallel_columns", "sentence_pairs"}:
+        paired_vi = layout and layout['role'] == 'vi'
+        paired_en = layout and layout['role'] == 'en' and index > 1 and layout_plan[index-2]['role'] == 'vi'
+        if paired_vi:
+            partner = deck.slides[index]
+            from .slide_speech import english_text
+
+            partner_items = objects(partner)
+            partner_speech = {**speech['slides'][index], 'englishSpeechSegments':[
+                {'english_text':item['text'], 'kind':'body',
+                 'source':{'shape_id':item['shape_id'],'cell':item['cell']}}
+                for item in partner_items if item['source_type'] in {'shape','table'}
+                and english_text(item['text'])]}
+            issues.extend(bilingual_issues(shapes + partner_items, partner_speech,
+                                           deck.slide_width, deck.slide_height, 'sentence_pairs', allow_title_only=False))
+        if paired_vi or paired_en:
+            issues.append({'code':'source_language_pair','severity':'CHECK'})
+        elif mode in {"parallel_columns", "sentence_pairs"}:
             issues.extend(bilingual_issues(shapes, spoken, deck.slide_width, deck.slide_height, mode))
         for item in shapes:
             if not item["text"]:
@@ -83,7 +127,12 @@ def inspect_quality(deck, speech, mode="", source_total=None, *, source_deck=Non
             box = (item["x"], item["y"], item["w"], item["h"])
             if (box[0] < -91440 or box[1] < -91440 or box[0]+box[2] > deck.slide_width+91440
                     or box[1]+box[3] > deck.slide_height+91440):
-                issues.append({"code": "outside_slide", "severity": "FAIL", "shape_id": item["shape_id"]})
+                before = original.get((item['shape_id'],item['paragraph'],tuple(item['cell'] or ())))
+                inherited = bool(layout and before is not None
+                                 and all(abs(item[k]-before[k]) <= 12700 for k in ('x','y','w','h')))
+                issues.append({'code':'source_frame_needs_review' if inherited else 'outside_slide',
+                               'severity':'CHECK' if inherited else 'FAIL','shape_id':item['shape_id'],
+                               **({'evidence':'same_source_frame'} if inherited else {})})
             problem = speech_problem(item["text"])
             if problem and problem != "formula_needs_review":
                 before = original.get((item['shape_id'], item['paragraph'], tuple(item['cell'] or ())))
@@ -97,7 +146,11 @@ def inspect_quality(deck, speech, mode="", source_total=None, *, source_deck=Non
                                    "evidence": "same_native_text_and_box"} if inherited else {})})
             if mode == "english_only" and any(c in VI_MARKS for c in item["text"].casefold()):
                 issues.append({"code": "vietnamese_remaining", "severity": "CHECK", "shape_id": item["shape_id"]})
-            if any(run.font.size and run.font.size.pt < 18 for run in item["runs"]):
+            fit = item['shape']._element.find('p:txBody/a:bodyPr/a:normAutofit',
+                {'p':'http://schemas.openxmlformats.org/presentationml/2006/main',
+                 'a':'http://schemas.openxmlformats.org/drawingml/2006/main'})
+            font_scale = int(fit.get('fontScale','100000'))/100000 if fit is not None else 1
+            if any(run.font.size and run.font.size.pt*font_scale < 18 for run in item["runs"]):
                 issues.append({"code": "small_text", "severity": "CHECK", "shape_id": item["shape_id"]})
             # Z-order matters; backgrounds behind text are never called occluders.
             positions = [s.shape_id for s in native_shapes(slide.shapes)]
@@ -124,16 +177,21 @@ def inspect_quality(deck, speech, mode="", source_total=None, *, source_deck=Non
                         issues.append({"code": "quiz_mismatch", "severity": "FAIL"})
                 except (ValueError, AttributeError):
                     pass
-        if source_total is not None and source_total != len(deck.slides):
+        if source_total is not None and source_total != len(deck.slides) and not layout_plan:
             issues.append({"code": "slide_count", "severity": "FAIL"})
         unique = {json.dumps(issue, sort_keys=True): issue for issue in issues}
         rows.append({"slide": index, "slide_id": slide.slide_id, "issues": list(unique.values()),
+                     'source_slide_unchanged':bool(source_deck is not None
+                         and (layout_plan or len(source_deck.slides)==len(deck.slides))
+                         and original_slide._element.xml==slide._element.xml),
+                     **({'source_slide':layout['source_slide'],'language_role':layout['role']} if layout else {}),
                      "source_workspace_shapes":workspace,
                      "rendered": False, "render_image": "", "status": "CHECK"})
     report = {"schema_version": 1, "sha256": speech["sha256"], "slides": rows,
               "scope": "native object/speech checks and Office text geometry; no automatic OCR or semantic/animation certification"}
-    if source_deck is not None and len(source_deck.slides)==len(deck.slides):
-        for row,source,target in zip(rows,source_deck.slides,deck.slides,strict=True):
+    if source_deck is not None and (layout_plan or len(source_deck.slides)==len(deck.slides)):
+        for index,(row,target) in enumerate(zip(rows,deck.slides,strict=True)):
+            source = source_deck.slides[(layout_plan[index]['source_slide']-1) if layout_plan else index]
             motion = {int(value) for value in source._element.xpath('.//p:animMotion//p:spTgt/@spid') if value.isdigit()}
             motion &= {int(value) for value in target._element.xpath('.//p:animMotion//p:spTgt/@spid') if value.isdigit()}
             if not motion:
@@ -156,13 +214,13 @@ def inspect_quality(deck, speech, mode="", source_total=None, *, source_deck=Non
     return update_status(report)
 
 
-def bilingual_issues(items, spoken, width, height, mode):
+def bilingual_issues(items, spoken, width, height, mode, *, allow_title_only=True):
     """Check native body text and placement; notes never substitute visible English."""
     from .slide_speech import VI_MARKS, english_text, normalized
 
     text_items = [i for i in items if i["text"].strip() and i["source_type"] in {"shape", "table"}]
     # A short bilingual chapter/title alone is allowed to be stacked and centered.
-    if (len({i["shape_id"] for i in text_items}) == 1
+    if (allow_title_only and len({i["shape_id"] for i in text_items}) == 1
             and sum(len(i["text"]) for i in text_items) < 160):
         return []
     title_ids = {s["source"]["shape_id"] for s in spoken.get("englishSpeechSegments", []) if s["kind"] == "title"}
@@ -219,6 +277,10 @@ def grouped_quality_messages(report):
 
 def update_status(report):
     for row in report['slides']:
+        if row.get('source_slide_unchanged'):
+            for issue in row['issues']:
+                if issue['code']=='text_overflow':
+                    issue.update(code='source_text_overflow',severity='CHECK',evidence='same_source_slide_xml')
         outside = set(row.get('source_motion_shapes',[]))
         unchanged = set(row.get('source_motion_unchanged_text',[]))
         for issue in row['issues']:

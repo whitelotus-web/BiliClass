@@ -229,7 +229,7 @@ def load_request(folder):
             "attachments": [name] + (["mau-biliclass.pptx"] if (folder / "mau-biliclass.pptx").is_file() else [])}
 
 
-def inspect_returned_deck(path, source_path=None, conversion_format="", requested_style="source"):
+def inspect_returned_deck(path, source_path=None, conversion_format="", requested_style="source", *, layout_plan=None):
     """Read native text/notes only; no OCR, translation or document rewriting."""
     from pptx import Presentation
 
@@ -251,7 +251,7 @@ def inspect_returned_deck(path, source_path=None, conversion_format="", requeste
         inspect_zip(Path(source_path))
         source_deck = Presentation(source_path)
         source_total = len(source_deck.slides)
-        if source_total != len(deck.slides):
+        if source_total != len(deck.slides) and not layout_plan:
             review_notes.append(f"Số slide đã thay đổi: nguồn {source_total}, kết quả {len(deck.slides)}. "
                                 "Chưa đạt yêu cầu giữ đúng số slide; cần kiểm tra hoặc chuyển đổi lại.")
     for index, slide in enumerate(deck.slides, 1):
@@ -298,11 +298,13 @@ def inspect_returned_deck(path, source_path=None, conversion_format="", requeste
     from .slide_speech import deck_speech
 
     speech_data = deck_speech(path, deck, conversion_format, profile["units"])
-    quality = inspect_quality(deck, speech_data, conversion_format, source_total,source_deck=source_deck)
+    quality = inspect_quality(deck, speech_data, conversion_format, source_total,source_deck=source_deck,
+                              layout_plan=layout_plan)
     review_notes.extend(quality_messages(quality))
     return {"blocks": blocks, "profile": profile, "total": len(deck.slides), "render_only": render_only,
             "questions": questions, "review_notes": review_notes,
-            "slide_speech": speech_data, "slide_quality": quality}
+            "slide_speech": speech_data, "slide_quality": quality,
+            **({'layout_plan':layout_plan} if layout_plan else {})}
 
 
 def speaker_pair(notes):

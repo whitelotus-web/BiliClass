@@ -1,5 +1,12 @@
 # Trạng thái BiliClass
 
+Ngày 15/10/2026 — RC40 giữ gói PowerPoint nguồn thay vì chuyển cả bài phức tạp
+sang mẫu trắng. Đọc nhánh chữ/công thức hiện đại, giữ tài nguyên/hiệu ứng và
+dùng cặp trang Việt–Anh khi không đủ chỗ theo lựa chọn đã xác nhận. Lưu sơ đồ
+trang cho các lần kiểm tra/sửa tiếp theo, đo/căn chữ mới tối đa hai lượt bằng
+PowerPoint nếu có. Đã thử lại nguồn thật 48 slide thành 94 trang; giữ cảnh báo
+đối với nội dung/ảnh chưa kiểm chứng. [Chi tiết](SOURCE_DESIGN_RC40.md).
+
 Ngày 15/10/2026 — RC39 sửa lỗi đọc cỡ chữ kế thừa ở placeholder PowerPoint
 (`Slide.slide_layout.slide_master`). Key Google thực tế đã lưu và gọi API
 thành công; lỗi trước đó xảy ra trước bước dịch. Luồng nhận lại key, lưu key

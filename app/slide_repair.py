@@ -320,16 +320,16 @@ def repair_layout(path, directory, report, cancel=None, progress=None):
 
 
 def repair_and_inspect(path, directory, *, source=None, mode="", style="source", cancel=None, progress=None,
-                       reuse_directory=None):
+                       reuse_directory=None, layout_plan=None):
     """At most three local passes; keep the best verified copy and stop on no progress."""
     from .chatgpt_handoff import inspect_returned_deck
     from .slide_quality import render_quality
 
     current = Path(path)
-    inspection = inspect_returned_deck(current, source, mode, style)
+    inspection = inspect_returned_deck(current, source, mode, style, layout_plan=layout_plan)
     render_quality(current, directory, inspection["slide_quality"], cancel, progress, reuse_directory=reuse_directory)
     history = []
-    if not (cancel and cancel.is_set()):
+    if not layout_plan and not (cancel and cancel.is_set()):
         title_result = normalize_titles(current, directory, mode)
         if Path(title_result["path"]) != current:
             titled = inspect_returned_deck(title_result["path"], source, mode, style)
@@ -348,7 +348,7 @@ def repair_and_inspect(path, directory, *, source=None, mode="", style="source",
         candidate = Path(result["path"])
         if candidate == current:
             break
-        after = inspect_returned_deck(candidate, source, mode, style)
+        after = inspect_returned_deck(candidate, source, mode, style, layout_plan=layout_plan)
         render_quality(candidate, directory, after["slide_quality"], cancel, progress)
         remaining = failure_keys(after["slide_quality"])
         if not remaining < before or any(not r["rendered"] for r in after["slide_quality"]["slides"]):

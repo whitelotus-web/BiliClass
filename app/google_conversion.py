@@ -1,7 +1,7 @@
 """Translate text via Google; construct and inspect PowerPoint locally.
 
-No browser imports or web submission. Safe native slides keep OOXML; complex
-sources use a clean, paginated template with an explicit fidelity warning.
+No browser imports or web submission. Source PowerPoints keep their native
+package; dense/animated slides use adjacent language versions when necessary.
 """
 
 import hashlib
@@ -50,6 +50,25 @@ def load(directory, folder, *, verify_source=True):
     if verify_source and hashlib.sha256((folder / name).read_bytes()).hexdigest() != config['source_sha256']:
         raise ValueError('Nguồn chuyển đổi đã thay đổi; chọn lại tài liệu.')
     return {'folder': str(folder), 'config': config}
+
+
+def original_source(directory, lesson):
+    """Recover only this lesson's hash-verified original for later local checks."""
+    import re
+
+    external = lesson.get('external_deck', {})
+    request = external.get('request_id', '')
+    if (external.get('provider') != 'google_translate' or external.get('requested_style') != 'source'
+            or not isinstance(request,str) or not re.fullmatch('[a-f0-9]{32}',request)):
+        return None
+    try:
+        job = load(directory,Path(directory)/'google_jobs'/request)
+        if job['config']['source_sha256'] != external.get('original_source_sha256'):
+            return None
+        source = Path(job['folder'])/job['config']['source_file']
+        return source if source.suffix == '.pptx' else None
+    except (OSError,ValueError,KeyError,TypeError):
+        return None
 
 
 def _template(path, config, pairs, cancel, source=None):
@@ -227,8 +246,8 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
             return lesson, external_preview(lesson, directory)
     source = folder / config['source_file']
     progress.stage('upload', 'Đang đọc nội dung tài liệu.')
-    manifest = extract(source, config['conversion_format']) if source.suffix == '.pptx' and config['style'] == 'source' else None
-    use_native = bool(manifest and manifest['units'] and not manifest['visual_slides'])
+    manifest = extract(source, config['conversion_format'], preserve_design=True) if source.suffix == '.pptx' and config['style'] == 'source' else None
+    use_native = manifest is not None
     warnings = []
     target = folder / 'result.pptx'
     notify = lambda done, total: progress.stage('translate', 'Đang hoàn thiện nội dung song ngữ.', done, total)
@@ -239,12 +258,14 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
         values = {u['id']: {'en': u['text']} for u in units if u['language'] in {'en', 'neutral'}}
         values.update({u['id']: {'en': en} for u, en in zip(pending, translated, strict=True)})
         progress.stage('assemble', 'Đang sắp xếp nội dung bài giảng.')
-        try:
-            assemble(source, target, manifest, values, config['conversion_format'])
-        except ValueError:
-            # Keep the cached translations, but never force overflowing boxes.
-            use_native = False
-            warnings.append('Bản dịch không vừa vùng nguồn; đã dàn lại bằng mẫu rõ ràng, có thể thay đổi số slide.')
+        assemble(source, target, manifest, values, config['conversion_format'])
+        from .native_layout import fit_preserved_frames
+        fitting = fit_preserved_frames(target,manifest,cancel)
+        (folder/'layout-fit.json').write_text(json.dumps(fitting),encoding='utf-8')
+        if manifest.get('paired_slides'):
+            warnings.append('Slide kín chữ/hình hoặc có hiệu ứng được giữ thành cặp trang Việt–Anh kế tiếp; số slide có thể tăng để giữ thiết kế gốc.')
+        if manifest.get('visual_slides'):
+            warnings.append('Hình, hiệu ứng, biểu đồ và đối tượng nhúng được giữ từ nguồn. Chữ nằm trong ảnh/biểu đồ chưa được dịch tự động; cần đối chiếu khi trình chiếu.')
     if not use_native:
         from .importers import extraction_warnings, parse_document
         from .input_analysis import language_of
@@ -289,7 +310,8 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
         raise InterruptedError('Đã dừng; bản dịch đã được lưu.')
     progress.stage('quality', 'Đang kiểm tra nội dung và bố cục.')
     inspection = inspect_returned_deck(target, source if use_native else None,
-                                      config['conversion_format'], config['style'])
+                                      config['conversion_format'], config['style'],
+                                      layout_plan=manifest.get('layout_plan') if use_native else None)
     inspection['review_notes'] = list(dict.fromkeys(inspection['review_notes'] + warnings))
     progress.stage('save', 'Đang lưu bài giảng song ngữ.')
     with closing(Library(directory)) as library:

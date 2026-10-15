@@ -535,8 +535,8 @@ ApplicationWindow {
                                     ConversionChoice {
                                         choiceName: "creationKeepOriginal"
                                         choiceGroup: designChoices
-                                        label: bridge.googleTranslation ? "Ưu tiên thiết kế PowerPoint gốc" : "Giữ thiết kế PowerPoint gốc"
-                                        detail: bridge.googleTranslation ? "Giữ vùng chữ vừa khung; bài phức tạp sẽ dàn lại bằng mẫu mới, có thể đổi số slide. Chữ trong ảnh/biểu đồ cần đối chiếu." : root.creationPowerPoint ? "Dùng đúng PowerPoint đầu vào: giữ thiết kế, hình, thứ tự slide và hiệu ứng; chuyển ngôn ngữ theo kiểu đã chọn." : root.creationCanKeepSource ? "Chọn tệp PPTX để giữ thiết kế, hình, thứ tự slide và hiệu ứng của PowerPoint đầu vào." : "Word/PDF/ảnh hoặc nội dung dán không có thiết kế PowerPoint gốc; dùng mẫu mới."
+                                        label: "Giữ thiết kế PowerPoint gốc"
+                                        detail: bridge.googleTranslation ? "Giữ nền, hình và hiệu ứng gốc. Slide đủ chỗ trình bày song ngữ cùng trang; slide chật dùng cặp Việt–Anh kế tiếp. Chữ trong ảnh/biểu đồ cần đối chiếu." : root.creationPowerPoint ? "Dùng đúng PowerPoint đầu vào: giữ thiết kế, hình, thứ tự slide và hiệu ứng; chuyển ngôn ngữ theo kiểu đã chọn." : root.creationCanKeepSource ? "Chọn tệp PPTX để giữ thiết kế, hình, thứ tự slide và hiệu ứng của PowerPoint đầu vào." : "Word/PDF/ảnh hoặc nội dung dán không có thiết kế PowerPoint gốc; dùng mẫu mới."
                                         selected: creationWorkflow.currentIndex === 0
                                         enabled: root.creationCanKeepSource; Layout.fillWidth: true; Layout.preferredWidth: 1
                                         onChosen: { root.preferredCreationDesign = 0; creationWorkflow.currentIndex = 0 }

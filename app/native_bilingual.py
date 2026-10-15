@@ -13,10 +13,12 @@ from .translation_batches import TOKEN, lock_numbers, restore
 from .native_layout import can_fit, fit_body
 
 
-def leaves(shapes):
-    for shape in shapes:
+def leaves(shapes, *, modern=False):
+    from .slide_speech import native_shapes
+
+    for shape in native_shapes(shapes) if modern else shapes:
         if hasattr(shape, 'shapes'):
-            yield from leaves(shape.shapes)
+            yield from leaves(shape.shapes, modern=modern)
         else:
             yield shape
 
@@ -69,7 +71,7 @@ def _body_height(shape, shapes, deck, mode):
     return height if height > shape.height and can_fit(shape, mode, height=height) else None
 
 
-def extract(source, mode):
+def extract(source, mode, *, preserve_design=False):
     """Preflight before any send. Image/diagram-heavy decks retain the visual route."""
     from pptx import Presentation
 
@@ -82,11 +84,16 @@ def extract(source, mode):
     units, unsupported, english = [], [], 0
     picture_slides = {}
     for index, slide in enumerate(deck.slides,1):
-        for shape in leaves(slide.shapes):
+        for shape in leaves(slide.shapes, modern=preserve_design):
             if int(shape.shape_type) == 13:
                 picture_slides.setdefault(picture_key(shape),set()).add(index)
     for index, slide in enumerate(deck.slides, 1):
-        shapes = list(leaves(slide.shapes))
+        shapes = list(leaves(slide.shapes, modern=preserve_design))
+        if preserve_design:
+            from .slide_speech import objects
+            visible_boxes = {item['shape_id']:item for item in objects(slide)}
+        else:
+            visible_boxes = {}
         motion={int(value) for value in slide._element.xpath('.//p:spTgt/@spid') if value.isdigit()}
         if mode != 'english_only' and any(hasattr(shape,'shapes') and any(s.has_text_frame and s.text.strip() for s in leaves(shape.shapes)) for shape in slide.shapes):
             unsupported.append(f'Slide {index}: giữ bố cục nhóm đối tượng gốc')
@@ -178,6 +185,12 @@ def extract(source, mode):
                         'text':text,'numbers':numbers,'xml_locks':xml_locks,'language':language,
                         'raw':raw,'title':bool(shape_title),'title_height':title_height,'part':original_parts[index-1],
                         'layout_height':layout_height,
+                        **({'clip_insets':{
+                            'lIns':round(max(0,-visible_boxes[shape.shape_id]['x'])*shape.width/max(1,visible_boxes[shape.shape_id]['w'])),
+                            'rIns':round(max(0,visible_boxes[shape.shape_id]['x']+visible_boxes[shape.shape_id]['w']-deck.slide_width)*shape.width/max(1,visible_boxes[shape.shape_id]['w'])),
+                            'tIns':round(max(0,-visible_boxes[shape.shape_id]['y'])*shape.height/max(1,visible_boxes[shape.shape_id]['h'])),
+                            'bIns':round(max(0,visible_boxes[shape.shape_id]['y']+visible_boxes[shape.shape_id]['h']-deck.slide_height)*shape.height/max(1,visible_boxes[shape.shape_id]['h']))}}
+                           if shape.shape_id in visible_boxes and shape.shape_id not in motion and not shape.rotation else {}),
                         'font_size':round(_size(shape.text_frame,shape)*100) if shape.has_text_frame else 1800})
     if mode != 'english_only' and english > max(5, len(units)*.35):
         unsupported.append('Nguồn có nhiều vùng English/song ngữ cần ghép cặp trực quan')
@@ -186,9 +199,11 @@ def extract(source, mode):
     visual = {int(match[1]) for reason in unsupported if (match:=re.match(r'Slide (\d+):',reason))}
     if any(not reason.startswith('Slide ') for reason in unsupported):
         visual = set(range(1,len(deck.slides)+1))
-    native = [unit for unit in units if unit['slide'] not in visual]
-    return {'version':2,'eligible':bool(units or visual),'reasons':list(dict.fromkeys(unsupported)),
+    native = units if preserve_design else [unit for unit in units if unit['slide'] not in visual]
+    return {'version':3 if preserve_design else 2,'eligible':bool(units or visual),'reasons':list(dict.fromkeys(unsupported)),
             'slides':len(deck.slides),'units':native,'visual_slides':sorted(visual),
+            **({'preserve_design':True,'paired_slides':sorted(visual) if mode != 'english_only' else []}
+               if preserve_design else {}),
             'text_characters':sum(len(u['text']) for u in native)}
 
 
@@ -287,11 +302,21 @@ def assemble(source, destination, manifest, translations, mode):
     grouped = {}
     for unit in manifest['units']:
         grouped.setdefault(unit['part'],{}).setdefault(unit['shape_id'],[]).append(unit)
-    notes = {}
+    notes, paired_trees = {}, {}
     for part, shapes in grouped.items():
         tree = _xml(entries[part])
+        index = next(iter(shapes.values()))[0]['slide']
+        paired = index in manifest.get('paired_slides', [])
+        effective_mode = 'english_only' if paired else mode
         for shape_id, units in shapes.items():
             nodes = tree.xpath('.//p:cNvPr[@id=$id]',namespaces=NS,id=str(shape_id))
+            if len(nodes) > 1 and manifest.get('preserve_design'):
+                # Modern math/text and its compatibility bitmap share an ID.
+                # Edit the Choice once; keep the original fallback asset intact.
+                preferred = [node for node in nodes if not any(
+                    etree.QName(parent).localname == 'Fallback' for parent in node.iterancestors())]
+                if preferred:
+                    nodes = preferred
             if len(nodes) != 1:
                 raise ValueError('Đối tượng PowerPoint không còn khớp nguồn.')
             shape = nodes[0].getparent().getparent()
@@ -300,7 +325,7 @@ def assemble(source, destination, manifest, translations, mode):
                 continue  # Keep exact XML only when the validated response agrees.
             bodies = ([shape.find('p:txBody', NS)] if shape.tag == f'{{{NS["p"]}}}sp' else
                       shape.findall('.//a:tc/a:txBody', NS))
-            if manifest.get('version', 1) >= 2:
+            if manifest.get('version', 1) >= 2 and not paired:
                 height=max((u.get('layout_height') or 0 for u in units),default=0)
                 extent=shape.find('p:spPr/a:xfrm/a:ext',NS)
                 if extent is not None and height:
@@ -309,7 +334,7 @@ def assemble(source, destination, manifest, translations, mode):
             clone_bodies = ([clone.find('p:txBody', NS)] if shape.tag == f'{{{NS["p"]}}}sp' else
                             clone.findall('.//a:tc/a:txBody', NS))
             title = any(u['title'] for u in units)
-            if title and mode!='english_only':
+            if title and effective_mode!='english_only':
                 height=max((u.get('title_height') or 0 for u in units),default=0)
                 extent=shape.find('p:spPr/a:xfrm/a:ext',NS)
                 if extent is not None and height:
@@ -332,13 +357,14 @@ def assemble(source, destination, manifest, translations, mode):
                         continue
                     value = translations[unit['id']]
                     english = translated_paragraph(original,value['en'],unit,english=True,
-                        smaller=mode=='sentence_pairs' or title)
-                    if mode == 'english_only':
+                        smaller=effective_mode=='sentence_pairs' or title and
+                        (effective_mode!='english_only' or not manifest.get('preserve_design')))
+                    if effective_mode == 'english_only':
                         body.append(english)
-                    elif mode == 'sentence_pairs' or title:
+                    elif effective_mode == 'sentence_pairs' or title:
                         body.append(copy.deepcopy(original))
                         body.append(english)
-                    elif mode == 'integrated_keywords':
+                    elif effective_mode == 'integrated_keywords':
                         body.append(translated_paragraph(original,value['mixed'],unit))
                     else:
                         body.append(copy.deepcopy(original))
@@ -348,15 +374,24 @@ def assemble(source, destination, manifest, translations, mode):
                     pair['en'].append(restore(value['en'],unit['numbers']))
                 _fit_body(body)
                 _fit_body(en_body)
-            if mode == 'parallel_columns' and not title:
+                if paired:
+                    props = body.find('a:bodyPr',NS)
+                    if props is not None:
+                        for key,value in units[0].get('clip_insets',{}).items():
+                            if value:
+                                props.set(key,str(int(props.get(key,'0'))+value))
+            if effective_mode == 'parallel_columns' and not title:
                 if shape.tag != f'{{{NS["p"]}}}sp':
                     raise ValueError('Bảng này cần dàn hai cột bằng luồng trực quan.')
                 _pair_columns(tree,shape,clone)
                 if manifest.get('version', 1) >= 2:
                     fit_body(clone, max(u['font_size'] for u in units))
             if manifest.get('version', 1) >= 2:
-                fit_body(shape, max(u['font_size'] for u in units))
-        entries[part] = _bytes(tree)
+                fit_body(shape, max(u['font_size'] for u in units), minimum=14 if paired else 18)
+        if paired:
+            paired_trees[index] = (part, tree)
+        else:
+            entries[part] = _bytes(tree)
     # python-pptx creates only the notes plumbing in a temporary copy. Keep its
     # slide XML out of the output so unsupported source extensions stay intact.
     deck = Presentation(source)
@@ -415,6 +450,36 @@ def assemble(source, destination, manifest, translations, mode):
             following = presentation.find('p:sldIdLst',NS)
             presentation.insert(presentation.index(following) if following is not None else 0,copy.deepcopy(masters))
             entries['ppt/presentation.xml'] = _bytes(presentation)
+        if manifest.get('preserve_design'):
+            from .source_deck import _append_slide
+
+            presentation = _xml(entries['ppt/presentation.xml'])
+            relations = _xml(entries['ppt/_rels/presentation.xml.rels'])
+            types = _xml(entries['[Content_Types].xml'])
+            slide_list = presentation.find('p:sldIdLst', NS)
+            originals = list(slide_list)
+            highest_id = max(int(sid.get('id')) for sid in originals)
+            plan = []
+            for index, sid in enumerate(originals, 1):
+                if index not in paired_trees:
+                    role = 'en' if mode == 'english_only' else 'bilingual' if index in notes else 'original'
+                    plan.append({'source_slide':index,'role':role})
+                    continue
+                part, tree = paired_trees[index]
+                plan.append({'source_slide':index,'role':'vi'})
+                highest_id += 1
+                _append_slide(part, tree, index, entries, types, relations, slide_list, sid, highest_id)
+                plan.append({'source_slide':index,'role':'en'})
+            manifest['layout_plan'] = plan
+            entries['ppt/presentation.xml'] = _bytes(presentation)
+            entries['ppt/_rels/presentation.xml.rels'] = _bytes(relations)
+            entries['[Content_Types].xml'] = _bytes(types)
+            if 'docProps/app.xml' in entries:
+                properties = _xml(entries['docProps/app.xml'])
+                count = properties.find('{*}Slides')
+                if count is not None:
+                    count.text = str(len(plan))
+                    entries['docProps/app.xml'] = _bytes(properties)
         with zipfile.ZipFile(pending,'w',compression=zipfile.ZIP_DEFLATED,compresslevel=1) as archive:
             for name,data in entries.items():
                 archive.writestr(name,data)
