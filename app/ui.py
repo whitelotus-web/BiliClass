@@ -667,6 +667,8 @@ class Bridge(QObject):
 
     @Slot()
     def reconnectBrowserAI(self):
+        if self.googleTranslation:
+            return
         if self._busy or self._browser_ai.loginBusy or not self._chatgpt_request:
             return
         from .browser_automation import read_record
@@ -1727,7 +1729,7 @@ class Bridge(QObject):
         original = self.library.directory / "chatgpt" / lesson["external_deck"].get("request_id", "")
         account = {}
         original_is_local = original.resolve().parent == (self.library.directory / "chatgpt").resolve()
-        if original_is_local and (original / "browser-job.json").is_file():
+        if not self.googleTranslation and original_is_local and (original / "browser-job.json").is_file():
             try:
                 record = json.loads((original / "browser-job.json").read_text(encoding="utf-8"))
                 account = self._browser_ai.store.get(record["account_id"])

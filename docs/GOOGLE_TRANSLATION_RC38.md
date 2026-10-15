@@ -3,6 +3,8 @@
 Ngày 15/10/2026. Luồng mặc định chuyển sang Google Cloud Translation Basic
 NMT v2. Browser AI được tạm ẩn, dừng kiểm tra phiên nền và không tự tiếp tục
 yêu cầu ChatGPT/Gemini cũ. Mã browser và các bài đã lưu được giữ để tương thích.
+Nút Tự sửa của bài web cũ cũng chỉ sửa tại máy trong chế độ Google, không
+khôi phục phiên browser hay gửi thêm yêu cầu web.
 
 ## Cách dùng
 
