@@ -487,7 +487,7 @@ Item {
                             Layout.fillWidth: true
                             ColumnLayout { Layout.fillWidth: true; spacing: 4
                                 Label { text: modelData.project + " · " + modelData.label; color: page.ink; font.bold: true; Layout.fillWidth: true; elide: Text.ElideRight }
-                                Hint { text: "Đã ghi nhận " + modelData.used.toLocaleString(Qt.locale("vi_VN")) + " ký tự · " + (modelData.blocked ? "Cần kiểm tra key/hạn mức" : "Chưa xác minh hạn mức Google Cloud"); Layout.fillWidth: true }
+                                Hint { text: "Đã ghi nhận " + modelData.used.toLocaleString(Qt.locale("vi_VN"), "f", 0) + " ký tự · " + (modelData.blocked ? "Cần kiểm tra key/hạn mức" : "Chưa xác minh hạn mức Google Cloud"); Layout.fillWidth: true }
                             }
                             SoftButton { text: "Xóa key"; enabled: !bridge.busy; onClicked: bridge.googleSettings.remove(modelData.id) }
                         }

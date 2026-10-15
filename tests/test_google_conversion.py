@@ -87,6 +87,25 @@ def test_google_job_cannot_load_outside_current_library(tmp_path):
         load(tmp_path, tmp_path.parent)
 
 
+def test_document_parser_failure_is_not_reported_as_missing_key(tmp_path, monkeypatch):
+    import json
+    from pathlib import Path
+    from app import importers
+    from app.google_translation import TranslationProblem
+
+    job = prepare(tmp_path, config(), text='Cơ năng')
+    def fail(*args, **kwargs):
+        raise AttributeError('document has no inherited font')
+    monkeypatch.setattr(importers, 'parse_document', fail)
+    with pytest.raises(TranslationProblem) as caught:
+        convert(tmp_path, job, Event(), ConversionProgress(job['folder'], lambda _: None), translator=object())
+    assert caught.value.code == 'source_document'
+    diagnostic = json.loads((Path(job['folder']) / 'conversion-error.json').read_text())
+    assert diagnostic['type'] == 'AttributeError'
+    assert diagnostic['code'] == 'source_document'
+    assert 'document has no inherited font' not in str(diagnostic)
+
+
 @pytest.mark.skipif(__import__('os').name != 'nt', reason='Windows job lock')
 def test_same_job_locked_by_another_window_does_not_send(tmp_path):
     import msvcrt

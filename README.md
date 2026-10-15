@@ -2,7 +2,9 @@
 
 Ứng dụng Windows chuyển tài liệu của giáo viên thành bài giảng Anh–Việt, rồi trình chiếu bằng PowerPoint với giọng đọc và mascot trợ giảng. Hỗ trợ cấu hình từ lớp 1 đến lớp 12 và môn tự nhập.
 
-## Luồng hiện tại — RC38
+## Luồng hiện tại — RC39
+
+RC39 sửa lỗi đọc PowerPoint kế thừa cỡ chữ từ slide mẫu khiến tác vụ dừng trước bước dịch. Đã kiểm tra bằng API Google thật; [nguyên nhân và phạm vi kiểm chứng](docs/GOOGLE_DOCUMENT_FIX_RC39.md).
 
 BiliClass dùng **Google Cloud Translation NMT** để dịch phần chữ rồi dựng PowerPoint tại máy. **Browser ChatGPT/Gemini được tạm ẩn**, không gửi prompt hoặc tự chạy lại lượt web cũ. Giọng đọc là bước tùy chọn sau khi bài song ngữ đã lưu.
 

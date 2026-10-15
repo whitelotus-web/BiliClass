@@ -24,3 +24,30 @@ def test_repair_of_old_web_lesson_uses_only_local_repair_in_google_mode(tmp_path
         launch=lambda work, complete: queued.append(work))
     ui.Bridge.repairConvertedLesson(bridge)
     assert len(queued) == 1 and queued[0]() == {'local': True}
+
+
+def test_key_save_readback_failure_preserves_the_input(monkeypatch):
+    from PySide6.QtCore import QCoreApplication, QObject
+    from app.google_settings import GoogleSettings
+
+    app = QCoreApplication.instance() or QCoreApplication([])
+    class FakeBridge(QObject):
+        def __init__(self):
+            super().__init__()
+            self._busy = False
+            self.library = SimpleNamespace(setting=lambda *args: 500000, set_setting=lambda *args: None)
+            self.messages = []
+        def inform(self, message, error=False):
+            self.messages.append((message, error))
+    class Store:
+        def public(self):
+            raise ValueError('Không đọc lại được key đã mã hóa.')
+        def add(self, text):
+            pass
+    monkeypatch.setattr(GoogleSettings, 'store', lambda self: Store())
+    bridge = FakeBridge()
+    settings = GoogleSettings(bridge)
+    assert settings.save('AIza' + 'a' * 35, 500000) is False
+    assert settings.state['configured'] is False
+    assert bridge.messages[-1][1] is True
+    app.processEvents()

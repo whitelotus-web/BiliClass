@@ -42,6 +42,9 @@ class GoogleSettings(QObject):
                 self.store().add(text)
             self.bridge.library.set_setting('google_character_budget', budget)
             self.refresh()
+            if text.strip() and not self._state.get('configured'):
+                self.bridge.inform(self._state.get('message') or 'Chưa đọc lại được key vừa lưu. Giữ nội dung nhập và thử lưu lại.', True)
+                return False
             self.bridge.inform('Đã lưu cấu hình Google Dịch. Key được mã hóa trên tài khoản Windows này.')
             return True
         except (ValueError, OSError) as exc:

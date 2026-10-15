@@ -71,7 +71,8 @@ def _size(frame, shape):
     if sizes:
         return max(sizes) / 12700
     if shape.is_placeholder:
-        for collection in (shape.part.slide.slide_layout.placeholders, shape.part.slide.slide_master.placeholders):
+        layout = shape.part.slide.slide_layout
+        for collection in (layout.placeholders, layout.slide_master.placeholders):
             for placeholder in collection:
                 if placeholder.placeholder_format.type == shape.placeholder_format.type and placeholder.has_text_frame:
                     values = [p.font.size for p in placeholder.text_frame.paragraphs if p.font.size]

@@ -609,9 +609,11 @@ class Bridge(QObject):
 
         try:
             config = validate_config(creation_config(title, subject, education, grade, mode, preset, style))
+            self._google_settings.refresh()
             if not self._google_settings.state.get('configured'):
                 self.navigate.emit('browser-settings')
-                raise ValueError('Thêm API key trong Cài đặt → Google Dịch trước khi chuyển đổi.')
+                raise ValueError(self._google_settings.state.get('message') or
+                                 'Thêm API key trong Cài đặt → Google Dịch trước khi chuyển đổi.')
             if bool(file_url) == bool(text.strip()):
                 raise ValueError('Chọn một nguồn: tài liệu hoặc nội dung dán vào.')
             path = local_document(file_url) if file_url else None

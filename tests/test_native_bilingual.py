@@ -82,6 +82,23 @@ def test_missing_translation_or_overwriting_source_is_rejected(tmp_path):
         assemble(source,source,manifest,{},'english_only')
 
 
+def test_placeholder_font_inherited_from_layout_or_master_does_not_crash(tmp_path):
+    from app.source_deck import _size
+    deck = Presentation()
+    slide = deck.slides.add_slide(deck.slide_layouts[1])
+    slide.shapes.title.text = 'Cơ năng'
+    body = slide.placeholders[1]
+    body.text = 'Năng lượng của vật được bảo toàn.'
+    slide.slide_layout.placeholders[0].text_frame.paragraphs[0].font.size = Pt(36)
+    assert slide.shapes.title.text_frame.paragraphs[0].font.size is None
+    assert _size(slide.shapes.title.text_frame, slide.shapes.title) == 36
+    assert _size(body.text_frame, body) > 0
+    path = tmp_path / 'inherited.pptx'
+    deck.save(path)
+    manifest = extract(path, 'parallel_columns')
+    assert manifest['slides'] == 1 and manifest['eligible']
+
+
 def test_already_english_source_keeps_exact_text_runs_without_a_visual_rewrite(tmp_path):
     source = fixture(tmp_path / 'english-source.pptx')
     deck = Presentation(source)

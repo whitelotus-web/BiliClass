@@ -179,6 +179,21 @@ def convert(directory, job, cancel, progress, *, budget=500_000, translator=None
             raise TranslationProblem('api_busy', 'Bài đang được xử lý trong một cửa sổ BiliClass khác.') from None
         try:
             return _convert(directory, job, cancel, progress, budget=budget, translator=translator)
+        except (AttributeError, KeyError, TypeError, ValueError) as exc:
+            if isinstance(exc, TranslationProblem):
+                raise
+            # Keep structural diagnostics private and never mistake a document
+            # parser failure for an absent API credential or a network outage.
+            import traceback
+            code = 'source_document' if getattr(progress, 'state', {}).get('stage') == 'upload' else 'api_conversion'
+            details = {'code': code, 'type': type(exc).__name__, 'frames': [
+                {'module': Path(frame.filename).name, 'line': frame.lineno, 'function': frame.name}
+                for frame in traceback.extract_tb(exc.__traceback__)]}
+            (Path(job['folder']) / 'conversion-error.json').write_text(json.dumps(details), encoding='utf-8')
+            message = ('Chưa đọc được một định dạng trong tài liệu nguồn. API key vẫn được giữ; cập nhật tool rồi tiếp tục bài.'
+                       if code == 'source_document' else
+                       'Chưa hoàn thiện được bản PowerPoint. Bản dịch đã lưu được giữ để tiếp tục; kiểm tra định dạng tài liệu.')
+            raise TranslationProblem(code, message) from exc
         finally:
             lock.seek(0)
             if os.name == 'nt':

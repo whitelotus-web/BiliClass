@@ -20,6 +20,8 @@ STAGE_COPY = {
 }
 
 ERROR_COPY = {
+    'source_document': 'Chưa đọc được một định dạng trong tài liệu nguồn. API key vẫn được giữ; cập nhật tool rồi tiếp tục bài.',
+    'api_conversion': 'Chưa hoàn thiện được PowerPoint. Phần dịch đã xong được giữ lại; đây không phải thông báo thiếu API key.',
     'api_layout': 'Một vùng chữ chưa vừa trang chiếu. Cần rút ngắn tên bài hoặc tách ý nguồn; phần đã dịch được giữ lại.',
     'api_busy': 'Bài đang chạy trong cửa sổ BiliClass khác. Mở cửa sổ đó để theo dõi; không cần gửi lại.',
     'api_settings': 'Kiểm tra cấu hình Google Dịch trong Cài đặt. Các phần đã hoàn tất được giữ lại.',

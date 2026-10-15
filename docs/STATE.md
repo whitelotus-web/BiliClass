@@ -1,5 +1,11 @@
 # Trạng thái BiliClass
 
+Ngày 15/10/2026 — RC39 sửa lỗi đọc cỡ chữ kế thừa ở placeholder PowerPoint
+(`Slide.slide_layout.slide_master`). Key Google thực tế đã lưu và gọi API
+thành công; lỗi trước đó xảy ra trước bước dịch. Luồng nhận lại key, lưu key
+và phân loại lỗi tài liệu/kết nối được kiểm tra riêng. Đã chạy lại và lưu
+bài thật; các cảnh báo nội dung vẫn được giữ. [Chi tiết](GOOGLE_DOCUMENT_FIX_RC39.md).
+
 Ngày 15/10/2026 — RC38 chuyển luồng mặc định sang Google Cloud Translation
 NMT: chỉ gửi chữ, dựng PowerPoint tại máy, voice là bước tùy chọn sau khi lưu.
 Browser AI tạm ẩn và không chạy lại job web cũ. Thêm nhiều key mã hóa DPAPI,
