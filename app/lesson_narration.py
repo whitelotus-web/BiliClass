@@ -53,12 +53,14 @@ def valid_key(directory, key):
     path = Path(directory) / "audio" / (key + ".wav")
     try:
         stat = path.stat()
-        return _valid(str(path.resolve()), stat.st_size, stat.st_mtime_ns)
+        # The validated key cannot contain a path component. Resolving the
+        # same absolute WAV path repeatedly also walks Windows reparse points.
+        return _valid(str(path.absolute()), stat.st_size, stat.st_mtime_ns)
     except OSError:
         return False
 
 
-def audio_status(lesson, directory, fallback_voices=None):
+def audio_status(lesson, directory, fallback_voices=None, *, cancel=None):
     record = lesson.get("narration")
     legacy = record is None
     if legacy:
@@ -92,9 +94,14 @@ def audio_status(lesson, directory, fallback_voices=None):
     expected, _ = make_plan(lesson, mode, {"voice": record["voice"], "rate": record["rate"]})
     if keys != expected["keys"]:
         return {**empty, "status": "stale", "mode": mode, "label": "Giọng đọc cần cập nhật"}
-    counts = {lang: sum(valid_key(directory, k) for k in keys.get(lang, [])) for lang in MODES[mode]}
     all_keys = set(k for lang in MODES[mode] for k in keys.get(lang, []) if isinstance(k, str))
-    complete = sum(valid_key(directory, k) for k in all_keys)
+    valid = {}
+    for key in all_keys:
+        if cancel is not None and cancel.is_set():
+            raise InterruptedError('Đã dừng kiểm tra giọng đọc.')
+        valid[key] = valid_key(directory, key)
+    counts = {lang: sum(valid.get(k, False) for k in keys.get(lang, [])) for lang in MODES[mode]}
+    complete = sum(valid.values())
     ready_languages = [lang for lang in MODES[mode] if keys.get(lang) and counts[lang] == len(keys[lang])]
     if legacy:
         if not complete:
@@ -102,7 +109,7 @@ def audio_status(lesson, directory, fallback_voices=None):
         if ready_languages:
             mode = "both" if len(ready_languages) == 2 else ready_languages[0]
             all_keys = set(k for lang in MODES[mode] for k in keys.get(lang, []) if isinstance(k, str))
-            complete = sum(valid_key(directory, k) for k in all_keys)
+            complete = sum(valid.get(k, False) for k in all_keys)
     ready = bool(all_keys) and all(lang in ready_languages for lang in MODES[mode]) and not record.get("skipped")
     status = "ready" if ready else "partial" if complete else "pending"
     return {"status": status, "mode": mode, "ready": ready, "complete": complete, "total": len(all_keys),

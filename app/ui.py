@@ -77,6 +77,8 @@ class Bridge(QObject):
     updateAvailable = Signal()
     narrationChanged = Signal()
     lessonsChanged = Signal()
+    statusChanged = Signal()
+    browserStateChanged = Signal()
     conversionClockChanged = Signal()
     updateProgress = Signal(int)
     inputAssessmentChanged = Signal()
@@ -129,7 +131,13 @@ class Bridge(QObject):
         self.narration_preparation = NarrationPreparation(library.directory / "audio", self)
         self._narration_checkpoint_token = None
         self.narration_preparation.changed.connect(self._narration_updated)
-        self.changed.connect(self.lessonsChanged)
+        from .library_catalog import LibraryCatalog
+
+        self._catalog = LibraryCatalog(library, self)
+        self._catalog.changed.connect(self.lessonsChanged)
+        self.changed.connect(self._catalog.refresh)
+        self.changed.connect(self.statusChanged)
+        self.changed.connect(self.browserStateChanged)
         # Changing the selected lesson must also refresh the filtered audio
         # state. Audio-only progress never travels back to the broad signal.
         self.changed.connect(self.narrationChanged)
@@ -222,7 +230,7 @@ class Bridge(QObject):
 
     @Property("QVariantList", notify=lessonsChanged)
     def lessons(self):
-        return self.library.list_lessons(self.lessonOrder)
+        return self._catalog.rows(self.lessonOrder)
 
     @Property(str, notify=changed)
     def lessonOrder(self):
@@ -234,9 +242,9 @@ class Bridge(QObject):
             self.library.set_setting("lesson_order", order)
             self.changed.emit()
 
-    @Property("QVariantList", notify=changed)
+    @Property("QVariantList", notify=lessonsChanged)
     def trashedLessons(self):
-        return self.library.list_lessons(trash=True)
+        return self._catalog.rows(trash=True)
 
     @Slot(str, result=str)
     def lessonDateLabel(self, value):
@@ -281,6 +289,7 @@ class Bridge(QObject):
     @Slot()
     def returnToLibrary(self):
         self.stopSpeech()
+        self._catalog.refresh(force=True)
         if self.powerpoint_worker:
             self.stopPowerPoint()
         self.navigate.emit("library")
@@ -442,7 +451,7 @@ class Bridge(QObject):
         except Exception as exc:
             self.inform(str(exc), True)
 
-    @Property("QVariantMap", notify=changed)
+    @Property("QVariantMap", notify=browserStateChanged)
     def browserState(self):
         from .conversion_presentation import display_state
 
@@ -479,7 +488,8 @@ class Bridge(QObject):
     @Slot(str)
     def _on_browser_progress(self, message):
         self._browser_state.update(message=message)
-        self.inform(message)
+        self.browserStateChanged.emit()
+        self.inform(message, refresh=False)
 
     @Slot(object)
     def _on_conversion_progress(self, event):
@@ -487,8 +497,9 @@ class Bridge(QObject):
 
         self._browser_state.update(event)
         self._browser_clock_mark = time.monotonic()
+        self.browserStateChanged.emit()
         self.conversionClockChanged.emit()
-        self.inform(event["message"])
+        self.inform(event["message"], refresh=False)
 
     @Slot(str, str, str, str, str, str, int, str, str, str, str)
     def prepareChatGPT(self, title, subject, education, grade, text, file_url, level, layout, preset, style, mode):
@@ -762,7 +773,7 @@ class Bridge(QObject):
                     lesson = self.library.update_narration(state["lesson_id"], state)
                     if self._lesson.get("id") == lesson["id"]:
                         self._lesson["narration"] = lesson["narration"]
-                    self.lessonsChanged.emit()
+                    self._catalog.refresh()
                 except (ValueError, KeyError):
                     pass  # A deleted/edited lesson cannot receive stale audio metadata.
         self.narrationChanged.emit()
@@ -1162,11 +1173,11 @@ class Bridge(QObject):
     def busy(self):
         return self._busy
 
-    @Property(str, notify=changed)
+    @Property(str, notify=statusChanged)
     def message(self):
         return self._message
 
-    @Property(bool, notify=changed)
+    @Property(bool, notify=statusChanged)
     def error(self):
         return self._error
 
@@ -1174,11 +1185,14 @@ class Bridge(QObject):
     def dataPath(self):
         return str(self.library.directory)
 
-    def inform(self, message, error=False):
+    def inform(self, message, error=False, *, refresh=True):
         self._message, self._error = message, error
         if error:
             self.logger.warning("Operation reported an error")
-        self.changed.emit()
+        if refresh:
+            self.changed.emit()
+        else:
+            self.statusChanged.emit()
 
     def _set_update_state(self, **changes):
         self._update_state = dict(self._update_state, **changes)
@@ -2334,8 +2348,10 @@ class Bridge(QObject):
             if not (directory / "library.db").is_file():
                 raise ValueError("Thư mục này chưa có thư viện BiliClass.")
             replacement = Library(directory)
+            self._catalog.shutdown()
             self.library.close()
             self.library = replacement
+            self._catalog.replace_library(replacement)
             try:
                 ensure_builtin_foundation(self.library)
             except Exception as exc:
@@ -2513,6 +2529,7 @@ def run(args):
     if bridge.worker:
         bridge.worker.wait()  # closing is disabled while jobs run; also safe on OS shutdown
     bridge.english_reader.shutdown()
+    bridge._catalog.shutdown()
     bridge.narration_preparation.shutdown()
     speech.stop()
     # QML bindings may still read the library while their objects are destroyed.

@@ -46,6 +46,7 @@ def memory_key(text):
 class Library:
     def __init__(self, directory: Path):
         self.directory = Path(directory)
+        self._closed = False
         self.directory.mkdir(parents=True, exist_ok=True)
         self.db = sqlite3.connect(self.directory / "library.db")
         self.db.row_factory = sqlite3.Row
@@ -118,10 +119,22 @@ class Library:
                 lesson["created_at_estimated"] = (first["revision"] if first else lesson["revision"]) != 1
                 self.db.execute("UPDATE lessons SET content=? WHERE id=?", (json.dumps(lesson, ensure_ascii=False), row["id"]))
 
+    @classmethod
+    def read_only(cls, directory):
+        """A worker snapshot must not run migrations or write data_version."""
+        library = cls.__new__(cls)
+        library.directory = Path(directory)
+        library._closed = False
+        library.db = sqlite3.connect((library.directory / 'library.db').resolve().as_uri() + '?mode=ro', uri=True)
+        library.db.row_factory = sqlite3.Row
+        library.db.execute('PRAGMA busy_timeout=2000')
+        return library
+
     def close(self):
+        self._closed = True
         self.db.close()
 
-    def list_lessons(self, order="updated_desc", *, trash=False):
+    def list_lessons(self, order="updated_desc", *, trash=False, verify_audio=True):
         rows = self.db.execute("SELECT * FROM lessons ORDER BY updated_at DESC").fetchall()
         result = []
         voices = voice_settings(self)
@@ -142,7 +155,9 @@ class Library:
                     "created_at_estimated": lesson.get("created_at_estimated", False),
                     "deleted_at": lesson.get("deleted_at", ""),
                     "slides_count": lesson.get("external_deck", {}).get("total", 0),
-                    "narration": audio_status(lesson, self.directory, voices),
+                    "narration": (audio_status(lesson, self.directory, voices) if verify_audio else
+                                  {"status": "checking", "mode": "none", "ready": False,
+                                   "label": "Đang kiểm tra giọng đọc"}),
                 }
             )
         if order not in {"created_desc", "created_asc", "updated_desc"}:

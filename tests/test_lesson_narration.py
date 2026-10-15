@@ -70,6 +70,31 @@ def test_new_conversion_has_no_voice_even_if_other_lessons_cached_identical_text
     assert library.list_lessons()[0]["narration"]["status"] == "none"
 
 
+def test_status_checks_each_distinct_wav_once_and_can_cancel(saved, monkeypatch):
+    from threading import Event
+    from app import lesson_narration
+
+    library, lesson, _ = saved
+    lesson['narration'], _ = make_plan(lesson, 'both', VOICES)
+    expected = {key for keys in lesson['narration']['keys'].values() for key in keys}
+    for key in expected:
+        wav(library.directory / 'audio' / (key + '.wav'))
+    original = lesson_narration.valid_key
+    calls = []
+    def counted(directory, key):
+        calls.append(key)
+        return original(directory, key)
+    monkeypatch.setattr(lesson_narration, 'valid_key', counted)
+    assert audio_status(lesson, library.directory)['ready']
+    assert set(calls) == expected and len(calls) == len(expected)
+    cancel = Event()
+    cancel.set()
+    calls.clear()
+    with pytest.raises(InterruptedError):
+        audio_status(lesson, library.directory, cancel=cancel)
+    assert calls == []
+
+
 def test_legacy_cached_voice_is_recognized_without_loading_or_starting_model(saved, monkeypatch):
     library, lesson, _ = saved
     lesson.pop("narration")

@@ -1,5 +1,18 @@
 # Trạng thái BiliClass
 
+Ngày 15/10/2026 — RC37 sửa lần treo RC36 đang chuyển đổi: stack Qt chính
+đang quét trạng thái WAV của danh sách/thùng rác do mỗi thông báo tiến độ
+phát tín hiệu thay đổi toàn màn hình. Tiến độ nay dùng tín hiệu riêng;
+danh sách được công bố từ worker chỉ đọc và cache trong bộ nhớ, không quét
+WAV ở getter QML. Bỏ quét giọng bài trong thùng rác và kiểm tra trùng khóa.
+[Chẩn đoán, thay đổi và giới hạn](UI_RESPONSIVENESS_RC37.md).
+
+39 kiểm thử liên quan qua; Qt Settings tám kiểm tra và ca cố tình giữ quét
+giọng ở nền qua. Gửi 200 cập nhật tiến độ: không làm mới toàn màn hình,
+khoảng ngắt UI lớn nhất 47 ms, nút Dừng phản hồi khoảng 359 ms. Đây là phép
+thử UI có kiểm soát; chưa phải benchmark chuyển đổi cả bài. Theo yêu cầu
+người dùng đã dừng lượt đang treo, không tự tiếp tục/gửi lại khi mở tool.
+
 Ngày 15/10/2026 — RC36 thêm mẫu nghe thử đóng sẵn cho sáu preset VieNeu, tab
 Thông tin BiliClass thay Song ngữ theo yêu cầu, icon cửa sổ/taskbar/EXE và
 shortcut Desktop. Qt Settings đủ tám kiểm tra có phát âm thử qua; Qt luồng

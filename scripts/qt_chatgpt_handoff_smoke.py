@@ -658,6 +658,12 @@ def vietnamese_ready():
     assert bridge.library.get(bridge.lesson["id"])["narration"]["mode"] == "both"
     assert not any(s["approved"] for s in bridge.lesson["segments"])
     window.setProperty("page", "library")
+    # Voice verification now publishes an asynchronous catalog snapshot.
+    # Keep the badge assertion, waiting only for that bounded local refresh.
+    catalog_deadline = time.monotonic() + 5
+    while bridge._catalog.worker is not None and time.monotonic() < catalog_deadline:
+        QTest.qWait(10)
+    assert bridge._catalog.worker is None, "Library voice snapshot did not finish"
     app.processEvents()
     assert "Việt + Anh" in visual_value("lessonNarrationBadge_" + bridge.lesson["id"], "target.text")
     assert QQuickWindow.grabWindow(window).save(str(reports / "library-voice.png"))
@@ -728,6 +734,7 @@ release_web.set()
 if bridge.worker:
     bridge.cancel_event.set()
     bridge.worker.wait()
+bridge._catalog.shutdown()
 report = {"status": "passed" if code == 0 and not warnings and not failures else "failed",
           "stages": stages, "warnings": warnings, "failures": failures,
           "scope": "Qt/native input and real Office preview; web/voices use fixtures, no uploads"}
