@@ -420,7 +420,16 @@ Item {
             Card {
                 Layout.fillWidth: true
                 ColumnLayout { width: parent.width; spacing: 14
-                    Title { text: "Google Cloud Translation" }
+                    RowLayout { Layout.fillWidth: true; spacing: 12
+                        Title { text: "Google Cloud Translation"; Layout.fillWidth: true }
+                        SoftButton {
+                            objectName: "getGoogleApiKey"; text: "Lấy key"
+                            Accessible.name: "Mở Google Cloud để tạo API key"
+                            onClicked: Qt.openUrlExternally("https://console.cloud.google.com/apis/credentials")
+                            ToolTip.visible: hovered
+                            ToolTip.text: "Chọn dự án → Tạo thông tin xác thực → Khóa API"
+                        }
+                    }
                     Hint { text: "Dịch phần chữ Việt–Anh, sắp xếp PowerPoint tại máy. Giọng đọc được tạo riêng sau khi bài giảng đã lưu."; Layout.fillWidth: true }
                     Hint { text: "Bật Cloud Translation API và thanh toán trên Google Cloud. Google có tín dụng miễn phí cho 500.000 ký tự/tháng theo điều kiện của dự án/tài khoản thanh toán, không phải mỗi API key. BiliClass không đọc được số dư này."; Layout.fillWidth: true }
                     Label { text: "API key · mỗi key một dòng"; color: page.ink; font.bold: true }
