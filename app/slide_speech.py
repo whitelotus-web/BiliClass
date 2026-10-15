@@ -65,6 +65,23 @@ def english_text(text, *, tagged=False):
     return language_of(text) == "en" or bool(words) and all(w in TERMS | EN_WORDS for w in words)
 
 
+def _transparent_run(node):
+    return bool(etree.XPath('./a:rPr/a:solidFill/*/a:alpha[@val="0"]|./a:rPr/a:noFill',
+                           namespaces={'a':'http://schemas.openxmlformats.org/drawingml/2006/main'})(node))
+
+
+def _visible_text(element, *, math=False):
+    result = []
+    for node in element.iter():
+        name = etree.QName(node)
+        if name.localname not in {'t','br'} or not math and name.namespace != 'http://schemas.openxmlformats.org/drawingml/2006/main':
+            continue
+        if any(etree.QName(parent).localname=='r' and _transparent_run(parent) for parent in node.iterancestors()):
+            continue
+        result.append('\v' if name.localname=='br' else node.text or '')
+    return (' ' if math else '').join(result)
+
+
 def objects(slide):
     """Keep group ancestry and stable native IDs, including table cells."""
     def compose(parent, local):
@@ -119,12 +136,13 @@ def objects(slide):
                     "shape": shape, "hidden": hidden}
             if shape.has_text_frame:
                 if shape._element.xpath('.//*[local-name()="oMath" or local-name()="oMathPara"]'):
-                    formula_text = " ".join(shape._element.xpath('.//*[local-name()="t"]/text()'))
+                    formula_text = _visible_text(shape._element,math=True)
                     yield {**base, "paragraph": None, "cell": None, "text": formula_text, "runs": [], "source_type": "formula"}
                 for index, paragraph in enumerate(shape.text_frame.paragraphs):
-                    if paragraph.text.strip():
-                        yield {**base, "paragraph": index, "cell": None, "text": paragraph.text,
-                               "runs": list(paragraph.runs), "source_type": "shape"}
+                    text = _visible_text(paragraph._p)
+                    if text.strip():
+                        yield {**base, "paragraph": index, "cell": None, "text": text,
+                               "runs": [run for run in paragraph.runs if not _transparent_run(run._r)], "source_type": "shape"}
             elif shape.has_table:
                 for row, cells in enumerate(shape.table.rows):
                     for column, cell in enumerate(cells.cells):

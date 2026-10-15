@@ -20,6 +20,10 @@ khiến có trang chỉ dịch được tiêu đề.
   được co cùng khung chữ thay vì chỉ co chữ thường, tránh phân số chạm viền.
   Một số khung nguồn vượt mép được tăng lề trong ở phần dịch để giữ chữ trong
   vùng nhìn thấy; không dời ảnh hay sửa trang Việt nguyên bản.
+- Giữ độ trong suốt của các run ẩn trong nguồn; không áp màu chữ thường lên
+  mã ẩn rồi làm chúng hiện ra. Chữ trong run có alpha bằng 0 không được coi
+  là chữ nhìn thấy hoặc đưa vào lời đọc. Chừa thêm lề cho hình nằm sát phần
+  cuối dòng để bản dịch dài hơn không chạy vào hình dù vẫn vừa hộp chữ.
 - Nếu có PowerPoint desktop, đo phần chữ mới và căn tối đa hai lượt, chỉ sửa
   XML định dạng chữ. Không lưu lại toàn bộ file qua Office. Nếu thiếu Office,
   vẫn xuất bản native theo ước lượng và giữ trạng thái cần rà soát.
@@ -43,6 +47,9 @@ và đo bố cục, không phải chứng nhận mọi click/trigger hoặc nộ
 Giữ nguyên trạng thái CHECK và không tự duyệt bài. Một lượt rộng qua 109 ca;
 sau khi bổ sung căn khoảng trống đã chạy lại 32 ca liên quan và Qt smoke.
 Các lượt kiểm thử chồng nhau không được cộng thành số ca độc lập.
+Đối chiếu ảnh cuối phát hiện thêm lỗi chữ chạm hình và mã trong suốt bị lộ;
+đã bổ sung kiểm thử riêng, chạy lại 49 ca liên quan và Qt smoke trước bản chạy
+cuối. Bản build trước lượt đối chiếu này không bàn giao để dùng thử.
 
 Kiểm thử tổng hợp bao phủ bài có slide đơn giản lẫn ảnh/hiệu ứng, Choice và
 fallback cùng ID, công thức không đổi, nhóm có tọa độ con, ảnh không có chữ,

@@ -71,6 +71,22 @@ def _body_height(shape, shapes, deck, mode):
     return height if height > shape.height and can_fit(shape, mode, height=height) else None
 
 
+def _visible_insets(shape, box, deck, items):
+    left,top,width,height = (box[k] for k in ('x','y','w','h'))
+    right = min(deck.slide_width,left+width)
+    for picture in items:
+        if picture['source_type'] != 'image':
+            continue
+        overlap = min(top+height,picture['y']+picture['h'])-max(top,picture['y'])
+        if (overlap > height*.5 and left+width*.5 < picture['x'] < right
+                and picture['w']*picture['h'] < deck.slide_width*deck.slide_height*.6):
+            right = picture['x']-12700
+    return {'lIns':round(max(0,-left)*shape.width/max(1,width)),
+            'rIns':round(max(0,left+width-right)*shape.width/max(1,width)),
+            'tIns':round(max(0,-top)*shape.height/max(1,height)),
+            'bIns':round(max(0,top+height-deck.slide_height)*shape.height/max(1,height))}
+
+
 def extract(source, mode, *, preserve_design=False):
     """Preflight before any send. Image/diagram-heavy decks retain the visual route."""
     from pptx import Presentation
@@ -91,10 +107,12 @@ def extract(source, mode, *, preserve_design=False):
         shapes = list(leaves(slide.shapes, modern=preserve_design))
         if preserve_design:
             from .slide_speech import objects
-            visible_boxes = {item['shape_id']:item for item in objects(slide)}
+            visible_items = objects(slide)
+            visible_boxes = {item['shape_id']:item for item in visible_items}
         else:
             visible_boxes = {}
         motion={int(value) for value in slide._element.xpath('.//p:spTgt/@spid') if value.isdigit()}
+        moving={int(value) for value in slide._element.xpath('.//p:animMotion//p:spTgt/@spid') if value.isdigit()}
         if mode != 'english_only' and any(hasattr(shape,'shapes') and any(s.has_text_frame and s.text.strip() for s in leaves(shape.shapes)) for shape in slide.shapes):
             unsupported.append(f'Slide {index}: giữ bố cục nhóm đối tượng gốc')
         text_ids={shape.shape_id for shape in shapes if shape.has_text_frame and shape.text.strip()}
@@ -160,6 +178,8 @@ def extract(source, mode, *, preserve_design=False):
                             continue
                         special = tag != 'r' or child.find('a:rPr', NS) is not None and (
                             child.find('a:rPr', NS).get('baseline', '0') != '0')
+                        if preserve_design and etree.XPath('.//a:rPr/a:solidFill/*/a:alpha[@val="0"]|.//a:rPr/a:noFill',namespaces=NS)(child):
+                            special = True  # Keep invisible source runs invisible, including private markers.
                         if special:
                             token = len(numbers)
                             numbers.append(paragraph_text(child))
@@ -185,12 +205,8 @@ def extract(source, mode, *, preserve_design=False):
                         'text':text,'numbers':numbers,'xml_locks':xml_locks,'language':language,
                         'raw':raw,'title':bool(shape_title),'title_height':title_height,'part':original_parts[index-1],
                         'layout_height':layout_height,
-                        **({'clip_insets':{
-                            'lIns':round(max(0,-visible_boxes[shape.shape_id]['x'])*shape.width/max(1,visible_boxes[shape.shape_id]['w'])),
-                            'rIns':round(max(0,visible_boxes[shape.shape_id]['x']+visible_boxes[shape.shape_id]['w']-deck.slide_width)*shape.width/max(1,visible_boxes[shape.shape_id]['w'])),
-                            'tIns':round(max(0,-visible_boxes[shape.shape_id]['y'])*shape.height/max(1,visible_boxes[shape.shape_id]['h'])),
-                            'bIns':round(max(0,visible_boxes[shape.shape_id]['y']+visible_boxes[shape.shape_id]['h']-deck.slide_height)*shape.height/max(1,visible_boxes[shape.shape_id]['h']))}}
-                           if shape.shape_id in visible_boxes and shape.shape_id not in motion and not shape.rotation else {}),
+                        **({'clip_insets':_visible_insets(shape,visible_boxes[shape.shape_id],deck,visible_items)}
+                           if shape.shape_id in visible_boxes and shape.shape_id not in moving and not shape.rotation else {}),
                         'font_size':round(_size(shape.text_frame,shape)*100) if shape.has_text_frame else 1800})
     if mode != 'english_only' and english > max(5, len(units)*.35):
         unsupported.append('Nguồn có nhiều vùng English/song ngữ cần ghép cặp trực quan')

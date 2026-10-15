@@ -246,3 +246,46 @@ def test_measured_fit_compacts_empty_paragraphs_without_changing_build_indices(t
     assert len(after.text_frame.paragraphs)==2
     assert after.text_frame.paragraphs[1]._p.find('a:pPr/a:defRPr',NS).get('sz')=='100'
     assert all(node.get('sz')=='100' for node in after.text_frame.paragraphs[1]._p.findall('.//a:rPr',NS))
+
+
+def test_transparent_source_marker_keeps_its_visibility_and_is_not_spoken(tmp_path):
+    from app.slide_speech import objects
+
+    original = source(tmp_path/'source.pptx')
+    deck = Presentation(original)
+    paragraph = deck.slides[1].shapes[0].text_frame.paragraphs[0]
+    run = paragraph.add_run()
+    run.text = ' 19vm568'
+    color = etree.SubElement(etree.SubElement(run._r.get_or_add_rPr(),f'{{{NS["a"]}}}solidFill'),
+                             f'{{{NS["a"]}}}srgbClr',val='FFFFFF')
+    etree.SubElement(color,f'{{{NS["a"]}}}alpha',val='0')
+    deck.save(original)
+    manifest = extract(original,'parallel_columns',preserve_design=True)
+    values = translated(manifest)
+    unit = next(u for u in manifest['units'] if u['slide']==2)
+    assert unit['numbers']==[' 19vm568']
+    values[unit['id']]['en'] += ' ⟦BLC0⟧'
+    output = assemble(original,tmp_path/'out.pptx',manifest,values,'parallel_columns')
+    english = Presentation(output).slides[2]
+    marker = english.shapes[0].text_frame.paragraphs[0].runs[-1]
+    assert marker.text==' 19vm568'
+    assert marker._r.find('.//a:alpha',NS).get('val')=='0'
+    assert all('19vm568' not in item['text'] for item in objects(english))
+
+
+def test_english_insets_reserve_space_beside_a_source_figure(tmp_path):
+    original = source(tmp_path/'source.pptx')
+    deck = Presentation(original)
+    slide = deck.slides[1]
+    box,picture = slide.shapes[0],slide.shapes[1]
+    picture.left = box.left+box.width-Inches(.3)
+    picture.top = box.top
+    picture.height = box.height
+    deck.save(original)
+    manifest = extract(original,'parallel_columns',preserve_design=True)
+    unit = next(u for u in manifest['units'] if u['slide']==2)
+    assert unit['clip_insets']['rIns']>=Inches(.3)
+    output = assemble(original,tmp_path/'out.pptx',manifest,translated(manifest),'parallel_columns')
+    result = Presentation(output)
+    assert result.slides[2].shapes[0].text_frame.margin_right>=Inches(.3)
+    assert result.slides[2].shapes[1].left==picture.left
