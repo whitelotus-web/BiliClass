@@ -272,7 +272,7 @@ ApplicationWindow {
                 Copy { objectName: "sidebarAppVersion"; text: (bridge.developmentMode ? "Bản nguồn · " : "Phiên bản · ") + bridge.appVersion; font.pixelSize: 9; Layout.topMargin: 6; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
                 Label {
                     objectName: "applicationCopyright"
-                    text: "© 2026 Nguyễn Diệu Linh\nGiáo viên Tin học - Trường THPT Vân Cốc\nAll rights reserved."
+                    text: "Copyright © 2026 Nguyễn Diệu Linh\nGiáo viên Tin học\nTrường THPT Vân\u00a0Cốc\nAll rights reserved."
                     color: root.muted; font.pixelSize: 9; textFormat: Text.PlainText
                     wrapMode: Text.WordWrap; Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter; Layout.topMargin: 3

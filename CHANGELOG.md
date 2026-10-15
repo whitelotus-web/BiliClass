@@ -2,6 +2,7 @@
 
 ## 1.0.0rc35 — 15/10/2026 — Tối ưu cache, nhập bài và xử lý thiếu dung lượng
 
+- Chân thanh bên ghi “Copyright © 2026 Nguyễn Diệu Linh”; tên trường nằm trên dòng riêng, giữ “Vân Cốc” cùng dòng.
 - Giữ audio gốc VieNeu và tạo các biến thể nhanh/chậm từ audio đó; không suy luận lại khi chỉ đổi tốc độ. Giữ khóa và các WAV đã có, không đổi giọng hoặc engine của người dùng.
 - Nhập bài bằng kết nối SQLite riêng của worker, ghi một bản hoàn chỉnh trong một lần; khôi phục theo request ID không tạo trùng. Kiểm tra tệp khi mở bài nằm ngoài luồng giao diện; không đọc PowerPoint hai lần cho cùng một phép xác minh.
 - Lưu nguồn qua tệp tạm có kiểm tra SHA-256 rồi mới công bố; phát hiện và khôi phục bản sao lưu dở từ đầu vào còn nguyên. Không giữ một tệp cắt cụt mang tên hash hợp lệ sau khi hết dung lượng.
