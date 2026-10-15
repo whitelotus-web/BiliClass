@@ -8,7 +8,10 @@ from pathlib import Path
 
 VERSION = 1
 TOKEN = re.compile(r"⟦BLC\d+⟧")
-NUMBERS = re.compile(r"(?<!\w)[+−-]?\d+(?:[.,]\d+)*(?:\s*%)?")
+# Page references (tr25), chemical labels (H2O), and variables (A0) also
+# contain source numbers. Protect them before translating rather than
+# treating their unchanged digits as invented output.
+NUMBERS = re.compile(r"[+−-]?\d+(?:[.,]\d+)*(?:\s*%)?")
 MAX_ITEMS = 128
 MAX_CHARS = 14000
 
@@ -82,6 +85,9 @@ def prompt(config, items, batch_id):
 def parse_response(text, items, batch_id, mode):
     """Validate identity, completeness, immutable tokens and numeric integrity."""
     text = text.strip()
+    # Accessible message wrappers in the current web include their role
+    # heading in innerText when JSON is rendered as prose rather than code.
+    text = re.sub(r'^(?:ChatGPT said|ChatGPT đã nói|ChatGPT nói)\s*:\s*', '', text, count=1)
     fence = re.fullmatch(r'```(?:json)?\s*([\s\S]*?)\s*```', text, re.I)
     if fence:
         text = fence[1]
@@ -106,8 +112,11 @@ def parse_response(text, items, batch_id, mode):
             if not isinstance(value, str) or not value.strip() or len(value) > max(2000, len(original['text'])*5):
                 raise ValueError('Một vùng bản dịch không hợp lệ.')
             restore(value, original.get('numbers', []))
-            # Raw digits must not appear in addition to the protected numbers.
-            if NUMBERS.findall(TOKEN.sub('', value)):
+            # Older checkpoints did not protect digits adjacent to letters.
+            # Permit exactly those original numbers, including multiplicity;
+            # changing or adding one is still an error.
+            raw_numbers = Counter(NUMBERS.findall(TOKEN.sub('', original['text'])))
+            if Counter(NUMBERS.findall(TOKEN.sub('', value))) != raw_numbers:
                 raise ValueError('Bản dịch thêm số liệu không có trong nguồn.')
             if re.search(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', value):
                 raise ValueError('Bản dịch có ký tự điều khiển không hợp lệ.')

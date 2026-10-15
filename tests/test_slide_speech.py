@@ -304,3 +304,10 @@ def test_hidden_group_cannot_leak_answer_through_visible_child_shape():
     group._element.xpath('./p:nvGrpSpPr/p:cNvPr')[0].set("hidden", "true")
     result = inspect_slide(slide, 1)
     assert [s["english_text"] for s in visible_segments(result)] == ["What is kinetic energy?"]
+
+def test_tagged_english_keeps_isolated_source_identifier_without_accepting_vietnamese():
+    from app.slide_speech import english_text
+    assert english_text('Predict what happens when pendulum Đ oscillates.',tagged=True)
+    assert not english_text('Con lắc Đ dao động.',tagged=True)
+    assert not english_text('The answer by Đức is shown below.',tagged=True)
+    assert not english_text('Predict what happens when pendulum Đ oscillates.')

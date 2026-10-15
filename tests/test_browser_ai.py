@@ -1758,3 +1758,47 @@ def test_old_interrupted_turn_is_finalized_once_only_after_exact_user_match(brow
         finally:
             timer.cancel()
             context.close()
+
+def test_recovery_uses_latest_complete_prompt_after_web_reduces_message_count(browser_fixture):
+    from app.browser_receipt import save_intent
+    adapter,accounts,request,captured,source=browser_fixture
+    record=read_record(request['folder'],accounts.get()['id'])
+    record.update(state='submitting',user_before=99,assistant_before=0)
+    save_intent(request['folder'],record,request['prompt']);adapter.write_record(request['folder'],record)
+    captured['html']=receipt_fixture_html(request['prompt'])
+    result=adapter.convert(accounts.get(),accounts.root,request['folder'],Event(),lambda _:None,timeout=10)
+    assert Path(result['path']).read_bytes()==source.read_bytes() and not captured['sends']
+
+
+def test_same_chat_same_message_count_still_acknowledges_complete_prompt(browser_fixture):
+    from playwright.sync_api import sync_playwright
+    from app.browser_receipt import wait_receipt
+    adapter,accounts,request,captured,_=browser_fixture
+    captured['html']=receipt_fixture_html(request['prompt'])
+    record=read_record(request['folder'],accounts.get()['id'])
+    record.update(state='submitting',user_before=1,assistant_before=1)
+    with sync_playwright() as pw:
+        context=adapter.open_context(pw,accounts.get(),background=True,cancel=Event())
+        try:
+            page=context.new_page();adapter.navigate(page,'https://chatgpt.com/c/receipt-one',Event())
+            assert wait_receipt(page,request['folder'],record,request['prompt'],Event(),previous_url=page.url,timeout=1)
+        finally:context.close()
+    assert record['state']=='waiting' and not captured['sends']
+
+@pytest.mark.parametrize('quoted',[False,True])
+def test_unavailable_saved_chat_is_distinct_from_expired_login_and_lesson_quotes(browser_fixture,quoted):
+    adapter,accounts,request,captured,source=browser_fixture
+    record=read_record(request['folder'],accounts.get()['id'])
+    record.update(state='waiting',url='https://chatgpt.com/c/receipt-one',assistant_before=0,assistant_ids_before=[])
+    adapter.write_record(request['folder'],record)
+    warning='<div>Could not load this ChatGPT conversation</div>'
+    captured['html']=FIXTURE.replace('</body>',warning+'</body>') if not quoted else FIXTURE.replace(
+        '<a href="/backend-api/files/result.pptx">',warning+'<a href="/backend-api/files/result.pptx">')
+    if quoted:
+        result=adapter.convert(accounts.get(),accounts.root,request['folder'],Event(),lambda _:None,timeout=10)
+        assert Path(result['path']).read_bytes()==source.read_bytes()
+    else:
+        with pytest.raises(BrowserProblem) as error:
+            adapter.convert(accounts.get(),accounts.root,request['folder'],Event(),lambda _:None,timeout=10)
+        assert error.value.code=='conversation'
+    assert not captured['sends']

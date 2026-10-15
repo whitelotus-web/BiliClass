@@ -1,4 +1,10 @@
-# BiliClass RC32 — hướng dẫn dùng thử
+# BiliClass RC34 — hướng dẫn dùng thử
+
+RC34 sửa đọc bản dịch, kiểm tra số liệu, lưu nhóm đã hoàn tất và dùng lại
+phiên đang mở. Có bước nhận dữ liệu dự phòng khi tải PowerPoint lỗi và
+lượt tự sửa tập trung vào các slide có lỗi. Chưa khắc phục mọi giới hạn
+phiên/dịch vụ; bài tạm dừng chưa được coi là hoàn tất.
+[Phạm vi kiểm chứng](TRANSLATION_RECOVERY.md).
 
 RC32 tối ưu yêu cầu giữ PowerPoint gốc: tự chọn xử lý chữ theo nhóm hoặc xử lý
 slide phức tạp, giảm dữ liệu video phải truyền và dùng lại phần đã hoàn tất.
@@ -22,7 +28,7 @@ lưu trước; tạo giọng đọc là bước riêng nếu thầy cô cần.
 
 ## Cài lần đầu
 
-1. Mở [Release RC32](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc32), tải **BiliClass-RC32-Windows.zip** trong Assets.
+1. Mở [Release RC34](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc34), tải **BiliClass-RC34-Windows.zip** trong Assets.
 2. Giải nén toàn bộ bằng Windows; không chạy ứng dụng ngay trong cửa sổ ZIP.
 3. Chạy **Setup.cmd**. Bộ cài kiểm tra checksum, cài vào `%LOCALAPPDATA%/Programs/BiliClass/<version>` và tạo mục Start menu, không cần quyền quản trị.
 4. Mở BiliClass từ Start menu, vào **Cài đặt → Browser AI**, chọn **ChatGPT hoặc Gemini**, bấm **Thêm tài khoản** để đăng nhập. Mỗi máy tự đăng nhập; không sao chép profile của người khác. Có thể thêm nhiều tài khoản độc lập cho từng dịch vụ và tích chọn tài khoản cụ thể để chuyển đổi, hoặc dùng Tự chọn tài khoản đang kết nối.

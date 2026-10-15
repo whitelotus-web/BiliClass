@@ -89,6 +89,11 @@ def page_problem(page):
         raise BrowserProblem("login", "Phiên ChatGPT hết hạn. Đăng nhập lại tài khoản trong Browser AI.")
     if visible(page, LOGIN):
         raise BrowserProblem("login", "Chưa đăng nhập ChatGPT. Mở Cài đặt → Browser AI → Đăng nhập.")
+    if conversation_url(page.url):
+        for notice in page.get_by_text(re.compile(
+                r'^(?:Could not load this ChatGPT conversation|Unable to load conversation|Không thể tải cuộc trò chuyện này)\.?$',re.I)).all():
+            if notice.is_visible() and not notice.locator(MESSAGE_ANCESTORS).count():
+                raise BrowserProblem('conversation','Không mở được cuộc trò chuyện đã lưu. Các phần đã nhận được giữ nguyên; không gửi lại bài gốc.')
     # Quota notices belong to web controls, not the teacher's lesson text.
     for notice in page.locator('[role="alert"], [data-testid="toast"], [data-testid="rate-limit-message"]').all():
         if (notice.is_visible() and not notice.locator(MESSAGE_ANCESTORS).count()

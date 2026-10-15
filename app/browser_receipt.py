@@ -46,20 +46,17 @@ def matching_users(page, prompt):
     wanted = normalized(prompt)
     # The web may put filenames/role labels around the prompt. Require the
     # complete text, not a title, filename or an assistant's quoted reply.
-    matches = []
-    for index, node in enumerate(page.locator(USER).all()):
-        if wanted and wanted in normalized(node.inner_text()):
-            matches.append(index)
-            continue
-        # Long teacher prompts are truncated by the current web. Expand only
-        # user-message prose; never relax the complete-text comparison.
-        for button in node.get_by_role("button", name=re.compile(
+    nodes = page.locator(USER).all()
+    if nodes and wanted not in normalized(nodes[-1].inner_text()):
+        # Expanding older turns scrolls a virtualized chat away from the new
+        # response and invalidates DOM indices. Only the latest user turn can
+        # acknowledge this tool's pending send. Still detect visible duplicates.
+        for button in nodes[-1].get_by_role("button", name=re.compile(
                 r"^(Show more|Xem thêm|Hiển thị thêm)$", re.I)).all():
             if button.is_visible():
                 button.click(timeout=5000)
-        if wanted and wanted in normalized(node.inner_text()):
-            matches.append(index)
-    return matches
+    return [index for index,node in enumerate(page.locator(USER).all())
+            if wanted and wanted in normalized(node.inner_text())]
 
 
 def wait_receipt(page, folder, record, prompt, cancel, *, previous_url="", timeout=40):
@@ -69,8 +66,14 @@ def wait_receipt(page, folder, record, prompt, cancel, *, previous_url="", timeo
     while time.monotonic() < deadline:
         web.check_cancel(cancel)
         web.page_problem(page)
-        acknowledged = (page.url != previous_url or page.locator(web.USER).count() > record["user_before"]
-                        or page.locator(web.ASSISTANT).count() > record["assistant_before"])
+        # The current web virtualizes old turns: adding a user turn can leave
+        # the total count unchanged or lower, even at the same chat URL.
+        # The exact latest prompt is another positive acknowledgement.
+        indices = matching_users(page, prompt)
+        acknowledged = (indices == [page.locator(web.USER).count()-1]
+                        or page.url != previous_url
+                        or page.locator(web.USER).count() > record['user_before']
+                        or page.locator(web.ASSISTANT).count() > record['assistant_before'])
         if web.conversation_url(page.url) and acknowledged:
             record.update(state="waiting", url=page.url, error="")
             web.write_record(folder, record)
@@ -116,7 +119,7 @@ def recover_submission(context, page, folder, record, request, cancel, *, limit=
         indices = matching_users(page, prompt)
         if len(indices) > 1:
             raise web.BrowserProblem("submission", "Có nhiều yêu cầu trùng nội dung; cần kiểm tra đúng cuộc trò chuyện. Tool không gửi lại.")
-        if indices and indices[0] >= record.get("user_before", 0):
+        if indices == [page.locator(web.USER).count()-1]:
             matches.append(url)
     if not matches:
         raise web.BrowserProblem("receipt", "Chưa tìm được xác nhận gửi trong các cuộc trò chuyện gần đây. Đã giữ yêu cầu để kiểm tra; không gửi lại khi kết quả gửi chưa rõ.")

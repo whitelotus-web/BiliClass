@@ -1,5 +1,18 @@
 # Trạng thái BiliClass
 
+Ngày 15/10/2026 — nguồn RC34 sửa đọc JSON, kiểm tra số sát chữ, lưu/phục hồi
+kết quả nhóm và xác nhận gửi khi web thu gọn lịch sử. Dùng lại phiên đang
+mở; không báo mất mạng chỉ vì lượt suy luận đang chạy chưa đổi nội dung.
+Lượt tự sửa tập trung vào lỗi FAIL, không bị các CHECK đầu bài che khuất.
+Thêm phương án nhận XML có checksum qua ảnh dữ liệu nếu tải tệp thất bại.
+
+Trên Bài 6: giữ 32 đơn vị nội dung hợp lệ, nhận và ghép được nhóm 64 slide
+40.401.075 byte, media không đổi. Kiểm tra ban đầu còn 9 slide FAIL;
+chưa coi bài đã hoàn tất. Nhận dữ liệu thực tế có thao tác chẩn đoán,
+chưa xác nhận cơ chế mới tự hoàn tất toàn bộ bài. Phiên web/lượt sửa vẫn
+chậm và có lúc tải trang không đầy đủ. Không công bố tốc độ trọn bài hoặc
+đảm bảo hoạt động hoàn toàn không can thiệp. [Chi tiết](TRANSLATION_RECOVERY.md).
+
 Ngày 14/10/2026 — đã phát hành [RC33](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc33)
 từ commit ứng dụng `cbcc984b246efc6b0265371627fc749e5e1b2a5c`; xây lại 79
 module. ZIP 668.053.129 byte, SHA-256

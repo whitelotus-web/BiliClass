@@ -63,7 +63,7 @@ def fake_login(account, root, cancel, progress, **options):
 def fake_convert(account, root, folder, cancel, progress, **options):
     request = load_request(folder)
     assert request["config"]["provider"] == "browser_web"
-    assert "FILE POWERPOINT" in request["prompt"] and "VI:" in request["prompt"]
+    assert "bai-giang-song-ngu.pptx" in request["prompt"] and "BILICLASS_NOTES:" in request["prompt"]
     conversions.append(account["id"])
     if account["plan"] == "plus":
         assert len(conversions) == 1 and not sends
@@ -238,7 +238,7 @@ def step():
                                    "parallel_columns", "standard", "source")
             phase = "blocked_conversion"
         elif phase == "blocked_conversion" and not bridge.busy:
-            assert bridge.error and bridge.browserState["needsLogin"]
+            assert bridge.error and bridge.browserState["needsLogin"], (bridge.browserState, bridge.message, conversions)
             assert not bridge.browserAI.store.get(free_id)["ready"]
             assert bridge.browserAI.store.get(plus_id)["ready"] and bridge.browserAI.store.get(plus_id)["quota_limited"]
             assert sends == [free_id], "Limited Plus must switch to Free before sending exactly once"

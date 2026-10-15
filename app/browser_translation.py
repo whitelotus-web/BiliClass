@@ -16,21 +16,32 @@ def _read_text(page, record):
     if message is None:
         return ''
     blocks = message.locator('pre code').all()
-    return blocks[0].inner_text() if len(blocks) == 1 else message.inner_text()
+    if len(blocks) == 1:
+        return blocks[0].inner_text()
+    prose = message.locator('[data-markdown-text-style="assistant-message"]:not([data-markdown-text-tone="tertiary"])')
+    if prose.count() == 1:
+        return prose.inner_text()
+    return message.inner_text()
 
 
 def _prepare_page(context, task, record, cancel):
     from .browser_capabilities import select_best_model, select_reasoning
     from .browser_receipt import recover_submission
 
-    page = context.new_page()
+    # Chrome restores this tool-owned profile's tabs. Reuse the saved task's
+    # exact conversation instead of accumulating another copy on every retry.
+    saved = record.get('url')
+    page = next((p for p in context.pages if saved and not p.is_closed() and p.url == saved),None)
+    if page is None:
+        page = context.new_page()
     page.set_default_timeout(10000)
     folder,request = task['folder'],task['request']
     try:
         if record['state'] == 'submitting':
             page = recover_submission(context,page,folder,record,request,cancel)
         else:
-            web.navigate(page,record['url'] or web.CHATGPT,cancel)
+            if page.url != (record['url'] or web.CHATGPT) or not web.signed_in(page):
+                web.navigate(page,record['url'] or web.CHATGPT,cancel)
             web.require_account(page,cancel)
         if record['state'] == 'prepared':
             if web.conversation_url(page.url):
@@ -60,11 +71,23 @@ def _visual_followup(task, cancel, message=None):
         raise web.BrowserProblem('submission','Chưa xác nhận đúng lượt xử lý; giữ bài để kiểm tra, không gửi trùng.')
     record['followups']=1
     web.write_record(task['folder'],record)
-    correction = ('Sửa nhóm PowerPoint vừa trả về: '+message+' Giữ nguyên media thay thế nhẹ và quan hệ video/audio. '
+    correction = ('Chỉ sửa các slide/lỗi cụ thể sau trong PowerPoint vừa trả về: '+message+
+                  ' Giữ nguyên các slide khác; không kiểm kê hoặc render lại toàn bộ bài. '
+                  'Giữ nguyên media thay thế nhẹ và quan hệ video/audio. '
                   'Dùng nguồn đã gửi trong cuộc trò chuyện này; không cần tải lại. Xuất lại đúng file .pptx tải được.'
                   if message else web.EXPORT_PROMPT)
     web.submit(page,task['folder'],record,correction,cancel)
     task.update(text='',stable=None)
+
+
+def _correction_errors(quality):
+    from .slide_quality import grouped_quality_messages
+
+    # CHECK warnings on early slides must not crowd the actual FAIL errors
+    # off a limited list, causing a costly correction that misses later slides.
+    failures={'slides':[{'slide':row['slide'],'issues':[i for i in row['issues'] if i['severity']=='FAIL']}
+                        for row in quality['slides']]}
+    return '; '.join(grouped_quality_messages(failures))
 
 
 def _visual_tasks(folder, request, account):
@@ -167,6 +190,25 @@ def convert_locked(account, request, cancel, progress, *, timeout=900, observed=
         key = signature({'version':1,'config':cache.policy,'items':batch})[:24]
         subfolder = folder/'translation-batches'/key
         subfolder.mkdir(parents=True,exist_ok=True)
+        completed = web.read_record(subfolder,account['id'])
+        saved_result = subfolder/'result.json'
+        if completed['state']=='completed' and saved_result.is_file():
+            try:
+                saved = json.loads(saved_result.read_text(encoding='utf-8'))
+                if signature(saved)!=completed.get('result_sha256') or not isinstance(saved,dict):
+                    raise ValueError('Bản dịch đã lưu không khớp checksum.')
+                verified = parse_response(json.dumps({'batch':key,'items':[{'id':k,**v} for k,v in saved.items()]},
+                    ensure_ascii=False),batch,key,config['conversion_format'])
+            except (ValueError,TypeError,AttributeError) as exc:
+                raise web.BrowserProblem('record','Bản dịch đã lưu không còn hợp lệ; giữ bài để kiểm tra.') from exc
+            for item in batch:
+                value=verified[item['id']]
+                cache.put(item,value)
+                values[item['id']]=value
+                for alias in aliases.get(item['id'],[]):
+                    cache.put(alias,value)
+                    values[alias['id']]=value
+            continue
         pending.append({'kind':'language','id':key,'folder':subfolder,'items':batch,'request':request})
     visual_done = 0
     for task in _visual_tasks(folder,request,account):
@@ -195,8 +237,10 @@ def convert_locked(account, request, cancel, progress, *, timeout=900, observed=
             with sync_playwright() as playwright:
                 context = web.open_context(playwright,account,background=True,cancel=cancel)
                 try:
-                    probe = context.pages[0] if context.pages else context.new_page()
-                    web.navigate(probe,web.CHATGPT,cancel)
+                    probe = next((p for p in context.pages if not p.is_closed() and web.signed_in(p)),None)
+                    if probe is None:
+                        probe = context.new_page()
+                        web.navigate(probe,web.CHATGPT,cancel)
                     web.require_account(probe,cancel)
                     plan = detect_plan(probe,web.PROFILE)
                     parallel = 2
@@ -236,16 +280,36 @@ def convert_locked(account, request, cancel, progress, *, timeout=900, observed=
                             generating = bool(web.visible(page,web.STOP))
                             text = _read_text(page,child)
                             if task['kind']=='visual' and not generating:
+                                from . import browser_text_transport
+
+                                candidate = task['target'].is_file() and child.get('candidate_send_sha256')==child.get('send_sha256')
+                                if candidate and hashlib.sha256(task['target'].read_bytes()).hexdigest()!=child.get('candidate_sha256'):
+                                    raise web.BrowserProblem('record','Bài giảng đã nhận bị thay đổi; giữ tác vụ để kiểm tra.')
+                                recovering = bool(child.get('receive_data_key'))
                                 link = web.result_link(page,child.get('assistant_before',0),
                                                        assistant_ids_before=child.get('assistant_ids_before'))
-                                if link:
-                                    download = web.receive_download(page,link,cancel,progress=scoped_progress(progress,'translate'))
-                                    if Path(download.suggested_filename).suffix.casefold()!='.pptx' or not download.path():
-                                        raise web.BrowserProblem('download','Một nhóm slide chưa nhận được PowerPoint hợp lệ.')
-                                    from .document_limits import MAX_POWERPOINT_BYTES
-                                    if Path(download.path()).stat().st_size>MAX_POWERPOINT_BYTES:
-                                        raise web.BrowserProblem('download','Nhóm PowerPoint kết quả vượt giới hạn.')
-                                    download.save_as(str(task['target']))
+                                if link or candidate or recovering:
+                                    if not candidate:
+                                        if recovering:
+                                            browser_text_transport.receive(context,page,task['folder'],child,task['request'],
+                                                task['target'],cancel,scoped_progress(progress,'translate'))
+                                        else:
+                                            try:
+                                                download = web.receive_download(page,link,cancel,progress=scoped_progress(progress,'translate'))
+                                                if Path(download.suggested_filename).suffix.casefold()!='.pptx' or not download.path():
+                                                    raise web.BrowserProblem('download','Một nhóm slide chưa nhận được PowerPoint hợp lệ.')
+                                                from .document_limits import MAX_POWERPOINT_BYTES
+                                                if Path(download.path()).stat().st_size>MAX_POWERPOINT_BYTES:
+                                                    raise web.BrowserProblem('download','Nhóm PowerPoint kết quả vượt giới hạn.')
+                                                download.save_as(str(task['target']))
+                                                child.update(candidate_sha256=hashlib.sha256(task['target'].read_bytes()).hexdigest(),
+                                                             candidate_send_sha256=child['send_sha256'])
+                                                web.write_record(task['folder'],child)
+                                            except web.BrowserProblem as exc:
+                                                if exc.code!='file_transfer':
+                                                    raise
+                                                browser_text_transport.receive(context,page,task['folder'],child,task['request'],
+                                                    task['target'],cancel,scoped_progress(progress,'translate'))
                                     inspection = web.inspect_returned_deck(task['target'],
                                         task['folder']/task['request']['config']['source_file'],
                                         config['conversion_format'],config['style'])
@@ -270,8 +334,7 @@ def convert_locked(account, request, cancel, progress, *, timeout=900, observed=
                                     if failures and not child.get('followups'):
                                         shutil.copyfile(task['target'],previous)
                                         child['quality_failures_before']=failures
-                                        from .slide_quality import quality_messages
-                                        _visual_followup(task,cancel,'; '.join(quality_messages(quality,limit=25)))
+                                        _visual_followup(task,cancel,_correction_errors(quality))
                                         continue
                                     old=child.get('quality_failures_before')
                                     if old and previous.is_file() and not set(failures)<set(map(tuple,old)):
@@ -299,10 +362,16 @@ def convert_locked(account, request, cancel, progress, *, timeout=900, observed=
                             if task['kind']=='language' and not generating and text.strip():
                                 if text != task['text']:
                                     task.update(text=text,stable=time.monotonic())
-                                elif task['stable'] is not None and time.monotonic()-task['stable'] >= 1:
+                                # A complete validated JSON needs no stability delay.
+                                # Save it before another finished task can fail its
+                                # download and close this shared browser context.
+                                if task['stable'] is not None:
                                     try:
                                         result = parse_response(text,task['items'],task['id'],config['conversion_format'])
                                     except (ValueError,TypeError) as exc:
+                                        if time.monotonic()-task['stable'] < 1:
+                                            task['budget'].checkpoint()
+                                            continue  # Let a partially rendered reply finish.
                                         if child.get('followups'):
                                             raise web.BrowserProblem('translation_result',
                                                 'Một cụm nội dung chưa đủ bản dịch hợp lệ; các phần đã xong được giữ lại.') from exc
@@ -336,14 +405,21 @@ def convert_locked(account, request, cancel, progress, *, timeout=900, observed=
                                 record.update(wait_exhausted=True,response_wait=child.get('response_wait',{}),
                                               send_sha256=child.get('send_sha256',''))
                                 raise web.BrowserProblem('timeout','Một phần nội dung cần thêm thời gian; bản dịch đã nhận được giữ để tiếp tục.')
-                            if web.interrupted_answer(page) or stale_refresh(child,text,generating=generating,after=120):
-                                if task['reconnects'] >= 2:
+                            interrupted=web.interrupted_answer(page)
+                            stale=stale_refresh(child,text,generating=generating,after=120)
+                            if interrupted or stale:
+                                if interrupted and task['reconnects'] >= 2:
                                     raise web.BrowserProblem('network','Kết nối tạm gián đoạn; các phần đã hoàn tất được giữ lại.')
-                                task['reconnects'] += 1
-                                web.write_record(task['folder'],child)
-                                web.navigate(page,child['url'],cancel)
-                                web.require_account(page,cancel)
-                                task.update(text='',stable=None)
+                                # A quiet but active thinking turn is not proof
+                                # of a broken connection. After bounded passive
+                                # refreshes, keep observing the original wait
+                                # budget instead of falsely pausing as network.
+                                if task['reconnects'] < 2:
+                                    task['reconnects'] += 1
+                                    web.write_record(task['folder'],child)
+                                    web.navigate(page,child['url'],cancel)
+                                    web.require_account(page,cancel)
+                                    task.update(text='',stable=None)
                             task['budget'].checkpoint()
                         notify()
                         if cancel.wait(.5):

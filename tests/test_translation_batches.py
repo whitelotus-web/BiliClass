@@ -87,3 +87,42 @@ def test_batch_limits_do_not_drop_or_reorder_items():
     batches=batch_items(items,maximum_items=3,maximum_chars=100)
     assert [len(batch) for batch in batches]==[3,3,1]
     assert [row['id'] for batch in batches for row in batch]==[row['id'] for row in items]
+
+
+@pytest.mark.parametrize('heading', ['ChatGPT said:', 'ChatGPT đã nói:', 'ChatGPT nói:'])
+def test_accessible_role_heading_is_not_part_of_json(heading):
+    source = item()
+    text = heading + '\n\n' + answer({'id':source['id'],'en':'The velocity is ⟦BLC0⟧ m/s.'})
+    assert parse_response(text,[source],'b1','parallel_columns')[source['id']]['en'].endswith('m/s.')
+
+
+def test_embedded_source_digits_are_protected_before_send():
+    text, numbers = lock_numbers('Câu hỏi SGK tr25: H2O và A0, 12 m/s.')
+    assert numbers == ['25', '2', '0', '12']
+    assert text == 'Câu hỏi SGK tr⟦BLC0⟧: H⟦BLC1⟧O và A⟦BLC2⟧, ⟦BLC3⟧ m/s.'
+    assert restore(text,numbers) == 'Câu hỏi SGK tr25: H2O và A0, 12 m/s.'
+
+
+def test_old_checkpoint_page_reference_can_be_reformatted_but_not_changed_or_duplicated():
+    source = {'id':'s52o6b0p0','slide':52,'text':'Câu hỏi (SGK – tr25): Tìm thêm ví dụ về dao động cưỡng bức',
+              'numbers':[]}
+    good = 'Question (Textbook – p. 25): Find additional examples of forced oscillations.'
+    assert parse_response(answer({'id':source['id'],'en':good}),[source],'b1','parallel_columns')
+    for bad in [good.replace('25','26'),good+' 25',good.replace('25',''),good+' 99']:
+        with pytest.raises(ValueError):
+            parse_response(answer({'id':source['id'],'en':bad}),[source],'b1','parallel_columns')
+
+
+def test_arbitrary_prose_and_multiple_json_objects_remain_invalid():
+    source=item()
+    text=answer({'id':source['id'],'en':'The velocity is ⟦BLC0⟧ m/s.'})
+    for invalid in ['Here is the answer: '+text,text+'\n'+text]:
+        with pytest.raises(ValueError):parse_response(invalid,[source],'b1','parallel_columns')
+
+
+def test_valid_pre_upgrade_translation_cache_stays_reusable(tmp_path):
+    source={'id':'s52o6b0p0','slide':52,'text':'Câu hỏi SGK tr25: tìm thêm ví dụ về dao động cưỡng bức','numbers':[]}
+    cache=TranslationCache(tmp_path,config())
+    value={'en':'Question on textbook p. 25: find more examples of forced oscillations.'}
+    cache.put(source,value)
+    assert TranslationCache(tmp_path,config()).get(source)==value
