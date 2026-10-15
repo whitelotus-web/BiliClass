@@ -36,6 +36,8 @@ PowerPoint tại máy. Không bật lại gửi tài liệu qua Browser AI.
   hiệu ứng/đáp án ẩn đã kiểm chứng hoặc bài đã sẵn sàng dạy.
 - Bài/ảnh render, cache và báo cáo thật nằm ngoài Git. Không tự sửa hàng
   loạt thư viện giáo viên; bài đã lưu cũ không tự biến thành bản mới.
+- Đối chiếu ZIP nguồn/bản thử: 69 phần media, chart, embedding và diagram
+  giữ nguyên từng byte.
 
 ## OCR và voice độc lập: hướng tiếp theo, chưa tích hợp
 
@@ -60,3 +62,15 @@ Nguồn kỹ thuật:
 - [PaddleOCR: các ngôn ngữ PP-OCRv5](https://www.paddleocr.ai/latest/en/version3.x/algorithm/PP-OCRv5/PP-OCRv5_multi_languages.html)
 - [Microsoft: Shapes.AddMediaObject2](https://learn.microsoft.com/en-us/office/vba/api/powerpoint.shapes.addmediaobject2)
 - [Microsoft: PlaySettings.PlayOnEntry](https://learn.microsoft.com/en-us/office/vba/api/powerpoint.playsettings.playonentry)
+
+## Bản chạy độc lập tại máy
+
+- Phiên bản `1.0.0rc43`, nguồn `a003415e66e53542bf121fd5033664173d3db7c5`.
+- EXE SHA-256 `eccbeca9dea3eb1a4dd14bb1d4f67e663967e0f0a2385e9ce4bdb19e2dd7d51f`.
+- Build một lần, 95 module app; runtime/model RC34 giữ nguyên qua junction,
+  chưa phải bộ cài phát hành hoặc kiểm chứng Windows sạch.
+- Frozen smoke hai kích thước 1366×850 và 1080×700 đạt: đúng version/icon,
+  không cảnh báo QML, lưu ảnh và thoát bình thường.
+- Đóng RC42 đúng cách khi không có yêu cầu chuyển đổi đang chờ; mở RC43
+  độc lập bằng shortcut desktop. Cửa sổ đáp ứng 15 lần kiểm tra. Snapshot
+  15 bài và 638 WAV giữ nguyên trước/sau khởi động; không tự chạy job cũ.
