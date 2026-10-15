@@ -1,4 +1,11 @@
-# BiliClass RC34 — hướng dẫn dùng thử
+# BiliClass RC35 — hướng dẫn dùng thử
+
+RC35 giảm công việc lặp khi mở/nhập bài, kiểm tra slide và đổi tốc độ voice.
+Sau khi nhận PowerPoint, bài được lưu trước; thầy cô tải bài hoặc chọn tạo
+giọng Việt, Anh hay cả hai. Đổi nhanh/chậm dùng lại WAV gốc đã tạo. Nếu ổ lưu
+dữ liệu không đủ chỗ, giải phóng dung lượng rồi tiếp tục; đăng nhập lại hoặc
+đổi tài khoản không khắc phục lỗi này. Bài còn báo lỗi cần được sửa và xem
+lại trước khi dùng để dạy. [Phạm vi kiểm chứng RC35](OPTIMIZATION_RC35.md).
 
 RC34 sửa đọc bản dịch, kiểm tra số liệu, lưu nhóm đã hoàn tất và dùng lại
 phiên đang mở. Có bước nhận dữ liệu dự phòng khi tải PowerPoint lỗi và

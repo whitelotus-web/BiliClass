@@ -22,7 +22,7 @@ def test_busy_native_profile_is_not_launched_or_its_live_endpoint_removed(tmp_pa
     endpoint = profile / "DevToolsActivePort"
     endpoint.write_text("9222\n/devtools/browser/live-fixture\n")
     monkeypatch.setattr(psutil, "process_iter", lambda *_: [SimpleNamespace(info={
-        "name": "chrome.exe", "cmdline": ["chrome.exe", f'--user-data-dir={profile}']})])
+        "name": "chrome.exe"}, cmdline=lambda: ["chrome.exe", f'--user-data-dir={profile}'])])
     monkeypatch.setattr(chrome_session.subprocess, "Popen", lambda *_a, **_k: pytest.fail("Must not launch a busy profile"))
     with pytest.raises(ChromeSessionError) as exc:
         open_chrome(None, account, background=True)
@@ -35,6 +35,23 @@ def test_busy_native_profile_is_not_launched_or_its_live_endpoint_removed(tmp_pa
         accounts.remove(account["id"])
     assert exc.value.code == "busy" and endpoint.exists()
     assert accounts.get(account["id"])["label"] == "Fixture"
+
+
+def test_profile_probe_reads_command_lines_only_for_chrome(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    import psutil
+    from app.chrome_session import require_idle_profile
+
+    reads = []
+    def processes(attributes):
+        assert attributes == ["name"]
+        return [SimpleNamespace(info={"name": "unrelated.exe"},
+                    cmdline=lambda: pytest.fail("Must not inspect unrelated processes")),
+                SimpleNamespace(info={"name": "chrome.exe"},
+                    cmdline=lambda: reads.append(True) or ["chrome.exe", "--type=renderer"])]
+    monkeypatch.setattr(psutil, "process_iter", processes)
+    require_idle_profile(tmp_path / "chrome")
+    assert reads == [True]
 
 
 @pytest.mark.parametrize("content", ["9222\nws://foreign.invalid/devtools/browser/a", "0\n/devtools/browser/a",

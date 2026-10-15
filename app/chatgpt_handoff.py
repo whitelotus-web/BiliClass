@@ -132,6 +132,8 @@ Sau khi tải xuống tôi sẽ nhận file vào BiliClass, xem trình chiếu v
 
 
 def prepare_request(directory, config, source_path=None, text=""):
+    from .storage_space import MIB, require_space
+
     config = validate_config(config)
     if bool(source_path) == bool(text.strip()):
         raise ValueError("Chọn một nguồn: tệp hoặc nội dung dán vào.")
@@ -152,6 +154,7 @@ def prepare_request(directory, config, source_path=None, text=""):
         data, suffix, original_name = text.encode("utf-8"), ".txt", "noi-dung-bai.txt"
     if config["style"] == "source" and suffix != ".pptx":
         raise ValueError("Giữ PowerPoint gốc cần tệp .pptx; tài liệu khác dùng mẫu BiliClass.")
+    require_space(directory, 256 * MIB + len(data) * 6)
     config.update(schema_version=1, request_id=str(uuid4()), source_original_name=original_name,
                   source_file="tai-lieu-goc" + suffix, source_sha256=hashlib.sha256(data).hexdigest())
     folder = Path(directory) / "chatgpt" / config["request_id"]
@@ -332,7 +335,9 @@ def external_preview(lesson, directory):
     if not external or external.get("text_signature") != text_signature(lesson):
         raise ValueError("Văn bản đã sửa chưa nằm trong PowerPoint nhận về. Nhận bản PowerPoint mới để dạy.")
     path = Path(verified_presentation(lesson, directory))
-    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    # verified_presentation has just hashed the exact source bytes. Avoid
+    # reading a large deck twice to check two copies of the same fingerprint.
+    digest = lesson["source"]["sha256"]
     if digest != external["sha256"]:
         raise ValueError("PowerPoint nhận về đã thay đổi; nhận lại file trước khi dạy.")
     mapped = {s["locator"]: s["id"] for s in lesson["segments"]}

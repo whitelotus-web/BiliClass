@@ -310,4 +310,4 @@ def test_tagged_english_keeps_isolated_source_identifier_without_accepting_vietn
     assert english_text('Predict what happens when pendulum Đ oscillates.',tagged=True)
     assert not english_text('Con lắc Đ dao động.',tagged=True)
     assert not english_text('The answer by Đức is shown below.',tagged=True)
-    assert not english_text('Predict what happens when pendulum Đ oscillates.')
+    assert english_text('Predict what happens when pendulum Đ oscillates.')

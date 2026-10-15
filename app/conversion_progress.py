@@ -2,6 +2,7 @@
 
 import json
 import time
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
 
 STAGES = {
@@ -38,6 +39,11 @@ def scoped_progress(progress, stage):
     return progress.scope(stage) if hasattr(progress, "scope") else progress
 
 
+def measured(progress, operation):
+    """Private timings, without document text or browser credentials."""
+    return progress.measure(operation) if hasattr(progress, "measure") else nullcontext()
+
+
 class ConversionProgress:
     def __init__(self, folder, notify):
         self.path = Path(folder) / "conversion-progress.json"
@@ -64,6 +70,27 @@ class ConversionProgress:
         durations = previous.get('stageSeconds', {}) if isinstance(previous, dict) else {}
         self.stage_seconds = {key: value for key, value in durations.items()
                               if key in STAGES and type(value) in (int, float) and 0 <= value < 10**9} if isinstance(durations, dict) else {}
+        operations = previous.get('operations', {}) if isinstance(previous, dict) else {}
+        self.operations = {key: dict(value) for key, value in operations.items()
+                           if isinstance(key, str) and key.startswith('local.') and isinstance(value, dict)
+                           and set(value) == {'calls', 'seconds', 'failures'}
+                           and all(type(v) in (int, float) and 0 <= v < 10**9 for v in value.values())} if isinstance(operations, dict) else {}
+
+    @contextmanager
+    def measure(self, operation):
+        started = time.monotonic()
+        failed = False
+        try:
+            yield
+        except BaseException:
+            failed = True
+            raise
+        finally:
+            row = self.operations.setdefault(operation, {"calls": 0, "seconds": 0, "failures": 0})
+            row["calls"] += 1
+            row["seconds"] = round(row["seconds"] + time.monotonic() - started, 4)
+            row["failures"] += int(failed)
+            self._emit(force=True)
 
     def __call__(self, message):
         self.state["message"] = message
@@ -97,7 +124,8 @@ class ConversionProgress:
         durations = {**self.stage_seconds}
         current = self.state["stage"]
         durations[current] = durations.get(current, 0) + (self.ended if self.ended is not None else time.monotonic()) - self.stage_started
-        saved = {"version": 1, **self.state, "stageSeconds": {k: round(v, 2) for k, v in durations.items()}}
+        saved = {"version": 1, **self.state, "stageSeconds": {k: round(v, 2) for k, v in durations.items()},
+                 "operations": self.operations}
         try:
             temporary = self.path.with_suffix(".tmp")
             temporary.write_text(json.dumps(saved, ensure_ascii=False), encoding="utf-8")

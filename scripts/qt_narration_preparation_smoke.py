@@ -22,6 +22,7 @@ from app.browser_accounts import BrowserAccounts  # noqa: E402
 from app.browser_automation import read_record, write_record  # noqa: E402
 from app.chatgpt_handoff import prepare_request  # noqa: E402
 from app.library import Library  # noqa: E402
+from app.lesson_import import save_conversion  # noqa: E402
 from app.ui import Bridge  # noqa: E402
 
 
@@ -29,6 +30,7 @@ def main():
     QQuickStyle.setStyle("Basic")
     app = QGuiApplication(sys.argv)
     entered, release, ticks, failures, warnings = Event(), Event(), [], [], []
+    importing, allow_import, import_ticks = Event(), Event(), []
     started = time.monotonic()
     with tempfile.TemporaryDirectory(prefix="bcl-qt-audio-") as temporary:
         root = Path(temporary)
@@ -58,10 +60,16 @@ def main():
             assert release.wait(10), "Test did not release synthesis"
             raise RuntimeError("Deliberate local voice failure")
 
+        def save(*args):
+            importing.set()
+            assert allow_import.wait(15), "GUI did not remain responsive during import"
+            return save_conversion(*args)
+
         try:
             with patch("app.speech.list_voices", return_value=[{"id": "vieneu:Mai Anh", "provider": "vieneu"}]), \
                  patch("app.browser_dispatch.convert_available", side_effect=convert), \
                  patch("app.slide_quality.render_quality"), \
+                 patch("app.lesson_import.save_conversion", side_effect=save), \
                  patch("app.speech.synthesize_background", side_effect=synthesize), \
                  patch.object(Bridge, "previewConvertedSlide"):
                 bridge = Bridge(library)
@@ -76,10 +84,15 @@ def main():
                 timer.setInterval(20)
                 checked = False
                 voice_requested = False
+                deadline = time.monotonic() + 35
 
                 def tick():
                     nonlocal checked, voice_requested
                     ticks.append(time.monotonic())
+                    if importing.is_set() and not allow_import.is_set():
+                        import_ticks.append(time.monotonic())
+                        if len(import_ticks) >= 5:
+                            allow_import.set()
                     if bridge._lesson and not bridge.busy and not voice_requested:
                         try:
                             assert bridge._browser_state["percent"] == 100
@@ -111,8 +124,9 @@ def main():
                         except BaseException as exc:
                             failures.append(str(exc))
                         app.quit()
-                    if time.monotonic() - started > 12:
-                        failures.append("Qt lifecycle timed out")
+                    if time.monotonic() > deadline:
+                        failures.append(f"Qt lifecycle timed out: {bridge.message}; busy={bridge.busy}; lesson={bool(bridge._lesson)}")
+                        allow_import.set()
                         release.set()
                         app.quit()
 
@@ -128,15 +142,17 @@ def main():
                     bridge.worker.wait()
                 engine.rootObjects()[0].close()
                 del engine
-                assert checked and len(ticks) >= 2 and not failures, failures
+                assert checked and len(import_ticks) >= 5 and not failures, failures
                 assert not warnings, warnings[:3]
                 report = {"status": "passed", "elapsed_seconds": round(time.monotonic()-started, 2),
-                          "qt_ticks": len(ticks), "scope": "Saved PowerPoint and pause without voice; explicit local EN generation remains responsive; voice failure cannot undo lesson or approve it; real QML, no web submission"}
+                          "qt_ticks": len(ticks), "import_heartbeat_ticks": len(import_ticks),
+                          "scope": "Worker import keeps GUI responsive; saved PowerPoint pauses without voice; explicit EN generation remains responsive; voice failure cannot undo lesson or approve it; real QML, no web submission"}
                 path = ROOT / "reports/app/narration-preparation.json"
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(json.dumps(report, indent=2), encoding="utf-8")
                 print(json.dumps(report))
         finally:
+            allow_import.set()
             release.set()
             library.close()
             logging.shutdown()

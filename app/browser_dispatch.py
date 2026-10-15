@@ -46,6 +46,10 @@ def startup_resume(folder):
 
 def convert_available(accounts, root, folder, cancel, progress, *, observed=None, failed=None, converter=None,
                       retry_delays=(2, 5, 10)):
+    from .storage_space import require_space
+
+    require_space(root)
+    require_space(folder)
     journal = Path(folder) / "browser-job.json"
     record = web.read_record(folder, json.loads(journal.read_text(encoding="utf-8"))["account_id"]) if journal.is_file() else None
     config_path = Path(folder) / "config.json"

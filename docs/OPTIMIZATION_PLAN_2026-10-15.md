@@ -1,6 +1,7 @@
 # Kế hoạch tối ưu BiliClass từ danh sách công cụ GitHub
 
 Ngày đối chiếu: **15/10/2026**. Trạng thái: **đề xuất, chưa triển khai các thay đổi bên dưới**.
+Mốc triển khai tiếp theo: [phạm vi RC35 và giới hạn còn lại](OPTIMIZATION_RC35.md).
 Đối chiếu mã nguồn RC34 (`0dd792f`), hồ sơ nghiệm thu tại `13dc87a`, tài liệu
 đánh giá sơ bộ người dùng gửi và nguồn chính thức của các dự án được chọn.
 

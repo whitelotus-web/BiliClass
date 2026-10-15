@@ -9,7 +9,7 @@ from app.speech import audio_key, valid_audio
 def wav(path):
     path.parent.mkdir(parents=True, exist_ok=True)
     with wave.open(str(path), "wb") as writer:
-        writer.setparams((1, 2, 22050, 0, "NONE", "not compressed"))
+        writer.setparams((1, 2, 48000, 0, "NONE", "not compressed"))
         writer.writeframes(b"\x01\x00" * 100)
 
 
@@ -49,7 +49,7 @@ def test_vieneu_audio_cached_for_exact_voice_text_and_speed(tmp_path, monkeypatc
     third = speech.synthesize("Hello, class.", "vieneu:Hải Đăng", 0, tmp_path)
     faster = speech.synthesize("Hello, class.", "vieneu:Mai Anh", 1, tmp_path)
     assert not first["cached"] and second["cached"]
-    assert not third["cached"] and not faster["cached"] and len(calls) == 3
+    assert not third["cached"] and not faster["cached"] and len(calls) == 2
 
 
 def test_readiness_does_not_require_voice_or_quiz_for_text(tmp_path):

@@ -31,6 +31,7 @@ MESSAGES = {
     "slide_count": "Số slide không khớp yêu cầu giữ PowerPoint đầu vào.",
     "source_motion_position": "Vị trí ngoài khung thuộc hiệu ứng di chuyển có sẵn trong nguồn; cần xem khi trình chiếu, không tự dời đối tượng.",
     "source_workspace": "Giữ nguyên đối tượng phụ nằm hoàn toàn ngoài trang chiếu của bản gốc; không đưa vào lời đọc.",
+    "source_text_needs_review": "Chuỗi cần rà soát đã có nguyên văn và đúng vị trí trong nguồn; vẫn bỏ khỏi lời đọc, cần giáo viên kiểm tra.",
     "vietnamese_remaining": "Chế độ English 100% còn chữ Việt trong đối tượng văn bản.",
 }
 
@@ -57,12 +58,14 @@ def inspect_quality(deck, speech, mode="", source_total=None, *, source_deck=Non
         issues = [{"code": code, "severity": "CHECK"} for code in spoken["issues"]]
         shapes = objects(slide)
         workspace = []
+        original = {}
         if source_deck is not None and len(source_deck.slides) == len(deck.slides):
             original_slide = source_deck.slides[index-1]
-            original = {item['shape_id']:item for item in objects(original_slide)}
+            original = {(item['shape_id'], item['paragraph'], tuple(item['cell'] or ())): item
+                        for item in objects(original_slide)}
             animated = set(original_slide._element.xpath('.//p:spTgt/@spid')) | set(slide._element.xpath('.//p:spTgt/@spid'))
             for item in shapes:
-                before = original.get(item['shape_id'])
+                before = original.get((item['shape_id'], item['paragraph'], tuple(item['cell'] or ())))
                 if (before is not None and before['text'] == item['text']
                         and not animated.intersection(map(str,item['ancestors']))
                         and all(abs(item[key]-before[key]) <= 12700 for key in ('x','y','w','h'))
@@ -83,7 +86,15 @@ def inspect_quality(deck, speech, mode="", source_total=None, *, source_deck=Non
                 issues.append({"code": "outside_slide", "severity": "FAIL", "shape_id": item["shape_id"]})
             problem = speech_problem(item["text"])
             if problem and problem != "formula_needs_review":
-                issues.append({"code": problem, "severity": "FAIL", "shape_id": item["shape_id"]})
+                before = original.get((item['shape_id'], item['paragraph'], tuple(item['cell'] or ())))
+                inherited = (problem in {"technical_text", "suspicious_code"} and before is not None
+                             and before['text'] == item['text']
+                             and all(abs(item[k]-before[k]) <= 12700 for k in ('x','y','w','h'))
+                             and not re.search(r'BILICLASS_NOTES|englishSpeechSegments|(?:CHECK|QUIZ|SPEECH)\s*:', item['text'], re.I))
+                issues.append({"code": "source_text_needs_review" if inherited else problem,
+                               "severity": "CHECK" if inherited else "FAIL", "shape_id": item["shape_id"],
+                               **({"original_code": problem, "paragraph": item['paragraph'],
+                                   "evidence": "same_native_text_and_box"} if inherited else {})})
             if mode == "english_only" and any(c in VI_MARKS for c in item["text"].casefold()):
                 issues.append({"code": "vietnamese_remaining", "severity": "CHECK", "shape_id": item["shape_id"]})
             if any(run.font.size and run.font.size.pt < 18 for run in item["runs"]):
@@ -147,7 +158,7 @@ def inspect_quality(deck, speech, mode="", source_total=None, *, source_deck=Non
 
 def bilingual_issues(items, spoken, width, height, mode):
     """Check native body text and placement; notes never substitute visible English."""
-    from .slide_speech import VI_MARKS, normalized
+    from .slide_speech import VI_MARKS, english_text, normalized
 
     text_items = [i for i in items if i["text"].strip() and i["source_type"] in {"shape", "table"}]
     # A short bilingual chapter/title alone is allowed to be stacked and centered.
@@ -156,6 +167,7 @@ def bilingual_issues(items, spoken, width, height, mode):
         return []
     title_ids = {s["source"]["shape_id"] for s in spoken.get("englishSpeechSegments", []) if s["kind"] == "title"}
     vi = [i for i in text_items if any(c in VI_MARKS for c in i["text"].casefold())
+          and not english_text(i["text"])
           and len(normalized(i["text"])) >= 45
           and (i["shape_id"] not in title_ids or len(normalized(i["text"])) > 160)
           and (i["y"] > height * .20 or len(i["text"]) > 120)]

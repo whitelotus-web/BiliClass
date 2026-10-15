@@ -40,6 +40,77 @@ def _write_copy(source, target, replacements):
             after.writestr(item, replacements.get(item.filename, before.read(item)))
 
 
+def _compact_fixed_spacing(body):
+    """Let line spacing follow the font in an already measured overflow.
+
+    Shrinking glyphs alone cannot fit text with inherited 50–70 pt leading.
+    Keep ordinary spacing and all wording; touch only excessive fixed gaps.
+    """
+    sizes = [int(n) for n in body.xpath('.//a:rPr/@sz|.//a:defRPr/@sz', namespaces=NS)]
+    size = max(sizes, default=2400)
+    for node in body.xpath('.//a:lnSpc/a:spcPts', namespaces=NS):
+        if int(node.get('val', '0')) > size * 1.35:
+            parent = node.getparent()
+            parent.remove(node)
+            etree.SubElement(parent, '{' + NS['a'] + '}spcPct', val='110000')
+    for node in body.xpath('.//a:spcBef/a:spcPts|.//a:spcAft/a:spcPts', namespaces=NS):
+        if int(node.get('val', '0')) > size * .5:
+            node.set('val', str(round(size * .15)))
+
+
+def _separate_title_styles(root, width, height):
+    """Style an unambiguous stacked title stored in two distinct text boxes."""
+    from .slide_speech import VI_MARKS, english_text
+
+    headings = []
+    animated = set(root.xpath('.//p:spTgt/@spid', namespaces=NS))
+    for shape in root.findall('p:cSld/p:spTree/p:sp', NS):
+        identity = shape.find('p:nvSpPr/p:cNvPr', NS)
+        transform = shape.find('p:spPr/a:xfrm', NS)
+        paragraphs = shape.findall('p:txBody/a:p', NS)
+        if identity is None or transform is None or len(paragraphs) != 1 or identity.get('id') in animated:
+            continue
+        off, ext = transform.find('a:off', NS), transform.find('a:ext', NS)
+        if off is None or ext is None or transform.get('rot', '0') != '0':
+            continue
+        x, y, w, h = int(off.get('x')), int(off.get('y')), int(ext.get('cx')), int(ext.get('cy'))
+        text = ''.join(paragraphs[0].xpath('.//a:t/text()', namespaces=NS)).strip()
+        if not text or len(text) > 160 or y < 0 or y > height * .22 or w < width * .4:
+            continue
+        headings.append((identity, paragraphs[0], text, x, y, w, h))
+    changed = []
+    for identity, paragraph, text, x, y, w, _ in headings:
+        if not english_text(text):
+            continue
+        matches = [row for row in headings if row[2] != text and any(c in VI_MARKS for c in row[2].casefold())
+                   and not english_text(row[2]) and row[4]+row[6]-12700 <= y <= row[4]+row[6]+height*.08
+                   and min(x+w, row[3]+row[5])-max(x, row[3]) >= min(w, row[5])*.8]
+        if len(matches) != 1:
+            continue
+        source = matches[0][1]
+        fonts = source.xpath('.//a:rPr/a:latin|a:pPr/a:defRPr/a:latin', namespaces=NS)
+        sizes = source.xpath('.//a:rPr/@sz|a:pPr/a:defRPr/@sz', namespaces=NS)
+        if not fonts or not sizes or max(map(int, sizes)) < 2200:
+            continue
+        before = etree.tostring(paragraph)
+        for run in paragraph.findall('a:r', NS):
+            props = run.find('a:rPr', NS)
+            if props is None:
+                props = etree.Element('{' + NS['a'] + '}rPr')
+                run.insert(0, props)
+            props.set('i', '1')
+            size = int(props.get('sz', str(max(map(int, sizes)))))
+            props.set('sz', str(max(min(size, 1400), min(size, round(max(map(int, sizes))*.8)))))
+            for font in list(props.findall('a:latin', NS)):
+                props.remove(font)
+            insert_at = next((i for i, n in enumerate(props) if etree.QName(n).localname
+                              in {'ea','cs','sym','hlinkClick','hlinkMouseOver','rtl','extLst'}), len(props))
+            props.insert(insert_at, copy.deepcopy(fonts[0]))
+        if etree.tostring(paragraph) != before:
+            changed.append(int(identity.get('id')))
+    return changed
+
+
 def normalize_titles(path, directory, mode):
     """Style short native VI/EN heading pairs without changing their wording."""
     from pptx import Presentation
@@ -105,6 +176,8 @@ def normalize_titles(path, directory, mode):
                 if etree.tostring(body) != before:
                     node = shape.find("p:nvSpPr/p:cNvPr", NS)
                     changes.append({"slide": number, "shape_id": int(node.get("id")), "operation": "title_style"})
+            changes.extend({'slide': number, 'shape_id': shape_id, 'operation': 'title_style'}
+                           for shape_id in _separate_title_styles(root, deck.slide_width, deck.slide_height))
             if changes and changes[-1]["slide"] == number:
                 replacements[part] = etree.tostring(root, xml_declaration=True, encoding="UTF-8", standalone=True)
     if not replacements:
@@ -132,7 +205,7 @@ def _office_fit(path, target, targets, cancel):
             if cancel and cancel.is_set():
                 raise ValueError("Đã dừng sửa bài giảng; bản trước vẫn được giữ.")
             for shape in deck.Slides(number).Shapes:
-                if (shape.Id in ids and shape.Type in {1, 17} and shape.Rotation == 0
+                if (shape.Id in ids and shape.Type in {1, 14, 17} and shape.Rotation == 0
                         and shape.HasTextFrame and shape.TextFrame2.HasText):
                     shape.TextFrame2.AutoSize = 2  # msoAutoSizeTextToFitShape
                     shape.TextFrame2.WordWrap = -1
@@ -200,6 +273,7 @@ def repair_layout(path, directory, report, cancel=None, progress=None):
                 body = shape.find("p:txBody", NS)
                 if body is None:
                     continue
+                _compact_fixed_spacing(body)
                 # Empty trailing paragraphs can double a bilingual box's height.
                 paragraphs = body.findall("a:p", NS)
                 while len(paragraphs) > 1:

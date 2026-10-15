@@ -46,11 +46,12 @@ def speech_problem(text):
 
 def english_text(text, *, tagged=False):
     """Language evidence, not all Latin characters and not narration from notes."""
-    if tagged:
-        # A Vietnamese experiment may name a pendulum "Đ". In an explicitly
-        # English text box this isolated source identifier is not a Vietnamese
-        # sentence. Keep the actual text/label unchanged for narration.
-        text = re.sub(r'(?<!\w)Đ(?!\w)', 'D', text)
+    # A source identifier such as pendulum Đ can occur in otherwise ordinary
+    # English, including untagged text returned by the web. Require actual
+    # English evidence rather than treating every sentence containing Đ as VI.
+    identifiers = re.sub(r'(?<!\w)Đ(?!\w)', 'D', text)
+    if identifiers != text and (tagged or language_of(identifiers) == "en"):
+        text = identifiers
     if any(c in VI_MARKS for c in text.casefold()):
         return False
     words = re.findall(r"[a-z]+", re.sub(r"^[A-D][.)]\s*", "", text).casefold())

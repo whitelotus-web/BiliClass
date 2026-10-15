@@ -1,13 +1,13 @@
 """Pre-render extracted narration as draft audio; never approve or play it."""
 
+from itertools import zip_longest
+
+from .slide_speech import speech_chunks, speech_problem
+
 
 def narration_tasks(inspection, voices):
-    from .slide_speech import speech_chunks
-
     data = inspection.get("slide_speech")
     if data:
-        from itertools import zip_longest
-
         vietnamese = [(unit["vi"], "vi") for unit in inspection["profile"]["units"] if unit["vi"].strip()]
         english = [(segment["english_text"], "en") for slide in data["slides"]
                    for segment in slide["englishSpeechSegments"] if segment["status"] == "ready"]
@@ -20,7 +20,11 @@ def narration_tasks(inspection, voices):
         if not voices.get(language):
             continue
         try:
-            tasks.extend((part, voices[language]) for part in speech_chunks(text))
+            for part in speech_chunks(text):
+                if speech_problem(part) in {'technical_text', 'suspicious_code', 'suspicious_character'}:
+                    skipped += 1
+                else:
+                    tasks.append((part, voices[language]))
         except ValueError:
             skipped += 1
     duplicates = len(tasks)

@@ -190,20 +190,54 @@ def synthesize(text, voice_id, rate, directory):
     destination = root / (audio_key(text, voice_id, rate) + ".wav")
     if valid_audio(destination):
         return {"path": str(destination), "cached": True}
+    from .storage_space import MIB, require_space
+
+    require_space(root, 64 * MIB)
     with synthesis_turn():
         # Another reader/warmup may have completed this exact chunk while we
         # waited. Reuse it instead of running inference twice.
         if valid_audio(destination):
             return {"path": str(destination), "cached": True}
+        # Speed is post-processing, not a different utterance. Preserve the
+        # existing public WAV keys/portable packs, but infer the neutral version
+        # once and derive all other rates from it.
+        original = root / (audio_key(text, voice_id, 0) + ".wav")
         temporary = root / (str(uuid4()) + ".wav")
         try:
-            _synthesize_vieneu(text, voice_id, rate, temporary)
+            if not valid_audio(original):
+                _synthesize_vieneu(text, voice_id, 0, temporary)
+                if not valid_audio(temporary):
+                    raise ValueError("Giọng đọc không tạo được âm thanh hợp lệ.")
+                temporary.replace(original)
+            if not rate:
+                return {"path": str(original), "cached": False}
+            cancel = getattr(_SYNTHESIS_CONTEXT, "cancel", None)
+            if cancel is not None and cancel.is_set():
+                raise InterruptedError("Đã dừng tạo giọng; đoạn gốc đã được giữ.")
+            _speed_variant(original, rate, temporary)
             if not valid_audio(temporary):
                 raise ValueError("Giọng đọc không tạo được âm thanh hợp lệ.")
             temporary.replace(destination)
             return {"path": str(destination), "cached": False}
         finally:
             temporary.unlink(missing_ok=True)
+
+
+def _speed_variant(original, rate, destination):
+    """Derive a pitch-preserving rate variant without loading the TTS engine."""
+    import numpy as np
+
+    from .voice_speed import time_stretch_audio
+
+    with wave.open(str(original), "rb") as reader:
+        if (reader.getnchannels(), reader.getsampwidth(), reader.getframerate()) != (1, 2, 48000):
+            raise ValueError("Âm thanh gốc chưa đúng định dạng VieNeu.")
+        samples = np.frombuffer(reader.readframes(reader.getnframes()), dtype="<i2").astype(np.float32) / 32768
+    adjusted = time_stretch_audio(samples, _SPEEDS[rate + 3])
+    pcm = (np.clip(adjusted, -1.0, 1.0) * 32767).astype("<i2")
+    with wave.open(str(destination), "wb") as writer:
+        writer.setparams((1, 2, 48000, 0, "NONE", "not compressed"))
+        writer.writeframes(pcm.tobytes())
 
 
 def play(path):

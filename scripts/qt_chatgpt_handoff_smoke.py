@@ -682,6 +682,10 @@ def vietnamese_ready():
     stages.append("Receive byte-identical PPTX -> real Office preview -> whole-deck confirmation -> mascot mapping")
     lesson_id = bridge.lesson["id"]
     bridge.openLesson(lesson_id)
+    reopen_deadline = time.monotonic() + 15
+    while bridge.busy and time.monotonic() < reopen_deadline:
+        QTest.qWait(10)
+    assert not bridge.busy, "Saved presentation integrity check did not finish"
     assert bridge.quickResult["external"] and not bridge.quickResult["draft"]
     assert bridge.quickResult["segment_map"]
     stages.append("Reopen saved presentation retains returned file, confirmation and slide mapping")

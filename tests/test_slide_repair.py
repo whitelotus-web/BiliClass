@@ -9,7 +9,45 @@ from pptx.util import Inches, Pt
 from app.chatgpt_handoff import inspect_returned_deck
 from app.library import Library, RevisionConflict
 from app.slide_refinement import improved, source_media_preserved
-from app.slide_repair import normalize_titles, repair_layout
+from app.slide_repair import _compact_fixed_spacing, normalize_titles, repair_layout
+
+
+def test_fitting_font_also_releases_excessive_fixed_line_spacing():
+    from lxml import etree
+    from app.slide_repair import NS
+
+    body = etree.fromstring(('''<p:txBody xmlns:p="''' + NS['p'] + '" xmlns:a="' + NS['a'] + '''">
+      <a:p><a:pPr><a:lnSpc><a:spcPts val="5755"/></a:lnSpc><a:spcAft><a:spcPts val="3000"/></a:spcAft></a:pPr>
+      <a:r><a:rPr sz="2800"/><a:t>Original text</a:t></a:r></a:p>
+      <a:p><a:pPr><a:lnSpc><a:spcPts val="2800"/></a:lnSpc></a:pPr><a:r><a:rPr sz="2800"/><a:t>Second line</a:t></a:r></a:p>
+    </p:txBody>''').encode())
+    _compact_fixed_spacing(body)
+    assert body.xpath('.//a:lnSpc/a:spcPct/@val', namespaces=NS) == ['110000']
+    assert body.xpath('.//a:lnSpc/a:spcPts/@val', namespaces=NS) == ['2800']
+    assert body.xpath('.//a:spcAft/a:spcPts/@val', namespaces=NS) == ['420']
+    assert body.xpath('.//a:t/text()', namespaces=NS) == ['Original text', 'Second line']
+
+
+def test_separate_stacked_title_boxes_use_same_font_without_moving_content(tmp_path):
+    deck = Presentation()
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    vi = slide.shapes.add_textbox(Inches(.4), Inches(.1), Inches(8), Inches(.5))
+    vi.text = 'Năng lượng cơ học'
+    vi.text_frame.paragraphs[0].font.name = 'Arial'
+    vi.text_frame.paragraphs[0].font.size = Pt(32)
+    en = slide.shapes.add_textbox(Inches(.4), Inches(.65), Inches(8), Inches(.5))
+    en.text = 'Mechanical energy'
+    en.text_frame.paragraphs[0].runs[0].font.name = 'Courier New'
+    en.text_frame.paragraphs[0].runs[0].font.size = Pt(28)
+    original_box = en.left, en.top, en.width, en.height
+    path = tmp_path / 'headings.pptx'
+    deck.save(path)
+    styled = normalize_titles(path, tmp_path, 'parallel_columns')
+    result = Presentation(styled['path']).slides[0].shapes[1]
+    run = result.text_frame.paragraphs[0].runs[0]
+    assert run.font.name == 'Arial' and run.font.italic and run.font.size.pt < 28
+    assert result.text == en.text
+    assert (result.left, result.top, result.width, result.height) == original_box
 
 
 def presentation(path):

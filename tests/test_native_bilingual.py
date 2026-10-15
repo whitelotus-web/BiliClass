@@ -82,6 +82,48 @@ def test_missing_translation_or_overwriting_source_is_rejected(tmp_path):
         assemble(source,source,manifest,{},'english_only')
 
 
+def test_already_english_source_keeps_exact_text_runs_without_a_visual_rewrite(tmp_path):
+    source = fixture(tmp_path / 'english-source.pptx')
+    deck = Presentation(source)
+    for shape in deck.slides[0].shapes:
+        shape.text = '\n'.join('The energy is conserved in the system.' for _ in range(4))
+    deck.save(source)
+    manifest = extract(source, 'english_only')
+    # Use generous frames so this test isolates language routing, not overflow.
+    for shape in deck.slides[0].shapes:
+        shape.height = Inches(3)
+        shape.text_frame.paragraphs[0].font.size = Pt(18)
+    deck.save(source)
+    manifest = extract(source, 'english_only')
+    assert not manifest['visual_slides'] and len(manifest['units']) == 8
+    values = {u['id']: {'en': u['text']} for u in manifest['units']}
+    result = assemble(source, tmp_path / 'english-copy.pptx', manifest, values, 'english_only')
+    with zipfile.ZipFile(source) as before, zipfile.ZipFile(result) as after:
+        assert before.read('ppt/slides/slide1.xml') == after.read('ppt/slides/slide1.xml')
+
+
+def test_leading_superscript_is_kept_but_not_applied_to_all_translated_words(tmp_path):
+    from app.native_bilingual import translated_paragraph
+    from app.source_deck import _bytes
+
+    deck = Presentation()
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    shape = slide.shapes.add_textbox(Inches(1), Inches(2), Inches(8), Inches(3))
+    paragraph = shape.text_frame.paragraphs[0]
+    exponent = paragraph.add_run()
+    exponent.text = '2'
+    exponent._r.get_or_add_rPr().set('baseline', '30000')
+    ordinary = paragraph.add_run()
+    ordinary.text = ' Gia tốc'
+    ordinary.font.name = 'Arial'
+    unit = {'numbers': ['2'], 'xml_locks': {'0': _bytes(exponent._r).decode('utf-8')}}
+    translated = translated_paragraph(paragraph._p, '⟦BLC0⟧ Acceleration', unit, english=True)
+    runs = translated.findall('a:r', NS)
+    assert runs[0].find('a:rPr', NS).get('baseline') == '30000'
+    assert runs[-1].find('a:rPr', NS).get('baseline', '0') == '0'
+    assert runs[-1].find('a:rPr/a:latin', NS).get('typeface') == 'Arial'
+
+
 def test_native_assembly_keeps_nonsequential_part_names_and_formula_runs(tmp_path):
     source=fixture(tmp_path/'source.pptx')
     deck=Presentation(source)

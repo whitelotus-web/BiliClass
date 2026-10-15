@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.0rc35 — 15/10/2026 — Tối ưu cache, nhập bài và xử lý thiếu dung lượng
+
+- Giữ audio gốc VieNeu và tạo các biến thể nhanh/chậm từ audio đó; không suy luận lại khi chỉ đổi tốc độ. Giữ khóa và các WAV đã có, không đổi giọng hoặc engine của người dùng.
+- Nhập bài bằng kết nối SQLite riêng của worker, ghi một bản hoàn chỉnh trong một lần; khôi phục theo request ID không tạo trùng. Kiểm tra tệp khi mở bài nằm ngoài luồng giao diện; không đọc PowerPoint hai lần cho cùng một phép xác minh.
+- Lưu nguồn qua tệp tạm có kiểm tra SHA-256 rồi mới công bố; phát hiện và khôi phục bản sao lưu dở từ đầu vào còn nguyên. Không giữ một tệp cắt cụt mang tên hash hợp lệ sau khi hết dung lượng.
+- Phân biệt câu Anh chứa nhãn nguồn “Đ” với câu Việt; cảnh báo chuỗi nguồn chỉ được phân loại riêng khi đối chiếu đúng đoạn và tọa độ. URL/mã rác vẫn bị loại khỏi lời đọc Việt và Anh.
+- Kiểm tra native theo cỡ chữ thật; không bỏ qua đối tượng có nhánh tương thích. Giữ nguyên runs/XML của vùng English khi bản trả về xác nhận giữ nguyên. Tiêu đề trong chế độ từ khóa vẫn Việt trên/Anh dưới; hỗ trợ thống nhất font cho cặp tiêu đề ở hai hộp riêng.
+- Khi sửa tràn chữ, xử lý khoảng cách dòng cố định quá lớn và placeholder ngang. Ảnh kiểm tra đã xác minh được dùng lại qua các lượt sửa; xem một slide không làm mất cache của các slide khác.
+- Kiểm tra dung lượng trước khi tạo yêu cầu, mở browser hoặc suy luận voice; lỗi hết chỗ không bị coi là mất đăng nhập. Bổ sung thời gian các thao tác local trong bản ghi tiến độ riêng tại máy.
+- Chỉ đọc command line của tiến trình Chrome khi kiểm tra profile bận, tránh truy vấn chi tiết mọi tiến trình Windows trước mỗi lượt mở browser.
+- Đây là mốc tối ưu từng phần. Không chứng nhận mọi bài đã hết lỗi hoặc toàn bộ thời gian dịch vụ web đã nhanh hơn; bài nhiều công thức/hiệu ứng còn cần xử lý và kiểm tra.
+
 ## 1.0.0rc30 — 14/10/2026 — Theo dõi bài dài và khôi phục bước hoàn tất
 
 - Sửa dừng sớm ở mốc 15 phút: khi web còn xử lý, tiếp tục theo dõi từng khoảng 5 phút trong cùng lượt đã gửi, có giới hạn tổng 60 phút theo dõi thực. Không tạo yêu cầu mới hoặc tải lại tài liệu để gia hạn.

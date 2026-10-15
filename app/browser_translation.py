@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 
 from . import browser_automation as web
-from .conversion_progress import emit_progress, scoped_progress
+from .conversion_progress import emit_progress, measured, scoped_progress
 from .translation_batches import TranslationCache, batch_items, parse_response, prompt, signature
 
 
@@ -432,23 +432,25 @@ def convert_locked(account, request, cancel, progress, *, timeout=900, observed=
         emit_progress(progress,'assemble','Đang hoàn thiện PowerPoint và nội dung trợ giảng…')
         target = folder/'bai-giang-song-ngu.pptx'
         native = folder/'native-result.pptx'
-        if items:
-            assemble(folder/config['source_file'],native,manifest,values,config['conversion_format'])
-        else:
-            shutil.copyfile(folder/config['source_file'],native)
-        if visual_results:
-            from .pptx_parts import merge
-            merge(native,visual_results,target)
-        else:
-            native.replace(target)
+        with measured(progress, 'local.assemble'):
+            if items:
+                assemble(folder/config['source_file'],native,manifest,values,config['conversion_format'])
+            else:
+                shutil.copyfile(folder/config['source_file'],native)
+            if visual_results:
+                from .pptx_parts import merge
+                merge(native,visual_results,target)
+            else:
+                native.replace(target)
         from .slide_repair import repair_and_inspect
-        checked = repair_and_inspect(target,folder,source=folder/config['source_file'],
-            mode=config['conversion_format'],style=config['style'],cancel=cancel,progress=progress)
+        with measured(progress, 'local.repair'):
+            checked = repair_and_inspect(target,folder,source=folder/config['source_file'],
+                mode=config['conversion_format'],style=config['style'],cancel=cancel,progress=progress)
         if Path(checked['path'])!=target:
             Path(checked['path']).replace(target)
         record.update(state='completed',error='',stage='completed',sha256=hashlib.sha256(target.read_bytes()).hexdigest())
         web.write_record(folder,record)
-        return {'path':str(target),'url':record['url'],'cached':False}
+        return {'path':str(target),'url':record['url'],'cached':False,'inspection':checked.get('inspection')}
     except Exception as exc:
         record.update(error=exc.code if isinstance(exc,web.BrowserProblem) else 'browser',stage='translate')
         web.write_record(folder,record)

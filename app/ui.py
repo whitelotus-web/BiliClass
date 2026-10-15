@@ -50,12 +50,16 @@ class Job(QThread):
     def __init__(self, action, parent):
         super().__init__(parent)
         self.action = action
+        self.error_code = None
 
     def run(self):
         try:
             self.completed.emit(self.action(), "")
         except Exception as exc:
-            self.completed.emit(None, str(exc))
+            from .storage_space import FULL_DISK_MESSAGE, full_disk_error
+
+            self.error_code = "storage" if full_disk_error(exc) else getattr(exc, "code", None)
+            self.completed.emit(None, FULL_DISK_MESSAGE if full_disk_error(exc) else str(exc))
 
 
 class Bridge(QObject):
@@ -565,11 +569,11 @@ class Bridge(QObject):
         except (ValueError, KeyError, OSError) as exc:
             self.inform(str(exc), True)
 
-    def _web_conversion_failure(self, message):
+    def _web_conversion_failure(self, message, error_code=None):
         """Expose the durable job error instead of guessing from translated text."""
         self._freeze_conversion_clock()
-        code = "browser"
-        if self._chatgpt_request.get("config", {}).get("provider") == "browser_web":
+        code = error_code or "browser"
+        if not error_code and self._chatgpt_request.get("config", {}).get("provider") == "browser_web":
             try:
                 path = Path(self._chatgpt_request["folder"]) / "browser-job.json"
                 code = json.loads(path.read_text(encoding="utf-8")).get("error", code)
@@ -594,7 +598,7 @@ class Bridge(QObject):
         from .browser_dispatch import convert_available
         from .browser_health import quota_blocked
         from .chatgpt_handoff import inspect_returned_deck, load_request
-        from .conversion_progress import ConversionProgress
+        from .conversion_progress import ConversionProgress, measured
 
         if self._busy or not self._chatgpt_request:
             return
@@ -644,30 +648,40 @@ class Bridge(QObject):
                 self._browser_ai.succeeded.emit(result["account_id"])
             config = load_request(folder)["config"]
             progress.stage("import", "Đang nhập PowerPoint vào thư viện…")
-            source = self.library.store_source(Path(result["path"]))
-            inspection = inspect_returned_deck(self.library.directory / "sources" / source["file"],
-                                               Path(folder) / config["source_file"] if config.get("conversion_format") else None,
-                                               config.get("conversion_format", ""), config.get("style", "source"))
+            with measured(progress, "local.store_source"):
+                source = self.library.store_source(Path(result["path"]))
+            with measured(progress, "local.inspect"):
+                inspection = result.get("inspection")
+                if (not isinstance(inspection, dict)
+                        or inspection.get("slide_speech", {}).get("sha256") != source["sha256"]
+                        or inspection.get("slide_quality", {}).get("sha256") != source["sha256"]):
+                    inspection = inspect_returned_deck(self.library.directory / "sources" / source["file"],
+                                                       Path(folder) / config["source_file"] if config.get("conversion_format") else None,
+                                                       config.get("conversion_format", ""), config.get("style", "source"))
             from .slide_quality import quality_messages, render_quality
 
-            render_quality(self.library.directory / "sources" / source["file"], self.library.directory,
-                           inspection["slide_quality"], self.cancel_event, progress.scope("import"), reuse_directory=folder)
+            with measured(progress, "local.render"):
+                render_quality(self.library.directory / "sources" / source["file"], self.library.directory,
+                               inspection["slide_quality"], self.cancel_event, progress.scope("import"), reuse_directory=folder)
             inspection["review_notes"] = list(dict.fromkeys(inspection["review_notes"] + quality_messages(inspection["slide_quality"])))
             progress.stage("save", "Đang lưu PowerPoint và nội dung trợ giảng…")
-            return config, source, inspection, result["account_id"]
+            from .lesson_import import save_conversion
 
-        def completed(result):
-            config, source, inspection, used_account = result
-            lesson = self.library.create_external_lesson(config, source, inspection)
-            record = read_record(folder, used_account)
+            with measured(progress, "local.library_commit"):
+                lesson, preview = save_conversion(self.library.directory, config, source, inspection, self.cancel_event)
+            record = read_record(folder, result["account_id"])
             record["lesson_id"] = lesson["id"]
             write_record(folder, record)
+            return lesson, preview
+
+        def completed(result):
+            lesson, preview = result
             progress.stage("completed", "Đã nhận và lưu bài giảng song ngữ.")
             self._freeze_conversion_clock()
             self._browser_running = False
             self._browser_state.update(running=False, phase="completed", message="Đã nhận bài giảng song ngữ.")
             self.conversionClockChanged.emit()
-            self.openLesson(lesson["id"])
+            self._show_lesson(lesson, preview)
             failures = lesson.get("slide_quality", {}).get("counts", {}).get("FAIL", 0)
             message = (f"Bài giảng đã lưu. Cần sửa {failures} slide trước khi dùng để dạy." if failures
                        else "Bài giảng đã lưu. Xem lại nội dung trước khi dùng để dạy.")
@@ -1295,7 +1309,7 @@ class Bridge(QObject):
             elif error:
                 if self._browser_running:
                     self._browser_running = False
-                    self._web_conversion_failure(error)
+                    self._web_conversion_failure(error, getattr(worker, "error_code", None))
                 self.inform(error, True)
             else:
                 callback(result)
@@ -1661,30 +1675,40 @@ class Bridge(QObject):
 
     @Slot(str)
     def openLesson(self, lesson_id):
+        if self._busy:
+            return
         try:
-            self.stopSpeech()
-            self._conversion_report = []
-            self._comparison = {}
-            self.dismissMemoryChoices()
-            if self._powerpoint_lesson_id and self._powerpoint_lesson_id != lesson_id:
-                self.stopPowerPoint()
-            self._lesson = self.library.get(lesson_id)
-            if self._lesson.get("external_deck"):
+            lesson = self.library.get(lesson_id)
+            if lesson.get("external_deck"):
                 from .chatgpt_handoff import external_preview
 
-                result = external_preview(self._lesson, self.library.directory)
-                if (self._quick_result.get("lesson_id") == result["lesson_id"]
-                        and self._quick_result.get("revision") == result["revision"]):
-                    result.update(image=self._quick_result.get("image", ""), slide=self._quick_result.get("slide", 1))
-                self._quick_result = result
-            self._segment_index = 0
-            self.changed.emit()
-            self.selectionChanged.emit()
-            self.navigate.emit("result")
-            if self._lesson.get("external_deck") and not self.quickResult.get("image"):
-                self.previewConvertedSlide(1)
+                self.launch(lambda: external_preview(lesson, self.library.directory),
+                            lambda preview: self._show_lesson(lesson, preview))
+            else:
+                self._show_lesson(lesson)
         except Exception as exc:
             self.inform(str(exc), True)
+
+    def _show_lesson(self, lesson, preview=None):
+        """Apply prepared UI data; file integrity checks belong to the worker."""
+        self.stopSpeech()
+        self._conversion_report = []
+        self._comparison = {}
+        self.dismissMemoryChoices()
+        if self._powerpoint_lesson_id and self._powerpoint_lesson_id != lesson["id"]:
+            self.stopPowerPoint()
+        self._lesson = lesson
+        if preview is not None:
+            if (self._quick_result.get("lesson_id") == preview["lesson_id"]
+                    and self._quick_result.get("revision") == preview["revision"]):
+                preview.update(image=self._quick_result.get("image", ""), slide=self._quick_result.get("slide", 1))
+            self._quick_result = preview
+        self._segment_index = 0
+        self.changed.emit()
+        self.selectionChanged.emit()
+        self.navigate.emit("result")
+        if lesson.get("external_deck") and not self.quickResult.get("image"):
+            self.previewConvertedSlide(1)
 
     @Slot(str)
     def selectLessonForClass(self, lesson_id):

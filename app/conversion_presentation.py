@@ -20,6 +20,7 @@ STAGE_COPY = {
 }
 
 ERROR_COPY = {
+    "storage": "Ổ đĩa lưu dữ liệu không đủ dung lượng để tiếp tục. Giải phóng dung lượng rồi tiếp tục; bài và các phần đã lưu vẫn được giữ.",
     "conversation": "Không mở lại được phiên xử lý của bài. Phần đã hoàn tất được giữ nguyên; mở tài khoản để kiểm tra trước khi tiếp tục.",
     "file_transfer": "Chưa nhận được tệp PowerPoint do đường tải bị gián đoạn. Bài gốc và cấu hình đã được giữ; bài chưa hoàn tất.",
     "download": "Chưa lưu được tệp bài giảng đã tạo. Kết quả và bài đang làm được giữ để tiếp tục nhận tệp.",

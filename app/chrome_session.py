@@ -26,11 +26,13 @@ def require_idle_profile(profile):
     import psutil
 
     target = profile.resolve()
-    for process in psutil.process_iter(["name", "cmdline"]):
+    # Reading command lines on Windows can query slow/unresponsive processes.
+    # Filter the cheap name first; only Chrome can own this profile.
+    for process in psutil.process_iter(["name"]):
         try:
             if (process.info["name"] or "").casefold() not in {"chrome.exe", "chrome", "google-chrome", "google chrome"}:
                 continue
-            args = process.info["cmdline"] or []
+            args = process.cmdline() or []
             for index, arg in enumerate(args):
                 value = (arg.split("=", 1)[1] if arg.startswith("--user-data-dir=") else
                          args[index + 1] if arg == "--user-data-dir" and index + 1 < len(args) else "")

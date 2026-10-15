@@ -51,7 +51,9 @@ def _title_height(shape, shapes, deck):
 
 
 def _fits_bilingual(shape,mode):
-    size=min(18,_size(shape.text_frame,shape))
+    # Assembly keeps the source font. Assuming 18 pt here admitted boxes that
+    # overflowed at their actual 24–40 pt size and required another web round.
+    size=_size(shape.text_frame,shape)
     width=(shape.width-shape.text_frame.margin_left-shape.text_frame.margin_right)/12700
     height=(shape.height-shape.text_frame.margin_top-shape.text_frame.margin_bottom)/12700
     if mode=='parallel_columns':
@@ -81,10 +83,14 @@ def extract(source, mode):
     for index, slide in enumerate(deck.slides, 1):
         shapes = list(leaves(slide.shapes))
         motion={int(value) for value in slide._element.xpath('.//p:spTgt/@spid') if value.isdigit()}
-        if any(hasattr(shape,'shapes') and any(s.has_text_frame and s.text.strip() for s in leaves(shape.shapes)) for shape in slide.shapes):
+        if mode != 'english_only' and any(hasattr(shape,'shapes') and any(s.has_text_frame and s.text.strip() for s in leaves(shape.shapes)) for shape in slide.shapes):
             unsupported.append(f'Slide {index}: giữ bố cục nhóm đối tượng gốc')
-        if mode in {'parallel_columns','sentence_pairs'} and slide._element.find('p:timing',NS) is not None:
+        text_ids={shape.shape_id for shape in shapes if shape.has_text_frame and shape.text.strip()}
+        if (mode in {'parallel_columns','sentence_pairs'} and slide._element.find('p:timing',NS) is not None
+                and (not motion or motion & text_ids)):
             unsupported.append(f'Slide {index}: giữ đồng bộ hiệu ứng với bản song ngữ')
+        if slide._element.xpath('.//*[local-name()="AlternateContent"]//*[local-name()="txBody" or local-name()="oMath"]'):
+            unsupported.append(f'Slide {index}: đối tượng chữ/công thức có nhánh tương thích cần kiểm tra trực quan')
         text_count = sum(len(shape.text.strip()) for shape in shapes if shape.has_text_frame)
         pictures = [s for s in shapes if int(s.shape_type) == 13]
         if any(p.width*p.height > deck.slide_width*deck.slide_height*.08
@@ -163,8 +169,9 @@ def extract(source, mode):
                     units.append({'id':f's{index}o{shape.shape_id}b{body_index}p{paragraph_index}',
                         'slide':index,'shape_id':shape.shape_id,'body':body_index,'paragraph':paragraph_index,
                         'text':text,'numbers':numbers,'xml_locks':xml_locks,'language':language,
-                        'raw':raw,'title':bool(shape_title),'title_height':title_height,'part':original_parts[index-1]})
-    if english > max(5, len(units)*.35):
+                        'raw':raw,'title':bool(shape_title),'title_height':title_height,'part':original_parts[index-1],
+                        'font_size':round(_size(shape.text_frame,shape)*100) if shape.has_text_frame else 1800})
+    if mode != 'english_only' and english > max(5, len(units)*.35):
         unsupported.append('Nguồn có nhiều vùng English/song ngữ cần ghép cặp trực quan')
     if not units:
         unsupported.append('Nguồn chưa có văn bản chỉnh sửa được')
@@ -188,16 +195,22 @@ def translated_paragraph(original, text, unit, *, english=False, smaller=False):
     for child in list(result):
         if etree.QName(child).localname != 'pPr':
             result.remove(child)
-    template = original.find('a:r/a:rPr', NS)
+    template = next((props for run in original.findall('a:r', NS)
+                     if (props := run.find('a:rPr', NS)) is not None
+                     and props.get('baseline', '0') == '0'), None)
     if template is None:
         template=original.find('a:pPr/a:defRPr',NS)
     template = copy.deepcopy(template) if template is not None else etree.Element(f'{{{NS["a"]}}}rPr')
     template.tag=f'{{{NS["a"]}}}rPr'
+    template.attrib.pop('baseline', None)
+    if template.get('sz') is None and unit.get('font_size'):
+        template.set('sz',str(unit['font_size']))
     if english:
         template.set('lang','en-US')
     if smaller:
         template.set('i','1')
-        template.set('sz',str(max(1400, round(int(template.get('sz','2400'))*.8))))
+        size = int(template.get('sz', '2400'))
+        template.set('sz',str(max(min(1400, size), round(size*.8))))
     for piece in re.split(r'(⟦BLC\d+⟧)', text):
         if not piece:
             continue
@@ -274,8 +287,9 @@ def assemble(source, destination, manifest, translations, mode):
             if len(nodes) != 1:
                 raise ValueError('Đối tượng PowerPoint không còn khớp nguồn.')
             shape = nodes[0].getparent().getparent()
-            if all(u['language'] == 'neutral' for u in units):
-                continue  # Shared formula/number labels keep their exact source XML.
+            if all(u['language'] == 'neutral' or u['language'] == 'en'
+                   and translations[u['id']]['en'] == u['text'] for u in units):
+                continue  # Keep exact XML only when the validated response agrees.
             bodies = ([shape.find('p:txBody', NS)] if shape.tag == f'{{{NS["p"]}}}sp' else
                       shape.findall('.//a:tc/a:txBody', NS))
             clone = copy.deepcopy(shape)
@@ -308,11 +322,11 @@ def assemble(source, destination, manifest, translations, mode):
                         smaller=mode=='sentence_pairs' or title)
                     if mode == 'english_only':
                         body.append(english)
-                    elif mode == 'integrated_keywords':
-                        body.append(translated_paragraph(original,value['mixed'],unit))
                     elif mode == 'sentence_pairs' or title:
                         body.append(copy.deepcopy(original))
                         body.append(english)
+                    elif mode == 'integrated_keywords':
+                        body.append(translated_paragraph(original,value['mixed'],unit))
                     else:
                         body.append(copy.deepcopy(original))
                         en_body.append(english)

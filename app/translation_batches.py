@@ -125,8 +125,11 @@ def parse_response(text, items, batch_id, mode):
         if language_of(original.get('raw',original['text'])) == 'vi':
             source_words = len(TOKEN.sub('',original['text']).split())
             output_words = len(TOKEN.sub('',row['en']).split())
-            if source_words >= 8 and (row['en'] == original['text'] or output_words < source_words*.3):
+            if source_words >= 8 and (row['en'] == original['text'] or output_words < source_words*.45):
                 raise ValueError('Bản dịch English còn thiếu nội dung thân bài.')
+            source_lines = [line for line in original['text'].splitlines() if len(line.split()) >= 5]
+            if len(source_lines) >= 3 and len([line for line in row['en'].splitlines() if line.strip()]) < len(source_lines):
+                raise ValueError('Bản dịch chưa giữ đủ các dòng nội dung nguồn.')
         translated[row['id']] = {key:row[key] for key in fields - {'id'}}
     return translated
 

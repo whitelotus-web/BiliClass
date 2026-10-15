@@ -84,6 +84,13 @@ class RenderCache:
                 row.update(rendered=True, render_image=destination.relative_to(self.directory).as_posix())
                 row["issues"].extend(dict(issue) for issue in issues)
                 self.rows[number] = item
+                # A verified image imported from a request/library cache must
+                # remain reusable after another slide is repaired here.
+                # Otherwise the next pass redraws every unchanged slide.
+                try:
+                    self._share(row['slide'], item)
+                except OSError:
+                    pass  # A cache write failure cannot invalidate this hit.
                 return True
             except (OSError, ValueError, TypeError, KeyError, AttributeError):
                 continue
@@ -97,7 +104,12 @@ class RenderCache:
             'environment':self.environment,
             'slide_key':self.slide_keys.get(str(row['slide'])) if self.slide_keys is not None else None,
         }
-        item=self.rows[str(row['slide'])]
+        self._share(row['slide'], self.rows[str(row['slide'])])
+        self.save()
+
+    def _share(self, number, item):
+        # Publishing a single preview hit must not overwrite the manifest of
+        # other slides, which this cache instance has not visited.
         key=item['slide_key']
         if key:
             self.shared.mkdir(parents=True,exist_ok=True)
@@ -106,14 +118,13 @@ class RenderCache:
                 temporary=image.with_suffix('.png.tmp')
                 temporary.unlink(missing_ok=True)
                 try:
-                    os.link(self.image(row['slide']),temporary)
+                    os.link(self.image(number),temporary)
                 except OSError:
-                    shutil.copyfile(self.image(row['slide']),temporary)
+                    shutil.copyfile(self.image(number),temporary)
                 temporary.replace(image)
             temporary=self.shared/(key+'.json.tmp')
             temporary.write_text(json.dumps(item),encoding='utf-8')
             temporary.replace(self.shared/(key+'.json'))
-        self.save()
 
     def save(self):
         temporary = self.folder / "render-cache.tmp"

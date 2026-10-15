@@ -1,5 +1,30 @@
 # Trạng thái BiliClass
 
+Ngày 15/10/2026 — RC35 triển khai tối ưu lõi: dùng lại WAV gốc khi đổi
+tốc độ, nhập bài nguyên tử trên worker, giữ giao diện phản hồi khi xác minh
+PowerPoint, dùng lại cache render qua các lượt sửa và kiểm tra dung lượng
+trước tác vụ. Giữ các tab Cài đặt và bước tạo voice tùy chọn sau PPTX.
+[Phạm vi và số đo](OPTIMIZATION_RC35.md).
+
+223 kiểm thử liên quan qua; kiểm tra native cuối 9 ca qua (có ca trùng
+với nhóm trước). Qt thật qua luồng chuyển đổi/thư viện/voice tùy chọn;
+worker nhập chờ vẫn có 5 nhịp giao diện. Web và giọng trong các smoke này
+dùng fixture, không gửi tài liệu giáo viên. Đo VieNeu riêng: đoạn đầu
+8,60 s, đoạn mới tiếp theo 2,47 s, đổi tốc độ từ WAV 0,043 s.
+
+Kiểm tra/sửa local trên bản sao Bài 6 giữ 79 slide, còn **17 FAIL / 62 CHECK**;
+không ghi đè bản nháp trong thư viện. Chưa có số đo web chuyển đổi mới từ
+đầu và chưa đạt điều kiện mọi slide hết lỗi. Ổ C gần hết dung lượng trong
+lúc kiểm thử; các lượt sau chuyển TEMP sang F. Không xóa/chuyển dữ liệu
+cá nhân để lấy chỗ và chưa thử chuyển đổi thật mới trên thư viện ở C.
+
+Kiểm tra Chrome thực hiện qua CDP: ca song song chữ/slide đã qua, nhưng
+ca khôi phục phiên Chrome bị timeout điều hướng ở tab khởi động, kể cả
+với profile thử mới trên F. Tám ca kiểm tra bảo vệ profile/cấu hình qua.
+Chưa xác định chắc nguyên nhân timeout; không quy hết lỗi đó cho thiếu
+dung lượng và không coi bộ browser đã đạt. RC35 hiện là nguồn/bản kiểm thử,
+chưa phát hành cập nhật tự động thay RC34.
+
 Ngày 15/10/2026 — nguồn RC34 sửa đọc JSON, kiểm tra số sát chữ, lưu/phục hồi
 kết quả nhóm và xác nhận gửi khi web thu gọn lịch sử. Dùng lại phiên đang
 mở; không báo mất mạng chỉ vì lượt suy luận đang chạy chưa đổi nội dung.

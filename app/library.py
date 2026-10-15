@@ -1,4 +1,4 @@
-"""Transactional local drafts. SQLite is owned by the UI/application thread."""
+"""Transactional local drafts. Each thread owns its own SQLite connection."""
 
 import copy
 import hashlib
@@ -7,6 +7,10 @@ import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
+
+from .lesson_narration import audio_status
+from .readiness import preparation_current
+from .speech import voice_settings
 
 from .lesson_design import PRESETS, classify_block
 
@@ -118,10 +122,6 @@ class Library:
         self.db.close()
 
     def list_lessons(self, order="updated_desc", *, trash=False):
-        from .lesson_narration import audio_status
-        from .readiness import preparation_current
-        from .speech import voice_settings
-
         rows = self.db.execute("SELECT * FROM lessons ORDER BY updated_at DESC").fetchall()
         result = []
         voices = voice_settings(self)
@@ -164,6 +164,11 @@ class Library:
         return lesson
 
     def create(self, title, subject, education_level, grade, blocks, source=None, source_language="vi", analysis=None):
+        lesson = self._new_lesson(title, subject, education_level, grade, blocks, source, source_language, analysis)
+        self._write(lesson, new=True)
+        return lesson
+
+    def _new_lesson(self, title, subject, education_level, grade, blocks, source=None, source_language="vi", analysis=None):
         if source_language not in ("vi", "en"):
             raise ValueError("Ngôn ngữ nguồn phải là tiếng Việt hoặc tiếng Anh.")
         if not title.strip() or not subject.strip():
@@ -217,7 +222,6 @@ class Library:
             # input assessment in the project, not another copy of every string.
             lesson["input_profile"] = {key: value for key, value in analysis.items() if key != "units"}
             lesson["conversion_mode"] = analysis["recommended_mode"]
-        self._write(lesson, new=True)
         return lesson
 
     def _write(self, lesson, new=False):
@@ -522,7 +526,7 @@ class Library:
         from .chatgpt_handoff import text_signature, validate_config
 
         config = validate_config(config)
-        lesson = self.create(config["title"], config["subject"], config.get("education_level", ""),
+        lesson = self._new_lesson(config["title"], config["subject"], config.get("education_level", ""),
                              config.get("grade", ""), inspection["blocks"], source,
                              analysis=inspection["profile"])
         lesson.update(level=config["level"], layout=config["layout"], teaching_preset=config["preset"],
@@ -543,7 +547,8 @@ class Library:
         lesson["slide_speech"] = inspection.get("slide_speech", {})
         lesson["slide_quality"] = inspection.get("slide_quality", {})
         lesson["narration"] = {"version": 2, "mode": "none"}
-        self._write(lesson)
+        # Publish one complete record, never an intermediate VI-only lesson.
+        self._write(lesson, new=True)
         return lesson
 
     def update_narration(self, lesson_id, record):
@@ -930,19 +935,37 @@ class Library:
 
     def store_source(self, path):
         from .document_limits import check_document_size
+        from .storage_space import MIB, require_space
 
         if not Path(path).is_file():
             raise ValueError("Không đọc được tệp nguồn.")
         check_document_size(path)
-        data = Path(path).read_bytes()
-        check_document_size(path, len(data))
-        digest = hashlib.sha256(data).hexdigest()
+        with Path(path).open('rb') as stream:
+            digest = hashlib.file_digest(stream, 'sha256').hexdigest()
         assets = self.directory / "sources"
         assets.mkdir(exist_ok=True)
         suffix = Path(path).suffix.lower()
         target = assets / (digest + suffix)
-        if not target.exists():
-            target.write_bytes(data)
+        intact = False
+        if target.is_file():
+            with target.open('rb') as stream:
+                intact = hashlib.file_digest(stream, 'sha256').hexdigest() == digest
+        if not intact:
+            require_space(assets, Path(path).stat().st_size + 64 * MIB)
+            temporary = assets / (uuid4().hex + '.pending')
+            try:
+                count = 0
+                with Path(path).open('rb') as original, temporary.open('wb') as copied:
+                    while chunk := original.read(1024**2):
+                        count += len(chunk)
+                        check_document_size(path, count)
+                        copied.write(chunk)
+                with temporary.open('rb') as stream:
+                    if hashlib.file_digest(stream, 'sha256').hexdigest() != digest:
+                        raise ValueError('Tài liệu đã thay đổi trong lúc sao chép. Chọn lại tệp để tiếp tục.')
+                temporary.replace(target)
+            finally:
+                temporary.unlink(missing_ok=True)
         return {"name": Path(path).name, "sha256": digest, "file": target.name}
 
     def similar_translations(self, subject, text, source_language="vi", exclude=None):

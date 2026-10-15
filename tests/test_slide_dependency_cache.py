@@ -79,3 +79,16 @@ def test_changed_font_environment_rejects_old_geometry(tmp_path,monkeypatch):
     monkeypatch.setattr('app.slide_fingerprint.environment_key',lambda:'changed-environment')
     result=render_quality(path,tmp_path,report(path))
     assert len(calls)==4 and result['render_cache']['reused']==0
+
+
+def test_reused_external_images_are_available_to_the_next_local_repair(tmp_path, monkeypatch):
+    path = source(tmp_path / 'source.pptx')
+    calls = office_fixture(monkeypatch)
+    request, library = tmp_path / 'request', tmp_path / 'library'
+    render_quality(path, request, report(path))
+    imported = render_quality(path, library, report(path), reuse_directory=request)
+    assert imported['render_cache']['reused'] == 2 and len(calls) == 2
+    new = changed(path, tmp_path / 'changed.pptx', 'ppt/slides/slide2.xml', lambda b: b.replace(b'Second', b'Corrected'))
+    repaired = render_quality(new, library, report(new))
+    assert repaired['render_cache'] == {'reused': 1, 'rendered': 1, 'total': 2}
+    assert len(calls) == 3
