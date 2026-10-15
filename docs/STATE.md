@@ -16,6 +16,14 @@ Browser fixture vẫn có lỗi profile mới/khôi phục tab; chưa phát hàn
 cập nhật tự động và chưa kết luận ứng dụng đã ổn định toàn diện. Bản nháp
 79 slide cũ chưa được ghi đè hoặc tự duyệt thành hoàn thiện.
 
+Nguồn RC36: `c483ea25211ef80628eaf50df763e36638feefa0`, đã đẩy lên private
+origin. Xây một lần đủ 86 module, EXE có icon Windows riêng. Bản đóng gói
+qua Qt màn tạo bài 1366×850 và Cài đặt 1080×700, không warning; xác nhận
+icon native của cửa sổ và phiên bản RC36. Dùng thư viện thử riêng, native
+runtime/model RC34 không đổi qua junction; chưa chứng nhận bộ cài Windows
+sạch. SHA-256 EXE:
+`299df2947c4e561a6d8837fd885e518569217ece70ae09a83458cd93ae71a05d`.
+
 Ngày 15/10/2026 — RC35 triển khai tối ưu lõi: dùng lại WAV gốc khi đổi
 tốc độ, nhập bài nguyên tử trên worker, giữ giao diện phản hồi khi xác minh
 PowerPoint, dùng lại cache render qua các lượt sửa và kiểm tra dung lượng
