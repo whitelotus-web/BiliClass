@@ -81,6 +81,7 @@ def prepare(source, manifest):
 
     from .native_bilingual import leaves
     from .native_fonts import missing_embedded_fonts
+    from .slide_semantics import heading_frame
     from .slide_speech import normalized, objects
 
     deck = Presentation(source)
@@ -91,6 +92,11 @@ def prepare(source, manifest):
     suppressed = {}
     for index, slide in enumerate(deck.slides, 1):
         items = objects(slide)
+        raster_backdrop = any(
+            item["source_type"] == "image"
+            and item["w"] * item["h"] > deck.slide_width * deck.slide_height * 0.6
+            for item in items
+        )
         boxes = {item["shape_id"]: item for item in items}
         shapes = {shape.shape_id: shape for shape in leaves(slide.shapes, modern=True)}
         texts = {key: shape for key, shape in shapes.items() if shape.has_text_frame and shape.text.strip()}
@@ -127,6 +133,7 @@ def prepare(source, manifest):
                 and h < deck.slide_height * 0.22
                 and max(u["font_size"] for u in units) >= 2600
             )
+            title = title or heading_frame(shape, units, box, deck.slide_height)
             if re.match(r"^\s*(?:Câu|Bước|Question)\s*\d", units[0]["raw"], re.I):
                 title = False
             x0, y0 = max(127000, x), max(127000, y)
@@ -152,7 +159,12 @@ def prepare(source, manifest):
                     y0 = max(y0, oy + oh + 6 * 12700)
                 if horizontal > min(w, ow) * 0.3 and oy >= y + h - 12700 and oy > y0 + 127000:
                     bottom = min(bottom, oy - 12700)
-            if title:
+            fixed_caption = raster_backdrop and length < 130 and len(units) <= 2 and h < deck.slide_height * .25
+            if fixed_caption:
+                # Decorative bands may be painted into a full-slide bitmap. Growing
+                # the text box would pass overflow QA yet escape its original band.
+                desired = h
+            elif title:
                 # Reserve a readable two-line heading without growing across a figure.
                 desired = max(h, min(84 * 12700, bottom - y0))
             elif length < 25 and h < 55 * 12700:

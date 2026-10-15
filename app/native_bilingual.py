@@ -93,6 +93,7 @@ def extract(source, mode, *, preserve_design=False, same_slide=False):
 
     from .importers import inspect_zip
     from .input_analysis import language_of
+    from .slide_semantics import equation_only, roman_label
 
     preserve_design = preserve_design or same_slide
     inspect_zip(source)
@@ -201,6 +202,8 @@ def extract(source, mode, *, preserve_design=False, same_slide=False):
                     if len(text)>14000:
                         unsupported.append(f'Slide {index}: vùng nội dung cần xử lý trực quan')
                     language = language_of(raw)
+                    if roman_label(raw) or equation_only(paragraph):
+                        language='neutral'
                     if same_slide and language != 'vi' and not TOKEN.sub('',text).strip():
                         language='neutral'
                     remainder=TOKEN.sub('',text).strip()
@@ -439,7 +442,8 @@ def assemble(source, destination, manifest, translations, mode):
                         body.append(english)
                     elif effective_mode == 'sentence_pairs' or title:
                         body.append(copy.deepcopy(original))
-                        body.append(english)
+                        if unit['language'] != 'neutral':
+                            body.append(english)
                     elif effective_mode == 'integrated_keywords':
                         body.append(translated_paragraph(original,value['mixed'],unit))
                     else:
@@ -448,13 +452,16 @@ def assemble(source, destination, manifest, translations, mode):
                     if together:
                         paragraph_maps.setdefault(shape_id,{})[paragraph_index]=list(range(start,len(body.findall('a:p',NS))))
                         if effective_mode in {'parallel_columns','sentence_pairs'} or title and effective_mode!='english_only':
+                            inline = effective_mode=='sentence_pairs' or title
+                            shared = inline and unit['language']=='neutral'
+                            english_index = (start if shared else start+1) if inline else len(en_body.findall('a:p',NS))-1
                             coverage.setdefault(index,[]).append({
                                 'unit':unit['id'],'body':body_index,'source_shape':shape_id,
                                 'vi_shape':shape_id,'en_shape':shape_id,
                                 'vi_paragraph':start,
-                                'en_paragraph':len(en_body.findall('a:p',NS))-1 if effective_mode=='parallel_columns' and not title else start+1,
-                                'vi_hash':same_slide.fingerprint(original),'en_hash':same_slide.fingerprint(english),
-                                'inline':effective_mode=='sentence_pairs' or title,'title':title,
+                                'en_paragraph':english_index,
+                                'vi_hash':same_slide.fingerprint(original),'en_hash':same_slide.fingerprint(original if shared else english),
+                                'inline':inline,'title':title,
                                 'question':unit.get('question',False),'neutral':unit['language']=='neutral'})
                     pair = notes.setdefault(unit['slide'],{'vi':[],'en':[]})
                     pair['vi'].append(unit['raw'])

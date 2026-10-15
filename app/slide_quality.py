@@ -373,7 +373,9 @@ def render_quality(path, directory, report, cancel=None, progress=None, *, reuse
             slide.Export(str(temporary.resolve()), "PNG", 1600, height)
             temporary.replace(image)
             row.update(rendered=True, render_image=image.relative_to(directory).as_posix())
-            for shape in slide.Shapes:
+            from .native_layout import office_text_shapes
+
+            for shape in office_text_shapes(slide.Shapes):
                 try:
                     if not shape.HasTextFrame or not shape.TextFrame2.HasText:
                         continue

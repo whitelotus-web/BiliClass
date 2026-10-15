@@ -123,6 +123,16 @@ floor even if the translation is unexpectedly long; validation reports that.
                     node.set('val', str(round(int(node.get('val', '0'))*scale)))
 
 
+def office_text_shapes(shapes):
+    """Measure nested, unrotated native frames in their own coordinate system."""
+    for shape in shapes:
+        if shape.Type == 6:
+            if not shape.Rotation:
+                yield from office_text_shapes(shape.GroupItems)
+        elif not shape.Rotation and shape.HasTextFrame:
+            yield shape
+
+
 def _office_overflows(path, pages, cancel):
     """Measure translated frames read-only; never save an Office rewrite."""
     import pythoncom
@@ -137,7 +147,7 @@ def _office_overflows(path, pages, cancel):
         for page in pages:
             if cancel and cancel.is_set():
                 raise InterruptedError('Đã dừng căn chỉnh bài giảng.')
-            for shape in deck.Slides(page).Shapes:
+            for shape in office_text_shapes(deck.Slides(page).Shapes):
                 if shape.Type not in {1,14,17} or shape.Rotation or not shape.HasTextFrame or not shape.TextFrame2.HasText:
                     continue
                 text = shape.TextFrame2.TextRange

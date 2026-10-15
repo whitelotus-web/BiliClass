@@ -33,7 +33,7 @@ def environment_key():
                     office.append((str(executable),state.st_size,state.st_mtime_ns))
             except OSError:
                 continue
-    return hashlib.sha256(json.dumps({'engine':2,'machine':platform.node(),'date':date.today().isoformat(),
+    return hashlib.sha256(json.dumps({'engine':3,'machine':platform.node(),'date':date.today().isoformat(),
                                      'fonts':sorted(fonts),'office':office},
                                     sort_keys=True).encode()).hexdigest()
 

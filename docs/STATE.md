@@ -1,5 +1,11 @@
 # Trạng thái BiliClass
 
+Ngày 16/10/2026 — RC43 giữ nhãn La Mã/công thức độc lập một lần trong kiểu
+xếp dòng, nhận diện thêm tiêu đề mục và giữ khung ngắn trong nền trang trí.
+Đo cả khung chữ trong nhóm. Bài 3 thật còn một trang tràn sau QA/tự sửa;
+OCR và xuất PPTX nhúng voice mới ở bước thiết kế/mẫu kỹ thuật.
+[Kiểm chứng và phạm vi](LAYOUT_SEMANTICS_RC43.md).
+
 Ngày 16/10/2026 — RC42 gộp giao diện Google còn Song ngữ Việt–Anh tự căn và
 Tiếng Anh 100%, thêm ba theme dựng tại máy, tách worker/cache xem trước,
 QA/sửa cục bộ trước khi lưu và giữ bước voice riêng. Sửa tọa độ nhóm,

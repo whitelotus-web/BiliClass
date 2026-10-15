@@ -20,7 +20,7 @@ def office_fixture(monkeypatch, cancel=None):
     calls = []
 
     class Slide:
-        Shapes = [SimpleNamespace(HasTextFrame=True, TextFrame2=SimpleNamespace(HasText=True,
+        Shapes = [SimpleNamespace(Type=17, Rotation=0, HasTextFrame=True, TextFrame2=SimpleNamespace(HasText=True,
             TextRange=SimpleNamespace(BoundHeight=50, BoundWidth=50)), Height=20, Width=20,
             Fill=SimpleNamespace(Visible=False), Id=7)]
 
