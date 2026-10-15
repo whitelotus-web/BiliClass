@@ -65,3 +65,13 @@ tự tạo voice. Bài nguồn, bản kết quả, key, báo cáo và EXE nằm 
 
 RC40 là mốc mã nguồn và bản thử độc lập tại máy. Bộ cài tự cập nhật trên GitHub
 Releases là một mốc phát hành riêng.
+
+## Bản thử độc lập cuối
+
+- Phiên bản `1.0.0rc40`; mã nguồn `d951dfc758f4af9938455325d0e71c939d2d0e5d`.
+- SHA-256 EXE: `f92c192b886702f50f53171cca836efc4d4af1884abd5e13aaae41aba08c4a1e`.
+- Biên dịch lại 90 module ứng dụng; dùng lại runtime/model RC34 không đổi.
+  Đây là bản thử tại máy, chưa phải gói Windows đã phát hành qua cập nhật.
+- EXE đã kiểm tra ở màn tạo bài 1366×850 và Google Dịch 1080×700: đúng phiên
+  bản, có icon Windows, mở/thoát đúng và không có cảnh báo QML. Chưa thay thế
+  kiểm tra cài đặt trên Windows sạch.
