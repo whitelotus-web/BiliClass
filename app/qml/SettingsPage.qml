@@ -423,11 +423,31 @@ Item {
                     RowLayout { Layout.fillWidth: true; spacing: 12
                         Title { text: "Google Cloud Translation"; Layout.fillWidth: true }
                         SoftButton {
+                            id: googleKeyGuide; objectName: "googleKeyGuideButton"
+                            text: "Hướng dẫn lấy Key"
+                            Accessible.description: googleKeyGuideTip.text
+                            onClicked: googleKeyGuideTip.open()
+                            ToolTip {
+                                id: googleKeyGuideTip; objectName: "googleKeyGuideTip"
+                                visible: googleKeyGuide.hovered || googleKeyGuide.activeFocus
+                                delay: 350; timeout: -1
+                                width: Math.min(440, page.width - 32); padding: 14
+                                closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+                                text: "Hướng dẫn lấy Key Google Cloud\n\n1. Bấm Lấy key, đăng nhập Google và chọn hoặc tạo dự án.\n2. Bật thanh toán cho dự án.\n3. Vào APIs & Services → Library, tìm và bật Cloud Translation API.\n4. Vào Credentials → Create credentials → API key.\n5. Giới hạn key chỉ dùng Cloud Translation API rồi sao chép key.\n6. Dán vào ô bên dưới, mỗi dòng: Tên dự án | key, rồi bấm Lưu cấu hình.\n\nDùng key Google Cloud Translation, không phải key Gemini."
+                                contentItem: Label {
+                                    text: googleKeyGuideTip.text; color: page.ink
+                                    font.pixelSize: 13; wrapMode: Text.WordWrap
+                                    textFormat: Text.PlainText
+                                }
+                                background: Rectangle { radius: 9; color: "#f7faff"; border.color: page.line }
+                            }
+                        }
+                        SoftButton {
                             objectName: "getGoogleApiKey"; text: "Lấy key"
                             Accessible.name: "Mở Google Cloud để tạo API key"
                             onClicked: Qt.openUrlExternally("https://console.cloud.google.com/apis/credentials")
                             ToolTip.visible: hovered
-                            ToolTip.text: "Chọn dự án → Tạo thông tin xác thực → Khóa API"
+                            ToolTip.text: "Mở trang quản lý API key trên Google Cloud"
                         }
                     }
                     Hint { text: "Dịch phần chữ Việt–Anh, sắp xếp PowerPoint tại máy. Giọng đọc được tạo riêng sau khi bài giảng đã lưu."; Layout.fillWidth: true }
