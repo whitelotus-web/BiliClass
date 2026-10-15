@@ -86,8 +86,8 @@ def objects(slide):
     """Keep group ancestry and stable native IDs, including table cells."""
     def compose(parent, local):
         a,b,c,d,e,f = parent
-        g,h,i,j,k,l = local
-        return (a*g+c*h,b*g+d*h,a*i+c*j,b*i+d*j,a*k+c*l+e,b*k+d*l+f)
+        g,h,i,j,k,offset_y = local
+        return (a*g+c*h,b*g+d*h,a*i+c*j,b*i+d*j,a*k+c*offset_y+e,b*k+d*offset_y+f)
 
     def bounds(shape, transform):
         a,b,c,d,e,f = transform
@@ -317,7 +317,8 @@ def inspect_slide(slide, number, mode="", notes_en="", bounds=None):
             kind = "option" if re.match(r"^[A-D][.)]\s", text) else "body"
             if re.match(r"^(?:Question|Exercise)\s*\d*\s*[:.)]", text, re.I):
                 kind = "question"
-            if item["shape"].is_placeholder and item["shape"].placeholder_format.type in (1, 3):
+            if (item["shape"].is_placeholder and item["shape"].placeholder_format.type in (1, 3)
+                    and not item['name'].startswith('BCL_BODY ')):
                 kind = "title"
             if item["name"].startswith("BCL_EN_title"):
                 kind = "title"

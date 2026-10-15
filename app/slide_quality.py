@@ -36,6 +36,7 @@ MESSAGES = {
     "source_language_pair": "Trang Việt và trang Anh kế tiếp cùng giữ thiết kế gốc; kiểm tra bản dịch và hiệu ứng khi trình chiếu.",
     "source_frame_needs_review": "Khung chữ vượt mép đã có trong nguồn và được giữ đúng vị trí; cần đối chiếu phần chữ khi trình chiếu.",
     "source_text_overflow": "PowerPoint đo được chữ tràn trong trang được giữ nguyên từ nguồn; cần rà soát bản gốc.",
+    "translation_pair_missing": "Một cặp Việt–Anh trên slide bị thiếu hoặc không khớp bản dịch đã dựng; cần tạo lại bố cục.",
 }
 
 
@@ -61,6 +62,14 @@ def validate_layout_plan(plan, total, source_total=None):
     expected, index = 1, 0
     while index < len(plan):
         row = plan[index]
+        if isinstance(row,dict) and 'continuation' in row:
+            previous=plan[index-1] if index else {}
+            if (type(row.get('continuation')) is not int or row['continuation']!=previous.get('continuation',1)+1
+                    or row.get('source_slide')!=expected-1 or previous.get('role')!='bilingual'
+                    or row.get('role')!='bilingual' or not row.get('pairs')):
+                raise ValueError('Trang song ngữ tiếp nối không khớp nguồn.')
+            index+=1
+            continue
         if (not isinstance(row, dict) or type(row.get('source_slide')) is not int
                 or row['source_slide'] != expected or row.get('role') not in {'vi','en','bilingual','original'}):
             raise ValueError('Sơ đồ trang song ngữ sai thứ tự nguồn.')
@@ -87,6 +96,16 @@ def inspect_quality(deck, speech, mode="", source_total=None, *, source_deck=Non
         workspace = []
         original = {}
         layout = layout_plan[index-1] if layout_plan else None
+        inline_ids = set()
+        if layout and 'pairs' in layout:
+            from lxml import etree
+
+            from .same_slide import visible_pairs
+
+            tree = etree.fromstring(etree.tostring(slide._element))
+            if not visible_pairs(tree,layout['pairs']):
+                issues.append({'code':'translation_pair_missing','severity':'FAIL'})
+            inline_ids={pair['vi_shape'] for pair in layout['pairs'] if pair['inline']}
         if source_deck is not None and (layout_plan or len(source_deck.slides) == len(deck.slides)):
             original_slide = source_deck.slides[(layout['source_slide'] if layout else index)-1]
             original = {(item['shape_id'], item['paragraph'], tuple(item['cell'] or ())): item
@@ -120,7 +139,8 @@ def inspect_quality(deck, speech, mode="", source_total=None, *, source_deck=Non
         if paired_vi or paired_en:
             issues.append({'code':'source_language_pair','severity':'CHECK'})
         elif mode in {"parallel_columns", "sentence_pairs"}:
-            issues.extend(bilingual_issues(shapes, spoken, deck.slide_width, deck.slide_height, mode))
+            issues.extend(bilingual_issues(shapes, spoken, deck.slide_width, deck.slide_height, mode,
+                                           inline_ids=inline_ids))
         for item in shapes:
             if not item["text"]:
                 continue
@@ -214,7 +234,7 @@ def inspect_quality(deck, speech, mode="", source_total=None, *, source_deck=Non
     return update_status(report)
 
 
-def bilingual_issues(items, spoken, width, height, mode, *, allow_title_only=True):
+def bilingual_issues(items, spoken, width, height, mode, *, allow_title_only=True, inline_ids=()):
     """Check native body text and placement; notes never substitute visible English."""
     from .slide_speech import VI_MARKS, english_text, normalized
 
@@ -242,8 +262,8 @@ def bilingual_issues(items, spoken, width, height, mode, *, allow_title_only=Tru
         issues.append({"code": "translation_coverage", "severity": "CHECK"})
     if mode == "parallel_columns" and english:
         by_id = {i["shape_id"]: i for i in text_items if i["cell"] is None}
-        vi_ids = {i["shape_id"] for i in vi if i["cell"] is None}
-        en_ids = {s["source"]["shape_id"] for s in english if s["source"]["cell"] is None}
+        vi_ids = {i["shape_id"] for i in vi if i["cell"] is None} - set(inline_ids)
+        en_ids = {s["source"]["shape_id"] for s in english if s["source"]["cell"] is None} - set(inline_ids)
         def paired_columns(left):
             for shape_id in en_ids:
                 right = by_id.get(shape_id)

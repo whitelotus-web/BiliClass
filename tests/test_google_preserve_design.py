@@ -1,5 +1,5 @@
-import hashlib
 import copy
+import hashlib
 import zipfile
 from threading import Event
 
@@ -98,9 +98,10 @@ def test_invalid_plan_cannot_hide_missing_source_slides(tmp_path):
 
 def test_google_conversion_keeps_layout_mapping_after_library_save(tmp_path):
     from contextlib import closing
+
     from app.conversion_input import creation_config
     from app.conversion_progress import ConversionProgress
-    from app.google_conversion import convert, prepare, original_source
+    from app.google_conversion import convert, original_source, prepare
     from app.google_translation import KeyStore, Translator
     from app.library import Library
 
@@ -113,8 +114,9 @@ def test_google_conversion_keeps_layout_mapping_after_library_save(tmp_path):
         'The energy of the object is conserved in the absence of friction.' for text in texts])
     lesson, preview = convert(tmp_path, job, Event(), ConversionProgress(job['folder'], lambda _: None), translator=translator)
     assert lesson['external_deck']['requested_style'] == 'source'
-    assert lesson['external_deck']['total'] == 3
+    assert lesson['external_deck']['total'] == 2
     plan = lesson['external_deck']['layout_plan']
+    assert all(row['role']=='bilingual' and row['pairs'] for row in plan)
     assert original_source(tmp_path,lesson).read_bytes()==original.read_bytes()
     wrong = copy.deepcopy(lesson)
     wrong['external_deck']['original_source_sha256']='0'*64

@@ -1,5 +1,11 @@
 # Trạng thái BiliClass
 
+Ngày 16/10/2026 — RC41 đưa Việt–Anh lên cùng slide; tiêu đề xếp hai dòng,
+vùng chữ được căn theo hình gốc. Khung nhiều đoạn quá chật dùng trang tiếp
+nối vẫn song ngữ, thay thế phương án tách ngôn ngữ của RC40. Kiểm tra từng
+cặp chữ nhìn thấy, đồng bộ hành vi hoạt hình và giữ bước voice riêng.
+[Bằng chứng và giới hạn](SAME_SLIDE_RC41.md).
+
 Ngày 15/10/2026 — RC40 giữ gói PowerPoint nguồn thay vì chuyển cả bài phức tạp
 sang mẫu trắng. Đọc nhánh chữ/công thức hiện đại, giữ tài nguyên/hiệu ứng và
 dùng cặp trang Việt–Anh khi không đủ chỗ theo lựa chọn đã xác nhận. Lưu sơ đồ

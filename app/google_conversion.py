@@ -1,7 +1,7 @@
 """Translate text via Google; construct and inspect PowerPoint locally.
 
-No browser imports or web submission. Source PowerPoints keep their native
-package; dense/animated slides use adjacent language versions when necessary.
+No browser imports or web submission. Source PowerPoints keep native resources;
+Vietnamese and English share each page, including bilingual continuations.
 """
 
 import hashlib
@@ -11,7 +11,7 @@ from contextlib import closing
 from pathlib import Path
 from uuid import uuid4
 
-from .google_translation import Translator, TranslationProblem, chunks
+from .google_translation import TranslationProblem, Translator, chunks
 
 
 def prepare(directory, config, source=None, text=''):
@@ -74,6 +74,7 @@ def original_source(directory, lesson):
 def _template(path, config, pairs, cancel, source=None):
     """Known non-overlapping text regions; pagination keeps each pair intact."""
     import io
+
     from pptx import Presentation
     from pptx.dml.color import RGBColor
     from pptx.util import Inches, Pt
@@ -223,8 +224,8 @@ def convert(directory, job, cancel, progress, *, budget=500_000, translator=None
 
 def _convert(directory, job, cancel, progress, *, budget=500_000, translator=None):
     from .chatgpt_handoff import inspect_returned_deck
-    from .library import Library
     from .lesson_import import save_conversion
+    from .library import Library
     from .native_bilingual import assemble, extract
 
     job = load(directory, job['folder'])
@@ -246,11 +247,12 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
             return lesson, external_preview(lesson, directory)
     source = folder / config['source_file']
     progress.stage('upload', 'Đang đọc nội dung tài liệu.')
-    manifest = extract(source, config['conversion_format'], preserve_design=True) if source.suffix == '.pptx' and config['style'] == 'source' else None
+    manifest = extract(source, config['conversion_format'], preserve_design=True, same_slide=True) if source.suffix == '.pptx' and config['style'] == 'source' else None
     use_native = manifest is not None
     warnings = []
     target = folder / 'result.pptx'
-    notify = lambda done, total: progress.stage('translate', 'Đang hoàn thiện nội dung song ngữ.', done, total)
+    def notify(done,total):
+        progress.stage('translate', 'Đang hoàn thiện nội dung song ngữ.', done, total)
     if use_native:
         units = manifest['units']
         pending = [u for u in units if u['language'] not in {'en', 'neutral'}]
@@ -264,6 +266,8 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
         (folder/'layout-fit.json').write_text(json.dumps(fitting),encoding='utf-8')
         if manifest.get('paired_slides'):
             warnings.append('Slide kín chữ/hình hoặc có hiệu ứng được giữ thành cặp trang Việt–Anh kế tiếp; số slide có thể tăng để giữ thiết kế gốc.')
+        if any(row.get('continuation') for row in manifest.get('layout_plan',[])):
+            warnings.append('Một số khung nhiều đoạn được chia thành trang tiếp nối; mỗi trang vẫn có cả Việt và Anh cùng hình gốc.')
         if manifest.get('visual_slides'):
             warnings.append('Hình, hiệu ứng, biểu đồ và đối tượng nhúng được giữ từ nguồn. Chữ nằm trong ảnh/biểu đồ chưa được dịch tự động; cần đối chiếu khi trình chiếu.')
     if not use_native:
@@ -275,6 +279,7 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
         warnings.extend(extraction_warnings(source))
         if source.suffix == '.pptx':
             from pptx import Presentation
+
             from .source_deck import text_blocks
             blocks = [(u['locator'], u['text']) for u in text_blocks(Presentation(source))]
             if not blocks:

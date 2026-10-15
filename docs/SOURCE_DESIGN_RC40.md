@@ -1,5 +1,8 @@
 # RC40 — giữ thiết kế PowerPoint khi dịch bằng Google
 
+Phương án tách trang ngôn ngữ trong tài liệu này đã được thay thế cho chuyển
+đổi mới bởi [RC41 — song ngữ cùng slide](SAME_SLIDE_RC41.md).
+
 Ngày 15/10/2026. Bản trước chỉ cho đi luồng native khi toàn bộ bài vượt qua
 preflight. Một ảnh lớn, nhóm, hiệu ứng hoặc vùng chữ chật có thể khiến cả bài
 bị dựng lại trên mẫu trắng, tách ảnh sang cuối và mất hiệu ứng. Bộ đọc thường

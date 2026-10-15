@@ -8,9 +8,9 @@ from pathlib import Path
 
 from lxml import etree
 
+from .native_layout import can_fit, fit_body
 from .source_deck import NS, _bytes, _part_relative, _rels_path, _size, _xml, source_slide_parts
 from .translation_batches import TOKEN, lock_numbers, restore
-from .native_layout import can_fit, fit_body
 
 
 def leaves(shapes, *, modern=False):
@@ -87,13 +87,14 @@ def _visible_insets(shape, box, deck, items):
             'bIns':round(max(0,top+height-deck.slide_height)*shape.height/max(1,height))}
 
 
-def extract(source, mode, *, preserve_design=False):
+def extract(source, mode, *, preserve_design=False, same_slide=False):
     """Preflight before any send. Image/diagram-heavy decks retain the visual route."""
     from pptx import Presentation
 
     from .importers import inspect_zip
     from .input_analysis import language_of
 
+    preserve_design = preserve_design or same_slide
     inspect_zip(source)
     deck = Presentation(source)
     original_parts = source_slide_parts(source)
@@ -197,8 +198,20 @@ def extract(source, mode, *, preserve_design=False):
                     if len(text)>14000:
                         unsupported.append(f'Slide {index}: vùng nội dung cần xử lý trực quan')
                     language = language_of(raw)
+                    if same_slide and language != 'vi' and not TOKEN.sub('',text).strip():
+                        language='neutral'
+                    remainder=TOKEN.sub('',text).strip()
+                    if (same_slide and TOKEN.search(text) and language!='vi'
+                            and re.fullmatch(r'[A-Za-zα-ωΑ-Ω=+−±\s-]*',remainder)
+                            and all(len(word)==1 for word in re.findall(r'[A-Za-zα-ωΑ-Ω]+',remainder))):
+                        language='neutral'
                     if re.fullmatch(r'[A-Za-zα-ωΑ-Ω]',raw) or len(raw)<=8 and re.search(r'[\d₀-₉/*^=]',raw) and re.fullmatch(r'[A-Za-zα-ωΑ-Ω\d₀-₉/*^=+().−-]+',raw):
                         language='neutral'
+                    if same_slide and re.match(r'^[A-D][.)]\s*',raw):
+                        quantity=re.sub(r'^[A-D][.)]\s*','',raw)
+                        quantity=re.sub(r'(?i)(?<![A-Za-z])(?:cm|mm|km|rad|kg|hz|m|s|ms)(?![A-Za-z])','',quantity)
+                        if re.search(r'\d',quantity) and re.fullmatch(r'[\d₀-₉²³π√\s/,.;+−^=*()–-]+',quantity):
+                            language='neutral'  # A numeric option has no language to duplicate.
                     english += language == 'en'
                     units.append({'id':f's{index}o{shape.shape_id}b{body_index}p{paragraph_index}',
                         'slide':index,'shape_id':shape.shape_id,'body':body_index,'paragraph':paragraph_index,
@@ -216,11 +229,17 @@ def extract(source, mode, *, preserve_design=False):
     if any(not reason.startswith('Slide ') for reason in unsupported):
         visual = set(range(1,len(deck.slides)+1))
     native = units if preserve_design else [unit for unit in units if unit['slide'] not in visual]
-    return {'version':3 if preserve_design else 2,'eligible':bool(units or visual),'reasons':list(dict.fromkeys(unsupported)),
+    manifest = {'version':4 if same_slide else 3 if preserve_design else 2,'eligible':bool(units or visual),'reasons':list(dict.fromkeys(unsupported)),
             'slides':len(deck.slides),'units':native,'visual_slides':sorted(visual),
             **({'preserve_design':True,'paired_slides':sorted(visual) if mode != 'english_only' else []}
                if preserve_design else {}),
             'text_characters':sum(len(u['text']) for u in native)}
+    if same_slide:
+        from .same_slide import prepare
+
+        manifest.update(same_slide=True, paired_slides=[])
+        prepare(source,manifest)
+    return manifest
 
 
 def _element(parent, prefix, tag, **attributes):
@@ -302,6 +321,7 @@ def _pair_columns(tree, shape, english):
     owner = shape.getparent()
     position = owner.index(shape)
     owner.insert(position+1,english)
+    return int(clone_id.get('id'))
 
 
 def assemble(source, destination, manifest, translations, mode):
@@ -318,12 +338,16 @@ def assemble(source, destination, manifest, translations, mode):
     grouped = {}
     for unit in manifest['units']:
         grouped.setdefault(unit['part'],{}).setdefault(unit['shape_id'],[]).append(unit)
-    notes, paired_trees = {}, {}
+    notes, paired_trees, coverage, continuations = {}, {}, {}, {}
+    together = manifest.get('same_slide', False)
+    if together:
+        from . import same_slide
     for part, shapes in grouped.items():
         tree = _xml(entries[part])
         index = next(iter(shapes.values()))[0]['slide']
         paired = index in manifest.get('paired_slides', [])
         effective_mode = 'english_only' if paired else mode
+        columns, paragraph_maps = {}, {}
         for shape_id, units in shapes.items():
             nodes = tree.xpath('.//p:cNvPr[@id=$id]',namespaces=NS,id=str(shape_id))
             if len(nodes) > 1 and manifest.get('preserve_design'):
@@ -336,12 +360,28 @@ def assemble(source, destination, manifest, translations, mode):
             if len(nodes) != 1:
                 raise ValueError('Đối tượng PowerPoint không còn khớp nguồn.')
             shape = nodes[0].getparent().getparent()
+            effective_mode = 'english_only' if paired else mode
+            transform=shape.find('p:spPr/a:xfrm',NS)
+            if together and effective_mode == 'parallel_columns' and (
+                    shape.tag != f'{{{NS["p"]}}}sp' or units[0].get('inline_pair')
+                    or transform is None or transform.get('rot') not in {None,'0'}):
+                effective_mode = 'sentence_pairs'  # Cell-local pairs keep table row/column ownership.
+            if together and units[0].get('suppressed'):
+                for paragraph in shape.findall('p:txBody/a:p',NS):
+                    for child in list(paragraph):
+                        if etree.QName(child).localname != 'pPr':
+                            paragraph.remove(child)
+                continue
             if all(u['language'] == 'neutral' or u['language'] == 'en'
                    and translations[u['id']]['en'] == u['text'] for u in units):
                 continue  # Keep exact XML only when the validated response agrees.
             bodies = ([shape.find('p:txBody', NS)] if shape.tag == f'{{{NS["p"]}}}sp' else
                       shape.findall('.//a:tc/a:txBody', NS))
-            if manifest.get('version', 1) >= 2 and not paired:
+            if together:
+                same_slide.apply_geometry(shape,units[0])
+                if not any(u['title'] for u in units):
+                    nodes[0].set('name','BCL_BODY '+nodes[0].get('name',''))
+            if manifest.get('version', 1) >= 2 and not paired and not together:
                 height=max((u.get('layout_height') or 0 for u in units),default=0)
                 extent=shape.find('p:spPr/a:xfrm/a:ext',NS)
                 if extent is not None and height:
@@ -350,7 +390,7 @@ def assemble(source, destination, manifest, translations, mode):
             clone_bodies = ([clone.find('p:txBody', NS)] if shape.tag == f'{{{NS["p"]}}}sp' else
                             clone.findall('.//a:tc/a:txBody', NS))
             title = any(u['title'] for u in units)
-            if title and effective_mode!='english_only':
+            if title and effective_mode!='english_only' and not together:
                 height=max((u.get('title_height') or 0 for u in units),default=0)
                 extent=shape.find('p:spPr/a:xfrm/a:ext',NS)
                 if extent is not None and height:
@@ -366,15 +406,23 @@ def assemble(source, destination, manifest, translations, mode):
                 for paragraph in list(en_body.findall('a:p', NS)):
                     en_body.remove(paragraph)
                 for paragraph_index, original in enumerate(originals):
+                    start = len(body.findall('a:p',NS))
                     unit = selected.get(paragraph_index)
                     if unit is None:
+                        if together:
+                            original = same_slide.style_paragraph(copy.deepcopy(original),units[0]['font_size'],title=title)
                         body.append(copy.deepcopy(original))
                         en_body.append(copy.deepcopy(original))
+                        if together:
+                            paragraph_maps.setdefault(shape_id,{})[paragraph_index]=[start]
                         continue
                     value = translations[unit['id']]
                     english = translated_paragraph(original,value['en'],unit,english=True,
-                        smaller=effective_mode=='sentence_pairs' or title and
-                        (effective_mode!='english_only' or not manifest.get('preserve_design')))
+                        smaller=not together and (effective_mode=='sentence_pairs' or title and
+                        (effective_mode!='english_only' or not manifest.get('preserve_design'))))
+                    if together:
+                        original = same_slide.style_paragraph(copy.deepcopy(original),unit['font_size'],title=title,label=unit.get('label',False))
+                        english = same_slide.style_paragraph(english,unit['font_size'],english=True,title=title,label=unit.get('label',False))
                     if effective_mode == 'english_only':
                         body.append(english)
                     elif effective_mode == 'sentence_pairs' or title:
@@ -385,6 +433,17 @@ def assemble(source, destination, manifest, translations, mode):
                     else:
                         body.append(copy.deepcopy(original))
                         en_body.append(english)
+                    if together:
+                        paragraph_maps.setdefault(shape_id,{})[paragraph_index]=list(range(start,len(body.findall('a:p',NS))))
+                        if effective_mode in {'parallel_columns','sentence_pairs'} or title and effective_mode!='english_only':
+                            coverage.setdefault(index,[]).append({
+                                'unit':unit['id'],'body':body_index,'source_shape':shape_id,
+                                'vi_shape':shape_id,'en_shape':shape_id,
+                                'vi_paragraph':start,
+                                'en_paragraph':len(en_body.findall('a:p',NS))-1 if effective_mode=='parallel_columns' and not title else start+1,
+                                'vi_hash':same_slide.fingerprint(original),'en_hash':same_slide.fingerprint(english),
+                                'inline':effective_mode=='sentence_pairs' or title,'title':title,
+                                'question':unit.get('question',False),'neutral':unit['language']=='neutral'})
                     pair = notes.setdefault(unit['slide'],{'vi':[],'en':[]})
                     pair['vi'].append(unit['raw'])
                     pair['en'].append(restore(value['en'],unit['numbers']))
@@ -399,11 +458,24 @@ def assemble(source, destination, manifest, translations, mode):
             if effective_mode == 'parallel_columns' and not title:
                 if shape.tag != f'{{{NS["p"]}}}sp':
                     raise ValueError('Bảng này cần dàn hai cột bằng luồng trực quan.')
-                _pair_columns(tree,shape,clone)
-                if manifest.get('version', 1) >= 2:
+                clone_id = _pair_columns(tree,shape,clone)
+                if together:
+                    columns[shape_id]=clone_id
+                    for pair in coverage.get(index,[]):
+                        if pair['source_shape']==shape_id:
+                            pair['en_shape']=clone_id
+                    same_slide.fit(clone,max(u['font_size'] for u in units))
+                elif manifest.get('version', 1) >= 2:
                     fit_body(clone, max(u['font_size'] for u in units))
-            if manifest.get('version', 1) >= 2:
+            if together:
+                same_slide.fit(shape,max(u['font_size'] for u in units))
+            elif manifest.get('version', 1) >= 2:
                 fit_body(shape, max(u['font_size'] for u in units), minimum=14 if paired else 18)
+        if together:
+            same_slide.synchronize(tree,columns,paragraph_maps)
+            pages=same_slide.paginate(tree,coverage.get(index,[]))
+            tree,coverage[index]=pages[0]
+            continuations[index]=pages[1:]
         if paired:
             paired_trees[index] = (part, tree)
         else:
@@ -479,7 +551,14 @@ def assemble(source, destination, manifest, translations, mode):
             for index, sid in enumerate(originals, 1):
                 if index not in paired_trees:
                     role = 'en' if mode == 'english_only' else 'bilingual' if index in notes else 'original'
-                    plan.append({'source_slide':index,'role':role})
+                    plan.append({'source_slide':index,'role':role,
+                                 **({'pairs':coverage[index]} if index in coverage else {})})
+                    previous=sid
+                    for page,(extra,extra_pairs) in enumerate(continuations.get(index,[]),2):
+                        highest_id+=1
+                        previous=_append_slide(original_parts[index-1],extra,f'{index}-continuation-{page}',
+                                               entries,types,relations,slide_list,previous,highest_id)
+                        plan.append({'source_slide':index,'role':'bilingual','continuation':page,'pairs':extra_pairs})
                     continue
                 part, tree = paired_trees[index]
                 plan.append({'source_slide':index,'role':'vi'})

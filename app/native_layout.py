@@ -201,7 +201,9 @@ def fit_preserved_frames(path, manifest, cancel=None, *, measure=None):
                         paragraph.xpath('.//a:t[normalize-space()]|.//*[local-name()="oMath"]|.//a:fld',namespaces=NS)]
             sizes = [int(value) for paragraph in nonempty for value in
                      paragraph.xpath('.//a:rPr/@sz|.//a:defRPr/@sz',namespaces=NS)]
-            floor = min(100000,round(1200/min(sizes,default=2400)*100000))
+            # Continuations keep dense multi-paragraph bodies readable. A short,
+            # indivisible label/equation can use 14pt rather than overlap artwork.
+            floor = min(100000,round((1400 if manifest.get('same_slide') else 1200)/min(sizes,default=2400)*100000))
             spacing_changed = False
             if not body.xpath('.//*[local-name()="oMath" or local-name()="oMathPara"]'):
                 for paragraph in body.findall('a:p',NS):
