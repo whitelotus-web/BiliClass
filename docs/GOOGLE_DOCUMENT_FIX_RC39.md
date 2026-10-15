@@ -40,3 +40,13 @@ nối chung, khiến lỗi đọc tài liệu dễ bị hiểu là thiếu key h
 
 Key, cache, nguồn, bài giảng, báo cáo và EXE vẫn ở ngoài Git. RC39 là bản
 thử độc lập tại máy; mã nguồn và bộ cài cập nhật là hai mốc riêng.
+
+## Mốc bản chạy độc lập
+
+- Phiên bản: `1.0.0rc39`; mã nguồn: `e1deda1c1b88d5466c3ecda4cdeb036d6ebdadf1`.
+- SHA-256 EXE: `5755472191ff42183a8b51b26a53eee5ff116263b560910a7c19bf0f0856c4d9`.
+- Biên dịch lại toàn bộ 90 module ứng dụng, dùng lại runtime/model RC34
+  không thay đổi. Đây là bản thử tại máy, chưa phát hành bộ cài tự cập nhật.
+- Kiểm tra EXE độc lập: màn tạo bài 1366×850 và cài đặt Google Dịch
+  1080×700 đều mở/thoát đúng, có icon Windows, đúng số phiên bản và không
+  có cảnh báo QML. Kiểm tra này không thay thế thử cài trên Windows sạch.
