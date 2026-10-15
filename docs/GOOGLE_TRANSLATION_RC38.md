@@ -98,3 +98,16 @@ báo tiến độ, không broad refresh/WAV check trên UI, Dừng khoảng 343 
 Chưa có API key thật để kiểm tra dịch Google và đo thời gian bài thực tế.
 Không sử dụng thời gian fixture để tuyên bố nhanh gấp bao nhiêu hoặc mọi môn
 đã hoàn thiện. Bản thử độc lập và EXE/model/cache/reports không vào Git.
+
+## Bản thử độc lập tại máy
+
+Mã ứng dụng: `38bf9fb25e3611d9bb053070c2f0d0abc846a71d`. Đóng gói 90 module
+ứng dụng, bổ sung parser HTML của thư viện chuẩn; native runtime/model RC34
+không đổi. SHA-256 EXE:
+`d2e364ba88038e48608f575820b4bcda8225a4cee795cb174ca52e67fd27d79b`.
+
+Qt đóng gói qua ở màn tạo bài 1366×850 và Google Dịch 1080×700, đúng icon,
+version RC38, không QML warning. Đây là bản thử tại máy, chưa phát hành lên
+kênh cập nhật và chưa chứng nhận bộ cài trên Windows sạch. Ngoài các kiểm thử
+ở trên, ca hồi quy Tự sửa bài web cũ xác nhận không đọc lại tài khoản/gửi web
+khi chế độ Google đang bật.
