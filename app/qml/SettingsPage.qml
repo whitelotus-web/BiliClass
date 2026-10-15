@@ -102,7 +102,15 @@ Item {
                     }
                     contentItem: RowLayout {
                         spacing: 7
-                        Image { source: tab.modelData.tabId === 1 ? "../assets/brand/biliclass.svg" : "../assets/navigation/" + tab.modelData.icon + (page.activeTab === tab.modelData.tabId ? "-active" : "") + ".png"; sourceSize.width: 64; sourceSize.height: 64; fillMode: Image.PreserveAspectFit; Layout.preferredWidth: 27; Layout.preferredHeight: 27 }
+                        Image {
+                            source: tab.modelData.tabId === 1 ? "../assets/navigation/about.png" : "../assets/navigation/" + tab.modelData.icon + (page.activeTab === tab.modelData.tabId ? "-active" : "") + ".png"
+                            // The supplied artwork has a wide transparent border.
+                            sourceClipRect: tab.modelData.tabId === 1 ? Qt.rect(184, 214, 888, 888) : Qt.rect(0, 0, 0, 0)
+                            sourceSize.width: tab.modelData.tabId === 1 ? 1254 : 64
+                            sourceSize.height: tab.modelData.tabId === 1 ? 1254 : 64
+                            fillMode: Image.PreserveAspectFit
+                            Layout.preferredWidth: 27; Layout.preferredHeight: 27
+                        }
                         Label { text: tab.modelData.name; color: page.activeTab === tab.modelData.tabId ? page.blue : page.ink; font.pixelSize: 13; font.weight: page.activeTab === tab.modelData.tabId ? Font.Bold : Font.DemiBold; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                     }
                 }
