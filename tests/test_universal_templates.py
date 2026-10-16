@@ -156,6 +156,60 @@ def test_native_equation_is_not_duplicated_for_its_paragraphs(tmp_path):
     assert len(_media(page))==1
 
 
+def test_mixed_prose_and_native_math_share_only_equation_not_untranslated_source_box(tmp_path):
+    from lxml import etree
+    source=Presentation();page=source.slides.add_slide(source.slide_layouts[6])
+    shape=page.shapes.add_textbox(Inches(1),Inches(2),Inches(8),Inches(3))
+    vi='Phương trình của vận tốc là:'
+    shape.text=vi+'\nVận tốc biến thiên tuần hoàn theo thời gian.'
+    paragraph=shape.text_frame.paragraphs[0]._p
+    paragraph.append(etree.fromstring(b'<m:oMath xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"><m:r><m:t>v = 2</m:t></m:r></m:oMath>'))
+    source_path=tmp_path/'source.pptx';source.save(source_path)
+    from app.universal_templates import _media
+    media=_media(page)
+    assert len(media)==1 and not media[0]['shape'].text.strip()
+    assert media[0]['shape']._element.xpath('.//*[local-name()="oMath"]')
+    target=tmp_path/'out.pptx'
+    build(target,asset('standard'),config(),[('Slide 1 · ý 1','Vận tốc','Velocity'),
+        ('Slide 1 · ý 2',vi,'The equation for velocity is:')],Event(),source_path)
+    deck=Presentation(target)
+    assert text(deck).count(vi)==1 and text(deck).count('The equation for velocity is:')==1
+    assert sum(len(s._element.xpath('.//*[local-name()="oMath"]')) for page in deck.slides for s in page.shapes)==1
+
+
+@pytest.mark.parametrize('preset', ['standard','visual','practice'])
+@pytest.mark.parametrize('mode', ['parallel_columns','english_only'])
+def test_long_first_paragraph_goes_to_paginated_body_instead_of_title_banner(tmp_path, preset, mode):
+    vi = 'Nội dung về vận tốc biến thiên tuần hoàn theo thời gian. ' * 5
+    en = 'The velocity varies periodically with time during simple harmonic motion. ' * 5
+    target = tmp_path/'out.pptx'
+    build(target,asset(preset),config(preset,mode),[('Slide 1 · dòng 1',vi,en)],Event())
+    combined = text(Presentation(target))
+    assert combined.count('The velocity varies periodically') == 5
+    assert combined.count('Nội dung về vận tốc') == (0 if mode=='english_only' else 5)
+    assert '{{' not in combined
+
+
+def test_picture_slide_jump_does_not_import_original_slides_or_duplicate_parts(tmp_path):
+    import zipfile
+    source=Presentation()
+    first=source.slides.add_slide(source.slide_layouts[6])
+    second=source.slides.add_slide(source.slide_layouts[6])
+    picture=io.BytesIO();Image.new('RGB',(60,40),'blue').save(picture,'PNG')
+    shape=first.shapes.add_picture(io.BytesIO(picture.getvalue()), Inches(1), Inches(2))
+    shape.click_action.target_slide=second
+    second.shapes.add_textbox(Inches(1),Inches(1),Inches(6),Inches(1)).text='Original navigation target'
+    original=tmp_path/'source.pptx';source.save(original)
+    target=tmp_path/'out.pptx'
+    build(target,asset('standard'),config(),[('Slide 1','Đồ thị','Graph')],Event(),original)
+    with zipfile.ZipFile(target) as archive:
+        assert len(archive.namelist()) == len(set(archive.namelist()))
+    deck=Presentation(target)
+    assert 'Original navigation target' not in text(deck)
+    images=[s for page in deck.slides for s in page.shapes if int(s.shape_type)==13]
+    assert len(images)==1 and images[0].image.blob==picture.getvalue()
+
+
 def test_cell_lines_and_question_options_have_stable_translation_units(tmp_path):
     source=Presentation();page=source.slides.add_slide(source.slide_layouts[6])
     shape=page.shapes.add_textbox(Inches(1),Inches(1),Inches(8),Inches(4))
@@ -199,3 +253,25 @@ def test_long_table_splits_by_rows_and_preserves_native_chart(tmp_path):
     charts=[shape for page in deck.slides for shape in page.shapes if shape.has_chart]
     assert len(charts)==1 and list(charts[0].chart.series[0].values)==[2,4]
     assert result['layout_plan'][-1]['layout']=='IMAGE_TEXT'
+
+
+def test_multiple_native_math_paragraphs_paginate_independently_without_source_decoration(tmp_path):
+    from lxml import etree
+    from app.universal_templates import _media
+    from pptx.util import Pt
+    source=Presentation();page=source.slides.add_slide(source.slide_layouts[6])
+    shape=page.shapes.add_textbox(Inches(1),Inches(2),Inches(6),Inches(3))
+    shape.text='\n\n'
+    for index, paragraph in enumerate(shape.text_frame.paragraphs):
+        paragraph.space_after=Pt(40)
+        paragraph._p.append(etree.fromstring(('<m:oMath xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"><m:r><m:t>x = '+str(index)+'</m:t></m:r></m:oMath>').encode()))
+    media=_media(page)
+    assert len(media)==3
+    assert all(len(obj['shape']._element.xpath('.//*[local-name()="oMath"]'))==1 for obj in media)
+    assert all(obj['shape'].text_frame.margin_top==0 for obj in media)
+    assert all(not obj['shape']._element.xpath('.//a:spcAft') for obj in media)
+    source.save(tmp_path/'source.pptx')
+    build(tmp_path/'out.pptx',asset('standard'),config(),[('Slide 1','Công thức','Formula')],Event(),tmp_path/'source.pptx')
+    deck=Presentation(tmp_path/'out.pptx')
+    assert len(deck.slides)==3
+    assert all(len(s._element.xpath('.//*[local-name()="oMath"]'))==1 for s in deck.slides)

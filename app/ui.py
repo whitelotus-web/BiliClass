@@ -191,6 +191,7 @@ class Bridge(QObject):
         from .library_thumbnails import LibraryThumbnails
 
         self.libraryThumbnails = LibraryThumbnails(library.directory, self)
+        self._catalog.changed.connect(lambda: self.libraryThumbnails.invalidate(self._catalog.rows()))
         self.changed.connect(self.quickResultChanged)
         self._chatgpt_request = {}
         from .google_settings import GoogleSettings

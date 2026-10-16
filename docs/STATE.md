@@ -1,5 +1,10 @@
 # Trạng thái BiliClass
 
+Ngày 16/10/2026 — RC55 sửa dựng mẫu bị dừng ở 55%, thêm tình trạng dịch
+và tên key ổn định; cache ảnh bìa qua tab, một nút icon đổi kiểu xem,
+bật/tắt mascot đúng nhãn và bỏ nút tạo bài trùng ở Trang chủ. Đang kiểm
+chứng và đóng gói. [Chi tiết](BUILD_RC55.md).
+
 Ngày 16/10/2026 — RC54 thêm Danh sách / Thẻ lớn bên phải Sắp xếp,
 ảnh trang đầu thực 16:9, lưu kiểu xem và nạp ảnh ở nền. Giữ chọn bài,
 tìm/lọc/tải/xóa và Trang chủ như cũ. 47 tests và hai Qt smoke qua;

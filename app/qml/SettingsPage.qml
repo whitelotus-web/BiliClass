@@ -34,6 +34,18 @@ Item {
         })
     }
     clip: true
+    Dialog {
+        id: renameGoogleKey; objectName: "renameGoogleKeyDialog"
+        property string keyId: ""
+        title: "Tên riêng của key"; modal: true; anchors.centerIn: parent
+        width: Math.min(440, page.width - 32)
+        standardButtons: Dialog.Save | Dialog.Cancel
+        contentItem: ColumnLayout { spacing: 12
+            Label { text: "Số Key được giữ nguyên. Để trống để dùng tên tự động; đổi tên không đổi nhóm đếm hay hạn mức."; wrapMode: Text.WordWrap; Layout.fillWidth: true; font.pixelSize: 12; color: page.muted }
+            TextField { id: keyDisplayName; objectName: "keyDisplayNameInput"; Layout.fillWidth: true; maximumLength: 80; placeholderText: "Ví dụ: Gmail cá nhân" }
+        }
+        onAccepted: bridge.googleSettings.rename(keyId, keyDisplayName.text)
+    }
 
     readonly property color ink: "#112650"
     readonly property color muted: "#667997"
@@ -486,6 +498,8 @@ Item {
             Card {
                 Layout.fillWidth: true
                 ColumnLayout { width: parent.width; spacing: 13
+                    TranslationUsage { objectName: "settingsTranslationUsage"; Layout.fillWidth: true; health: bridge.googleSettings.state.health || ({}) }
+                    SoftButton { text: "Xem mức dùng trên Google Cloud"; onClicked: Qt.openUrlExternally("https://console.cloud.google.com/apis/api/translate.googleapis.com/metrics") }
                     RowLayout { Layout.fillWidth: true
                         Title { text: "Key đã lưu"; Layout.fillWidth: true }
                         SoftButton { objectName: "recheckGoogleApiKeys"; text: "Cho phép thử lại key"; enabled: !bridge.busy; onClicked: bridge.googleSettings.recheck() }
@@ -497,9 +511,10 @@ Item {
                             required property var modelData
                             Layout.fillWidth: true
                             ColumnLayout { Layout.fillWidth: true; spacing: 4
-                                Label { text: modelData.project + " · " + modelData.label; color: page.ink; font.bold: true; Layout.fillWidth: true; elide: Text.ElideRight }
-                                Hint { text: "Đã ghi nhận " + modelData.used.toLocaleString(Qt.locale("vi_VN"), "f", 0) + " ký tự · " + (modelData.blocked ? "Cần kiểm tra key/hạn mức" : "Chưa xác minh hạn mức Google Cloud"); Layout.fillWidth: true }
+                                Label { text: modelData.name + " · " + modelData.label; color: page.ink; font.bold: true; Layout.fillWidth: true; elide: Text.ElideRight }
+                                Hint { text: "Nhóm đếm: " + modelData.project + " · " + (modelData.blocked ? "Cần kiểm tra key/hạn mức" : "Ưu tiên theo thứ tự danh sách"); Layout.fillWidth: true }
                             }
+                            SoftButton { objectName: "renameGoogleKey_" + modelData.id; text: "Đổi tên"; enabled: !bridge.busy; onClicked: { renameGoogleKey.keyId = modelData.id; keyDisplayName.text = modelData.customName; renameGoogleKey.open() } }
                             SoftButton { text: "Xóa key"; enabled: !bridge.busy; onClicked: bridge.googleSettings.remove(modelData.id) }
                         }
                     }

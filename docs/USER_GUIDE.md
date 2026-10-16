@@ -1,21 +1,21 @@
 # BiliClass — Trợ lý dạy học song ngữ
 
-Hướng dẫn RC54, ngày 16/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
+Hướng dẫn RC55, ngày 16/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
 trên máy. Chuyển đổi hiện dùng Google Cloud Translation cho phần chữ và dựng
 PowerPoint tại máy; Browser ChatGPT/Gemini tạm ẩn.
 
 ## Cài và cập nhật
 
-1. Tải **BiliClass-RC54-Windows.zip** tại
-   [Release RC54](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc54).
+1. Tải **BiliClass-RC55-Windows.zip** tại
+   [Release RC55](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc55).
 2. Giải nén toàn bộ; không chạy trong cửa sổ ZIP. Chạy **Setup.cmd**.
 3. Bộ cài kiểm tra checksum và cài vào
-   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc54`, không cần quyền quản trị.
+   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc55`, không cần quyền quản trị.
 4. Mở BiliClass từ Desktop hoặc Start menu. Bản cài có model giọng, OCR và
    template; không cần thư mục runtime của máy phát triển.
 
 Máy đang dùng RC34: vào **Cài đặt → Thông tin BiliClass → Kiểm tra cập nhật**,
-chọn Cập nhật khi thấy RC54. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
+chọn Cập nhật khi thấy RC55. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
 Setup.cmd như trên. Các bản cài nằm cạnh nhau; thư viện ở
 `%LOCALAPPDATA%/BiliClass` được giữ nguyên. Không xóa thư mục dữ liệu này.
 Thư viện cá nhân không đưa lên GitHub. Key có thể nhận riêng như hướng dẫn dưới.
@@ -44,6 +44,26 @@ trên máy nhận, không chứa trong bộ cài hay repo mã nguồn công khai
 Bộ đếm đã ghi nhận được giữ theo giá trị lớn hơn, nhưng hai máy sau đó vẫn
 đếm riêng; không coi đây là đồng bộ trực tiếp quota. Đặt quota trong Google.
 
+## Tên key, giới hạn dịch và Trang chủ
+
+Key được đánh số tự động **Key 1, Key 2…**, giữ số khi đổi tên. Nếu có tên
+đầu vào, tên hiện trong ngoặc; bấm **Đổi tên** để sửa tên phụ. Đổi tên không
+đổi bộ đếm hay dự án. Key cùng dự án Google Cloud phải cùng tên nhóm dự án.
+Key chỉ nhập riêng không có nhóm vẫn dùng chung bộ đếm lịch sử; hai Gmail
+khác nhau không đủ để ứng dụng tự xác minh hai dự án.
+
+Ứng dụng ưu tiên key theo thứ tự đã lưu. Khi Google xác nhận key bị từ chối
+hoặc hết quota, chuyển key kế tiếp; lỗi mạng/tốc độ chỉ thử lại có giới hạn.
+Khi một nhóm chạm giới hạn cục bộ, các key cùng nhóm đều ngừng nhận yêu cầu
+mới. Bản dịch trong cache vẫn dùng lại mà không gửi Google.
+
+**Trang chủ → Tình trạng ứng dụng** và **Cài đặt → Google Dịch** cho biết
+ký tự đã ghi nhận trong tháng, phần còn lại theo giới hạn BiliClass và cảnh
+báo 80%/95%. Đây là ước tính tại máy, không phải hạn mức/số dư thật từ Google,
+không bao gồm máy khác. API key đơn thuần không cung cấp quyền đọc số dư
+Cloud; xem quota/chi phí trong Google Cloud. Thông tin PowerPoint/gói giọng/
+OCR chỉ xác nhận đã phát hiện thành phần, không thay cho kiểm tra hoạt động.
+
 ## Tạo giọng và bước tiếp theo
 
 Giọng là bước tùy chọn sau khi bài đã lưu. Chọn một trong sáu giọng, nghe
@@ -70,6 +90,9 @@ Chọn **Dùng để dạy** hoặc **Tiếp tục: chuẩn bị dạy**, kiểm
 xác nhận nội dung rồi Bắt đầu dạy. Trình chiếu dùng Microsoft PowerPoint
 cài trên máy. Giọng chỉ phát khi bấm đọc; đóng/đổi slide sẽ dừng hàng đợi.
 
+Bấm **Mở trợ giảng nổi** để hiện mascot; bấm lại **Ẩn trợ giảng nổi** để ẩn.
+Ẩn từ menu mascot cũng cập nhật trạng thái nút bên trái.
+
 Mascot có nút mở bài và đọc Việt/Anh/chung. Các nút đọc trên mascot chỉ bật
 khi có phiên trình chiếu đúng bài. Trong Cài đặt Mascot, chọn tự theo môn của
 bài hoặc môn cố định rồi Lưu để áp dụng cho mascot nổi.
@@ -87,8 +110,11 @@ bị khóa. Đóng trình chiếu sẽ ngừng đọc. Chọn môn trong Cài đ
 
 Trang chủ hiển thị việc đang làm và ba bài vừa cập nhật. **Bài giảng** là
 thư viện đầy đủ: tìm không dấu, lọc môn/khối/trạng thái/giọng, sắp xếp và
-phân trang. Bên phải Sắp xếp, chọn **Danh sách** hoặc **Thẻ lớn** để xem trang đầu
-16:9. Lựa chọn được lưu; ảnh nạp ở nền và giữ nguyên tỉ lệ slide gốc.
+phân trang. Bên phải Sắp xếp có một nút đổi kiểu xem: **4 ô vuông** khi đang xem thẻ,
+**3 dòng ngang** khi đang xem danh sách. Bấm nút để đổi qua lại; thẻ có ảnh
+trang đầu 16:9. Lựa chọn được lưu; ảnh nạp ở nền và giữ nguyên tỉ lệ slide gốc.
+Ảnh đã nạp được giữ trong phiên để đổi tab/kiểu xem nhanh; sửa hoặc xóa bài
+sẽ làm mới ảnh tương ứng. Sau khi mở lại ứng dụng vẫn cần xác minh cache.
 Ô chọn, bộ lọc và tải nhiều bài dùng chung cho hai kiểu xem. Mở bài để chọn bản giọng rồi tải hoặc dạy. Xóa đưa vào Thùng rác,
 có thể khôi phục.
 

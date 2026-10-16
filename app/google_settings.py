@@ -1,6 +1,6 @@
 """Small Qt facade; QML only receives masked key metadata."""
 
-from PySide6.QtCore import Property, QObject, Signal, Slot
+from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
 
 from .google_translation import DEFAULT_BUDGET, KeyStore
 
@@ -13,6 +13,10 @@ class GoogleSettings(QObject):
         self.bridge = bridge
         self._state = {"keys": [], "budget": DEFAULT_BUDGET, "configured": False, "message": ""}
         self.refresh()
+        self._timer = QTimer(self)
+        self._timer.setInterval(30_000)
+        self._timer.timeout.connect(self.refresh)
+        self._timer.start()
 
     @Property("QVariantMap", notify=changed)
     def state(self):
@@ -38,7 +42,33 @@ class GoogleSettings(QObject):
         from .vietnamese_ocr import pack_directory
 
         self._state["ocrReady"] = bool(model_paths() and pack_directory())
+        from .translation_health import summarize
+
+        self._state['health'] = summarize(self._state['keys'], self._state['budget'])
+        self._state['powerpointInstalled'] = False
+        import os
+        if os.name == 'nt':
+            import winreg
+            from pathlib import Path
+            for root in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
+                try:
+                    with winreg.OpenKey(root, r'SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\POWERPNT.EXE') as key:
+                        if Path(winreg.QueryValue(key, None).strip('"')).is_file():
+                            self._state['powerpointInstalled'] = True
+                except OSError:
+                    pass
         self.changed.emit()
+
+    @Slot(str, str)
+    def rename(self, key_id, name):
+        if self.bridge._busy:
+            return
+        try:
+            self.store().rename(key_id, name)
+            self.refresh()
+            self.bridge.inform('Đã đổi tên key. Bộ đếm và nhóm dự án được giữ nguyên.')
+        except ValueError as exc:
+            self.bridge.inform(str(exc), True)
 
     @Slot()
     def prepareOcr(self):

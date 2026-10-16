@@ -13,6 +13,7 @@ import unicodedata
 from collections import OrderedDict
 from pathlib import Path
 
+from lxml import etree
 from pptx import Presentation
 from pptx.enum.text import PP_ALIGN
 from pptx.util import Inches, Pt
@@ -336,8 +337,59 @@ def _media(source_slide):
         shape = obj['shape']
         if obj['hidden'] or shape._element in seen:
             continue
-        if int(shape.shape_type)==13 or shape.has_chart or shape._element.xpath(
-                './/*[local-name()="oMath" or local-name()="oMathPara"]'):
+        math = shape._element.xpath('.//*[local-name()="oMath" or local-name()="oMathPara"]')
+        if math and shape.has_text_frame:
+            # Prose surrounding native math is already translated as body
+            # text. Carry only equations; copying the whole source textbox
+            # duplicates untranslated paragraphs and crushes them into the
+            # formula slot.
+            from pptx.shapes.autoshape import Shape
+            node = copy.deepcopy(shape._element)
+            paragraphs = node.xpath('./p:txBody/a:p')
+            for paragraph in paragraphs:
+                if not paragraph.xpath('.//*[local-name()="oMath" or local-name()="oMathPara"]'):
+                    paragraph.getparent().remove(paragraph)
+                    continue
+                for child in list(paragraph):
+                    if child.tag != '{'+NS['a']+'}pPr' and not child.xpath('.//*[local-name()="oMath" or local-name()="oMathPara"]') and child not in math and child.tag.rsplit('}',1)[-1] not in {'oMath','oMathPara'}:
+                        paragraph.remove(child)
+            # Each equation is an independent native object. Source paragraph
+            # spacing, bullets and decorated answer boxes do not belong to the
+            # formula slot, and several equations must not share a tiny frame.
+            for paragraph in node.xpath('./p:txBody/a:p'):
+                equation = copy.deepcopy(node)
+                body = equation.find('p:txBody', NS)
+                for old in list(body.findall('a:p', NS)):
+                    body.remove(old)
+                clean = copy.deepcopy(paragraph)
+                old = clean.find('a:pPr', NS)
+                if old is not None:
+                    clean.remove(old)
+                props = etree.Element('{'+NS['a']+'}pPr', algn='ctr')
+                etree.SubElement(props, '{'+NS['a']+'}buNone')
+                etree.SubElement(props, '{'+NS['a']+'}defRPr', sz='2400')
+                clean.insert(0, props)
+                body.append(clean)
+                body_props = body.find('a:bodyPr', NS)
+                body_props.attrib.clear()
+                body_props.attrib.update({'wrap':'none', 'lIns':'0', 'rIns':'0', 'tIns':'0', 'bIns':'0', 'anchor':'ctr'})
+                for old in list(body_props):
+                    body_props.remove(old)
+                etree.SubElement(body_props, '{'+NS['a']+'}noAutofit')
+                for element in clean.iter():
+                    if element.get('sz'):
+                        element.set('sz', '2400')
+                cloned = Shape(equation, shape._parent)
+                cloned.fill.background()
+                cloned.line.fill.background()
+                terms = ''.join(clean.xpath('.//*[local-name()="t"]/text()'))
+                depth = max((sum(etree.QName(a).localname in {'f','rad','sSup','sSub','eqArr','m','nary'}
+                                 for a in e.iterancestors()) for e in clean.iter()), default=0)
+                cloned.width = max(shape.width, Pt(len(terms)*22+40))
+                cloned.height = Pt(42+38*depth)
+                result.append({**obj, 'shape': cloned, 'w': cloned.width, 'h': cloned.height})
+            seen.add(shape._element)
+        elif int(shape.shape_type)==13 or shape.has_chart or math:
             result.append(obj)
             seen.add(shape._element)
     return result
@@ -354,8 +406,28 @@ def _insert_media(slide, objects, region):
     for obj in objects:
         shape = obj['shape']
         node = copy.deepcopy(shape._element)
+        # Source slide-jump links would import the original slide/master graph
+        # into this new template, creating duplicate OPC part names. The new
+        # layout has its own pagination, so those navigation targets no longer
+        # identify a valid destination. Keep ordinary external hyperlinks.
+        for link in list(node.iter()):
+            rid = link.get('{' + NS['r'] + '}id')
+            if rid in shape.part.rels:
+                rel = shape.part.rels[rid]
+                if not rel.is_external and rel.reltype.endswith('/slide'):
+                    parent = link.getparent()
+                    if parent is not None:
+                        parent.remove(link)
         next_id = slide.shapes._next_shape_id
         for element in node.iter():
+            if element.get('sz') and element.tag.rsplit('}',1)[-1] in {'rPr','defRPr','endParaRPr'}:
+                element.set('sz', str(max(100, round(int(element.get('sz')) * scale))))
+            if element.tag == '{'+NS['a']+'}spcPts':
+                element.set('val', str(round(int(element.get('val','0')) * scale)))
+            if element.tag == '{'+NS['a']+'}bodyPr':
+                for inset in ('lIns','rIns','tIns','bIns'):
+                    if element.get(inset):
+                        element.set(inset, str(round(int(element.get(inset)) * scale)))
             if element.tag == '{' + NS['p'] + '}cNvPr':
                 element.set('id', str(next_id))
                 next_id += 1
@@ -485,6 +557,22 @@ def build(target, template, config, pairs, cancel, source=None):
         deck.part.drop_rel(sid.rId)
         deck.slides._sldIdLst.remove(sid)
 
+    def heading_fits(layout, title):
+        # A source's first paragraph is not necessarily a heading. Test the
+        # actual template banner at readable size before taking it out of body
+        # pagination; the full paragraph must remain visible somewhere.
+        from pptx.slide import Slide
+        original = originals[catalog[layout]['slide_number']-1]
+        probe = Slide(copy.deepcopy(original._element), original.part)
+        _header(probe)
+        for shape, key in _fields(probe):
+            if shape.top < Inches(1.7) or key.startswith(('TITLE_', 'LESSON_TITLE_', 'SECTION_TITLE_', 'THANKS_')):
+                english = key.endswith('_EN')
+                value = title[2] if english else ('' if mode == 'english_only' else title[1])
+                if value and not _fit(shape, value):
+                    return False
+        return True
+
     def finish(slide, layout, title, assigned, native, source_number, *, answer='', extra=()):
         fields = _fields(slide)
         lookup = {base: values for base, values in assigned}
@@ -512,7 +600,7 @@ def build(target, template, config, pairs, cancel, source=None):
         _clean(slide, mode, len(plan)+1)
         if native:
             if layout == 'FORMULA':
-                region = tuple(Inches(n) for n in (1.2, 2.55, 10.8, .9))
+                region = tuple(Inches(n) for n in (1.2, 2.55, 10.8, 1.2))
             elif layout == 'TABLE':
                 region = tuple(Inches(n) for n in (1.1, 2.4, 11, 3.9))
             else:
@@ -573,6 +661,15 @@ def build(target, template, config, pairs, cancel, source=None):
         if not pictures and len(native)>1 and not any(o['shape'].has_chart for o in native):
             native,other_formulas=native[:1],native[1:]
         layout = choose_layout(title[1], data, pictures=pictures, equations=bool(native), mode=mode)
+        if not heading_fits(layout, title):
+            if title != title_fallback:
+                data.insert(0, title)
+            title = title_fallback
+            if not heading_fits(layout, title):
+                if title not in data:
+                    data.insert(0, title)
+                title = ('', 'Nội dung bài học', 'Lesson content')
+            layout = choose_layout(title[1], data, pictures=pictures, equations=bool(native), mode=mode)
         if cells and source_deck:
             table_objects = []
             by_locator = {}

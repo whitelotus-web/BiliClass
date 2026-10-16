@@ -329,12 +329,13 @@ ApplicationWindow {
                     objectName: "openCompanion"
                     visible: bridge.mascotSettings.visible
                     Layout.fillWidth: true; implicitHeight: 58
-                    onClicked: bridge.showCompanion(companion)
+                    Accessible.name: companion.visible ? "Ẩn trợ giảng nổi" : "Mở trợ giảng nổi"
+                    onClicked: { if (companion.visible) companion.hide(); else bridge.showCompanion(companion) }
                     background: Rectangle { radius: 11; color: parent.hovered ? "#e6f1ff" : "#f4f8fe" }
                     contentItem: RowLayout {
                         spacing: 7
                         Mascot { character: bridge.settings.mascot; expression: bridge.mascotState; reducedMotion: bridge.mascotSettings.reduced_motion; accessories: false; Layout.preferredWidth: 42; Layout.preferredHeight: 48 }
-                        Label { text: "Mở trợ giảng nổi"; color: root.blue; font.pixelSize: 12; font.weight: Font.DemiBold; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                        Label { objectName: "toggleCompanionLabel"; text: companion.visible ? "Ẩn trợ giảng nổi" : "Mở trợ giảng nổi"; color: root.blue; font.pixelSize: 12; font.weight: Font.DemiBold; Layout.fillWidth: true; wrapMode: Text.WordWrap }
                     }
                 }
                 Rectangle { Layout.fillWidth: true; height: 1; color: root.line; Layout.topMargin: 14; Layout.bottomMargin: 12 }
@@ -397,7 +398,7 @@ ApplicationWindow {
                             ColumnLayout { Layout.fillWidth: true; spacing: 8; Heading { objectName: "libraryHomeHeading"; Layout.fillWidth: true; wrapMode: Text.WordWrap; text: root.page === "home" ? "Chào " + bridge.settings.teacher : "Thư viện bài giảng"; font.pixelSize: 28 }
                                 Copy { text: root.page === "home" ? "Tiếp tục chuẩn bị bài và sẵn sàng cho tiết dạy." : "Tìm đúng bài, chọn bản giọng và mở để dạy hoặc tải PowerPoint."; Layout.fillWidth: true } }
                             Item { Layout.fillWidth: true }
-                            Action { text: "+  Bài học mới"; primary: true; onClicked: root.go("new") }
+                            Action { objectName: "newLibraryLesson"; visible: root.page === "library"; text: "+  Bài học mới"; primary: true; onClicked: root.go("new") }
                         }
                         Rectangle {
                             visible: root.page === "home"
@@ -438,6 +439,18 @@ ApplicationWindow {
                                 ProgressBar { visible: bridge.updateState.downloading; Layout.fillWidth: true; value: bridge.updateState.progress / 100 }
                             }
                         }
+                        Surface {
+                            objectName: "homeApplicationHealth"; visible: root.page === "home" && bridge.googleTranslation
+                            Layout.fillWidth: true; implicitHeight: homeHealth.implicitHeight + 36
+                            ColumnLayout { id: homeHealth; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 18; spacing: 10
+                                RowLayout { Layout.fillWidth: true
+                                    Caption { text: "Tình trạng ứng dụng"; Layout.fillWidth: true }
+                                    Action { objectName: "homeGoogleSettings"; text: "Google Dịch"; subtle: true; implicitHeight: 30; onClicked: { root.go("settings"); settingsPanel.activeTab = 6 } }
+                                }
+                                TranslationUsage { objectName: "homeTranslationUsage"; Layout.fillWidth: true; health: bridge.googleSettings.state.health || ({}) }
+                                Copy { Layout.fillWidth: true; font.pixelSize: 11; text: "PowerPoint: " + (bridge.googleSettings.state.powerpointInstalled ? "đã phát hiện" : "chưa phát hiện") + "   ·   Gói giọng ngoại tuyến: " + (bridge.vieneuReady ? "đã có" : "chưa có") + "   ·   Gói OCR: " + (bridge.googleSettings.state.ocrReady ? "đã có" : "chưa có") }
+                            }
+                        }
                         RowLayout {
                             Layout.fillWidth: true
                             Label { text: root.page === "home" ? "Bài vừa cập nhật" : "Tất cả bài giảng"; color: root.ink; font.pixelSize: 18; font.weight: Font.DemiBold }
@@ -453,9 +466,26 @@ ApplicationWindow {
                         RowLayout { visible: root.page === "library"; Layout.fillWidth: true; spacing: 12
                             Field { id: search; objectName: "librarySearch"; Layout.fillWidth: true; placeholderText: "Tìm tên bài, môn, khối… có thể gõ không dấu"; onTextChanged: root.libraryPage = 1 }
                             SelectBox { objectName: "lessonSortOrder"; model: ["Mới tạo nhất", "Tạo lâu nhất", "Mới cập nhật", "Tên bài A–Z"]; currentIndex: ["created_desc", "created_asc", "updated_desc", "title_asc"].indexOf(bridge.lessonOrder); Layout.preferredWidth: 168; onActivated: { root.libraryPage = 1; bridge.setLessonOrder(["created_desc", "created_asc", "updated_desc", "title_asc"][currentIndex]) } }
-                            RowLayout { spacing: 4
-                                LibraryAction { objectName: "libraryListView"; text: "Danh sách"; implicitHeight: 40; checkable: true; autoExclusive: true; checked: bridge.libraryView !== "grid"; Accessible.name: "Xem dạng danh sách"; ToolTip.visible: hovered; ToolTip.text: "Danh sách gọn"; onClicked: bridge.setLibraryView("list") }
-                                LibraryAction { objectName: "libraryGridView"; text: "Thẻ lớn"; implicitHeight: 40; checkable: true; autoExclusive: true; checked: bridge.libraryView === "grid"; Accessible.name: "Xem thẻ lớn với slide 16:9"; ToolTip.visible: hovered; ToolTip.text: "Thẻ lớn · Xem trang đầu 16:9"; onClicked: bridge.setLibraryView("grid") }
+                            LibraryAction {
+                                objectName: "libraryViewToggle"
+                                readonly property bool cardView: bridge.libraryView === "grid"
+                                implicitWidth: 40; implicitHeight: 40; Layout.preferredWidth: 40
+                                Accessible.name: cardView ? "Chuyển sang danh sách" : "Chuyển sang thẻ lớn"
+                                Accessible.description: cardView ? "Đang xem thẻ lớn 16:9" : "Đang xem danh sách"
+                                ToolTip.visible: hovered; ToolTip.delay: 400
+                                ToolTip.text: cardView ? "Đang xem thẻ · Bấm để xem danh sách" : "Đang xem danh sách · Bấm để xem thẻ"
+                                onClicked: bridge.setLibraryView(cardView ? "list" : "grid")
+                                contentItem: Item {
+                                    Grid { objectName: "libraryGridIcon"; anchors.centerIn: parent; columns: 2; spacing: 4; visible: bridge.libraryView === "grid"
+                                        Repeater { model: 4; Rectangle { width: 8; height: 8; radius: 1; color: "#eaf3ff"; border.width: 1.5; border.color: root.blue } }
+                                    }
+                                    Column { objectName: "libraryListIcon"; anchors.centerIn: parent; spacing: 5; visible: bridge.libraryView !== "grid"
+                                        Repeater { model: 3; Row { spacing: 4
+                                            Rectangle { width: 3; height: 2; radius: 1; color: root.blue }
+                                            Rectangle { width: 13; height: 2; radius: 1; color: root.blue }
+                                        } }
+                                    }
+                                }
                             }
                         }
                         RowLayout { id: libraryToolbar; objectName: "libraryToolbar"; visible: root.page === "library"; Layout.fillWidth: true; spacing: 6
@@ -808,7 +838,7 @@ ApplicationWindow {
                         ColumnLayout {
                             Layout.fillWidth: true; spacing: 3
                             Copy { text: "Nhận bài giảng song ngữ trước · tạo giọng đọc sau nếu cần."; Layout.fillWidth: true; font.pixelSize: 12 }
-                            Action { text: bridge.googleTranslation ? "Google Dịch · " + (bridge.googleSettings.state.configured ? "Đã lưu API key" : "Cần thêm API key") : bridge.browserAI.serviceLabel + ": " + bridge.browserAI.activeLabel + " · Browser AI"; subtle: true; implicitHeight: 28; onClicked: { root.go("settings"); settingsPanel.activeTab = 6 } }
+                            Action { text: bridge.googleTranslation ? "Google Dịch · " + (bridge.googleSettings.state.health || {}).status : bridge.browserAI.serviceLabel + ": " + bridge.browserAI.activeLabel + " · Browser AI"; subtle: true; implicitHeight: 28; onClicked: { root.go("settings"); settingsPanel.activeTab = 6 } }
                         }
                         Action { objectName: "createLessonButton"; text: bridge.busy ? "Đang chuẩn bị…" : "Chuyển đổi bài giảng"; primary: true; enabled: !bridge.busy && !root.inputDocumentError && root.creationPrompt.ready; onClicked: bridge.convertDocument(titleInput.text, root.creationSubject, educationInput.currentText, gradeInput.currentText, pasteInput.text, root.selectedFile, root.selectedConversionFormat.id, ["standard", "visual", "practice"][creationPreset.currentIndex], root.creationKeepSource ? "source" : "template", teacherNotesInput.text) }
                     }

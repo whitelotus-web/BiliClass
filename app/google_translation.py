@@ -85,6 +85,8 @@ class KeyStore:
                 CREATE TABLE IF NOT EXISTS blocked(month TEXT, key_id TEXT, code TEXT,
                     PRIMARY KEY(month,key_id));
                 CREATE TABLE IF NOT EXISTS cache(id TEXT PRIMARY KEY, value TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS key_names(key_id TEXT PRIMARY KEY,
+                    number INTEGER UNIQUE NOT NULL, name TEXT NOT NULL DEFAULT '');
             ''')
 
     def connect(self):
@@ -107,6 +109,7 @@ class KeyStore:
 
     def add(self, text):
         candidates = []
+        display_names = {}
         for line in text.splitlines():
             line = line.strip()
             if not line:
@@ -118,6 +121,8 @@ class KeyStore:
             if not project or len(project) > 100 or not re.fullmatch(r'[A-Za-z0-9_-]{30,200}', key):
                 raise TranslationProblem('api_settings', 'Mỗi dòng nhập một key hoặc Tên dự án | key. Kiểm tra lại định dạng, không dán URL.')
             candidates.append({'id': _digest(key), 'project': project.casefold(), 'key': key})
+            if '|' in line:
+                display_names[_digest(key)] = project
         if not candidates or len(candidates) > 50:
             raise TranslationProblem('api_settings', 'Nhập từ 1 đến 50 API key, mỗi key một dòng.')
         with _LOCK:
@@ -130,6 +135,11 @@ class KeyStore:
             if len(by_id) > 50:
                 raise TranslationProblem('api_settings', 'Tối đa 50 key đã lưu. Xóa key cũ trước khi thêm.')
             _atomic(self.path, _crypt(json.dumps(list(by_id.values())).encode('utf-8')))
+            if display_names:
+                self.public()  # Allocate permanent numbers before optional names.
+                with closing(self.connect()) as db, db:
+                    db.executemany("UPDATE key_names SET name=? WHERE key_id=? AND name=''",
+                                   [(name, key_id) for key_id, name in display_names.items()])
 
     def remove(self, key_id):
         with _LOCK:
@@ -142,12 +152,34 @@ class KeyStore:
         return datetime.now(timezone.utc).strftime('%Y-%m')
 
     def public(self):
+        rows = self.keys()
         with closing(self.connect()) as db:
+            with db:
+                db.execute('BEGIN IMMEDIATE')
+                for row in rows:
+                    if not db.execute('SELECT 1 FROM key_names WHERE key_id=?', (row['id'],)).fetchone():
+                        number = db.execute('SELECT COALESCE(MAX(number),0)+1 FROM key_names').fetchone()[0]
+                        db.execute('INSERT INTO key_names(key_id,number) VALUES(?,?)', (row['id'], number))
+            names = {row[0]: (row[1], row[2]) for row in db.execute('SELECT key_id,number,name FROM key_names')}
             used = dict(db.execute('SELECT project,characters FROM usage WHERE month=?', (self.month(),)))
             blocked = dict(db.execute('SELECT key_id,code FROM blocked WHERE month=?', (self.month(),)))
+        def display(row):
+            number, name = names[row['id']]
+            name = name or (row['project'] if row['project'] != 'mặc định' else '')
+            return f'Key {number}' + (f' ({name})' if name else '')
         return [{'id': row['id'], 'project': row['project'], 'label': '•••• ' + row['key'][-4:],
+                 'name': display(row), 'customName': names[row['id']][1],
                  'used': used.get(row['project'], 0), 'blocked': blocked.get(row['id'], '')}
-                for row in self.keys()]
+                for row in rows]
+
+    def rename(self, key_id, name):
+        name = name.strip()
+        if len(name) > 80 or any(ord(c) < 32 for c in name):
+            raise ValueError('Tên key tối đa 80 ký tự, trên một dòng.')
+        if not any(row['id'] == key_id for row in self.public()):
+            raise ValueError('Key này không còn trong danh sách.')
+        with closing(self.connect()) as db, db:
+            db.execute('UPDATE key_names SET name=? WHERE key_id=?', (name, key_id))
 
     def reserve(self, count, budget, excluded=(), only_key=None):
         """Atomic across workers/processes. Debit BEFORE send, including ambiguity."""

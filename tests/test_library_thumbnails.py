@@ -62,8 +62,14 @@ def test_queue_is_lazy_background_revision_scoped_and_does_not_edit_lessons(tmp_
         assert QUrl(covers.images[second['id']]['image']).isLocalFile()
         assert list(library.db.execute('SELECT id, content FROM lessons ORDER BY id')) == snapshot
         covers.request([])
-        assert not covers.images
+        assert covers.images[second['id']]['image']
+        before_calls = len(calls)
+        covers.request([second])
+        app.processEvents()
+        assert covers.worker is None and len(calls) == before_calls, 'Returning to cards must reuse the cover immediately'
+        covers.request([])
         library.trash_lesson(second['id'])
+        covers.invalidate(library.list_lessons(verify_audio=False))
         covers.request([second])
         pump_until(app, lambda: covers.worker is None)
         assert not covers.images[second['id']]['image'] and not covers.images[second['id']]['loading']

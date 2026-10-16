@@ -8,6 +8,23 @@ from app.google_translation import KeyStore, Translator, TranslationProblem, chu
 KEY1, KEY2 = 'AIza' + 'a' * 35, 'AIza' + 'b' * 35
 
 
+def test_key_auto_names_stay_stable_and_custom_names_do_not_change_usage(tmp_path):
+    store = KeyStore(tmp_path)
+    store.add(KEY1 + '\nTên dự án | ' + KEY2)
+    rows = store.public()
+    assert [row['name'] for row in rows] == ['Key 1','Key 2 (Tên dự án)']
+    store.reserve(6, 100)
+    store.rename(rows[0]['id'], 'Gmail cá nhân')
+    assert store.public()[0]['name'] == 'Key 1 (Gmail cá nhân)'
+    assert store.public()[0]['used'] == 6 and store.public()[0]['project'] == 'mặc định'
+    store.remove(rows[0]['id'])
+    assert store.public()[0]['name'] == 'Key 2 (Tên dự án)'
+    store.add('AIza'+'c'*35)
+    assert store.public()[1]['name'] == 'Key 3'
+    store.add(KEY1)
+    assert store.public()[2]['name'] == 'Key 1 (Gmail cá nhân)' and store.public()[2]['used'] == 6
+
+
 def test_keys_encrypted_masked_and_readding_does_not_reset_budget(tmp_path):
     store = KeyStore(tmp_path)
     store.add('Project A | ' + KEY1 + '\nProject A | ' + KEY2)

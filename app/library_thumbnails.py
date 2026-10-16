@@ -1,6 +1,7 @@
 """Lazy first-slide covers; no library writes or Office work on the GUI thread."""
 
 import hashlib
+from collections import OrderedDict
 from contextlib import closing
 from pathlib import Path
 from threading import Event
@@ -105,21 +106,42 @@ class LibraryThumbnails(QObject):
         self.directory = Path(directory)
         self.worker = None
         self.wanted = ()
-        self.results = {}
+        self.results = OrderedDict()
         self.closed = False
         parent.destroyed.connect(self.shutdown)
 
     @Property('QVariantMap', notify=changed)
     def images(self):
-        return {key[0]: {'image': self.results.get(key, ''), 'loading': key not in self.results}
-                for key in self.wanted}
+        images = {key[0]: {'image': value, 'loading': False} for key, value in self.results.items()}
+        images.update({key[0]: {'image': self.results.get(key, ''), 'loading': key not in self.results}
+                       for key in self.wanted})
+        return images
+
+    def invalidate(self, rows):
+        valid = {(row['id'], row['revision']) for row in rows}
+        wanted = tuple(key for key in self.wanted if key in valid)
+        if wanted != self.wanted:
+            self.wanted = wanted
+            if self.worker is not None:
+                self.worker.cancel.set()
+        stale = [key for key in self.results if key not in valid]
+        for key in stale:
+            del self.results[key]
+        if stale:
+            self.changed.emit()
 
     def request(self, rows):
         wanted = tuple((row['id'], row['revision']) for row in rows)
         if wanted == self.wanted or self.closed:
             return
         self.wanted = wanted
-        self.results = {key: value for key, value in self.results.items() if key in wanted}
+        for key in wanted:
+            # Small local PNG existence checks only; never parse/hash a deck
+            # or start Office just because the user returns to this screen.
+            if key in self.results and (not self.results[key] or not Path(QUrl(self.results[key]).toLocalFile()).is_file()):
+                del self.results[key]
+            elif key in self.results:
+                self.results.move_to_end(key)
         self.changed.emit()
         if self.worker is not None:
             self.worker.cancel.set()
@@ -140,6 +162,9 @@ class LibraryThumbnails(QObject):
         key, image = result
         if not self.closed and self.sender() is self.worker and key in self.wanted:
             self.results[key] = image
+            self.results.move_to_end(key)
+            while len(self.results) > 80:
+                del self.results[next(iter(self.results))]
             self.changed.emit()
 
     @Slot()
@@ -164,6 +189,6 @@ class LibraryThumbnails(QObject):
     def replace_library(self, directory):
         self.shutdown()
         self.directory = Path(directory)
-        self.results = {}
+        self.results = OrderedDict()
         self.closed = False
         self.changed.emit()
