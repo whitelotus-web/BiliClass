@@ -1,5 +1,10 @@
 # Trạng thái BiliClass
 
+Ngày 16/10/2026 — RC52 thu nhỏ ô tích 16 px, gom bộ lọc và thao tác chọn
+thành một hàng ở cả 1080×700. Thùng rác thêm chọn nhóm/tất cả, khôi phục
+và xóa vĩnh viễn với xác nhận và transaction; giữ báo cáo/tệp dùng chung.
+
+
 Ngày 16/10/2026 — RC51 thêm chọn nhiều bài, xóa vào thùng rác và tải ZIP;
 rút gọn nhãn giọng, hướng dẫn mở lớp, tìm báo cáo, thuật ngữ có lọc/phân
 trang và phụ kiện mascot nhỏ gọn. Bao gồm bước tiếp theo sau tạo giọng và

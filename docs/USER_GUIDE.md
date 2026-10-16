@@ -1,21 +1,21 @@
 # BiliClass — Trợ lý dạy học song ngữ
 
-Hướng dẫn RC51, ngày 16/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
+Hướng dẫn RC52, ngày 16/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
 trên máy. Chuyển đổi hiện dùng Google Cloud Translation cho phần chữ và dựng
 PowerPoint tại máy; Browser ChatGPT/Gemini tạm ẩn.
 
 ## Cài và cập nhật
 
-1. Tải **BiliClass-RC51-Windows.zip** tại
-   [Release RC51](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc51).
+1. Tải **BiliClass-RC52-Windows.zip** tại
+   [Release RC52](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc52).
 2. Giải nén toàn bộ; không chạy trong cửa sổ ZIP. Chạy **Setup.cmd**.
 3. Bộ cài kiểm tra checksum và cài vào
-   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc51`, không cần quyền quản trị.
+   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc52`, không cần quyền quản trị.
 4. Mở BiliClass từ Desktop hoặc Start menu. Bản cài có model giọng, OCR và
    template; không cần thư mục runtime của máy phát triển.
 
 Máy đang dùng RC34: vào **Cài đặt → Thông tin BiliClass → Kiểm tra cập nhật**,
-chọn Cập nhật khi thấy RC51. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
+chọn Cập nhật khi thấy RC52. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
 Setup.cmd như trên. Các bản cài nằm cạnh nhau; thư viện ở
 `%LOCALAPPDATA%/BiliClass` được giữ nguyên. Không xóa thư mục dữ liệu này.
 Thư viện cá nhân không đưa lên GitHub. Key có thể nhận riêng như hướng dẫn dưới.
@@ -125,3 +125,13 @@ coi là kết luận mức hiểu bài. Báo cáo giữ snapshot tiết cũ khi 
 Trong **Thuật ngữ & kiến thức**, tab **Thuật ngữ của tôi** có tìm không dấu,
 lọc môn và phân trang. Tab **Kiến thức có nguồn** dùng để tra cứu và đưa
 từng mục vào kho riêng; không tự duyệt toàn bộ gói kiến thức.
+
+## Thùng rác
+
+Trong Bài giảng → Chia sẻ & quản lý → Thùng rác, chọn từng bài hoặc Chọn
+tất cả. Có Khôi phục đã chọn / Xóa đã chọn và Khôi phục tất cả / Xóa tất cả.
+Mỗi bài cũng có nút Khôi phục và Xóa vĩnh viễn riêng. Xóa vĩnh viễn luôn
+yêu cầu xác nhận số bài, xóa bản ghi và lịch sử chỉnh sửa; không khôi phục
+được từ thùng rác. Báo cáo lớp, bản sao lưu và tệp nguồn/âm thanh dùng chung
+được giữ lại. Tác vụ nhóm chỉ thực hiện khi tất cả bài vẫn còn trong thùng
+rác; danh sách đổi hoặc còn tiết học đang mở thì báo lỗi để chọn lại.

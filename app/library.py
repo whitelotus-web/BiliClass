@@ -308,11 +308,45 @@ class Library:
         return len(lessons)
 
     def restore_lesson(self, lesson_id):
-        lesson = self.get(lesson_id, include_trash=True)
-        lesson.pop("deleted_at", None)
+        self.restore_lessons([lesson_id])
+        return self.get(lesson_id)
+
+    def _trash_selection(self, lesson_ids):
+        if not isinstance(lesson_ids, list) or not lesson_ids or len(lesson_ids) > 10000 or any(not isinstance(i, str) for i in lesson_ids):
+            raise ValueError('Chọn ít nhất một bài trong thùng rác.')
+        lessons = [self.get(identity, include_trash=True) for identity in dict.fromkeys(lesson_ids)]
+        if any(not lesson.get('deleted_at') for lesson in lessons):
+            raise ValueError('Danh sách đã thay đổi. Chỉ chọn bài còn trong thùng rác rồi thử lại.')
+        return lessons
+
+    def restore_lessons(self, lesson_ids):
+        # Lock before checking the batch; a second app cannot restore/purge one
+        # entry between validation and the write. All entries change together.
         with self.db:
-            self.db.execute("UPDATE lessons SET content=? WHERE id=?", (json.dumps(lesson, ensure_ascii=False), lesson_id))
-        return lesson
+            self.db.execute('BEGIN IMMEDIATE')
+            lessons = self._trash_selection(lesson_ids)
+            for lesson in lessons:
+                lesson.pop('deleted_at')
+            self.db.executemany('UPDATE lessons SET content=? WHERE id=?',
+                                [(json.dumps(lesson, ensure_ascii=False), lesson['id']) for lesson in lessons])
+        return len(lessons)
+
+    def purge_lessons(self, lesson_ids):
+        with self.db:
+            self.db.execute('BEGIN IMMEDIATE')
+            lessons = self._trash_selection(lesson_ids)
+            identities = {lesson['id'] for lesson in lessons}
+            classroom = self.directory / 'classroom.db'
+            if classroom.exists():
+                with sqlite3.connect(classroom) as connection:
+                    for (snapshot,) in connection.execute("SELECT lesson FROM sessions WHERE status!='ended'"):
+                        if json.loads(snapshot).get('id') in identities:
+                            raise ValueError('Kết thúc tiết học của bài này trước khi xóa vĩnh viễn.')
+            # Revisions cascade. Classroom snapshots and shared source/WAV/
+            # export files are separate; never recursively delete asset paths
+            # supplied by lesson metadata or still used by another lesson.
+            self.db.executemany('DELETE FROM lessons WHERE id=?', [(identity,) for identity in identities])
+        return len(lessons)
 
     def edit_segment(self, lesson_id, segment_id, vi, en, approve=False, locked=False):
         lesson = self.get(lesson_id)

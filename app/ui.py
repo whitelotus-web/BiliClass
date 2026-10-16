@@ -359,13 +359,37 @@ class Bridge(QObject):
 
     @Slot(str)
     def restoreLesson(self, lesson_id):
-        if self._busy:
-            return
+        self.restoreLessons([lesson_id])
+
+    @Slot('QVariantList', result=bool)
+    def restoreLessons(self, lesson_ids):
+        if self._busy or self.narrationBusy or self.powerpoint_worker or self.classroom.running:
+            self.inform('Hoàn tất tác vụ, trình chiếu hoặc lớp học trước khi khôi phục bài.', True)
+            return False
         try:
-            self.library.restore_lesson(lesson_id)
-            self.inform("Đã khôi phục bài về thư viện.")
+            count = self.library.restore_lessons(lesson_ids)
+            self.inform(f'Đã khôi phục {count} bài về thư viện.')
+            return True
         except Exception as exc:
             self.inform(str(exc), True)
+            return False
+
+    @Slot('QVariantList', result=bool)
+    def purgeLessons(self, lesson_ids):
+        if self._busy or self.narrationBusy or self.powerpoint_worker or self.classroom.running:
+            self.inform('Hoàn tất tác vụ, trình chiếu hoặc lớp học trước khi xóa vĩnh viễn.', True)
+            return False
+        try:
+            count = self.library.purge_lessons(lesson_ids)
+            if self._lesson.get('id') in lesson_ids:
+                self.stopSpeech()
+                self._lesson, self._quick_result = {}, {}
+                self.selectionChanged.emit()
+            self.inform(f'Đã xóa vĩnh viễn {count} bài khỏi thùng rác.')
+            return True
+        except Exception as exc:
+            self.inform(str(exc), True)
+            return False
 
     @Slot()
     def returnToLibrary(self):

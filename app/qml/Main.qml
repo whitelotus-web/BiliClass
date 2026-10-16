@@ -244,6 +244,37 @@ ApplicationWindow {
         palette.buttonText: root.ink; palette.text: root.ink; palette.highlight: root.blue
         background: Rectangle { radius: 8; color: "white"; border.color: parent.activeFocus ? root.blue : root.line }
     }
+    component LibraryFilter: Choice {
+        id: filter
+        property string emptyLabel: ""
+        implicitHeight: 32; font.pixelSize: 11; leftPadding: 8; rightPadding: 20
+        displayText: currentIndex === 0 ? emptyLabel : currentText
+        Accessible.name: emptyLabel
+        ToolTip.visible: hovered
+        ToolTip.text: currentText
+        indicator: Text { text: "⌄"; color: root.muted; font.pixelSize: 17; x: filter.width - width - 7; y: (filter.height - height) / 2 - 2 }
+        contentItem: Text { text: filter.displayText; font: filter.font; color: root.ink; elide: Text.ElideRight; verticalAlignment: Text.AlignVCenter }
+        popup.width: Math.max(filter.width, 200)
+    }
+    component LibraryAction: Button {
+        id: control
+        property bool danger: false
+        property bool subtle: false
+        implicitHeight: 32; leftPadding: 8; rightPadding: 8; font.pixelSize: 11; font.weight: Font.DemiBold
+        contentItem: Text { text: control.text; font: control.font; color: !control.enabled ? "#96a6bc" : control.danger ? "#b14828" : root.blue; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight }
+        background: Rectangle { radius: 6; color: !control.enabled ? "#edf1f7" : control.down ? "#dfebfb" : control.hovered ? "#eaf3ff" : control.subtle ? "transparent" : "white"; border.color: control.visualFocus ? root.blue : control.subtle ? "transparent" : "#cbdcf4"; border.width: control.visualFocus ? 2 : 1 }
+    }
+    component LibraryCheck: CheckBox {
+        id: control
+        implicitHeight: 32; padding: 4; spacing: 5; font.pixelSize: 11
+        indicator: Rectangle {
+            implicitWidth: 16; implicitHeight: 16; x: control.leftPadding; y: Math.round((control.height - height) / 2)
+            radius: 3; color: control.checkState === Qt.Unchecked ? "white" : root.blue
+            border.color: control.visualFocus || control.hovered || control.checkState !== Qt.Unchecked ? root.blue : "#aebed2"
+            border.width: control.visualFocus ? 2 : 1
+            Text { anchors.centerIn: parent; text: control.checkState === Qt.PartiallyChecked ? "−" : "✓"; visible: control.checkState !== Qt.Unchecked; color: "white"; font.pixelSize: 12; font.bold: true }
+        }
+    }
     component Surface: Rectangle { color: "white"; radius: 16; border.color: root.line }
     component Pill: Rectangle {
         property string text: ""
@@ -421,20 +452,20 @@ ApplicationWindow {
                             Field { id: search; objectName: "librarySearch"; Layout.fillWidth: true; placeholderText: "Tìm tên bài, môn, khối… có thể gõ không dấu"; onTextChanged: root.libraryPage = 1 }
                             SelectBox { objectName: "lessonSortOrder"; model: ["Mới tạo nhất", "Tạo lâu nhất", "Mới cập nhật", "Tên bài A–Z"]; currentIndex: ["created_desc", "created_asc", "updated_desc", "title_asc"].indexOf(bridge.lessonOrder); Layout.preferredWidth: 168; onActivated: { root.libraryPage = 1; bridge.setLessonOrder(["created_desc", "created_asc", "updated_desc", "title_asc"][currentIndex]) } }
                         }
-                        GridLayout { objectName: "libraryFilters"; visible: root.page === "library"; Layout.fillWidth: true; columns: width >= 980 ? 5 : 3; columnSpacing: 10; rowSpacing: 10
-                            Choice { id: subjectFilter; objectName: "librarySubjectFilter"; Layout.fillWidth: true; Layout.minimumWidth: 0; model: bridge.librarySubjects; textRole: "label"; valueRole: "id"; onActivated: root.libraryPage = 1 }
-                            Choice { id: gradeFilter; objectName: "libraryGradeFilter"; Layout.fillWidth: true; Layout.minimumWidth: 0; model: bridge.libraryGrades; textRole: "label"; valueRole: "id"; onActivated: root.libraryPage = 1 }
-                            Choice { id: stateFilter; objectName: "libraryStateFilter"; Layout.fillWidth: true; Layout.minimumWidth: 0; textRole: "label"; valueRole: "id"; model: [{id:"",label:"Tất cả trạng thái"},{id:"ready",label:"Đã duyệt để dạy"},{id:"review",label:"Cần kiểm tra"},{id:"draft",label:"Bản nháp"}]; onActivated: root.libraryPage = 1 }
-                            Choice { id: voiceFilter; objectName: "libraryVoiceFilter"; Layout.fillWidth: true; Layout.minimumWidth: 0; textRole: "label"; valueRole: "id"; model: [{id:"",label:"Tất cả giọng đọc"},{id:"en",label:"Có bản giọng Anh"},{id:"vi",label:"Có bản giọng Việt"},{id:"both",label:"Có bản giọng Việt–Anh"},{id:"none",label:"Chưa tạo giọng"},{id:"partial",label:"Giọng chưa hoàn tất"}]; onActivated: root.libraryPage = 1 }
-                            Action { objectName: "libraryClearFilters"; text: "Xóa bộ lọc"; subtle: true; onClicked: { search.clear(); subjectFilter.currentIndex = 0; gradeFilter.currentIndex = 0; stateFilter.currentIndex = 0; voiceFilter.currentIndex = 0; root.libraryPage = 1 } }
+                        RowLayout { id: libraryToolbar; objectName: "libraryToolbar"; visible: root.page === "library"; Layout.fillWidth: true; spacing: 6
+                            RowLayout { objectName: "libraryFilters"; Layout.fillWidth: true; spacing: 6
+                                LibraryFilter { id: subjectFilter; objectName: "librarySubjectFilter"; emptyLabel: "Môn học"; Layout.fillWidth: true; Layout.minimumWidth: 78; Layout.preferredWidth: 94; Layout.maximumWidth: 170; model: bridge.librarySubjects; textRole: "label"; valueRole: "id"; onActivated: root.libraryPage = 1 }
+                                LibraryFilter { id: gradeFilter; objectName: "libraryGradeFilter"; emptyLabel: "Khối lớp"; Layout.fillWidth: true; Layout.minimumWidth: 72; Layout.preferredWidth: 80; Layout.maximumWidth: 150; model: bridge.libraryGrades; textRole: "label"; valueRole: "id"; onActivated: root.libraryPage = 1 }
+                                LibraryFilter { id: stateFilter; objectName: "libraryStateFilter"; emptyLabel: "Trạng thái"; Layout.fillWidth: true; Layout.minimumWidth: 80; Layout.preferredWidth: 90; Layout.maximumWidth: 170; textRole: "label"; valueRole: "id"; model: [{id:"",label:"Tất cả trạng thái"},{id:"ready",label:"Đã duyệt để dạy"},{id:"review",label:"Cần kiểm tra"},{id:"draft",label:"Bản nháp"}]; onActivated: root.libraryPage = 1 }
+                                LibraryFilter { id: voiceFilter; objectName: "libraryVoiceFilter"; emptyLabel: "Giọng đọc"; Layout.fillWidth: true; Layout.minimumWidth: 78; Layout.preferredWidth: 92; Layout.maximumWidth: 170; textRole: "label"; valueRole: "id"; model: [{id:"",label:"Tất cả giọng đọc"},{id:"en",label:"Có bản giọng Anh"},{id:"vi",label:"Có bản giọng Việt"},{id:"both",label:"Có bản giọng Việt–Anh"},{id:"none",label:"Chưa tạo giọng"},{id:"partial",label:"Giọng chưa hoàn tất"}]; onActivated: root.libraryPage = 1 }
+                            }
+                            LibraryAction { objectName: "libraryClearFilters"; text: "↺"; font.pixelSize: 18; Layout.preferredWidth: 30; Accessible.name: "Xóa bộ lọc"; ToolTip.visible: hovered; ToolTip.text: "Xóa bộ lọc"; onClicked: { search.clear(); subjectFilter.currentIndex = 0; gradeFilter.currentIndex = 0; stateFilter.currentIndex = 0; voiceFilter.currentIndex = 0; root.libraryPage = 1 } }
+                            LibraryCheck { objectName: "librarySelectAll"; visible: root.librarySelecting; text: "Chọn tất cả (" + root.libraryResult.total + ")"; checkState: !root.selectedLessons.length ? Qt.Unchecked : root.selectedLessons.length === root.libraryResult.total ? Qt.Checked : Qt.PartiallyChecked; nextCheckState: function() { return checkState === Qt.Checked ? Qt.Unchecked : Qt.Checked }; enabled: root.libraryResult.total > 0; onClicked: root.selectedLessons = checked ? root.libraryResult.ids.slice() : [] }
+                            LibraryAction { objectName: "libraryDeselectAll"; visible: root.librarySelecting; text: "Bỏ chọn"; subtle: true; enabled: root.selectedLessons.length > 0; onClicked: root.selectedLessons = [] }
+                            LibraryAction { objectName: "libraryDownloadSelected"; visible: root.librarySelecting; text: "Tải đã chọn"; ToolTip.visible: hovered; ToolTip.text: "Tải " + root.selectedLessons.length + " bài đã chọn"; enabled: root.selectedLessons.length > 0 && !bridge.busy && !bridge.narrationBusy; onClicked: root.downloadLibraryLessons(root.selectedLessons) }
+                            LibraryAction { objectName: "libraryDeleteSelected"; visible: root.librarySelecting; text: "Xóa đã chọn"; danger: true; ToolTip.visible: hovered; ToolTip.text: "Đưa " + root.selectedLessons.length + " bài đã chọn vào thùng rác"; enabled: root.selectedLessons.length > 0 && !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !root.classroom.running; onClicked: { bulkDeleteDialog.identities = root.selectedLessons.slice(); bulkDeleteDialog.open() } }
                         }
-                        Flow { visible: root.page === "library" && root.librarySelecting; Layout.fillWidth: true; spacing: 10
-                            CheckBox { objectName: "librarySelectAll"; text: "Chọn tất cả (" + root.libraryResult.total + ")"; checked: root.libraryResult.total > 0 && root.selectedLessons.length === root.libraryResult.total; enabled: root.libraryResult.total > 0; onClicked: root.selectedLessons = checked ? root.libraryResult.ids.slice() : [] }
-                            Action { objectName: "libraryDeselectAll"; text: "Bỏ chọn"; subtle: true; enabled: root.selectedLessons.length > 0; onClicked: root.selectedLessons = [] }
-                            Action { objectName: "libraryDownloadSelected"; text: "Tải đã chọn (" + root.selectedLessons.length + ")"; enabled: root.selectedLessons.length > 0 && !bridge.busy && !bridge.narrationBusy; onClicked: root.downloadLibraryLessons(root.selectedLessons) }
-                            Action { objectName: "libraryDeleteSelected"; text: "Xóa đã chọn (" + root.selectedLessons.length + ")"; danger: true; enabled: root.selectedLessons.length > 0 && !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !root.classroom.running; onClicked: { bulkDeleteDialog.identities = root.selectedLessons.slice(); bulkDeleteDialog.open() } }
-                        }
-                        Copy { visible: root.page === "library" && root.librarySelecting; text: "Chọn tất cả áp dụng cho toàn bộ kết quả đang lọc, gồm các trang khác. Đổi bộ lọc sẽ bỏ chọn."; Layout.fillWidth: true; font.pixelSize: 11 }
+                        Copy { visible: root.page === "library" && root.librarySelecting; text: root.selectedLessons.length + " bài đã chọn · Chọn tất cả gồm các trang đang lọc. Đổi bộ lọc sẽ bỏ chọn."; Layout.fillWidth: true; font.pixelSize: 11; Layout.topMargin: -12 }
                         Surface { visible: root.page === "library" && bridge.lessons.length > 0 && root.libraryResult.total === 0; Layout.fillWidth: true; implicitHeight: 106
                             ColumnLayout { anchors.fill: parent; anchors.margins: 20; spacing: 7
                                 Caption { text: "Không có bài phù hợp" }
@@ -458,7 +489,7 @@ ApplicationWindow {
                                     Layout.fillWidth: true; implicitHeight: Math.max(root.page === "home" ? 96 : 120, lessonRow.implicitHeight + 32)
                                     RowLayout {
                                         id: lessonRow; anchors.fill: parent; anchors.margins: 16; spacing: 14
-                                        CheckBox { objectName: "lessonSelect_" + modelData.id; visible: root.page === "library" && root.librarySelecting; checked: root.selectedLessons.indexOf(modelData.id) >= 0; Accessible.name: "Chọn " + modelData.title; onClicked: root.selectLibraryLesson(modelData.id, checked) }
+                                        LibraryCheck { objectName: "lessonSelect_" + modelData.id; visible: root.page === "library" && root.librarySelecting; Layout.preferredWidth: 28; checked: root.selectedLessons.indexOf(modelData.id) >= 0; Accessible.name: "Chọn " + modelData.title; onClicked: root.selectLibraryLesson(modelData.id, checked) }
                                         Rectangle { width: 44; height: 48; radius: 10; color: "#edf4ff"; Label { anchors.centerIn: parent; text: "VI\nEN"; color: root.blue; font.pixelSize: 12; font.weight: Font.Bold; lineHeight: 1.1 } }
                                         ColumnLayout { Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 5
                                             Label { text: modelData.title; color: root.ink; font.pixelSize: 15; font.weight: Font.DemiBold; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight; Layout.fillWidth: true; Layout.minimumWidth: 0 }
@@ -1333,23 +1364,59 @@ ApplicationWindow {
         }
     }
     FileDialog { id: libraryDownloadSave; objectName: "libraryDownloadSave"; title: "Lưu bài giảng"; currentFolder: bridge.downloadsDirectory; fileMode: FileDialog.SaveFile; defaultSuffix: libraryDownloadDialog.identities.length > 1 ? "zip" : "pptx"; nameFilters: libraryDownloadDialog.identities.length > 1 ? ["Bộ bài giảng (*.zip)"] : ["PowerPoint (*.pptx)"]; onAccepted: bridge.downloadLibraryPresentations(libraryDownloadDialog.identities, selectedFile.toString(), libraryDownloadVoice.checked) }
-    Dialog { id: lessonTrashDialog; objectName: "lessonTrashDialog"; anchors.centerIn: parent; modal: true; title: "Thùng rác bài giảng"; width: 680; height: 440; standardButtons: Dialog.Close
+    Dialog { id: lessonTrashDialog; objectName: "lessonTrashDialog"; anchors.centerIn: parent; modal: true; title: "Thùng rác bài giảng"; width: Math.min(root.width - 64, 880); height: Math.min(root.height - 64, 560)
+        property var selected: []
+        readonly property var identities: bridge.trashedLessons.map(function(row) { return row.id })
+        readonly property bool canChange: !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !bridge.powerpointState.starting && !root.classroom.running
+        onOpened: selected = []
+        onIdentitiesChanged: {
+            const kept = selected.filter(function(id) { return identities.indexOf(id) >= 0 })
+            if (kept.length !== selected.length) selected = kept
+        }
+        function choose(identity, checked) {
+            const list = selected.filter(function(id) { return id !== identity })
+            if (checked) list.push(identity)
+            selected = list
+        }
+        function confirmPurge(ids) {
+            purgeTrashDialog.identities = ids.slice()
+            purgeTrashDialog.open()
+        }
         contentItem: ColumnLayout { spacing: 12
-            Copy { text: "Khôi phục bài về thư viện với nội dung và ngày tạo trước khi xóa."; Layout.fillWidth: true }
+            Copy { text: "Khôi phục để đưa bài về thư viện. Xóa vĩnh viễn sẽ bỏ bài và lịch sử chỉnh sửa khỏi thùng rác."; Layout.fillWidth: true }
+            Flow { Layout.fillWidth: true; spacing: 6
+                LibraryCheck { objectName: "trashSelectAll"; text: "Chọn tất cả (" + lessonTrashDialog.identities.length + ")"; checkState: !lessonTrashDialog.selected.length ? Qt.Unchecked : lessonTrashDialog.selected.length === lessonTrashDialog.identities.length ? Qt.Checked : Qt.PartiallyChecked; nextCheckState: function() { return checkState === Qt.Checked ? Qt.Unchecked : Qt.Checked }; enabled: lessonTrashDialog.identities.length > 0; onClicked: lessonTrashDialog.selected = checked ? lessonTrashDialog.identities.slice() : [] }
+                LibraryAction { objectName: "trashDeselectAll"; text: "Bỏ chọn"; subtle: true; enabled: lessonTrashDialog.selected.length > 0; onClicked: lessonTrashDialog.selected = [] }
+                LibraryAction { objectName: "trashRestoreSelected"; text: "Khôi phục đã chọn"; enabled: lessonTrashDialog.canChange && lessonTrashDialog.selected.length > 0; onClicked: if (bridge.restoreLessons(lessonTrashDialog.selected)) lessonTrashDialog.selected = [] }
+                LibraryAction { objectName: "trashPurgeSelected"; text: "Xóa đã chọn"; danger: true; enabled: lessonTrashDialog.canChange && lessonTrashDialog.selected.length > 0; onClicked: lessonTrashDialog.confirmPurge(lessonTrashDialog.selected) }
+                LibraryAction { objectName: "trashRestoreAll"; text: "Khôi phục tất cả"; enabled: lessonTrashDialog.canChange && lessonTrashDialog.identities.length > 0; onClicked: if (bridge.restoreLessons(lessonTrashDialog.identities)) lessonTrashDialog.selected = [] }
+                LibraryAction { objectName: "trashPurgeAll"; text: "Xóa tất cả"; danger: true; enabled: lessonTrashDialog.canChange && lessonTrashDialog.identities.length > 0; onClicked: lessonTrashDialog.confirmPurge(lessonTrashDialog.identities) }
+            }
+            Copy { text: lessonTrashDialog.selected.length + " / " + lessonTrashDialog.identities.length + " bài đã chọn"; font.pixelSize: 11; Layout.fillWidth: true }
             Copy { visible: bridge.trashedLessons.length === 0; text: "Thùng rác đang trống." }
             ScrollView { Layout.fillWidth: true; Layout.fillHeight: true; clip: true; contentWidth: availableWidth
                 ColumnLayout { width: parent.width; spacing: 10
                     Repeater { model: bridge.trashedLessons
                         RowLayout { required property var modelData; Layout.fillWidth: true
+                            LibraryCheck { objectName: "trashSelect_" + modelData.id; Layout.preferredWidth: 28; checked: lessonTrashDialog.selected.indexOf(modelData.id) >= 0; Accessible.name: "Chọn " + modelData.title; onClicked: lessonTrashDialog.choose(modelData.id, checked) }
                             ColumnLayout { Layout.fillWidth: true; spacing: 4
-                                Caption { text: modelData.title; Layout.fillWidth: true; elide: Text.ElideRight }
+                                Caption { text: modelData.title; Layout.fillWidth: true; Layout.minimumWidth: 0; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight }
                                 Copy { text: "Xóa: " + bridge.lessonDateLabel(modelData.deleted_at); font.pixelSize: 11 }
                             }
-                            Action { objectName: "restoreLesson_" + modelData.id; text: "Khôi phục"; onClicked: bridge.restoreLesson(modelData.id) }
+                            LibraryAction { objectName: "restoreLesson_" + modelData.id; text: "Khôi phục"; enabled: lessonTrashDialog.canChange; onClicked: bridge.restoreLesson(modelData.id) }
+                            LibraryAction { objectName: "purgeLesson_" + modelData.id; text: "Xóa vĩnh viễn"; danger: true; enabled: lessonTrashDialog.canChange; onClicked: lessonTrashDialog.confirmPurge([modelData.id]) }
                         }
                     }
                 }
             }
+            RowLayout { Layout.fillWidth: true; Item { Layout.fillWidth: true } LibraryAction { objectName: "closeLessonTrash"; text: "Đóng"; onClicked: lessonTrashDialog.close() } }
+        }
+    }
+    Dialog { id: purgeTrashDialog; objectName: "purgeTrashDialog"; anchors.centerIn: parent; modal: true; title: "Xóa vĩnh viễn " + identities.length + " bài giảng?"; width: Math.min(root.width - 64, 540)
+        property var identities: []
+        contentItem: ColumnLayout { spacing: 16
+            Copy { text: "Sẽ xóa " + purgeTrashDialog.identities.length + " bài cùng lịch sử chỉnh sửa. Không thể khôi phục các bài này từ thùng rác. Báo cáo lớp học, bản sao lưu và tệp dùng chung được giữ lại."; Layout.fillWidth: true }
+            RowLayout { Layout.fillWidth: true; Item { Layout.fillWidth: true } Action { objectName: "cancelPurgeTrash"; text: "Hủy"; onClicked: purgeTrashDialog.close() } Action { objectName: "confirmPurgeTrash"; text: "Xóa vĩnh viễn"; danger: true; enabled: lessonTrashDialog.canChange; onClicked: { if (bridge.purgeLessons(purgeTrashDialog.identities)) { lessonTrashDialog.selected = []; purgeTrashDialog.close() } } } }
         }
     }
     Dialog {

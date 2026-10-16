@@ -31,7 +31,7 @@ def value(item, name):
 def main():
     app = QGuiApplication([])
     QQuickStyle.setStyle('Basic')
-    report = Path('reports/rc51/management'); report.mkdir(parents=True, exist_ok=True)
+    report = Path('reports/rc52/management'); report.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='biliclass-management-', ignore_cleanup_errors=True) as folder:
         library = Library(Path(folder))
         lessons = []
@@ -73,14 +73,40 @@ def main():
             assert len(library.list_lessons()) == 24
             for width, height in ((1080, 700), (1366, 850)):
                 window.resize(width, height); pump(120)
+                toolbar = [c(name) for name in ('librarySubjectFilter','libraryGradeFilter','libraryStateFilter',
+                    'libraryVoiceFilter','librarySelectAll','libraryDeselectAll','libraryDownloadSelected','libraryDeleteSelected')]
+                from PySide6.QtCore import QPointF
+                centers = [item.mapToScene(QPointF(item.width()/2,item.height()/2)) for item in toolbar]
+                assert max(p.y() for p in centers)-min(p.y() for p in centers)<2, 'All filters/actions must share one line'
+                assert all(0 <= p.x()-item.width()/2 and p.x()+item.width()/2 < width for item,p in zip(toolbar,centers)), 'Toolbar clipped in small window'
+                assert all(item.height() <= 34 for item in toolbar)
+                assert c('librarySelectAll').property('indicator').width() == 16
                 assert window.grabWindow().save(str(report / f'library-{width}.png'))
             click(window, c('libraryDeleteSelected'))
             click(window, c('confirmBulkDeleteLessons'))
             until(lambda: len(bridge.lessons) == 22)
             assert len(library.list_lessons(trash=True)) == 2
-            for lesson in lessons[-2:]:
-                library.restore_lesson(lesson['id'])
-            bridge.inform('Restored fixture'); pump()
+            QMetaObject.invokeMethod(c('lessonTrashDialog'), 'open', Qt.DirectConnection); pump()
+            click(window, c('trashSelectAll'))
+            assert len(value(c('lessonTrashDialog'), 'selected')) == 2
+            click(window, c('trashPurgeAll'))
+            assert len(value(c('purgeTrashDialog'), 'identities')) == 2
+            click(window, c('cancelPurgeTrash'))
+            assert len(library.list_lessons(trash=True)) == 2
+            click(window, c('trashRestoreSelected'))
+            until(lambda: len(bridge.lessons) == 24 and not bridge.trashedLessons)
+            bridge.trashLessons([row['id'] for row in lessons[-2:]])
+            until(lambda: len(bridge.trashedLessons) == 2)
+            click(window, c('trashSelect_' + lessons[-1]['id']))
+            assert len(value(c('lessonTrashDialog'), 'selected')) == 1
+            assert window.grabWindow().save(str(report / 'trash.png'))
+            click(window, c('trashPurgeSelected'))
+            click(window, c('confirmPurgeTrash'))
+            until(lambda: len(bridge.trashedLessons) == 1)
+            click(window, c('trashRestoreAll'))
+            until(lambda: len(bridge.lessons) == 23 and not bridge.trashedLessons)
+            assert not c('trashPurgeAll').isEnabled() and not c('trashRestoreAll').isEnabled()
+            click(window, c('closeLessonTrash'))
             window.setProperty('page', 'reports'); pump(100)
             assert c('reportGoClassroom').isVisible()
             click(window, c('reportGoClassroom'))
@@ -122,7 +148,7 @@ def main():
             assert window.grabWindow().save(str(report / 'knowledge.png'))
             assert not warnings, warnings
             result = {'status': 'passed', 'qml_warnings': warnings,
-                      'checks': ['24 lessons selected across pages', 'filtered selection resets', 'cancel then atomic trash and restore',
+                      'checks': ['24 lessons selected across pages', 'filtered selection resets', 'cancel then atomic trash and restore', '16px checks and one-line toolbar at both sizes', 'trash select/cancel purge/restore selected/permanent delete/restore all',
                                  'ZIP download dialog exact IDs', 'classroom empty/preparation guards and navigation',
                                  'saved report search and no-result state', 'unaccented term search', 'knowledge tab', '1080 and 1366 layouts']}
             (report / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
