@@ -350,7 +350,8 @@ def assemble(source, destination, manifest, translations, mode):
     grouped = {}
     for unit in manifest['units']:
         grouped.setdefault(unit['part'],{}).setdefault(unit['shape_id'],[]).append(unit)
-    notes, paired_trees, coverage, continuations = {}, {}, {}, {}
+    notes = {number: {'vi': [], 'en': []} for number in manifest.get('note_slides', [])}
+    paired_trees, coverage, continuations = {}, {}, {}
     together = manifest.get('same_slide', False)
     if together:
         from . import same_slide
@@ -375,7 +376,7 @@ def assemble(source, destination, manifest, translations, mode):
             effective_mode = 'english_only' if paired else mode
             transform=shape.find('p:spPr/a:xfrm',NS)
             if together and effective_mode == 'parallel_columns' and (
-                    shape.tag != f'{{{NS["p"]}}}sp' or units[0].get('inline_pair')
+                    shape.tag != f'{{{NS["p"]}}}sp' or same_slide.prefer_inline(units, translations)
                     or transform is None or transform.get('rot') not in {None,'0'}):
                 effective_mode = 'sentence_pairs'  # Cell-local pairs keep table row/column ownership.
             if together and units[0].get('suppressed'):

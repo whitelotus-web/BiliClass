@@ -211,6 +211,29 @@ def apply_geometry(shape, unit):
         ext.set("cy", str(geometry["h"]))
 
 
+def prefer_inline(units, translations):
+    """Compare actual translated line costs rather than a single width cutoff."""
+    from .native_layout import text_height
+
+    if units[0].get('inline_pair') or any(unit['title'] for unit in units):
+        return True
+    geometry=units[0].get('same_slide_box')
+    if not geometry:
+        return False
+    width,height=geometry['w']/12700,geometry['h']/12700
+    if width>=400:
+        return False
+    vi=en=stacked=0
+    for unit in units:
+        original,english=unit['raw'],translations[unit['id']]['en']
+        vi+=text_height(original,max(1,(width-12)/2),18)
+        en+=text_height(english,max(1,(width-12)/2),16)
+        stacked+=text_height(original,max(1,width-6),18)
+        if unit['language']!='neutral':
+            stacked+=text_height(english,max(1,width-6),16)
+    return stacked <= height*.95 and stacked < max(vi,en)*.9
+
+
 def fit(shape, fallback_size):
     """Uniform type scaling keeps VI/EN hierarchy and native equation proportions."""
     from .native_layout import text_height

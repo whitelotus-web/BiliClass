@@ -1,5 +1,24 @@
 # Thành phần bên thứ ba — RC17 và hồ sơ các bản trước
 
+## RC44: OCR ảnh PowerPoint
+
+- Đưa RapidOCR 3.9.2, OpenCV, pyclipper, Shapely và model dò/nhận dạng cục bộ
+  trở lại bundle. Không phục hồi engine dịch offline hay Browser AI.
+- Kiểm tra dấu Việt độc lập bằng model **VietOCR vgg_seq2seq** của pbcquoc,
+  chuyển thành hai graph ONNX encoder/decoder bằng script
+  `scripts/build_vietnamese_ocr.py`. Nguồn và giấy phép Apache-2.0:
+  [VietOCR](https://github.com/pbcquoc/vietocr),
+  [LICENSE](https://github.com/pbcquoc/vietocr/blob/master/LICENSE).
+  Giữ LICENSE và provenance trong gói model riêng, không đưa weights vào Git.
+- Weights gốc từ URL tác giả cấu hình `https://vocr.vn/data/vietocr/vgg_seq2seq.pth`,
+  SHA-256 `0921503a41375a0584268e23ef3d414ea478a8fe8777865c7745d38f2d0bc5db`.
+  Chỉ nạp state dict với `weights_only=True` trong bước chuẩn bị. App chỉ dùng
+  ONNX Runtime CPU; không đóng PyTorch, torchvision hoặc VietOCR Python vào app.
+- Thay đổi graph chỉ để tách encoder/decoder và chuẩn hóa chỉ số Transpose
+  âm thành chỉ số dương tương đương. `pack.json` lưu checksum graph và nguồn.
+  Model không tự nhận ảnh/tài liệu qua mạng. Chỉ chữ được chấp nhận mới đi
+  vào Google Dịch theo cấu hình hiện hành. OCR vẫn cần đối chiếu nội dung.
+
 ## RC17: một engine giọng Việt–Anh
 
 RC17 dùng **VieNeu SDK 3.8.3 / v3 Turbo ONNX CPU fp32** cho cả Việt, Anh và câu

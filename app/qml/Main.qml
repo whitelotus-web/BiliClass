@@ -30,6 +30,7 @@ ApplicationWindow {
     property string inputDocumentError: ""
     property bool pasteMode: false
     property bool creationPromptVisible: false
+    property bool includeDownloadVoice: true
     property bool resultDetails: false
     property string narrationMode: "en"
     property int preferredCreationDesign: 0
@@ -776,6 +777,7 @@ ApplicationWindow {
                                     Action { objectName: "cancelLessonNarrationButton"; text: "Dừng"; visible: !!bridge.lessonNarration.running; onClicked: bridge.cancelLessonNarration() }
                                 }
                                 Copy { Layout.fillWidth: true; font.pixelSize: 12; text: "Tạo lời đọc nhận diện được trên máy bằng giọng đã chọn trong Cài đặt. Có thể tải PowerPoint mà không cần tạo giọng."; color: root.muted }
+                                CheckBox { objectName: "embedPresentationVoice"; visible: !!bridge.lessonNarration.ready; checked: root.includeDownloadVoice; onClicked: root.includeDownloadVoice = checked; text: "Tải PowerPoint kèm giọng đọc · loa VI/EN trên từng slide" }
                                 RowLayout { Layout.fillWidth: true; visible: !!bridge.lessonNarration.running
                                     ProgressBar { objectName: "lessonNarrationProgressBar"; Layout.fillWidth: true; from: 0; to: 100; value: bridge.lessonNarration.percent || 0 }
                                     Caption { objectName: "lessonNarrationPercent"; text: (bridge.lessonNarration.percent || 0) + "%" }
@@ -1054,7 +1056,7 @@ ApplicationWindow {
     FileDialog { id: logoOpen; title: "Chọn logo trường"; nameFilters: ["Ảnh (*.png *.jpg *.jpeg)"]; onAccepted: bridge.saveSchoolLogo(selectedFile.toString()) }
     FileDialog { id: packOpen; title: "Nhập gói bài BiliClass"; nameFilters: ["BiliClass (*.biliclass)"]; onAccepted: bridge.importPack(selectedFile.toString()) }
     FileDialog { id: deckSave; title: "Xuất PowerPoint song ngữ mới"; fileMode: FileDialog.SaveFile; defaultSuffix: "pptx"; nameFilters: ["PowerPoint (*.pptx)"]; onAccepted: bridge.exportPowerPoint(selectedFile.toString()) }
-    FileDialog { id: presentationSave; objectName: "presentationSaveDialog"; title: "Tải bản PowerPoint đang xem về máy"; fileMode: FileDialog.SaveFile; currentFolder: bridge.downloadsDirectory; defaultSuffix: "pptx"; nameFilters: ["PowerPoint (*.pptx)"]; onAccepted: bridge.downloadPresentation(selectedFile.toString()) }
+    FileDialog { id: presentationSave; objectName: "presentationSaveDialog"; title: "Tải bản PowerPoint đang xem về máy"; fileMode: FileDialog.SaveFile; currentFolder: bridge.downloadsDirectory; defaultSuffix: "pptx"; nameFilters: ["PowerPoint (*.pptx)"]; onAccepted: bridge.downloadPresentationWithVoice(selectedFile.toString(), bridge.lessonNarration.ready && root.includeDownloadVoice) }
     FileDialog { id: packSave; title: "Xuất gói bài BiliClass"; fileMode: FileDialog.SaveFile; defaultSuffix: "biliclass"; nameFilters: ["BiliClass (*.biliclass)"]; onAccepted: bridge.exportPack(selectedFile.toString()) }
     FileDialog { id: knowledgeOpen; title: "Cài gói kiến thức có nguồn"; nameFilters: ["BiliClass Knowledge (*.biliknowledge)"]; onAccepted: bridge.installKnowledgePack(selectedFile.toString()) }
     FileDialog { id: backupOpen; title: "Khôi phục vào thư mục mới"; nameFilters: ["BiliClass Backup (*.bcbackup)"]; onAccepted: bridge.restoreLibrary(selectedFile.toString()) }

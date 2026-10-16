@@ -8,6 +8,7 @@ import hashlib
 import json
 import tempfile
 import time
+import wave
 from pathlib import Path
 
 from PIL import Image
@@ -86,7 +87,7 @@ def main():
     for font in (RESOURCE_ROOT / "assets").glob("*.ttf"):
         QFontDatabase.addApplicationFont(str(font))
     app.setFont(QFont("Be Vietnam Pro", 10))
-    reports = Path("reports/rc42")
+    reports = Path("reports/rc44")
     reports.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="biliclass-result-", ignore_cleanup_errors=True) as folder:
         library = Library(Path(folder))
@@ -186,6 +187,23 @@ def main():
         assert c("createLessonNarrationButton").isEnabled()
         click(window, c("createLessonNarrationButton"))
         assert len(narration) == 1 and narration[0][-1]["total"] > 0
+        from app.lesson_narration import make_plan
+        plan,_=make_plan(bridge._lesson,'en',bridge.voiceSettings)
+        for key in plan['keys']['en']:
+            wav=library.directory/'audio'/(key+'.wav')
+            wav.parent.mkdir(exist_ok=True)
+            with wave.open(str(wav),'wb') as writer:
+                writer.setparams((1,2,24000,0,'NONE','not compressed'))
+                writer.writeframes(b'\x01\x00'*240)
+        bridge._lesson=library.update_narration(lesson['id'],plan)
+        bridge.narrationChanged.emit()
+        pump(120)
+        assert bridge.lessonNarration['ready']
+        assert c('embedPresentationVoice').isVisible() and c('embedPresentationVoice').property('checked')
+        click(window,c('embedPresentationVoice'))
+        assert not window.property('includeDownloadVoice')
+        click(window,c('embedPresentationVoice'))
+        assert window.property('includeDownloadVoice')
 
         window.setProperty("page", "settings")
         pump(100)
@@ -238,6 +256,7 @@ Window { visible: true; width: 700; height: 470; color: "#f3f7fc"
             "narration_starts_with_layout_warning": True,
             "preview_before_voice": True,
             "full_teacher_name": True,
+            "download_voice_checkbox": True,
             "mascot_checks": [
                 "card selection",
                 "blink timer",

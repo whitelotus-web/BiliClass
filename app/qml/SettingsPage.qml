@@ -464,6 +464,10 @@ Item {
                         SpinBox { id: googleBudget; objectName: "googleCharacterBudget"; from: 1; to: 500000; value: bridge.googleSettings.state.budget || 500000; editable: true; Layout.preferredWidth: 175 }
                         SaveButton { objectName: "saveGoogleApiKeys"; text: "Lưu cấu hình"; enabled: !bridge.busy; onClicked: { if (bridge.googleSettings.save(googleKeys.text, googleBudget.value)) googleKeys.clear() } }
                     }
+                    RowLayout { Layout.fillWidth: true
+                        Hint { Layout.fillWidth: true; text: bridge.googleSettings.state.ocrReady ? "Nhận diện chữ trong ảnh: đã sẵn sàng tại máy. Chỉ chữ nhận rõ và có vùng đặt phù hợp được dịch tự động." : "Chuẩn bị OCR một lần để dịch thêm chữ trong ảnh. Tải bộ nhận diện công khai; không tải bài giảng lên để OCR." }
+                        SoftButton { objectName: "preparePictureOcr"; text: bridge.googleSettings.state.ocrReady ? "OCR đã sẵn sàng" : "Chuẩn bị OCR Việt–Anh"; enabled: !bridge.busy && !bridge.googleSettings.state.ocrReady; onClicked: bridge.googleSettings.prepareOcr() }
+                    }
                     Hint { text: "Bộ đếm theo tháng UTC chỉ tính yêu cầu từ thư viện BiliClass này, gồm cả phần bảo vệ số liệu và các lần gửi chưa rõ kết quả. Không đảm bảo miễn phí nếu dự án còn được dùng ở ứng dụng/máy khác. Hãy đặt quota trong Google Cloud để kiểm soát chi phí."; Layout.fillWidth: true }
                     Hint { text: "Key được mã hóa theo tài khoản Windows, không đi cùng gói bài giảng hay bản sao lưu. Sang máy khác cần nhập lại key."; Layout.fillWidth: true }
                 }

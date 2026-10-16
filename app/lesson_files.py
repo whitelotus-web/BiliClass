@@ -9,7 +9,7 @@ from pathlib import Path
 from .quick_conversion import verify_preview
 
 
-def save_presentation(lesson, preview, directory, destination):
+def save_presentation(lesson, preview, directory, destination, *, with_voice=False):
     source = verify_preview(lesson, preview, directory).resolve()
     destination = Path(destination).resolve()
     if destination.suffix.lower() != ".pptx":
@@ -26,6 +26,10 @@ def save_presentation(lesson, preview, directory, destination):
         with pending.open("rb") as stream:
             if hashlib.file_digest(stream, "sha256").hexdigest() != preview["sha256"]:
                 raise ValueError("Bản trình chiếu đã thay đổi khi lưu. Xem lại bài trước khi tải.")
+        if with_voice:
+            from .presentation_audio import embed_audio
+
+            embed_audio(source, pending, lesson, directory)
         os.replace(pending, destination)
     finally:
         if pending:

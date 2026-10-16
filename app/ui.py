@@ -2549,14 +2549,19 @@ class Bridge(QObject):
 
     @Slot(str)
     def downloadPresentation(self, url):
+        self.downloadPresentationWithVoice(url, False)
+
+    @Slot(str, bool)
+    def downloadPresentationWithVoice(self, url, with_voice):
         from .lesson_files import save_presentation
 
         lesson, preview, directory = self._lesson, dict(self.quickResult), self.library.directory
         if not preview.get("path"):
             self.inform("Tạo hoặc nhận bản trình chiếu trước khi tải về máy.", True)
             return
-        self.launch(lambda: save_presentation(lesson, preview, directory, QUrl(url).toLocalFile()),
-                    lambda path: self.inform("Đã tải đúng bản PowerPoint đang xem: " + str(path)))
+        self.launch(lambda: save_presentation(lesson, preview, directory, QUrl(url).toLocalFile(), with_voice=with_voice),
+                    lambda path: self.inform(("Đã tải PowerPoint kèm giọng đọc nhúng: " if with_voice else
+                                              "Đã tải đúng bản PowerPoint đang xem: ") + str(path)))
 
 
     @Slot(str)

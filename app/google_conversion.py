@@ -254,17 +254,39 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
                        same_slide=config['conversion_format']!='english_only') if source.suffix == '.pptx' and config['style'] == 'source' else None
     use_native = manifest is not None
     warnings = []
+    picture_data = {'rows': [], 'warnings': []}
+    if source.suffix == '.pptx':
+        from .picture_ocr import extract_pictures
+
+        progress.stage('upload', 'Đang đọc nội dung và hình minh họa.')
+        try:
+            picture_data = extract_pictures(source, directory, cancel,
+                                           lambda message: progress.stage('upload', message))
+        except ValueError as exc:
+            picture_data = {'rows': [], 'warnings': [str(exc)]}
+        warnings.extend(picture_data['warnings'])
+        (folder/'picture-ocr.json').write_text(json.dumps(picture_data,ensure_ascii=False),encoding='utf-8')
     target = folder / 'result.pptx'
     def notify(done,total):
         progress.stage('translate', 'Đang hoàn thiện nội dung song ngữ.', done, total)
     if use_native:
         units = manifest['units']
+        manifest['note_slides'] = sorted({row['slide'] for row in picture_data['rows']})
         pending = [u for u in units if u['language'] not in {'en', 'neutral'}]
-        translated = translator.translate([u['text'] for u in pending], cancel, notify)
+        translated = translator.translate([u['text'] for u in pending] +
+                                         [row['text'] for row in picture_data['rows']], cancel, notify)
         values = {u['id']: {'en': u['text']} for u in units if u['language'] in {'en', 'neutral'}}
-        values.update({u['id']: {'en': en} for u, en in zip(pending, translated, strict=True)})
+        values.update({u['id']: {'en': en} for u, en in zip(pending, translated[:len(pending)], strict=True)})
         progress.stage('assemble', 'Đang sắp xếp nội dung bài giảng.')
         assemble(source, target, manifest, values, config['conversion_format'])
+        if picture_data['rows']:
+            from .picture_translation import apply_picture_translations
+
+            image_values = {row['id']: en for row,en in zip(picture_data['rows'],translated[len(pending):],strict=True)}
+            image_result = apply_picture_translations(target,manifest,picture_data['rows'],image_values,
+                                                      config['conversion_format'],cancel)
+            warnings.extend(image_result['warnings'])
+            (folder/'picture-layout.json').write_text(json.dumps(image_result,ensure_ascii=False),encoding='utf-8')
         from .native_layout import fit_preserved_frames
         fitting = fit_preserved_frames(target,manifest,cancel)
         (folder/'layout-fit.json').write_text(json.dumps(fitting),encoding='utf-8')
@@ -273,7 +295,7 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
         if any(row.get('continuation') for row in manifest.get('layout_plan',[])):
             warnings.append('Một số khung nhiều đoạn được chia thành trang tiếp nối; mỗi trang vẫn có cả Việt và Anh cùng hình gốc.')
         if manifest.get('visual_slides'):
-            warnings.append('Hình, hiệu ứng, biểu đồ và đối tượng nhúng được giữ từ nguồn. Chữ nằm trong ảnh/biểu đồ chưa được dịch tự động; cần đối chiếu khi trình chiếu.')
+            warnings.append('Hình, hiệu ứng, biểu đồ và đối tượng nhúng được giữ từ nguồn. OCR chỉ dịch chữ nhận rõ và đặt được an toàn; công thức, nhãn biểu đồ và vùng còn lại cần đối chiếu.')
         if manifest.get('font_fallbacks'):
             warnings.append('Font nhúng chưa có trên máy được thay bằng Arial cho cả Việt–Anh để tránh lỗi ký tự khi thêm bản dịch.')
     if not use_native:
@@ -288,6 +310,7 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
 
             from .source_deck import text_blocks
             blocks = [(u['locator'], u['text']) for u in text_blocks(Presentation(source))]
+            blocks.extend((f"Slide {row['slide']} · chữ trong ảnh",row['text']) for row in picture_data['rows'])
             if not blocks:
                 raise TranslationProblem('api_result', 'PowerPoint chỉ có ảnh/đối tượng, chưa có văn bản dịch được. Dùng nguồn có chữ chỉnh sửa được; bản gốc được giữ.')
         else:

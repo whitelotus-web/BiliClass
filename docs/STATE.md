@@ -1,5 +1,11 @@
 # Trạng thái BiliClass
 
+Ngày 16/10/2026 — RC44 sửa demo tiêu đề Việt–Anh, chọn bố cục khung hẹp theo
+độ dài dịch, thêm OCR ảnh PowerPoint với kiểm tra dấu độc lập và lớp dịch
+chỉnh sửa được. Tải PPTX có thể nhúng giọng đã tạo thành loa VI/EN theo slide;
+không nhúng đáp án ẩn. Vùng OCR chưa chắc vẫn cần đối chiếu.
+[Phạm vi và kiểm chứng](PICTURE_AUDIO_RC44.md).
+
 Ngày 16/10/2026 — RC43 giữ nhãn La Mã/công thức độc lập một lần trong kiểu
 xếp dòng, nhận diện thêm tiêu đề mục và giữ khung ngắn trong nền trang trí.
 Đo cả khung chữ trong nhóm. Bài 3 thật còn một trang tràn sau QA/tự sửa;
