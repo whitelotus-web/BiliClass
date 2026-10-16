@@ -48,4 +48,5 @@ suppression after Stop, a locked database remaining responsive and preserving
 the old preference until successful retry, one background interface scan, all
 catalogue subjects, and unknown-subject fallback. Existing settings/result/mascot
 Qt checks and isolated classroom rebind checks also pass. Private reports live
-under `reports/rc46`; packaged evidence is recorded after the frozen check.
+under `reports/rc46`; [packaged verification and build provenance](BUILD_RC46.md)
+record the final independent executable.
