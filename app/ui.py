@@ -324,8 +324,9 @@ class Bridge(QObject):
         from datetime import datetime
 
         try:
-            return datetime.fromisoformat(value).astimezone().strftime("%H:%M · %d/%m/%Y")
-        except (ValueError, TypeError):
+            date = datetime.fromtimestamp(value) if isinstance(value, (int, float)) else datetime.fromisoformat(value)
+            return date.astimezone().strftime("%H:%M · %d/%m/%Y")
+        except (ValueError, TypeError, OSError, OverflowError):
             return "Chưa có ngày lưu"
 
     @Property(str, constant=True)
@@ -335,19 +336,25 @@ class Bridge(QObject):
 
     @Slot(str)
     def trashLesson(self, lesson_id):
-        if self._busy or self.powerpoint_worker or self.classroom.running:
+        self.trashLessons([lesson_id])
+
+    @Slot('QVariantList', result=bool)
+    def trashLessons(self, lesson_ids):
+        if self._busy or self.narrationBusy or self.powerpoint_worker or self.classroom.running:
             self.inform("Kết thúc tác vụ, trình chiếu hoặc tiết học trước khi xóa bài.", True)
-            return
+            return False
         try:
-            self.library.trash_lesson(lesson_id)
-            if self._lesson.get("id") == lesson_id:
+            count = self.library.trash_lessons(lesson_ids)
+            if self._lesson.get("id") in lesson_ids:
                 self.stopSpeech()
                 self._lesson, self._quick_result = {}, {}
                 self.selectionChanged.emit()
             self.changed.emit()
-            self.inform("Đã đưa bài vào thùng rác. Có thể khôi phục từ mục Chia sẻ & quản lý.")
+            self.inform(f"Đã đưa {count} bài vào thùng rác. Có thể khôi phục từ Chia sẻ & quản lý.")
+            return True
         except Exception as exc:
             self.inform(str(exc), True)
+            return False
 
     @Slot(str)
     def restoreLesson(self, lesson_id):
@@ -2180,7 +2187,11 @@ class Bridge(QObject):
 
     @Slot(str)
     def selectLessonForClass(self, lesson_id):
+        if self._busy or self.narrationBusy or self.powerpoint_worker or self.classroom.running:
+            self.inform('Hoàn tất tác vụ hoặc tiết học trước khi đổi bài cho lớp.', True)
+            return
         try:
+            self.stopSpeech()
             self._lesson = self.library.get(lesson_id)
             if self._lesson.get("external_deck"):
                 from .chatgpt_handoff import external_preview
@@ -2866,6 +2877,17 @@ class Bridge(QObject):
         self.launch(lambda: save_presentation(lesson, preview, directory, QUrl(url).toLocalFile(), with_voice=with_voice),
                     lambda path: self.inform(("Đã tải PowerPoint kèm giọng đọc nhúng: " if with_voice else
                                               "Đã tải đúng bản PowerPoint đang xem: ") + str(path)))
+
+    @Slot('QVariantList', str, bool)
+    def downloadLibraryPresentations(self, identities, url, with_voice):
+        if self._busy or self.narrationBusy:
+            return
+        from .library_download import export
+
+        directory = self.library.directory
+        destination = QUrl(url).toLocalFile()
+        self.launch(lambda: export(directory, identities, destination, with_voice, self.cancel_event),
+                    lambda result: self.inform(f"Đã tải {result['count']} bài · {result['voiced']} bài kèm giọng: {result['path']}"))
 
 
     @Slot(str)

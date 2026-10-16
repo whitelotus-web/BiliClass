@@ -10,7 +10,7 @@ Canvas {
     onPaint: {
         const c = getContext("2d")
         c.reset(); c.scale(width / 64, height / 64)
-        c.lineCap = "round"; c.lineJoin = "round"; c.lineWidth = 3.5
+        c.lineCap = "round"; c.lineJoin = "round"; c.lineWidth = 2.8
         c.strokeStyle = theme.color; c.fillStyle = theme.paper
         function line(points, fill) {
             c.beginPath(); c.moveTo(points[0][0], points[0][1])
@@ -20,10 +20,9 @@ Canvas {
         }
         function circle(x, y, r, fill) { c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); if (fill) c.fill(); c.stroke() }
         function word(value, x, y, size) { c.fillStyle = theme.color; c.font = "bold " + size + "px Arial"; c.textAlign = "center"; c.fillText(value, x, y) }
-        // A white outline keeps each prop visible against the character's fur.
-        c.fillStyle = "white"; c.strokeStyle = "white"; c.lineWidth = 6
-        circle(32, 32, 27, true)
-        c.lineWidth = 3.5; c.strokeStyle = theme.color; c.fillStyle = theme.paper
+        // A small translucent enamel pin sits on the existing book/tablet.
+        // No oversized white disk outside the accessory silhouette.
+        c.fillStyle = theme.paper; c.strokeStyle = theme.color; c.lineWidth = 2.8
         switch (theme.id) {
         case "math":
             line([[12, 51], [12, 12], [52, 51]], true)
@@ -31,9 +30,11 @@ Canvas {
             for (let i = 0; i < 4; i++) line([[13, 20+i*8], [18, 20+i*8]], false)
             break
         case "physics":
+            c.fillStyle = theme.paper; circle(32, 32, 28, true)
+            c.globalAlpha = .82
             for (let i = 0; i < 3; i++) {
                 c.save(); c.translate(32, 32); c.rotate(i*Math.PI/3); c.scale(1, .42)
-                circle(0, 0, 25, false); c.restore()
+                circle(0, 0, 21, false); c.restore()
             }
             c.fillStyle = theme.color; circle(32, 32, 5, true); circle(52, 27, 3, true)
             break

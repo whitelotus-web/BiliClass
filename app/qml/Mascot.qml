@@ -98,8 +98,12 @@ Item {
         }
         SubjectAccessory {
             objectName: "mascotSubjectProp"; visible: mascot.themed
-            theme: mascot.theme; x: art.width * .56; y: art.height * .56
-            width: Math.max(30, art.width * .35); height: width; rotation: -8
+            theme: mascot.theme
+            x: art.width * (mascot.character === "Lumi" ? .59 : .53)
+            y: art.height * (mascot.character === "Lumi" ? .57 : .60)
+            width: art.width * .23; height: width; rotation: mascot.character === "Lumi" ? -12 : 9
+            opacity: mascot.frame === 0 || mascot.frame === 2 ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: mascot.reducedMotion ? 0 : 120 } }
         }
     }
     Rectangle {

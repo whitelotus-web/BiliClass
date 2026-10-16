@@ -7,17 +7,31 @@ ColumnLayout {
     id: page
     required property var classroom
     required property var bridge
+    signal requestClassroom()
+    readonly property var filteredSessions: classroom.sessions.filter(function(row) {
+        const query = sessionSearch.text.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d")
+        const text = [row.title, row.lesson_title, row.subject, row.grade].join(" ").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d")
+        return query.split(/\s+/).every(function(word) { return text.indexOf(word) >= 0 }) && (sessionState.currentIndex === 0 || row.status === (sessionState.currentIndex === 1 ? "active" : "ended"))
+    }).map(function(row) { return Object.assign({}, row, {display: row.title + " · " + bridge.lessonDateLabel(row.created)}) })
+    onVisibleChanged: if (visible) classroom.refreshReports()
     spacing: 17
     Label { text: "Báo cáo tiết học"; font.pixelSize: 28; font.bold: true; color: "#112650" }
+    Label { text: "Xem kết quả từ các tiết đã mở trong Lớp học. Chuyển bài giảng hoặc tạo giọng đọc không tạo báo cáo học sinh."; color: "#667997"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
     RowLayout { Layout.fillWidth: true
-        SelectBox { id: sessions; model: classroom.sessions; textRole: "title"; Layout.fillWidth: true }
-        ActionButton { text: "Xem kết quả"; iconName: "view"; enabled: classroom.sessions.length > 0; onClicked: classroom.openReport(classroom.sessions[sessions.currentIndex].id) }
+        TextField { id: sessionSearch; objectName: "reportSearch"; Layout.fillWidth: true; placeholderText: "Tìm lớp, tên bài hoặc môn… có thể gõ không dấu"; selectByMouse: true }
+        SelectBox { id: sessionState; objectName: "reportStateFilter"; model: ["Tất cả tiết học", "Đang mở", "Đã kết thúc"]; Layout.preferredWidth: 165 }
+    }
+    RowLayout { Layout.fillWidth: true
+        SelectBox { id: sessions; objectName: "reportSessionPicker"; model: page.filteredSessions; textRole: "display"; Layout.fillWidth: true; onActivated: if (currentIndex >= 0) classroom.openReport(page.filteredSessions[currentIndex].id) }
+        ActionButton { objectName: "openSelectedReport"; text: "Xem kết quả"; iconName: "view"; enabled: sessions.currentIndex >= 0 && sessions.currentIndex < page.filteredSessions.length; onClicked: classroom.openReport(page.filteredSessions[sessions.currentIndex].id) }
         ActionButton { text: "Làm mới"; iconName: "refresh"; onClicked: classroom.refreshReports() }
     }
-    Label { visible: classroom.sessions.length === 0; text: "Chưa có phiên học. Kết quả xuất hiện sau khi bắt đầu lớp và nhận phản hồi."; wrapMode: Text.WordWrap; Layout.fillWidth: true; color: "#667997" }
+    Label { objectName: "reportEmptyMessage"; visible: page.filteredSessions.length === 0; text: classroom.sessions.length === 0 ? "Chưa có tiết học. Mở Lớp học, cho học sinh tham gia và trả lời để có kết quả ở đây." : "Không có tiết phù hợp. Thử bỏ bớt từ khóa hoặc bộ lọc."; wrapMode: Text.WordWrap; Layout.fillWidth: true; color: "#667997" }
+    ActionButton { objectName: "reportGoClassroom"; visible: classroom.sessions.length === 0; text: "Mở Lớp học"; onClicked: page.requestClassroom() }
     ScrollView { Layout.fillWidth: true; Layout.fillHeight: true; contentWidth: availableWidth; clip: true
         ColumnLayout { width: parent.width; spacing: 18
             Label { text: classroom.selectedReport.title || "Chọn một phiên để xem"; font.pixelSize: 23; font.bold: true; color: "#112650"; textFormat: Text.PlainText }
+            Label { visible: !!classroom.selectedReport.id; text: (classroom.selectedReport.rounds || []).length + " lượt câu hỏi · " + (classroom.selectedReport.participants_responded || 0) + " học sinh đã trả lời"; color: "#0869f9"; Layout.fillWidth: true; wrapMode: Text.WordWrap }
             RowLayout { visible: !!classroom.selectedReport.id; Layout.fillWidth: true
                 Label { text: [classroom.selectedReport.lesson_title || "Bài không còn trong thư viện", classroom.selectedReport.subject || "", classroom.selectedReport.grade ? "Khối " + classroom.selectedReport.grade : "", classroom.selectedReport.conversion_label || "Bài đã lưu", "Bản " + (classroom.selectedReport.revision || "?")].filter(function(value) { return !!value }).join(" · "); color: "#667997"; wrapMode: Text.WordWrap; Layout.fillWidth: true; textFormat: Text.PlainText }
                 ActionButton { text: "Mở bài gốc"; enabled: !!classroom.selectedReport.lesson_id; onClicked: bridge.openLesson(classroom.selectedReport.lesson_id) }
@@ -47,13 +61,12 @@ ColumnLayout {
             Label { visible: !!classroom.selectedReport.id && (classroom.selectedReport.rounds || []).length === 0; text: "Phiên này chưa có dữ liệu kiểm tra. Không suy ra mức hiểu bài từ số lần nghe hoặc xem tiếng Việt."; wrapMode: Text.WordWrap; Layout.fillWidth: true; color: "#667997" }
         }
     }
-    RowLayout { Layout.fillWidth: true
+    Flow { Layout.fillWidth: true; spacing: 10
         ActionButton { text: "Xuất CSV"; iconName: "download"; enabled: !!classroom.selectedReport.id; onClicked: csvSave.open() }
         ActionButton { text: "CSV từng phản hồi"; iconName: "download"; enabled: !!classroom.selectedReport.id; onClicked: responsesSave.open() }
         ActionButton { text: "Xóa phiên"; iconName: "delete"; enabled: !!classroom.selectedReport.id; onClicked: deleteDialog.open() }
-        Item { Layout.fillWidth: true }
-        SelectBox { id: host; model: classroom.interfaces; textRole: "name"; visible: classroom.selectedReport.status === "active" }
-        ActionButton { text: "Mở lại phiên"; visible: classroom.selectedReport.status === "active"; enabled: !classroom.running && !classroom.busy; onClicked: classroom.start("", "anonymous", 50, classroom.interfaces[host.currentIndex].host, classroom.selectedReport.id) }
+        SelectBox { id: host; width: 185; model: classroom.interfaces; textRole: "name"; visible: classroom.selectedReport.status === "active" }
+        ActionButton { text: "Mở lại tiết học"; visible: classroom.selectedReport.status === "active"; enabled: !classroom.running && !classroom.busy && host.currentIndex >= 0 && host.currentIndex < classroom.interfaces.length; onClicked: classroom.start("", "anonymous", 50, classroom.interfaces[host.currentIndex].host, classroom.selectedReport.id) }
     }
     Label { text: classroom.message; color: "#667997"; wrapMode: Text.WordWrap; Layout.fillWidth: true; textFormat: Text.PlainText }
     FileDialog { id: responsesSave; title: "Xuất từng phản hồi"; fileMode: FileDialog.SaveFile; nameFilters: ["CSV (*.csv)"]; defaultSuffix: "csv"; onAccepted: classroom.exportResponses(selectedFile.toString()) }

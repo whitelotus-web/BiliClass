@@ -158,7 +158,7 @@ def test_multiple_voice_variants_survive_selection_reopen_and_no_voice_choice(sa
     assert len(records(current)) == 3
     badge = library.list_lessons()[0]['narration']
     assert len(badge['variants']) == 3 and all(v['ready'] for v in badge['variants'])
-    assert 'Tiếng Anh' in badge['label'] and 'Tiếng Việt' in badge['label'] and 'riêng + chung' in badge['label']
+    assert badge['label'] == 'Đã có giọng đọc: Anh · Việt · Song ngữ'
     assert library.setting('voice_options', None) is None
     assert not any(s['approved'] for s in current['segments'])
     assert current['created_at'] == lesson['created_at'] and path.read_bytes() == original

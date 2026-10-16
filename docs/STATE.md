@@ -1,5 +1,12 @@
 # Trạng thái BiliClass
 
+Ngày 16/10/2026 — RC51 thêm chọn nhiều bài, xóa vào thùng rác và tải ZIP;
+rút gọn nhãn giọng, hướng dẫn mở lớp, tìm báo cáo, thuật ngữ có lọc/phân
+trang và phụ kiện mascot nhỏ gọn. Bao gồm bước tiếp theo sau tạo giọng và
+đồng bộ key qua kho GitHub riêng tư không có mật khẩu BiliClass.
+Đang hoàn tất bộ cài đầy đủ để thay bản phát hành RC34.
+
+
 Ngày 16/10/2026 — RC50 thêm Bước tiếp theo sau giọng sẵn sàng, chọn bản
 giọng trong Chuẩn bị dạy và khóa tạo trùng đúng giọng/tốc độ; giữ chọn dùng,
 tải hoặc tạo tiếp phần thiếu. Đồng bộ version ứng dụng/bộ cài; chuẩn bị

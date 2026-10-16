@@ -1,21 +1,21 @@
 # BiliClass — Trợ lý dạy học song ngữ
 
-Hướng dẫn RC50, ngày 16/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
+Hướng dẫn RC51, ngày 16/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
 trên máy. Chuyển đổi hiện dùng Google Cloud Translation cho phần chữ và dựng
 PowerPoint tại máy; Browser ChatGPT/Gemini tạm ẩn.
 
 ## Cài và cập nhật
 
-1. Tải **BiliClass-RC50-Windows.zip** tại
-   [Release RC50](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc50).
+1. Tải **BiliClass-RC51-Windows.zip** tại
+   [Release RC51](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc51).
 2. Giải nén toàn bộ; không chạy trong cửa sổ ZIP. Chạy **Setup.cmd**.
 3. Bộ cài kiểm tra checksum và cài vào
-   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc50`, không cần quyền quản trị.
+   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc51`, không cần quyền quản trị.
 4. Mở BiliClass từ Desktop hoặc Start menu. Bản cài có model giọng, OCR và
    template; không cần thư mục runtime của máy phát triển.
 
 Máy đang dùng RC34: vào **Cài đặt → Thông tin BiliClass → Kiểm tra cập nhật**,
-chọn Cập nhật khi thấy RC50. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
+chọn Cập nhật khi thấy RC51. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
 Setup.cmd như trên. Các bản cài nằm cạnh nhau; thư viện ở
 `%LOCALAPPDATA%/BiliClass` được giữ nguyên. Không xóa thư mục dữ liệu này.
 Thư viện cá nhân không đưa lên GitHub. Key có thể nhận riêng như hướng dẫn dưới.
@@ -84,7 +84,7 @@ có thể khôi phục.
 **Lớp học** dùng khi muốn học sinh trả lời câu hỏi qua QR/địa chỉ mạng nội bộ.
 Chọn bài và câu hỏi đã duyệt, mở lớp, cho học sinh vào cùng mạng rồi mở câu
 hỏi. **Báo cáo** xem kết quả theo tiết; chỉ chuyển bài/tạo giọng chưa tạo ra
-kết quả học sinh. **Dữ liệu trợ giảng** quản lý thuật ngữ và kiến thức tham
+kết quả học sinh. **Thuật ngữ & kiến thức** quản lý thuật ngữ và kiến thức tham
 khảo; khác với mascot nổi.
 
 ## Chuyển dữ liệu giữa máy
@@ -94,3 +94,34 @@ sẻ bài/nội dung trợ giảng tùy chọn, có giới hạn kích thước 
 lại trên máy nhận. Dùng Sao lưu / Khôi phục thư viện để chuyển dữ liệu cá
 nhân; khôi phục tạo thư mục mới. Ứng dụng/model cài riêng, key nhập riêng.
 Không đưa thư viện, câu trả lời học sinh hoặc API key lên GitHub.
+
+## Chọn nhiều bài và tải từ thư viện
+
+Mỗi bài có nút **Tải**. Một bài lưu nhiều bản giọng bên trong; không tạo bản
+sao thư viện cho mỗi giọng. Dòng giọng chỉ tóm tắt Anh / Việt / Song ngữ.
+Mở bài để chọn người đọc, tốc độ và bản giọng cần dùng trước khi tải.
+
+Bấm **Chọn bài**, tích từng bài hoặc **Chọn tất cả**, rồi **Tải đã chọn**
+hoặc **Xóa đã chọn**. Chọn tất cả áp dụng cho mọi kết quả của bộ lọc, kể cả
+trang khác; đổi bộ lọc sẽ bỏ chọn. Xóa có xác nhận và đưa vào thùng rác để
+khôi phục, không xóa file PowerPoint, âm thanh hoặc báo cáo.
+
+Tải nhiều bài tạo một file ZIP, chứa PowerPoint với tên riêng và hướng dẫn
+giọng. Có thể kèm bản giọng đang chọn nếu đã tạo đủ; bài thiếu/chưa có giọng
+xuất không âm thanh. Tắt tùy chọn này để tải toàn bộ không kèm giọng. Không
+tự tạo voice trong lúc tải; lỗi sẽ giữ tệp đích cũ để thử lại.
+
+## Dạy tương tác và xem kết quả
+
+Trong **Lớp học**, chọn bài, bấm **Kiểm tra bài** để chốt bản chuẩn bị, đặt
+tên lớp/tiết, chọn mạng rồi **Bắt đầu lớp và hiện QR**. Soạn và duyệt câu
+hỏi qua nút tương ứng; chỉ câu đã duyệt được đưa vào lớp. Dạy slide/mascot
+đơn thuần không cần mở lớp. Thiết bị học sinh và giáo viên cần cùng mạng.
+
+Trong **Báo cáo**, tìm theo tên lớp/bài/môn, lọc tiết đang mở/đã kết thúc,
+chọn tiết để xem và xuất CSV. Mẫu ít hoặc chưa có câu trả lời không được
+coi là kết luận mức hiểu bài. Báo cáo giữ snapshot tiết cũ khi bài thay đổi.
+
+Trong **Thuật ngữ & kiến thức**, tab **Thuật ngữ của tôi** có tìm không dấu,
+lọc môn và phân trang. Tab **Kiến thức có nguồn** dùng để tra cứu và đưa
+từng mục vào kho riêng; không tự duyệt toàn bộ gói kiến thức.

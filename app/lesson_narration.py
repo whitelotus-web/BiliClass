@@ -57,10 +57,11 @@ def library_audio_status(lesson, directory, fallback_voices=None, *, cancel=None
         active = audio_status(lesson, directory, fallback_voices, cancel=cancel)
     ready = [v for v in variants if v['ready']]
     if ready:
-        labels = list(dict.fromkeys('Việt–Anh riêng + chung' if v['mode'] == 'both' and
-                                    records(lesson)[v['id']].get('playback') == 'both_controls'
-                                    else LABELS[v['mode']] for v in ready))
-        active = {**active, 'label': 'Giọng: ' + ' · '.join(labels), 'ready': True}
+        modes = {v['mode'] for v in ready}
+        labels = [label for mode, label in (('en', 'Anh'), ('vi', 'Việt'), ('both', 'Song ngữ')) if mode in modes]
+        active = {**active, 'label': 'Đã có giọng đọc: ' + ' · '.join(labels), 'ready': True}
+    elif not variants and active.get('status') == 'none':
+        active = {**active, 'label': 'Chưa có giọng đọc'}
     return {**active, 'variants': variants}
 
 

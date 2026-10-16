@@ -6,19 +6,31 @@ ScrollView {
     id: page
     required property var classroom
     required property var bridge
+    signal requestLibrary()
+    signal requestPreparation()
+    signal requestEditor()
+    signal requestReports()
     onVisibleChanged: if (visible) { classroom.refreshInterfaces(); if (bridge.lesson.id) bridge.refreshReadiness() }
     clip: true
     contentWidth: availableWidth
     ColumnLayout { width: page.availableWidth; spacing: 20
         Label { text: "Lớp học trực tiếp"; color: "#112650"; font.pixelSize: 28; font.bold: true }
+        Label { text: "Cho học sinh cùng mạng tham gia bằng QR và trả lời câu hỏi. Chỉ trình chiếu bài giảng thì không cần mở lớp."; color: "#667997"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+        Flow { Layout.fillWidth: true; spacing: 10
+            ActionButton { objectName: "classroomLibraryButton"; text: "1. Chọn bài"; enabled: !classroom.busy && !classroom.running; onClicked: page.requestLibrary() }
+            ActionButton { objectName: "classroomPrepareButton"; text: "2. Kiểm tra bài"; enabled: !!bridge.lesson.id && !classroom.busy && !classroom.running; onClicked: page.requestPreparation() }
+            ActionButton { objectName: "classroomQuizButton"; text: "Soạn và duyệt câu hỏi"; enabled: !!bridge.lesson.id && !classroom.busy && !classroom.running; onClicked: page.requestEditor() }
+            ActionButton { objectName: "classroomReportsButton"; text: "Xem báo cáo"; onClicked: page.requestReports() }
+        }
         Label { text: classroom.message; color: "#667997"; wrapMode: Text.WordWrap; Layout.fillWidth: true; textFormat: Text.PlainText }
         ColumnLayout { visible: !classroom.running; Layout.fillWidth: true; spacing: 13
             Label { text: bridge.lesson.title ? "Bài đã chọn: " + bridge.lesson.title + ". Chốt bản chuẩn bị trong Bài giảng trước khi mở lớp." : "Mở một bài trong Bài giảng, duyệt và chốt bản chuẩn bị rồi quay lại đây."; color: "#112650"; wrapMode: Text.WordWrap; Layout.fillWidth: true; textFormat: Text.PlainText }
             RowLayout { Layout.fillWidth: true
                 SelectBox { id: lessonPicker; model: bridge.lessons; textRole: "title"; Layout.fillWidth: true }
-                ActionButton { text: "Chọn bài"; enabled: bridge.lessons.length > 0 && lessonPicker.currentIndex >= 0; onClicked: bridge.selectLessonForClass(bridge.lessons[lessonPicker.currentIndex].id) }
+                ActionButton { text: "Chọn bài"; enabled: !classroom.busy && !bridge.narrationBusy && bridge.lessons.length > 0 && lessonPicker.currentIndex >= 0; onClicked: bridge.selectLessonForClass(bridge.lessons[lessonPicker.currentIndex].id) }
             }
             Label { visible: !!bridge.lesson.id; text: bridge.readiness.prepared_ready ? "Bản bài hiện tại đã chốt. Có thể mở lớp bằng chữ; âm thanh và quiz là tùy chọn." : "Bài này chưa chốt bản chuẩn bị hiện tại. Mở bài để duyệt và chốt trước khi dạy."; color: bridge.readiness.prepared_ready ? "#168567" : "#ad651d"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+            Label { visible: !!bridge.lesson.id; text: (bridge.lesson.questions || []).filter(function(q) { return q.approved }).length + " câu hỏi đã duyệt. Chỉ câu đã duyệt mới xuất hiện trong lớp."; color: "#667997"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
             TextField { id: title; objectName: "classTitle"; text: ""; placeholderText: "Tên lớp / tiết học, ví dụ: Lớp 11A"; maximumLength: 150; Layout.fillWidth: true }
             RowLayout { Layout.fillWidth: true
                 SelectBox { id: mode; objectName: "classMode"; model: ["Ẩn danh", "Số chỗ ngồi"]; currentIndex: bridge.classroomSettings.mode === "seat" ? 1 : 0; Layout.fillWidth: true }
@@ -30,7 +42,8 @@ ScrollView {
                 ActionButton { text: classroom.scanningInterfaces ? "Đang tìm mạng…" : "Làm mới mạng"; enabled: !classroom.scanningInterfaces; onClicked: classroom.refreshInterfaces() }
             }
             Label { text: "Chọn Wi-Fi/Ethernet mà học sinh cùng kết nối. Địa chỉ 127.0.0.1 chỉ dùng thử trên máy này. Nếu không truy cập được: kiểm tra mạng chung, Windows Firewall và chế độ cô lập thiết bị của Wi-Fi."; color: "#667997"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
-            ActionButton { text: "Bắt đầu lớp"; objectName: "startClassButton"; enabled: !classroom.busy && !classroom.scanningInterfaces && host.currentIndex >= 0 && !!bridge.lesson.id && title.text.trim() !== ""; onClicked: classroom.start(title.text, mode.currentIndex ? "seat" : "anonymous", size.value, classroom.interfaces[host.currentIndex].host, "") }
+            Label { objectName: "classroomStartHelp"; visible: !bridge.lesson.id || !bridge.readiness.prepared_ready || title.text.trim() === ""; text: !bridge.lesson.id ? "Chọn bài giảng để bắt đầu." : !bridge.readiness.prepared_ready ? "Kiểm tra và chốt bản chuẩn bị ở bước 2 trước khi mở lớp." : "Điền tên lớp hoặc tiết học, rồi bấm Bắt đầu lớp."; color: "#9c651b"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+            ActionButton { text: "3. Bắt đầu lớp và hiện QR"; objectName: "startClassButton"; primary: true; enabled: !classroom.busy && !bridge.narrationBusy && !classroom.scanningInterfaces && host.currentIndex >= 0 && host.currentIndex < classroom.interfaces.length && !!bridge.lesson.id && !!bridge.readiness.prepared_ready && title.text.trim() !== ""; onClicked: classroom.start(title.text, mode.currentIndex ? "seat" : "anonymous", size.value, classroom.interfaces[host.currentIndex].host, "") }
         }
         RowLayout { visible: classroom.running; Layout.fillWidth: true; spacing: 22
             Image { source: classroom.qrImage; Layout.preferredWidth: 180; Layout.preferredHeight: 180; fillMode: Image.PreserveAspectFit; smooth: false }

@@ -53,6 +53,6 @@ def query(rows, text='', subject='', grade='', state='', voice='', page=1, page_
     pages = max(1, math.ceil(len(selected) / page_size))
     page = max(1, min(page, pages))
     start = (page - 1) * page_size
-    return {'rows': selected[start:start + page_size], 'total': len(selected), 'all': len(rows),
+    return {'rows': selected[start:start + page_size], 'ids': [row['id'] for row in selected], 'total': len(selected), 'all': len(rows),
             'page': page, 'pages': pages, 'start': start + 1 if selected else 0,
             'end': min(start + page_size, len(selected))}
