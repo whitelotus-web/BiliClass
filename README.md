@@ -54,6 +54,6 @@ Gói có `BiliClass/BUILD_INFO.json` ghi version/commit và manifest SHA-256 đ�
 
 ## Tài liệu và phạm vi kiểm chứng
 
-[Hướng dẫn sử dụng](docs/USER_GUIDE.md) · [Thử trên hai máy](docs/TEACHER_TESTING.md) · [Bốn kiểu chuyển đổi](docs/FOUR_FORMAT_WORKFLOW.md) · [Thư viện mẫu](docs/TEMPLATE_LIBRARY.md) · [Trạng thái kỹ thuật](docs/STATE.md) · [Thành phần bên thứ ba](docs/THIRD_PARTY.md).
+[Hướng dẫn sử dụng](docs/USER_GUIDE.md) · [Thử trên hai máy](docs/TEACHER_TESTING.md) · [Bốn kiểu chuyển đổi](docs/FOUR_FORMAT_WORKFLOW.md) · [Thư viện mẫu](docs/TEMPLATE_LIBRARY.md) · [Trạng thái kỹ thuật](docs/STATE.md) · [Rà soát & kế hoạch tối ưu RC55](docs/AUDIT_OPTIMIZATION_RC55.md) · [Thành phần bên thứ ba](docs/THIRD_PARTY.md).
 
 Bản thử đã kiểm tra trên máy phát triển với Microsoft PowerPoint và Chrome. Cần thử thêm Windows sạch, máy ít RAM, máy chiếu/mạng lớp và chất lượng nhiều môn. Kiểm thử kỹ thuật không tự chứng nhận mọi bài giảng hoặc mọi tài khoản ChatGPT.

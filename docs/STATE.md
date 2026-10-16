@@ -2,8 +2,16 @@
 
 Ngày 16/10/2026 — RC55 sửa dựng mẫu bị dừng ở 55%, thêm tình trạng dịch
 và tên key ổn định; cache ảnh bìa qua tab, một nút icon đổi kiểu xem,
-bật/tắt mascot đúng nhãn và bỏ nút tạo bài trùng ở Trang chủ. Đang kiểm
-chứng và đóng gói. [Chi tiết](BUILD_RC55.md).
+bật/tắt mascot đúng nhãn và bỏ nút tạo bài trùng ở Trang chủ. Đã phát hành,
+cài/mở độc lập; RC34/RC54 nhận đúng RC55. Giữ 16 bài cũ/992 WAV và thêm
+bản khôi phục 78 slide bằng cache dịch. [Chi tiết](BUILD_RC55.md).
+
+
+Rà soát sau RC55: 869/871 test qua lượt đầu; hai fixture cũ đã cập nhật,
+18 test liên quan chạy lại qua. Bộ cài tổng hợp giọng ngoại tuyến/lớp học,
+các Qt Google/result/library/voice và phiên PowerPoint thật qua. Còn khoảng
+trống thuật ngữ ở luồng Google, chất lượng dàn công thức/hình và nợ smoke/lint.
+[Phạm vi, kết quả và kế hoạch ưu tiên](AUDIT_OPTIMIZATION_RC55.md).
 
 Ngày 16/10/2026 — RC54 thêm Danh sách / Thẻ lớn bên phải Sắp xếp,
 ảnh trang đầu thực 16:9, lưu kiểu xem và nạp ảnh ở nền. Giữ chọn bài,

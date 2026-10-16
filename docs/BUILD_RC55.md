@@ -1,6 +1,11 @@
 # RC55 — mẫu bài giảng, trạng thái dịch và thư viện, 16/10/2026
 
-Mốc nguồn đã kiểm tra, đang chuẩn bị bộ cài riêng.
+[GitHub Release RC55](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc55).
+
+- Nguồn: `9a43c4b1f4fd9b106d70eb0aef7f84eb7d802c44`.
+- ZIP: `BiliClass-RC55-Windows.zip`, 837247204 byte, 4166 tệp.
+- ZIP SHA-256: `2fafff597a0e65bcdf6bde7ffe312684f5037ad4c82fe4cc30534cf5c79defe6`.
+- EXE SHA-256: `c689afa87496547466476a9d92cfd5872f7c3affd3460708f9f756ccaba8dd93`.
 
 - Thay hai nút Danh sách/Thẻ lớn bằng một nút biểu tượng 40×40 px cạnh Sắp xếp;
   biểu tượng khớp kiểu xem hiện tại, hỗ trợ tooltip, bàn phím và tên truy cập.
@@ -32,3 +37,22 @@ Giới hạn Google được mô tả theo tài liệu chính thức:
 [quota theo dự án](https://docs.cloud.google.com/translate/quotas),
 [giá và khoản miễn phí](https://cloud.google.com/products/translate/pricing),
 [đọc quota cần quyền OAuth](https://docs.cloud.google.com/service-usage/docs/reference/rest/v1beta1/services.consumerQuotaMetrics/list).
+
+Bộ cài đã kiểm SHA-256/CRC mọi tệp trong ZIP, xác minh digest GitHub và
+manifest khi cài. EXE đã cài được thử Danh sách, Thẻ lớn, Cài đặt và Trang chủ
+ở dữ liệu dùng thử, không có PYTHONPATH nguồn; không QML warning.
+
+Đã mở độc lập qua desktop Explorer, ngoài job launcher; vẫn sống sau khi
+đóng launcher và qua 10 kiểm tra phản hồi. Shortcut Desktop/Start menu trỏ
+RC55. Bài cũ 16 bản ghi và 992 WAV giữ nguyên; thêm một bản khôi phục 78 slide
+của lượt chuyển đổi bị dừng, không gọi lại Google/không đổi bộ đếm dịch.
+Bài khôi phục vẫn cần kiểm tra trước khi dạy, không tự tạo lại giọng.
+Trình cập nhật công khai từ RC34/RC54 nhận đúng RC55, dung lượng và SHA-256.
+
+Sau phát hành đã rà soát toàn dự án: 869/871 test qua ở lượt đầu; hai fixture
+cũ đã cập nhật và 18 test liên quan chạy lại qua. EXE cài thực tổng hợp được
+WAV Anh/Việt/trộn, tốc độ/cache, lớp học WebSocket và báo cáo/sao lưu.
+Các Qt Google/result/library/voice hiện tại qua. Một Qt browser cũ chưa theo
+luồng đang bật, được ghi rõ cùng nợ lint và giới hạn chất lượng trong
+[báo cáo rà soát và kế hoạch](AUDIT_OPTIMIZATION_RC55.md). Mã chạy của bộ cài
+vẫn đúng commit ghi ở đầu; cập nhật sau đó là test/tài liệu.

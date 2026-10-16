@@ -78,15 +78,20 @@ def test_vietnamese_engine_honors_offline_when_hub_was_already_imported(tmp_path
         monkeypatch.setenv(name, "fixture")
     monkeypatch.setattr(speech, "vieneu_ready", lambda: True)
 
+    created = []
     def factory(**options):
         assert constants.HF_HUB_OFFLINE
         assert constants.HF_HUB_CACHE == str(tmp_path / "hub")
         assert options["backend"] == "onnx" and options["device"] == "cpu"
-        return object()
+        assert options['threads'] == 4
+        result = object()
+        created.append(result)
+        return result
 
     monkeypatch.setitem(sys.modules, "vieneu", SimpleNamespace(Vieneu=factory))
-    speech._vieneu_engine.cache_clear()
+    speech._cached_vieneu_engine.cache_clear()
     try:
-        speech._vieneu_engine(str(tmp_path))
+        first = speech._vieneu_engine(str(tmp_path))
+        assert speech._vieneu_engine(str(tmp_path)) is first and len(created) == 1
     finally:
-        speech._vieneu_engine.cache_clear()
+        speech._cached_vieneu_engine.cache_clear()

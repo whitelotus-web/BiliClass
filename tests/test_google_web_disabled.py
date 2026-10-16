@@ -15,15 +15,22 @@ def test_repair_of_old_web_lesson_uses_only_local_repair_in_google_mode(tmp_path
     (folder / 'browser-job.json').write_text('{"account_id":"old-account"}')
     monkeypatch.setattr(ui, 'verified_presentation', lambda *args: tmp_path / 'saved.pptx')
     monkeypatch.setattr(slide_refinement, 'repair_existing', forbidden)
-    monkeypatch.setattr(slide_repair, 'repair_and_inspect', lambda *args, **kwargs: {'local': True})
+    repaired = {'local': True, 'path': str(tmp_path / 'sources' / 'saved.pptx')}
+    calls = []
+    def local_repair(path, directory, **options):
+        calls.append((path, directory, options))
+        return repaired
+    monkeypatch.setattr(slide_repair, 'repair_and_inspect', local_repair)
     bridge = SimpleNamespace(_busy=False, _lesson={'id': 'lesson', 'revision': 1,
-        'external_deck': {'request_id': 'old-job'}}, powerpoint_worker=None,
+        'source': {'file': 'saved.pptx'}, 'external_deck': {'request_id': 'old-job'}}, powerpoint_worker=None,
         library=SimpleNamespace(directory=tmp_path), googleTranslation=True,
         _browser_ai=SimpleNamespace(store=SimpleNamespace(get=forbidden)),
         cancel_event=Event(), inform=lambda *args: None,
         launch=lambda work, complete: queued.append(work))
     ui.Bridge.repairConvertedLesson(bridge)
-    assert len(queued) == 1 and queued[0]() == {'local': True}
+    assert len(queued) == 1 and queued[0]() == repaired
+    assert calls[0][0] == tmp_path / 'sources' / 'saved.pptx'
+    assert calls[0][1] == tmp_path and calls[0][2]['source'] is None
 
 
 def test_key_save_readback_failure_preserves_the_input(monkeypatch):
