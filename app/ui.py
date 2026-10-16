@@ -636,6 +636,7 @@ class Bridge(QObject):
 
         try:
             config = validate_config(creation_config(title, subject, education, grade, mode, preset, style))
+            config['template_bookends'] = self.library.setting('template_bookends', False)
             if style == 'template' and self.customTemplate:
                 config['custom_template'] = dict(self.customTemplate)
             self._google_settings.refresh()
@@ -1079,25 +1080,63 @@ class Bridge(QObject):
     def openLocalTemplateSample(self, preset, mode):
         if self._busy or preset not in {'standard','visual','practice'} or mode not in {'parallel_columns','sentence_pairs','english_only'}:
             return
+        # Read settings on the GUI thread, never access its SQLite connection in a Job.
+        metadata = dict(self.customTemplate)
         def work():
             from .google_conversion import _template
             from threading import Event
 
             folder=self.library.directory/'temp/template-samples'
             folder.mkdir(parents=True,exist_ok=True)
-            target=folder/(preset+'-'+mode+'.pptx')
+            import hashlib
+            from . import __version__
+            from .universal_templates import asset
+            identity=json.dumps({'version':__version__,'preset':preset,'mode':mode,'custom':metadata,
+                                 'asset':hashlib.sha256(asset(preset).read_bytes()).hexdigest()},sort_keys=True)
+            fingerprint=hashlib.sha256(identity.encode()).hexdigest()[:16]
+            target=folder/(preset+'-'+mode+'-'+fingerprint+'.pptx')
+            cache=target.with_suffix('.preview.json')
+            if target.is_file() and cache.is_file():
+                try:
+                    if json.loads(cache.read_text(encoding='utf-8'))['sha256']==hashlib.sha256(target.read_bytes()).hexdigest():
+                        return str(target)
+                except (ValueError,KeyError,OSError):
+                    pass
             config={'title':'Năng lượng trong đời sống','english_title':'Energy in everyday life',
-                    'preset':preset,'conversion_format':mode,'template_version':2}
-            metadata = dict(self.customTemplate)
+                    'preset':preset,'conversion_format':mode,'template_version':3,
+                    'template_bookends':True}
             if metadata:
                 import shutil
                 from .pptx_template import stored_path
                 shutil.copyfile(stored_path(self.library.directory,metadata), folder/'template.pptx')
-                config.update(custom_template=metadata,template_roles=metadata['roles'])
-            _template(target,config,[('Bài mẫu', 'Năng lượng có thể chuyển từ dạng này sang dạng khác.\nHãy nêu một ví dụ trong đời sống.',
-                     'Energy can change from one form to another.\nGive an example from everyday life.')],Event())
+                config.update(custom_template=metadata,template_roles=metadata['roles'],template_version=2)
+            _template(target,config,[
+                ('Slide 1','Năng lượng trong đời sống','Energy in everyday life'),
+                ('Slide 2 · ý 1','Tìm hiểu năng lượng','Understanding energy'),
+                ('Slide 2 · ý 2','Năng lượng có thể chuyển từ dạng này sang dạng khác.','Energy can change from one form to another.'),
+                ('Slide 2 · ý 3','Hãy nêu một ví dụ trong đời sống.','Give an example from everyday life.'),
+                ('Slide 3 · ý 1','Cơ năng','Mechanical energy'),
+                ('Slide 3 · ý 2','E = W + K','E = W + K'),
+                ('Slide 3 · ý 3','Cơ năng bằng tổng động năng và thế năng.','Mechanical energy is the sum of kinetic and potential energy.'),
+                ('Slide 4 · ý 1','Luyện tập','Practice'),
+                ('Slide 4 · ý 2','Đơn vị năng lượng là gì?','What is the unit of energy?'),
+                ('Slide 4 · ý 3','A. Joule','A. Joule'),
+                ('Slide 4 · ý 4','B. Mét','B. Metre'),
+                ('Slide 4 · ý 5','C. Giây','C. Second'),
+                ('Slide 4 · ý 6','D. Kilôgam','D. Kilogram'),
+            ],Event())
+            cache.write_text(json.dumps({'sha256':hashlib.sha256(target.read_bytes()).hexdigest()}),encoding='utf-8')
             return str(target)
         self.launch(work,lambda path: QDesktopServices.openUrl(QUrl.fromLocalFile(path)))
+
+    @Property(bool, notify=changed)
+    def templateBookends(self):
+        return self.library.setting('template_bookends', False)
+
+    @Slot(bool)
+    def setTemplateBookends(self, value):
+        self.library.set_setting('template_bookends', value)
+        self.changed.emit()
 
     @Property('QVariantMap', notify=changed)
     def customTemplate(self):

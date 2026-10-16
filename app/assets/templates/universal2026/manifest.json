@@ -1,0 +1,319 @@
+{
+  "package": "BiliClass Universal Editable Templates 2026",
+  "version": "1.0.0",
+  "width_in": 13.333333,
+  "height_in": 7.5,
+  "aspect": "16:9",
+  "licensing": "Original graphics and shapes authored for BiliClass in this package. No third-party PPTX template elements redistributed.",
+  "notes": "Slides are layouts with generic placeholders only; never use placeholder text as course material. 4 bilingual modes and 3 grade levels supported by the host application.",
+  "themes": {
+    "CLASSROOM": {
+      "name_vi": "Chuẩn lớp học",
+      "name_en": "CLASSROOM",
+      "style": "HexaGrid / Modern Minimal",
+      "file": "PowerPoint/01_BiliClass_Chuan_Lop_Hoc.pptx",
+      "colors": {
+        "background": "#F8FAFE",
+        "text": "#163354",
+        "accent": "#3563CD",
+        "light": "#EAF1FF"
+      },
+      "slides": 23
+    },
+    "VISUAL": {
+      "name_vi": "Trực quan",
+      "name_en": "VISUAL",
+      "style": "Digital Learning / Editorial Infographic",
+      "file": "PowerPoint/02_BiliClass_Truc_Quan.pptx",
+      "colors": {
+        "background": "#F9FCFC",
+        "text": "#163E46",
+        "accent": "#008F8B",
+        "light": "#E8F8F5"
+      },
+      "slides": 23
+    },
+    "PRACTICE": {
+      "name_vi": "Luyện tập – tương tác",
+      "name_en": "PRACTICE",
+      "style": "Vibrant Flow / Playful Modern",
+      "file": "PowerPoint/03_BiliClass_Luyen_Tap_Tuong_Tac.pptx",
+      "colors": {
+        "background": "#FEFCFF",
+        "text": "#302D58",
+        "accent": "#8060CD",
+        "light": "#F6F2FD"
+      },
+      "slides": 23
+    }
+  },
+  "layouts": {
+    "COVER": {
+      "slide_number": 1,
+      "slots": [
+        "LESSON_TITLE_VI",
+        "LESSON_TITLE_EN",
+        "SUBJECT",
+        "GRADE",
+        "TEACHER"
+      ]
+    },
+    "INTRO": {
+      "slide_number": 2,
+      "slots": [
+        "INTRO_TITLE_VI",
+        "INTRO_TITLE_EN",
+        "INTRO_TEXT_VI",
+        "INTRO_TEXT_EN"
+      ]
+    },
+    "ROADMAP": {
+      "slide_number": 3,
+      "slots": [
+        "SECTION_1_VI",
+        "SECTION_1_EN",
+        "SECTION_2_VI",
+        "SECTION_2_EN",
+        "SECTION_3_VI",
+        "SECTION_3_EN"
+      ]
+    },
+    "OBJECTIVES": {
+      "slide_number": 4,
+      "slots": [
+        "OBJECTIVES_TITLE_VI",
+        "OBJECTIVES_TITLE_EN",
+        "OBJECTIVE_1_VI",
+        "OBJECTIVE_1_EN",
+        "OBJECTIVE_2_VI",
+        "OBJECTIVE_2_EN",
+        "OBJECTIVE_3_VI",
+        "OBJECTIVE_3_EN"
+      ]
+    },
+    "SECTION": {
+      "slide_number": 5,
+      "slots": [
+        "SECTION_TITLE_VI",
+        "SECTION_TITLE_EN",
+        "SECTION_NUMBER"
+      ]
+    },
+    "TITLE_ONLY": {
+      "slide_number": 6,
+      "slots": [
+        "TITLE_VI",
+        "TITLE_EN"
+      ]
+    },
+    "TWO_COLUMNS": {
+      "slide_number": 7,
+      "slots": [
+        "TITLE_VI",
+        "TITLE_EN",
+        "BODY_1_VI",
+        "BODY_1_EN",
+        "BODY_2_VI",
+        "BODY_2_EN"
+      ]
+    },
+    "STACKED": {
+      "slide_number": 8,
+      "slots": [
+        "TITLE_VI",
+        "TITLE_EN",
+        "PAIR_1_VI",
+        "PAIR_1_EN",
+        "PAIR_2_VI",
+        "PAIR_2_EN"
+      ]
+    },
+    "KEYWORD": {
+      "slide_number": 9,
+      "slots": [
+        "TITLE_VI",
+        "TITLE_EN",
+        "KEYWORD_BODY_VI_EN"
+      ]
+    },
+    "ENGLISH": {
+      "slide_number": 10,
+      "slots": [
+        "TITLE_EN",
+        "ENGLISH_BODY"
+      ]
+    },
+    "THEORY": {
+      "slide_number": 11,
+      "slots": [
+        "TITLE_VI",
+        "TITLE_EN",
+        "TEXT_VI",
+        "TEXT_EN"
+      ]
+    },
+    "IMAGE_TEXT": {
+      "slide_number": 12,
+      "slots": [
+        "TITLE_VI",
+        "TITLE_EN",
+        "IMAGE_SOURCE",
+        "CAPTION_VI",
+        "CAPTION_EN",
+        "EXPLANATION_VI",
+        "EXPLANATION_EN"
+      ]
+    },
+    "FORMULA": {
+      "slide_number": 13,
+      "slots": [
+        "TITLE_VI",
+        "TITLE_EN",
+        "FORMULA_SOURCE",
+        "EXPLANATION_VI",
+        "EXPLANATION_EN"
+      ]
+    },
+    "PROCESS": {
+      "slide_number": 14,
+      "slots": [
+        "TITLE_VI",
+        "TITLE_EN",
+        "STEP_1_VI",
+        "STEP_1_EN",
+        "STEP_2_VI",
+        "STEP_2_EN",
+        "STEP_3_VI",
+        "STEP_3_EN"
+      ]
+    },
+    "COMPARISON": {
+      "slide_number": 15,
+      "slots": [
+        "TITLE_VI",
+        "TITLE_EN",
+        "ITEM_A_VI",
+        "ITEM_A_EN",
+        "ITEM_B_VI",
+        "ITEM_B_EN"
+      ]
+    },
+    "TABLE": {
+      "slide_number": 16,
+      "slots": [
+        "TITLE_VI",
+        "TITLE_EN",
+        "TABLE_SOURCE"
+      ]
+    },
+    "GROUP_WORK": {
+      "slide_number": 17,
+      "slots": [
+        "TITLE_VI",
+        "TITLE_EN",
+        "TASK_VI",
+        "TASK_EN",
+        "TIME"
+      ]
+    },
+    "EXERCISE": {
+      "slide_number": 18,
+      "slots": [
+        "TITLE_VI",
+        "TITLE_EN",
+        "QUESTION_VI",
+        "QUESTION_EN",
+        "SOLUTION_VI",
+        "SOLUTION_EN"
+      ]
+    },
+    "QUIZ": {
+      "slide_number": 19,
+      "slots": [
+        "TITLE_VI",
+        "TITLE_EN",
+        "QUESTION_VI",
+        "QUESTION_EN",
+        "OPTION_A_VI",
+        "OPTION_A_EN",
+        "OPTION_B_VI",
+        "OPTION_B_EN",
+        "OPTION_C_VI",
+        "OPTION_C_EN",
+        "OPTION_D_VI",
+        "OPTION_D_EN"
+      ]
+    },
+    "QUIZ_REVEAL": {
+      "slide_number": 20,
+      "slots": [
+        "TITLE_VI",
+        "TITLE_EN",
+        "CORRECT_ANSWER",
+        "EXPLANATION_VI",
+        "EXPLANATION_EN"
+      ]
+    },
+    "SUMMARY": {
+      "slide_number": 21,
+      "slots": [
+        "TITLE_VI",
+        "TITLE_EN",
+        "SUMMARY_1_VI",
+        "SUMMARY_1_EN",
+        "SUMMARY_2_VI",
+        "SUMMARY_2_EN",
+        "SUMMARY_3_VI",
+        "SUMMARY_3_EN"
+      ]
+    },
+    "HOMEWORK": {
+      "slide_number": 22,
+      "slots": [
+        "TITLE_VI",
+        "TITLE_EN",
+        "HOMEWORK_VI",
+        "HOMEWORK_EN"
+      ]
+    },
+    "THANK_YOU": {
+      "slide_number": 23,
+      "slots": [
+        "THANKS_VI",
+        "THANKS_EN",
+        "FOOTER"
+      ]
+    }
+  },
+  "language_modes": [
+    "TWO_COLUMNS",
+    "STACKED",
+    "KEYWORDS",
+    "ENGLISH_ONLY"
+  ],
+  "slide_type_order": [
+    "COVER",
+    "INTRO",
+    "ROADMAP",
+    "OBJECTIVES",
+    "SECTION",
+    "TITLE_ONLY",
+    "TWO_COLUMNS",
+    "STACKED",
+    "KEYWORD",
+    "ENGLISH",
+    "THEORY",
+    "IMAGE_TEXT",
+    "FORMULA",
+    "PROCESS",
+    "COMPARISON",
+    "TABLE",
+    "GROUP_WORK",
+    "EXERCISE",
+    "QUIZ",
+    "QUIZ_REVEAL",
+    "SUMMARY",
+    "HOMEWORK",
+    "THANK_YOU"
+  ]
+}

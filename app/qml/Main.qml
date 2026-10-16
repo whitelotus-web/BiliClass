@@ -549,7 +549,7 @@ ApplicationWindow {
                                         choiceName: "creationUseTemplate"
                                         choiceGroup: designChoices
                                         label: "Tạo theo mẫu mới"
-                                        detail: "Điền chữ vào mẫu BiliClass hoặc file mẫu PowerPoint riêng tại máy; tự chia trang. Hình nguồn có trang riêng; hiệu ứng nguồn không được tái dựng."
+                                        detail: bridge.customTemplate.name ? "Điền chữ vào mẫu PowerPoint riêng tại máy, tự chia trang; hình nguồn có trang riêng. Hiệu ứng nguồn không được tái dựng." : "Dàn trang tại máy theo bộ Universal 2026. Tự chọn bố cục, giữ hình cùng nội dung; chia trang khi dài. Hiệu ứng nguồn không được tái dựng."
                                         selected: creationWorkflow.currentIndex === 1
                                         Layout.fillWidth: true; Layout.preferredWidth: 1
                                         onChosen: { root.preferredCreationDesign = 1; creationWorkflow.currentIndex = 1 }
@@ -566,6 +566,8 @@ ApplicationWindow {
                                     Action { objectName: "chooseCustomTemplateButton"; text: "Chọn mẫu PowerPoint riêng…"; enabled: !bridge.busy; onClicked: customTemplateOpen.open() }
                                     Action { objectName: "clearCustomTemplateButton"; visible: !!bridge.customTemplate.name; text: "Dùng mẫu BiliClass"; enabled: !bridge.busy; onClicked: bridge.clearCustomTemplate() }
                                 }
+                                Copy { visible: !root.creationKeepSource && !bridge.customTemplate.name; Layout.fillWidth: true; Layout.minimumWidth: 0; text: "Universal 2026 · 23 bố cục mỗi phong cách. Tự chọn theo tiêu đề, nội dung, hình, công thức, bảng hoặc câu hỏi; giữ đủ chữ và tự chia trang khi cần." }
+                                CheckBox { objectName: "templateBookends"; visible: !root.creationKeepSource && !bridge.customTemplate.name; text: "Thêm bìa và trang kết thúc"; checked: bridge.templateBookends; onToggled: bridge.setTemplateBookends(checked) }
                                 ColumnLayout { visible: !root.creationKeepSource && !!bridge.customTemplate.name; Layout.fillWidth: true; spacing: 8
                                     Copy { Layout.fillWidth: true; Layout.minimumWidth: 0; text: "Chọn số trang trong file mẫu · 0 để bỏ trang tuỳ chọn. Tool điền chữ vào ô tiêu đề/nội dung, giữ nền và hình của mẫu. Để chỉ định đúng ô, đặt tên BCL_TITLE và BCL_CONTENT trong Selection Pane của PowerPoint." }
                                     GridLayout { columns: 4; columnSpacing: 12; rowSpacing: 6; Layout.fillWidth: true

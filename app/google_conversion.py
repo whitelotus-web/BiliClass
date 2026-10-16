@@ -42,6 +42,12 @@ def prepare(directory, config, source=None, text=''):
             config['template_sha256'] = hashlib.sha256((folder / 'template.pptx').read_bytes()).hexdigest()
             if config['template_sha256'] != metadata['sha256']:
                 raise ValueError('Mẫu vừa thay đổi; chọn lại mẫu trước khi chuyển đổi.')
+        else:
+            from .universal_templates import asset, manifest
+            template = asset(config.get('preset', 'standard'))
+            shutil.copyfile(template, folder / 'template.pptx')
+            config.update(template_version=3, template_layouts=manifest()['layouts'],
+                          template_sha256=hashlib.sha256((folder / 'template.pptx').read_bytes()).hexdigest())
     config.update(source_file=target.name, source_sha256=hashlib.sha256(target.read_bytes()).hexdigest())
     (folder / 'config.json').write_text(json.dumps(config, ensure_ascii=False), encoding='utf-8')
     from .library import Library
@@ -87,6 +93,12 @@ def original_source(directory, lesson):
 
 def _template(path, config, pairs, cancel, source=None):
     """Known non-overlapping text regions; pagination keeps each pair intact."""
+    if config.get('template_version') == 3:
+        from .universal_templates import asset, build
+        template = Path(path).parent / 'template.pptx'
+        if not config.get('template_sha256'):
+            template = asset(config.get('preset', 'standard'))
+        return build(path, template, config, pairs, cancel, source)
     if config.get('template_version') == 2:
         from .pptx_template import build
         from .template_builtin import create
@@ -331,9 +343,13 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
             from pptx import Presentation
 
             from .source_deck import text_blocks
-            blocks = [(u['locator'], u['text']) for u in text_blocks(Presentation(source))]
+            if config.get('template_version') == 3:
+                from .universal_templates import source_blocks
+                blocks = source_blocks(Presentation(source))
+            else:
+                blocks = [(u['locator'], u['text']) for u in text_blocks(Presentation(source))]
             blocks.extend((f"Slide {row['slide']} · chữ trong ảnh",row['text']) for row in picture_data['rows'])
-            if not blocks:
+            if not blocks and config.get('template_version') != 3:
                 raise TranslationProblem('api_result', 'PowerPoint chỉ có ảnh/đối tượng, chưa có văn bản dịch được. Dùng nguồn có chữ chỉnh sửa được; bản gốc được giữ.')
         else:
             blocks = parse_document(source, cancelled=cancel)
@@ -342,7 +358,9 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
         units = [(locator, part) for locator, text in blocks for line in text.splitlines() if line.strip()
                  for part in chunks(line, maximum=200)]
         texts = [text for _, text in units]
-        wanted = [index for index, text in enumerate(texts) if language_of(text) != 'en']
+        from .universal_templates import needs_translation
+        wanted = [index for index, text in enumerate(texts) if language_of(text) != 'en'
+                  and (config.get('template_version') != 3 or needs_translation(text))]
         english = list(texts)
         output = translator.translate([texts[i] for i in wanted] + [config['title']], cancel, notify)
         for index, value in zip(wanted, output[:-1], strict=True):
@@ -362,7 +380,7 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
                 packed.append((locator, vi, en))
         _template(target, config, packed, cancel, source)
         config['style'] = 'template'
-        warnings.append('Mẫu mới dựng tại máy; bố cục, ghi chú và chuyển trang mờ nhẹ do BiliClass tạo. Hiệu ứng, biểu đồ và đối tượng nhúng gốc không được tái dựng trong mẫu mới.')
+        warnings.append('Mẫu mới được dàn trang tại máy. Hiệu ứng và tương tác gốc không được tái dựng. Chữ trong ảnh, nhãn biểu đồ và đối tượng nhúng cần đối chiếu với tài liệu nguồn.')
     if cancel.is_set():
         raise InterruptedError('Đã dừng; bản dịch đã được lưu.')
     from .slide_repair import repair_and_inspect
@@ -373,7 +391,7 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
     # A template frame can require stacked pairs even in the automatic
     # bilingual option. Check visible coverage, without imposing two columns
     # on a narrow teacher-supplied frame; native overflow checks still apply.
-    quality_mode = ('sentence_pairs' if not use_native and config.get('template_version') == 2
+    quality_mode = ('sentence_pairs' if not use_native and config.get('template_version') in {2,3}
                     and config['conversion_format'] == 'parallel_columns' else config['conversion_format'])
     checked=repair_and_inspect(target,directory,source=source if use_native else None,
                               mode=quality_mode,style=config['style'],cancel=cancel,

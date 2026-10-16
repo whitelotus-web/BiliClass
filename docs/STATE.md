@@ -1,5 +1,11 @@
 # Trạng thái BiliClass
 
+Ngày 16/10/2026 — RC47 tích hợp bộ Universal 2026: ba phong cách, 23 bố cục
+mỗi bộ; điền đối tượng PowerPoint tại máy, chọn layout theo nội dung, giữ ảnh
+cùng nhóm slide nguồn, chia bảng dài theo hàng và ghi chú Việt–Anh riêng.
+Bìa/trang kết thúc tuỳ chọn, xem mẫu dùng chung engine và có bộ nhớ đệm.
+[Phạm vi, giới hạn và cập nhật máy khác](UNIVERSAL_TEMPLATES_RC47.md).
+
 Ngày 16/10/2026 — RC46 tách nghe thử/lưu giọng khỏi cập nhật toàn giao diện;
 lưu cấu hình ở worker, báo thành công sau commit, huỷ câu nghe thử không phát
 muộn. Quét mạng lớp học chạy nền và dùng bản nhớ. Mascot chọn môn từ danh sách,
