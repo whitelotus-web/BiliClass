@@ -34,12 +34,7 @@ def main():
     files = {
         p.relative_to(bundle).as_posix(): file_sha256(p)
         for p in bundle_files(bundle)
-        if (
-            "models" not in p.relative_to(bundle).parts
-            or p.relative_to(bundle).parts[:2] in {
-                ("models", "vieneu-hf"), ("models", "ocr-vi-en-v1"), ("models", "ocr-vi-en-v2")
-            }
-        )
+        if distributable(p.relative_to(bundle))
     }
     (dist_root / "app-manifest.json").write_text(json.dumps({"product": "BiliClass", "version": version, "files": files}, indent=2), encoding="utf-8")
     shutil.copy2(root / "scripts/Install-BiliClass.ps1", dist_root / "Install-BiliClass.ps1")
@@ -47,6 +42,11 @@ def main():
     shutil.copy2(root / "docs/USER_GUIDE.md", dist_root / "HUONG_DAN.md")
     print(json.dumps({"application_files": len(files), "version": version, "source_commit": commit,
                       "release_folder": str(dist_root)}))
+
+
+def distributable(relative):
+    return (relative.parts[0] == '_internal' or 'models' not in relative.parts
+            or relative.parts[:2] in {('models', 'vieneu-hf'), ('models', 'ocr-vi-en-v1'), ('models', 'ocr-vi-en-v2')})
 
 
 def bundle_files(bundle):

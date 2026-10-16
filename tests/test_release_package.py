@@ -21,3 +21,10 @@ def test_source_and_package_versions_match():
     from app import __version__
     root = Path(__file__).parents[1]
     assert tomllib.loads((root/'pyproject.toml').read_text(encoding='utf-8'))['project']['version'] == __version__
+
+
+def test_native_ocr_package_models_are_not_mistaken_for_optional_downloads():
+    assert package.distributable(Path('_internal/rapidocr/models/recognizer.onnx'))
+    assert package.distributable(Path('models/ocr-vi-en-v2/recognizer.onnx'))
+    assert package.distributable(Path('models/vieneu-hf/model.gguf'))
+    assert not package.distributable(Path('models/unused-legacy-model/model.bin'))
