@@ -1,6 +1,11 @@
 # RC54 — thư viện Danh sách / Thẻ lớn, 16/10/2026
 
-Mốc nguồn đã kiểm tra, đang chuẩn bị bộ cài riêng.
+[GitHub Release RC54](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc54).
+
+- Nguồn: `9be4dde2484f92d7f9f554f778877440575e7484`.
+- ZIP: `BiliClass-RC54-Windows.zip`, 837234412 byte, 4165 tệp.
+- ZIP SHA-256: `1395e3b2e05a35625234e6ac397a3909d95dd21c14a56ec72da1e134050e90ee`.
+- EXE SHA-256: `a214702549174118a598b5b305b143ea234742222144f7170e32f234832428c1`.
 
 Thêm hai nút ngay bên phải Sắp xếp. Thẻ lớn hiển thị trang đầu thực của
 bài giảng trong khung 16:9; giữ trọn slide 4:3 bằng khoảng đệm hai bên.
@@ -27,3 +32,17 @@ bài giảng cá nhân hoặc key lên repo mã nguồn.
 Kiểm tra bộ cài phát hiện metadata NTFS có thể đổi khi PowerPoint mở
 lần đầu. Ảnh thư viện tự kiểm tra lại hash nguồn và ảnh cache một lần;
 không mở Office lần nữa và vẫn từ chối khi byte nguồn không khớp.
+
+Bộ cài đầy đủ đã kiểm tra SHA-256/CRC mọi entry ZIP và digest GitHub,
+manifest khi cài. EXE đã cài được thử Danh sách, Thẻ lớn với ảnh native
+của bài dùng thử và Cài đặt; dữ liệu riêng, không có PYTHONPATH nguồn.
+Ba ảnh bìa từ thư viện cá nhân cũng tải được; so sánh nội dung bài
+trước/sau giữ nguyên. Đây là kiểm tra xem trước, không duyệt chất lượng
+nội dung hoặc hiệu ứng của toàn bộ bài giảng.
+
+Đã mở RC54 qua desktop Explorer, ngoài job của launcher. Sau khi đóng job,
+app vẫn sống và qua 10 phép kiểm tra phản hồi. Toàn bộ 16 bản ghi bài,
+992 WAV và tùy chọn cá nhân giữ nguyên; không tự tạo lại lượt voice 354
+đoạn đã hoàn tất. Shortcut Desktop/Start menu đã trỏ RC54.
+Updater công khai từ RC34 và RC53 nhận đúng RC54, kích thước và SHA-256.
+Nguồn/tài liệu đã commit và push; runtime, model và bài cá nhân ở ngoài Git.

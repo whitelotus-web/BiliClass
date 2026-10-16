@@ -3,7 +3,8 @@
 Ngày 16/10/2026 — RC54 thêm Danh sách / Thẻ lớn bên phải Sắp xếp,
 ảnh trang đầu thực 16:9, lưu kiểu xem và nạp ảnh ở nền. Giữ chọn bài,
 tìm/lọc/tải/xóa và Trang chủ như cũ. 47 tests và hai Qt smoke qua;
-đang đóng gói mốc đã kiểm tra. [Chi tiết](BUILD_RC54.md).
+Đã phát hành, cài/mở độc lập và xác minh RC34/RC53 → RC54.
+Giữ nguyên 16 bản ghi bài và 992 WAV. [Chi tiết](BUILD_RC54.md).
 
 Ngày 16/10/2026 — RC53 bỏ chế độ Chọn bài/Xong: ô chọn từng bài và
 Chọn tất cả / Bỏ chọn / Tải đã chọn / Xóa đã chọn luôn hiện ở Thư viện.
