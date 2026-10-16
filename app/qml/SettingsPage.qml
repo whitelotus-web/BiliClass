@@ -9,6 +9,7 @@ Item {
     signal requestBackup()
     signal requestLibrary()
     signal requestLogo()
+    signal requestReference()
     property int activeTab: 0
     property string draftVoice: bridge.voiceSettings.voice
     property int draftRate: bridge.voiceSettings.rate
@@ -418,6 +419,13 @@ Item {
 
         ColumnLayout {
             visible: page.activeTab === 5; Layout.fillWidth: true; spacing: 14
+            Card { Layout.fillWidth: true
+                ColumnLayout { width: parent.width; spacing: 12
+                    Title { text: "Thuật ngữ & kiến thức · nâng cao" }
+                    Hint { text: "Thuật ngữ đã khóa được dùng khi dịch đúng môn. Mở kho khi cần sửa cách dịch hoặc tra cứu; không cần thao tác ở đây mỗi lần tạo bài."; Layout.fillWidth: true }
+                    SoftButton { objectName: "settingsReferenceButton"; text: "Quản lý thuật ngữ & kiến thức"; onClicked: page.requestReference() }
+                }
+            }
             Card { Layout.fillWidth: true
                 ColumnLayout { width: parent.width; spacing: 14
                     Title { text: "Thư viện bài giảng trên máy" }

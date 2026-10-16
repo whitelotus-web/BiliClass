@@ -309,11 +309,11 @@ ApplicationWindow {
                     ColumnLayout {
                         width: sidebarNavigation.availableWidth; spacing: 8
                         Repeater {
-                            model: [{key:"home", label:"Trang chủ", icon:"home"}, {key:"new", label:"Chuyển đổi bài giảng", icon:"bilingual"}, {key:"library", label:"Bài giảng", icon:"lessons"}, {key:"classroom", label:"Lớp học", icon:"classroom"}, {key:"reports", label:"Báo cáo", icon:"reports"}, {key:"reference", label:"Thuật ngữ & kiến thức", icon:"data"}, {key:"settings", label:"Cài đặt", icon:"settings"}]
+                            model: [{key:"home", label:"Trang chủ", icon:"home"}, {key:"new", label:"Chuyển đổi bài giảng", icon:"bilingual"}, {key:"library", label:"Bài giảng", icon:"lessons"}, {key:"classroom", label:"Lớp học", icon:"classroom"}, {key:"settings", label:"Cài đặt", icon:"settings"}]
                             delegate: Button {
                                 required property var modelData
                                 objectName: "navigation" + modelData.key
-                                readonly property bool selected: root.page === modelData.key || (modelData.key === "library" && ["editor", "result"].indexOf(root.page) >= 0) || (modelData.key === "new" && root.page === "chatgpt")
+                                readonly property bool selected: root.page === modelData.key || (modelData.key === "library" && ["editor", "result"].indexOf(root.page) >= 0) || (modelData.key === "new" && root.page === "chatgpt") || (modelData.key === "classroom" && root.page === "reports") || (modelData.key === "settings" && root.page === "reference")
                                 Layout.fillWidth: true; implicitHeight: 48; leftPadding: 14
                                 onClicked: root.go(modelData.key)
                                 background: Rectangle { radius: 10; color: parent.selected ? "#eaf3ff" : parent.hovered ? "#f4f7fc" : "transparent" }
@@ -498,7 +498,7 @@ ApplicationWindow {
                             }
                         }
                         Surface {
-                            visible: bridge.lessons.length === 0; Layout.fillWidth: true; implicitHeight: 202
+                            visible: root.page === "library" && bridge.lessons.length === 0; Layout.fillWidth: true; implicitHeight: 202
                             ColumnLayout { anchors.centerIn: parent; spacing: 13; Label { text: "Bài giảng đầu tiên bắt đầu từ đây"; color: root.ink; font.pixelSize: 19; font.weight: Font.DemiBold }
                                 Copy { text: "Tải PPTX, DOCX, PDF có văn bản, TXT hoặc dán nội dung."; Layout.alignment: Qt.AlignHCenter }
                                 Action { visible: root.page === "library"; text: "Chuyển đổi bài giảng"; primary: true; Layout.alignment: Qt.AlignHCenter; onClicked: root.go("new") } }
@@ -1189,13 +1189,13 @@ ApplicationWindow {
                     Copy { text: root.statusLabel(bridge.status) + "  ·  Tự lưu bản nháp sau khi ngừng nhập" + (root.keepSourceDesign ? "  ·  Xem bài song ngữ bằng PowerPoint" : "  ·  Xem trước hiện hỗ trợ văn bản"); font.pixelSize: 10; Layout.fillWidth: true }
                 }
 
-                ClassroomPage { objectName: "classroomPage"; anchors.fill: parent; anchors.margins: 26; visible: root.page === "classroom"; classroom: root.classroom; bridge: root.bridgeRef; onRequestLibrary: root.go("library"); onRequestPreparation: { bridge.refreshReadiness(); readinessDialog.open() } onRequestEditor: bridge.editLesson(bridge.lesson.id); onRequestReports: root.go("reports") }
+                ClassroomPage { objectName: "classroomPage"; anchors.fill: parent; anchors.margins: 26; visible: root.page === "classroom"; classroom: root.classroom; bridge: root.bridgeRef; onRequestLibrary: root.go("library"); onRequestPreparation: { bridge.refreshReadiness(); readinessDialog.open() } onRequestEditor: teachingDialog.openQuestions(); onRequestReports: root.go("reports") }
                 ReportsPage { objectName: "reportsPage"; anchors.fill: parent; anchors.margins: 26; visible: root.page === "reports"; classroom: root.classroom; bridge: root.bridgeRef; onRequestClassroom: root.go("classroom") }
 
                 ColumnLayout {
                     anchors.fill: parent; anchors.margins: 30; spacing: 16
                     visible: root.page === "reference"
-                    Heading { text: "Thuật ngữ & kiến thức" }
+                    RowLayout { Layout.fillWidth: true; Heading { text: "Thuật ngữ & kiến thức"; Layout.fillWidth: true } Action { text: "Về Cài đặt"; onClicked: { root.go("settings"); settingsPanel.activeTab = 5 } } }
                     Copy { text: "Tra cứu và quản lý nội dung đã lưu khi cần. Không cần cấu hình kho dữ liệu để chuyển đổi bài giảng."; Layout.fillWidth: true }
                     RowLayout {
                         Action { objectName: "teacherDataTab"; text: "Thuật ngữ của tôi"; primary: root.referenceTab === 0; onClicked: root.referenceTab = 0 }
@@ -1307,6 +1307,7 @@ ApplicationWindow {
                     onRequestBackup: backupOpen.open()
                     onRequestLibrary: libraryOpen.open()
                     onRequestLogo: logoOpen.open()
+                    onRequestReference: root.go("reference")
                 }
             }
             Rectangle {
@@ -1595,7 +1596,7 @@ ApplicationWindow {
 
     HelpDialog { id: helpDialog; objectName: "helpDialog" }
     CompanionWindow { id: companion; objectName: "companionWindow"; bridge: root.bridgeRef; onRequestOpenLesson: { root.showNormal(); root.raise(); root.requestActivate(); root.go(bridge.lesson.id ? "result" : "library") } }
-    TeachingDialog { id: teachingDialog; objectName: "teachingDialog"; teaching: root.teaching; bridge: root.bridgeRef }
+    TeachingDialog { id: teachingDialog; objectName: "teachingDialog"; teaching: root.teaching; bridge: root.bridgeRef; onClosed: bridge.refreshReadiness() }
     ProjectorWindow { id: projector; objectName: "projectorWindow"; bridge: root.bridgeRef }
     property var bridgeRef: bridge
     TemplateGallery {

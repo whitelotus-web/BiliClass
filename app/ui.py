@@ -1539,7 +1539,53 @@ class Bridge(QObject):
         if language not in ('en', 'vi', 'both'):
             return
         self._companion_language = language
-        self.speakSegment(language)
+        if language == 'vi':
+            self._read_visible_vietnamese()
+        else:
+            self.speakSegment(language)
+
+    @Slot(str, str)
+    def companionAsk(self, action, language):
+        if not self.companionCanRead:
+            self.inform('Mở trình chiếu của bài đã chọn để dùng trợ giảng theo slide.', refresh=False)
+            return
+        if action not in ('explanation', 'example', 'question', 'rescue'):
+            return
+        if not slide_segment_indexes(self._lesson, self._powerpoint_state.get('slide'),
+                                     self._powerpoint_source_map, self._powerpoint_segment_map):
+            self.inform('Slide này chưa gắn với nội dung trợ giảng đã chuẩn bị.', refresh=False)
+            return
+        self.followPowerPoint()
+        self.teaching.ask(action, language)
+
+    def _read_visible_vietnamese(self):
+        """Read only VI units whose English partner is currently visible."""
+        import time
+
+        from .slide_speech import speech_chunks, visible_segments
+
+        path = Path(self.powerpoint_worker.path)
+        if getattr(self, '_presentation_stamp', None) != (path.stat().st_size, path.stat().st_mtime_ns):
+            self.inform('PowerPoint đã thay đổi. Mở lại bài để cập nhật lời đọc.', True, refresh=False)
+            return
+        source = self.library.directory / 'sources' / self._lesson.get('source', {}).get('file', '')
+        data = self._lesson.get('slide_speech', {}) if path.resolve() == source.resolve() else self._session_speech
+        page = next((row for row in data.get('slides', []) if row['slide'] == self._powerpoint_state['slide']), {})
+        elapsed = time.monotonic() - self._powerpoint_state.get('build_started', time.monotonic())
+        english = {chunk for row in visible_segments(page, self._powerpoint_state.get('click_index'), elapsed)
+                   for chunk in speech_chunks(row['english_text'])}
+        texts = []
+        for index in slide_segment_indexes(self._lesson, self._powerpoint_state['slide'], self._powerpoint_source_map, self._powerpoint_segment_map):
+            unit = self._lesson['segments'][index]
+            partner = speech_chunks(unit.get('en', ''))
+            if partner and set(partner) <= english:
+                texts.extend(speech_chunks(unit.get('vi', '')))
+        voice = self._lesson_voice_settings()
+        self.stopSpeech()
+        if texts and voice.get('vi'):
+            self.english_reader.start(texts, voice['vi'], voice['rate'])
+        else:
+            self.inform('Slide chưa có lời Việt gắn với phần đang hiện đã xác minh.', refresh=False)
 
     @Slot()
     def replayCompanion(self):

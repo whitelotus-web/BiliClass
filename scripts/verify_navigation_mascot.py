@@ -78,7 +78,7 @@ def main():
         explain_center = explain.mapToScene(QPointF(explain.width() / 2, explain.height() / 2)).toPoint()
         QTest.mouseClick(companion, Qt.LeftButton, pos=explain_center)
         pump(200)
-        assert companion.property("hasResponse") and "duyệt" in bridge.teaching.response["text"]
+        assert not explain.isEnabled() and not companion.property("hasResponse"), "Teaching controls require the matching slideshow"
         assert companion.grabWindow().save(str(reports / "mascot-menu-response.png"))
         extent = companion.property("mascotExtent")
         expanded_center = QPoint(companion.width() - extent // 2, companion.height() - extent // 2)

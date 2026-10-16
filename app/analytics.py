@@ -42,6 +42,7 @@ def report(directory, session_id):
         if not session:
             raise ValueError("Không tìm thấy phiên học.")
         lesson = json.loads(session["lesson"])
+        joined = conn.execute('SELECT count(*) FROM participants WHERE session_id=?', (session_id,)).fetchone()[0]
         rounds, concepts, participants, language_items = [], {}, set(), []
         for row in conn.execute("SELECT * FROM rounds WHERE session_id=? ORDER BY opened", (session_id,)):
             question = json.loads(row["question"])
@@ -96,7 +97,7 @@ def report(directory, session_id):
         conversion_label = next((method["label"] for method in FORMATS if method["id"] == lesson.get("conversion_format")), "Bài đã lưu · cấu hình cũ")
         language_summary = compare_languages(language_items, lesson["level"])
         return {"id": session_id, "title": session["title"], "status": session["status"], "rounds": rounds, "concepts": bars,
-                "comparisons": comparisons, "participants_responded": len(participants),
+                "comparisons": comparisons, "participants_responded": len(participants), 'participants_joined': joined,
                 "lesson_id": lesson.get("id", ""), "lesson_title": lesson.get("title", ""),
                 "subject": lesson.get("subject", ""), "grade": lesson.get("grade", ""),
                 "revision": lesson.get("revision", 0), "level": lesson["level"],

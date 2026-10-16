@@ -68,10 +68,13 @@ def main():
             pump()
 
         pump()
-        assert find("navigationreference")
+        assert find("navigationreference") is None
         assert find("navigationglossary") is None
         assert find("navigationknowledge") is None
-        click("navigationreference")
+        window.setProperty("page", "settings")
+        control("settingsPage").setProperty("activeTab", 5)
+        pump()
+        click("settingsReferenceButton")
         assert window.property("page") == "reference"
         assert any(term["vi"] == "cấp số cộng" for term in bridge.terms)
         click("foundationDataTab")
@@ -84,8 +87,8 @@ def main():
         checks.append("one data menu, both reference tabs, teacher data preserved and old route retained")
         window.setProperty("page", "new")
         pump()
-        assert control("creationFormat").property("count") == 4
-        checks.append("new conversion has exactly four methods")
+        assert control("creationFormat").property("count") == len(bridge.conversionFormats)
+        checks.append("conversion methods match the active provider")
         bridge.openLesson(lesson["id"])
         window.setProperty("page", "editor")
         pump()

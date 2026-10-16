@@ -2,6 +2,7 @@
 
 import base64
 import io
+import ipaddress
 import socket
 
 import psutil
@@ -39,8 +40,9 @@ class ClassroomBridge(QObject):
         self.worker = None
         self._result = None
         self._pending = None
-        self._message = "Chọn bài đã duyệt để bắt đầu lớp."
+        self._message = "Chọn bài, kiểm tra câu hỏi rồi mở QR cho học sinh."
         self._network_notice = ""
+        self._action_busy = False
         self._state = {}
         self._url = self._qr = ""
         self._report = {}
@@ -67,7 +69,17 @@ class ClassroomBridge(QObject):
                     result.append({"name": f"{name} · {address.address}", "host": address.address})
         if not any(r["host"] == "127.0.0.1" for r in result):
             result.append({"name": "Chỉ thử trên máy · 127.0.0.1", "host": "127.0.0.1"})
-        return result
+        return sorted(result, key=lambda row: (row['host'] == '127.0.0.1',
+                      any(word in row['name'].lower() for word in ('virtual', 'vmware', 'vethernet', 'vpn')), row['name']))
+
+    @Property(str, notify=interfacesChanged)
+    def preferredHost(self):
+        saved = self.bridge.library.setting('classroom_host', '')
+        return saved if any(row['host'] == saved for row in self._interfaces) else self._interfaces[0]['host']
+
+    @Property(bool, notify=changed)
+    def actionBusy(self):
+        return self._action_busy or self._pending is not None or self.bridge.busy
 
     @Property(bool, notify=interfacesChanged)
     def scanningInterfaces(self):
@@ -164,6 +176,12 @@ class ClassroomBridge(QObject):
         self.runtime = runtime
         self._message = "Đang mở lớp…"
         def created(info):
+            if info.get('error'):
+                runtime.stop()
+                self.runtime = None
+                self._message = 'Chưa mở được lớp: ' + info['error'] + ' Kiểm tra mạng đã chọn rồi thử lại.'
+                self.changed.emit()
+                return
             import qrcode
             self._url = f"http://{info['host']}:{info['port']}/#join={info['join']}&session={info['session_id']}"
             stream = io.BytesIO()
@@ -172,21 +190,36 @@ class ClassroomBridge(QObject):
             self._state = runtime.request()
             self._network_notice = ("Địa chỉ lớp đã đổi. Phát QR mới; học sinh dùng mã khôi phục cá nhân để vào lại đúng chỗ. "
                                     if info.get("network_changed") else "")
-            self._message = self._network_notice + "Lớp đã mở. Học sinh dùng cùng Wi-Fi và quét QR."
+            local = ipaddress.ip_address(info['host']).is_loopback
+            self._message = self._network_notice + ("Lớp thử trên máy này. Điện thoại chưa truy cập được địa chỉ 127.0.0.1."
+                             if local else "Lớp đã mở. Học sinh dùng cùng Wi-Fi và quét QR.")
+            self.bridge.library.set_setting('classroom_host', info['host'])
+            self.interfacesChanged.emit()
             self.timer.start()
             self.refreshReports()
             self.changed.emit()
-        self.bridge.launch(lambda: runtime.start(current, {"title": title, "mode": mode, "size": size, "host": host, "resume": resume}), created)
+        def launch():
+            try:
+                return runtime.start(current, {"title": title, "mode": mode, "size": size, "host": host, "resume": resume})
+            except Exception as exc:
+                return {'error': str(exc)}
+        self.bridge.launch(launch, created)
         self.changed.emit()
 
     @Slot()
     def poll(self):
+        if self.runtime and not self.running:
+            self.timer.stop()
+            self._message = 'Máy chủ đã dừng. Mở Kết quả lớp học để tiếp tục tiết chưa kết thúc.'
+            self.changed.emit()
+            return
         if not self.running or self.worker or self.bridge.busy:
             return
         self._begin_request(None)
 
     def _begin_request(self, payload):
         self._result = None
+        self._action_busy = payload is not None
         self.worker = NetworkJob(lambda: self.runtime.request(payload), self)
         self.worker.result.connect(self._receive)
         self.worker.finished.connect(self._finish)
@@ -207,9 +240,10 @@ class ClassroomBridge(QObject):
         else:
             self._state = result
             self._message = (self._network_notice + "Đang cập nhật phản hồi của lớp." if result["status"] == "active"
-                             else "Tiết học đã kết thúc. Xem kết quả trong Báo cáo.")
+                             else "Tiết học đã kết thúc. Bấm Kết quả lớp học để xem.")
         self.worker.deleteLater()
         self.worker = None
+        self._action_busy = False
         self.changed.emit()
         if self._pending is not None:
             payload, self._pending = self._pending, None
@@ -217,6 +251,7 @@ class ClassroomBridge(QObject):
         if result and result["status"] == "ended":
             self.timer.stop()
             self.refreshReports()
+            self.openReport(result['session_id'])
 
     @Slot(str, int, str, bool)
     def openQuestion(self, question_id, duration, language, recheck):
@@ -243,6 +278,7 @@ class ClassroomBridge(QObject):
     def disconnect(self):
         self.timer.stop()
         self._pending = None
+        self._action_busy = False
         if self.worker:
             self.worker.wait(4000)
             self.worker.result.disconnect(self._receive)

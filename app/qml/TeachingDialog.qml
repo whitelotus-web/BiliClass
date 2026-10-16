@@ -17,6 +17,7 @@ Dialog {
     readonly property var kinds: ["explanation", "easy_en", "example", "prompt", "question", "rescue", "vocabulary"]
     function clearItem() { itemId = ""; itemVi.text = ""; itemEn.text = ""; itemReview.checked = false }
     function clearQuestion() { questionId = ""; qVi.text = ""; qEn.text = ""; options.text = ""; rationale.text = ""; qReview.checked = false; conceptLabel.text = ""; pairGroup.text = ""; rationaleEn.text = "" }
+    function openQuestions() { open(); tabs.currentIndex = 1 }
     onOpened: { clearItem(); clearQuestion() }
     contentItem: ColumnLayout {
         spacing: 12

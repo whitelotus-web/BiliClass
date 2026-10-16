@@ -91,6 +91,7 @@ def test_deadline_server_clock_and_report_denominators(classroom, tmp_path):
     store.submit(session, one["token"], {"round_id": round_id, "answer": "B", "submission_id": "one"})
     store.transition(session, "close")
     data = report(tmp_path, session)
+    assert data['participants_joined'] == 2 and data['participants_responded'] == 1
     assert data["rounds"][0]["eligible"] == 2
     assert data["rounds"][0]["answered"] == 1 and data["rounds"][0]["percent"] == 0
     assert data["rounds"][0]["participation"] == 50 and data["concepts"][0]["tone"] == "gray"

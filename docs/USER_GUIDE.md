@@ -1,21 +1,21 @@
 # BiliClass — Trợ lý dạy học song ngữ
 
-Hướng dẫn RC56, ngày 17/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
+Hướng dẫn RC57, ngày 17/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
 trên máy. Chuyển đổi hiện dùng Google Cloud Translation cho phần chữ và dựng
 PowerPoint tại máy; Browser ChatGPT/Gemini tạm ẩn.
 
 ## Cài và cập nhật
 
-1. Tải **BiliClass-RC56-Windows.zip** tại
-   [Release RC56](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc56).
+1. Tải **BiliClass-RC57-Windows.zip** tại
+   [Release RC57](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc57).
 2. Giải nén toàn bộ; không chạy trong cửa sổ ZIP. Chạy **Setup.cmd**.
 3. Bộ cài kiểm tra checksum và cài vào
-   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc56`, không cần quyền quản trị.
+   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc57`, không cần quyền quản trị.
 4. Mở BiliClass từ Desktop hoặc Start menu. Bản cài có model giọng, OCR và
    template; không cần thư mục runtime của máy phát triển.
 
 Máy đang dùng RC34: vào **Cài đặt → Thông tin BiliClass → Kiểm tra cập nhật**,
-chọn Cập nhật khi thấy RC56. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
+chọn Cập nhật khi thấy RC57. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
 Setup.cmd như trên. Các bản cài nằm cạnh nhau; thư viện ở
 `%LOCALAPPDATA%/BiliClass` được giữ nguyên. Không xóa thư mục dữ liệu này.
 Thư viện cá nhân không đưa lên GitHub. Key có thể nhận riêng như hướng dẫn dưới.
@@ -41,7 +41,7 @@ giữa các mục vẫn giữ tài liệu/cấu hình đang nhập ở mục Chu
 Trang chủ có hướng dẫn bốn bước, bài vừa cập nhật và tình trạng ứng dụng;
 bấm **Chi tiết** để xem thống kê dịch cục bộ.
 
-Trong **Thuật ngữ & kiến thức**, thuật ngữ đã khóa của đúng môn được ưu tiên
+Trong **Cài đặt → Dữ liệu → Quản lý thuật ngữ & kiến thức**, thuật ngữ đã khóa của đúng môn được ưu tiên
 khi dịch Google. Đổi thuật ngữ làm mới riêng cache của câu có dùng từ đó;
 các câu không liên quan vẫn dùng lại bản dịch cũ. Thuật ngữ chưa khóa và
 kiến thức tham khảo không tự ghi đè bản dịch.
@@ -161,16 +161,16 @@ tự tạo voice trong lúc tải; lỗi sẽ giữ tệp đích cũ để thử
 
 ## Dạy tương tác và xem kết quả
 
-Trong **Lớp học**, chọn bài, bấm **Kiểm tra bài** để chốt bản chuẩn bị, đặt
-tên lớp/tiết, chọn mạng rồi **Bắt đầu lớp và hiện QR**. Soạn và duyệt câu
+Trong **Lớp học**, chọn bài, bấm **Kiểm tra và chốt bài** để chốt bản chuẩn bị, đặt
+tên lớp/tiết, chọn mạng rồi **Mở lớp · Hiện QR**. Soạn và duyệt câu
 hỏi qua nút tương ứng; chỉ câu đã duyệt được đưa vào lớp. Dạy slide/mascot
 đơn thuần không cần mở lớp. Thiết bị học sinh và giáo viên cần cùng mạng.
 
-Trong **Báo cáo**, tìm theo tên lớp/bài/môn, lọc tiết đang mở/đã kết thúc,
+Trong **Lớp học → Kết quả lớp học**, tìm theo tên lớp/bài/môn, lọc tiết đang mở/đã kết thúc,
 chọn tiết để xem và xuất CSV. Mẫu ít hoặc chưa có câu trả lời không được
 coi là kết luận mức hiểu bài. Báo cáo giữ snapshot tiết cũ khi bài thay đổi.
 
-Trong **Thuật ngữ & kiến thức**, tab **Thuật ngữ của tôi** có tìm không dấu,
+Trong **Cài đặt → Dữ liệu → Quản lý thuật ngữ & kiến thức**, tab **Thuật ngữ của tôi** có tìm không dấu,
 lọc môn và phân trang. Tab **Kiến thức có nguồn** dùng để tra cứu và đưa
 từng mục vào kho riêng; không tự duyệt toàn bộ gói kiến thức.
 
@@ -183,3 +183,8 @@ yêu cầu xác nhận số bài, xóa bản ghi và lịch sử chỉnh sửa; 
 được từ thùng rác. Báo cáo lớp, bản sao lưu và tệp nguồn/âm thanh dùng chung
 được giữ lại. Tác vụ nhóm chỉ thực hiện khi tất cả bài vẫn còn trong thùng
 rác; danh sách đổi hoặc còn tiết học đang mở thì báo lỗi để chọn lại.
+
+## Hướng dẫn chi tiết lớp học và mascot
+
+Xem [Lớp học, kết quả, thuật ngữ và mascot RC57](CLASSROOM_MASCOT_RC57.md):
+quy trình sử dụng, điều kiện mạng, cách lưu/kết nối lại và các giới hạn đã kiểm.

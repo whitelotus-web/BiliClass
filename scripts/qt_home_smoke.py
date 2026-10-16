@@ -24,7 +24,7 @@ def main():
     app = QGuiApplication([])
     configure_application(app)
     QQuickStyle.setStyle('Basic')
-    report = Path('reports/rc56/home')
+    report = Path('reports/rc57/home')
     report.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='biliclass-home-', ignore_cleanup_errors=True) as folder:
         library = Library(Path(folder))
@@ -48,7 +48,7 @@ def main():
                 window.resize(width, height)
                 c('libraryHomeScroll').property('contentItem').setProperty('contentY', 0)
                 pump(250)
-                for name in ('homeWelcomeHero', 'homeContinueWork', 'homeWorkflow'):
+                for name in ('homeWelcomeHero', 'homeContinueWork', 'homeLibrarySummary'):
                     item = c(name)
                     point = item.mapToScene(QPointF())
                     assert point.x() >= 0 and point.x()+item.width() <= width, name
@@ -79,6 +79,14 @@ def main():
             assert not c('homeTranslationUsage').isVisible()
             click(window, c('homeGoogleSettings'))
             assert window.property('page') == 'settings' and c('settingsPage').property('activeTab') == 6
+            lesson = library.create('Hệ điều hành', 'Tin học', 'THPT', '11', [('Slide 1', 'Hệ điều hành quản lý tài nguyên.')])
+            bridge.selectLessonForClass(lesson['id'])
+            window.setProperty('page', 'home')
+            pump(200)
+            assert c('homeFeaturedTitle').property('text') == 'Hệ điều hành'
+            assert c('homeContinueWork').property('text') == 'Mở bài giảng'
+            c('libraryHomeScroll').property('contentItem').setProperty('contentY', 0)
+            assert window.grabWindow().save(str(report/'home-with-lesson.png'))
             assert not warnings, warnings
             result = {'status': 'passed', 'qml_warnings': warnings,
                       'checks': ['1080/1366 layout', 'separate conversion navigation before library',

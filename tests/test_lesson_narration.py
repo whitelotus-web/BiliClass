@@ -273,6 +273,71 @@ def test_companion_cannot_read_without_live_matching_presentation_and_stops_on_c
         bridge.narration_preparation.shutdown(); bridge.english_reader.shutdown(); bridge.browserAI.shutdown()
 
 
+def test_companion_vietnamese_skips_hidden_partner_and_changed_file(saved, monkeypatch):
+    from types import SimpleNamespace
+
+    app = QCoreApplication.instance() or QCoreApplication([])
+    library, lesson, _ = saved
+    bridge = Bridge(library)
+    path = library.directory / 'sources' / lesson['source']['file']
+    bridge._lesson = lesson
+    bridge.powerpoint_worker = SimpleNamespace(path=str(path))
+    bridge._powerpoint_lesson_id = lesson['id']
+    bridge._powerpoint_state = {'active': True, 'slide': 1, 'total': 1, 'click_index': 0}
+    bridge._presentation_stamp = (path.stat().st_size, path.stat().st_mtime_ns)
+    page = lesson['slide_speech']['slides'][0]
+    for item in page['englishSpeechSegments']:
+        item['visibility'] = {'kind': 'click', 'show_after': 1, 'hide_after': None, 'settle_seconds': 0}
+    calls = []
+    monkeypatch.setattr(bridge, '_lesson_voice_settings', lambda: VOICES)
+    monkeypatch.setattr(bridge.english_reader, 'start', lambda *args: calls.append(args))
+    try:
+        bridge.companionRead('vi')
+        assert not calls
+        bridge._powerpoint_state['click_index'] = 1
+        bridge.companionRead('vi')
+        assert calls and calls[0][0] == ['Năng lượng được bảo toàn.']
+        bridge._presentation_stamp = (0, 0)
+        bridge.companionRead('vi')
+        assert len(calls) == 1
+    finally:
+        bridge.powerpoint_worker = None
+        bridge.narration_preparation.shutdown()
+        bridge.english_reader.shutdown()
+        bridge.browserAI.shutdown()
+
+
+def test_companion_assistance_refuses_missing_or_wrong_presentation(saved, monkeypatch):
+    from types import SimpleNamespace
+
+    app = QCoreApplication.instance() or QCoreApplication([])
+    library, lesson, path = saved
+    bridge = Bridge(library)
+    bridge._lesson = lesson
+    calls = []
+    monkeypatch.setattr(bridge.teaching, 'ask', lambda *args: calls.append(args))
+    try:
+        bridge.companionAsk('explanation', 'en')
+        assert not calls
+        bridge.powerpoint_worker = SimpleNamespace(path=str(path))
+        bridge._powerpoint_lesson_id = 'another-lesson'
+        bridge._powerpoint_state = {'active': True, 'slide': 1, 'total': 2}
+        bridge.companionAsk('explanation', 'en')
+        assert not calls
+        bridge._powerpoint_lesson_id = lesson['id']
+        bridge._powerpoint_state['slide'] = 2
+        bridge.companionAsk('explanation', 'en')
+        assert not calls
+        bridge._powerpoint_state['slide'] = 1
+        bridge.companionAsk('explanation', 'en')
+        assert calls == [('explanation', 'en')]
+    finally:
+        bridge.powerpoint_worker = None
+        bridge.narration_preparation.shutdown()
+        bridge.english_reader.shutdown()
+        bridge.browserAI.shutdown()
+
+
 def test_creation_choices_lock_only_the_exact_completed_product(saved):
     from app.lesson_narration import creation_choices, variant_statuses
 
