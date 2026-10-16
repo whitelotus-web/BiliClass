@@ -85,7 +85,13 @@ class CoverJob(QThread):
                 if self.cancel.is_set():
                     return
                 try:
-                    image = session.render(lesson, result, 1, neighbours=False)
+                    try:
+                        image = session.render(lesson, result, 1, neighbours=False)
+                    except ValueError:
+                        # Office can change NTFS metadata on first open. Recheck
+                        # the exact deck and PNG hashes before accepting its
+                        # existing render; changed source bytes still fail.
+                        image = PreviewSession(self.directory).render(lesson, result, 1, cached_only=True)
                     self.publish(key, cover_image(image, self.directory))
                 except Exception:
                     self.publish(key)

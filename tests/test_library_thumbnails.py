@@ -4,7 +4,7 @@ from PIL import Image
 from PySide6.QtCore import QCoreApplication, QObject, QUrl
 
 from app.library import Library
-from app.library_thumbnails import LibraryThumbnails, cover_image
+from app.library_thumbnails import CoverJob, LibraryThumbnails, cover_image
 from test_library_catalog import pump_until
 
 
@@ -69,3 +69,30 @@ def test_queue_is_lazy_background_revision_scoped_and_does_not_edit_lessons(tmp_
         assert not covers.images[second['id']]['image'] and not covers.images[second['id']]['loading']
     finally:
         release.set(); covers.shutdown(); app.processEvents(); library.close()
+
+
+def test_first_open_metadata_change_rechecks_verified_cache_without_reopening_office(tmp_path, monkeypatch):
+    app = QCoreApplication.instance() or QCoreApplication([])
+    library = Library(tmp_path)
+    lesson = library.create('Một', 'Toán', 'THCS', '6', [('Slide 1', 'Một')])
+    image = tmp_path / 'slide.png'; Image.new('RGB', (320, 180), 'blue').save(image)
+    monkeypatch.setattr('app.quick_conversion.build_preview', lambda *_: {})
+    calls = []
+
+    def render(session, lesson, result, number, **options):
+        calls.append(options)
+        if len(calls) == 1:
+            raise LookupError('No cached image')
+        if len(calls) == 2:
+            raise ValueError('NTFS metadata changed during first Office open')
+        assert options == {'cached_only': True}, 'Retry must verify cache, never render again'
+        return str(image)
+
+    monkeypatch.setattr('app.slide_preview.PreviewSession.render', render)
+    owner = QObject(); job = CoverJob(tmp_path, [(lesson['id'], lesson['revision'])], owner)
+    results = []; job.ready.connect(results.append)
+    try:
+        job.run()
+        assert len(calls) == 3 and len(results) == 1 and results[0][1]
+    finally:
+        job.deleteLater(); app.processEvents(); library.close()

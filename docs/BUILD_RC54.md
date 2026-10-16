@@ -14,7 +14,7 @@ hủy hàng chờ cũ; không mở/chọn bài hay sửa nội dung bài khi t�
 Không có PowerPoint hoặc chưa tạo được bản trình chiếu thì hiện trạng
 thái chưa có ảnh; bài vẫn có thể mở từ thẻ.
 
-46 kiểm thử liên quan qua. Qt dùng 24 bài thử kiểm tra chọn/tải/xóa,
+47 kiểm thử liên quan qua. Qt dùng 24 bài thử kiểm tra chọn/tải/xóa,
 thùng rác, lớp học/báo cáo/thuật ngữ và toolbar một hàng ở 2 kích thước.
 Qt riêng cho kiểu xem xuất ảnh bằng PowerPoint thật của 3 bài dùng thử;
 xác minh 16:9, 2/3 cột, vị trí nút sau Sắp xếp, lưu lựa chọn, giữ các ID
@@ -23,3 +23,7 @@ xác minh 16:9, 2/3 cột, vị trí nút sau Sắp xếp, lưu lựa chọn, gi
 Runtime/model không đổi từ bộ đã kiểm tra ở RC51. Không chạy lại
 inference giọng/OCR cho thay đổi thư viện này. Không gửi thư viện,
 bài giảng cá nhân hoặc key lên repo mã nguồn.
+
+Kiểm tra bộ cài phát hiện metadata NTFS có thể đổi khi PowerPoint mở
+lần đầu. Ảnh thư viện tự kiểm tra lại hash nguồn và ảnh cache một lần;
+không mở Office lần nữa và vẫn từ chối khi byte nguồn không khớp.
