@@ -10,6 +10,8 @@ import tempfile
 import time
 import wave
 from pathlib import Path
+from threading import Event
+from unittest.mock import patch
 
 from PIL import Image
 from pptx import Presentation
@@ -169,6 +171,14 @@ def main():
                 assert item.isVisible()
             scroll = c('resultScroll')
             assert scroll.property('contentWidth') <= scroll.width()
+            status=c('resultSaveStatus');download=c('downloadPresentationButton')
+            status_center=status.mapToScene(QPointF(0,status.height()/2)).y()
+            action_center=download.mapToScene(QPointF(0,download.height()/2)).y()
+            assert abs(status_center-action_center)<=1, (width,status_center,action_center)
+            nav=c('resultSlideNavigation');counter=c('resultSlideCounter')
+            nav_center=nav.mapToScene(QPointF(nav.width()/2,0)).x()
+            counter_center=counter.mapToScene(QPointF(counter.width()/2,0)).x()
+            assert abs(nav_center-counter_center)<=1, (width,nav_center,counter_center)
             responsive.append([width, height])
             assert window.grabWindow().save(str(reports / ('result-' + str(width) + '.png')))
 
@@ -196,6 +206,27 @@ def main():
         assert rendered == [2, 3], rendered
         assert len(beats) >= 8
         timer.stop()
+        # A real worker remains blocked inside synthesis. The visible clock must
+        # continue even though it cannot emit chunk progress during this call.
+        entered,release=Event(),Event()
+        def held_synthesis(*args):
+            entered.set()
+            assert release.wait(10)
+            raise InterruptedError('Disposable cancellation fixture')
+        with patch('app.speech.synthesize_background',side_effect=held_synthesis):
+            bridge.createLessonNarration('en')
+            until(entered.is_set)
+            pump(1250)
+            elapsed=bridge.narrationClock.elapsedSeconds
+            assert elapsed>=1 and bridge.lessonNarration['complete']==0
+            label=c('lessonNarrationElapsed')
+            assert label.isVisible() and '00:00:00' not in label.property('text')
+            bridge.cancelLessonNarration();release.set()
+            until(lambda: bridge.narration_preparation.worker is None)
+            frozen=bridge.narrationClock.elapsedSeconds
+            pump(1100)
+            assert bridge.narrationClock.elapsedSeconds==frozen
+            assert not bridge.narration_preparation.clock.isActive()
         narration = []
         bridge.narration_preparation.start = lambda *args: narration.append(args)
         assert c("createLessonNarrationButton").isEnabled()
@@ -282,6 +313,10 @@ Window { visible: true; width: 700; height: 470; color: "#f3f7fc"
             "status": "passed",
             "qml_warnings": warnings,
             "responsive_result_sizes": responsive,
+            "status_and_actions_same_row":True,
+            "slide_navigation_centered":True,
+            "narration_clock_ticks_without_chunk_progress":True,
+            "narration_clock_freezes_after_cancel":True,
             "custom_template_roles": "passed",
             "queued_pages_rendered": rendered,
             "ui_ticks_while_previewing": len(beats),

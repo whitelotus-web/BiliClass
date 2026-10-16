@@ -7,10 +7,33 @@ from uuid import uuid4
 
 import numpy as np
 import pytest
+from threading import Event, Thread
 from threadpoolctl import threadpool_info
 
 from app import speech
 from app.voice_threads import _blas_controls, blas_budget
+
+
+def test_overlapping_inference_keeps_shared_blas_limit_until_both_finish():
+    before=pool_snapshot()
+    first,second,release_first,release_second=Event(),Event(),Event(),Event()
+    errors=[]
+    def worker(entered,release):
+        try:
+            with blas_budget():
+                entered.set();assert release.wait(5)
+                assert all(p['num_threads']==1 for p in pool_snapshot() if p['user_api']=='blas')
+        except BaseException as exc:errors.append(exc)
+    a=Thread(target=worker,args=(first,release_first));b=Thread(target=worker,args=(second,release_second))
+    a.start()
+    try:
+        assert first.wait(5);b.start();assert second.wait(5)
+        release_first.set();a.join(5)
+        assert all(p['num_threads']==1 for p in pool_snapshot() if p['user_api']=='blas')
+    finally:
+        release_first.set();release_second.set();a.join(5)
+        if b.ident:b.join(5)
+    assert not errors and not b.is_alive() and pool_snapshot()==before
 
 
 def pool_snapshot():

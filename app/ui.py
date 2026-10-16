@@ -844,6 +844,11 @@ class Bridge(QObject):
         state = self.narration_preparation.state
         return state if state.get("lesson_id") == self._lesson.get("id") else {}
 
+    @Property(QObject, constant=True)
+    def narrationClock(self):
+        # Timer updates must not rescan hundreds of WAVs or refresh the library.
+        return self.narration_preparation
+
     @Slot()
     def _pause_narration(self):
         self.narration_preparation.pause(self._busy or self._speaking

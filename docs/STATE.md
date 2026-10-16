@@ -1,5 +1,11 @@
 # Trạng thái BiliClass
 
+Ngày 16/10/2026 — RC48 thêm đồng hồ tạo giọng với tín hiệu riêng, đưa nút
+dạy/tải cạnh trạng thái và căn giữa điều hướng slide. Bài dài trên máy đủ
+CPU/RAM dùng tối đa hai model VieNeu, có dùng lại cache và quay về tuần tự
+khi model phụ lỗi. Mẫu đo sau nạp model giảm khoảng 14,2%; không coi đây là
+cam kết cho toàn bộ bài. [Phạm vi và kiểm chứng](VOICE_PROGRESS_RC48.md).
+
 Ngày 16/10/2026 — RC47 tích hợp bộ Universal 2026: ba phong cách, 23 bố cục
 mỗi bộ; điền đối tượng PowerPoint tại máy, chọn layout theo nội dung, giữ ảnh
 cùng nhóm slide nguồn, chia bảng dài theo hàng và ghi chú Việt–Anh riêng.

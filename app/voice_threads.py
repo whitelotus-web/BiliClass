@@ -3,6 +3,11 @@
 import ctypes
 import os
 from contextlib import contextmanager
+from threading import RLock
+
+_BUDGET_LOCK = RLock()
+_BUDGET_USERS = 0
+_BUDGET_RESTORE = None
 
 
 def _blas_controls():
@@ -40,21 +45,36 @@ def _blas_controls():
 
 @contextmanager
 def blas_budget():
-    if os.name != "nt":
-        from threadpoolctl import threadpool_limits
-
-        with threadpool_limits(limits=1, user_api="blas"):
-            yield
-        return
-    # Reopening the filename reported by Windows' module snapshot can fail
-    # in a frozen app installed in a Vietnamese directory. The loaded DLL
-    # already exposes these controls; no path conversion or reload is needed.
-    saved = []
+    global _BUDGET_USERS, _BUDGET_RESTORE
+    # BLAS limits affect the process, not a Python thread. Two active engines
+    # must share the limit until the last one exits, including error paths.
+    with _BUDGET_LOCK:
+        if not _BUDGET_USERS:
+            if os.name != 'nt':
+                from threadpoolctl import threadpool_limits
+                context=threadpool_limits(limits=1,user_api='blas')
+                context.__enter__()
+                _BUDGET_RESTORE=lambda: context.__exit__(None,None,None)
+            else:
+                saved=[]
+                try:
+                    for _,get,set_ in _blas_controls():
+                        saved.append((set_,get()))
+                        set_(1)
+                except BaseException:
+                    for set_,previous in reversed(saved):
+                        set_(previous)
+                    raise
+                def restore():
+                    for setter,previous in reversed(saved):
+                        setter(previous)
+                _BUDGET_RESTORE=restore
+        _BUDGET_USERS+=1
     try:
-        for _, get, set_ in _blas_controls():
-            saved.append((set_, get()))
-            set_(1)
         yield
     finally:
-        for set_, previous in reversed(saved):
-            set_(previous)
+        with _BUDGET_LOCK:
+            _BUDGET_USERS-=1
+            if not _BUDGET_USERS:
+                restore,_BUDGET_RESTORE=_BUDGET_RESTORE,None
+                restore()

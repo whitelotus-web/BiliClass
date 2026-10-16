@@ -1,11 +1,13 @@
 """Prepare narration after saving the lesson, outside the conversion worker."""
 
 import json
+from collections import deque
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from pathlib import Path
 from threading import Event
 from time import monotonic
 
-from PySide6.QtCore import QObject, QThread, Signal, Slot
+from PySide6.QtCore import QObject, Property, QThread, QTimer, Signal, Slot
 
 from . import speech
 from .browser_audio import narration_tasks
@@ -23,42 +25,76 @@ class NarrationJob(QThread):
             Path(directory) / (speech.audio_key(text, voice, self.rate) + ".wav"))]
         self.initial_cached = self.total - len(missing)
         self.tasks = missing
+        self.parallelism = speech.narration_workers(missing)
         self.cancel, self.paused = Event(), Event()
         self.result = {}
 
     def run(self):
         complete = cached = self.initial_cached
         failed = consecutive = 0
+        tasks=deque(self.tasks)
+        futures={}
+        second_enabled=False
         try:
-            for text, voice in self.tasks:
-                while self.paused.is_set() and not self.cancel.is_set():
-                    self.cancel.wait(.1)
-                if self.cancel.is_set():
-                    break
-                try:
-                    result = speech.synthesize_background(text, voice, self.rate, self.directory, self.cancel)
-                    complete += 1
-                    cached += bool(result.get("cached"))
-                    consecutive = 0
-                except InterruptedError:
-                    break
-                except Exception:
-                    failed += 1
-                    consecutive += 1
-                self.result = {"complete": complete, "cached": cached, "failed": failed,
-                               "total": self.total, "skipped": self.skipped,
-                               "duplicates": self.duplicates}
-                self.progressed.emit(dict(self.result))
-                if consecutive >= 3:
-                    break  # A missing/broken engine must not fail once per slide.
+            with ThreadPoolExecutor(max_workers=self.parallelism,thread_name_prefix='bcl-narration') as pool:
+                stopping=False
+                while tasks or futures:
+                    if self.cancel.is_set():
+                        stopping=True
+                    if not stopping and not self.paused.is_set():
+                        busy={slot for slot,_ in futures.values()}
+                        slots=range(2 if second_enabled else 1)
+                        for slot in slots:
+                            if slot not in busy and tasks:
+                                task=tasks.popleft()
+                                function=speech.synthesize_secondary if slot else speech.synthesize_background
+                                future=pool.submit(function,*task,self.rate,self.directory,self.cancel)
+                                futures[future]=slot,task
+                    if not futures:
+                        if stopping or not tasks:
+                            break
+                        self.cancel.wait(.1)
+                        continue
+                    finished,_=wait(futures,timeout=.1,return_when=FIRST_COMPLETED)
+                    for future in finished:
+                        slot,task=futures.pop(future)
+                        try:
+                            result=future.result()
+                            complete+=1
+                            cached+=bool(result.get('cached'))
+                            consecutive=0
+                            if not slot and self.parallelism==2:
+                                second_enabled=True
+                        except InterruptedError:
+                            stopping=True
+                        except Exception:
+                            if slot:
+                                # Low RAM/secondary initialization must not lose a line.
+                                tasks.appendleft(task)
+                                self.parallelism=1
+                                second_enabled=False
+                            else:
+                                failed+=1
+                                consecutive+=1
+                        self.result={'complete':complete,'cached':cached,'failed':failed,
+                                     'total':self.total,'skipped':self.skipped,
+                                     'duplicates':self.duplicates,'workers':2 if second_enabled else 1}
+                        self.progressed.emit(dict(self.result))
+                        if consecutive>=3:
+                            stopping=True
+                    if stopping and not futures:
+                        break
         finally:
+            speech._secondary_vieneu_engine.cache_clear()
             self.result = {"complete": complete, "cached": cached, "failed": failed,
                            "total": self.total, "skipped": self.skipped,
-                           "duplicates": self.duplicates, "cancelled": self.cancel.is_set()}
+                           "duplicates": self.duplicates, "cancelled": self.cancel.is_set(),
+                           "workers": self.parallelism}
 
 
 class NarrationPreparation(QObject):
     changed = Signal()
+    clockChanged = Signal()
 
     def __init__(self, directory, parent):
         super().__init__(parent)
@@ -69,6 +105,15 @@ class NarrationPreparation(QObject):
         self.path = None
         self.paused = False
         self.last_checkpoint = 0
+        self._started_at = None
+        self._elapsed = 0
+        self.clock = QTimer(self)
+        self.clock.setInterval(1000)
+        self.clock.timeout.connect(self.clockChanged)
+
+    @Property(int, notify=clockChanged)
+    def elapsedSeconds(self):
+        return self._elapsed + (int(monotonic() - self._started_at) if self._started_at is not None else 0)
 
     def start(self, lesson_id, inspection, voices, folder, metadata=None):
         request = lesson_id, inspection, dict(voices), folder, metadata
@@ -77,6 +122,8 @@ class NarrationPreparation(QObject):
             self.worker.cancel.set()
             return
         self.path = Path(folder) / "narration-progress.json"
+        self._elapsed = 0
+        self._started_at = monotonic()
         self.worker = NarrationJob(inspection, voices, self.directory, self)
         self.worker.paused.set() if self.paused else self.worker.paused.clear()
         self.state = {**(metadata or {}), "lesson_id": lesson_id, "running": bool(self.worker.tasks),
@@ -86,6 +133,7 @@ class NarrationPreparation(QObject):
                       "duplicates": self.worker.duplicates, "cancelled": False,
                       "message": "Đang tạo giọng đọc trên máy…"}
         if not self.worker.tasks:
+            self._stop_clock()
             self.state["message"] = self._completion_message(self.state)
             self.worker.deleteLater()
             self.worker = None
@@ -96,6 +144,8 @@ class NarrationPreparation(QObject):
         self.worker.finished.connect(self._finished)
         self._persist()
         self.changed.emit()
+        self.clockChanged.emit()
+        self.clock.start()
         self.worker.start()
 
     def pause(self, paused):
@@ -118,10 +168,12 @@ class NarrationPreparation(QObject):
         if worker is not self.worker:
             return
         self.state.update(worker.result, running=False)
+        self._stop_clock()
         self.state["message"] = self._completion_message(self.state)
         self.worker = None
         self._persist()
         self.changed.emit()
+        worker.wait()
         worker.deleteLater()
         if self.pending is not None:
             request, self.pending = self.pending, None
@@ -129,6 +181,7 @@ class NarrationPreparation(QObject):
 
     def _persist(self):
         try:
+            self.state['elapsed_seconds'] = self.elapsedSeconds
             temporary = self.path.with_suffix(".tmp")
             temporary.write_text(json.dumps({"version": 1, **self.state}, ensure_ascii=False), encoding="utf-8")
             temporary.replace(self.path)
@@ -150,6 +203,13 @@ class NarrationPreparation(QObject):
         self.pending = None
         if self.worker is not None:
             self.worker.cancel.set()
+
+    def _stop_clock(self):
+        self._elapsed = self.elapsedSeconds
+        self._started_at = None
+        self.clock.stop()
+        self.state['elapsed_seconds'] = self._elapsed
+        self.clockChanged.emit()
 
     def shutdown(self):
         self.cancel()

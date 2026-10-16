@@ -8,11 +8,12 @@ ShellExecute call. Run with the project's Python and an existing BiliClass.exe.
 
 import argparse
 import json
+import subprocess
 import time
 from pathlib import Path
 
 
-def launch(executable, page='new', timeout=25):
+def launch(executable, page='new', timeout=25, lesson_id=None):
     import psutil
     import pythoncom
     import win32com.client
@@ -54,7 +55,10 @@ def launch(executable, page='new', timeout=25):
             desktop=shell.Windows().FindWindowSW(0,0,8,hwnd,1)
             if desktop is None:
                 raise RuntimeError('Chưa kết nối được Windows Explorer trên desktop.')
-            desktop.Document.Application.ShellExecute(str(executable),'--page '+page,
+            arguments=['--page',page]
+            if lesson_id:
+                arguments.extend(['--lesson-id',str(lesson_id)])
+            desktop.Document.Application.ShellExecute(str(executable),subprocess.list2cmdline(arguments),
                                                       str(executable.parent),'open',1)
         finally:
             pythoncom.CoUninitialize()
@@ -89,10 +93,11 @@ def launch(executable, page='new', timeout=25):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('executable',type=Path)
-    parser.add_argument('--page',choices=('new','home','library','settings'),default='new')
+    parser.add_argument('--page',choices=('new','home','library','settings','result'),default='new')
+    parser.add_argument('--lesson-id',help='Open an existing saved lesson without regenerating it.')
     parser.add_argument('--report',type=Path)
     args=parser.parse_args()
-    result=launch(args.executable,args.page)
+    result=launch(args.executable,args.page,lesson_id=args.lesson_id)
     if args.report:
         args.report.parent.mkdir(parents=True,exist_ok=True)
         args.report.write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')

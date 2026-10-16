@@ -8,8 +8,9 @@ import wave
 from contextlib import contextmanager
 from functools import lru_cache
 from pathlib import Path
-from threading import Condition, local
+from threading import Condition, Lock, local
 from uuid import uuid4
+from weakref import WeakValueDictionary
 
 VIENEU_VERSION = "vieneu-v3-turbo-onnx-fp32-61b85e3-3.8.3-multilingual-wsola1"
 VIENEU_VOICES = (
@@ -25,6 +26,10 @@ _ENGINE_TURN = Condition()
 _ENGINE_BUSY = False
 _FOREGROUND_WAITERS = 0
 _SYNTHESIS_CONTEXT = local()
+_ENGINE_LOAD_LOCK = Lock()
+_SECOND_ENGINE_LOCK = Lock()
+_AUDIO_LOCKS_LOCK = Lock()
+_AUDIO_LOCKS = WeakValueDictionary()
 # Keep adjustments modest: very slow inference can sound less natural.
 _SPEEDS = (0.82, 0.88, 0.94, 1.0, 1.06, 1.12, 1.18)
 
@@ -94,8 +99,14 @@ def valid_audio(path):
         return False
 
 
-@lru_cache(maxsize=1)
 def _vieneu_engine(root):
+    # lru_cache alone can initialize twice when two callers miss concurrently.
+    with _ENGINE_LOAD_LOCK:
+        return _cached_vieneu_engine(root)
+
+
+@lru_cache(maxsize=1)
+def _cached_vieneu_engine(root):
     if not vieneu_ready():
         raise RuntimeError("Chưa có model VieNeu ngoại tuyến. Hãy cài bản BiliClass đầy đủ.")
     # The SDK reads HF_HOME at import time. The bundled cache is complete, and
@@ -117,11 +128,30 @@ def _vieneu_engine(root):
     return Vieneu(backend="onnx", device="cpu", precision="fp32", threads=4)
 
 
+@lru_cache(maxsize=1)
+def _secondary_vieneu_engine(root):
+    _vieneu_engine(root)  # Complete offline initialization before the extra model.
+    from vieneu import Vieneu
+    return Vieneu(backend='onnx',device='cpu',precision='fp32',threads=2)
+
+
+def narration_workers(tasks):
+    """An extra model pays off only for a long uncached CPU narration job."""
+    if os.environ.get('BILICLASS_NARRATION_WORKERS')=='1' or len(tasks)<48 or sum(len(t) for t,_ in tasks)<3000:
+        return 1
+    try:
+        import psutil
+        return 2 if (psutil.cpu_count(logical=False) or 1)>=6 and psutil.virtual_memory().available>=6*1024**3 else 1
+    except Exception:
+        return 1
+
+
 def _synthesize_vieneu(text, voice_id, rate, temporary):
     import numpy as np
     from .voice_threads import blas_budget
 
-    engine = _vieneu_engine(str(vieneu_root()))
+    factory=_secondary_vieneu_engine if getattr(_SYNTHESIS_CONTEXT,'secondary',False) else _vieneu_engine
+    engine = factory(str(vieneu_root()))
     # ONNX already owns four CPU threads. The small NumPy projection heads
     # were starting another full BLAS pool for every token. One BLAS thread
     # measured faster without changing the model, precision or audio cache.
@@ -144,6 +174,10 @@ def _synthesize_vieneu(text, voice_id, rate, temporary):
 def synthesis_turn():
     """One engine; requested playback takes the next turn before warmup."""
     global _ENGINE_BUSY, _FOREGROUND_WAITERS
+    if getattr(_SYNTHESIS_CONTEXT,'secondary',False):
+        with _SECOND_ENGINE_LOCK:
+            yield
+        return
     cancel = getattr(_SYNTHESIS_CONTEXT, "cancel", None)
     foreground = cancel is None
     with _ENGINE_TURN:
@@ -178,6 +212,34 @@ def synthesize_background(text, voice_id, rate, directory, cancel):
         _SYNTHESIS_CONTEXT.cancel = previous
 
 
+def synthesize_secondary(text, voice_id, rate, directory, cancel):
+    previous=getattr(_SYNTHESIS_CONTEXT,'secondary',False)
+    _SYNTHESIS_CONTEXT.secondary=True
+    try:
+        return synthesize_background(text,voice_id,rate,directory,cancel)
+    finally:
+        _SYNTHESIS_CONTEXT.secondary=previous
+
+
+@contextmanager
+def _audio_turn(key):
+    with _AUDIO_LOCKS_LOCK:
+        lock=_AUDIO_LOCKS.get(key)
+        if lock is None:
+            lock=Lock()
+            _AUDIO_LOCKS[key]=lock
+    cancel=getattr(_SYNTHESIS_CONTEXT,'cancel',None)
+    while not lock.acquire(timeout=.1):
+        if cancel is not None and cancel.is_set():
+            raise InterruptedError('Đã dừng chờ đoạn giọng đọc.')
+    try:
+        if cancel is not None and cancel.is_set():
+            raise InterruptedError('Đã dừng chờ đoạn giọng đọc.')
+        yield
+    finally:
+        lock.release()
+
+
 def synthesize(text, voice_id, rate, directory):
     if not text.strip() or len(text) > 5000:
         raise ValueError("Giọng đọc nhận từ 1 đến 5.000 ký tự mỗi đoạn.")
@@ -193,34 +255,39 @@ def synthesize(text, voice_id, rate, directory):
     from .storage_space import MIB, require_space
 
     require_space(root, 64 * MIB)
-    with synthesis_turn():
+    with _audio_turn(os.path.normcase(str(destination.absolute()))):
         # Another reader/warmup may have completed this exact chunk while we
         # waited. Reuse it instead of running inference twice.
         if valid_audio(destination):
             return {"path": str(destination), "cached": True}
-        # Speed is post-processing, not a different utterance. Preserve the
-        # existing public WAV keys/portable packs, but infer the neutral version
-        # once and derive all other rates from it.
-        original = root / (audio_key(text, voice_id, 0) + ".wav")
-        temporary = root / (str(uuid4()) + ".wav")
-        try:
-            if not valid_audio(original):
-                _synthesize_vieneu(text, voice_id, 0, temporary)
-                if not valid_audio(temporary):
-                    raise ValueError("Giọng đọc không tạo được âm thanh hợp lệ.")
-                temporary.replace(original)
-            if not rate:
-                return {"path": str(original), "cached": False}
-            cancel = getattr(_SYNTHESIS_CONTEXT, "cancel", None)
-            if cancel is not None and cancel.is_set():
-                raise InterruptedError("Đã dừng tạo giọng; đoạn gốc đã được giữ.")
-            _speed_variant(original, rate, temporary)
+        with synthesis_turn():
+            return _synthesize_locked(text,voice_id,rate,root,destination)
+
+
+def _synthesize_locked(text,voice_id,rate,root,destination):
+    # Speed is post-processing, not a different utterance. Preserve the
+    # existing public WAV keys/portable packs, but infer the neutral version
+    # once and derive all other rates from it.
+    original = root / (audio_key(text, voice_id, 0) + ".wav")
+    temporary = root / (str(uuid4()) + ".wav")
+    try:
+        if not valid_audio(original):
+            _synthesize_vieneu(text, voice_id, 0, temporary)
             if not valid_audio(temporary):
                 raise ValueError("Giọng đọc không tạo được âm thanh hợp lệ.")
-            temporary.replace(destination)
-            return {"path": str(destination), "cached": False}
-        finally:
-            temporary.unlink(missing_ok=True)
+            temporary.replace(original)
+        if not rate:
+            return {"path": str(original), "cached": False}
+        cancel = getattr(_SYNTHESIS_CONTEXT, "cancel", None)
+        if cancel is not None and cancel.is_set():
+            raise InterruptedError("Đã dừng tạo giọng; đoạn gốc đã được giữ.")
+        _speed_variant(original, rate, temporary)
+        if not valid_audio(temporary):
+            raise ValueError("Giọng đọc không tạo được âm thanh hợp lệ.")
+        temporary.replace(destination)
+        return {"path": str(destination), "cached": False}
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def _speed_variant(original, rate, destination):
