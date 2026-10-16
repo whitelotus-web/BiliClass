@@ -74,7 +74,8 @@ def paired_keys(lesson, number, languages, record):
                 for lang in ('vi', 'en')}
         if all(pair[lang] and set(pair[lang]) <= allowed[lang] for lang in ('vi', 'en')):
             for lang in ('vi', 'en'):
-                result.extend(pair[lang]); used[lang].update(pair[lang])
+                result.extend(pair[lang])
+                used[lang].update(pair[lang])
     for lang in ('vi', 'en'):
         result.extend(key for key in languages[lang] if key not in used[lang])
     return result

@@ -1,7 +1,7 @@
 """Publish a converted lesson on a worker-owned database connection."""
 
-from contextlib import closing
 import json
+from contextlib import closing
 
 from .chatgpt_handoff import external_preview
 from .library import Library

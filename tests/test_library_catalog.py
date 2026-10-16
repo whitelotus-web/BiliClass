@@ -106,3 +106,35 @@ def test_audio_scan_is_background_cached_and_refreshes_latest_edit(tmp_path, mon
         release.set()
         catalog.shutdown()
         library.close()
+
+
+def test_profile_and_terms_do_not_rescan_audio_but_direct_lesson_updates_do(tmp_path, monkeypatch):
+    app = QCoreApplication.instance() or QCoreApplication([])
+    library = Library(tmp_path)
+    lesson = library.create('Bài', 'Vật lý', 'THPT', '11', [('Slide 1', 'Vận tốc')])
+    calls = []
+    monkeypatch.setattr('app.library_catalog.audio_status', lambda *args, **kwargs: calls.append(args[0]['id']) or {'ready': False})
+    parent = QObject()
+    catalog = LibraryCatalog(library, parent)
+    try:
+        pump_until(app, lambda: catalog.worker is None and bool(catalog.rows()))
+        before = len(calls)
+        library.set_setting('mascot', 'Lumi')
+        library.save_term('Vật lý', 'vận tốc', 'velocity')
+        catalog.refresh()
+        app.processEvents()
+        assert catalog.worker is None and len(calls) == before
+        # Derived narration writes do not bump the lesson revision/date.
+        with library.db:
+            library.db.execute('UPDATE lessons SET content=content WHERE id=?', (lesson['id'],))
+        catalog.refresh()
+        pump_until(app, lambda: catalog.worker is None)
+        assert len(calls) == before + 1
+        # Old lessons still derive their voice from preferences.
+        library.set_setting('voice_options', {'voice': 'vieneu:Hải Đăng', 'rate': 0})
+        catalog.refresh()
+        pump_until(app, lambda: catalog.worker is None)
+        assert len(calls) == before + 2
+    finally:
+        catalog.shutdown()
+        library.close()

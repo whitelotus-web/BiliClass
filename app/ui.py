@@ -1245,12 +1245,14 @@ class Bridge(QObject):
         # Read settings on the GUI thread, never access its SQLite connection in a Job.
         metadata = dict(self.customTemplate)
         def work():
-            from .google_conversion import _template
             from threading import Event
+
+            from .google_conversion import _template
 
             folder=self.library.directory/'temp/template-samples'
             folder.mkdir(parents=True,exist_ok=True)
             import hashlib
+
             from . import __version__
             from .universal_templates import asset
             identity=json.dumps({'version':__version__,'preset':preset,'mode':mode,'custom':metadata,
@@ -1269,6 +1271,7 @@ class Bridge(QObject):
                     'template_bookends':True}
             if metadata:
                 import shutil
+
                 from .pptx_template import stored_path
                 shutil.copyfile(stored_path(self.library.directory,metadata), folder/'template.pptx')
                 config.update(custom_template=metadata,template_roles=metadata['roles'],template_version=2)
@@ -1971,6 +1974,7 @@ class Bridge(QObject):
     @Slot()
     def readBothLanguages(self):
         import time
+
         from .slide_speech import speech_chunks, visible_segments
 
         if self._busy or not self._lesson:
@@ -1999,7 +2003,9 @@ class Bridge(QObject):
                 en = speech_chunks(unit['en'])
                 # A note is read only when its English partner is visible.
                 if en and set(en) <= set(english):
-                    texts.extend(speech_chunks(unit['vi'])); texts.extend(en); used.update(en)
+                    texts.extend(speech_chunks(unit['vi']))
+                    texts.extend(en)
+                    used.update(en)
             texts.extend(text for text in english if text not in used)
         elif self.segment:
             texts = [self._reading_text('vi'), self._reading_text('en')]
@@ -2954,6 +2960,7 @@ class Bridge(QObject):
     @Slot(bool, result=str)
     def presentationDownloadSuggestion(self, with_voice):
         import re
+
         from .lesson_narration import variant_title
 
         title = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', self._lesson.get('title', 'BiliClass'))[:100].strip(' .') or 'BiliClass'

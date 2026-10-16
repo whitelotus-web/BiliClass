@@ -45,7 +45,8 @@ def variant_title(record):
 
 
 def variant_statuses(lesson, directory, fallback_voices=None, *, cancel=None):
-    return [{**audio_status({**lesson, 'narration': record}, directory, fallback_voices, cancel=cancel),
+    context = {}
+    return [{**audio_status({**lesson, 'narration': record}, directory, fallback_voices, cancel=cancel, _context=context),
              'id': identity, 'title': variant_title(record)}
             for identity, record in records(lesson).items()]
 
@@ -74,9 +75,10 @@ def creation_choices(lesson, voice, rate, verified=(), live=None):
     if live and live.get('id'):
         checked[live['id']] = live
     result = {}
+    context = {}
     for mode in MODES:
         plan, _ = make_plan(lesson, mode, {'voice': voice, 'rate': rate},
-                            playback='both_controls' if mode == 'both' else 'separate')
+                            playback='both_controls' if mode == 'both' else 'separate', _context=context)
         identity = variant_id(plan)
         stored, state = saved.get(identity), checked.get(identity)
         if not plan['total']:
@@ -113,21 +115,34 @@ def signature(lesson):
     return hashlib.sha256(json.dumps(value, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
 
 
-def make_plan(lesson, mode, voices, *, playback='separate'):
+def _plan_signature(lesson, context):
+    if 'signature' not in context:
+        context['signature'] = signature(lesson)
+    return context['signature']
+
+
+def make_plan(lesson, mode, voices, *, playback='separate', _context=None):
     if mode not in MODES:
         raise ValueError("Chọn tiếng Anh, tiếng Việt hoặc Việt + Anh.")
     selected = {**voices, **{lang: voices.get("voice", "") if lang in MODES[mode] else ""
                             for lang in ("vi", "en")}}
     keys = {}
     skipped = 0
+    context = {} if _context is None else _context
+    tasks_by_language = context.setdefault('plans', {})
     for lang in MODES[mode]:
-        tasks, omitted, _ = narration_tasks(inspection_for(lesson), {**selected, **{other: ""
-                                                  for other in ("vi", "en") if other != lang}})
-        keys[lang] = [speech.audio_key(text, voice, selected["rate"]) for text, voice in tasks]
+        identity = lang, selected.get(lang, ''), selected['rate']
+        if identity not in tasks_by_language:
+            tasks, omitted, _ = narration_tasks(inspection_for(lesson), {**selected, **{other: ""
+                                                      for other in ("vi", "en") if other != lang}})
+            tasks_by_language[identity] = ([speech.audio_key(text, voice, selected["rate"])
+                                          for text, voice in tasks], omitted)
+        language_keys, omitted = tasks_by_language[identity]
+        keys[lang] = list(language_keys)
         skipped += omitted
     if playback not in {'separate', 'both_controls'}:
         raise ValueError('Kiểu phát giọng không hợp lệ.')
-    return {"version": 2, "mode": mode, "signature": signature(lesson), 'playback': playback,
+    return {"version": 2, "mode": mode, "signature": _plan_signature(lesson, context), 'playback': playback,
             "voice": selected.get("voice", ""), "rate": selected["rate"], "keys": keys,
             "total": len(set(key for items in keys.values() for key in items)), "skipped": skipped}, selected
 
@@ -151,7 +166,9 @@ def valid_key(directory, key):
         return False
 
 
-def audio_status(lesson, directory, fallback_voices=None, *, cancel=None):
+def audio_status(lesson, directory, fallback_voices=None, *, cancel=None, _context=None):
+    # Scope reuse to this single inspection, never across edits/file changes.
+    context = {} if _context is None else _context
     record = lesson.get("narration")
     legacy = record is None
     if legacy:
@@ -167,14 +184,14 @@ def audio_status(lesson, directory, fallback_voices=None, *, cancel=None):
                 pass
         if not voices.get("voice"):
             return {"status": "none", "mode": "none", "label": "Chỉ bài giảng song ngữ", "ready": False}
-        record, _ = make_plan(lesson, "both", voices)
+        record, _ = make_plan(lesson, "both", voices, _context=context)
     empty = {"status": "none", "mode": "none", "label": "Chỉ bài giảng song ngữ", "ready": False}
     if not isinstance(record, dict):
         return empty
     mode = record.get("mode", "none")
     if not isinstance(mode, str) or mode not in MODES:
         return empty
-    if record.get("signature") != signature(lesson):
+    if record.get("signature") != _plan_signature(lesson, context):
         return {**empty, "status": "stale", "mode": mode, "label": "Giọng đọc cần cập nhật"}
     if (not isinstance(record.get("voice"), str) or type(record.get("rate")) is not int
             or not -3 <= record["rate"] <= 3):
@@ -182,15 +199,18 @@ def audio_status(lesson, directory, fallback_voices=None, *, cancel=None):
     keys = record.get("keys", {})
     if not isinstance(keys, dict) or any(not isinstance(keys.get(lang, []), list) for lang in MODES[mode]):
         return empty
-    expected, _ = make_plan(lesson, mode, {"voice": record["voice"], "rate": record["rate"]})
+    expected, _ = make_plan(lesson, mode, {"voice": record["voice"], "rate": record["rate"]}, _context=context)
     if keys != expected["keys"]:
         return {**empty, "status": "stale", "mode": mode, "label": "Giọng đọc cần cập nhật"}
     all_keys = set(k for lang in MODES[mode] for k in keys.get(lang, []) if isinstance(k, str))
     valid = {}
+    checked = context.setdefault('audio', {})
     for key in all_keys:
         if cancel is not None and cancel.is_set():
             raise InterruptedError('Đã dừng kiểm tra giọng đọc.')
-        valid[key] = valid_key(directory, key)
+        if key not in checked:
+            checked[key] = valid_key(directory, key)
+        valid[key] = checked[key]
     counts = {lang: sum(valid.get(k, False) for k in keys.get(lang, [])) for lang in MODES[mode]}
     complete = sum(valid.values())
     ready_languages = [lang for lang in MODES[mode] if keys.get(lang) and counts[lang] == len(keys[lang])]

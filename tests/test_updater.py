@@ -97,6 +97,66 @@ def test_archive_symlink_is_rejected(tmp_path):
                            opener=lambda request, timeout: io.BytesIO(payload))
 
 
+def managed_install(tmp_path, monkeypatch):
+    from app import updater
+
+    root = tmp_path / 'custom-install'
+    exe = root / '1.0.0rc57' / 'BiliClass.exe'
+    exe.parent.mkdir(parents=True)
+    exe.write_bytes(b'fixture')
+    (root / '.biliclass-install.json').write_text(json.dumps({'product': 'BiliClass', 'root': str(root)}), encoding='utf-8-sig')
+    monkeypatch.setattr(updater.sys, 'frozen', True, raising=False)
+    monkeypatch.setattr(updater.sys, 'executable', str(exe))
+    return root
+
+
+def test_low_data_disk_uses_verified_install_disk_and_keeps_digest_checks(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    from app import updater
+
+    installed = managed_install(tmp_path, monkeypatch)
+    monkeypatch.setattr(updater.shutil, 'disk_usage', lambda path: SimpleNamespace(
+        free=10**10 if Path(path).is_relative_to(installed) else 0))
+    payload = archive_bytes()
+    package = download_and_stage(package_info(payload), tmp_path / 'data',
+                                 opener=lambda request, timeout: io.BytesIO(payload))
+    assert package.is_relative_to(installed / 'updates')
+    assert (package / 'BiliClass/BiliClass.exe').read_bytes() == b'exe fixture'
+    bad = package_info(payload)
+    bad['digest'] = '0' * 64
+    with pytest.raises(ValueError, match='Checksum'):
+        download_and_stage(bad, tmp_path / 'data', opener=lambda request, timeout: io.BytesIO(payload))
+
+
+@pytest.mark.parametrize('invalid', ['missing', 'wrong-root', 'library'])
+def test_custom_install_fallback_rejects_missing_or_mismatched_marker(tmp_path, monkeypatch, invalid):
+    from app import updater
+
+    installed = managed_install(tmp_path, monkeypatch)
+    if invalid == 'missing':
+        (installed / '.biliclass-install.json').unlink()
+    elif invalid == 'wrong-root':
+        (installed / '.biliclass-install.json').write_text(json.dumps({'product': 'BiliClass', 'root': str(tmp_path)}))
+    else:
+        (installed / 'library.db').write_bytes(b'personal')
+    assert updater._owned_install_root() is None
+
+
+@pytest.mark.skipif(os.name != 'nt', reason='Windows updater')
+def test_update_installer_preserves_managed_custom_install_root(tmp_path, monkeypatch):
+    from app import updater
+
+    installed = managed_install(tmp_path, monkeypatch)
+    package = tmp_path / 'download/package'
+    package.mkdir(parents=True)
+    (package / 'Install-BiliClass.ps1').write_text('# fixture')
+    calls = []
+    monkeypatch.setattr(updater.subprocess, 'Popen', lambda command, **kwargs: calls.append(command))
+    updater.launch_install(package, 1234)
+    assert calls[0][-2:] == ['-InstallRoot', str(installed)]
+    assert calls[0][calls[0].index('-WaitForProcessId') + 1] == '1234'
+
+
 @pytest.mark.skipif(os.name != "nt", reason="PowerShell installer is Windows-only")
 def test_new_version_installs_beside_old_without_touching_lessons(tmp_path):
     installer = Path(__file__).resolve().parents[1] / "scripts" / "Install-BiliClass.ps1"

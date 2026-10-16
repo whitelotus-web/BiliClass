@@ -43,6 +43,8 @@ class ClassroomBridge(QObject):
         self._message = "Chọn bài, kiểm tra câu hỏi rồi mở QR cho học sinh."
         self._network_notice = ""
         self._action_busy = False
+        self._closing = False
+        self._stop_worker = None
         self._state = {}
         self._url = self._qr = ""
         self._report = {}
@@ -79,7 +81,7 @@ class ClassroomBridge(QObject):
 
     @Property(bool, notify=changed)
     def actionBusy(self):
-        return self._action_busy or self._pending is not None or self.bridge.busy
+        return self._closing or self._action_busy or self._pending is not None or self.bridge.busy
 
     @Property(bool, notify=interfacesChanged)
     def scanningInterfaces(self):
@@ -111,7 +113,23 @@ class ClassroomBridge(QObject):
         self.interfacesChanged.emit()
 
     def shutdown(self):
-        self.disconnect()
+        self.timer.stop()
+        self._pending = None
+        self._closing = True
+        if self.worker:
+            self.worker.wait()
+            self.worker.result.disconnect(self._receive)
+            self.worker.finished.disconnect(self._finish)
+            self.worker.deleteLater()
+            self.worker = None
+        if self._stop_worker:
+            self._stop_worker.wait()
+            self._stop_worker.finished.disconnect(self._disconnected)
+            self._stop_worker.deleteLater()
+            self._stop_worker = None
+        elif self.runtime:
+            self.runtime.stop()
+        self.runtime = None
         if self._interface_worker is not None:
             self._interface_worker.wait()
 
@@ -121,7 +139,7 @@ class ClassroomBridge(QObject):
 
     @Property(bool, notify=changed)
     def busy(self):
-        return self.worker is not None or self.bridge.busy
+        return self._closing or self.worker is not None or self.bridge.busy
 
     @Property(str, notify=changed)
     def message(self):
@@ -149,7 +167,7 @@ class ClassroomBridge(QObject):
 
     @Slot(str, str, int, str, str)
     def start(self, title, mode, size, host, resume):
-        if self.running or self.bridge.busy or self.worker:
+        if self._closing or self.running or self.bridge.busy or self.worker:
             return
         if resume:
             # A resumed session teaches its immutable snapshot, even if the
@@ -174,6 +192,8 @@ class ClassroomBridge(QObject):
                 return
         runtime = ClassroomRuntime(self.bridge.library.directory)
         self.runtime = runtime
+        self._state = {}
+        self._qr = self._url = ''
         self._message = "Đang mở lớp…"
         def created(info):
             if info.get('error'):
@@ -213,7 +233,7 @@ class ClassroomBridge(QObject):
             self._message = 'Máy chủ đã dừng. Mở Kết quả lớp học để tiếp tục tiết chưa kết thúc.'
             self.changed.emit()
             return
-        if not self.running or self.worker or self.bridge.busy:
+        if self._closing or not self.running or self.worker or self.bridge.busy:
             return
         self._begin_request(None)
 
@@ -244,6 +264,9 @@ class ClassroomBridge(QObject):
         self.worker.deleteLater()
         self.worker = None
         self._action_busy = False
+        if self._closing:
+            self._start_stop()
+            return
         self.changed.emit()
         if self._pending is not None:
             payload, self._pending = self._pending, None
@@ -265,6 +288,8 @@ class ClassroomBridge(QObject):
         self._action({"action": action})
 
     def _action(self, payload):
+        if self._closing:
+            return
         if not self.running:
             self._message = "Mở lớp trước khi dùng thao tác này."
             self.changed.emit()
@@ -276,23 +301,40 @@ class ClassroomBridge(QObject):
 
     @Slot()
     def disconnect(self):
+        if self._closing:
+            return
         self.timer.stop()
         self._pending = None
         self._action_busy = False
-        if self.worker:
-            self.worker.wait(4000)
-            self.worker.result.disconnect(self._receive)
-            self.worker.finished.disconnect(self._finish)
-            self.worker.deleteLater()
-            self.worker = None
-            self._result = None
-        if self.runtime:
-            self.runtime.stop()
+        self._closing = True
+        self._message = 'Đang tạm đóng máy chủ. Câu trả lời đã nhận được giữ lại…'
+        self.changed.emit()
+        if not self.worker:
+            self._start_stop()
+
+    def _start_stop(self):
+        if self._stop_worker is not None:
+            return
+        runtime = self.runtime
+        if runtime is None:
+            self._disconnected()
+            return
+        worker = NetworkJob(runtime.stop, self)
+        self._stop_worker = worker
+        worker.finished.connect(self._disconnected)
+        worker.start()
+
+    @Slot()
+    def _disconnected(self):
+        worker, self._stop_worker = self._stop_worker, None
+        if worker:
+            worker.deleteLater()
         self.runtime = None
+        self._closing = False
         self._state = {}
         self._qr = self._url = ""
         self._network_notice = ""
-        self._message = "Đã ngắt máy chủ. Phiên chưa kết thúc có thể mở lại từ Báo cáo."
+        self._message = "Đã tạm đóng máy chủ. Mở Kết quả lớp học để tiếp tục tiết chưa kết thúc."
         self.changed.emit()
         self.refreshReports()
 

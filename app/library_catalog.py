@@ -5,8 +5,8 @@ from threading import Event
 
 from PySide6.QtCore import QObject, QThread, QTimer, Signal, Slot
 
-from .library import Library, timestamp
 from .lesson_narration import library_audio_status as audio_status
+from .library import Library, timestamp
 from .speech import voice_settings
 
 
@@ -75,9 +75,9 @@ class LibraryCatalog(QObject):
         if self.library._closed:
             self.shutdown()
             return
-        # SQLite's counters are cheap. Our connection's total_changes catches
-        # local edits; data_version also catches completed worker imports.
-        revision = (self.library.db.total_changes, self.library.db.execute('PRAGMA data_version').fetchone()[0])
+        # Lesson-only local writes plus data_version for external imports.
+        revision = (self.library.catalog_revision(), self.library.setting('voice_options', None),
+                    self.library.setting('voice_vi', ''), self.library.setting('voice_rate', 0))
         if revision == self._revision and not force:
             return
         self._revision = revision

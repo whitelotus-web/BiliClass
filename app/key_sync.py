@@ -14,7 +14,7 @@ import urllib.error
 import urllib.request
 from contextlib import closing
 
-from .google_translation import DEFAULT_BUDGET, _LOCK, _digest
+from .google_translation import _LOCK, DEFAULT_BUDGET
 
 REPOSITORY = 'whitelotus-web/BiliClass-Private-Config'
 CONFIG_PATH = '/contents/google-translation-keys.json'
@@ -87,7 +87,8 @@ def validate(data):
             _require(row['project'] == row['project'].strip().casefold())
             _require(isinstance(row['key'], str) and re.fullmatch(r'[A-Za-z0-9_-]{30,200}', row['key']))
             _require(row['key'] not in identities)
-            projects.add(row['project']); identities.add(row['key'])
+            projects.add(row['project'])
+            identities.add(row['key'])
         _require(isinstance(usage, list) and len(usage) <= 6000)
         for row in usage:
             _require(isinstance(row, list) and len(row) == 3)
@@ -108,7 +109,8 @@ def snapshot(store, budget):
 
 
 def merge(first, second):
-    validate(first); validate(second)
+    validate(first)
+    validate(second)
     rows = {r['key']: r for r in first['keys']}
     for row in second['keys']:
         if row['key'] in rows and rows[row['key']]['project'] != row['project']:

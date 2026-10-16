@@ -6,7 +6,7 @@ from contextlib import closing
 from pathlib import Path
 from threading import Event
 
-from PySide6.QtCore import QObject, Property, QThread, QUrl, Signal, Slot
+from PySide6.QtCore import Property, QObject, QThread, QUrl, Signal, Slot
 
 from .library import Library
 from .slide_preview import PreviewSession

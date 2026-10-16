@@ -105,6 +105,7 @@ def test_prefetch_only_synthesizes_missing_or_corrupt_audio_and_keeps_total(monk
     assert job.result["complete"] == job.result["total"] == 3
     assert job.result["cached"] == 1 and job.result["failed"] == 0
     changed_speed = NarrationJob(inspection, {"vi": VOICE, "rate": 1}, tmp_path, None)
+    changed_speed.prepare()
     assert changed_speed.initial_cached == 0 and len(changed_speed.tasks) == 3
 
 
@@ -112,16 +113,50 @@ def test_reopen_fully_cached_lesson_does_not_start_model_or_reset_progress(monke
     text = "Giọng đọc đã sẵn sàng."
     write_wave(tmp_path / (speech.audio_key(text, VOICE, 0) + ".wav"))
     inspection = {"profile": {"units": [{"vi": text, "en": ""}, {"vi": text, "en": ""}]}}
-    monkeypatch.setattr(NarrationJob, "start", lambda _: (_ for _ in ()).throw(AssertionError("Must not start a worker")))
+    from PySide6.QtCore import QCoreApplication
+    app = QCoreApplication.instance() or QCoreApplication([])
     monkeypatch.setattr(speech, "_vieneu_engine", lambda *_: (_ for _ in ()).throw(AssertionError("Must not load model")))
+    monkeypatch.setattr(speech, 'synthesize_background', lambda *_: (_ for _ in ()).throw(AssertionError('Cached audio must not be synthesized')))
     preparation = NarrationPreparation(tmp_path, None)
     preparation.start("cached-lesson", inspection, {"voice": VOICE, "vi": VOICE, "rate": 0}, tmp_path)
+    deadline = time.monotonic() + 5
+    while preparation.worker is not None:
+        app.processEvents()
+        assert time.monotonic() < deadline
+        time.sleep(.005)
     assert preparation.worker is None and not preparation.state["running"]
     assert preparation.state["complete"] == preparation.state["cached"] == preparation.state["total"] == 1
     assert preparation.state["duplicates"] == 1 and not preparation.state["cancelled"]
     import json
 
     assert json.loads((tmp_path / "narration-progress.json").read_text(encoding="utf-8"))["complete"] == 1
+
+
+def test_narration_cache_validation_never_blocks_gui_thread(monkeypatch, tmp_path):
+    import threading
+    from PySide6.QtCore import QCoreApplication
+
+    app = QCoreApplication.instance() or QCoreApplication([])
+    entered, release = Event(), Event()
+    main = threading.get_ident()
+    def validate(_):
+        assert threading.get_ident() != main
+        entered.set()
+        assert release.wait(5)
+        return True
+    monkeypatch.setattr(speech, 'valid_audio', validate)
+    preparation = NarrationPreparation(tmp_path, None)
+    start = time.monotonic()
+    preparation.start('background-validation', {'profile': {'units': [{'vi': 'Xin chào.', 'en': ''}]}},
+                      {'voice': VOICE, 'vi': VOICE, 'rate': 0}, tmp_path)
+    try:
+        assert time.monotonic() - start < .2
+        assert entered.wait(2) and preparation.state['running']
+        app.processEvents()
+    finally:
+        release.set()
+        preparation.shutdown()
+        app.processEvents()
 
 
 def test_long_job_runs_at_most_two_calls_and_retains_every_audio_task(monkeypatch,tmp_path):

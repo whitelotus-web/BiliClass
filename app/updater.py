@@ -110,6 +110,24 @@ def _safe_entries(archive, version):
     return entries
 
 
+def _owned_install_root():
+    """Honor a managed custom install without guessing from a portable EXE."""
+    if not getattr(sys, 'frozen', False):
+        return None
+    executable = Path(sys.executable).resolve()
+    root = executable.parent.parent
+    if (executable.name.lower() != 'biliclass.exe' or not VERSION_PATTERN.fullmatch(executable.parent.name)
+            or root == Path(root.anchor) or (root / 'library.db').exists()):
+        return None
+    try:
+        marker = json.loads((root / '.biliclass-install.json').read_text(encoding='utf-8-sig'))
+        if marker['product'] == 'BiliClass' and Path(marker['root']).resolve() == root:
+            return root
+    except (OSError, ValueError, TypeError, KeyError):
+        pass
+    return None
+
+
 def download_and_stage(release, data_root, progress=None, cancelled=None, opener=None):
     """Download, verify the GitHub SHA-256, then extract only safe archive paths."""
     if not _valid_url(release["asset_url"], release["tag"], release["asset_name"]):
@@ -118,7 +136,11 @@ def download_and_stage(release, data_root, progress=None, cancelled=None, opener
     updates.mkdir(parents=True, exist_ok=True)
     required_space = release["size"] * 3 + 512 * 1024**2
     if shutil.disk_usage(updates).free < required_space:
-        raise ValueError("Ổ đĩa thiếu chỗ để tải và cài bản mới.")
+        installed = _owned_install_root()
+        if installed is None or shutil.disk_usage(installed).free < required_space:
+            raise ValueError("Ổ đĩa thiếu chỗ để tải và cài bản mới.")
+        updates = installed / 'updates'
+        updates.mkdir(parents=True, exist_ok=True)
     staging = Path(tempfile.mkdtemp(prefix="biliclass-update-", dir=updates)).resolve()
     if staging.parent != updates:
         raise ValueError("Thư mục cập nhật không hợp lệ.")
@@ -164,6 +186,9 @@ def launch_install(package, process_id):
     log_path = script.parent.parent / "install.log"
     command = ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script),
                "-WaitForProcessId", str(process_id), "-LaunchAfterInstall"]
+    installed = _owned_install_root()
+    if installed is not None:
+        command.extend(['-InstallRoot', str(installed)])
     with log_path.open("wb") as log:
         subprocess.Popen(command, cwd=script.parent, stdout=log, stderr=subprocess.STDOUT,
                          creationflags=subprocess.CREATE_NO_WINDOW)

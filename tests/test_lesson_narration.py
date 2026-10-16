@@ -121,6 +121,33 @@ def test_missing_or_corrupt_wavs_and_unrelated_keys_cannot_claim_ready(saved):
     assert audio_status(lesson, library.directory)["status"] == "stale"
 
 
+def test_shared_variants_reuse_wav_checks_without_hiding_later_file_loss(saved, monkeypatch):
+    from app import lesson_narration
+
+    library, lesson, _ = saved
+    for mode in ('en', 'vi', 'both'):
+        plan, _ = make_plan(lesson, mode, VOICES)
+        for keys in plan['keys'].values():
+            for key in keys:
+                wav(library.directory / 'audio' / (key + '.wav'))
+        library.update_narration(lesson['id'], plan)
+    lesson = library.get(lesson['id'])
+    checks = []
+    original = lesson_narration.valid_key
+
+    def counted(directory, key):
+        checks.append(key)
+        return original(directory, key)
+
+    monkeypatch.setattr(lesson_narration, 'valid_key', counted)
+    status = lesson_narration.library_audio_status(lesson, library.directory)
+    assert all(row['ready'] for row in status['variants'])
+    assert len(checks) == len(set(checks))
+    (library.directory / 'audio' / (checks[0] + '.wav')).unlink()
+    changed = lesson_narration.library_audio_status(lesson, library.directory)
+    assert any(not row['ready'] for row in changed['variants'])
+
+
 def test_late_audio_metadata_cannot_overwrite_edited_lesson(saved):
     library, lesson, _ = saved
     plan, _ = make_plan(lesson, "en", VOICES)

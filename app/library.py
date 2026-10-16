@@ -8,11 +8,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
+from .lesson_design import PRESETS, classify_block
 from .lesson_narration import library_audio_status as audio_status
 from .readiness import preparation_current
 from .speech import voice_settings
-
-from .lesson_design import PRESETS, classify_block
 
 
 class RevisionConflict(ValueError):
@@ -105,6 +104,23 @@ class Library:
                 PRAGMA user_version=3;
             """)
         self._backfill_created_dates()
+        # Track this connection's lesson writes without treating profile/key/
+        # glossary preference changes as changes to every lesson's audio.
+        # TEMP objects never alter the library's persistent schema or backups.
+        self.db.executescript('''
+            CREATE TEMP TABLE catalog_clock(value INTEGER NOT NULL);
+            INSERT INTO catalog_clock VALUES(0);
+            CREATE TEMP TRIGGER catalog_insert AFTER INSERT ON main.lessons
+            BEGIN UPDATE catalog_clock SET value=value+1; END;
+            CREATE TEMP TRIGGER catalog_update AFTER UPDATE ON main.lessons
+            BEGIN UPDATE catalog_clock SET value=value+1; END;
+            CREATE TEMP TRIGGER catalog_delete AFTER DELETE ON main.lessons
+            BEGIN UPDATE catalog_clock SET value=value+1; END;
+        ''')
+
+    def catalog_revision(self):
+        return (self.db.execute('SELECT value FROM temp.catalog_clock').fetchone()[0],
+                self.db.execute('PRAGMA data_version').fetchone()[0])
 
     def _backfill_created_dates(self):
         """Recover original save time from revision 1; label retained-history estimates."""

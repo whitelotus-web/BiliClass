@@ -54,7 +54,9 @@ def blas_budget():
                 from threadpoolctl import threadpool_limits
                 context=threadpool_limits(limits=1,user_api='blas')
                 context.__enter__()
-                _BUDGET_RESTORE=lambda: context.__exit__(None,None,None)
+                def restore_context():
+                    context.__exit__(None, None, None)
+                _BUDGET_RESTORE = restore_context
             else:
                 saved=[]
                 try:

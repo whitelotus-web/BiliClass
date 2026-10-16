@@ -38,7 +38,7 @@ def main():
     app = QGuiApplication([])
     configure_application(app)
     QQuickStyle.setStyle('Basic')
-    report = Path('reports/rc57/classroom')
+    report = Path('reports/rc58/classroom')
     report.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='biliclass-classflow-', ignore_cleanup_errors=True) as folder:
         library = Library(Path(folder))
@@ -102,6 +102,7 @@ def main():
             assert window.grabWindow().save(str(report/'live.png'))
             session_id = bridge.classroom.state['session_id']
             bridge.classroom.disconnect()
+            until(lambda: not bridge.classroom.busy and bridge.classroom.runtime is None)
             bridge.classroom.openReport(session_id)
             assert bridge.classroom.selectedReport['rounds'][0]['percent'] == 100
             bridge.classroom.start('', 'anonymous', 50, '127.0.0.1', session_id)
@@ -119,6 +120,7 @@ def main():
             assert (report/'summary.csv').is_file() and (report/'responses.csv').is_file()
             assert window.grabWindow().save(str(report/'results.png'))
             bridge.classroom.disconnect()
+            until(lambda: not bridge.classroom.busy and bridge.classroom.runtime is None)
             # The failure must be visible and must release the failed runtime.
             bridge.classroom.start('Lớp thử lỗi mạng', 'anonymous', 10, '203.0.113.9', '')
             until(lambda: not bridge.busy)

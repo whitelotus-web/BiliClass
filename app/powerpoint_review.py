@@ -5,7 +5,6 @@ import json
 from pathlib import Path
 from threading import RLock
 
-
 _preview_lock = RLock()
 
 
@@ -22,8 +21,8 @@ def _render_preview_pages(path,pages,directory,sha256):
     Caller has verified the deck hash and file stamp. This is a preview cache,
     not evidence that native measurements or content checks have passed.
     """
-    import pythoncom
     import psutil
+    import pythoncom
     import win32com.client
 
     from .slide_fingerprint import environment_key

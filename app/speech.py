@@ -148,6 +148,7 @@ def narration_workers(tasks):
 
 def _synthesize_vieneu(text, voice_id, rate, temporary):
     import numpy as np
+
     from .voice_threads import blas_budget
 
     factory=_secondary_vieneu_engine if getattr(_SYNTHESIS_CONTEXT,'secondary',False) else _vieneu_engine

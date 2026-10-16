@@ -1,21 +1,21 @@
 # BiliClass — Trợ lý dạy học song ngữ
 
-Hướng dẫn RC57, ngày 17/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
+Hướng dẫn RC58, ngày 17/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
 trên máy. Chuyển đổi hiện dùng Google Cloud Translation cho phần chữ và dựng
 PowerPoint tại máy; Browser ChatGPT/Gemini tạm ẩn.
 
 ## Cài và cập nhật
 
-1. Tải **BiliClass-RC57-Windows.zip** tại
-   [Release RC57](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc57).
+1. Tải **BiliClass-RC58-Windows.zip** tại
+   [Release RC58](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc58).
 2. Giải nén toàn bộ; không chạy trong cửa sổ ZIP. Chạy **Setup.cmd**.
 3. Bộ cài kiểm tra checksum và cài vào
-   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc57`, không cần quyền quản trị.
+   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc58`, không cần quyền quản trị.
 4. Mở BiliClass từ Desktop hoặc Start menu. Bản cài có model giọng, OCR và
    template; không cần thư mục runtime của máy phát triển.
 
 Máy đang dùng RC34: vào **Cài đặt → Thông tin BiliClass → Kiểm tra cập nhật**,
-chọn Cập nhật khi thấy RC57. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
+chọn Cập nhật khi thấy RC58. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
 Setup.cmd như trên. Các bản cài nằm cạnh nhau; thư viện ở
 `%LOCALAPPDATA%/BiliClass` được giữ nguyên. Không xóa thư mục dữ liệu này.
 Thư viện cá nhân không đưa lên GitHub. Key có thể nhận riêng như hướng dẫn dưới.
@@ -38,7 +38,7 @@ hình nhóm/hạn mức, nhưng 500.000 ký tự không phải số dư riêng �
 
 **Bài giảng** là thư viện: tìm, lọc, mở, tải và quản lý bài đã lưu. Đổi qua lại
 giữa các mục vẫn giữ tài liệu/cấu hình đang nhập ở mục Chuyển đổi bài giảng.
-Trang chủ có hướng dẫn bốn bước, bài vừa cập nhật và tình trạng ứng dụng;
+Trang chủ hiển thị bài đang làm/bài gần đây, tác vụ và tình trạng ứng dụng;
 bấm **Chi tiết** để xem thống kê dịch cục bộ.
 
 Trong **Cài đặt → Dữ liệu → Quản lý thuật ngữ & kiến thức**, thuật ngữ đã khóa của đúng môn được ưu tiên
@@ -186,5 +186,20 @@ rác; danh sách đổi hoặc còn tiết học đang mở thì báo lỗi đ�
 
 ## Hướng dẫn chi tiết lớp học và mascot
 
-Xem [Lớp học, kết quả, thuật ngữ và mascot RC57](CLASSROOM_MASCOT_RC57.md):
+Xem [Lớp học, kết quả, thuật ngữ và mascot RC58](CLASSROOM_MASCOT_RC58.md):
 quy trình sử dụng, điều kiện mạng, cách lưu/kết nối lại và các giới hạn đã kiểm.
+
+## Cải tiến RC58
+
+Kiểm tra tệp giọng trước khi tạo chạy nền, có trạng thái chờ và đồng hồ. Các
+bản Anh, Việt và Song ngữ dùng chung đoạn âm thanh phù hợp nên không tạo lại
+phần đã có. Mất hoặc hỏng WAV vẫn được phát hiện ở lượt kiểm tra tiếp theo.
+Đổi cài đặt mascot hoặc thuật ngữ không làm quét lại giọng của mọi bài.
+
+Khi bấm tạm đóng máy chủ lớp, giao diện tiếp tục phản hồi; đợi đóng xong mới
+mở lại. Tiết chưa kết thúc và câu trả lời đã nhận vẫn có thể tiếp tục từ Kết
+quả lớp học. Đóng ứng dụng vẫn chờ công việc đang ghi dữ liệu kết thúc an toàn.
+
+RC58 giữ thư mục cài tùy chọn khi tự cập nhật. Nếu ổ lưu dữ liệu thiếu chỗ
+tải, ứng dụng thử dùng thư mục cập nhật trên ổ cài đã xác minh còn đủ chỗ.
+Không tự chuyển thư viện hoặc xóa bản cài/dữ liệu cũ.

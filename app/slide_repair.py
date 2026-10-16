@@ -215,6 +215,7 @@ def _office_fit(path, target, targets, cancel):
     import psutil
     import pythoncom
     import win32com.client
+
     from .native_layout import office_text_shapes
 
     existing = any((p.info["name"] or "").lower() == "powerpnt.exe" for p in psutil.process_iter(["name"]))

@@ -7,7 +7,7 @@ from pathlib import Path
 from threading import Event
 from time import monotonic
 
-from PySide6.QtCore import QObject, Property, QThread, QTimer, Signal, Slot
+from PySide6.QtCore import Property, QObject, QThread, QTimer, Signal, Slot
 
 from . import speech
 from .browser_audio import narration_tasks
@@ -18,23 +18,46 @@ class NarrationJob(QThread):
 
     def __init__(self, inspection, voices, directory, parent):
         super().__init__(parent)
-        self.tasks, self.skipped, self.duplicates = narration_tasks(inspection, voices)
+        self.inspection, self.voices = inspection, dict(voices)
         self.rate, self.directory = voices["rate"], directory
-        self.total = len(self.tasks)
-        missing = [(text, voice) for text, voice in self.tasks if not speech.valid_audio(
-            Path(directory) / (speech.audio_key(text, voice, self.rate) + ".wav"))]
-        self.initial_cached = self.total - len(missing)
-        self.tasks = missing
-        self.parallelism = speech.narration_workers(missing)
+        self.tasks = []
+        self.total = self.skipped = self.duplicates = self.initial_cached = 0
+        self.parallelism = 1
         self.cancel, self.paused = Event(), Event()
         self.result = {}
 
+    def prepare(self):
+        self.tasks, self.skipped, self.duplicates = narration_tasks(self.inspection, self.voices)
+        self.total = len(self.tasks)
+        missing = []
+        for text, voice in self.tasks:
+            if self.cancel.is_set():
+                raise InterruptedError()
+            if not speech.valid_audio(Path(self.directory) / (speech.audio_key(text, voice, self.rate) + '.wav')):
+                missing.append((text, voice))
+        self.initial_cached = self.total - len(missing)
+        self.tasks = missing
+        self.parallelism = speech.narration_workers(missing)
+
     def run(self):
+        try:
+            self.prepare()
+        except InterruptedError:
+            self.result = {'complete': 0, 'cached': 0, 'total': self.total, 'failed': 0,
+                           'skipped': self.skipped, 'duplicates': self.duplicates, 'cancelled': True}
+            return
+        except Exception:
+            self.result = {'complete': 0, 'cached': 0, 'total': self.total, 'failed': 1,
+                           'skipped': self.skipped, 'duplicates': self.duplicates, 'cancelled': False}
+            return
         complete = cached = self.initial_cached
         failed = consecutive = 0
         tasks=deque(self.tasks)
         futures={}
         second_enabled=False
+        self.progressed.emit({'complete': complete, 'cached': cached, 'total': self.total,
+                              'skipped': self.skipped, 'duplicates': self.duplicates,
+                              'message': 'Đang tạo giọng đọc trên máy…'})
         try:
             with ThreadPoolExecutor(max_workers=self.parallelism,thread_name_prefix='bcl-narration') as pool:
                 stopping=False
@@ -126,20 +149,12 @@ class NarrationPreparation(QObject):
         self._started_at = monotonic()
         self.worker = NarrationJob(inspection, voices, self.directory, self)
         self.worker.paused.set() if self.paused else self.worker.paused.clear()
-        self.state = {**(metadata or {}), "lesson_id": lesson_id, "running": bool(self.worker.tasks),
+        self.state = {**(metadata or {}), "lesson_id": lesson_id, "running": True,
                       "complete": self.worker.initial_cached, "cached": self.worker.initial_cached, "failed": 0,
                       "voice": voices.get("voice", ""), "rate": voices["rate"],
                       "total": self.worker.total, "skipped": self.worker.skipped,
                       "duplicates": self.worker.duplicates, "cancelled": False,
-                      "message": "Đang tạo giọng đọc trên máy…"}
-        if not self.worker.tasks:
-            self._stop_clock()
-            self.state["message"] = self._completion_message(self.state)
-            self.worker.deleteLater()
-            self.worker = None
-            self._persist()
-            self.changed.emit()
-            return
+                      "message": "Đang kiểm tra các đoạn giọng đã lưu…"}
         self.worker.progressed.connect(self._progress)
         self.worker.finished.connect(self._finished)
         self._persist()
@@ -193,10 +208,10 @@ class NarrationPreparation(QObject):
     def _completion_message(result):
         if result.get("cancelled"):
             return "Đã dừng tạo giọng. Các đoạn đã tạo được giữ lại để tiếp tục."
-        if not result.get("total"):
-            return "Chưa có nội dung phù hợp để tạo giọng đọc."
         if result.get("failed") or result.get("skipped"):
             return "Một số lời đọc cần kiểm tra. Bài giảng đã được lưu."
+        if not result.get("total"):
+            return "Chưa có nội dung phù hợp để tạo giọng đọc."
         return "Giọng đọc sẵn sàng."
 
     def cancel(self):
