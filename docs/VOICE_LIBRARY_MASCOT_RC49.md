@@ -76,3 +76,7 @@ dừng hàng đợi hiện tại. Nghe thử ở Cài đặt/màn tạo giọng 
 
 Bằng chứng riêng: `reports/rc49` và `reports/lesson-management`. Báo cáo, bài
 cá nhân, WAV, API key, model và EXE không đưa vào Git.
+
+[Bản EXE RC49 và kiểm tra mở độc lập](BUILD_RC49.md). Bài hiện tại đã được
+đăng ký bản Anh / Việt / Việt–Anh từ đủ 354 đoạn cache sẵn có, không tổng hợp
+lại; không thay nội dung hay duyệt lại bài tự động.
