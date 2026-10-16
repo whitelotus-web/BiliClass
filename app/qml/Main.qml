@@ -6,6 +6,7 @@ import QtQuick.Window
 
 ApplicationWindow {
     id: root
+    readonly property var appBridge: bridge
     visible: true
     width: 1366; height: 850
     minimumWidth: 1080; minimumHeight: 700
@@ -208,7 +209,7 @@ ApplicationWindow {
         }
     }
 
-    Component.onCompleted: Qt.callLater(function() { if (bridge.lessons.length === 0 && root.page === "home") helpDialog.open() })
+    // Home provides the first-use steps; the complete guide remains available with F1.
     Shortcut { sequence: "F1"; onActivated: helpDialog.open() }
     component Heading: Label { color: root.ink; font.pixelSize: 27; font.weight: Font.Bold; wrapMode: Text.WordWrap }
     component Copy: Label { color: root.muted; font.pixelSize: 13; wrapMode: Text.WordWrap; lineHeight: 1.25; textFormat: Text.PlainText }
@@ -299,7 +300,7 @@ ApplicationWindow {
                     Image { source: "book.svg"; sourceSize.width: 35; sourceSize.height: 35; Layout.preferredWidth: 35; Layout.preferredHeight: 35 }
                     Label { text: "Bili<span style='color:#ff7d2b'>Class</span>"; textFormat: Text.RichText; color: root.ink; font.pixelSize: 25; font.weight: Font.Bold }
                 }
-                Copy { text: "CÙNG DẠY. CÙNG TIẾN XA."; font.pixelSize: 9; font.letterSpacing: 0.8; Layout.bottomMargin: 31 }
+                Copy { objectName: "brandSlogan"; text: "CHUYỂN NGỮ THÔNG MINH\nNÂNG TẦM BÀI GIẢNG"; font.pixelSize: 9; font.letterSpacing: 0.6; Layout.bottomMargin: 23 }
                 ScrollView {
                     id: sidebarNavigation; objectName: "sidebarNavigation"
                     Layout.fillWidth: true; Layout.fillHeight: true
@@ -308,11 +309,11 @@ ApplicationWindow {
                     ColumnLayout {
                         width: sidebarNavigation.availableWidth; spacing: 8
                         Repeater {
-                            model: [{key:"home", label:"Trang chủ", icon:"home"}, {key:"library", label:"Bài giảng", icon:"lessons"}, {key:"classroom", label:"Lớp học", icon:"classroom"}, {key:"reports", label:"Báo cáo", icon:"reports"}, {key:"reference", label:"Thuật ngữ & kiến thức", icon:"data"}, {key:"settings", label:"Cài đặt", icon:"settings"}]
+                            model: [{key:"home", label:"Trang chủ", icon:"home"}, {key:"new", label:"Chuyển đổi bài giảng", icon:"bilingual"}, {key:"library", label:"Bài giảng", icon:"lessons"}, {key:"classroom", label:"Lớp học", icon:"classroom"}, {key:"reports", label:"Báo cáo", icon:"reports"}, {key:"reference", label:"Thuật ngữ & kiến thức", icon:"data"}, {key:"settings", label:"Cài đặt", icon:"settings"}]
                             delegate: Button {
                                 required property var modelData
                                 objectName: "navigation" + modelData.key
-                                readonly property bool selected: root.page === modelData.key || (modelData.key === "library" && ["editor", "new", "result", "chatgpt"].indexOf(root.page) >= 0)
+                                readonly property bool selected: root.page === modelData.key || (modelData.key === "library" && ["editor", "result"].indexOf(root.page) >= 0) || (modelData.key === "new" && root.page === "chatgpt")
                                 Layout.fillWidth: true; implicitHeight: 48; leftPadding: 14
                                 onClicked: root.go(modelData.key)
                                 background: Rectangle { radius: 10; color: parent.selected ? "#eaf3ff" : parent.hovered ? "#f4f7fc" : "transparent" }
@@ -392,36 +393,22 @@ ApplicationWindow {
                     visible: root.page === "home" || root.page === "library"
                     clip: true; contentWidth: availableWidth
                     ColumnLayout {
-                        width: parent.width; spacing: 23
+                        width: parent.width; spacing: root.page === "home" ? 18 : 23
                         RowLayout {
+                            visible: root.page === "library"
                             Layout.fillWidth: true
                             ColumnLayout { Layout.fillWidth: true; spacing: 8; Heading { objectName: "libraryHomeHeading"; Layout.fillWidth: true; wrapMode: Text.WordWrap; text: root.page === "home" ? "Chào " + bridge.settings.teacher : "Thư viện bài giảng"; font.pixelSize: 28 }
                                 Copy { text: root.page === "home" ? "Tiếp tục chuẩn bị bài và sẵn sàng cho tiết dạy." : "Tìm đúng bài, chọn bản giọng và mở để dạy hoặc tải PowerPoint."; Layout.fillWidth: true } }
                             Item { Layout.fillWidth: true }
-                            Action { objectName: "newLibraryLesson"; visible: root.page === "library"; text: "+  Bài học mới"; primary: true; onClicked: root.go("new") }
                         }
-                        Rectangle {
-                            visible: root.page === "home"
-                            objectName: "homeWorkPanel"; Layout.fillWidth: true; implicitHeight: 200; radius: 19; color: "#e6f0ff"
-                            RowLayout {
-                                anchors.fill: parent; anchors.margins: 28; spacing: 28
-                                ColumnLayout {
-                                    Layout.fillWidth: true; spacing: 13
-                                    Caption { text: bridge.narrationBusy || bridge.browserState.running ? "Công việc đang xử lý" : "Chuẩn bị cho tiết dạy"; color: root.blue }
-                                    Label { text: bridge.narrationBusy ? "Đang tạo giọng đọc" : bridge.browserState.running ? "Đang chuyển đổi bài giảng" : "Chọn bài và bắt đầu tiết học"; color: root.ink; font.pixelSize: 23; font.weight: Font.Bold; Layout.fillWidth: true; wrapMode: Text.WordWrap }
-                                    Copy { Layout.fillWidth: true; text: bridge.narrationBusy ? "Các đoạn âm thanh đã xong được lưu để tiếp tục." : bridge.browserState.running ? bridge.browserState.message || "BiliClass đang xử lý tài liệu." : bridge.librarySummary.total + " bài trong thư viện · " + bridge.librarySummary.ready + " bài đã duyệt · " + bridge.librarySummary.voiced + " bài có giọng đọc sẵn sàng." }
-                                    RowLayout { Layout.fillWidth: true
-                                        Action { objectName: "homeContinueWork"; text: bridge.narrationBusy || bridge.browserState.running ? "Xem công việc đang làm" : "Chọn bài để dạy"; onClicked: { if (bridge.narrationBusy && bridge.narrationTaskLessonId) bridge.openLesson(bridge.narrationTaskLessonId); else if (bridge.browserState.running) root.go("new"); else root.go("library") } }
-                                        Action { objectName: "homeClassroomButton"; text: "Lớp học"; subtle: true; onClicked: root.go("classroom") }
-                                    }
-                                }
-                                Image {
-                                    Layout.preferredWidth: 154; Layout.fillHeight: true
-                                    source: bridge.settings.mascot === "Lumi" ? "../assets/lumi-welcome.png" : "../assets/milo-welcome.png"
-                                    fillMode: Image.PreserveAspectFit; sourceSize.width: 420; sourceSize.height: 420
-                                    Accessible.name: bridge.settings.mascot + " chào thầy cô"
-                                }
-                            }
+                        HomeWelcome {
+                            objectName: "homeWelcome"
+                            visible: root.page === "home"; Layout.fillWidth: true; bridge: root.appBridge
+                            onChooseDocument: { root.go("new"); documentOpen.open() }
+                            onDocumentDropped: function(urls) { if (root.acceptInputDocuments(urls)) root.go("new") }
+                            onContinueWork: { if (bridge.narrationBusy && bridge.narrationTaskLessonId) bridge.openLesson(bridge.narrationTaskLessonId); else root.go("new") }
+                            onOpenLibrary: root.go("library")
+                            onOpenClassroom: root.go("classroom")
                         }
                         Surface {
                             objectName: "updateBanner"
@@ -441,13 +428,15 @@ ApplicationWindow {
                         }
                         Surface {
                             objectName: "homeApplicationHealth"; visible: root.page === "home" && bridge.googleTranslation
-                            Layout.fillWidth: true; implicitHeight: homeHealth.implicitHeight + 36
-                            ColumnLayout { id: homeHealth; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 18; spacing: 10
+                            Layout.fillWidth: true; implicitHeight: homeHealth.implicitHeight + 28
+                            ColumnLayout { id: homeHealth; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 14; spacing: 6
                                 RowLayout { Layout.fillWidth: true
-                                    Caption { text: "Tình trạng ứng dụng"; Layout.fillWidth: true }
-                                    Action { objectName: "homeGoogleSettings"; text: "Google Dịch"; subtle: true; implicitHeight: 30; onClicked: { root.go("settings"); settingsPanel.activeTab = 6 } }
+                                    Caption { text: "Ứng dụng" }
+                                    Copy { Layout.fillWidth: true; text: "Dịch · " + ((bridge.googleSettings.state.health || {}).status || "Chưa có key"); color: (bridge.googleSettings.state.health || {}).warning ? "#a66b20" : "#168567"; font.pixelSize: 12; wrapMode: Text.WordWrap }
+                                    Action { objectName: "homeHealthDetailsToggle"; text: homeUsageDetails.visible ? "Thu gọn" : "Chi tiết"; subtle: true; implicitHeight: 28; onClicked: homeUsageDetails.visible = !homeUsageDetails.visible }
+                                    Action { objectName: "homeGoogleSettings"; text: "Cài đặt"; subtle: true; implicitHeight: 28; onClicked: { root.go("settings"); settingsPanel.activeTab = 6 } }
                                 }
-                                TranslationUsage { objectName: "homeTranslationUsage"; Layout.fillWidth: true; health: bridge.googleSettings.state.health || ({}) }
+                                TranslationUsage { id: homeUsageDetails; objectName: "homeTranslationUsage"; visible: false; Layout.fillWidth: true; health: bridge.googleSettings.state.health || ({}) }
                                 Copy { Layout.fillWidth: true; font.pixelSize: 11; text: "PowerPoint: " + (bridge.googleSettings.state.powerpointInstalled ? "đã phát hiện" : "chưa phát hiện") + "   ·   Gói giọng ngoại tuyến: " + (bridge.vieneuReady ? "đã có" : "chưa có") + "   ·   Gói OCR: " + (bridge.googleSettings.state.ocrReady ? "đã có" : "chưa có") }
                             }
                         }
@@ -512,7 +501,7 @@ ApplicationWindow {
                             visible: bridge.lessons.length === 0; Layout.fillWidth: true; implicitHeight: 202
                             ColumnLayout { anchors.centerIn: parent; spacing: 13; Label { text: "Bài giảng đầu tiên bắt đầu từ đây"; color: root.ink; font.pixelSize: 19; font.weight: Font.DemiBold }
                                 Copy { text: "Tải PPTX, DOCX, PDF có văn bản, TXT hoặc dán nội dung."; Layout.alignment: Qt.AlignHCenter }
-                                Action { text: "+  Tạo bài học"; primary: true; Layout.alignment: Qt.AlignHCenter; onClicked: root.go("new") } }
+                                Action { visible: root.page === "library"; text: "Chuyển đổi bài giảng"; primary: true; Layout.alignment: Qt.AlignHCenter; onClicked: root.go("new") } }
                         }
                         ColumnLayout {
                             visible: !root.libraryLarge; Layout.fillWidth: true; spacing: 10
@@ -615,7 +604,7 @@ ApplicationWindow {
                                 }
                             }
                         }
-                        Copy { visible: root.page === "home"; text: "Lộ trình   01  Nhập nội dung    →    02  Biên tập Anh–Việt    →    03  Duyệt    →    04  Chốt bản chuẩn bị    →    05  Dạy và xem báo cáo"; font.pixelSize: 11; Layout.topMargin: 2; Layout.bottomMargin: 12 }
+
                     }
                 }
 

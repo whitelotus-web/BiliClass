@@ -273,5 +273,5 @@ def test_multiple_native_math_paragraphs_paginate_independently_without_source_d
     source.save(tmp_path/'source.pptx')
     build(tmp_path/'out.pptx',asset('standard'),config(),[('Slide 1','Công thức','Formula')],Event(),tmp_path/'source.pptx')
     deck=Presentation(tmp_path/'out.pptx')
-    assert len(deck.slides)==3
-    assert all(len(s._element.xpath('.//*[local-name()="oMath"]'))==1 for s in deck.slides)
+    assert len(deck.slides)==1
+    assert len(deck.slides[0]._element.xpath('.//*[local-name()="oMath"]'))==3

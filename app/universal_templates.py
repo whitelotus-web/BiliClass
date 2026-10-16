@@ -21,8 +21,7 @@ from pptx.util import Inches, Pt
 from .native_layout import text_height
 from .paths import RESOURCE_ROOT
 from .pptx_template import _write
-from .source_deck import NS, text_blocks
-
+from .source_deck import NS
 
 ROOT = RESOURCE_ROOT / 'assets/templates/universal2026'
 THEMES = {'standard': 'CLASSROOM', 'visual': 'VISUAL', 'practice': 'PRACTICE'}
@@ -44,6 +43,13 @@ def asset(preset):
 
 def formula(text):
     """Share language-neutral equations once; do not translate section numbers."""
+    if re.match(r'^\s*[A-D][.)]\s*', text):
+        return False  # A formula-valued answer still belongs with the question.
+    if '$' in text:
+        prose = re.sub(r'\$[^$]+\$', '', text)
+        prose = re.sub(r'\b(?:cm|mm|km|m|s|rad|Hz|kg|N)\b', '', prose)
+        if re.search(r'[^\W\d_]', prose, re.UNICODE):
+            return False
     return bool(re.search(r'[=∫∑√^]|[α-ωΑ-Ω]', text) and not
                 re.search(r'[ăâđêôơưáàảãạắằẳẵặấầẩẫậéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]', text, re.I))
 
@@ -53,26 +59,15 @@ def needs_translation(text):
 
 
 def source_blocks(deck):
-    """Table cells have stable identities instead of lossy pipe-delimited rows."""
-    result = []
-    for unit in text_blocks(deck):
-        shape = unit['shape']
-        if shape.has_table:
-            for row, cells in enumerate(shape.table.rows):
-                for col, cell in enumerate(cells.cells):
-                    if cell.is_spanned or not cell.text.strip():
-                        continue
-                    result.append((unit['locator'] + f' · ô {row},{col}', cell.text.strip()))
-        else:
-            result.extend((unit['locator'] + f' · dòng {n}', line.strip())
-                          for n, line in enumerate(unit['text'].splitlines(), 1) if line.strip())
-    return result
+    from .universal_content import source_blocks as visible_blocks
+
+    return visible_blocks(deck)
 
 
 def diagnose(report):
     """Offline packaging check; writes only disposable fixtures beside the report."""
-    from threading import Event
     import time
+    from threading import Event
 
     report=Path(report)
     report.parent.mkdir(parents=True,exist_ok=True)
@@ -216,7 +211,7 @@ def _fit(shape, text, minimum=18):
     return width > 0 and text_height(text, width, minimum) + minimum * .18 <= height
 
 
-def _fill(shape, value, english=False, title=False):
+def _fill(shape, value, english=False, title=False, *, maths=None):
     if not value:
         shape.text_frame.clear()
         return
@@ -229,6 +224,10 @@ def _fill(shape, value, english=False, title=False):
             run.font.italic = english
             if title:
                 run.font.size = Pt(min(run.font.size.pt, 22 if english else 28))
+    if maths:
+        from .universal_content import insert_inline_math
+
+        insert_inline_math(shape, maths, english)
 
 
 def _slots(slide, mode):
@@ -329,7 +328,7 @@ def _prune_unused(slide, slots, used):
                     slide.shapes._spTree.remove(shape._element)
 
 
-def _media(source_slide):
+def _media(source_slide, deck_size=None, inline_expressions=()):
     from .slide_speech import objects
     # Keep native equations and pictures, including group-relative pictures.
     result, seen = [], set()
@@ -337,6 +336,12 @@ def _media(source_slide):
         shape = obj['shape']
         if obj['hidden'] or shape._element in seen:
             continue
+        if int(shape.shape_type) == 13:
+            from .universal_content import decorative_picture
+
+            if deck_size and decorative_picture(obj, deck_size):
+                seen.add(shape._element)
+                continue
         math = shape._element.xpath('.//*[local-name()="oMath" or local-name()="oMathPara"]')
         if math and shape.has_text_frame:
             # Prose surrounding native math is already translated as body
@@ -347,7 +352,11 @@ def _media(source_slide):
             node = copy.deepcopy(shape._element)
             paragraphs = node.xpath('./p:txBody/a:p')
             for paragraph in paragraphs:
-                if not paragraph.xpath('.//*[local-name()="oMath" or local-name()="oMathPara"]'):
+                from .universal_content import equation_only, math_text
+
+                expressions = [math_text(c) for c in paragraph if c.xpath('.//*[local-name()="oMath"]') or etree.QName(c).localname == 'oMath']
+                if (not expressions or not equation_only(paragraph)
+                        and all(value in inline_expressions for value in expressions)):
                     paragraph.getparent().remove(paragraph)
                     continue
                 for child in list(paragraph):
@@ -389,8 +398,10 @@ def _media(source_slide):
                 cloned.height = Pt(42+38*depth)
                 result.append({**obj, 'shape': cloned, 'w': cloned.width, 'h': cloned.height})
             seen.add(shape._element)
-        elif int(shape.shape_type)==13 or shape.has_chart or math:
-            result.append(obj)
+        elif int(shape.shape_type) in {13, 16} or shape.has_chart or math:
+            accent = (deck_size is not None and int(shape.shape_type) == 13
+                      and obj['w'] < deck_size[0]*.12 and obj['h'] < deck_size[1]*.2)
+            result.append({**obj, 'accent': accent})
             seen.add(shape._element)
     return result
 
@@ -464,11 +475,15 @@ def _table_pages(shape):
         heights.append(row.height)
     pending=list(range(len(heights)))
     while pending:
-        indices=[];used=0
+        indices=[]
+        used=0
         if not (pending[0]==0) and table.first_row:
-            indices=[0];used=heights[0]
+            indices=[0]
+            used=heights[0]
         while pending and used+heights[pending[0]]<=height:
-            index=pending.pop(0);indices.append(index);used+=heights[index]
+            index=pending.pop(0)
+            indices.append(index)
+            used+=heights[index]
         if not indices or indices==[0] and pending and pending[0]!=0:
             raise ValueError('Một ô bảng quá dài cho trang mẫu. Tách nội dung ô trước khi chuyển đổi; tool không bỏ chữ.')
         from pptx.shapes.graphfrm import GraphicFrame
@@ -477,7 +492,8 @@ def _table_pages(shape):
         for i,row in enumerate(rows):
             if i not in indices:
                 output.table._tbl.remove(row)
-        output.width=width;output.height=sum(heights[i] for i in indices)
+        output.width=width
+        output.height=sum(heights[i] for i in indices)
         yield {'shape':output,'x':0,'y':0,'w':output.width,'h':output.height,'hidden':False}
 
 
@@ -533,7 +549,17 @@ def build(target, template, config, pairs, cancel, source=None):
         key = int(match[1]) if match else 0
         groups.setdefault(key, []).append(pair)
     source_deck = Presentation(source) if source and Path(source).suffix.lower() == '.pptx' else None
-    table_units = [u for u in text_blocks(source_deck) if u['shape'].has_table] if source_deck else []
+    from .universal_content import inline_math, source_objects
+
+    equations_xml = inline_math(source_deck) if source_deck else {}
+
+    def fill(shape, value, english=False, title=False):
+        return _fill(shape, value, english, title, maths=equations_xml)
+
+    table_units = [{'slide': number, 'shape': obj['shape'], 'locator': f'Slide {number} · ý {index}'}
+                   for number, page in enumerate(source_deck.slides, 1)
+                   for index, obj in enumerate(source_objects(page), 1)
+                   if obj['shape'].has_table and not obj['hidden']] if source_deck else []
     if source_deck:
         groups = OrderedDict((n, groups.get(n, [])) for n in range(1, len(source_deck.slides)+1))
     plan = []
@@ -545,6 +571,9 @@ def build(target, template, config, pairs, cancel, source=None):
         slide = _clone(deck, originals[catalog[layout]['slide_number']-1])
         _header(slide)
         slots = _slots(slide, mode)
+        from .universal_layout import prepare
+
+        slots = prepare(slide, layout, slots, mode)
         assigned, taken = _pack(slots, body, mode)
         if body and not taken and layout=='TWO_COLUMNS':
             assigned,taken=_pack(_dense_columns(slide,slots),body,mode)
@@ -574,6 +603,8 @@ def build(target, template, config, pairs, cancel, source=None):
         return True
 
     def finish(slide, layout, title, assigned, native, source_number, *, answer='', extra=()):
+        accents = [obj for obj in native if obj.get('accent')]
+        native = [obj for obj in native if not obj.get('accent')]
         fields = _fields(slide)
         lookup = {base: values for base, values in assigned}
         # Fill header tokens by position; ROADMAP repeats SECTION_1 in its body.
@@ -581,23 +612,26 @@ def build(target, template, config, pairs, cancel, source=None):
             if (shape.top < Inches(1.7) or key.startswith(('TITLE_', 'LESSON_TITLE_', 'SECTION_TITLE_', 'THANKS_'))):
                 english = key.endswith('_EN')
                 value = title[2] if english else ('' if mode == 'english_only' else title[1])
-                _fill(shape, value, english, True)
+                fill(shape, value, english, True)
             elif key in {'SUBJECT', 'GRADE', 'TEACHER'}:
                 # Personal names/subject translation are not guessed for English-only.
-                _fill(shape, str(config.get({'SUBJECT':'subject','GRADE':'grade','TEACHER':'teacher'}[key], ''))
+                fill(shape, str(config.get({'SUBJECT':'subject','GRADE':'grade','TEACHER':'teacher'}[key], ''))
                       if mode != 'english_only' or key != 'SUBJECT' else '')
             elif key == 'SECTION_NUMBER':
-                _fill(shape, str(source_number))
+                fill(shape, str(source_number))
             elif key == 'CORRECT_ANSWER' and answer:
-                _fill(shape, answer, True)
+                fill(shape, answer, True)
         slots = _slots(slide, mode)
         for base, values in lookup.items():
             pair = slots[base]
             if pair.get('vi') is not None:
-                _fill(pair['vi'], '\n'.join(p[1] for p in values) if mode != 'english_only' else '')
+                fill(pair['vi'], '\n'.join(p[1] for p in values) if mode != 'english_only' else '')
             if pair.get('en') is not None:
-                _fill(pair['en'], '\n'.join(p[2] for p in values), True)
+                fill(pair['en'], '\n'.join(p[2] for p in values), True)
         _clean(slide, mode, len(plan)+1)
+        from .universal_layout import finish as arrange_media
+
+        media_region = arrange_media(slide, layout, native, assigned)
         if native:
             if layout == 'FORMULA':
                 region = tuple(Inches(n) for n in (1.2, 2.55, 10.8, 1.2))
@@ -605,7 +639,7 @@ def build(target, template, config, pairs, cancel, source=None):
                 region = tuple(Inches(n) for n in (1.1, 2.4, 11, 3.9))
             else:
                 region = tuple(Inches(n) for n in (1.15, 2.45, 5.9, 2.5))
-            if layout=='IMAGE_TEXT':
+            if layout=='IMAGE_TEXT' and media_region is None:
                 # The supplied image placeholder has a little circle/plus target;
                 # it must not remain visible through transparent charts or PNGs.
                 for shape in list(slide.shapes):
@@ -619,7 +653,11 @@ def build(target, template, config, pairs, cancel, source=None):
                                 shape.width>Inches(5) and shape.height>Inches(2) and shape.top>Inches(1.7)):
                             shape.width=Inches(11.8 if shape.left<Inches(1) else 11.1)
                     region=tuple(Inches(n) for n in (1.15,2.4,11,3.1))
-            _insert_media(slide, native, region)
+            _insert_media(slide, native, media_region or region)
+        if accents:
+            # Preserve small source illustrations at icon size, instead of
+            # stretching a 20px ornament into the main teaching figure.
+            _insert_media(slide, accents, tuple(Inches(n) for n in (11.8, 6.8, .6, .4)))
         if layout in {'OBJECTIVES','SUMMARY','ROADMAP','PROCESS','COMPARISON','FORMULA','IMAGE_TEXT'}:
             _prune_unused(slide, slots, set(lookup))
         spoken = [p for _, values in assigned for p in values] + list(extra)
@@ -643,7 +681,11 @@ def build(target, template, config, pairs, cancel, source=None):
         if data and re.fullmatch(r'[IVXLCDMivxlcdm\d.)\s]+',title[1]) and len(title[1])<12:
             heading=data.pop(0)
             title=(title[0],title[1]+' '+heading[1],title[1]+' '+heading[2])
-        native = _media(source_deck.slides[number-1]) if source_deck and number else []
+        elif data and re.fullmatch(r'[IVX]{1,5}', data[0][1]) and len(title[1]) < 120:
+            marker = data.pop(0)[1]
+            title = (title[0], marker + ' · ' + title[1], marker + ' · ' + title[2])
+        represented = set(re.findall(r'\$([^$]+)\$', '\n'.join(p[1] for p in [title]+data)))
+        native = _media(source_deck.slides[number-1], (source_deck.slide_width, source_deck.slide_height), represented) if source_deck and number else []
         # Native math is shared once. Plain equations also stay once in a formula slot.
         equations = [p for p in data if formula(p[1])]
         data = [p for p in data if not formula(p[1])]
@@ -653,23 +695,36 @@ def build(target, template, config, pairs, cancel, source=None):
             carrier = Slide(copy.deepcopy(originals[12]._element), originals[12].part)
             for equation in equations:
                 region = next(s for s,k in _fields(carrier) if k == 'FORMULA_SOURCE')
-                _fill(region, equation[1])
+                fill(region, equation[1])
                 native.append({'shape':region,'x':0,'y':0,'w':region.width,'h':region.height,'hidden':False})
                 carrier = Slide(copy.deepcopy(originals[12]._element), originals[12].part)
-        pictures = any(int(o['shape'].shape_type)==13 or o['shape'].has_chart for o in native)
+        main_media = [o for o in native if not o.get('accent')]
+        pictures = any(int(o['shape'].shape_type) in {13, 16} or o['shape'].has_chart for o in main_media)
         other_formulas=[]
-        if not pictures and len(native)>1 and not any(o['shape'].has_chart for o in native):
-            native,other_formulas=native[:1],native[1:]
-        layout = choose_layout(title[1], data, pictures=pictures, equations=bool(native), mode=mode)
+        if not pictures and len(main_media)>1:
+            from .universal_layout import equation_pages
+
+            pages = equation_pages(main_media)
+            native, other_formulas = pages[0] + [o for o in native if o.get('accent')], pages[1:]
+        layout = choose_layout(title[1], data, pictures=pictures, equations=bool(main_media), mode=mode)
         if not heading_fits(layout, title):
             if title != title_fallback:
                 data.insert(0, title)
-            title = title_fallback
+            # A long question belongs in the body. Prefer its actual short
+            # source caption over repeating the lesson name on every page.
+            caption = next((p for p in data[1:] if len(p[1]) < 90 and re.match(
+                r'^(cau hoi|hoat dong|phieu hoc tap|huong dan)\b', _plain(p[1]))), None)
+            if caption:
+                data.remove(caption)
+                title = caption
+            else:
+                question = re.match(r'^\s*Câu\s*(\d+)\b', data[0][1], re.I) if data else None
+                title = ('', 'Câu ' + question[1], 'Question ' + question[1]) if question else title_fallback
             if not heading_fits(layout, title):
                 if title not in data:
                     data.insert(0, title)
                 title = ('', 'Nội dung bài học', 'Lesson content')
-            layout = choose_layout(title[1], data, pictures=pictures, equations=bool(native), mode=mode)
+            layout = choose_layout(title[1], data, pictures=pictures, equations=bool(main_media), mode=mode)
         if cells and source_deck:
             table_objects = []
             by_locator = {}
@@ -740,7 +795,7 @@ def build(target, template, config, pairs, cancel, source=None):
                     taken=0
                 if not taken:
                     discard(slide)
-                    if native and first:
+                    if main_media and first:
                         slide,assigned,_=new(layout,title,[])
                         finish(slide,layout,title,[],native,number,extra=equations)
                         first=False
@@ -752,7 +807,8 @@ def build(target, template, config, pairs, cancel, source=None):
                 discard(slide)
                 # Retain every word. Translation pairs are already short API units.
                 loc,vi,en=pending.pop(0)
-                a,b=vi.split(),en.split()
+                # Keep editable inline math atomic across continuation pages.
+                a,b=(re.findall(r'\$[^$]+\$|\S+',value) for value in (vi,en))
                 if max(len(a),len(b))<4:
                     raise ValueError('Nội dung không vừa khung mẫu; chọn khung chữ lớn hơn.')
                 pending[:0]=[(loc,' '.join(a[len(a)*i//2:len(a)*(i+1)//2]),
@@ -763,9 +819,9 @@ def build(target, template, config, pairs, cancel, source=None):
             first=False
             if pending:
                 layout=_fallback(mode,pending)
-        for obj in other_formulas:
+        for formula_group in other_formulas:
             slide,assigned,_=new('FORMULA',title,[])
-            finish(slide,'FORMULA',title,assigned,[obj],number)
+            finish(slide,'FORMULA',title,assigned,formula_group,number)
     if config.get('template_bookends'):
         ending=('', 'Cảm ơn!', 'Thank you!')
         slide,assigned,_=new('THANK_YOU',ending,[])

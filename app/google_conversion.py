@@ -270,6 +270,9 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
     if config['conversion_format'] == 'integrated_keywords':
         raise TranslationProblem('api_settings', 'Google Dịch hỗ trợ Hai cột, Từng câu và Tiếng Anh 100%. Chọn một trong ba kiểu này.')
     translator = translator or Translator(directory, budget)
+    if hasattr(translator, 'configure_terms'):
+        with closing(Library(directory)) as library:
+            translator.configure_terms(config.get('subject', ''), library.glossary(config.get('subject', '')))
     if cancel.is_set():
         raise InterruptedError('Đã dừng chuyển đổi.')
     completed = folder / 'saved.json'
@@ -356,7 +359,7 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
         # Short corresponding source units paginate without shrinking fonts
         # or truncating translations. Line boundaries are kept as data.
         units = [(locator, part) for locator, text in blocks for line in text.splitlines() if line.strip()
-                 for part in chunks(line, maximum=200)]
+                 for part in chunks(line, maximum=320)]
         texts = [text for _, text in units]
         from .universal_templates import needs_translation
         wanted = [index for index, text in enumerate(texts) if language_of(text) != 'en'

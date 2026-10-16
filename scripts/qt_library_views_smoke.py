@@ -8,7 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from PySide6.QtCore import QCoreApplication, QEvent, QMetaObject, QPointF, Qt, QUrl
+from PySide6.QtCore import QCoreApplication, QEvent, QMetaObject, QObject, QPointF, Qt, QUrl
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
@@ -95,7 +95,7 @@ def main():
             window.setProperty('page', 'home'); pump(250)
             assert not c('libraryGrid').isVisible()
             assert bridge.libraryCovers.images[identity]['image'], 'Leaving the page must retain cached covers'
-            assert not c('newLibraryLesson').isVisible()
+            assert window.findChild(QObject, 'newLibraryLesson') is None
             assert c('homeApplicationHealth').isVisible()
             assert bridge.googleSettings.state['health']['groups'][0]['level'] == 'warning'
             assert bridge.googleSettings.state['keys'][0]['name'] == 'Key 1'

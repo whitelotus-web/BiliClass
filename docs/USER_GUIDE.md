@@ -1,28 +1,29 @@
 # BiliClass — Trợ lý dạy học song ngữ
 
-Hướng dẫn RC55, ngày 16/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
+Hướng dẫn RC56, ngày 17/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
 trên máy. Chuyển đổi hiện dùng Google Cloud Translation cho phần chữ và dựng
 PowerPoint tại máy; Browser ChatGPT/Gemini tạm ẩn.
 
 ## Cài và cập nhật
 
-1. Tải **BiliClass-RC55-Windows.zip** tại
-   [Release RC55](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc55).
+1. Tải **BiliClass-RC56-Windows.zip** tại
+   [Release RC56](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc56).
 2. Giải nén toàn bộ; không chạy trong cửa sổ ZIP. Chạy **Setup.cmd**.
 3. Bộ cài kiểm tra checksum và cài vào
-   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc55`, không cần quyền quản trị.
+   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc56`, không cần quyền quản trị.
 4. Mở BiliClass từ Desktop hoặc Start menu. Bản cài có model giọng, OCR và
    template; không cần thư mục runtime của máy phát triển.
 
 Máy đang dùng RC34: vào **Cài đặt → Thông tin BiliClass → Kiểm tra cập nhật**,
-chọn Cập nhật khi thấy RC55. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
+chọn Cập nhật khi thấy RC56. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
 Setup.cmd như trên. Các bản cài nằm cạnh nhau; thư viện ở
 `%LOCALAPPDATA%/BiliClass` được giữ nguyên. Không xóa thư mục dữ liệu này.
 Thư viện cá nhân không đưa lên GitHub. Key có thể nhận riêng như hướng dẫn dưới.
 
 ## Tạo bài giảng
 
-1. Chọn **Bài học mới**, đưa tài liệu vào hoặc dán nội dung.
+1. Vào **Chuyển đổi bài giảng** ngay sau Trang chủ, đưa tài liệu vào hoặc dán
+   nội dung. Nút **Chọn tài liệu** và vùng kéo thả ở Trang chủ mở cùng luồng này.
 2. Chọn môn, cấp/khối và **Song ngữ Việt–Anh** hoặc **Tiếng Anh 100%**.
 3. Chọn giữ thiết kế PowerPoint gốc, hoặc tạo theo mẫu BiliClass/PowerPoint
    riêng. Mẫu Universal 2026 có ba phong cách; chọn xem mẫu để kiểm tra trước.
@@ -34,6 +35,16 @@ Thư viện cá nhân không đưa lên GitHub. Key có thể nhận riêng như
 Key được lưu mã hóa theo tài khoản Windows. Nhiều key có thể dùng theo cấu
 hình nhóm/hạn mức, nhưng 500.000 ký tự không phải số dư riêng được BiliClass
 đọc từ mỗi key. Kiểm soát hạn mức và chi phí trong Google Cloud của dự án.
+
+**Bài giảng** là thư viện: tìm, lọc, mở, tải và quản lý bài đã lưu. Đổi qua lại
+giữa các mục vẫn giữ tài liệu/cấu hình đang nhập ở mục Chuyển đổi bài giảng.
+Trang chủ có hướng dẫn bốn bước, bài vừa cập nhật và tình trạng ứng dụng;
+bấm **Chi tiết** để xem thống kê dịch cục bộ.
+
+Trong **Thuật ngữ & kiến thức**, thuật ngữ đã khóa của đúng môn được ưu tiên
+khi dịch Google. Đổi thuật ngữ làm mới riêng cache của câu có dùng từ đó;
+các câu không liên quan vẫn dùng lại bản dịch cũ. Thuật ngữ chưa khóa và
+kiến thức tham khảo không tự ghi đè bản dịch.
 
 Máy thứ hai có thể vào **Cài đặt → Google Dịch → Nhận key từ GitHub**.
 Cần Git for Windows và đăng nhập GitHub bằng Git Credential Manager, với quyền

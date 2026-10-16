@@ -197,7 +197,7 @@ Item {
                         Image { objectName: "aboutBiliClassLogo"; source: "../assets/brand/biliclass.svg"; sourceSize.width: 224; sourceSize.height: 224; Layout.preferredWidth: 88; Layout.preferredHeight: 88; fillMode: Image.PreserveAspectFit; Accessible.name: "Logo BiliClass" }
                         ColumnLayout { Layout.fillWidth: true; spacing: 8
                             Label { text: "Bili<span style='color:#ff7d2b'>Class</span>"; textFormat: Text.RichText; color: page.ink; font.pixelSize: 34; font.bold: true }
-                            Label { text: "CÙNG DẠY. CÙNG TIẾN XA."; color: page.muted; font.pixelSize: 10; font.letterSpacing: 1.2 }
+                            Label { text: "CHUYỂN NGỮ THÔNG MINH\nNÂNG TẦM BÀI GIẢNG"; color: page.muted; font.pixelSize: 10; font.letterSpacing: 0.6 }
                             Hint { text: bridge.appSubtitle; font.pixelSize: 16; Layout.fillWidth: true }
                         }
                     }

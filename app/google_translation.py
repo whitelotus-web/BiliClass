@@ -283,15 +283,19 @@ def request(texts, key, source, target):
         raise TranslationProblem('api_result', 'Google Dịch trả kết quả chưa hợp lệ; phần đã xong vẫn được lưu.') from None
 
 
-def protected_html(text):
+def protected_html(text, terms=None):
     # Protect arithmetic, LaTeX spans and native OOXML placeholder tokens.
-    pattern = r'⟦BLC\d+⟧|\$[^$]+\$|[+−-]?\d+(?:[.,]\d+)*(?:\s*%)?'
+    terms = terms or {}
+    term_pattern = r'(?<!\w)(?:' + '|'.join(re.escape(t) for t in sorted(terms, key=len, reverse=True)) + r')(?!\w)' if terms else r'(?!)'
+    pattern = r'⟦BLC\d+⟧|\$[^$]+\$|' + term_pattern + r'|[+−-]?\d+(?:[.,]\d+)*(?:\s*%)?'
     locks = []
     parts, last = [], 0
-    for match in re.finditer(pattern, text):
+    for match in re.finditer(pattern, text, re.I):
         parts.append(html.escape(text[last:match.start()]))
         token = f'BCLLOCK{len(locks)}END'
-        locks.append(match.group())
+        from .translation_terms import normalized
+
+        locks.append(terms.get(normalized(match.group()), match.group()))
         parts.append('<span translate="no" class="notranslate">' + token + '</span>')
         last = match.end()
     parts.append(html.escape(text[last:]))
@@ -348,6 +352,11 @@ class Translator:
             raise ValueError('Giới hạn cục bộ phải từ 1 đến 500.000 ký tự/dự án/tháng.')
         self.transport = transport
 
+    def configure_terms(self, subject, rows):
+        from .translation_terms import TermPolicy
+
+        self.term_policy = TermPolicy(subject, rows)
+
     def translate(self, texts, cancel, progress=None, *, source='vi', target='en'):
         """Two bounded workers; unique chunks cached as soon as they validate."""
         from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -355,17 +364,27 @@ class Translator:
         split = [[part for line in text.splitlines(keepends=True) for part in chunks(line)] for text in texts]
         unique = list(dict.fromkeys(part for parts in split for part in parts))
         values, pending = {}, []
+        from .translation_terms import TermPolicy
+
+        policy = getattr(self, 'term_policy', TermPolicy()) if source == 'vi' and target == 'en' else TermPolicy()
         for text in unique:
             if cancel.is_set():
                 raise InterruptedError('Đã dừng dịch.')
-            cache_id = _digest('google-nmt-v1|' + source + '|' + target + '|' + text)
+            exact = policy.exact(text)
+            if exact is not None:
+                whitespace = re.fullmatch(r'(\s*)(.*?)(\s*)', text, re.S)
+                values[text] = whitespace[1] + exact + whitespace[3]
+                continue
+            matches = policy.matches(text)
+            namespace = 'google-nmt-terms-v1|' + policy.fingerprint(matches) if matches else 'google-nmt-v1'
+            cache_id = _digest(namespace + '|' + source + '|' + target + '|' + text)
             cached = self.store.cached(cache_id)
             if cached is not None:
                 values[text] = cached
             elif not re.search(r'[^\W\d_]', text, re.UNICODE):
                 values[text] = text
             else:
-                payload, locks = protected_html(text)
+                payload, locks = protected_html(text, matches)
                 if len(payload) > MAX_CHARS:
                     raise TranslationProblem('api_request', 'Một công thức/vùng nội dung quá dài; chia nhỏ trước khi dịch.')
                 pending.append((text, payload, locks, cache_id))
@@ -409,17 +428,23 @@ class Translator:
                     raise
                 if not isinstance(response, list) or len(response) != len(group):
                     raise TranslationProblem('api_result', 'Bản dịch chưa đủ nội dung yêu cầu.')
-                translated = []
+                translated, invalid = [], []
                 for item, value in zip(group, response, strict=True):
-                    result = unprotect(value, item[2])
-                    whitespace = re.fullmatch(r'(\s*)(.*?)(\s*)', item[0], re.S)
-                    result = whitespace[1] + result.strip() + whitespace[3]
-                    from collections import Counter
-                    from .translation_batches import NUMBERS
-                    if Counter(NUMBERS.findall(result)) != Counter(NUMBERS.findall(item[0])):
-                        raise TranslationProblem('api_result', 'Bản dịch làm thay đổi số liệu; chưa áp dụng kết quả này.')
-                    translated.append((item, result))
+                    try:
+                        result = unprotect(value, item[2])
+                        whitespace = re.fullmatch(r'(\s*)(.*?)(\s*)', item[0], re.S)
+                        result = whitespace[1] + result.strip() + whitespace[3]
+                        from collections import Counter
+
+                        from .translation_batches import NUMBERS
+                        if Counter(NUMBERS.findall(result)) != Counter(NUMBERS.findall(item[0])):
+                            raise TranslationProblem('api_result', 'Bản dịch làm thay đổi số liệu; chưa áp dụng kết quả này.')
+                        translated.append((item, result))
+                    except TranslationProblem as exc:
+                        invalid.append(exc)
                 self.store.cache_many([(item[3], value) for item, value in translated])
+                if invalid:
+                    raise invalid[0]
                 return [(item[0], value) for item, value in translated]
 
         with ThreadPoolExecutor(max_workers=2, thread_name_prefix='google-translate') as executor:
