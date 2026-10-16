@@ -3,6 +3,8 @@
 Ngày 16/10/2026 — RC53 bỏ chế độ Chọn bài/Xong: ô chọn từng bài và
 Chọn tất cả / Bỏ chọn / Tải đã chọn / Xóa đã chọn luôn hiện ở Thư viện.
 Giữ thanh công cụ một hàng và ô tích 16 px của RC52.
+Đã phát hành, mở độc lập và xác minh cập nhật RC34/RC52 → RC53.
+[Commit và kiểm chứng bộ cài](BUILD_RC53.md).
 
 
 Ngày 16/10/2026 — RC52 thu nhỏ ô tích 16 px, gom bộ lọc và thao tác chọn
