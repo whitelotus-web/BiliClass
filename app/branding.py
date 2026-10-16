@@ -4,6 +4,8 @@ import os
 
 from .paths import RESOURCE_ROOT
 
+APP_SUBTITLE = 'Trợ lý dạy học song ngữ'
+
 
 def configure_application(application):
     from PySide6.QtGui import QIcon

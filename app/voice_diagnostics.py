@@ -155,6 +155,7 @@ def run(output):
             ancestor = ancestor.parentItem()
         pump(100)
         choices = bridge.conversionSubjects
+        control('mascotSubjectMode').setProperty('currentIndex', 1)
         themes = {}
         for subject in choices[:-1]:
             control('mascotSubject').setProperty('currentIndex', choices.index(subject))

@@ -6,7 +6,7 @@ from threading import Event
 from PySide6.QtCore import QObject, QThread, QTimer, Signal, Slot
 
 from .library import Library, timestamp
-from .lesson_narration import audio_status
+from .lesson_narration import library_audio_status as audio_status
 from .speech import voice_settings
 
 
@@ -62,6 +62,9 @@ class LibraryCatalog(QObject):
 
     def rows(self, order='updated_desc', *, trash=False):
         rows = self._trash if trash else self._active
+        if order == 'title_asc':
+            from .library_view import folded
+            return sorted(rows, key=lambda row: (folded(row['title']), row['id']))
         field = 'updated_at' if order == 'updated_desc' else 'created_at'
         return sorted(rows, key=lambda row: (timestamp(row.get(field)), row['id']), reverse=order != 'created_asc')
 

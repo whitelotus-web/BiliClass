@@ -11,7 +11,7 @@ Rectangle {
     radius: 16
     RowLayout {
         anchors.fill: parent; anchors.margins: 14; spacing: 18
-        Mascot { objectName: "mascotAssistant"; character: bridge.settings.mascot; expression: bridge.mascotState; subject: bridge.lesson.subject || ""; accessories: bridge.mascotSettings.accessories; reducedMotion: bridge.mascotSettings.reduced_motion; visible: bridge.mascotSettings.visible && (bridge.mascotSettings.show_explanation || !teaching.response.available || teaching.response.action !== "explanation"); Layout.preferredWidth: bridge.mascotSettings.size; Layout.preferredHeight: bridge.mascotSettings.size + 15 }
+        Mascot { objectName: "mascotAssistant"; character: bridge.settings.mascot; expression: bridge.mascotState; subject: bridge.mascotSubject; accessories: bridge.mascotSettings.accessories; reducedMotion: bridge.mascotSettings.reduced_motion; visible: bridge.mascotSettings.visible && (bridge.mascotSettings.show_explanation || !teaching.response.available || teaching.response.action !== "explanation"); Layout.preferredWidth: bridge.mascotSettings.size; Layout.preferredHeight: bridge.mascotSettings.size + 15 }
         ColumnLayout { Layout.fillWidth: true; spacing: 8
             RowLayout { Label { text: bridge.settings.mascot + " · Trợ giảng theo bài"; font.bold: true; color: "#112650" } Item { Layout.fillWidth: true } SelectBox { id: language; model: ["English", "Tiếng Việt"]; implicitWidth: 125 } }
             Flow { Layout.fillWidth: true; spacing: 5

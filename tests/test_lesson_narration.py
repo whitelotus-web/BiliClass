@@ -132,6 +132,147 @@ def test_late_audio_metadata_cannot_overwrite_edited_lesson(saved):
     assert library.get(lesson["id"])["narration"]["mode"] == "none"
 
 
+def test_multiple_voice_variants_survive_selection_reopen_and_no_voice_choice(saved):
+    from app.lesson_narration import records, variant_id
+
+    library, lesson, path = saved
+    original = path.read_bytes()
+    identities = []
+    for mode, voice, rate in [('en', VOICE, 0), ('vi', 'vieneu:Hải Đăng', 1), ('both', VOICE, 0)]:
+        plan, _ = make_plan(lesson, mode, {'voice': voice, 'rate': rate},
+                            playback='both_controls' if mode == 'both' else 'separate')
+        for keys in plan['keys'].values():
+            for key in keys:
+                wav(library.directory / 'audio' / (key + '.wav'))
+        library.update_narration(lesson['id'], plan)
+        identities.append(variant_id(plan))
+    current = library.get(lesson['id'])
+    assert len(records(current)) == 3
+    for identity, mode in zip(identities, ['en', 'vi', 'both']):
+        current = library.select_narration_variant(lesson['id'], identity)
+        status = audio_status(current, library.directory)
+        assert status['ready'] and status['mode'] == mode and status['id'] == identity
+        assert current['revision'] == lesson['revision']
+    current = library.select_narration_variant(lesson['id'], '')
+    assert audio_status(current, library.directory)['status'] == 'none'
+    assert len(records(current)) == 3
+    badge = library.list_lessons()[0]['narration']
+    assert len(badge['variants']) == 3 and all(v['ready'] for v in badge['variants'])
+    assert 'Tiếng Anh' in badge['label'] and 'Tiếng Việt' in badge['label'] and 'riêng + chung' in badge['label']
+    assert library.setting('voice_options', None) is None
+    assert not any(s['approved'] for s in current['segments'])
+    assert current['created_at'] == lesson['created_at'] and path.read_bytes() == original
+
+
+def test_old_single_voice_is_kept_when_another_voice_is_created(saved):
+    from app.lesson_narration import records, variant_id
+
+    library, lesson, _ = saved
+    old, _ = make_plan(lesson, 'en', VOICES)
+    lesson['narration'] = old  # Simulate a genuine pre-variant library record.
+    lesson.pop('narration_variants', None)
+    library._write(lesson)
+    new, _ = make_plan(lesson, 'vi', {'voice': 'vieneu:Thùy Dung', 'rate': 0})
+    current = library.update_narration(lesson['id'], new)
+    assert set(records(current)) == {variant_id(old), variant_id(new)}
+    assert library.select_narration_variant(lesson['id'], variant_id(old))['narration'] == old
+
+
+def test_different_voice_generation_and_teaching_use_selected_variant_not_global_setting(saved, monkeypatch):
+    from app.lesson_narration import variant_id
+
+    app = QCoreApplication.instance() or QCoreApplication([])
+    library, lesson, _ = saved
+    other = 'vieneu:Hải Đăng'
+    monkeypatch.setattr(speech, 'list_voices', lambda: [dict(v, provider='vieneu', languages=['vi', 'en']) for v in speech.VIENEU_VOICES])
+    calls = []
+    def render(text, voice, rate, directory, cancel):
+        calls.append((text, voice, rate))
+        target = Path(directory) / (speech.audio_key(text, voice, rate) + '.wav')
+        wav(target)
+        return {'path': str(target), 'cached': False}
+    monkeypatch.setattr(speech, 'synthesize_background', render)
+    bridge = Bridge(library)
+    try:
+        bridge._lesson = lesson
+        for mode, voice in [('en', VOICE), ('vi', other), ('both', VOICE)]:
+            bridge.createLessonNarrationWithVoice(mode, voice, 0)
+            deadline = time.monotonic() + 5
+            while bridge.narrationBusy and time.monotonic() < deadline:
+                app.processEvents(); time.sleep(.01)
+            assert not bridge.narrationBusy and bridge.lessonNarration['ready']
+        assert len(calls) == 3  # Both reuses the previously generated English.
+        assert len(library.get(lesson['id'])['narration_variants']) == 3
+        assert library.setting('voice_options', None) is None
+        queues = []
+        bridge.english_reader.start = lambda texts, voice, rate: queues.append((texts, voice, rate))
+        bridge.speakSegment('both')
+        assert queues[-1] == ([lesson['segments'][0]['vi'], lesson['segments'][0]['en']], VOICE, 0)
+        vi, _ = make_plan(lesson, 'vi', {'voice': other, 'rate': 0})
+        bridge.selectNarrationVariant(variant_id(vi))
+        assert bridge._lesson_voice_settings()['vi'] == other and not bridge._lesson_voice_settings()['en']
+        bridge.speakSegment('both')
+        assert len(queues) == 1 and 'cả giọng Việt và Anh' in bridge.message
+    finally:
+        bridge.narration_preparation.shutdown(); bridge.english_reader.shutdown(); bridge.browserAI.shutdown()
+
+
+def test_incomplete_variant_cannot_silently_start_teaching(saved):
+    library, lesson, _ = saved
+    app = QCoreApplication.instance() or QCoreApplication([])
+    bridge = Bridge(library)
+    try:
+        plan, _ = make_plan(lesson, 'en', VOICES)
+        bridge._lesson = library.update_narration(lesson['id'], plan)
+        bridge.useConvertedLesson()
+        assert 'chưa hoàn tất' in bridge.message and bridge.powerpoint_worker is None
+    finally:
+        bridge.narration_preparation.shutdown(); bridge.english_reader.shutdown(); bridge.browserAI.shutdown()
+
+
+def test_saved_subject_applies_to_live_mascot_and_auto_follows_lesson(saved):
+    app = QCoreApplication.instance() or QCoreApplication([])
+    library, lesson, _ = saved
+    bridge = Bridge(library)
+    try:
+        bridge._lesson = lesson
+        bridge.saveMascotPreferences('Lumi', True, 110, 'right', False, True, True, True, 'fixed', 'Mĩ thuật')
+        assert bridge.mascotSubject == 'Mĩ thuật'
+        bridge._lesson = {**lesson, 'subject': 'Tin học'}
+        assert bridge.mascotSubject == 'Mĩ thuật'
+        bridge.saveMascotPreferences('Lumi', True, 110, 'right', False, True, True, True, 'auto', 'Mĩ thuật')
+        assert bridge.mascotSubject == 'Tin học'
+        assert library.get(lesson['id'])['subject'] == 'Vật lý'
+    finally:
+        bridge.narration_preparation.shutdown(); bridge.english_reader.shutdown(); bridge.browserAI.shutdown()
+
+
+def test_companion_cannot_read_without_live_matching_presentation_and_stops_on_close(saved, monkeypatch):
+    from types import SimpleNamespace
+    app = QCoreApplication.instance() or QCoreApplication([])
+    library, lesson, path = saved
+    bridge = Bridge(library)
+    calls, stopped = [], []
+    monkeypatch.setattr(bridge, 'speakSegment', calls.append)
+    monkeypatch.setattr(bridge, 'stopSpeech', lambda: stopped.append(True))
+    try:
+        bridge._lesson = lesson
+        bridge.companionRead('en')
+        assert calls == [] and not bridge.companionCanRead
+        bridge.powerpoint_worker = SimpleNamespace(path=str(path))
+        bridge._powerpoint_lesson_id = lesson['id']
+        bridge._powerpoint_state = {'active': True, 'slide': 1, 'total': 1}
+        assert bridge.companionCanRead
+        bridge.companionRead('both'); bridge.replayCompanion()
+        assert calls == ['both', 'both']
+        bridge._powerpoint_changed({'active': False, 'slide': 1, 'total': 1})
+        bridge.companionRead('vi')
+        assert calls == ['both', 'both'] and stopped and not bridge.companionCanRead
+    finally:
+        bridge.powerpoint_worker = None
+        bridge.narration_preparation.shutdown(); bridge.english_reader.shutdown(); bridge.browserAI.shutdown()
+
+
 def test_explicit_local_generation_cache_reuse_and_reopen_do_not_send_web_request(saved, monkeypatch):
     app = QCoreApplication.instance() or QCoreApplication([])
     library, lesson, path = saved

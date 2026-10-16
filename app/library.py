@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
-from .lesson_narration import audio_status
+from .lesson_narration import library_audio_status as audio_status
 from .readiness import preparation_current
 from .speech import voice_settings
 
@@ -151,6 +151,7 @@ class Library:
                     "approved_count": sum(bool(s["approved"]) for s in lesson["segments"]),
                     "status": lesson_status(lesson["segments"]),
                     "prepared": preparation_current(lesson) and not failures,
+                    'quality_failures': failures,
                     "created_at": lesson.get("created_at", lesson["updated_at"]),
                     "created_at_estimated": lesson.get("created_at_estimated", False),
                     "deleted_at": lesson.get("deleted_at", ""),
@@ -569,15 +570,33 @@ class Library:
 
     def update_narration(self, lesson_id, record):
         """Save derived audio state without changing content, review or creation time."""
-        from .lesson_narration import signature
+        from .lesson_narration import records, signature, variant_id
 
         lesson = self.get(lesson_id)
         if record.get("signature") != signature(lesson):
             raise RevisionConflict("Nội dung bài đã đổi trong lúc tạo giọng. Âm thanh đã tạo vẫn được giữ.")
+        variants = records(lesson)
+        identity = variant_id(record)
+        if identity:
+            variants[identity] = dict(record)
+        lesson['narration_variants'] = variants
         lesson["narration"] = dict(record)
         with self.db:
             self.db.execute("UPDATE lessons SET content=? WHERE id=?",
                             (json.dumps(lesson, ensure_ascii=False), lesson_id))
+        return lesson
+
+    def select_narration_variant(self, lesson_id, identity):
+        from .lesson_narration import records
+
+        lesson = self.get(lesson_id)
+        variants = records(lesson)
+        if identity and identity not in variants:
+            raise ValueError('Không tìm thấy bản giọng đã chọn.')
+        lesson['narration_variants'] = variants
+        lesson['narration'] = dict(variants[identity]) if identity else {'version': 2, 'mode': 'none'}
+        with self.db:
+            self.db.execute('UPDATE lessons SET content=? WHERE id=?', (json.dumps(lesson, ensure_ascii=False), lesson_id))
         return lesson
 
     def update_slide_inspection(self, lesson_id, inspection):

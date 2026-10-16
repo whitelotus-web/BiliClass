@@ -87,6 +87,10 @@ def main():
             app.processEvents()
             assert window.grabWindow().save(str(output / name))
 
+        def filtered():
+            value = window.property('libraryResult')
+            return value.toVariant() if hasattr(value, 'toVariant') else value
+
         try:
             window.setProperty("page", "library")
             for _ in range(30):
@@ -100,6 +104,27 @@ def main():
             QMetaObject.invokeMethod(sort, "activated", Qt.DirectConnection, Q_ARG(int, 1))
             assert bridge.lessons[0]["id"] == first["id"]
             checks.append("Creation timestamps shown; chronology dropdown changes and persists order")
+            item('librarySearch').setProperty('text', 'BAI GIANG MAU')
+            app.processEvents()
+            value = filtered()
+            assert value['total'] == 1 and value['rows'][0]['id'] == first['id']
+            click('libraryClearFilters')
+            subject = item('librarySubjectFilter')
+            subject.setProperty('currentIndex', next(i for i,r in enumerate(bridge.librarySubjects) if r['id']=='Toán'))
+            QMetaObject.invokeMethod(subject, 'activated', Qt.DirectConnection, Q_ARG(int, subject.property('currentIndex')))
+            app.processEvents()
+            assert filtered()['rows'][0]['id'] == second['id']
+            state = item('libraryStateFilter'); state.setProperty('currentIndex', 1)
+            app.processEvents()
+            assert filtered()['total'] == 0
+            click('libraryClearFilters')
+            assert filtered()['total'] == 2
+            window.setProperty('page', 'home'); app.processEvents()
+            assert item('homeWorkPanel').isVisible() and not item('libraryFilters').isVisible()
+            shot('home.png')
+            window.setProperty('page', 'library'); app.processEvents()
+            assert not item('homeWorkPanel').isVisible() and item('libraryFilters').isVisible()
+            checks.append('Unaccented search; combined subject/state filters; clear; distinct home/library')
             shot("library.png")
             click("lessonEdit_"+first["id"])
             assert item("lessonMetadataDialog").property("visible")
@@ -113,13 +138,13 @@ def main():
             assert len(bridge.lessons) == 2
             click("lessonDelete_"+second["id"])
             click("confirmDeleteLessonButton")
-            assert len(bridge.lessons) == 1 and len(bridge.trashedLessons) == 1
+            wait(lambda: len(bridge.lessons) == 1 and len(bridge.trashedLessons) == 1)
             trash = item("lessonTrashDialog")
             QMetaObject.invokeMethod(trash, "open", Qt.DirectConnection)
             wait(lambda: item("restoreLesson_"+second["id"]).isVisible())
             click("restoreLesson_"+second["id"])
             QMetaObject.invokeMethod(trash, "close", Qt.DirectConnection)
-            assert len(bridge.lessons) == 2
+            wait(lambda: len(bridge.lessons) == 2)
             checks.append("Delete confirmation can cancel; trash and restore retain lesson")
             click("lessonOpen_"+first["id"])
             wait(lambda: not bridge.busy and bool(bridge.quickResult.get("image")))

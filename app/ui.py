@@ -123,6 +123,7 @@ class Bridge(QObject):
         self._busy = False
         self._speaking = False
         self._speech_generation = 0
+        self._companion_language = 'en'
         from .voice_controls import VoiceControls
 
         self.voice_controls = VoiceControls(library.directory, self)
@@ -148,6 +149,7 @@ class Bridge(QObject):
 
         self._catalog = LibraryCatalog(library, self)
         self._catalog.changed.connect(self.lessonsChanged)
+        self._catalog.changed.connect(self.narrationChanged)
         self.changed.connect(self._catalog.refresh)
         self.changed.connect(self.statusChanged)
         self.changed.connect(self.browserStateChanged)
@@ -268,13 +270,48 @@ class Bridge(QObject):
     def lessons(self):
         return self._catalog.rows(self.lessonOrder)
 
+    @Property(str, constant=True)
+    def appSubtitle(self):
+        from .branding import APP_SUBTITLE
+        return APP_SUBTITLE
+
+    @Property('QVariantList', notify=lessonsChanged)
+    def recentLessons(self):
+        return self._catalog.rows('updated_desc')[:3]
+
+    @Property('QVariantList', notify=lessonsChanged)
+    def librarySubjects(self):
+        from .library_view import options
+        return options(self.lessons, 'subject')
+
+    @Property('QVariantList', notify=lessonsChanged)
+    def libraryGrades(self):
+        from .library_view import options
+        return options(self.lessons, 'grade')
+
+    @Property('QVariantMap', notify=lessonsChanged)
+    def librarySummary(self):
+        from .library_view import is_ready
+        rows = self.lessons
+        return {'total': len(rows), 'ready': sum(is_ready(row) for row in rows),
+                'voiced': sum(bool(row.get('narration', {}).get('ready')) for row in rows)}
+
+    @Property(str, notify=narrationChanged)
+    def narrationTaskLessonId(self):
+        return self.narration_preparation.state.get('lesson_id', '')
+
+    @Slot('QVariantList', str, str, str, str, str, int, result='QVariantMap')
+    def queryLibrary(self, rows, text, subject, grade, state, voice, page):
+        from .library_view import query
+        return query(rows, text, subject, grade, state, voice, page)
+
     @Property(str, notify=changed)
     def lessonOrder(self):
         return self.library.setting("lesson_order", "created_desc")
 
     @Slot(str)
     def setLessonOrder(self, order):
-        if order in {"created_desc", "created_asc", "updated_desc"}:
+        if order in {"created_desc", "created_asc", "updated_desc", 'title_asc'}:
             self.library.set_setting("lesson_order", order)
             self.changed.emit()
 
@@ -841,8 +878,10 @@ class Bridge(QObject):
 
     @Property("QVariantMap", notify=narrationChanged)
     def narrationPreparation(self):
+        from .lesson_narration import variant_id
         state = self.narration_preparation.state
-        return state if state.get("lesson_id") == self._lesson.get("id") else {}
+        return state if (state.get("lesson_id") == self._lesson.get("id")
+                         and variant_id(state) == variant_id(self._lesson.get('narration'))) else {}
 
     @Property(QObject, constant=True)
     def narrationClock(self):
@@ -875,22 +914,64 @@ class Bridge(QObject):
                 "percent": 100 if value.get("ready") else round(100 * value.get("complete", 0) / max(1, value.get("total", 0))),
                 "message": state.get("message", "")}
 
+    @Property('QVariantList', notify=narrationChanged)
+    def narrationVariants(self):
+        from .lesson_narration import records, variant_title
+
+        rows = next((row.get('narration', {}).get('variants', []) for row in self._catalog.rows()
+                     if row['id'] == self._lesson.get('id')), [])
+        verified = {row['id']: row for row in rows}
+        result = [{'id': '', 'title': 'Không kèm giọng đọc', 'ready': True}]
+        for identity, record in records(self._lesson).items():
+            state = verified.get(identity, {})
+            suffix = 'Sẵn sàng' if state.get('ready') else 'Cần tạo tiếp / kiểm tra' if state else 'Đang kiểm tra'
+            result.append({'id': identity, 'title': variant_title(record) + ' · ' + suffix,
+                           'ready': bool(state.get('ready'))})
+        return result
+
+    @Property(str, notify=narrationChanged)
+    def selectedNarrationVariant(self):
+        from .lesson_narration import variant_id
+
+        return variant_id(self._lesson.get('narration'))
+
+    @Slot(str)
+    def selectNarrationVariant(self, identity):
+        if self._busy or self.narrationBusy or self.powerpoint_worker is not None or not self._lesson:
+            return
+        try:
+            self.stopSpeech()
+            self._lesson = self.library.select_narration_variant(self._lesson['id'], identity)
+            self.narrationChanged.emit()
+            self.selectionChanged.emit()
+            self._catalog.refresh()
+            self.inform('Đã chọn bản giọng để tải PowerPoint và dùng để dạy.', refresh=False)
+        except ValueError as exc:
+            self.inform(str(exc), True, refresh=False)
+
     @Slot(str)
     def createLessonNarration(self, mode):
+        self.createLessonNarrationWithVoice(mode, self.voiceSettings.get('voice', ''), self.voiceSettings['rate'])
+
+    @Slot(str, str, int)
+    def createLessonNarrationWithVoice(self, mode, voice, rate):
         from .lesson_narration import inspection_for, make_plan
 
         if self._busy or not self._lesson or self.narrationBusy or self.powerpoint_worker is not None:
             return
-        voices = dict(self.voiceSettings)
-        if not voices.get("voice"):
-            self.inform("Chọn giọng đọc trong Cài đặt → Giọng đọc trước khi tạo âm thanh.", True)
+        voices = {**self.voiceSettings, 'voice': voice, 'rate': rate}
+        if voice not in {v['id'] for v in self._voices} or type(rate) is not int or not -3 <= rate <= 3:
+            self.inform("Chọn giọng và tốc độ hợp lệ trước khi tạo âm thanh.", True)
             return
         try:
-            plan, selected = make_plan(self._lesson, mode, voices)
+            from .lesson_narration import variant_id
+
+            self.stopSpeech()
+            plan, selected = make_plan(self._lesson, mode, voices, playback='both_controls' if mode == 'both' else 'separate')
             if not plan["total"]:
                 raise ValueError("Chưa có nội dung đọc phù hợp cho ngôn ngữ đã chọn.")
             self._lesson = self.library.update_narration(self._lesson["id"], plan)
-            folder = self.library.directory / "temp" / "narration" / plan["signature"]
+            folder = self.library.directory / "temp" / "narration" / variant_id(plan)
             folder.mkdir(parents=True, exist_ok=True)
             self.narration_preparation.start(self._lesson["id"], inspection_for(self._lesson), selected, folder, plan)
             self.inform("Đang tạo giọng đọc trên máy. Bài giảng song ngữ đã được lưu."
@@ -908,13 +989,13 @@ class Bridge(QObject):
     def _narration_updated(self):
         state = self.narration_preparation.state
         if state.get("version") == 2 and state.get("signature"):
-            token = tuple(state.get(k) for k in ("lesson_id", "signature", "mode", "voice", "rate", "running"))
+            token = tuple(state.get(k) for k in ("lesson_id", "signature", "mode", "voice", "rate", "playback", "running"))
             if token != self._narration_checkpoint_token:
                 self._narration_checkpoint_token = token
                 try:
                     lesson = self.library.update_narration(state["lesson_id"], state)
                     if self._lesson.get("id") == lesson["id"]:
-                        self._lesson["narration"] = lesson["narration"]
+                        self._lesson.update(narration=lesson['narration'], narration_variants=lesson.get('narration_variants', {}))
                     self._catalog.refresh()
                 except (ValueError, KeyError):
                     pass  # A deleted/edited lesson cannot receive stale audio metadata.
@@ -1357,9 +1438,36 @@ class Bridge(QObject):
         defaults = {
             "visible": True, "size": 110, "position": "right", "reduced_motion": False,
             "accessories": True, "show_explanation": True, "show_quiz": True,
+            'subject_mode': 'auto', 'subject': '',
         }
         saved = self.library.setting("mascot_options", {})
         return {**defaults, **saved} if isinstance(saved, dict) else defaults
+
+    @Property(str, notify=changed)
+    def mascotSubject(self):
+        settings = self.mascotSettings
+        if settings.get('subject_mode') == 'fixed' and settings.get('subject'):
+            return settings['subject']
+        return self._lesson.get('subject') or next(iter(self.settings['subjects']), '')
+
+    @Property(bool, notify=changed)
+    def companionCanRead(self):
+        return bool(self._powerpoint_state.get('active') and self.powerpoint_worker is not None
+                    and self._powerpoint_lesson_id == self._lesson.get('id') and not self._busy)
+
+    @Slot(str)
+    def companionRead(self, language):
+        if not self.companionCanRead:
+            self.inform('Mở bài và chọn Dùng để dạy trước khi đọc từ mascot.', refresh=False)
+            return
+        if language not in ('en', 'vi', 'both'):
+            return
+        self._companion_language = language
+        self.speakSegment(language)
+
+    @Slot()
+    def replayCompanion(self):
+        self.companionRead(self._companion_language)
 
     @Slot(QObject)
     @Slot(QObject, bool)
@@ -1665,8 +1773,9 @@ class Bridge(QObject):
     def audioAvailable(self):
         voices = self._lesson_voice_settings()
         legacy = not self._lesson.get("external_deck") and "narration" not in self._lesson
-        return {lang: bool(voices[lang] or (legacy and available_audio(self.library.directory, self._reading_text(lang), lang)))
-                and bool(self._reading_text(lang)) for lang in ("vi", "en")}
+        result = {lang: bool(voices[lang] or (legacy and available_audio(self.library.directory, self._reading_text(lang), lang)))
+                  and bool(self._reading_text(lang)) for lang in ("vi", "en")}
+        return {**result, 'both': bool(result['vi'] and result['en'])}
 
     def _reading_text(self, language):
         if not self.segment or not self._lesson:
@@ -1696,6 +1805,9 @@ class Bridge(QObject):
 
     @Slot(str)
     def speakSegment(self, language):
+        if language == 'both':
+            self.readBothLanguages()
+            return
         if language == "en" and self._powerpoint_state.get("active"):
             self.readSlideEnglish()
             return
@@ -1733,6 +1845,47 @@ class Bridge(QObject):
             self.inform("Đang phát âm thanh đã lưu trên máy. Dùng nút Dừng để ngừng phát.")
 
         self.launch(lambda: speech.synthesize(text, voice, rate, self.library.directory / "audio"), completed)
+
+    @Slot()
+    def readBothLanguages(self):
+        import time
+        from .slide_speech import speech_chunks, visible_segments
+
+        if self._busy or not self._lesson:
+            return
+        voices = self._lesson_voice_settings()
+        if not voices.get('vi') or not voices.get('en'):
+            self.inform('Chọn bản có cả giọng Việt và Anh trước khi đọc chung.', True, refresh=False)
+            return
+        texts = []
+        if self._powerpoint_state.get('active') and self.powerpoint_worker:
+            path = Path(self.powerpoint_worker.path)
+            if getattr(self, '_presentation_stamp', None) != (path.stat().st_size, path.stat().st_mtime_ns):
+                self.inform('PowerPoint đã thay đổi. Mở lại bài để cập nhật lời đọc.', True, refresh=False)
+                return
+            number = self._powerpoint_state['slide']
+            source = self.library.directory / 'sources' / self._lesson.get('source', {}).get('file', '')
+            data = self._lesson.get('slide_speech', {}) if path.resolve() == source.resolve() else self._session_speech
+            page = next((s for s in data.get('slides', []) if s['slide'] == number), {})
+            elapsed = time.monotonic() - self._powerpoint_state.get('build_started', time.monotonic())
+            english = [part for s in visible_segments(page, self._powerpoint_state.get('click_index'), elapsed)
+                       for part in speech_chunks(s['english_text'])]
+            used = set()
+            indexes = slide_segment_indexes(self._lesson, number, self._powerpoint_source_map, self._powerpoint_segment_map)
+            for index in indexes:
+                unit = self._lesson['segments'][index]
+                en = speech_chunks(unit['en'])
+                # A note is read only when its English partner is visible.
+                if en and set(en) <= set(english):
+                    texts.extend(speech_chunks(unit['vi'])); texts.extend(en); used.update(en)
+            texts.extend(text for text in english if text not in used)
+        elif self.segment:
+            texts = [self._reading_text('vi'), self._reading_text('en')]
+        if not any(text.strip() for text in texts):
+            self.inform('Chưa có nội dung hiện rõ phù hợp để đọc chung.', refresh=False)
+            return
+        self.stopSpeech()
+        self.english_reader.start(texts, voices['voice'], voices['rate'])
 
     def _play_audio(self, path):
         import wave
@@ -2263,6 +2416,8 @@ class Bridge(QObject):
             self.inform("Đóng phiên PowerPoint hiện tại trước khi mở phiên dạy mới.", True)
             return
         try:
+            if self.selectedNarrationVariant and not self.lessonNarration.get('ready'):
+                raise ValueError('Bản giọng đã chọn chưa hoàn tất. Tạo tiếp hoặc chọn Không kèm giọng đọc trước khi dạy.')
             result = dict(self.quickResult)
             path = verify_preview(self._lesson, result, self.library.directory)
             if result.get("external"):
@@ -2574,9 +2729,13 @@ class Bridge(QObject):
         self.inform("Đã bỏ logo trường.")
 
     @Slot(str, bool, int, str, bool, bool, bool, bool)
-    def saveMascotPreferences(self, mascot, visible, size, position, reduced_motion, accessories, show_explanation, show_quiz):
+    @Slot(str, bool, int, str, bool, bool, bool, bool, str, str)
+    def saveMascotPreferences(self, mascot, visible, size, position, reduced_motion, accessories, show_explanation, show_quiz, subject_mode='auto', subject=''):
         if mascot not in ("Milo", "Lumi"):
             self.inform("Mascot không hợp lệ.", True)
+            return
+        if subject_mode not in ('auto', 'fixed') or not isinstance(subject, str) or len(subject) > 60 or subject_mode == 'fixed' and not subject.strip():
+            self.inform('Chọn môn hợp lệ cho phụ kiện mascot.', True)
             return
         if position in ("left", "right") and position != self.mascotSettings["position"]:
             self.resetMascotLocation()
@@ -2586,6 +2745,7 @@ class Bridge(QObject):
             "position": position if position in ("left", "right") else "right",
             "reduced_motion": reduced_motion, "accessories": accessories,
             "show_explanation": show_explanation, "show_quiz": show_quiz,
+            'subject_mode': subject_mode, 'subject': subject.strip(),
         })
         self.mascotPreferencesSaved.emit(visible)
         self.inform("Đã lưu mascot và cách hiển thị.")
@@ -2662,6 +2822,17 @@ class Bridge(QObject):
     @Slot(str)
     def downloadPresentation(self, url):
         self.downloadPresentationWithVoice(url, False)
+
+    @Slot(bool, result=str)
+    def presentationDownloadSuggestion(self, with_voice):
+        import re
+        from .lesson_narration import variant_title
+
+        title = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', self._lesson.get('title', 'BiliClass'))[:100].strip(' .') or 'BiliClass'
+        suffix = variant_title(self._lesson.get('narration', {})) if with_voice and self.selectedNarrationVariant else 'Không kèm giọng'
+        suffix = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', suffix)[:90].strip(' .')
+        folder = QUrl(self.downloadsDirectory).toLocalFile()
+        return QUrl.fromLocalFile(str(Path(folder) / (title + ' - ' + suffix + '.pptx'))).toString()
 
     @Slot(str, bool)
     def downloadPresentationWithVoice(self, url, with_voice):

@@ -1,5 +1,12 @@
 # Trạng thái BiliClass
 
+Ngày 16/10/2026 — RC49 giữ nhiều bản giọng cho từng bài, chọn sáu giọng/nghe
+thử tại màn tạo, xuất loa EN/VI/chung trên cùng slide. Thư viện có tìm không
+dấu, bộ lọc và phân trang; Trang chủ tập trung công việc và ba bài vừa cập
+nhật. Mascot lưu môn cố định/tự động, chỉ đọc từ công cụ nổi khi có phiên
+trình chiếu đúng bài. Tên chung: Trợ lý dạy học song ngữ.
+[Cách dùng, kiểm chứng và giới hạn](VOICE_LIBRARY_MASCOT_RC49.md).
+
 Ngày 16/10/2026 — RC48 thêm đồng hồ tạo giọng với tín hiệu riêng, đưa nút
 dạy/tải cạnh trạng thái và căn giữa điều hướng slide. Bài dài trên máy đủ
 CPU/RAM dùng tối đa hai model VieNeu, có dùng lại cache và quay về tuần tự

@@ -50,11 +50,45 @@ def slide_audio(lesson, directory):
             if any(key not in record["keys"][language] or not valid_key(directory, key) for key in keys):
                 raise ValueError("Giọng đọc không khớp bài đang xem. Tạo lại giọng trước khi tải.")
             pages.setdefault(page["slide"], {})[language] = keys
+        if record.get('playback') == 'both_controls' and set(pages.get(page['slide'], {})) == {'vi', 'en'}:
+            pages[page['slide']]['both'] = paired_keys(lesson, page['slide'], pages[page['slide']], record)
     if not pages:
         raise ValueError(
             "Chưa có lời đọc tĩnh phù hợp để nhúng; phần theo hiệu ứng vẫn dùng trong BiliClass."
         )
     return pages
+
+
+def paired_keys(lesson, number, languages, record):
+    """Pair verified unit chunks, then retain any remaining visible text."""
+    from . import speech
+    from .slide_speech import speech_chunks
+
+    allowed = {lang: set(keys) for lang, keys in languages.items()}
+    used = {'vi': set(), 'en': set()}
+    result = []
+    for unit in lesson['segments']:
+        if slide_for_locator(unit.get('locator', '')) != number:
+            continue
+        pair = {lang: [speech.audio_key(text, record['voice'], record['rate']) for text in speech_chunks(unit[lang])]
+                for lang in ('vi', 'en')}
+        if all(pair[lang] and set(pair[lang]) <= allowed[lang] for lang in ('vi', 'en')):
+            for lang in ('vi', 'en'):
+                result.extend(pair[lang]); used[lang].update(pair[lang])
+    for lang in ('vi', 'en'):
+        result.extend(key for key in languages[lang] if key not in used[lang])
+    return result
+
+
+def static_vietnamese(slide, lesson, number):
+    from .slide_speech import animation_rules, normalized, objects
+
+    rules = animation_rules(slide)
+    visible = normalized(' '.join(item['text'] for item in objects(slide)
+                        if not item['hidden'] and not any(str(parent) in rules for parent in item['ancestors'])))
+    texts = [normalized(unit['vi']) for unit in lesson['segments']
+             if slide_for_locator(unit.get('locator', '')) == number and unit['vi'].strip()]
+    return bool(texts) and all(text in visible for text in texts)
 
 
 def joined_wav(directory, keys):
@@ -207,8 +241,8 @@ def embed_audio(source, destination, lesson, directory):
             raise ValueError("Số trang giọng đọc không khớp PowerPoint.")
         part = parts[number - 1]
         tree = _xml(entries[part])
-        if tree.find("p:timing", NS) is not None:
-            languages = {lang: keys for lang, keys in languages.items() if lang != "vi"}
+        if tree.find("p:timing", NS) is not None and not static_vietnamese(deck.slides[number - 1], lesson, number):
+            languages = {lang: keys for lang, keys in languages.items() if lang not in {"vi", "both"}}
         if not languages:
             continue  # Vietnamese notes may include answers hidden in native builds.
         shape_tree = tree.find("p:cSld/p:spTree", NS)
@@ -267,9 +301,9 @@ def embed_audio(source, destination, lesson, directory):
             identity += 1
             label = text_shape(
                 identity,
-                "VI" if language == "vi" else "EN",
-                (box[0] + 30, box[1] + 5, 30, 24),
-                12,
+                {'vi': 'VI', 'en': 'EN', 'both': 'VI+EN'}[language],
+                (box[0] + 29, box[1] + 5, 33, 24),
+                9 if language == 'both' else 12,
                 english=False,
             )
             label.find("p:nvSpPr/p:cNvPr", NS).set("name", "BCL_DECORATION audio label")

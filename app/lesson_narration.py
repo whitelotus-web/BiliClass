@@ -12,6 +12,58 @@ MODES = {"en": ("en",), "vi": ("vi",), "both": ("vi", "en")}
 LABELS = {"en": "Tiếng Anh", "vi": "Tiếng Việt", "both": "Việt + Anh"}
 
 
+def variant_id(record):
+    if (not isinstance(record, dict) or not isinstance(record.get('mode'), str) or record.get('mode') not in MODES
+            or not isinstance(record.get('signature'), str) or not isinstance(record.get('voice'), str)
+            or type(record.get('rate')) is not int or not -3 <= record['rate'] <= 3
+            or record.get('playback', 'separate') not in ('separate', 'both_controls')):
+        return ''
+    value = {key: record.get(key) for key in ('signature', 'mode', 'voice', 'rate')}
+    value['playback'] = record.get('playback', 'separate')
+    return hashlib.sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()
+
+
+def records(lesson):
+    """Include the old single recording without rewriting the personal library."""
+    saved = lesson.get('narration_variants', {})
+    result = {variant_id(row): row for row in saved.values() if isinstance(row, dict) and variant_id(row)} if isinstance(saved, dict) else {}
+    active = lesson.get('narration')
+    identity = variant_id(active)
+    if identity:
+        result[identity] = active
+    return result
+
+
+def variant_title(record):
+    voice = next((v['name'] for v in speech.VIENEU_VOICES if v['id'] == record.get('voice')), record.get('voice', ''))
+    mode = 'Việt–Anh · loa riêng và chung' if record.get('mode') == 'both' and record.get('playback') == 'both_controls' else LABELS.get(record.get('mode'), '')
+    if record.get('mode') == 'both' and record.get('playback', 'separate') == 'separate':
+        mode = 'Việt + Anh · hai loa'
+    rate = record.get('rate', 0)
+    speed = round(speech._SPEEDS[rate + 3] * 100) if type(rate) is int and -3 <= rate <= 3 else 100
+    return f'{mode} · {voice} · {speed}%'
+
+
+def variant_statuses(lesson, directory, fallback_voices=None, *, cancel=None):
+    return [{**audio_status({**lesson, 'narration': record}, directory, fallback_voices, cancel=cancel),
+             'id': identity, 'title': variant_title(record)}
+            for identity, record in records(lesson).items()]
+
+
+def library_audio_status(lesson, directory, fallback_voices=None, *, cancel=None):
+    variants = variant_statuses(lesson, directory, fallback_voices, cancel=cancel)
+    active = next((row for row in variants if row['id'] == variant_id(lesson.get('narration'))), None)
+    if active is None:
+        active = audio_status(lesson, directory, fallback_voices, cancel=cancel)
+    ready = [v for v in variants if v['ready']]
+    if ready:
+        labels = list(dict.fromkeys('Việt–Anh riêng + chung' if v['mode'] == 'both' and
+                                    records(lesson)[v['id']].get('playback') == 'both_controls'
+                                    else LABELS[v['mode']] for v in ready))
+        active = {**active, 'label': 'Giọng: ' + ' · '.join(labels), 'ready': True}
+    return {**active, 'variants': variants}
+
+
 def inspection_for(lesson):
     return {"profile": {"units": [{"vi": s["vi"], "en": s["en"]} for s in lesson["segments"]]},
             "slide_speech": lesson.get("slide_speech", {})}
@@ -24,7 +76,7 @@ def signature(lesson):
     return hashlib.sha256(json.dumps(value, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
 
 
-def make_plan(lesson, mode, voices):
+def make_plan(lesson, mode, voices, *, playback='separate'):
     if mode not in MODES:
         raise ValueError("Chọn tiếng Anh, tiếng Việt hoặc Việt + Anh.")
     selected = {**voices, **{lang: voices.get("voice", "") if lang in MODES[mode] else ""
@@ -36,7 +88,9 @@ def make_plan(lesson, mode, voices):
                                                   for other in ("vi", "en") if other != lang}})
         keys[lang] = [speech.audio_key(text, voice, selected["rate"]) for text, voice in tasks]
         skipped += omitted
-    return {"version": 2, "mode": mode, "signature": signature(lesson),
+    if playback not in {'separate', 'both_controls'}:
+        raise ValueError('Kiểu phát giọng không hợp lệ.')
+    return {"version": 2, "mode": mode, "signature": signature(lesson), 'playback': playback,
             "voice": selected.get("voice", ""), "rate": selected["rate"], "keys": keys,
             "total": len(set(key for items in keys.values() for key in items)), "skipped": skipped}, selected
 
@@ -114,5 +168,6 @@ def audio_status(lesson, directory, fallback_voices=None, *, cancel=None):
     status = "ready" if ready else "partial" if complete else "pending"
     return {"status": status, "mode": mode, "ready": ready, "complete": complete, "total": len(all_keys),
             "voice": record.get("voice", ""), "rate": record.get("rate", 0), "skipped": record.get("skipped", 0),
+            'id': variant_id(record), 'title': variant_title(record), 'playback': record.get('playback', 'separate'),
             "languages": list(MODES[mode]), "ready_languages": ready_languages,
             "label": "Có giọng " + LABELS[mode] if ready else "Giọng đọc chưa đủ" if complete else "Chưa tạo xong giọng đọc"}

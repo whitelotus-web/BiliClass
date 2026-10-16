@@ -16,8 +16,8 @@ Item {
     onActiveTabChanged: { if (contentScroll.contentItem && contentScroll.contentItem.contentY !== undefined) contentScroll.contentItem.contentY = 0 }
     property string selectedMascot: bridge.settings.mascot
     property int mascotPreviewMode: 0
-    readonly property string initialPreviewSubject: bridge.lesson.subject || bridge.settings.subjects[0] || "Vật lý"
-    readonly property string previewSubject: mascotSubject.currentText === "Khác" ? mascotOtherSubject.text.trim() : mascotSubject.currentText
+    readonly property string initialPreviewSubject: bridge.mascotSettings.subject || bridge.mascotSubject || "Vật lý"
+    readonly property string previewSubject: mascotSubjectMode.currentIndex === 0 ? bridge.mascotSubject || mascotSubject.currentText : mascotSubject.currentText === "Khác" ? mascotOtherSubject.text.trim() : mascotSubject.currentText
     readonly property bool wideMascotLayout: contentScroll.availableWidth >= 1020
     readonly property bool mascotPreviewVisible: mascotVisible.checked &&
         (mascotPreviewMode === 1 ? mascotExplanation.checked : mascotPreviewMode === 2 ? mascotQuiz.checked : true)
@@ -186,7 +186,7 @@ Item {
                         ColumnLayout { Layout.fillWidth: true; spacing: 8
                             Label { text: "Bili<span style='color:#ff7d2b'>Class</span>"; textFormat: Text.RichText; color: page.ink; font.pixelSize: 34; font.bold: true }
                             Label { text: "CÙNG DẠY. CÙNG TIẾN XA."; color: page.muted; font.pixelSize: 10; font.letterSpacing: 1.2 }
-                            Hint { text: "Không gian bài giảng song ngữ"; font.pixelSize: 16; Layout.fillWidth: true }
+                            Hint { text: bridge.appSubtitle; font.pixelSize: 16; Layout.fillWidth: true }
                         }
                     }
                     Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: page.line }
@@ -359,8 +359,9 @@ Item {
                             Choice { id: mascotPosition; objectName: "mascotPosition"; model: ["Góc phải dưới", "Góc trái dưới"]; currentIndex: bridge.mascotSettings.position === "left" ? 1 : 0; Layout.fillWidth: true }
                         }
                         ColumnLayout { Layout.fillWidth: true; spacing: 5
-                            Label { text: "Môn học để xem trước"; color: page.ink; font.bold: true }
-                            Choice { id: mascotSubject; objectName: "mascotSubject"; model: bridge.conversionSubjects; currentIndex: { const found = model.indexOf(page.initialPreviewSubject); return found >= 0 ? found : model.length - 1 } Layout.fillWidth: true }
+                            Label { text: "Môn học và phụ kiện"; color: page.ink; font.bold: true }
+                            Choice { id: mascotSubjectMode; objectName: "mascotSubjectMode"; model: ["Tự theo bài đang dạy", "Dùng môn đã chọn"]; currentIndex: bridge.mascotSettings.subject_mode === "fixed" ? 1 : 0; Layout.fillWidth: true }
+                            Choice { id: mascotSubject; objectName: "mascotSubject"; model: bridge.conversionSubjects; currentIndex: { const found = model.indexOf(page.initialPreviewSubject); return found >= 0 ? found : model.length - 1 } Layout.fillWidth: true; onActivated: mascotSubjectMode.currentIndex = 1 }
                             Field { id: mascotOtherSubject; objectName: "mascotOtherSubject"; visible: mascotSubject.currentText === "Khác"; text: page.initialPreviewSubject; placeholderText: "Nhập tên môn khác"; maximumLength: 60; Layout.fillWidth: true }
                             Hint { objectName: "mascotThemeDescription"; text: mascotAccessories.checked ? "Phụ kiện: " + mascotPreview.theme.label : "Phụ kiện theo môn đang tắt"; Layout.fillWidth: true }
                         }
@@ -377,8 +378,8 @@ Item {
                             }
                         }
                     }
-                    Hint { text: "Chọn môn ở đây chỉ để xem phụ kiện và màu theo môn. Khi dạy, mascot tự dùng môn của bài giảng. Milo/Lumi giữ nhân vật đã chọn; phụ kiện thay đổi theo nhóm môn."; Layout.fillWidth: true; font.pixelSize: 11 }
-                    RowLayout { Layout.fillWidth: true; Hint { text: "Sau khi lưu, kéo trực tiếp mascot để đặt ở đâu tùy thích. Bấm nhanh để mở nút trợ giảng; chọn Về góc để đặt lại vị trí."; Layout.fillWidth: true } SaveButton { objectName: "saveMascot"; text: "Lưu cài đặt Mascot"; onClicked: bridge.saveMascotPreferences(page.selectedMascot, mascotVisible.checked, Math.round(mascotSize.value), mascotPosition.currentIndex ? "left" : "right", reducedMotion.checked, mascotAccessories.checked, mascotExplanation.checked, mascotQuiz.checked) } }
+                    Hint { text: "Chọn môn sẽ chuyển sang dùng môn đã chọn; bấm Lưu để áp dụng ngay cho mascot nổi. Chọn Tự theo bài đang dạy nếu muốn phụ kiện tự đổi theo bài."; Layout.fillWidth: true; font.pixelSize: 11 }
+                    RowLayout { Layout.fillWidth: true; Hint { text: "Mascot chỉ đọc bài khi trình chiếu đang mở. Kéo để đặt vị trí; bấm mascot để mở công cụ."; Layout.fillWidth: true } SaveButton { objectName: "saveMascot"; text: "Lưu cài đặt Mascot"; onClicked: bridge.saveMascotPreferences(page.selectedMascot, mascotVisible.checked, Math.round(mascotSize.value), mascotPosition.currentIndex ? "left" : "right", reducedMotion.checked, mascotAccessories.checked, mascotExplanation.checked, mascotQuiz.checked, mascotSubjectMode.currentIndex === 1 ? "fixed" : "auto", page.previewSubject) } }
                 }
             }
         }

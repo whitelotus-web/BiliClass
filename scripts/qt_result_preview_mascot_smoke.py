@@ -16,7 +16,7 @@ from unittest.mock import patch
 from PIL import Image
 from pptx import Presentation
 from pptx.util import Inches, Pt
-from PySide6.QtCore import QCoreApplication, QEvent, QEventLoop, QObject, QPointF, Qt, QTimer, QUrl
+from PySide6.QtCore import Q_ARG, QCoreApplication, QEvent, QEventLoop, QMetaObject, QObject, QPointF, Qt, QTimer, QUrl
 from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
@@ -250,6 +250,54 @@ def main():
         click(window,c('embedPresentationVoice'))
         assert window.property('includeDownloadVoice')
 
+        # All six choices use the shipped sample here, without changing defaults.
+        from app import speech
+        from app.lesson_narration import variant_id
+        original_preferences = library.setting('voice_options', None)
+        played = []
+        with patch.object(bridge, '_play_audio', side_effect=lambda path: played.append(path)):
+            for index, voice in enumerate(bridge.multilingualVoices):
+                choice = c('lessonNarrationVoiceChoice')
+                choice.setProperty('currentIndex', index)
+                QMetaObject.invokeMethod(choice, 'activated', Qt.DirectConnection, Q_ARG(int, index))
+                assert window.property('narrationVoice') == voice['id']
+                click(window, c('previewLessonNarrationVoice'))
+                until(lambda: len(played) == index + 1)
+                click(window, c('stopLessonNarrationPreview'))
+        assert library.setting('voice_options', None) == original_preferences
+        click(window, c('createLessonNarrationButton'))
+        assert narration[-1][2]['voice'] == bridge.multilingualVoices[-1]['id']
+        for mode, voice in [('vi', 'vieneu:Hải Đăng'), ('both', 'vieneu:Mai Anh')]:
+            plan, _ = make_plan(bridge._lesson, mode, {'voice': voice, 'rate': 0},
+                                playback='both_controls' if mode == 'both' else 'separate')
+            for keys in plan['keys'].values():
+                for key in keys:
+                    path = library.directory/'audio'/(key+'.wav')
+                    path.parent.mkdir(exist_ok=True)
+                    with wave.open(str(path), 'wb') as writer:
+                        writer.setparams((1,2,24000,0,'NONE','not compressed'));writer.writeframes(b'\x01\x00'*240)
+            bridge._lesson = library.update_narration(lesson['id'], plan)
+        bridge._catalog.refresh(force=True)
+        until(lambda: any(v['ready'] and 'riêng và chung' in v['title'] for v in bridge.narrationVariants))
+        bridge.narrationChanged.emit();pump(100)
+        vi = next(v for v in bridge.narrationVariants if v['title'].startswith('Tiếng Việt'))
+        choice = c('lessonNarrationVariantChoice')
+        index = next(i for i,v in enumerate(bridge.narrationVariants) if v['id']==vi['id'])
+        choice.setProperty('currentIndex', index)
+        QMetaObject.invokeMethod(choice,'activated',Qt.DirectConnection,Q_ARG(int,index))
+        assert bridge._lesson_voice_settings()['vi'] == 'vieneu:Hải Đăng'
+        assert not bridge._lesson_voice_settings()['en']
+        assert 'Tiếng Việt' in c('presentationSaveDialog').property('title')
+        assert 'Hải Đăng' in QUrl(bridge.presentationDownloadSuggestion(True)).toLocalFile()
+        for width in (1080,1366):
+            window.resize(width,850);pump(120)
+            click(window,c('stopLessonNarrationPreview'))
+            for name in ('lessonNarrationVoiceChoice','lessonNarrationVariantChoice','previewLessonNarrationVoice'):
+                target=c(name);p=target.mapToScene(QPointF(0,0))
+                assert p.x()>=0 and p.x()+target.width()<=width,(name,width)
+            assert window.grabWindow().save(str(reports/f'voice-variants-{width}.png'))
+        bridge.stopSpeech()
+
         from app.template_builtin import create
         template = create(library.directory/'own-template.pptx', 'visual')
         bridge.selectCustomTemplate(QUrl.fromLocalFile(str(template)).toString())
@@ -271,6 +319,15 @@ def main():
         click(window, c("settingsTab3"))
         click(window, c("mascotLumi"))
         assert c("mascotPreview").property("character") == "Lumi"
+        subject=c('mascotSubject');idx=bridge.conversionSubjects.index('Mĩ thuật')
+        subject.setProperty('currentIndex',idx)
+        QMetaObject.invokeMethod(subject,'activated',Qt.DirectConnection,Q_ARG(int,idx))
+        assert c('mascotSubjectMode').property('currentIndex')==1
+        click(window,c('saveMascot'));pump(100)
+        assert bridge.mascotSubject=='Mĩ thuật'
+        assert c('mascotCompanion').property('subject')=='Mĩ thuật'
+        assert not bridge.companionCanRead
+        assert not c('companionReadEnglish').isEnabled() and not c('companionReadBoth').isEnabled()
         assert window.findChild(QObject, "mascotSlideLumi") is None
         assert window.findChild(QObject, "mascotSlideMilo") is None
         assert window.grabWindow().save(str(reports / "mascot-settings.png"))
@@ -324,6 +381,10 @@ Window { visible: true; width: 700; height: 470; color: "#f3f7fc"
             "preview_before_voice": True,
             "full_teacher_name": True,
             "download_voice_checkbox": True,
+            'six_local_voice_previews_without_global_save': True,
+            'saved_variants_route_selected_voice': True,
+            'saved_subject_updates_floating_mascot': True,
+            'companion_read_disabled_without_slideshow': True,
             "mascot_checks": [
                 "card selection",
                 "blink timer",

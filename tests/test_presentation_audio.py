@@ -123,3 +123,50 @@ def test_slide_recording_excludes_answers_hidden_behind_click(tmp_path):
             slide_audio(lesson, library.directory)
     finally:
         library.close()
+
+
+def test_bilingual_product_has_individual_and_combined_speakers_with_no_new_inference(tmp_path, monkeypatch):
+    from app.presentation_audio import joined_wav
+    import io
+
+    library, lesson, source = fixture(tmp_path)
+    try:
+        plan, _ = make_plan(lesson, 'both', {'voice': 'vieneu:Mai Anh', 'rate': 0}, playback='both_controls')
+        lesson = library.update_narration(lesson['id'], plan)
+        pages = slide_audio(lesson, library.directory)
+        assert set(pages[1]) == {'vi', 'en', 'both'}
+        assert pages[1]['both'] == pages[1]['vi'] + pages[1]['en']
+        audio, _ = joined_wav(library.directory, pages[1]['both'])
+        with wave.open(io.BytesIO(audio)) as reader:
+            samples = reader.readframes(reader.getnframes())
+        assert samples[:2] == bytes([int(plan['keys']['vi'][0][:2], 16), 0])
+        assert samples[2*(2400+4320):][:2] == bytes([int(plan['keys']['en'][0][:2], 16), 0])
+        monkeypatch.setattr(speech, 'synthesize', lambda *_: pytest.fail('Reuse prepared chunks'))
+        target = tmp_path / 'three-speakers.pptx'
+        save_presentation(lesson, external_preview(lesson, library.directory), library.directory, target, with_voice=True)
+        with zipfile.ZipFile(target) as archive:
+            tree = etree.fromstring(archive.read(source_slide_parts(target)[0]))
+            assert len(tree.findall('.//p:audio', NS)) == 3
+            assert set(tree.xpath('.//p:cNvPr/@name', namespaces=NS)) >= {'BiliClass audio VI', 'BiliClass audio EN', 'BiliClass audio BOTH'}
+        en, _ = make_plan(lesson, 'en', {'voice': 'vieneu:Mai Anh', 'rate': 0})
+        library.update_narration(lesson['id'], en)
+        from app.lesson_narration import variant_id
+        lesson = library.select_narration_variant(lesson['id'], variant_id(en))
+        assert set(slide_audio(lesson, library.directory)[1]) == {'en'}
+    finally:
+        library.close()
+
+
+def test_static_vietnamese_is_allowed_despite_unrelated_timing_but_not_if_its_shape_is_animated(tmp_path):
+    from app.presentation_audio import static_vietnamese
+    library, lesson, source = fixture(tmp_path)
+    try:
+        deck = Presentation(source)
+        slide = deck.slides[0]
+        timing = etree.SubElement(slide._element, '{'+NS['p']+'}timing')
+        assert static_vietnamese(slide, lesson, 1)
+        target = etree.SubElement(timing, '{'+NS['p']+'}spTgt')
+        target.set('spid', str(slide.shapes[0].shape_id))
+        assert not static_vietnamese(slide, lesson, 1)
+    finally:
+        library.close()

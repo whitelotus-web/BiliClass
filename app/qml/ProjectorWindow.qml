@@ -55,10 +55,10 @@ Window {
             }
         }
         RowLayout { Layout.fillWidth: true
-            Mascot { objectName: "mascotProjectorLeft"; visible: projection.showMascot && bridge.mascotSettings.position === "left"; character: bridge.settings.mascot; expression: bridge.mascotState; subject: bridge.lesson.subject || ""; accessories: bridge.mascotSettings.accessories; reducedMotion: bridge.mascotSettings.reduced_motion; Layout.preferredWidth: bridge.mascotSettings.size; Layout.preferredHeight: bridge.mascotSettings.size + 15 }
+            Mascot { objectName: "mascotProjectorLeft"; visible: projection.showMascot && bridge.mascotSettings.position === "left"; character: bridge.settings.mascot; expression: bridge.mascotState; subject: bridge.mascotSubject; accessories: bridge.mascotSettings.accessories; reducedMotion: bridge.mascotSettings.reduced_motion; Layout.preferredWidth: bridge.mascotSettings.size; Layout.preferredHeight: bridge.mascotSettings.size + 15 }
             Item { Layout.fillWidth: true }
             ActionButton { text: rescue ? "Ẩn tiếng Việt" : "VI Rescue"; onClicked: projection.rescue = !projection.rescue }
-            Mascot { objectName: "mascotProjectorRight"; visible: projection.showMascot && bridge.mascotSettings.position === "right"; character: bridge.settings.mascot; expression: bridge.mascotState; subject: bridge.lesson.subject || ""; accessories: bridge.mascotSettings.accessories; reducedMotion: bridge.mascotSettings.reduced_motion; Layout.preferredWidth: bridge.mascotSettings.size; Layout.preferredHeight: bridge.mascotSettings.size + 15 }
+            Mascot { objectName: "mascotProjectorRight"; visible: projection.showMascot && bridge.mascotSettings.position === "right"; character: bridge.settings.mascot; expression: bridge.mascotState; subject: bridge.mascotSubject; accessories: bridge.mascotSettings.accessories; reducedMotion: bridge.mascotSettings.reduced_motion; Layout.preferredWidth: bridge.mascotSettings.size; Layout.preferredHeight: bridge.mascotSettings.size + 15 }
         }
     }
 }

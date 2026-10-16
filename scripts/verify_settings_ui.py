@@ -200,6 +200,7 @@ def main():
         click("mascotPreviewMode2")
         assert control("mascotPreview").property("expression") == "celebrate"
         control("mascotSubject").setProperty("currentIndex", bridge.conversionSubjects.index('Khác'))
+        control('mascotSubjectMode').setProperty('currentIndex', 1)
         control("mascotOtherSubject").setProperty("text", "Môn tự chọn")
         assert control("mascotPreview").property("subject") == "Môn tự chọn"
         control("mascotSize").setProperty("value", 140)
@@ -217,7 +218,7 @@ def main():
         control("mascotVisible").setProperty("checked", False)
         click("saveMascot")
         assert bridge.settings["mascot"] == "Lumi"
-        assert bridge.mascotSettings == {"visible": False, "size": 140, "position": "left", "reduced_motion": False, "accessories": False, "show_explanation": False, "show_quiz": False}
+        assert bridge.mascotSettings == {"visible": False, "size": 140, "position": "left", "reduced_motion": False, "accessories": False, "show_explanation": False, "show_quiz": False, 'subject_mode': 'fixed', 'subject': 'Môn tự chọn'}
         assert not control("companionWindow").isVisible()
         assert not control("mascotProjectorLeft").property("visible")
         assert not control("mascotProjectorRight").property("visible")
