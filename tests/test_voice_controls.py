@@ -132,4 +132,6 @@ def test_subject_theme_covers_all_catalogue_subjects_and_spelling_variants(qt):
         assert theme(subject)['id'] != 'general', subject
     assert theme('Vật lí')['id'] == theme('Vật lý')['id'] == 'physics'
     assert theme('Mỹ thuật')['id'] == theme('Mĩ thuật')['id'] == 'art'
+    assert theme('Khoa học')['id'] == theme('Khoa học tự nhiên')['id'] == 'science'
+    assert theme('Hóa học')['id'] == theme('Hoá học')['id'] == 'chemistry'
     assert theme('Môn riêng')['id'] == 'general'

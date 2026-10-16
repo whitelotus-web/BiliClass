@@ -162,6 +162,8 @@ def run(output):
             theme = theme.toVariant() if hasattr(theme, 'toVariant') else theme
             assert theme['id'] != 'general', subject
             themes[subject] = theme['id']
+        assert themes['Khoa học'] == themes['Khoa học tự nhiên'] == 'science'
+        assert themes['Hóa học'] == 'chemistry'
         for subject in ('Vật lý', 'Hóa học', 'Tin học', 'Địa lí'):
             control('mascotSubject').setProperty('currentIndex', choices.index(subject))
             pump(80)

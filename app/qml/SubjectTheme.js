@@ -5,7 +5,7 @@ function forSubject(subject) {
     function theme(id, label, color, paper, symbol) { return {id: id, label: label, color: color, paper: paper, symbol: symbol} }
     if (/toan|math/.test(value)) return theme("math", "Thước hình học", "#255cb3", "#edf3ff", "π")
     if (/vat li|vat ly|physics/.test(value)) return theme("physics", "Mô hình nguyên tử", "#176eaa", "#edf8ff", "E")
-    if (/hoa hoc|chem/.test(value)) return theme("chemistry", "Bình thí nghiệm", "#8252a2", "#f8efff", "H₂O")
+    if (/\bhoa hoc\b|chem/.test(value)) return theme("chemistry", "Bình thí nghiệm", "#8252a2", "#f8efff", "H₂O")
     if (/sinh|biology/.test(value)) return theme("biology", "Chiếc lá", "#248564", "#edfaf3", "DNA")
     if (/dia phuong/.test(value)) return theme("local", "Dấu địa điểm", "#b35d44", "#fff2e9", "⌖")
     if (/tin hoc|computer|cong nghe|technology/.test(value)) return theme("technology", "Máy tính", "#236781", "#eaf7fb", "</>")
