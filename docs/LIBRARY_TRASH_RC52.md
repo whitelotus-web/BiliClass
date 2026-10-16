@@ -19,5 +19,5 @@ Kiểm chứng: 42 kiểm thử liên quan qua. Qt trên thư viện 24 bài ki�
 chọn qua nhiều trang, bộ lọc, vị trí và giới hạn hàng công cụ ở 1080×700 /
 1366×850, hủy xóa, khôi phục nhóm, xóa vĩnh viễn và khôi phục tất cả; không
 có QML warning. Các bài/âm thanh thật không dùng làm dữ liệu kiểm thử.
-Thông tin executable/bộ cài ghi khi đóng gói; nguồn và binary là hai phần
-riêng, không thay nội dung bản phát hành RC51 đã công bố.
+[Thông tin executable/bộ cài RC52](BUILD_RC52.md). Nguồn và binary là hai
+phần riêng, không thay nội dung bản phát hành RC51 đã công bố.

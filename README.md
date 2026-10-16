@@ -2,9 +2,9 @@
 
 Ứng dụng Windows chuyển tài liệu của giáo viên thành bài giảng Anh–Việt, rồi trình chiếu bằng PowerPoint với giọng đọc và mascot trợ giảng. Hỗ trợ cấu hình từ lớp 1 đến lớp 12 và môn tự nhập.
 
-## Luồng hiện tại — RC51
+## Luồng hiện tại — RC52
 
-Đã phát hành [bộ cài Windows RC51](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc51), cập nhật được từ RC34. [Hướng dẫn sử dụng](docs/USER_GUIDE.md) · [Commit, checksum và kiểm chứng](docs/BUILD_RC51.md).
+Đã phát hành [bộ cài Windows RC52](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc52), cập nhật được từ RC34. [Hướng dẫn sử dụng](docs/USER_GUIDE.md) · [Commit, checksum và kiểm chứng](docs/BUILD_RC52.md).
 
 BiliClass dùng **Google Cloud Translation** dịch phần chữ và sắp xếp PowerPoint tại máy. Browser ChatGPT/Gemini tạm ẩn. Giọng VieNeu chạy ngoại tuyến, là bước tùy chọn sau khi đã có bài song ngữ.
 
@@ -20,9 +20,9 @@ Thư viện có tìm/lọc và chọn nhiều bài để tải ZIP hoặc đưa 
 
 ## Cài và cập nhật
 
-Cần Windows 10/11 64-bit, Internet khi dịch và Microsoft PowerPoint desktop để trình chiếu giữ hiệu ứng. Giải nén toàn bộ ZIP RC51 rồi chạy **Setup.cmd**; gói có runtime, model giọng, OCR và template, không cần Python/Codex.
+Cần Windows 10/11 64-bit, Internet khi dịch và Microsoft PowerPoint desktop để trình chiếu giữ hiệu ứng. Giải nén toàn bộ ZIP RC52 rồi chạy **Setup.cmd**; gói có runtime, model giọng, OCR và template, không cần Python/Codex.
 
-Máy RC34: **Cài đặt → Thông tin BiliClass → Kiểm tra cập nhật** để nhận RC51. Dữ liệu giáo viên ở `%LOCALAPPDATA%/BiliClass` được giữ riêng khi cập nhật. [Thông tin bộ cài và giới hạn kiểm chứng](docs/BUILD_RC51.md).
+Máy RC34: **Cài đặt → Thông tin BiliClass → Kiểm tra cập nhật** để nhận RC52. Dữ liệu giáo viên ở `%LOCALAPPDATA%/BiliClass` được giữ riêng khi cập nhật. [Thông tin bộ cài và giới hạn kiểm chứng](docs/BUILD_RC52.md).
 
 ## Mã nguồn và cập nhật GitHub
 

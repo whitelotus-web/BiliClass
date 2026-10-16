@@ -3,6 +3,9 @@
 Ngày 16/10/2026 — RC52 thu nhỏ ô tích 16 px, gom bộ lọc và thao tác chọn
 thành một hàng ở cả 1080×700. Thùng rác thêm chọn nhóm/tất cả, khôi phục
 và xóa vĩnh viễn với xác nhận và transaction; giữ báo cáo/tệp dùng chung.
+Đã phát hành [RC52](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc52)
+và mở độc lập; updater RC34/RC51 nhận đúng checksum.
+[Bộ cài và kiểm chứng](BUILD_RC52.md).
 
 
 Ngày 16/10/2026 — RC51 thêm chọn nhiều bài, xóa vào thùng rác và tải ZIP;
