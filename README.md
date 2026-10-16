@@ -4,7 +4,7 @@
 
 ## Luồng hiện tại — RC55
 
-Đã phát hành [bộ cài Windows RC55](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc55), cập nhật được từ RC34. [Hướng dẫn sử dụng](docs/USER_GUIDE.md) · [Commit, checksum và kiểm chứng](docs/BUILD_RC55.md).
+Đã phát hành [bộ cài Windows RC56](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc56), cập nhật được từ RC34. [Hướng dẫn sử dụng](docs/USER_GUIDE.md) · [Commit, checksum và kiểm chứng](docs/BUILD_RC56.md).
 
 BiliClass dùng **Google Cloud Translation** dịch phần chữ và sắp xếp PowerPoint tại máy. Browser ChatGPT/Gemini tạm ẩn. Giọng VieNeu chạy ngoại tuyến, là bước tùy chọn sau khi đã có bài song ngữ.
 
