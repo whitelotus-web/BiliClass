@@ -46,5 +46,5 @@ thận trọng, không bảo đảm mọi máy hoặc mọi bài đều nhanh h�
   0,001 giây và không còn việc phải tạo. Fixture ngắn này ép hai bộ để
   kiểm tra; điều kiện tự chọn trong sản phẩm vẫn yêu cầu bài dài như trên.
 
-Bằng chứng riêng trong `reports/rc48` không đưa lên Git. Mốc đóng gói,
-kiểm tra EXE và cách mở độc lập ghi tại BUILD_RC48.md sau khi xây bản.
+Bằng chứng riêng trong `reports/rc48` không đưa lên Git. Xem
+[bản đóng gói, kiểm tra EXE và cách mở độc lập](BUILD_RC48.md).
