@@ -28,7 +28,7 @@ lọc môn có thật trong kho và phân trang 20 mục; tìm kiến thức ch�
 Phụ kiện mascot nhỏ hơn, bỏ nền trắng bao ngoài, gắn lên sách/tablet và
 ẩn ở tư thế không phù hợp. Chuyển động, nháy mắt và giảm chuyển động giữ lại.
 
-Kiểm chứng: 110 kiểm thử liên quan; Qt thư viện với 24 bài qua hai trang,
+Kiểm chứng: 111 kiểm thử liên quan; Qt thư viện với 24 bài qua hai trang,
 hủy/xóa/khôi phục trong thư viện thử, tìm/lọc và điều hướng ba màn, hai cỡ
 1080×700 và 1366×850 không QML warning. Qt result và trình chiếu PowerPoint
 thật kiểm tra lại bước sau tạo giọng, đọc cache, mascot và đổi/đóng slide.

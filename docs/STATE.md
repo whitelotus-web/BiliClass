@@ -4,13 +4,15 @@ Ngày 16/10/2026 — RC51 thêm chọn nhiều bài, xóa vào thùng rác và t
 rút gọn nhãn giọng, hướng dẫn mở lớp, tìm báo cáo, thuật ngữ có lọc/phân
 trang và phụ kiện mascot nhỏ gọn. Bao gồm bước tiếp theo sau tạo giọng và
 đồng bộ key qua kho GitHub riêng tư không có mật khẩu BiliClass.
-Đang hoàn tất bộ cài đầy đủ để thay bản phát hành RC34.
+Đã phát hành [bộ cài RC51](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc51),
+trình cập nhật từ RC34 nhận đúng digest; đã mở bản độc lập qua Explorer.
+[Commit, checksum và kiểm chứng bộ cài](BUILD_RC51.md).
 
 
 Ngày 16/10/2026 — RC50 thêm Bước tiếp theo sau giọng sẵn sàng, chọn bản
 giọng trong Chuẩn bị dạy và khóa tạo trùng đúng giọng/tốc độ; giữ chọn dùng,
 tải hoặc tạo tiếp phần thiếu. Đồng bộ version ứng dụng/bộ cài; chuẩn bị
-phát hành RC50 để máy RC34 cập nhật đầy đủ.
+phát hành cùng RC51 để máy RC34 cập nhật đầy đủ.
 [Luồng và kiểm chứng](NARRATION_NEXT_RC50.md).
 
 Ngày 16/10/2026 — RC49 giữ nhiều bản giọng cho từng bài, chọn sáu giọng/nghe

@@ -2,29 +2,27 @@
 
 Ứng dụng Windows chuyển tài liệu của giáo viên thành bài giảng Anh–Việt, rồi trình chiếu bằng PowerPoint với giọng đọc và mascot trợ giảng. Hỗ trợ cấu hình từ lớp 1 đến lớp 12 và môn tự nhập.
 
-## Luồng hiện tại — RC40
+## Luồng hiện tại — RC51
 
-RC39 sửa lỗi đọc PowerPoint kế thừa cỡ chữ từ slide mẫu khiến tác vụ dừng trước bước dịch. Đã kiểm tra bằng API Google thật; [nguyên nhân và phạm vi kiểm chứng](docs/GOOGLE_DOCUMENT_FIX_RC39.md).
+Đã phát hành [bộ cài Windows RC51](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc51), cập nhật được từ RC34. [Hướng dẫn sử dụng](docs/USER_GUIDE.md) · [Commit, checksum và kiểm chứng](docs/BUILD_RC51.md).
 
-RC40 giữ thiết kế gốc khi dịch, đọc thêm chữ kèm công thức và dùng cặp trang Việt–Anh cho slide kín/hiệu ứng. [Cách giữ thiết kế và giới hạn](docs/SOURCE_DESIGN_RC40.md).
+BiliClass dùng **Google Cloud Translation** dịch phần chữ và sắp xếp PowerPoint tại máy. Browser ChatGPT/Gemini tạm ẩn. Giọng VieNeu chạy ngoại tuyến, là bước tùy chọn sau khi đã có bài song ngữ.
 
-BiliClass dùng **Google Cloud Translation NMT** để dịch phần chữ rồi dựng PowerPoint tại máy. **Browser ChatGPT/Gemini được tạm ẩn**, không gửi prompt hoặc tự chạy lại lượt web cũ. Giọng đọc là bước tùy chọn sau khi bài song ngữ đã lưu.
+1. Cài đặt → Google Dịch: thêm key, mỗi dòng `Tên dự án | API_KEY`, rồi lưu. Có thể nhận key từ kho GitHub riêng tư nếu máy đã đăng nhập GitHub có quyền; không có mật khẩu BiliClass bổ sung.
+2. Nhập tài liệu, chọn **Song ngữ Việt–Anh** hoặc **Tiếng Anh 100%**; giữ thiết kế gốc hoặc dùng mẫu Universal 2026/mẫu PowerPoint riêng.
+3. Chuyển đổi và xem lại bài. Song ngữ cùng slide tự chọn cách xếp theo vùng; vùng quá kín có thể dùng trang tiếp nối song ngữ. Hình, công thức, nội dung OCR và hiệu ứng phức tạp vẫn cần đối chiếu.
+4. Tải PowerPoint ngay hoặc chọn người đọc/tốc độ để tạo giọng Anh, Việt hay Song ngữ. Một bài giữ nhiều bản giọng; bản đủ khóa tạo trùng, vẫn chọn để tải/dạy. Bản Song ngữ có thể nhúng nút VI, EN và đọc chung trên cùng slide.
+5. Chọn **Tiếp tục: chuẩn bị dạy**, xác nhận bài rồi mở PowerPoint và mascot. Muốn học sinh trả lời câu hỏi, dùng Lớp học; kết quả nằm trong Báo cáo.
 
-1. Bật Cloud Translation API và thanh toán trên Google Cloud; thêm key trong **Cài đặt → Google Dịch**. Mỗi dòng nhập `Tên dự án | API_KEY`, hoặc chỉ một key. Key cùng dự án phải ở cùng nhóm; các key không có tên nhóm dùng chung nhóm Mặc định.
-2. Chọn PowerPoint có chữ chỉnh sửa được, DOCX, PDF có chữ, TXT hoặc dán nội dung. Chọn **Hai cột**, **Từng cặp** hoặc **Tiếng Anh**.
-3. Bấm **Chuyển đổi bài giảng**. Phần chữ được chia cụm nhỏ, loại nội dung lặp, dịch bằng hai worker có giới hạn và lưu cache. Số liệu/công thức được bảo vệ; phần trăm và thời gian hiển thị trên cửa sổ.
-4. Chọn giữ thiết kế PPTX: giữ nền, hình và hiệu ứng; slide đủ chỗ dùng song ngữ cùng trang, slide chật dùng cặp trang Việt–Anh kế tiếp. Có PowerPoint trên máy thì đo/căn phần chữ mới tối đa hai lượt. Chữ trong ảnh, nhãn biểu đồ và trạng thái hiệu ứng vẫn cần đối chiếu. Mẫu mới chỉ dùng khi giáo viên chọn hoặc nguồn không phải PPTX.
-5. Tải PowerPoint ngay, hoặc chọn giọng VI/EN/cả hai rồi **Tạo giọng đọc**. Giọng VieNeu dùng một preset đa ngôn ngữ và tốc độ đã lưu, chạy tại máy. Âm thanh dùng trong BiliClass; tải PPTX không tự nhúng voice.
+Thư viện có tìm/lọc và chọn nhiều bài để tải ZIP hoặc đưa vào thùng rác. Thuật ngữ & kiến thức dùng để tra cứu và quản lý cách dùng từ riêng. [Thay đổi thư viện và dạy học](docs/WORKFLOW_RC51.md).
 
-Google có tín dụng miễn phí cho 500.000 ký tự/tháng theo điều kiện Google; **không phải 500.000 ký tự cho mỗi key**. BiliClass có bộ đếm/ngân sách cục bộ theo nhóm dự án, không đọc được số dư miễn phí hay mức dùng trên máy khác. Đặt thêm quota trên Google Cloud để kiểm soát chi phí. Key mã hóa theo tài khoản Windows, không vào Git, gói bài hoặc bản sao lưu; sang máy khác phải nhập lại.
-
-[Cách dùng, quản lý nhiều key và giới hạn RC38](docs/GOOGLE_TRANSLATION_RC38.md). Đã chạy API thật trên một bài thực tế; kiểm thử hồi quy dùng fixture, không công bố tốc độ hoặc chất lượng bảo đảm cho mọi bài/môn.
+500.000 ký tự không phải hạn mức riêng cho từng key. Bộ đếm BiliClass theo nhóm dự án chỉ phản ánh lượng dùng cục bộ; hãy đặt quota trong Google Cloud. Key mã hóa theo tài khoản Windows; không nằm trong bộ cài/repo công khai hoặc bản sao lưu thư viện. Chuyển key qua kho riêng tư là snapshot khi bấm, không đồng bộ quota trực tiếp giữa các máy.
 
 ## Cài và cập nhật
 
-Máy cần Windows 10/11 64-bit, Internet khi dịch và Microsoft PowerPoint desktop để xem/trình chiếu giữ hiệu ứng. Tải gói Windows tại [GitHub Releases](https://github.com/whitelotus-web/BiliClass/releases), giải nén toàn bộ và chạy **Setup.cmd**. **Mã nguồn mới và gói đã phát hành là hai bản riêng**; RC40 là bản thử tại máy, chưa tự xuất hiện trên kênh cập nhật. Các release browser cũ vẫn dùng cơ chế của phiên bản đó.
+Cần Windows 10/11 64-bit, Internet khi dịch và Microsoft PowerPoint desktop để trình chiếu giữ hiệu ứng. Giải nén toàn bộ ZIP RC51 rồi chạy **Setup.cmd**; gói có runtime, model giọng, OCR và template, không cần Python/Codex.
 
-Nút **Kiểm tra cập nhật** nằm trong **Cài đặt → Thông tin BiliClass**. Gói Windows có model, không cần Python. Muốn chạy từ source, xem phần dưới; cần thêm Google Cloud Translation API key cho luồng mới. Dữ liệu giáo viên ở `%LOCALAPPDATA%/BiliClass` được giữ riêng khi cập nhật và không nằm trên GitHub.
+Máy RC34: **Cài đặt → Thông tin BiliClass → Kiểm tra cập nhật** để nhận RC51. Dữ liệu giáo viên ở `%LOCALAPPDATA%/BiliClass` được giữ riêng khi cập nhật. [Thông tin bộ cài và giới hạn kiểm chứng](docs/BUILD_RC51.md).
 
 ## Mã nguồn và cập nhật GitHub
 
