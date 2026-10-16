@@ -41,3 +41,30 @@ Verified:
 Private evidence is under `reports/rc47` and `reports/rc47-frozen`. This does not
 certify arbitrary source lessons, clean Windows installations, embedded source
 animations or all text inside images.
+
+## Standalone launch correction
+
+The initial launch used `subprocess.Popen` from the agent session. Opening a
+separate window did not establish independence from that session's Windows job;
+the teacher reported that closing Codex also closed BiliClass.
+
+Use the **BiliClass RC47** desktop shortcut, or launch through the desktop's
+Explorer instance with the project Python:
+
+```powershell
+.venv\Scripts\python.exe scripts\launch_standalone.py "PATH\TO\BiliClass.exe"
+```
+
+The helper uses the actual desktop ShellFolderView's Application object. It
+does not rely on `DETACHED_PROCESS`, an orphaned parent PID, or an in-process
+ShellExecute call to establish independence. It verifies Explorer as parent,
+waits for a visible BiliClass window and reuses an existing desktop-launched
+window. It refuses to silently reuse a session launched from another parent.
+No launcher helper remains running and no startup task/service is installed.
+
+Verified with a disposable launcher assigned to a Windows job configured to
+kill its processes when its handle closes: BiliClass was outside that job and
+parented by Explorer. Closing the job killed the launcher while BiliClass
+remained visible and responsive. The real RC47 window was left open afterward.
+This test did not require closing Codex itself. Evidence is private under
+`reports/rc47/independent-launch.json`.
