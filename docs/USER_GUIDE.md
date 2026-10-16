@@ -1,21 +1,21 @@
 # BiliClass — Trợ lý dạy học song ngữ
 
-Hướng dẫn RC52, ngày 16/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
+Hướng dẫn RC53, ngày 16/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
 trên máy. Chuyển đổi hiện dùng Google Cloud Translation cho phần chữ và dựng
 PowerPoint tại máy; Browser ChatGPT/Gemini tạm ẩn.
 
 ## Cài và cập nhật
 
-1. Tải **BiliClass-RC52-Windows.zip** tại
-   [Release RC52](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc52).
+1. Tải **BiliClass-RC53-Windows.zip** tại
+   [Release RC53](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc53).
 2. Giải nén toàn bộ; không chạy trong cửa sổ ZIP. Chạy **Setup.cmd**.
 3. Bộ cài kiểm tra checksum và cài vào
-   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc52`, không cần quyền quản trị.
+   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc53`, không cần quyền quản trị.
 4. Mở BiliClass từ Desktop hoặc Start menu. Bản cài có model giọng, OCR và
    template; không cần thư mục runtime của máy phát triển.
 
 Máy đang dùng RC34: vào **Cài đặt → Thông tin BiliClass → Kiểm tra cập nhật**,
-chọn Cập nhật khi thấy RC52. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
+chọn Cập nhật khi thấy RC53. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
 Setup.cmd như trên. Các bản cài nằm cạnh nhau; thư viện ở
 `%LOCALAPPDATA%/BiliClass` được giữ nguyên. Không xóa thư mục dữ liệu này.
 Thư viện cá nhân không đưa lên GitHub. Key có thể nhận riêng như hướng dẫn dưới.
@@ -101,7 +101,7 @@ Mỗi bài có nút **Tải**. Một bài lưu nhiều bản giọng bên trong;
 sao thư viện cho mỗi giọng. Dòng giọng chỉ tóm tắt Anh / Việt / Song ngữ.
 Mở bài để chọn người đọc, tốc độ và bản giọng cần dùng trước khi tải.
 
-Bấm **Chọn bài**, tích từng bài hoặc **Chọn tất cả**, rồi **Tải đã chọn**
+Ô chọn luôn hiển thị trong Thư viện. Tích từng bài hoặc **Chọn tất cả**, rồi **Tải đã chọn**
 hoặc **Xóa đã chọn**. Chọn tất cả áp dụng cho mọi kết quả của bộ lọc, kể cả
 trang khác; đổi bộ lọc sẽ bỏ chọn. Xóa có xác nhận và đưa vào thùng rác để
 khôi phục, không xóa file PowerPoint, âm thanh hoặc báo cáo.

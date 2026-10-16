@@ -11,7 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from PySide6.QtCore import QCoreApplication, QEvent, QMetaObject, Qt, QUrl
+from PySide6.QtCore import QCoreApplication, QEvent, QMetaObject, QObject, Qt, QUrl
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
@@ -31,7 +31,7 @@ def value(item, name):
 def main():
     app = QGuiApplication([])
     QQuickStyle.setStyle('Basic')
-    report = Path('reports/rc52/management'); report.mkdir(parents=True, exist_ok=True)
+    report = Path('reports/rc53/management'); report.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='biliclass-management-', ignore_cleanup_errors=True) as folder:
         library = Library(Path(folder))
         lessons = []
@@ -52,7 +52,9 @@ def main():
             window.setProperty('page', 'library')
             until(lambda: len(bridge.lessons) == 24 and bridge._catalog.worker is None)
             pump(150)
-            click(window, c('librarySelectMode'))
+            assert c('librarySelectAll').isVisible()
+            assert c('lessonSelect_' + bridge.lessons[0]['id']).isVisible()
+            assert window.findChild(QObject, 'librarySelectMode') is None
             click(window, c('librarySelectAll'))
             assert len(value(window, 'selectedLessons')) == 24, 'Select all must span pages'
             click(window, c('libraryDownloadSelected'))
