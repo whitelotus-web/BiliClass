@@ -1,23 +1,9 @@
 """Local draft provider. No network access or automatic model installation."""
 
-import os
-import sys
-from pathlib import Path
-
 from biliclass_m0.probes.translation import decode_candidate, load_translator
 
-from .paths import user_data
+from .paths import model_directory, user_data
 from .text_quality import protected_parts
-
-
-def model_directory():
-    configured = os.environ.get("BILICLASS_MODEL_DIR")
-    if configured:
-        return Path(configured)
-    portable = Path(sys.executable).parent / "models"
-    if getattr(sys, "frozen", False) and portable.is_dir():
-        return portable
-    return user_data() / "models"
 
 
 def find_model(source_language="vi"):

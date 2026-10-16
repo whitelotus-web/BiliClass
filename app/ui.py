@@ -624,6 +624,8 @@ class Bridge(QObject):
 
         try:
             config = validate_config(creation_config(title, subject, education, grade, mode, preset, style))
+            if style == 'template' and self.customTemplate:
+                config['custom_template'] = dict(self.customTemplate)
             self._google_settings.refresh()
             if not self._google_settings.state.get('configured'):
                 self.navigate.emit('browser-settings')
@@ -1072,11 +1074,58 @@ class Bridge(QObject):
             folder.mkdir(parents=True,exist_ok=True)
             target=folder/(preset+'-'+mode+'.pptx')
             config={'title':'Năng lượng trong đời sống','english_title':'Energy in everyday life',
-                    'preset':preset,'conversion_format':mode}
+                    'preset':preset,'conversion_format':mode,'template_version':2}
+            metadata = dict(self.customTemplate)
+            if metadata:
+                import shutil
+                from .pptx_template import stored_path
+                shutil.copyfile(stored_path(self.library.directory,metadata), folder/'template.pptx')
+                config.update(custom_template=metadata,template_roles=metadata['roles'])
             _template(target,config,[('Bài mẫu', 'Năng lượng có thể chuyển từ dạng này sang dạng khác.\nHãy nêu một ví dụ trong đời sống.',
                      'Energy can change from one form to another.\nGive an example from everyday life.')],Event())
             return str(target)
         self.launch(work,lambda path: QDesktopServices.openUrl(QUrl.fromLocalFile(path)))
+
+    @Property('QVariantMap', notify=changed)
+    def customTemplate(self):
+        return self.library.setting('custom_pptx_template', {})
+
+    @Slot(str)
+    def selectCustomTemplate(self, file_url):
+        if self._busy:
+            return
+        from .conversion_input import local_document
+        from .pptx_template import store
+        try:
+            path = local_document(file_url)
+        except (OSError, ValueError) as exc:
+            self.inform(str(exc), True)
+            return
+        def selected(metadata):
+            self.library.set_setting('custom_pptx_template', metadata)
+            self.changed.emit()
+            self.inform('Đã lưu mẫu. Chọn số trang theo vai trò; 0 để bỏ trang tuỳ chọn.')
+        self.launch(lambda: store(self.library.directory, path), selected)
+
+    @Slot(int, int, int, int)
+    def setCustomTemplateRoles(self, cover, intro, content, ending):
+        from .pptx_template import validate_roles
+        if self._busy or not self.customTemplate:
+            return
+        try:
+            metadata = dict(self.customTemplate)
+            metadata['roles'] = validate_roles(metadata, dict(cover=cover,intro=intro,content=content,ending=ending))
+            self.library.set_setting('custom_pptx_template', metadata)
+            self.changed.emit()
+            self.inform('Đã lưu vai trò các trang mẫu.')
+        except (ValueError, TypeError) as exc:
+            self.inform(str(exc), True)
+
+    @Slot()
+    def clearCustomTemplate(self):
+        if not self._busy:
+            self.library.set_setting('custom_pptx_template', {})
+            self.changed.emit()
 
     @Slot(bool, result="QVariantList")
     def templatePages(self, rescue):

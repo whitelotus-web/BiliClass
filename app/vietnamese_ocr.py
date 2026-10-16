@@ -8,8 +8,7 @@ import numpy as np
 
 
 def pack_directory():
-    from .paths import user_data
-    from .translation import model_directory
+    from .paths import model_directory, user_data
 
     return next(
         (

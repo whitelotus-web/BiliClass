@@ -247,7 +247,7 @@ def test_vietnamese_ocr_uses_local_backend_when_windows_only_has_english(tmp_pat
 def test_local_ocr_setup_rejects_wrong_checksum_without_replacing_existing_model(tmp_path, monkeypatch):
     from app.local_ocr import LATIN_MODEL, prepare_models
 
-    monkeypatch.setattr("app.translation.model_directory", lambda: tmp_path)
+    monkeypatch.setattr("app.paths.model_directory", lambda: tmp_path)
     folder = tmp_path / "ocr-vi-en-v1"
     folder.mkdir()
     target = folder / LATIN_MODEL

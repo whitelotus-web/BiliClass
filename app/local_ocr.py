@@ -11,8 +11,7 @@ MODELS = {"Det": "PP-OCRv6_det_small.onnx", "Rec": "PP-OCRv6_rec_small.onnx",
 
 
 def model_paths():
-    from .paths import user_data
-    from .translation import model_directory
+    from .paths import model_directory, user_data
 
     spec = importlib.util.find_spec("rapidocr")
     if spec is None or not spec.origin:
@@ -35,7 +34,7 @@ def prepare_models():
 
     import httpx
 
-    from .translation import model_directory
+    from .paths import model_directory
 
     folder = model_directory() / "ocr-vi-en-v1"
     folder.mkdir(parents=True, exist_ok=True)

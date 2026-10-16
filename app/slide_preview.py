@@ -29,6 +29,9 @@ def _windows_attributes():
     kernel.CreateFileW.restype = w.HANDLE
     kernel.GetFileInformationByHandleEx.argtypes = [w.HANDLE, c.c_int, w.LPVOID, w.DWORD]
     kernel.GetFileInformationByHandleEx.restype = w.BOOL
+    kernel.DeviceIoControl.argtypes = [w.HANDLE, w.DWORD, w.LPVOID, w.DWORD, w.LPVOID, w.DWORD,
+                                      c.POINTER(w.DWORD), w.LPVOID]
+    kernel.DeviceIoControl.restype = w.BOOL
     kernel.CloseHandle.argtypes = [w.HANDLE]
     kernel.CloseHandle.restype = w.BOOL
     return kernel, BasicInfo
@@ -39,6 +42,7 @@ def stamp(path):
     change = stat.st_ctime_ns
     if os.name == "nt":
         import ctypes as c
+        from ctypes import wintypes as w
 
         kernel, Info = _windows_attributes()
         handle = kernel.CreateFileW(str(Path(path).absolute()), 0x80, 7, None, 3, 0x02000000, None)
@@ -46,7 +50,15 @@ def stamp(path):
             try:
                 info = Info()
                 if kernel.GetFileInformationByHandleEx(handle, 0, c.byref(info), c.sizeof(info)):
-                    change = info.changed
+                    # ChangeTime can repeat for two writes within one clock
+                    # tick. NTFS's USN changes even when mtime is restored.
+                    # Filesystems without a journal use an exact hash.
+                    record, count = c.create_string_buffer(4096), w.DWORD()
+                    ok = kernel.DeviceIoControl(handle, 0x000900EB, None, 0, record, len(record), c.byref(count), None)
+                    version = int.from_bytes(record.raw[4:6], 'little')
+                    offset = 24 if version == 2 else 40 if version == 3 else None
+                    usn = int.from_bytes(record.raw[offset:offset+8], 'little') if ok and offset is not None and count.value >= offset+8 else 0
+                    change = (info.changed, usn) if usn else hashlib.sha256(Path(path).read_bytes()).hexdigest()
                 else:
                     change = hashlib.sha256(Path(path).read_bytes()).hexdigest()
             finally:
@@ -133,7 +145,18 @@ class PreviewJob(QThread):
         try:
             image = self.session.render(lesson, result, number)
             self.result["image"] = QUrl.fromLocalFile(image).toString()
-        except Exception:
+        except Exception as exc:
+            # Keep a useful local diagnostic instead of losing every Office /
+            # frozen-runtime failure behind the same empty preview message.
+            import traceback
+            folder = self.session.directory / "temp" / "preview-errors"
+            try:
+                folder.mkdir(parents=True, exist_ok=True)
+                (folder / (result["lesson_id"] + ".json")).write_text(json.dumps({
+                    "slide": number, "type": type(exc).__name__, "message": str(exc),
+                    "traceback": traceback.format_exc()}, ensure_ascii=False), encoding="utf-8")
+            except OSError:
+                pass
             self.result["error"] = "Chưa xem được trang này. Bạn có thể mở bài bằng PowerPoint."
 
 

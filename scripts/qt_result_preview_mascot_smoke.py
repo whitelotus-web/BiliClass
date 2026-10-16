@@ -87,7 +87,8 @@ def main():
     for font in (RESOURCE_ROOT / "assets").glob("*.ttf"):
         QFontDatabase.addApplicationFont(str(font))
     app.setFont(QFont("Be Vietnam Pro", 10))
-    reports = Path("reports/rc44")
+    import sys
+    reports = Path(sys.argv[1] if len(sys.argv) > 1 else "reports/rc45")
     reports.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="biliclass-result-", ignore_cleanup_errors=True) as folder:
         library = Library(Path(folder))
@@ -109,7 +110,7 @@ def main():
         inspection = inspect_returned_deck(source)
         lesson = library.create_external_lesson(
             creation_config(
-                "Bài thử giao diện", "Vật lý", "THPT", "11", "parallel_columns", "standard", "source"
+                "Bài 6 – Dao Động Tắt Dần, Dao Động Cưỡng Bức & Hiện Tượng Cộng Hưởng · Bài thử giao diện với tên dài", "Vật lý", "THPT", "11", "parallel_columns", "standard", "source"
             ),
             stored,
             inspection,
@@ -157,6 +158,19 @@ def main():
         assert not c("lessonDetailsPanel").isVisible()
         assert window.findChild(QObject, "repairConvertedLessonButton") is None
         assert window.grabWindow().save(str(reports / "result.png"))
+        responsive = []
+        for width, height in ((1080, 700), (1366, 850)):
+            window.resize(width, height)
+            pump(150)
+            for name in ('downloadPresentationButton', 'useConvertedLessonButton', 'createLessonNarrationButton'):
+                item = c(name)
+                point = item.mapToScene(QPointF(0, 0))
+                assert point.x() >= 0 and point.x() + item.width() <= width, (name, point.x(), item.width(), width)
+                assert item.isVisible()
+            scroll = c('resultScroll')
+            assert scroll.property('contentWidth') <= scroll.width()
+            responsive.append([width, height])
+            assert window.grabWindow().save(str(reports / ('result-' + str(width) + '.png')))
 
         # Deliberately slow the worker to exercise coalescing and UI ticking.
         render = bridge.slidePreview.session.render
@@ -205,6 +219,22 @@ def main():
         click(window,c('embedPresentationVoice'))
         assert window.property('includeDownloadVoice')
 
+        from app.template_builtin import create
+        template = create(library.directory/'own-template.pptx', 'visual')
+        bridge.selectCustomTemplate(QUrl.fromLocalFile(str(template)).toString())
+        until(lambda: not bridge.busy)
+        assert bridge.customTemplate['name'] == 'own-template.pptx'
+        assert len(bridge.customTemplate['pages']) == 4
+        bridge.setCustomTemplateRoles(1, 0, 3, 4)
+        assert bridge.customTemplate['roles']['intro'] == 0
+        window.setProperty('page', 'new')
+        pump(100)
+        click(window, c('creationUseTemplate'))
+        assert c('chooseCustomTemplateButton').isVisible()
+        assert c('templateContentPage').property('value') == 3
+        bridge.clearCustomTemplate()
+        assert not bridge.customTemplate
+
         window.setProperty("page", "settings")
         pump(100)
         click(window, c("settingsTab3"))
@@ -251,6 +281,8 @@ Window { visible: true; width: 700; height: 470; color: "#f3f7fc"
         report = {
             "status": "passed",
             "qml_warnings": warnings,
+            "responsive_result_sizes": responsive,
+            "custom_template_roles": "passed",
             "queued_pages_rendered": rendered,
             "ui_ticks_while_previewing": len(beats),
             "narration_starts_with_layout_warning": True,

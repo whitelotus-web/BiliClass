@@ -31,6 +31,17 @@ def prepare(directory, config, source=None, text=''):
             raise ValueError('Nhập nội dung từ 1 đến 1.000.000 ký tự.')
         target = folder / 'source.txt'
         target.write_text(text, encoding='utf-8')
+    if config.get('style') == 'template':
+        config['template_version'] = 2
+        if config.get('custom_template'):
+            from .pptx_template import stored_path, validate_roles
+            metadata = config['custom_template']
+            template = stored_path(directory, metadata)
+            config['template_roles'] = validate_roles(metadata, metadata['roles'])
+            shutil.copyfile(template, folder / 'template.pptx')
+            config['template_sha256'] = hashlib.sha256((folder / 'template.pptx').read_bytes()).hexdigest()
+            if config['template_sha256'] != metadata['sha256']:
+                raise ValueError('Mẫu vừa thay đổi; chọn lại mẫu trước khi chuyển đổi.')
     config.update(source_file=target.name, source_sha256=hashlib.sha256(target.read_bytes()).hexdigest())
     (folder / 'config.json').write_text(json.dumps(config, ensure_ascii=False), encoding='utf-8')
     from .library import Library
@@ -50,6 +61,8 @@ def load(directory, folder, *, verify_source=True):
         raise ValueError('Đường dẫn nguồn không hợp lệ.')
     if verify_source and hashlib.sha256((folder / name).read_bytes()).hexdigest() != config['source_sha256']:
         raise ValueError('Nguồn chuyển đổi đã thay đổi; chọn lại tài liệu.')
+    if config.get('template_sha256') and hashlib.sha256((folder / 'template.pptx').read_bytes()).hexdigest() != config['template_sha256']:
+        raise ValueError('Mẫu của lượt chuyển đổi đã thay đổi; tạo lượt mới.')
     return {'folder': str(folder), 'config': config}
 
 
@@ -74,6 +87,15 @@ def original_source(directory, lesson):
 
 def _template(path, config, pairs, cancel, source=None):
     """Known non-overlapping text regions; pagination keeps each pair intact."""
+    if config.get('template_version') == 2:
+        from .pptx_template import build
+        from .template_builtin import create
+        custom = config.get('custom_template')
+        template = Path(path).parent / ('template.pptx' if custom else 'builtin-template.pptx')
+        if not custom:
+            create(template, config.get('preset', 'standard'))
+        return build(path, template, config, pairs, cancel, source,
+                     config.get('template_roles') if custom else {'cover': 1, 'intro': 0, 'content': 3, 'ending': 4})
     import io
 
     from pptx import Presentation
@@ -348,8 +370,13 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
     # Render once before publishing. Local repairs reuse unchanged slide PNGs;
     # no browser round-trip, retranslation, narration or unbounded retries.
     progress.stage('quality','Đang hoàn thiện bản trình chiếu.')
+    # A template frame can require stacked pairs even in the automatic
+    # bilingual option. Check visible coverage, without imposing two columns
+    # on a narrow teacher-supplied frame; native overflow checks still apply.
+    quality_mode = ('sentence_pairs' if not use_native and config.get('template_version') == 2
+                    and config['conversion_format'] == 'parallel_columns' else config['conversion_format'])
     checked=repair_and_inspect(target,directory,source=source if use_native else None,
-                              mode=config['conversion_format'],style=config['style'],cancel=cancel,
+                              mode=quality_mode,style=config['style'],cancel=cancel,
                               progress=progress.scope('quality'),
                               layout_plan=manifest.get('layout_plan') if use_native else None)
     target=Path(checked['path'])
