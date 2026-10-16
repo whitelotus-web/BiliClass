@@ -114,8 +114,8 @@ Mở bài trong Thư viện → **Dùng để dạy** → hoàn tất chuẩn b�
 trình chiếu. Mascot liên kết với phiên PowerPoint đó; chọn đọc Anh, Việt
 hoặc Việt–Anh để đọc phần lời đang chọn trên slide hiện tại. Dùng **Theo slide**
 để đưa lựa chọn về slide đang chiếu. Chưa mở trình chiếu thì các nút đọc
-bị khóa. Đóng trình chiếu sẽ ngừng đọc. Chọn môn trong Cài đặt Mascot chỉ
-đổi phụ kiện xem trước, không chọn bài giảng hay khóa bài vĩnh viễn.
+bị khóa. Đóng trình chiếu sẽ ngừng đọc. Chọn môn trong Cài đặt Mascot đổi
+phụ kiện theo cấu hình đã lưu, không chọn bài giảng hay khóa bài vĩnh viễn.
 
 ## Thư viện, lớp học và báo cáo
 
