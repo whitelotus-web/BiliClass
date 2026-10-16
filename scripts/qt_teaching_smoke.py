@@ -86,6 +86,11 @@ def main():
             real_play(audio)
 
         speech.play = recorded_play
+        reader_play = bridge.english_reader.player.play
+        def recorded_reader_play(audio):
+            plays.append(str(audio))
+            reader_play(audio)
+        bridge.english_reader.player.play = recorded_reader_play
         engine = QQmlApplicationEngine()
         engine.warnings.connect(lambda entries: warnings.extend(map(str, entries)))
         engine.rootContext().setContextProperty("bridge", bridge)
@@ -108,7 +113,7 @@ def main():
             audio = [shutil.copy2(sample, library.directory / "audio" / Path(sample).name) for sample in samples]
             print("English audio prepared", flush=True)
             bridge.openLesson(lesson["id"])
-            wait(lambda: not bridge.busy)
+            wait(lambda: not bridge.busy and not bridge.previewBusy)
             plan, _ = make_plan(bridge.lesson, "en", bridge.voiceSettings)
             bridge._lesson = library.update_narration(lesson["id"], plan)
             bridge.narrationChanged.emit()
@@ -169,30 +174,21 @@ def main():
             read = window.findChild(QObject, "companionReadEnglish")
             position = read.mapToScene(QPointF(read.width() / 2, read.height() / 2)).toPoint()
             QTest.mouseClick(companion, Qt.LeftButton, pos=position)
-            pump()
+            wait(lambda: bool(plays) and bridge.mascotState == 'speaking')
             assert bridge.mascotState == "speaking" and plays[-1] == str(audio[0])
             click("companionStopSpeech")
             assert bridge.mascotState == "idle"
             assert companion.grabWindow().save(str(reports / "teaching-mascot.png"))
 
-            # Simulate slow synthesis finishing after the teacher changes slide.
-            pending = []
-            normal_launch, normal_cache = bridge.launch, ui.available_audio
-            try:
-                bridge.launch = lambda action, callback: pending.append(callback)
-                ui.available_audio = lambda *args: None
-                click("companionReadEnglish")
-                assert len(pending) == 1
-            finally:
-                bridge.launch, ui.available_audio = normal_launch, normal_cache
+            # The reader owns its cancellable queue; delayed-result rejection
+            # is covered in test_english_reader. Exercise native slide sync here.
             # Change the real Office view, not just the BiliClass navigation slot.
             native_navigation("Next")
             wait(lambda: bridge.powerpointState.get("slide") == 2)
             assert bridge.segmentIndex == 1 and bridge._reading_text("en") == pairs[1][1]
-            previous_plays = len(plays)
-            pending[0]({"path": audio[0]})
-            assert len(plays) == previous_plays and bridge.mascotState == "idle"
+            assert bridge.mascotState == "idle"
             click("companionReadEnglish")
+            wait(lambda: bridge.mascotState == 'speaking' and plays[-1] == str(audio[1]))
             assert bridge.mascotState == "speaking" and plays[-1] == str(audio[1])
             click("companionNext")
             wait(lambda: bridge.powerpointState.get("slide") == 3)
@@ -202,12 +198,14 @@ def main():
             click("companionPrevious")
             wait(lambda: bridge.powerpointState.get("slide") == 2)
             assert bridge.segmentIndex == 1 and read.property("enabled")
-            trace.append("Mascot drag/click -> cached English playback; navigation follows slide; delayed old voice discarded; blank slide disables voice")
+            trace.append("Mascot drag/click -> cached English playback; navigation follows slide and stops voice; blank slide disables voice")
             native_navigation("Exit")
             wait(lambda: bridge.powerpoint_worker is None)
             assert bridge.mascotState == "idle"
             # The same button must work a second time after ending the show.
             click("useConvertedLessonButton")
+            assert window.findChild(QObject, 'wholeLessonReview').property('visible')
+            click('confirmWholeLessonButton')
             bridge.powerpoint_worker.failed.connect(lambda message: print("Reopen error: " + message, flush=True))
             bridge.powerpoint_worker.stateChanged.connect(lambda state: print("Reopen state: " + json.dumps(state), flush=True))
             wait(lambda: bridge.powerpointState.get("active"))

@@ -64,6 +64,42 @@ def library_audio_status(lesson, directory, fallback_voices=None, *, cancel=None
     return {**active, 'variants': variants}
 
 
+def creation_choices(lesson, voice, rate, verified=(), live=None):
+    """Describe the three exact products using published audio checks, no I/O."""
+    if not lesson or voice not in {v['id'] for v in speech.VIENEU_VOICES} or type(rate) is not int or not -3 <= rate <= 3:
+        return {}
+    saved = records(lesson)
+    checked = {row['id']: row for row in verified if row.get('id')}
+    if live and live.get('id'):
+        checked[live['id']] = live
+    result = {}
+    for mode in MODES:
+        plan, _ = make_plan(lesson, mode, {'voice': voice, 'rate': rate},
+                            playback='both_controls' if mode == 'both' else 'separate')
+        identity = variant_id(plan)
+        stored, state = saved.get(identity), checked.get(identity)
+        if not plan['total']:
+            phase = 'empty'
+        elif not stored:
+            phase = 'new'
+        elif stored.get('keys') != plan['keys']:
+            phase = 'stale'
+        elif state is None or state.get('status') in {'checking', 'unknown'}:
+            phase = 'checking'
+        elif state.get('status') == 'running':
+            phase = 'running'
+        elif state.get('ready'):
+            phase = 'ready'
+        else:
+            phase = 'partial'
+        labels = {'empty': 'Chưa có lời đọc', 'new': 'Chưa tạo', 'stale': 'Cần cập nhật', 'checking': 'Đang kiểm tra',
+                  'running': 'Đang tạo', 'ready': 'Đã tạo', 'partial': 'Cần tạo tiếp'}
+        result[mode] = {'id': identity, 'phase': phase, 'label': labels[phase],
+                        'ready': phase == 'ready', 'canCreate': phase in {'new', 'partial', 'stale'},
+                        'title': variant_title(plan), 'total': plan['total']}
+    return result
+
+
 def inspection_for(lesson):
     return {"profile": {"units": [{"vi": s["vi"], "en": s["en"]} for s in lesson["segments"]]},
             "slide_speech": lesson.get("slide_speech", {})}

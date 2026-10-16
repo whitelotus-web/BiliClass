@@ -475,7 +475,12 @@ Item {
                         SoftButton { objectName: "preparePictureOcr"; text: bridge.googleSettings.state.ocrReady ? "OCR đã sẵn sàng" : "Chuẩn bị OCR Việt–Anh"; enabled: !bridge.busy && !bridge.googleSettings.state.ocrReady; onClicked: bridge.googleSettings.prepareOcr() }
                     }
                     Hint { text: "Bộ đếm theo tháng UTC chỉ tính yêu cầu từ thư viện BiliClass này, gồm cả phần bảo vệ số liệu và các lần gửi chưa rõ kết quả. Không đảm bảo miễn phí nếu dự án còn được dùng ở ứng dụng/máy khác. Hãy đặt quota trong Google Cloud để kiểm soát chi phí."; Layout.fillWidth: true }
-                    Hint { text: "Key được mã hóa theo tài khoản Windows, không đi cùng gói bài giảng hay bản sao lưu. Sang máy khác cần nhập lại key."; Layout.fillWidth: true }
+                    Hint { text: "Key được mã hóa theo tài khoản Windows, không đi cùng gói bài giảng hay bản sao lưu. Có thể nhận key từ kho GitHub riêng tư bằng quyền GitHub đã đăng nhập trên máy, không cần mật khẩu BiliClass."; Layout.fillWidth: true }
+                    Flow { Layout.fillWidth: true; spacing: 10
+                        SoftButton { objectName: "receiveGoogleKeysGitHub"; text: "Nhận key từ GitHub"; enabled: !bridge.busy; onClicked: bridge.googleSettings.syncGitHub(true) }
+                        SoftButton { objectName: "sendGoogleKeysGitHub"; text: "Đồng bộ key lên GitHub"; enabled: !bridge.busy && bridge.googleSettings.state.configured; onClicked: bridge.googleSettings.syncGitHub(false) }
+                    }
+                    Hint { text: "Cần Git for Windows và đăng nhập GitHub có quyền vào kho BiliClass-Private-Config. Đây là chuyển cấu hình khi bấm, không cộng dồn trực tiếp mức dùng của hai máy. Hạn mức Google Cloud vẫn dùng chung; đặt quota tại Google để kiểm soát chi phí."; Layout.fillWidth: true }
                 }
             }
             Card {

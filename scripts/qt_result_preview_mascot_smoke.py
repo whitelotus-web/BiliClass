@@ -244,6 +244,21 @@ def main():
         bridge.narrationChanged.emit()
         pump(120)
         assert bridge.lessonNarration['ready']
+        assert not c('createLessonNarrationButton').isEnabled()
+        assert 'Đã tạo' in c('narrationEnglish').property('text')
+        assert c('narrationEnglish').isEnabled()
+        assert c('narrationReadyNextStep').isVisible()
+        assert not c('wholeLessonReview').property('visible'), 'Completion must not open a dialog automatically'
+        bridge._lesson['slide_quality']['counts']['FAIL'] = 1
+        bridge.changed.emit();pump(50)
+        click(window,c('continueAfterNarrationButton'))
+        assert c('wholeLessonReview').property('visible')
+        assert 'Tiếng Anh' in c('teachingNarrationSummary').property('text')
+        assert not c('confirmWholeLessonButton').isEnabled(), 'Layout FAIL must not be silently approved'
+        assert window.grabWindow().save(str(reports / 'teaching-preparation.png'))
+        QMetaObject.invokeMethod(c('wholeLessonReview'),'close',Qt.DirectConnection);pump(100)
+        bridge._lesson['slide_quality']['counts']['FAIL'] = 0
+        bridge.changed.emit();pump(50)
         assert c('embedPresentationVoice').isVisible() and c('embedPresentationVoice').property('checked')
         click(window,c('embedPresentationVoice'))
         assert not window.property('includeDownloadVoice')
@@ -287,6 +302,18 @@ def main():
         QMetaObject.invokeMethod(choice,'activated',Qt.DirectConnection,Q_ARG(int,index))
         assert bridge._lesson_voice_settings()['vi'] == 'vieneu:Hải Đăng'
         assert not bridge._lesson_voice_settings()['en']
+        assert not c('createLessonNarrationButton').isEnabled() and c('narrationVietnamese').isEnabled()
+        click(window,c('narrationEnglish'))
+        assert c('createLessonNarrationButton').isEnabled(), 'English has not been made with this voice'
+        assert not c('narrationReadyNextStep').isVisible()
+        click(window,c('narrationVietnamese'))
+        assert not c('createLessonNarrationButton').isEnabled()
+        rate=c('lessonNarrationRateChoice');rate.setProperty('currentIndex',4)
+        QMetaObject.invokeMethod(rate,'activated',Qt.DirectConnection,Q_ARG(int,4));pump(100)
+        assert c('createLessonNarrationButton').isEnabled(), 'New speed is a separate product'
+        rate.setProperty('currentIndex',3)
+        QMetaObject.invokeMethod(rate,'activated',Qt.DirectConnection,Q_ARG(int,3));pump(100)
+        assert not c('createLessonNarrationButton').isEnabled()
         assert 'Tiếng Việt' in c('presentationSaveDialog').property('title')
         assert 'Hải Đăng' in QUrl(bridge.presentationDownloadSuggestion(True)).toLocalFile()
         for width in (1080,1366):
@@ -316,6 +343,10 @@ def main():
 
         window.setProperty("page", "settings")
         pump(100)
+        click(window, c('settingsTab6'))
+        assert c('receiveGoogleKeysGitHub').isVisible()
+        assert c('sendGoogleKeysGitHub').isVisible()
+        assert window.grabWindow().save(str(reports / 'private-key-sync.png'))
         click(window, c("settingsTab3"))
         click(window, c("mascotLumi"))
         assert c("mascotPreview").property("character") == "Lumi"
@@ -385,6 +416,10 @@ Window { visible: true; width: 700; height: 470; color: "#f3f7fc"
             'saved_variants_route_selected_voice': True,
             'saved_subject_updates_floating_mascot': True,
             'companion_read_disabled_without_slideshow': True,
+            'completed_voice_creation_locked_but_selectable': True,
+            'new_voice_or_speed_unlocks_creation': True,
+            'explicit_next_step_opens_teaching_preparation': True,
+            'completion_does_not_auto_navigate_or_approve': True,
             "mascot_checks": [
                 "card selection",
                 "blink timer",

@@ -926,8 +926,20 @@ class Bridge(QObject):
             state = verified.get(identity, {})
             suffix = 'Sẵn sàng' if state.get('ready') else 'Cần tạo tiếp / kiểm tra' if state else 'Đang kiểm tra'
             result.append({'id': identity, 'title': variant_title(record) + ' · ' + suffix,
-                           'ready': bool(state.get('ready'))})
+                           'ready': bool(state.get('ready')), 'status': state.get('status', 'checking')})
         return result
+
+    @Slot('QVariantList', str, int, result='QVariantMap')
+    def narrationCreationChoices(self, rows, voice, rate):
+        from .lesson_narration import creation_choices
+
+        # Reuse the selected product's existing check and the background catalog
+        # for the others. Clock ticks never call this or scan more WAVs.
+        live = self.lessonNarration
+        if live.get('running'):
+            from .lesson_narration import variant_id
+            live = {**live, 'id': variant_id(self._lesson.get('narration'))}
+        return creation_choices(self._lesson, voice, rate, rows, live)
 
     @Property(str, notify=narrationChanged)
     def selectedNarrationVariant(self):
@@ -938,6 +950,8 @@ class Bridge(QObject):
     @Slot(str)
     def selectNarrationVariant(self, identity):
         if self._busy or self.narrationBusy or self.powerpoint_worker is not None or not self._lesson:
+            return
+        if identity == self.selectedNarrationVariant:
             return
         try:
             self.stopSpeech()
@@ -955,7 +969,7 @@ class Bridge(QObject):
 
     @Slot(str, str, int)
     def createLessonNarrationWithVoice(self, mode, voice, rate):
-        from .lesson_narration import inspection_for, make_plan
+        from .lesson_narration import audio_status, inspection_for, make_plan, records
 
         if self._busy or not self._lesson or self.narrationBusy or self.powerpoint_worker is not None:
             return
@@ -966,10 +980,17 @@ class Bridge(QObject):
         try:
             from .lesson_narration import variant_id
 
-            self.stopSpeech()
             plan, selected = make_plan(self._lesson, mode, voices, playback='both_controls' if mode == 'both' else 'separate')
             if not plan["total"]:
                 raise ValueError("Chưa có nội dung đọc phù hợp cho ngôn ngữ đã chọn.")
+            identity = variant_id(plan)
+            existing = records(self._lesson).get(identity)
+            if existing and audio_status({**self._lesson, 'narration': existing}, self.library.directory).get('ready'):
+                if identity != self.selectedNarrationVariant:
+                    self.selectNarrationVariant(identity)
+                self.inform('Bản giọng này đã sẵn sàng. Chọn Chuẩn bị dạy hoặc Tải PowerPoint.', refresh=False)
+                return
+            self.stopSpeech()
             self._lesson = self.library.update_narration(self._lesson["id"], plan)
             folder = self.library.directory / "temp" / "narration" / variant_id(plan)
             folder.mkdir(parents=True, exist_ok=True)

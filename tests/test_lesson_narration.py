@@ -273,6 +273,78 @@ def test_companion_cannot_read_without_live_matching_presentation_and_stops_on_c
         bridge.narration_preparation.shutdown(); bridge.english_reader.shutdown(); bridge.browserAI.shutdown()
 
 
+def test_creation_choices_lock_only_the_exact_completed_product(saved):
+    from app.lesson_narration import creation_choices, variant_statuses
+
+    library, lesson, _ = saved
+    plan, _ = make_plan(lesson, 'en', VOICES)
+    for key in plan['keys']['en']:
+        wav(library.directory/'audio'/(key+'.wav'))
+    lesson = library.update_narration(lesson['id'], plan)
+    checked = variant_statuses(lesson, library.directory)
+    choices = creation_choices(lesson, VOICE, 0, checked)
+    assert choices['en']['ready'] and not choices['en']['canCreate']
+    assert choices['vi']['canCreate'] and choices['both']['canCreate']
+    assert creation_choices(lesson, VOICE, 1, checked)['en']['canCreate']
+    assert creation_choices(lesson, 'vieneu:Hải Đăng', 0, checked)['en']['canCreate']
+    damaged = [{**row, 'ready': False, 'status': 'partial'} for row in checked]
+    assert creation_choices(lesson, VOICE, 0, damaged)['en']['phase'] == 'partial'
+    assert creation_choices(lesson, VOICE, 0)['en']['phase'] == 'checking'
+
+
+def test_duplicate_creation_never_restarts_worker_rewrites_record_or_resets_clock(saved, monkeypatch):
+    app = QCoreApplication.instance() or QCoreApplication([])
+    library, lesson, _ = saved
+    monkeypatch.setattr(speech, 'list_voices', lambda: [dict(v, provider='vieneu', languages=['vi', 'en']) for v in speech.VIENEU_VOICES])
+    plan, _ = make_plan(lesson, 'en', VOICES)
+    for key in plan['keys']['en']:
+        wav(library.directory/'audio'/(key+'.wav'))
+    lesson = library.update_narration(lesson['id'], plan)
+    bridge = Bridge(library)
+    try:
+        bridge._lesson = lesson
+        bridge.narration_preparation._elapsed = 123
+        before = library.get(lesson['id'])
+        changes = library.db.total_changes
+        monkeypatch.setattr(bridge.narration_preparation, 'start', lambda *_: pytest.fail('Already completed'))
+        bridge.createLessonNarrationWithVoice('en', VOICE, 0)
+        assert library.get(lesson['id']) == before and library.db.total_changes == changes
+        assert bridge.narrationClock.elapsedSeconds == 123 and not bridge.narrationBusy
+        assert 'đã sẵn sàng' in bridge.message
+    finally:
+        bridge.narration_preparation.shutdown(); bridge.english_reader.shutdown(); bridge.browserAI.shutdown()
+
+
+def test_missing_wav_unlocks_existing_variant_and_only_missing_work_is_recreated(saved, monkeypatch):
+    app = QCoreApplication.instance() or QCoreApplication([])
+    library, lesson, _ = saved
+    monkeypatch.setattr(speech, 'list_voices', lambda: [dict(v, provider='vieneu', languages=['vi', 'en']) for v in speech.VIENEU_VOICES])
+    plan, _ = make_plan(lesson, 'en', VOICES)
+    lesson = library.update_narration(lesson['id'], plan)
+    calls = []
+    def render(text, voice, rate, directory, cancel):
+        calls.append(text)
+        path = Path(directory)/(speech.audio_key(text, voice, rate)+'.wav')
+        wav(path)
+        return {'path': str(path), 'cached': False}
+    monkeypatch.setattr(speech, 'synthesize_background', render)
+    bridge = Bridge(library)
+    try:
+        bridge._lesson = lesson
+        choice = bridge.narrationCreationChoices(bridge.narrationVariants, VOICE, 0)['en']
+        assert choice['canCreate'] and not choice['ready']
+        bridge.createLessonNarrationWithVoice('en', VOICE, 0)
+        deadline = time.monotonic()+5
+        while bridge.narrationBusy and time.monotonic()<deadline:
+            app.processEvents();time.sleep(.01)
+        assert not bridge.narrationBusy and bridge.lessonNarration['ready']
+        assert calls == ['Energy is conserved.']
+        choice = bridge.narrationCreationChoices(bridge.narrationVariants, VOICE, 0)['en']
+        assert choice['ready'] and not choice['canCreate']
+    finally:
+        bridge.narration_preparation.shutdown(); bridge.english_reader.shutdown(); bridge.browserAI.shutdown()
+
+
 def test_explicit_local_generation_cache_reuse_and_reopen_do_not_send_web_request(saved, monkeypatch):
     app = QCoreApplication.instance() or QCoreApplication([])
     library, lesson, path = saved

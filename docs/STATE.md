@@ -1,5 +1,11 @@
 # Trạng thái BiliClass
 
+Ngày 16/10/2026 — RC50 thêm Bước tiếp theo sau giọng sẵn sàng, chọn bản
+giọng trong Chuẩn bị dạy và khóa tạo trùng đúng giọng/tốc độ; giữ chọn dùng,
+tải hoặc tạo tiếp phần thiếu. Đồng bộ version ứng dụng/bộ cài; chuẩn bị
+phát hành RC50 để máy RC34 cập nhật đầy đủ.
+[Luồng và kiểm chứng](NARRATION_NEXT_RC50.md).
+
 Ngày 16/10/2026 — RC49 giữ nhiều bản giọng cho từng bài, chọn sáu giọng/nghe
 thử tại màn tạo, xuất loa EN/VI/chung trên cùng slide. Thư viện có tìm không
 dấu, bộ lọc và phân trang; Trang chủ tập trung công việc và ba bài vừa cập
