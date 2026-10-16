@@ -102,6 +102,7 @@ def main():
             store.transition(session, 'end'); store.close()
             window.setProperty('page', 'reports'); pump(100)
             assert c('openSelectedReport').isEnabled()
+            assert 'Chưa có ngày lưu' not in c('reportSessionPicker').property('displayText')
             click(window, c('openSelectedReport'))
             assert bridge.classroom.selectedReport['id'] == session
             c('reportSearch').setProperty('text', 'khong co'); pump()

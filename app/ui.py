@@ -319,6 +319,7 @@ class Bridge(QObject):
     def trashedLessons(self):
         return self._catalog.rows(trash=True)
 
+    @Slot(float, result=str)
     @Slot(str, result=str)
     def lessonDateLabel(self, value):
         from datetime import datetime
