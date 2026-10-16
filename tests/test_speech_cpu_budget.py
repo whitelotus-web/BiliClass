@@ -13,15 +13,22 @@ from app import speech
 from app.voice_threads import _blas_controls, blas_budget
 
 
+def pool_snapshot():
+    if os.name == 'nt':
+        return [{'handle': handle, 'user_api': 'blas', 'num_threads': get()}
+                for handle, get, _ in _blas_controls()]
+    return threadpool_info()
+
+
 @pytest.mark.parametrize("failure", [False, True])
 def test_blas_budget_is_limited_only_during_inference(monkeypatch, tmp_path, failure):
-    before = threadpool_info()
+    before = pool_snapshot()
     calls = []
 
     class Engine:
         def infer(self, text, voice):
             calls.append((text, voice))
-            pools = [pool for pool in threadpool_info() if pool["user_api"] == "blas"]
+            pools = [pool for pool in pool_snapshot() if pool["user_api"] == "blas"]
             assert pools and all(pool["num_threads"] == 1 for pool in pools)
             if failure:
                 raise RuntimeError("inference failed")
@@ -36,12 +43,19 @@ def test_blas_budget_is_limited_only_during_inference(monkeypatch, tmp_path, fai
         speech._synthesize_vieneu("Xin chào. Hello.", "vieneu:Mai Anh", 0, path)
         assert speech.valid_audio(path)
     assert calls == [("Xin chào. Hello.", "Mai Anh")]
-    assert threadpool_info() == before
+    assert pool_snapshot() == before
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Windows live DLL control")
 def test_unicode_dll_is_controlled_by_its_loaded_handle_without_path_reload(tmp_path):
-    source = next(pool["filepath"] for pool in threadpool_info() if pool["internal_api"] == "openblas")
+    # threadpoolctl's Windows filename snapshot can replace Vietnamese letters
+    # with '?'. Read the live module's Unicode filename instead.
+    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+    kernel.GetModuleFileNameW.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p, ctypes.c_uint32]
+    kernel.GetModuleFileNameW.restype = ctypes.c_uint32
+    name = ctypes.create_unicode_buffer(32768)
+    assert kernel.GetModuleFileNameW(_blas_controls()[0][0], name, len(name))
+    source = name.value
     folder = tmp_path / "Cài đặt tiếng Việt – giọng đọc"
     folder.mkdir()
     destination = folder / ("libscipy_openblas_biliclass_test_" + uuid4().hex + ".dll")

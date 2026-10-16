@@ -1,18 +1,25 @@
 .pragma library
 
 function forSubject(subject) {
-    const value = subject.toLowerCase()
-    if (/toán|toan|math/.test(value)) return {symbol: "π", color: "#255cb3", paper: "#edf3ff"}
-    if (/vật lý|vat ly|physics/.test(value)) return {symbol: "E", color: "#176eaa", paper: "#edf8ff"}
-    if (/hóa|hoá|hoa hoc|chem/.test(value)) return {symbol: "H₂O", color: "#8252a2", paper: "#f8efff"}
-    if (/sinh|biology|khoa học|science/.test(value)) return {symbol: "DNA", color: "#248564", paper: "#edfaf3"}
-    if (/tin|computer|công nghệ|technology/.test(value)) return {symbol: "</>", color: "#236781", paper: "#eaf7fb"}
-    if (/anh|english|ngoại ngữ|language/.test(value)) return {symbol: "EN", color: "#ad5b32", paper: "#fff3e8"}
-    if (/văn|van|literature|tiếng việt/.test(value)) return {symbol: "Aa", color: "#91546f", paper: "#fff0f6"}
-    if (/sử|history/.test(value)) return {symbol: "SỬ", color: "#97673c", paper: "#fff7e9"}
-    if (/địa|geography/.test(value)) return {symbol: "GEO", color: "#267e89", paper: "#edfafb"}
-    if (/nhạc|music/.test(value)) return {symbol: "♫", color: "#8c4eaa", paper: "#f8f0ff"}
-    if (/mỹ thuật|mĩ thuật|art/.test(value)) return {symbol: "✦", color: "#ad5575", paper: "#fff1f5"}
-    if (/thể|sport|physical/.test(value)) return {symbol: "PE", color: "#a16c22", paper: "#fff7e5"}
-    return {symbol: "B", color: "#2269b6", paper: "#edf5ff"}
+    const value = String(subject).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d")
+    function theme(id, label, color, paper, symbol) { return {id: id, label: label, color: color, paper: paper, symbol: symbol} }
+    if (/toan|math/.test(value)) return theme("math", "Thước hình học", "#255cb3", "#edf3ff", "π")
+    if (/vat li|vat ly|physics/.test(value)) return theme("physics", "Mô hình nguyên tử", "#176eaa", "#edf8ff", "E")
+    if (/hoa hoc|chem/.test(value)) return theme("chemistry", "Bình thí nghiệm", "#8252a2", "#f8efff", "H₂O")
+    if (/sinh|biology/.test(value)) return theme("biology", "Chiếc lá", "#248564", "#edfaf3", "DNA")
+    if (/dia phuong/.test(value)) return theme("local", "Dấu địa điểm", "#b35d44", "#fff2e9", "⌖")
+    if (/tin hoc|computer|cong nghe|technology/.test(value)) return theme("technology", "Máy tính", "#236781", "#eaf7fb", "</>")
+    if (/tieng anh|english|ngoai ngu|language|dan toc/.test(value)) return theme("language", "Thẻ hội thoại", "#ad5b32", "#fff3e8", "Aa")
+    if (/ngu van|literature|tieng viet/.test(value)) return theme("literature", "Quyển sách", "#91546f", "#fff0f6", "Aa")
+    if (/lich su|history/.test(value) && /dia li|dia ly/.test(value)) return theme("geography", "Địa cầu và lịch sử", "#267e89", "#edfafb", "GEO")
+    if (/lich su|history/.test(value)) return theme("history", "Cuộn tư liệu", "#97673c", "#fff7e9", "SỬ")
+    if (/dia li|dia ly|geography/.test(value)) return theme("geography", "Quả địa cầu", "#267e89", "#edfafb", "GEO")
+    if (/am nhac|music/.test(value)) return theme("music", "Nốt nhạc", "#8c4eaa", "#f8f0ff", "♫")
+    if (/my thuat|mi thuat|nghe thuat|art/.test(value)) return theme("art", "Bảng màu", "#ad5575", "#fff1f5", "✦")
+    if (/quoc phong/.test(value)) return theme("defence", "Chiếc khiên", "#557345", "#f2f7e9", "★")
+    if (/the chat|sport|physical/.test(value)) return theme("sport", "Quả bóng", "#a16c22", "#fff7e5", "PE")
+    if (/cong dan|dao duc|phap luat|kinh te/.test(value)) return theme("civics", "Cán cân", "#6d61a0", "#f3f0ff", "⚖")
+    if (/trai nghiem|huong nghiep/.test(value)) return theme("experience", "La bàn khám phá", "#bd672d", "#fff5e8", "⌖")
+    if (/khoa hoc|science|tu nhien/.test(value)) return theme("science", "Kính lúp khám phá", "#248564", "#edfaf3", "S")
+    return theme("general", "Quyển sách", "#2269b6", "#edf5ff", "B")
 }

@@ -87,6 +87,9 @@ class Bridge(QObject):
     browserConversionProgress = Signal(object)
     quickResultChanged = Signal()
     previewStateChanged = Signal()
+    voiceSettingsChanged = Signal()
+    voiceUiChanged = Signal()
+    speechStateChanged = Signal()
 
     @Property(bool, constant=True)
     def developmentMode(self):
@@ -120,13 +123,20 @@ class Bridge(QObject):
         self._busy = False
         self._speaking = False
         self._speech_generation = 0
+        from .voice_controls import VoiceControls
+
+        self.voice_controls = VoiceControls(library.directory, self)
+        self.voice_controls.changed.connect(self.voiceUiChanged)
+        self.voice_controls.saved.connect(self._voice_saved)
+        self.voice_controls.ready.connect(self._voice_preview_ready)
+        self.voice_controls.failed.connect(lambda message: self.inform(message, True, refresh=False))
         self._speech_timer = QTimer(self)
         self._speech_timer.setSingleShot(True)
         self._speech_timer.timeout.connect(self.stopSpeech)
         from .english_reader import EnglishReader
 
         self.english_reader = EnglishReader(library.directory / "audio", self)
-        self.english_reader.changed.connect(self.changed)
+        self.english_reader.changed.connect(self.speechStateChanged)
         self.english_reader.speakingChanged.connect(self._english_speaking)
         self.english_reader.failed.connect(lambda message: self.inform(message, True))
         from .narration_preparation import NarrationPreparation
@@ -145,6 +155,8 @@ class Bridge(QObject):
         # state. Audio-only progress never travels back to the broad signal.
         self.changed.connect(self.narrationChanged)
         self.changed.connect(self._pause_narration)
+        self.speechStateChanged.connect(self._pause_narration)
+        self.voiceUiChanged.connect(self._pause_narration)
         self.english_reader.changed.connect(self._pause_narration)
         self._message = ""
         self._error = False
@@ -834,6 +846,7 @@ class Bridge(QObject):
     @Slot()
     def _pause_narration(self):
         self.narration_preparation.pause(self._busy or self._speaking
+                                        or self.voice_controls.phase == 'preparing'
                                         or self.english_reader.state in {"preparing", "reading", "paused"})
 
     @Property(bool, notify=narrationChanged)
@@ -1256,11 +1269,15 @@ class Bridge(QObject):
 
     @Property(bool, notify=changed)
     def vieneuReady(self):
-        return speech.vieneu_ready()
+        return bool(self._voices)
 
-    @Property("QVariantMap", notify=changed)
+    @Property("QVariantMap", notify=voiceSettingsChanged)
     def voiceSettings(self):
         return speech.voice_settings(self.library, self._voices)
+
+    @Property('QVariantMap', notify=voiceUiChanged)
+    def voiceUiState(self):
+        return self.voice_controls.summary()
 
     @Property("QVariantMap", notify=changed)
     def readiness(self):
@@ -1567,35 +1584,34 @@ class Bridge(QObject):
     @Slot(str, int)
     def saveMultilingualVoice(self, voice, rate):
         if voice not in {v["id"] for v in self._voices} or not -3 <= rate <= 3:
-            self.inform("Chọn giọng và tốc độ hợp lệ trước khi lưu.", True)
+            self.inform("Chọn giọng và tốc độ hợp lệ trước khi lưu.", True, refresh=False)
             return
-        self.stopSpeech()
-        # One atomic preference prevents a half-saved voice/rate combination.
-        self.narration_preparation.cancel()
-        self.library.set_setting("voice_options", {"voice": voice, "rate": rate})
-        self.inform("Đã lưu giọng chung và tốc độ cho tiếng Việt, tiếng Anh và mascot.")
+        self.voice_controls.save(voice, rate)
+
+    def _voice_saved(self):
+        self.voiceSettingsChanged.emit()
+        self.narrationChanged.emit()
+        self.inform(self.voice_controls.save_message, refresh=False)
+
+    def _voice_preview_ready(self, result):
+        try:
+            self._play_audio(result['path'])
+            self.inform('Đang nghe thử giọng và tốc độ; chưa thay cấu hình đã lưu.', refresh=False)
+        except Exception:
+            self.voice_controls.stop()
+            self.inform('Chưa phát được câu mẫu. Kiểm tra thiết bị loa của Windows.', True, refresh=False)
 
     @Slot(str, int, str)
     def previewMultilingualVoice(self, voice, rate, sample):
-        from .voice_preview import preview
         if voice not in {v["id"] for v in self._voices} or not -3 <= rate <= 3:
-            self.inform("Chọn giọng và tốc độ hợp lệ để nghe thử.", True)
+            self.inform("Chọn giọng và tốc độ hợp lệ để nghe thử.", True, refresh=False)
             return
         sample = sample.strip()
         if not sample or len(sample) > 250:
-            self.inform("Câu nghe thử cần từ 1 đến 250 ký tự.", True)
+            self.inform("Câu nghe thử cần từ 1 đến 250 ký tự.", True, refresh=False)
             return
         self.stopSpeech()
-        generation = self._speech_generation
-        def completed(result):
-            if generation != self._speech_generation:
-                return
-            self._play_audio(result["path"])
-            self.inform("Đang nghe thử giọng và tốc độ; chưa thay cấu hình đã lưu.")
-        self.launch(
-            lambda: preview(sample, voice, rate, self.library.directory / "audio"),
-            completed,
-        )
+        self.voice_controls.preview(sample, voice, rate)
 
     @Slot(str, str, result="QVariantList")
     def inspectPair(self, vi, en):
@@ -1681,23 +1697,26 @@ class Bridge(QObject):
         speech.play(path)
         self._speaking = True
         self._speech_timer.start(int(duration * 1000) + 50)
-        self.changed.emit()
+        self.speechStateChanged.emit()
+        self.mascotStateChanged.emit()
 
     @Slot()
     def stopSpeech(self):
         self._speech_generation += 1
+        self.voice_controls.stop()
         speech.stop()
         self._speaking = False
         self._speech_timer.stop()
         self.english_reader.stop()
-        self.changed.emit()
+        self.speechStateChanged.emit()
+        self.mascotStateChanged.emit()
 
     def _english_speaking(self, speaking):
         self._speaking = speaking
         self.mascotStateChanged.emit()
-        self.changed.emit()
+        self.speechStateChanged.emit()
 
-    @Property("QVariantMap", notify=changed)
+    @Property("QVariantMap", notify=speechStateChanged)
     def englishReaderState(self):
         return self.english_reader.summary()
 
@@ -2748,7 +2767,8 @@ def run(args):
     if bridge.update_worker and bridge.update_worker.isRunning():
         bridge._update_cancel.set()
         bridge.update_worker.wait()
-    bridge.classroom.disconnect()
+    bridge.classroom.shutdown()
+    bridge.voice_controls.shutdown()
     if bridge.powerpoint_worker:
         bridge.stopPowerPoint()
         bridge.powerpoint_worker.wait()  # Helper supervisor has its own bounded shutdown.

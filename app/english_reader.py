@@ -105,8 +105,10 @@ class EnglishReader(QObject):
         self.timer.timeout.connect(self._tick)
 
     def _state(self, state, message):
+        was_speaking = self.state == 'reading'
         self.state, self.message = state, message
-        self.speakingChanged.emit(state == "reading")
+        if was_speaking != (state == 'reading'):
+            self.speakingChanged.emit(state == "reading")
         self.changed.emit()
 
     def start(self, texts, voice, rate):

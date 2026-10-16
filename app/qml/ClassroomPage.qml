@@ -6,7 +6,7 @@ ScrollView {
     id: page
     required property var classroom
     required property var bridge
-    onVisibleChanged: if (visible && bridge.lesson.id) bridge.refreshReadiness()
+    onVisibleChanged: if (visible) { classroom.refreshInterfaces(); if (bridge.lesson.id) bridge.refreshReadiness() }
     clip: true
     contentWidth: availableWidth
     ColumnLayout { width: page.availableWidth; spacing: 20
@@ -25,9 +25,12 @@ ScrollView {
                 Label { text: "Sĩ số tối đa" }
                 SpinBox { id: size; objectName: "classSize"; from: 1; to: 200; value: bridge.classroomSettings.capacity; editable: true }
             }
-            SelectBox { id: host; model: classroom.interfaces; textRole: "name"; Layout.fillWidth: true }
+            RowLayout { Layout.fillWidth: true
+                SelectBox { id: host; model: classroom.interfaces; textRole: "name"; enabled: !classroom.scanningInterfaces; Layout.fillWidth: true }
+                ActionButton { text: classroom.scanningInterfaces ? "Đang tìm mạng…" : "Làm mới mạng"; enabled: !classroom.scanningInterfaces; onClicked: classroom.refreshInterfaces() }
+            }
             Label { text: "Chọn Wi-Fi/Ethernet mà học sinh cùng kết nối. Địa chỉ 127.0.0.1 chỉ dùng thử trên máy này. Nếu không truy cập được: kiểm tra mạng chung, Windows Firewall và chế độ cô lập thiết bị của Wi-Fi."; color: "#667997"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
-            ActionButton { text: "Bắt đầu lớp"; objectName: "startClassButton"; enabled: !classroom.busy && !!bridge.lesson.id && title.text.trim() !== ""; onClicked: classroom.start(title.text, mode.currentIndex ? "seat" : "anonymous", size.value, classroom.interfaces[host.currentIndex].host, "") }
+            ActionButton { text: "Bắt đầu lớp"; objectName: "startClassButton"; enabled: !classroom.busy && !classroom.scanningInterfaces && host.currentIndex >= 0 && !!bridge.lesson.id && title.text.trim() !== ""; onClicked: classroom.start(title.text, mode.currentIndex ? "seat" : "anonymous", size.value, classroom.interfaces[host.currentIndex].host, "") }
         }
         RowLayout { visible: classroom.running; Layout.fillWidth: true; spacing: 22
             Image { source: classroom.qrImage; Layout.preferredWidth: 180; Layout.preferredHeight: 180; fillMode: Image.PreserveAspectFit; smooth: false }

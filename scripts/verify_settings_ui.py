@@ -178,11 +178,12 @@ def main():
         assert bridge.voiceSettings == original, "Speed preview must not change saved preferences"
         if not layout_only:
             click("previewMultilingualVoice")
-            until(lambda: not bridge.busy)
+            until(lambda: bridge.voiceUiState['phase'] in {'playing', 'error'})
             assert "nghe thử" in bridge.message.lower(), bridge.message
             assert bridge.voiceSettings == original
             bridge.stopSpeech()
         click("saveMultilingualVoice")
+        until(lambda: not bridge.voiceUiState['saving'])
         assert bridge.voiceSettings["en"] == bridge.voiceSettings["vi"] == "vieneu:Hải Đăng"
         assert bridge.voiceSettings["rate"] == 2
         assert library.setting("voice_options", {}) == {"voice": "vieneu:Hải Đăng", "rate": 2}
@@ -198,7 +199,8 @@ def main():
         assert control("mascotPreview").property("expression") == "thinking"
         click("mascotPreviewMode2")
         assert control("mascotPreview").property("expression") == "celebrate"
-        control("mascotSubject").setProperty("text", "Môn tự chọn")
+        control("mascotSubject").setProperty("currentIndex", bridge.conversionSubjects.index('Khác'))
+        control("mascotOtherSubject").setProperty("text", "Môn tự chọn")
         assert control("mascotPreview").property("subject") == "Môn tự chọn"
         control("mascotSize").setProperty("value", 140)
         control("mascotPosition").setProperty("currentIndex", 1)
@@ -265,7 +267,7 @@ def main():
         pump(150)
         preview_top = control("mascotMiniSlide").mapToScene(QPointF(0, 0)).y()
         assert 250 <= preview_top < window.height() - 50, preview_top
-        assert 65 <= control("mascotPreview").width() <= 104
+        assert 85 <= control("mascotPreview").width() <= 120
         shot("mascot-compact-preview")
         window.resize(1366, 850)
         pump(160)
@@ -313,7 +315,8 @@ def main():
         (reports / report_name).write_text(json.dumps({"status": "passed", "checks": checks, "qml_warnings": warnings,
                                                       "voice_playback": "skipped" if layout_only else "passed"}, ensure_ascii=False, indent=2), encoding="utf-8")
         window.close()
-        bridge.classroom.disconnect()
+        bridge.classroom.shutdown()
+        bridge.voice_controls.shutdown()
         library.close()
         del engine
         reopened = Library(Path(directory))

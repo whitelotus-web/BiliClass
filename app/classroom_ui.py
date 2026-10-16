@@ -29,6 +29,7 @@ class NetworkJob(QThread):
 
 class ClassroomBridge(QObject):
     changed = Signal()
+    interfacesChanged = Signal()
 
     def __init__(self, bridge):
         super().__init__(bridge)
@@ -44,15 +45,22 @@ class ClassroomBridge(QObject):
         self._url = self._qr = ""
         self._report = {}
         self._sessions = analytics.list_sessions(bridge.library.directory)
+        self._interfaces = [{"name": "Chỉ thử trên máy · 127.0.0.1", "host": "127.0.0.1"}]
+        self._interface_worker = None
         self.timer = QTimer(self)
         self.timer.setInterval(900)
         self.timer.timeout.connect(self.poll)
 
-    @Property("QVariantList", notify=changed)
+    @Property("QVariantList", notify=interfacesChanged)
     def interfaces(self):
+        return self._interfaces
+
+    @staticmethod
+    def _scan_interfaces():
         result = []
+        stats = psutil.net_if_stats()
         for name, addresses in psutil.net_if_addrs().items():
-            if not psutil.net_if_stats().get(name) or not psutil.net_if_stats()[name].isup:
+            if not stats.get(name) or not stats[name].isup:
                 continue
             for address in addresses:
                 if address.family == socket.AF_INET and not address.address.startswith("169.254."):
@@ -60,6 +68,40 @@ class ClassroomBridge(QObject):
         if not any(r["host"] == "127.0.0.1" for r in result):
             result.append({"name": "Chỉ thử trên máy · 127.0.0.1", "host": "127.0.0.1"})
         return result
+
+    @Property(bool, notify=interfacesChanged)
+    def scanningInterfaces(self):
+        return self._interface_worker is not None
+
+    @Slot()
+    def refreshInterfaces(self):
+        if self._interface_worker is not None:
+            return
+        worker = NetworkJob(self._scan_interfaces, self)
+        self._interface_worker = worker
+        worker.result.connect(self._interfaces_result)
+        worker.finished.connect(self._interfaces_finished)
+        self.interfacesChanged.emit()
+        worker.start()
+
+    @Slot(object, str)
+    def _interfaces_result(self, result, error):
+        if not error:
+            self._interfaces = result
+        else:
+            self._message = 'Chưa cập nhật được danh sách mạng. Bấm Làm mới mạng để thử lại.'
+            self.changed.emit()
+
+    @Slot()
+    def _interfaces_finished(self):
+        worker, self._interface_worker = self._interface_worker, None
+        worker.deleteLater()
+        self.interfacesChanged.emit()
+
+    def shutdown(self):
+        self.disconnect()
+        if self._interface_worker is not None:
+            self._interface_worker.wait()
 
     @Property(bool, notify=changed)
     def running(self):

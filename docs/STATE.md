@@ -1,5 +1,14 @@
 # Trạng thái BiliClass
 
+Ngày 16/10/2026 — RC46 tách nghe thử/lưu giọng khỏi cập nhật toàn giao diện;
+lưu cấu hình ở worker, báo thành công sau commit, huỷ câu nghe thử không phát
+muộn. Quét mạng lớp học chạy nền và dùng bản nhớ. Mascot chọn môn từ danh sách,
+có phụ kiện/màu theo nhóm môn. [Phạm vi và số đo](SETTINGS_LATENCY_RC46.md).
+
+Ngày 16/10/2026 — RC45 thêm template PowerPoint riêng với vai trò trang,
+sửa lỗi OCR đóng gói thiếu M0 và nút kết quả bị che ở cửa sổ nhỏ.
+[Bản độc lập đã kiểm tra](BUILD_RC45.md).
+
 Ngày 16/10/2026 — RC44 sửa demo tiêu đề Việt–Anh, chọn bố cục khung hẹp theo
 độ dài dịch, thêm OCR ảnh PowerPoint với kiểm tra dấu độc lập và lớp dịch
 chỉnh sửa được. Tải PPTX có thể nhúng giọng đã tạo thành loa VI/EN theo slide;

@@ -28,11 +28,15 @@ def bundled_sample(text, voice):
     return None
 
 
-def preview(text, voice, rate, directory):
+def preview(text, voice, rate, directory, *, cancel=None):
     if voice not in {v['id'] for v in speech.VIENEU_VOICES} or type(rate) is not int or not -3 <= rate <= 3:
         raise ValueError('Chọn giọng và tốc độ hợp lệ để nghe thử.')
     source = bundled_sample(text, voice)
+    if cancel is not None and cancel.is_set():
+        raise InterruptedError('Đã dừng nghe thử.')
     if source is None:
+        if cancel is not None:
+            return speech.synthesize_background(text, voice, rate, directory, cancel)
         return speech.synthesize(text, voice, rate, directory)
     if rate == 0:
         return {'path': str(source), 'cached': True}

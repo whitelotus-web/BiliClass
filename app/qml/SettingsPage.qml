@@ -16,6 +16,8 @@ Item {
     onActiveTabChanged: { if (contentScroll.contentItem && contentScroll.contentItem.contentY !== undefined) contentScroll.contentItem.contentY = 0 }
     property string selectedMascot: bridge.settings.mascot
     property int mascotPreviewMode: 0
+    readonly property string initialPreviewSubject: bridge.lesson.subject || bridge.settings.subjects[0] || "Vật lý"
+    readonly property string previewSubject: mascotSubject.currentText === "Khác" ? mascotOtherSubject.text.trim() : mascotSubject.currentText
     readonly property bool wideMascotLayout: contentScroll.availableWidth >= 1020
     readonly property bool mascotPreviewVisible: mascotVisible.checked &&
         (mascotPreviewMode === 1 ? mascotExplanation.checked : mascotPreviewMode === 2 ? mascotQuiz.checked : true)
@@ -258,12 +260,13 @@ Item {
                     Label { text: "Câu nghe thử Việt–Anh"; color: page.ink }
                     Field { id: voiceSample; objectName: "settingsVoiceSample"; text: "Xin chào các em. Let's learn together."; maximumLength: 250; Layout.fillWidth: true }
                     RowLayout { Layout.fillWidth: true; spacing: 10
-                        SoftButton { objectName: "previewMultilingualVoice"; text: "Nghe thử"; iconName: "play"; enabled: !bridge.busy && !!page.draftVoice; onClicked: bridge.previewMultilingualVoice(page.draftVoice, page.draftRate, voiceSample.text) }
+                        SoftButton { objectName: "previewMultilingualVoice"; text: bridge.voiceUiState.phase === "preparing" ? "Đang chuẩn bị…" : "Nghe thử"; iconName: "play"; enabled: !!page.draftVoice; onClicked: bridge.previewMultilingualVoice(page.draftVoice, page.draftRate, voiceSample.text) }
                         SoftButton { objectName: "stopVoicePreview"; text: "Dừng đọc"; onClicked: bridge.stopSpeech() }
                         Item { Layout.fillWidth: true }
-                        SaveButton { objectName: "saveMultilingualVoice"; text: "Lưu giọng và tốc độ"; enabled: !bridge.busy && !!page.draftVoice; onClicked: bridge.saveMultilingualVoice(page.draftVoice, page.draftRate) }
+                        SaveButton { objectName: "saveMultilingualVoice"; text: bridge.voiceUiState.saving ? "Đang lưu…" : "Lưu giọng và tốc độ"; enabled: !bridge.voiceUiState.saving && !!page.draftVoice; onClicked: bridge.saveMultilingualVoice(page.draftVoice, page.draftRate) }
                     }
-                    Hint { objectName: "voiceSaveStatus"; text: page.voiceDirty ? "Chưa lưu thay đổi. Nghe thử để kiểm tra giọng và tốc độ trước khi lưu." : "Bài giảng và mascot đang dùng giọng cùng tốc độ đã lưu."; Layout.fillWidth: true }
+                    Hint { objectName: "voiceSaveStatus"; text: bridge.voiceUiState.saving || bridge.voiceUiState.saveError ? bridge.voiceUiState.saveMessage : page.voiceDirty ? "Chưa lưu thay đổi. Nghe thử để kiểm tra giọng và tốc độ trước khi lưu." : bridge.voiceUiState.saveMessage || "Bài giảng và mascot đang dùng giọng cùng tốc độ đã lưu."; color: bridge.voiceUiState.saveError ? "#ba581a" : page.voiceDirty ? page.muted : "#168567"; Layout.fillWidth: true }
+                    Hint { objectName: "voicePreviewStatus"; visible: !!bridge.voiceUiState.message; text: bridge.voiceUiState.message; Layout.fillWidth: true }
                     Hint { text: "Câu mẫu có sẵn để nghe nhanh. Khi nhập câu riêng, lần đầu cần chuẩn bị giọng; các lần nghe lại được lưu để phát nhanh hơn. Đổi tốc độ vẫn giữ cao độ giọng."; Layout.fillWidth: true }
                 }
             }
@@ -320,10 +323,10 @@ Item {
                             Rectangle { anchors.fill: parent; anchors.margins: 8; radius: 10; color: "#fafdff"; border.color: "#b7d5f8" }
                             Label { anchors.left: parent.left; anchors.leftMargin: 20; anchors.top: parent.top; anchors.topMargin: 17; text: page.mascotPreviewMode === 2 ? "CÂU HỎI NHANH" : page.mascotPreviewMode === 1 ? "GIẢI THÍCH" : "BÀI GIẢNG SONG NGỮ"; color: page.blue; font.pixelSize: 10; font.bold: true }
                             Label { anchors.left: parent.left; anchors.leftMargin: 20; anchors.top: parent.top; anchors.topMargin: 41; width: parent.width - 115; text: page.mascotPreviewMode === 2 ? "Cả lớp sẵn sàng chưa?" : page.mascotPreviewMode === 1 ? "Cùng hiểu từng bước" : "Cùng khám phá bài học"; color: page.ink; font.pixelSize: 14; font.bold: true; wrapMode: Text.WordWrap }
-                            Rectangle { visible: page.mascotPreviewVisible; width: Math.min(parent.width - 36, 225); height: 53; radius: 14; color: "white"; border.color: "#bed5f4"; anchors.top: parent.top; anchors.topMargin: 82; x: mascotPosition.currentIndex === 1 ? parent.width - width - 18 : 18
-                                Label { anchors.fill: parent; anchors.margins: 8; text: page.mascotPreviewText; color: page.ink; font.pixelSize: 11; font.bold: true; wrapMode: Text.WordWrap; verticalAlignment: Text.AlignVCenter; textFormat: Text.PlainText }
+                            Rectangle { visible: page.mascotPreviewVisible; width: Math.max(110, Math.min(parent.width - mascotPreview.width - 36, 225)); height: Math.max(53, previewBubbleText.implicitHeight + 16); radius: 14; color: "white"; border.color: "#bed5f4"; anchors.top: parent.top; anchors.topMargin: 82; x: mascotPosition.currentIndex === 1 ? parent.width - width - 18 : 18
+                                Label { id: previewBubbleText; width: parent.width - 16; anchors.centerIn: parent; text: page.mascotPreviewText; color: page.ink; font.pixelSize: 11; font.bold: true; wrapMode: Text.WordWrap; verticalAlignment: Text.AlignVCenter; textFormat: Text.PlainText }
                             }
-                            Mascot { id: mascotPreview; objectName: "mascotPreview"; visible: page.mascotPreviewVisible; character: page.selectedMascot; expression: page.mascotPreviewMode === 1 ? "thinking" : page.mascotPreviewMode === 2 ? "celebrate" : "speaking"; subject: mascotSubject.text; accessories: mascotAccessories.checked; reducedMotion: reducedMotion.checked; width: Math.max(65, Math.min(104, mascotSize.value * .68)); height: width + 15; anchors.bottom: parent.bottom; anchors.bottomMargin: 5; x: mascotPosition.currentIndex === 1 ? 16 : parent.width - width - 16 }
+                            Mascot { id: mascotPreview; objectName: "mascotPreview"; visible: page.mascotPreviewVisible; character: page.selectedMascot; expression: page.mascotPreviewMode === 1 ? "thinking" : page.mascotPreviewMode === 2 ? "celebrate" : "speaking"; subject: page.previewSubject; accessories: mascotAccessories.checked; reducedMotion: reducedMotion.checked; width: Math.max(85, Math.min(120, mascotSize.value * .82)); height: width + 25; anchors.bottom: parent.bottom; anchors.bottomMargin: 5; x: mascotPosition.currentIndex === 1 ? 16 : parent.width - width - 16 }
                             Label { visible: !page.mascotPreviewVisible; anchors.centerIn: parent; text: !mascotVisible.checked ? "Mascot đang ẩn khi dạy" : page.mascotPreviewMode === 1 ? "Mascot ẩn khi giải thích" : "Mascot ẩn khi quiz"; color: page.muted; font.pixelSize: 12 }
                         }
                         RowLayout { Layout.fillWidth: true; spacing: 5
@@ -356,8 +359,10 @@ Item {
                             Choice { id: mascotPosition; objectName: "mascotPosition"; model: ["Góc phải dưới", "Góc trái dưới"]; currentIndex: bridge.mascotSettings.position === "left" ? 1 : 0; Layout.fillWidth: true }
                         }
                         ColumnLayout { Layout.fillWidth: true; spacing: 5
-                            Label { text: "Nhãn môn trong bản xem trước"; color: page.ink; font.bold: true }
-                            Field { id: mascotSubject; objectName: "mascotSubject"; text: bridge.lesson.subject || "Môn học"; maximumLength: 60; Layout.fillWidth: true }
+                            Label { text: "Môn học để xem trước"; color: page.ink; font.bold: true }
+                            Choice { id: mascotSubject; objectName: "mascotSubject"; model: bridge.conversionSubjects; currentIndex: { const found = model.indexOf(page.initialPreviewSubject); return found >= 0 ? found : model.length - 1 } Layout.fillWidth: true }
+                            Field { id: mascotOtherSubject; objectName: "mascotOtherSubject"; visible: mascotSubject.currentText === "Khác"; text: page.initialPreviewSubject; placeholderText: "Nhập tên môn khác"; maximumLength: 60; Layout.fillWidth: true }
+                            Hint { objectName: "mascotThemeDescription"; text: mascotAccessories.checked ? "Phụ kiện: " + mascotPreview.theme.label : "Phụ kiện theo môn đang tắt"; Layout.fillWidth: true }
                         }
                     }
                     ColumnLayout { Layout.fillWidth: true; spacing: 5
@@ -372,7 +377,7 @@ Item {
                             }
                         }
                     }
-                    Hint { text: "Mỗi bài dùng tên môn riêng; nhãn chỉ hiện khi bật. Mascot dùng bốn hình trạng thái và chuyển động nhẹ khi không bật Giảm chuyển động; chưa phải hoạt hình nhiều khung hình."; Layout.fillWidth: true; font.pixelSize: 11 }
+                    Hint { text: "Chọn môn ở đây chỉ để xem phụ kiện và màu theo môn. Khi dạy, mascot tự dùng môn của bài giảng. Milo/Lumi giữ nhân vật đã chọn; phụ kiện thay đổi theo nhóm môn."; Layout.fillWidth: true; font.pixelSize: 11 }
                     RowLayout { Layout.fillWidth: true; Hint { text: "Sau khi lưu, kéo trực tiếp mascot để đặt ở đâu tùy thích. Bấm nhanh để mở nút trợ giảng; chọn Về góc để đặt lại vị trí."; Layout.fillWidth: true } SaveButton { objectName: "saveMascot"; text: "Lưu cài đặt Mascot"; onClicked: bridge.saveMascotPreferences(page.selectedMascot, mascotVisible.checked, Math.round(mascotSize.value), mascotPosition.currentIndex ? "left" : "right", reducedMotion.checked, mascotAccessories.checked, mascotExplanation.checked, mascotQuiz.checked) } }
                 }
             }

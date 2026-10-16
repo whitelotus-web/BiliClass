@@ -96,11 +96,10 @@ Item {
                 }
             }
         }
-        Rectangle {
+        SubjectAccessory {
             objectName: "mascotSubjectProp"; visible: mascot.themed
-            x: art.width * .61; y: art.height * .66; width: art.width * .22; height: art.height * .21; radius: 4
-            color: mascot.theme.paper; border.color: mascot.theme.color; rotation: -8
-            Label { anchors.centerIn: parent; text: mascot.theme.symbol; font.pixelSize: Math.max(9, parent.width*.44); font.bold: true; color: mascot.theme.color; textFormat: Text.PlainText }
+            theme: mascot.theme; x: art.width * .56; y: art.height * .56
+            width: Math.max(30, art.width * .35); height: width; rotation: -8
         }
     }
     Rectangle {

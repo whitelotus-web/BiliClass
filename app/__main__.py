@@ -19,6 +19,7 @@ def main():
         "--check-picture-ocr", nargs=2, metavar=("INPUT_PPTX", "REPORT_JSON"), help=argparse.SUPPRESS
     )
     parser.add_argument('--check-native-preview', nargs=2, metavar=('INPUT_PPTX', 'REPORT_JSON'), help=argparse.SUPPRESS)
+    parser.add_argument('--check-voice-ui', metavar='REPORT_JSON', help=argparse.SUPPRESS)
     parser.add_argument("--screenshot")
     parser.add_argument("--lesson-id", help="Open a saved lesson in the guarded desktop entry point")
     parser.add_argument("--size", default="1366x850")
@@ -41,6 +42,10 @@ def main():
         default="home",
     )
     args = parser.parse_args()
+    if args.check_voice_ui:
+        from .voice_diagnostics import run
+
+        return run(args.check_voice_ui)
     if args.check_native_preview:
         import hashlib
         import json

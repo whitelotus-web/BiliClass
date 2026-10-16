@@ -1,0 +1,143 @@
+"""Isolated settings requests: no lesson/UI refresh and no GUI-thread database wait."""
+
+import json
+import sqlite3
+import time
+from contextlib import closing
+from pathlib import Path
+from threading import Event
+
+from PySide6.QtCore import QObject, QThread, Signal, Slot
+
+
+def store_preference(directory, values):
+    with closing(sqlite3.connect(Path(directory) / 'library.db', timeout=2)) as database:
+        with database:
+            database.execute('INSERT INTO settings VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+                             ('voice_options', json.dumps(values, ensure_ascii=False)))
+    return values
+
+
+class VoiceTask(QThread):
+    def __init__(self, action, parent):
+        super().__init__(parent)
+        self.action = action
+        self.value, self.error = None, ''
+        self.cancel = Event()
+        self.generation = 0
+        self.started_at = time.monotonic()
+
+    def run(self):
+        try:
+            self.value = self.action(self.cancel)
+        except InterruptedError:
+            pass
+        except Exception as exc:
+            self.error = str(exc)
+
+
+class VoiceControls(QObject):
+    changed = Signal()
+    saved = Signal()
+    ready = Signal(object)
+    failed = Signal(str)
+
+    def __init__(self, directory, parent=None):
+        super().__init__(parent)
+        self.directory = Path(directory)
+        self.save_worker = None
+        self.preview_workers = []
+        self.generation = 0
+        self.pending = None
+        self.phase = 'idle'
+        self.message = ''
+        self.save_message = ''
+        self.save_error = False
+        self.preview_seconds = 0
+        self.save_seconds = 0
+
+    def summary(self):
+        return {'saving': self.save_worker is not None, 'saveMessage': self.save_message,
+                'saveError': self.save_error, 'phase': self.phase, 'message': self.message,
+                'previewSeconds': self.preview_seconds, 'saveSeconds': self.save_seconds}
+
+    def save(self, voice, rate):
+        if self.save_worker is not None:
+            return
+        values = {'voice': voice, 'rate': rate}
+        task = VoiceTask(lambda _: store_preference(self.directory, values), self)
+        self.save_worker = task
+        self.save_message, self.save_error = 'Đang lưu giọng và tốc độ…', False
+        task.finished.connect(self._saved)
+        self.changed.emit()
+        task.start()
+
+    @Slot()
+    def _saved(self):
+        task, self.save_worker = self.save_worker, None
+        task.wait()  # finished can precede the last native thread cleanup.
+        self.save_seconds = time.monotonic() - task.started_at
+        self.save_error = bool(task.error)
+        self.save_message = ('Chưa lưu được giọng. Thư viện đang bận hoặc không ghi được; thử lưu lại.'
+                             if task.error else 'Đã lưu giọng và tốc độ cho tiếng Việt, tiếng Anh và mascot.')
+        self.changed.emit()
+        if task.error:
+            self.failed.emit(self.save_message)
+        else:
+            self.saved.emit()
+        task.deleteLater()
+
+    def preview(self, text, voice, rate):
+        self.stop()
+        self.phase, self.message = 'preparing', 'Đang chuẩn bị câu nghe thử…'
+        request = self.generation, text, voice, rate
+        self.changed.emit()
+        if len(self.preview_workers) >= 2:
+            self.pending = request  # Only the latest request survives rapid clicks.
+        else:
+            self._start_preview(request)
+
+    def _start_preview(self, request):
+        from .voice_preview import preview
+
+        generation, text, voice, rate = request
+        task = VoiceTask(lambda cancel: preview(text, voice, rate, self.directory / 'audio', cancel=cancel), self)
+        task.generation = generation
+        task.finished.connect(self._preview_finished)
+        self.preview_workers.append(task)
+        task.start()
+
+    @Slot()
+    def _preview_finished(self):
+        task = self.sender()
+        task.wait()
+        self.preview_workers.remove(task)
+        if task.generation == self.generation and not task.cancel.is_set():
+            self.preview_seconds = time.monotonic() - task.started_at
+            self.phase = 'error' if task.error or not task.value else 'playing'
+            self.message = task.error or ('Đang nghe thử · cấu hình chỉ đổi khi bấm Lưu.' if task.value else 'Đã dừng nghe thử.')
+            self.changed.emit()
+            if task.error:
+                self.failed.emit(self.message)
+            elif task.value:
+                self.ready.emit(task.value)
+        task.deleteLater()
+        if self.pending is not None:
+            request, self.pending = self.pending, None
+            if request[0] == self.generation:
+                self._start_preview(request)
+
+    def stop(self):
+        self.generation += 1
+        self.pending = None
+        for task in self.preview_workers:
+            task.cancel.set()
+        self.phase, self.message = 'idle', ''
+        self.changed.emit()
+
+    def shutdown(self):
+        self.stop()
+        for task in list(self.preview_workers):
+            task.wait()
+        if self.save_worker is not None:
+            self.save_worker.wait()
