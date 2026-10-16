@@ -31,7 +31,7 @@ def value(item, name):
 def main():
     app = QGuiApplication([])
     QQuickStyle.setStyle('Basic')
-    report = Path('reports/rc53/management'); report.mkdir(parents=True, exist_ok=True)
+    report = Path('reports/rc54/management'); report.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='biliclass-management-', ignore_cleanup_errors=True) as folder:
         library = Library(Path(folder))
         lessons = []
@@ -158,6 +158,7 @@ def main():
         finally:
             window.close()
             bridge.slidePreview.shutdown()
+            bridge.libraryThumbnails.shutdown()
             bridge._catalog.shutdown()
             bridge.browserAI.shutdown()
             bridge.english_reader.shutdown()

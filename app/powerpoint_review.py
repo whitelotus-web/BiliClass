@@ -3,9 +3,20 @@
 import hashlib
 import json
 from pathlib import Path
+from threading import RLock
+
+
+_preview_lock = RLock()
 
 
 def render_preview_pages(path,pages,directory,sha256):
+    # Library covers and the open lesson share an atomic cache and one Office
+    # renderer. A fast view switch must not start multiple Office instances.
+    with _preview_lock:
+        return _render_preview_pages(path, pages, directory, sha256)
+
+
+def _render_preview_pages(path,pages,directory,sha256):
     """One Office open for a requested page and its immediate neighbours.
 
     Caller has verified the deck hash and file stamp. This is a preview cache,

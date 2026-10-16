@@ -77,7 +77,7 @@ class PreviewSession:
         self.indexes = []
         self.environment = None
 
-    def render(self, lesson, result, number):
+    def render(self, lesson, result, number, *, neighbours=True, cached_only=False):
         from .quick_conversion import verify_preview
         from .slide_fingerprint import environment_key
 
@@ -122,9 +122,11 @@ class PreviewSession:
                 return str(image)
             except OSError:
                 continue
+        if cached_only:
+            raise LookupError("Chưa có ảnh slide trong bộ nhớ đệm.")
         from .powerpoint_review import render_preview_pages
 
-        pages = [number] + [p for p in (number + 1, number - 1) if 1 <= p <= result["total"]]
+        pages = [number] + ([p for p in (number + 1, number - 1) if 1 <= p <= result["total"]] if neighbours else [])
         folder, index = render_preview_pages(path, pages, self.directory, result["sha256"])
         self.indexes.append((folder, index["slides"]))
         if stamp(path) != self.file_stamp:

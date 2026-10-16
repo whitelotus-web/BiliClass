@@ -1,21 +1,21 @@
 # BiliClass — Trợ lý dạy học song ngữ
 
-Hướng dẫn RC53, ngày 16/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
+Hướng dẫn RC54, ngày 16/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
 trên máy. Chuyển đổi hiện dùng Google Cloud Translation cho phần chữ và dựng
 PowerPoint tại máy; Browser ChatGPT/Gemini tạm ẩn.
 
 ## Cài và cập nhật
 
-1. Tải **BiliClass-RC53-Windows.zip** tại
-   [Release RC53](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc53).
+1. Tải **BiliClass-RC54-Windows.zip** tại
+   [Release RC54](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc54).
 2. Giải nén toàn bộ; không chạy trong cửa sổ ZIP. Chạy **Setup.cmd**.
 3. Bộ cài kiểm tra checksum và cài vào
-   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc53`, không cần quyền quản trị.
+   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc54`, không cần quyền quản trị.
 4. Mở BiliClass từ Desktop hoặc Start menu. Bản cài có model giọng, OCR và
    template; không cần thư mục runtime của máy phát triển.
 
 Máy đang dùng RC34: vào **Cài đặt → Thông tin BiliClass → Kiểm tra cập nhật**,
-chọn Cập nhật khi thấy RC53. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
+chọn Cập nhật khi thấy RC54. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
 Setup.cmd như trên. Các bản cài nằm cạnh nhau; thư viện ở
 `%LOCALAPPDATA%/BiliClass` được giữ nguyên. Không xóa thư mục dữ liệu này.
 Thư viện cá nhân không đưa lên GitHub. Key có thể nhận riêng như hướng dẫn dưới.
@@ -74,11 +74,22 @@ Mascot có nút mở bài và đọc Việt/Anh/chung. Các nút đọc trên ma
 khi có phiên trình chiếu đúng bài. Trong Cài đặt Mascot, chọn tự theo môn của
 bài hoặc môn cố định rồi Lưu để áp dụng cho mascot nổi.
 
+## Mascot đi theo bài nào?
+
+Mở bài trong Thư viện → **Dùng để dạy** → hoàn tất chuẩn bị để mở
+trình chiếu. Mascot liên kết với phiên PowerPoint đó; chọn đọc Anh, Việt
+hoặc Việt–Anh để đọc phần lời đang chọn trên slide hiện tại. Dùng **Theo slide**
+để đưa lựa chọn về slide đang chiếu. Chưa mở trình chiếu thì các nút đọc
+bị khóa. Đóng trình chiếu sẽ ngừng đọc. Chọn môn trong Cài đặt Mascot chỉ
+đổi phụ kiện xem trước, không chọn bài giảng hay khóa bài vĩnh viễn.
+
 ## Thư viện, lớp học và báo cáo
 
 Trang chủ hiển thị việc đang làm và ba bài vừa cập nhật. **Bài giảng** là
 thư viện đầy đủ: tìm không dấu, lọc môn/khối/trạng thái/giọng, sắp xếp và
-phân trang. Mở bài để chọn bản giọng rồi tải hoặc dạy. Xóa đưa vào Thùng rác,
+phân trang. Bên phải Sắp xếp, chọn **Danh sách** hoặc **Thẻ lớn** để xem trang đầu
+16:9. Lựa chọn được lưu; ảnh nạp ở nền và giữ nguyên tỉ lệ slide gốc.
+Ô chọn, bộ lọc và tải nhiều bài dùng chung cho hai kiểu xem. Mở bài để chọn bản giọng rồi tải hoặc dạy. Xóa đưa vào Thùng rác,
 có thể khôi phục.
 
 **Lớp học** dùng khi muốn học sinh trả lời câu hỏi qua QR/địa chỉ mạng nội bộ.

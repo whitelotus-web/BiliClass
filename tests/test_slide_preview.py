@@ -90,3 +90,21 @@ def test_revision_change_revalidates_even_with_same_source_file(tmp_path, monkey
     session.render(lesson, result, 1)
     session.render({**lesson, "revision": 2}, result, 2)
     assert len(calls) == 2
+
+
+def test_library_cover_checks_cache_before_rendering_only_page_one(tmp_path, monkeypatch):
+    deck, lesson, result, calls, folder = fixture(tmp_path, monkeypatch)
+    session = PreviewSession(tmp_path)
+    assert session.render(lesson, result, 1, cached_only=True) == str(folder / 'slide-1.png')
+    (folder / 'slide-1.png').unlink()
+    with pytest.raises(LookupError):
+        session.render(lesson, result, 1, cached_only=True)
+    rendered = []
+
+    def render(path, pages, directory, digest):
+        rendered.extend(pages)
+        return folder, {'slides': {}}
+
+    monkeypatch.setattr('app.powerpoint_review.render_preview_pages', render)
+    session.render(lesson, result, 1, neighbours=False)
+    assert rendered == [1]

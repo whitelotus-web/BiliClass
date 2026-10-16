@@ -77,6 +77,7 @@ class Bridge(QObject):
     updateAvailable = Signal()
     narrationChanged = Signal()
     lessonsChanged = Signal()
+    libraryViewChanged = Signal()
     statusChanged = Signal()
     browserStateChanged = Signal()
     conversionClockChanged = Signal()
@@ -187,6 +188,9 @@ class Bridge(QObject):
         self.slidePreview=SlidePreview(library.directory,self)
         self.slidePreview.ready.connect(self._preview_ready)
         self.slidePreview.changed.connect(self.previewStateChanged)
+        from .library_thumbnails import LibraryThumbnails
+
+        self.libraryThumbnails = LibraryThumbnails(library.directory, self)
         self.changed.connect(self.quickResultChanged)
         self._chatgpt_request = {}
         from .google_settings import GoogleSettings
@@ -314,6 +318,24 @@ class Bridge(QObject):
         if order in {"created_desc", "created_asc", "updated_desc", 'title_asc'}:
             self.library.set_setting("lesson_order", order)
             self.changed.emit()
+
+    @Property(str, notify=libraryViewChanged)
+    def libraryView(self):
+        return self.library.setting('library_view', 'list')
+
+    @Slot(str)
+    def setLibraryView(self, view):
+        if view in ('list', 'grid') and view != self.libraryView:
+            self.library.set_setting('library_view', view)
+            self.libraryViewChanged.emit()
+
+    @Property(QObject, constant=True)
+    def libraryCovers(self):
+        return self.libraryThumbnails
+
+    @Slot('QVariantList')
+    def requestLibraryCovers(self, rows):
+        self.libraryThumbnails.request(rows)
 
     @Property("QVariantList", notify=lessonsChanged)
     def trashedLessons(self):
@@ -2846,9 +2868,11 @@ class Bridge(QObject):
             if not (directory / "library.db").is_file():
                 raise ValueError("Thư mục này chưa có thư viện BiliClass.")
             replacement = Library(directory)
+            self.libraryThumbnails.replace_library(directory)
             self._catalog.shutdown()
             self.library.close()
             self.library = replacement
+            self.libraryViewChanged.emit()
             self._google_settings.refresh()
             self._chatgpt_request = {}
             self._browser_state = {'running': False, 'phase': 'idle', 'message': ''}
@@ -3061,6 +3085,7 @@ def run(args):
     bridge._catalog.shutdown()
     bridge.narration_preparation.shutdown()
     bridge.slidePreview.shutdown()
+    bridge.libraryThumbnails.shutdown()
     speech.stop()
     # QML bindings may still read the library while their objects are destroyed.
     engine.deleteLater()
