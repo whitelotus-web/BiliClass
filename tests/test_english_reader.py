@@ -73,6 +73,15 @@ def test_single_slide_queue_pause_resume_end_and_no_auto_read(qt, tmp_path, monk
     reader.shutdown()
 
 
+def test_cached_teaching_never_synthesizes_missing_audio(qt, tmp_path, monkeypatch):
+    monkeypatch.setattr(speech, 'synthesize', lambda *_: pytest.fail('Teaching may only play existing audio'))
+    reader = EnglishReader(tmp_path, player=Player())
+    reader.start(['Missing recording'], 'vieneu:Mai Anh', 0, cache_only=True)
+    assert reader.state == 'error' and reader.worker is None
+    assert not reader.player.opened
+    reader.shutdown()
+
+
 def test_slide_change_cancels_pending_tts_without_late_playback(qt, tmp_path, monkeypatch):
     entered, release = Event(), Event()
 

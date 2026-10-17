@@ -71,6 +71,7 @@ class Bridge(QObject):
     projectClassroomRequested = Signal()
     powerpointSlideChanged = Signal(int)
     powerpointStarted = Signal()
+    teachingLessonReady = Signal()
     mascotStateChanged = Signal()
     mascotPreferencesSaved = Signal(bool)
     updateChanged = Signal()
@@ -259,6 +260,7 @@ class Bridge(QObject):
             if startup_resume(self._chatgpt_request["folder"]):
                 QTimer.singleShot(750, self._resume_browser_startup)
         self.powerpoint_worker = None
+        self._pending_teaching = None
         self._powerpoint_lesson_id = None
         self._powerpoint_source_map = []
         self._powerpoint_segment_map = []
@@ -276,6 +278,14 @@ class Bridge(QObject):
         from .narration_workspace import NarrationWorkspace
 
         self.narration_workspace = NarrationWorkspace(self)
+        from .teaching_session import TeachingSession
+
+        self.teaching_session = TeachingSession(self)
+        self.teaching_session.changed.connect(self.mascotStateChanged)
+
+    @Property(QObject, constant=True)
+    def teachingSession(self):
+        return self.teaching_session
 
     @Property(QObject, constant=True)
     def narrationWorkspace(self):
@@ -471,9 +481,10 @@ class Bridge(QObject):
 
     @Slot()
     def returnToLibrary(self):
-        self.stopSpeech()
+        if not self.teaching_session.bound:
+            self.stopSpeech()
         self._catalog.refresh(force=True)
-        if self.powerpoint_worker:
+        if self.powerpoint_worker and not self.teaching_session.bound:
             self.stopPowerPoint()
         self.navigate.emit("library")
 
@@ -837,7 +848,7 @@ class Bridge(QObject):
             self._browser_running = False
             self._browser_state.update(running=False, phase='completed', percent=100, waiting=False)
             self._google_settings.refresh()
-            self._show_lesson(lesson, preview)
+            self._show_lesson(lesson, preview, destination='voice')
             failures = lesson.get('slide_quality', {}).get('counts', {}).get('FAIL', 0)
             self.inform(f'Đã lưu bài giảng. Còn {failures} slide cần sửa.' if failures else
                         'Đã lưu bài giảng song ngữ. Có thể tải về hoặc tạo giọng đọc nếu cần.', bool(failures))
@@ -978,7 +989,7 @@ class Bridge(QObject):
             self._browser_running = False
             self._browser_state.update(running=False, phase="completed", message="Đã nhận bài giảng song ngữ.")
             self.conversionClockChanged.emit()
-            self._show_lesson(lesson, preview)
+            self._show_lesson(lesson, preview, destination='voice')
             failures = lesson.get("slide_quality", {}).get("counts", {}).get("FAIL", 0)
             message = (f"Bài giảng đã lưu. Cần sửa {failures} slide trước khi dùng để dạy." if failures
                        else "Bài giảng đã lưu. Xem lại nội dung trước khi dùng để dạy.")
@@ -1059,7 +1070,7 @@ class Bridge(QObject):
 
     @Slot(str)
     def selectNarrationVariant(self, identity):
-        if self._busy or self.narrationBusy or self.powerpoint_worker is not None or not self._lesson:
+        if self._busy or self.narrationBusy or not self._lesson:
             return
         if identity == self.selectedNarrationVariant:
             return
@@ -1588,7 +1599,7 @@ class Bridge(QObject):
 
     @Property(str, notify=mascotStateChanged)
     def mascotState(self):
-        return "speaking" if self._speaking else "thinking" if self._busy else "celebrate" if self.classroom.state.get("status") == "ended" else "idle"
+        return "speaking" if self._speaking or self.teaching_session.native_state == 'reading' else "thinking" if self._busy else "celebrate" if self.classroom.state.get("status") == "ended" else "idle"
 
     @Property("QVariantMap", notify=changed)
     def mascotSettings(self):
@@ -1605,12 +1616,14 @@ class Bridge(QObject):
         settings = self.mascotSettings
         if settings.get('subject_mode') == 'fixed' and settings.get('subject'):
             return settings['subject']
-        return self._lesson.get('subject') or next(iter(self.settings['subjects']), '')
+        lesson = self.teaching_session.bound.get('lesson', self._lesson)
+        return lesson.get('subject') or next(iter(self.settings['subjects']), '')
 
     @Property(bool, notify=changed)
     def companionCanRead(self):
         return bool(self._powerpoint_state.get('active') and self.powerpoint_worker is not None
-                    and self._powerpoint_lesson_id == self._lesson.get('id') and not self._busy)
+                    and (self.teaching_session.bound or self._powerpoint_lesson_id == self._lesson.get('id'))
+                    and not self._busy)
 
     @Slot(str)
     def companionRead(self, language):
@@ -1620,6 +1633,9 @@ class Bridge(QObject):
         if language not in ('en', 'vi', 'both'):
             return
         self._companion_language = language
+        if self.teaching_session.bound:
+            self.teaching_session.read(language)
+            return
         if language == 'vi':
             self._read_visible_vietnamese()
         else:
@@ -1627,6 +1643,9 @@ class Bridge(QObject):
 
     @Slot(str, str)
     def companionAsk(self, action, language):
+        if self.teaching_session.bound:
+            self.teaching_session.ask(action, language)
+            return
         if not self.companionCanRead:
             self.inform('Mở trình chiếu của bài đã chọn để dùng trợ giảng theo slide.', refresh=False)
             return
@@ -1975,6 +1994,8 @@ class Bridge(QObject):
 
     @Property("QVariantMap", notify=narrationChanged)
     def audioAvailable(self):
+        if self.teaching_session.bound and self._powerpoint_state.get('active'):
+            return self.teaching_session.audio
         voices = self._lesson_voice_settings()
         legacy = not self._lesson.get("external_deck") and "narration" not in self._lesson
         result = {lang: bool(voices[lang] or (legacy and available_audio(self.library.directory, self._reading_text(lang), lang)))
@@ -2009,6 +2030,9 @@ class Bridge(QObject):
 
     @Slot(str)
     def speakSegment(self, language):
+        if self.teaching_session.bound and self._powerpoint_state.get('active'):
+            self.teaching_session.read(language)
+            return
         if language == 'both':
             self.readBothLanguages()
             return
@@ -2052,6 +2076,9 @@ class Bridge(QObject):
 
     @Slot()
     def readBothLanguages(self):
+        if self.teaching_session.bound and self._powerpoint_state.get('active'):
+            self.teaching_session.read('both')
+            return
         import time
 
         from .slide_speech import speech_chunks, visible_segments
@@ -2126,6 +2153,9 @@ class Bridge(QObject):
 
     @Slot()
     def readSlideEnglish(self):
+        if self.teaching_session.bound and self._powerpoint_state.get('active'):
+            self.teaching_session.read('en')
+            return
         import time
 
         from .slide_speech import visible_segments
@@ -2345,13 +2375,14 @@ class Bridge(QObject):
         except Exception as exc:
             self.inform(str(exc), True)
 
-    def _show_lesson(self, lesson, preview=None, *, auto_repair=True):
+    def _show_lesson(self, lesson, preview=None, *, auto_repair=True, destination='result'):
         """Apply prepared UI data; file integrity checks belong to the worker."""
-        self.stopSpeech()
+        if not self.teaching_session.bound:
+            self.stopSpeech()
         self._conversion_report = []
         self._comparison = {}
         self.dismissMemoryChoices()
-        if self._powerpoint_lesson_id and self._powerpoint_lesson_id != lesson["id"]:
+        if self._powerpoint_lesson_id and self._powerpoint_lesson_id != lesson["id"] and not self.teaching_session.bound:
             self.stopPowerPoint()
         self._lesson = lesson
         if preview is not None:
@@ -2362,7 +2393,7 @@ class Bridge(QObject):
         self._segment_index = 0
         self.changed.emit()
         self.selectionChanged.emit()
-        self.navigate.emit("result")
+        self.navigate.emit(destination)
         if (auto_repair and not lesson.get('voice_only') and lesson.get('external_deck') and lesson.get('slide_quality',{}).get('counts',{}).get('FAIL')
                 and 'local_repairs' not in lesson.get('slide_quality',{})
                 and lesson['id'] not in getattr(self,'_auto_reviewed',set())):
@@ -2420,20 +2451,23 @@ class Bridge(QObject):
         except Exception as exc:
             self.inform(str(exc), True)
 
-    def _start_powerpoint_session(self, path, source_map=None, segment_map=None):
+    def _start_powerpoint_session(self, path, source_map=None, segment_map=None, *, prepared=None):
         self.stopSpeech()
         self._session_speech = {}
         self._presentation_stamp = (Path(path).stat().st_size, Path(path).stat().st_mtime_ns)
         initial = slide_for_locator(self.segment.get("locator", "")) or 1
         self._powerpoint_source_map = source_map or []
         self._powerpoint_segment_map = segment_map or []
-        if self._powerpoint_source_map:
+        if self._powerpoint_source_map and not prepared:
             initial = self._powerpoint_source_map.index(initial) + 1
-        elif self._powerpoint_segment_map:
+        elif self._powerpoint_segment_map and not prepared:
             initial = self._powerpoint_segment_map.index(self.segment["id"]) + 1 if self.segment["id"] in self._powerpoint_segment_map else 1
-        worker = PowerPointSession(path, initial, self)
+        if prepared:
+            self.teaching_session.bind(prepared)
+            initial = 1
+        worker = PowerPointSession(path, initial, self, autostart=not bool(prepared))
         self.powerpoint_worker = worker
-        self._powerpoint_lesson_id = self._lesson["id"]
+        self._powerpoint_lesson_id = prepared['lesson']['id'] if prepared else self._lesson["id"]
         self._powerpoint_state = {"active": False, "starting": True, "slide": 0, "total": 0,
                                   "message": "Đang mở PowerPoint…"}
         self.changed.emit()
@@ -2466,7 +2500,10 @@ class Bridge(QObject):
 
     @Slot(object)
     def _powerpoint_changed(self, state):
-        if self._powerpoint_lesson_id == self._lesson.get("id"):
+        if state.get('event'):
+            self.teaching_session.event(state)
+            return
+        if self.teaching_session.bound or self._powerpoint_lesson_id == self._lesson.get("id"):
             index = state.get("slide", 0)
             source_slide = self._powerpoint_source_map[index - 1] if 0 < index <= len(self._powerpoint_source_map) else index
             state = {**state, "source_slide": source_slide}
@@ -2475,10 +2512,11 @@ class Bridge(QObject):
             if (not state.get("active") or index != previous.get("slide")
                     or state.get("click_index") != previous.get("click_index")):
                 self.stopSpeech()
+                self.teaching_session.reset_reading()
             if state.get("active") and (not previous.get("active") or index != previous.get("slide")):
                 self.powerpointSlideChanged.emit(source_slide)
             self.changed.emit()
-            if state.get("active") and not previous.get("active"):
+            if state.get("opened") and not previous.get("opened"):
                 self.powerpointStarted.emit()
 
     @Slot(str)
@@ -2496,10 +2534,16 @@ class Bridge(QObject):
         self._powerpoint_source_map = []
         self._powerpoint_segment_map = []
         self._powerpoint_state = {"active": False, "slide": 0, "total": 0, "message": ""}
+        self.teaching_session.clear()
         self.changed.emit()
+        prepared, self._pending_teaching = self._pending_teaching, None
+        if prepared:
+            self._activate_teaching(prepared)
 
     @Slot()
     def followPowerPoint(self):
+        if self._powerpoint_lesson_id != self._lesson.get('id'):
+            return  # Browsing another lesson must not replace the teaching binding.
         self.stopSpeech()
         indexes = slide_segment_indexes(self._lesson, self._powerpoint_state.get("slide"),
                                         self._powerpoint_source_map, self._powerpoint_segment_map)
@@ -2522,12 +2566,18 @@ class Bridge(QObject):
             if self._powerpoint_source_map:
                 slide = self._powerpoint_source_map.index(slide) + 1
             self.powerpoint_worker.navigate("goto", slide)
-        elif command in ("next", "previous"):
+        elif command in ("next", "previous", "next_slide", "previous_slide", "end_show"):
             self.powerpoint_worker.navigate(command)
+
+    @Slot()
+    def startTeachingShow(self):
+        if self.powerpoint_worker and self._powerpoint_state.get('opened'):
+            self.powerpoint_worker.navigate('start')
 
     @Slot()
     def stopPowerPoint(self):
         self.stopSpeech()
+        self.teaching_session.reset_reading()
         if self.powerpoint_worker:
             self.powerpoint_worker.stop()
             self._powerpoint_state = {**self._powerpoint_state, "message": "Đang đóng PowerPoint…"}
@@ -2627,19 +2677,23 @@ class Bridge(QObject):
 
     @Slot()
     def useConvertedLesson(self):
-        from .quick_conversion import verify_preview
+        import copy
+
+        from .teaching_session import prepare_teaching
 
         if self.previewBusy:
             self.inform('Đang hoàn thiện ảnh xem trước. Bạn có thể mở trình chiếu ngay sau đó.')
             return
-        if self._busy or self.powerpoint_worker is not None:
-            self.inform("Đóng phiên PowerPoint hiện tại trước khi mở phiên dạy mới.", True)
+        if self._busy or self.narrationBusy or self.classroom.running:
+            self.inform("Hoàn tất tác vụ hoặc tiết học trước khi đổi bài dạy.", True)
             return
         try:
             if self.selectedNarrationVariant and not self.lessonNarration.get('ready'):
                 raise ValueError('Bản giọng đã chọn chưa hoàn tất. Tạo tiếp hoặc chọn Không kèm giọng đọc trước khi dạy.')
             result = dict(self.quickResult)
-            path = verify_preview(self._lesson, result, self.library.directory)
+            from .quick_conversion import verify_preview
+
+            verify_preview(self._lesson, result, self.library.directory)
             if result.get("external"):
                 self._lesson = self.library.review_external_deck(self._lesson["id"], result["revision"])
             else:
@@ -2647,11 +2701,48 @@ class Bridge(QObject):
             self._quick_result.update(revision=self._lesson["revision"], draft=False)
             self.changed.emit()
             self.selectionChanged.emit()
-            self._start_powerpoint_session(str(path), result.get("slide_map"), result.get("segment_map"))
-            self.inform("Đang mở PowerPoint toàn màn hình."
-                        + (" Dùng mascot để đọc ngôn ngữ đã chuẩn bị." if any(self._lesson_voice_settings()[lang] for lang in ("vi", "en")) else ""))
+            result.update(revision=self._lesson['revision'], draft=False)
+            lesson, directory = copy.deepcopy(self._lesson), self.library.directory
+
+            def ready(prepared):
+                if self.powerpoint_worker is not None:
+                    self._pending_teaching = prepared
+                    self.stopPowerPoint()
+                else:
+                    self._activate_teaching(prepared)
+
+            self.launch(lambda: prepare_teaching(lesson, result, directory), ready)
         except Exception as exc:
             self.inform(str(exc), True)
+
+    def _activate_teaching(self, prepared):
+        preview = prepared['preview']
+        self._start_powerpoint_session(prepared['path'], preview.get('slide_map'), preview.get('segment_map'), prepared=prepared)
+        self.inform(prepared.get('warning') or 'Đang mở PowerPoint và gắn bài với Mascot. Bấm Trình chiếu (F5) khi sẵn sàng.')
+
+    @Slot(str)
+    def openTeachingLibraryLesson(self, identity):
+        from .voice_import import prepare_library_lesson
+
+        if self._busy or self.narrationBusy or self.classroom.running:
+            self.inform('Hoàn tất tác vụ hoặc tiết học trước khi chọn bài dạy.', True, refresh=False)
+            return
+        directory, profile = self.library.directory, dict(self.settings)
+        self.launch(lambda: prepare_library_lesson(directory, identity, profile), self._teaching_lesson_ready)
+
+    def _teaching_lesson_ready(self, result):
+        self._show_lesson(*result, auto_repair=False)
+        self.teachingLessonReady.emit()
+
+    @Slot(str)
+    def openTeachingPresentation(self, url):
+        from .voice_import import import_presentation
+
+        if self._busy or self.narrationBusy or self.classroom.running:
+            self.inform('Hoàn tất tác vụ hoặc tiết học trước khi chọn bài dạy.', True, refresh=False)
+            return
+        directory = self.library.directory
+        self.launch(lambda: import_presentation(directory, QUrl(url).toLocalFile()), self._teaching_lesson_ready)
 
     @Slot(str)
     def setTeachingPreset(self, preset):
@@ -3224,6 +3315,7 @@ def run(args):
     if bridge.powerpoint_worker:
         bridge.stopPowerPoint()
         bridge.powerpoint_worker.wait()  # Helper supervisor has its own bounded shutdown.
+    bridge.teaching_session.clear()
     if bridge.worker:
         bridge.worker.wait()  # closing is disabled while jobs run; also safe on OS shutdown
     bridge.english_reader.shutdown()

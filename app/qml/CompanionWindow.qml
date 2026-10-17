@@ -2,21 +2,28 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Window
+import QtQuick.Dialogs
 
 Window {
     id: companion
     required property var bridge
     signal requestOpenLesson()
     property bool collapsed: true
+    property bool choosingLesson: false
+    property bool showAssistant: false
+    readonly property var session: bridge.teachingSession.state
+    readonly property var availableAudio: session.bound ? bridge.teachingSession.audio : bridge.audioAvailable
+    readonly property var reader: session.bound ? bridge.teachingSession.reader : bridge.englishReaderState
+    readonly property var response: session.bound ? (session.response || {}) : bridge.teachingContext.response
     property bool mascotAtRight: bridge.mascotSettings.position === "right"
     property bool mascotAtBottom: true
     readonly property int mascotExtent: Math.max(90, Math.min(178, bridge.mascotSettings.size + 18))
-    readonly property bool hasResponse: bridge.companionCanRead && !bridge.teachingContext.response.untouched
+    readonly property bool hasResponse: bridge.companionCanRead && !companion.response.untouched
 
     flags: Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.NoDropShadowWindowHint | Qt.WindowDoesNotAcceptFocus
     title: "BiliClass · Trợ giảng"
     width: collapsed ? mascotExtent : 344
-    height: collapsed ? mascotExtent : Math.min(Screen.desktopAvailableHeight - 16, mascotExtent + (hasResponse ? 550 : 444))
+    height: collapsed ? mascotExtent : Math.min(Screen.desktopAvailableHeight - 16, mascotExtent + menuContent.implicitHeight + 32)
     color: "transparent"
 
     function reposition() {
@@ -26,6 +33,8 @@ Window {
     onHeightChanged: reposition()
     Shortcut { sequence: "Escape"; onActivated: { if (companion.collapsed) companion.hide(); else companion.collapsed = true } }
 
+    Shortcut { sequence: "F5"; onActivated: bridge.startTeachingShow() }
+    FileDialog { id: teachingFile; objectName: "companionPresentationDialog"; title: "Chọn PowerPoint để dạy cùng Mascot"; nameFilters: ["PowerPoint (*.pptx)"]; onAccepted: bridge.openTeachingPresentation(selectedFile.toString()) }
     Rectangle {
         id: menu
         objectName: "companionMenu"
@@ -38,8 +47,11 @@ Window {
         border.color: "#cbdcf4"
         border.width: 1
 
-        ColumnLayout {
-            anchors.fill: parent; anchors.margins: 12; spacing: 6
+        ContentScrollView {
+          anchors.fill: parent; anchors.margins: 10; contentWidth: availableWidth
+          ColumnLayout {
+            id: menuContent
+            width: parent.width; spacing: 7
             RowLayout {
                 Layout.fillWidth: true
                 Label { text: "Trợ giảng song ngữ"; color: "#112650"; font.pixelSize: 14; font.bold: true }
@@ -48,35 +60,47 @@ Window {
                 ActionButton { objectName: "hideCompanion"; text: "Ẩn"; implicitHeight: 28; onClicked: companion.hide() }
             }
             Label { visible: bridge.powerpointState.active; text: "Slide " + bridge.powerpointState.slide + " / " + bridge.powerpointState.total; color: "#667997"; font.pixelSize: 12 }
-            Label { objectName: "companionBoundLesson"; text: bridge.companionCanRead ? bridge.lesson.title : "Chưa gắn với trình chiếu"; color: "#112650"; font.pixelSize: 12; font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight; textFormat: Text.PlainText }
-            ActionButton { objectName: "companionOpenLesson"; text: bridge.companionCanRead ? "Trở lại bài giảng" : "Mở bài để dạy"; iconName: "view"; Layout.fillWidth: true; implicitHeight: 32; onClicked: companion.requestOpenLesson() }
-            Label { visible: !bridge.companionCanRead; text: "Chọn Dùng để dạy để mở trình chiếu và bật các nút đọc."; color: "#667997"; wrapMode: Text.WordWrap; Layout.fillWidth: true; font.pixelSize: 10 }
+            Label { objectName: "companionBoundLesson"; text: companion.session.bound ? "Đang gắn: " + companion.session.title : bridge.companionCanRead ? bridge.lesson.title : "Chưa gắn với bài giảng"; color: "#112650"; font.pixelSize: 12; font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight; textFormat: Text.PlainText }
+            ActionButton { objectName: "companionChooseLesson"; text: companion.choosingLesson ? "Thu chọn bài" : "Chọn / đổi bài giảng"; Layout.fillWidth: true; implicitHeight: 32; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: companion.choosingLesson = !companion.choosingLesson }
+            ColumnLayout { visible: companion.choosingLesson; Layout.fillWidth: true; spacing: 6
+                ComboBox { id: teachingLibrary; objectName: "companionLibraryPicker"; Layout.fillWidth: true; model: bridge.lessons; textRole: "title"; enabled: !bridge.busy && !bridge.narrationBusy }
+                ActionButton { objectName: "companionSelectLibrary"; text: "Chọn từ thư viện"; Layout.fillWidth: true; implicitHeight: 32; enabled: teachingLibrary.currentIndex >= 0 && !bridge.busy && !bridge.narrationBusy; onClicked: { bridge.openTeachingLibraryLesson(bridge.lessons[teachingLibrary.currentIndex].id); companion.choosingLesson = false } }
+                ActionButton { objectName: "companionSelectFile"; text: "Chọn file PowerPoint…"; Layout.fillWidth: true; implicitHeight: 32; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: teachingFile.open() }
+            }
+            ActionButton { objectName: "companionStartShow"; text: "Trình chiếu (F5)"; visible: !!bridge.powerpointState.opened && !bridge.powerpointState.active; Layout.fillWidth: true; implicitHeight: 34; onClicked: bridge.startTeachingShow() }
+            ActionButton { objectName: "companionEndShow"; text: "Kết thúc trình chiếu"; visible: !!bridge.powerpointState.active && !!companion.session.bound; Layout.fillWidth: true; implicitHeight: 30; onClicked: bridge.navigatePowerPoint("end_show") }
+            Label { visible: !!companion.session.warning; text: companion.session.warning || ""; color: "#a66318"; wrapMode: Text.WordWrap; Layout.fillWidth: true; font.pixelSize: 11 }
+            ActionButton { objectName: "companionOpenLesson"; text: companion.session.bound ? "Xem bài đang gắn" : bridge.companionCanRead ? "Trở lại bài giảng" : "Mở bài để dạy"; iconName: "view"; Layout.fillWidth: true; implicitHeight: 32; onClicked: companion.requestOpenLesson() }
+            Label { visible: !bridge.companionCanRead; text: companion.session.bound ? "Bài đã gắn với Mascot. Bấm Trình chiếu (F5) khi sẵn sàng." : "Chọn bài từ thư viện hoặc file PowerPoint để gắn với Mascot."; color: "#667997"; wrapMode: Text.WordWrap; Layout.fillWidth: true; font.pixelSize: 10 }
+            ActionButton { objectName: "companionAssistantToggle"; text: companion.showAssistant ? "Thu công cụ trợ giảng" : "Công cụ trợ giảng"; Layout.fillWidth: true; implicitHeight: 30; onClicked: companion.showAssistant = !companion.showAssistant }
             GridLayout {
                 Layout.fillWidth: true; columns: 2; columnSpacing: 6; rowSpacing: 5
-                ActionButton { objectName: "companionExplain"; text: "Giải thích Anh"; enabled: bridge.companionCanRead; iconName: "view"; Layout.fillWidth: true; implicitHeight: 32; onClicked: bridge.companionAsk("explanation", "en") }
-                ActionButton { text: "Ví dụ"; enabled: bridge.companionCanRead; iconName: "add"; Layout.fillWidth: true; implicitHeight: 32; onClicked: bridge.companionAsk("example", "en") }
-                ActionButton { text: "Câu hỏi gợi mở"; enabled: bridge.companionCanRead; iconName: "students"; Layout.fillWidth: true; implicitHeight: 32; onClicked: bridge.companionAsk("question", "en") }
-                ActionButton { text: "Gợi ý Việt"; enabled: bridge.companionCanRead; iconName: "back"; Layout.fillWidth: true; implicitHeight: 32; onClicked: bridge.companionAsk("rescue", "vi") }
-                ActionButton { objectName: "companionReadEnglish"; text: "Đọc tiếng Anh"; iconName: "play"; Layout.fillWidth: true; implicitHeight: 32; enabled: bridge.companionCanRead && !!bridge.audioAvailable.en; onClicked: bridge.companionRead("en") }
-                ActionButton { objectName: "companionReadVietnamese"; text: "Đọc tiếng Việt"; iconName: "play"; Layout.fillWidth: true; implicitHeight: 32; enabled: bridge.companionCanRead && !!bridge.audioAvailable.vi; onClicked: bridge.companionRead("vi") }
-                ActionButton { objectName: "companionReadBoth"; text: "Đọc Việt–Anh chung"; iconName: "play"; Layout.fillWidth: true; implicitHeight: 32; enabled: bridge.companionCanRead && !!bridge.audioAvailable.both; onClicked: bridge.companionRead("both") }
-                ActionButton { objectName: "companionStopSpeech"; text: "Dừng đọc"; iconName: "pause"; Layout.fillWidth: true; implicitHeight: 32; onClicked: bridge.stopSpeech() }
-                ActionButton { objectName: "companionPauseEnglish"; text: bridge.englishReaderState.state === "paused" ? "Tiếp tục" : "Tạm dừng"; iconName: "pause"; Layout.fillWidth: true; implicitHeight: 32; enabled: bridge.companionCanRead && ["reading", "preparing", "paused"].indexOf(bridge.englishReaderState.state) >= 0; onClicked: bridge.englishReaderState.state === "paused" ? bridge.resumeEnglish() : bridge.pauseEnglish() }
-                ActionButton { objectName: "companionReplayEnglish"; text: "Đọc lại"; iconName: "refresh"; Layout.fillWidth: true; implicitHeight: 32; enabled: bridge.companionCanRead && (!!bridge.audioAvailable.en || !!bridge.audioAvailable.vi); onClicked: bridge.replayCompanion() }
+                ActionButton { visible: companion.showAssistant; objectName: "companionExplain"; text: "Giải thích Anh"; enabled: bridge.companionCanRead; iconName: "view"; Layout.fillWidth: true; implicitHeight: 32; onClicked: bridge.companionAsk("explanation", "en") }
+                ActionButton { visible: companion.showAssistant; text: "Ví dụ"; enabled: bridge.companionCanRead; iconName: "add"; Layout.fillWidth: true; implicitHeight: 32; onClicked: bridge.companionAsk("example", "en") }
+                ActionButton { visible: companion.showAssistant; text: "Câu hỏi gợi mở"; enabled: bridge.companionCanRead; iconName: "students"; Layout.fillWidth: true; implicitHeight: 32; onClicked: bridge.companionAsk("question", "en") }
+                ActionButton { visible: companion.showAssistant; text: "Gợi ý Việt"; enabled: bridge.companionCanRead; iconName: "back"; Layout.fillWidth: true; implicitHeight: 32; onClicked: bridge.companionAsk("rescue", "vi") }
+                ActionButton { objectName: "companionReadEnglish"; visible: bridge.companionCanRead && !!companion.availableAudio.en; text: "Đọc tiếng Anh"; iconName: "play"; Layout.fillWidth: true; implicitHeight: 32; enabled: bridge.companionCanRead && !!companion.availableAudio.en; onClicked: bridge.companionRead("en") }
+                ActionButton { objectName: "companionReadVietnamese"; visible: bridge.companionCanRead && !!companion.availableAudio.vi; text: "Đọc tiếng Việt"; iconName: "play"; Layout.fillWidth: true; implicitHeight: 32; enabled: bridge.companionCanRead && !!companion.availableAudio.vi; onClicked: bridge.companionRead("vi") }
+                ActionButton { objectName: "companionReadBoth"; visible: bridge.companionCanRead && !!companion.availableAudio.both; text: "Đọc Việt–Anh chung"; iconName: "play"; Layout.fillWidth: true; implicitHeight: 32; enabled: bridge.companionCanRead && !!companion.availableAudio.both; onClicked: bridge.companionRead("both") }
+                ActionButton { objectName: "companionStopSpeech"; text: "Dừng đọc"; iconName: "pause"; Layout.fillWidth: true; implicitHeight: 32; onClicked: bridge.teachingSession.state.bound ? bridge.teachingSession.stop() : bridge.stopSpeech() }
+                ActionButton { objectName: "companionPauseEnglish"; text: companion.reader.state === "paused" ? "Tiếp tục" : "Tạm dừng"; iconName: "pause"; Layout.fillWidth: true; implicitHeight: 32; enabled: bridge.companionCanRead && ["reading", "preparing", "paused"].indexOf(companion.reader.state) >= 0; onClicked: bridge.teachingSession.state.bound ? bridge.teachingSession.pauseResume() : companion.reader.state === "paused" ? bridge.resumeEnglish() : bridge.pauseEnglish() }
+                ActionButton { objectName: "companionReplayEnglish"; text: "Đọc lại"; iconName: "refresh"; Layout.fillWidth: true; implicitHeight: 32; enabled: bridge.companionCanRead && (!!companion.availableAudio.en || !!companion.availableAudio.vi); onClicked: bridge.replayCompanion() }
             }
-            Label { objectName: "companionReaderStatus"; text: bridge.englishReaderState.message; color: bridge.englishReaderState.state === "error" ? "#b14828" : "#667997"; wrapMode: Text.WordWrap; Layout.fillWidth: true; font.pixelSize: 11 }
+            ActionButton { objectName: "companionUnbind"; text: "Ngắt gắn bài"; visible: !!companion.session.bound; Layout.fillWidth: true; implicitHeight: 28; onClicked: bridge.stopPowerPoint() }
+            Label { objectName: "companionReaderStatus"; text: companion.reader.message; color: companion.reader.state === "error" ? "#b14828" : "#667997"; wrapMode: Text.WordWrap; Layout.fillWidth: true; font.pixelSize: 11 }
             ContentScrollView {
                 visible: companion.hasResponse
-                Layout.fillWidth: true; Layout.fillHeight: true;
-                TextArea { text: bridge.teachingContext.response.text; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; font.pixelSize: 13; color: "#112650"; background: null; textFormat: TextEdit.PlainText }
+                Layout.fillWidth: true; Layout.preferredHeight: 150;
+                TextArea { text: companion.response.text || ""; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; font.pixelSize: 13; color: "#112650"; background: null; textFormat: TextEdit.PlainText }
             }
             RowLayout {
                 Layout.fillWidth: true
-                ActionButton { objectName: "companionPrevious"; text: "Trước"; enabled: bridge.companionCanRead; iconName: "previous"; implicitHeight: 30; onClicked: bridge.navigatePowerPoint("previous") }
+                ActionButton { objectName: "companionPrevious"; text: "Trước"; enabled: bridge.companionCanRead; iconName: "previous"; implicitHeight: 30; onClicked: bridge.navigatePowerPoint("previous_slide") }
                 Item { Layout.fillWidth: true }
-                ActionButton { text: "Theo slide"; visible: bridge.powerpointState.active; implicitHeight: 30; onClicked: bridge.followPowerPoint() }
-                ActionButton { objectName: "companionNext"; text: "Sau"; enabled: bridge.companionCanRead; iconName: "next"; implicitHeight: 30; onClicked: bridge.navigatePowerPoint("next") }
+                ActionButton { text: "Theo slide"; visible: bridge.powerpointState.active && !companion.session.bound; implicitHeight: 30; onClicked: bridge.followPowerPoint() }
+                ActionButton { objectName: "companionNext"; text: "Sau"; enabled: bridge.companionCanRead; iconName: "next"; implicitHeight: 30; onClicked: bridge.navigatePowerPoint("next_slide") }
             }
+          }
         }
     }
 

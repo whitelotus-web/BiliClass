@@ -59,7 +59,7 @@ def slideshow_handle(path):
     return matches[-1] if len(matches) == 1 else 0
 
 
-def _office_session(path, initial_slide, commands, events):
+def _office_session(path, initial_slide, commands, events, autostart=True):
     import psutil
     import pythoncom
     import win32com.client
@@ -69,7 +69,23 @@ def _office_session(path, initial_slide, commands, events):
     )
     pythoncom.CoInitialize()
     application = presentation = window = view = slide = None
-    show_closed = False
+    players = {}
+    player_languages = {}
+    playing = set()
+
+    def stop_media():
+        for player in players.values():
+            try:
+                player.Stop()
+            except Exception:
+                pass
+
+    def start_show():
+        nonlocal window, view, players, playing
+        window = presentation.SlideShowSettings.Run()
+        view = window.View
+        view.GotoSlide(initial_slide)
+        players, playing = {}, set()
 
     def progress(message):
         events.put({"active": False, "starting": True, "slide": 0, "total": 0, "message": message})
@@ -78,18 +94,12 @@ def _office_session(path, initial_slide, commands, events):
         progress("Đang kết nối PowerPoint…")
         application = win32com.client.DispatchEx("PowerPoint.Application")
         progress("Đang mở bài giảng trong PowerPoint…")
-        presentation = application.Presentations.Open(path, ReadOnly=True, Untitled=False, WithWindow=False)
+        presentation = application.Presentations.Open(path, ReadOnly=True, Untitled=False, WithWindow=not autostart)
         presentation.SlideShowSettings.ShowType = 1  # ppShowTypeSpeaker: native full-screen slideshow.
-        progress("Đang mở trình chiếu toàn màn hình…")
-        window = presentation.SlideShowSettings.Run()
-        try:
-            hwnd = slideshow_handle(path)
-        except Exception:
-            hwnd = 0  # Presentation and narration still work without window positioning.
-        view = window.View
         total = presentation.Slides.Count
-        if 1 <= initial_slide <= total:
-            view.GotoSlide(initial_slide)
+        initial_slide = max(1, min(initial_slide, total))
+        if autostart:
+            start_show()
         last = None
         build_started = time.monotonic()
         while True:
@@ -99,14 +109,65 @@ def _office_session(path, initial_slide, commands, events):
                 command, target = None, None
             if command == "stop":
                 break
-            if command == "goto":
+            pythoncom.PumpWaitingMessages()
+            # Resolve only THIS presentation, never the foreground Office deck.
+            if view is None:
+                try:
+                    window = presentation.SlideShowWindow
+                    view = window.View
+                except Exception:
+                    if not autostart and presentation.Windows.Count == 0:
+                        break  # Teacher closed the deck while it was ready.
+            if command == "start" and view is None:
+                start_show()
+            if command == "end_show" and view is not None:
+                stop_media()
+                view.Exit()
+                window = view = None
+                players, playing = {}, set()
+            if view is None:
+                state = ("ready",)
+                if state != last:
+                    events.put({"active": False, "opened": True, "starting": False,
+                                "slide": initial_slide, "total": total,
+                                "message": "Đã gắn bài với Mascot · Bấm Trình chiếu (F5)."})
+                    last = state
+                continue
+            if command == "stop_media":
+                stop_media()
+                events.put({"event": "media_stopped", "token": target})
+            elif command == "play_media":
+                stop_media()
+                identity = next((key for key, lang in player_languages.items() if lang == target), None)
+                if identity is not None:
+                    try:
+                        players[identity].Play()
+                        playing = {identity}
+                        events.put({"event": "media_started", "language": target})
+                    except Exception:
+                        events.put({"event": "media_error", "message": "PowerPoint chưa phát được loa này. Kiểm tra thiết bị âm thanh hoặc dùng bản audio đã tải."})
+            elif command in {"pause_media", "resume_media"}:
+                try:
+                    for identity in playing:
+                        if command == "pause_media":
+                            players[identity].Pause()
+                        else:
+                            players[identity].Play()
+                    events.put({"event": "media_paused" if command == "pause_media" else "media_resumed"})
+                except Exception:
+                    events.put({"event": "media_error", "message": "Chưa điều khiển được âm thanh PowerPoint. Trình chiếu vẫn hoạt động."})
+            elif command == "goto":
                 if type(target) is int and 1 <= target <= total:
                     view.GotoSlide(target)
             elif command == "next":
                 view.Next()  # Office handles animation builds before advancing the slide.
             elif command == "previous":
                 view.Previous()
-            pythoncom.PumpWaitingMessages()
+            elif command in {"next_slide", "previous_slide"}:
+                number = view.Slide.SlideIndex + (1 if command == "next_slide" else -1)
+                if 1 <= number <= total:
+                    stop_media()
+                    view.GotoSlide(number)
             try:
                 slide = view.Slide
                 try:
@@ -115,18 +176,65 @@ def _office_session(path, initial_slide, commands, events):
                     click_index = None
                 current = (slide.SlideIndex, slide.SlideID, click_index)
             except Exception:
-                show_closed = True
-                break  # User closed the slideshow; normal end of companion session.
+                if autostart:
+                    break
+                window = view = None
+                players, playing = {}, set()
+                continue  # Esc returns to the bound deck; F5 can start it again.
             if current != last:
                 build_started = time.monotonic()
-                events.put({"active": True, "slide": current[0], "slide_id": current[1], "total": total,
+                if not isinstance(last, tuple) or current[0] != last[0]:
+                    players = {}
+                    player_languages = {}
+                    playing = set()
+                    for shape in slide.Shapes:
+                        if str(shape.Name).startswith("BiliClass audio "):
+                            try:
+                                players[int(shape.Id)] = view.Player(shape.Id)
+                                player_languages[int(shape.Id)] = str(shape.Name).split()[-1].lower()
+                            except Exception:
+                                pass
+                try:
+                    hwnd = int(window.HWND)
+                except Exception:
+                    hwnd = 0
+                events.put({"active": True, "opened": True, "starting": False,
+                            "slide": current[0], "slide_id": current[1], "total": total,
                             "hwnd": hwnd, "click_index": click_index, "build_started": build_started,
                             "message": f"PowerPoint · slide {current[0]}/{total}"})
                 last = current
+            now_playing = set()
+            paused = set()
+            for identity, player in players.items():
+                try:
+                    state = int(player.State)
+                    if state == 0:  # ppPlaying
+                        now_playing.add(identity)
+                    elif state == 1:
+                        paused.add(identity)
+                except Exception:
+                    pass
+            newly_playing = now_playing - playing
+            if newly_playing:
+                newest = max(newly_playing)
+                for identity in now_playing - {newest}:
+                    try:
+                        players[identity].Stop()
+                    except Exception:
+                        pass
+                events.put({"event": "media_started", "language": player_languages.get(newest, "")})
+                now_playing = {newest}
+            elif playing and not now_playing and command != "pause_media":
+                # A paused player stays selected so Resume can address it.
+                if not playing.intersection(paused):
+                    events.put({"event": "media_finished"})
+            if command == "pause_media" or (playing and not now_playing and playing.intersection(paused)):
+                now_playing = playing
+            playing = now_playing
     except Exception as exc:
         events.put({"error": "Không thể điều khiển PowerPoint: " + str(exc)})
     finally:
-        if window is not None and not show_closed:
+        if window is not None:
             try:
                 view.Exit()
             except Exception:
@@ -153,14 +261,17 @@ class PowerPointSession(QThread):
     stateChanged = Signal(object)
     failed = Signal(str)
 
-    def __init__(self, path, initial_slide=1, parent=None):
+    def __init__(self, path, initial_slide=1, parent=None, *, autostart=True):
         super().__init__(parent)
         self.path = str(Path(path).resolve())
         self.initial_slide = initial_slide
+        self.autostart = autostart
         self.commands = queue.Queue()
 
     def navigate(self, command, slide=None):
-        if command not in {"next", "previous", "goto", "stop"}:
+        if command not in {"next", "previous", "goto", "stop", "start", "end_show",
+                           "next_slide", "previous_slide", "stop_media", "play_media",
+                           "pause_media", "resume_media"}:
             raise ValueError("Lệnh PowerPoint không hợp lệ.")
         self.commands.put((command, slide))
 
@@ -171,7 +282,7 @@ class PowerPointSession(QThread):
         context = multiprocessing.get_context("spawn")
         commands, events = context.Queue(), context.Queue()
         process = context.Process(target=_office_session,
-                                  args=(self.path, self.initial_slide, commands, events), daemon=True)
+                                  args=(self.path, self.initial_slide, commands, events, self.autostart), daemon=True)
         stopping = None
         started = time.monotonic()
         ready = False
@@ -190,7 +301,7 @@ class PowerPointSession(QThread):
                     if "error" in state:
                         self.failed.emit(state["error"])
                     else:
-                        ready = ready or bool(state.get("active"))
+                        ready = ready or bool(state.get("active") or state.get("opened"))
                         self.stateChanged.emit(state)
                 except queue.Empty:
                     pass

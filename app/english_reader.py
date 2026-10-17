@@ -100,6 +100,7 @@ class EnglishReader(QObject):
         self._pending = None
         self._result = None
         self._last = None
+        self.cache_only = False
         self.timer = QTimer(self)
         self.timer.setInterval(100)
         self.timer.timeout.connect(self._tick)
@@ -111,8 +112,9 @@ class EnglishReader(QObject):
             self.speakingChanged.emit(state == "reading")
         self.changed.emit()
 
-    def start(self, texts, voice, rate):
+    def start(self, texts, voice, rate, *, cache_only=False):
         self.stop()
+        self.cache_only = cache_only
         try:
             chunks = [part for text in texts for part in speech_chunks(text)]
         except ValueError as exc:
@@ -131,6 +133,18 @@ class EnglishReader(QObject):
             self.player.stop()
             self.timer.stop()
             self._state("stopped", "Đã đọc xong phần đang chọn.")
+            return
+        if self.cache_only:
+            path = self.directory / (speech.audio_key(self.queue[self.position], self.voice, self.rate) + '.wav')
+            if not speech.valid_audio(path):
+                self._error('Giọng đọc đã lưu bị thiếu. Tạo lại giọng trước khi dạy.')
+                return
+            try:
+                self.player.play(path)
+                self._state('reading', f'Đang đọc · {self.position+1}/{len(self.queue)}')
+                self.timer.start()
+            except Exception as exc:
+                self._error(str(exc))
             return
         generation = self.generation
         if self.state != "paused":

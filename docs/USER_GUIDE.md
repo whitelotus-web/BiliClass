@@ -1,21 +1,21 @@
 # BiliClass — Trợ lý dạy học song ngữ
 
-Hướng dẫn RC67, ngày 17/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
+Hướng dẫn RC68, ngày 17/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
 trên máy. Chuyển đổi hiện dùng Google Cloud Translation cho phần chữ và dựng
 PowerPoint tại máy; Browser ChatGPT/Gemini tạm ẩn.
 
 ## Cài và cập nhật
 
-1. Tải **BiliClass-RC65-Windows.zip** tại
-   [Release RC65](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc65).
+1. Tải **BiliClass-RC68-Windows.zip** tại
+   [Release RC68](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc68).
 2. Giải nén toàn bộ; không chạy trong cửa sổ ZIP. Chạy **Setup.cmd**.
 3. Bộ cài kiểm tra checksum và cài vào
-   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc65`, không cần quyền quản trị.
+   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc68`, không cần quyền quản trị.
 4. Mở BiliClass từ Desktop hoặc Start menu. Bản cài có model giọng, OCR và
    template; không cần thư mục runtime của máy phát triển.
 
 Máy đang dùng RC34: vào **Cài đặt → Thông tin BiliClass → Kiểm tra cập nhật**,
-chọn Cập nhật khi thấy RC65. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
+chọn Cập nhật khi thấy RC68. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
 Setup.cmd như trên. Các bản cài nằm cạnh nhau; thư viện ở
 `%LOCALAPPDATA%/BiliClass` được giữ nguyên. Không xóa thư mục dữ liệu này.
 Thư viện cá nhân không đưa lên GitHub. Key có thể nhận riêng như hướng dẫn dưới.
@@ -23,7 +23,7 @@ Thư viện cá nhân không đưa lên GitHub. Key có thể nhận riêng như
 ## Tạo bài giảng
 
 1. Vào **Chuyển đổi bài giảng** ngay sau Trang chủ, chọn hoặc kéo thả PowerPoint
-   `.pptx` tối đa 200 MB. Nút **Chọn file PowerPoint** và vùng kéo thả ở Trang chủ mở cùng luồng này.
+   `.pptx` tối đa 200 MB. Trang chủ có hướng dẫn quy trình và tổng hợp bài giảng; bước tải tài liệu dẫn vào mục Chuyển đổi.
 2. Chọn môn, cấp/khối và **Song ngữ Việt–Anh** hoặc **Tiếng Anh 100%**.
 3. Chọn giữ thiết kế PowerPoint gốc, hoặc tạo theo mẫu BiliClass/PowerPoint
    riêng. Mẫu Universal 2026 có ba phong cách; chọn xem mẫu để kiểm tra trước.
@@ -47,9 +47,24 @@ hướng dẫn đồng bộ nằm trong **Hướng dẫn & nâng cao**.
 
 **Bài giảng** là thư viện: tìm, lọc, mở, tải và quản lý bài đã lưu. Đổi qua lại
 giữa các mục vẫn giữ tài liệu/cấu hình đang nhập ở mục Chuyển đổi bài giảng.
-Trang chủ có mascot lớn, vùng chọn/kéo thả tài liệu và hướng dẫn bốn bước.
-Bài đang làm/bài gần đây, tác vụ và tình trạng ứng dụng nằm phía dưới;
-bấm **Chi tiết** để xem thống kê dịch cục bộ.
+Trang chủ có mascot lớn, hướng dẫn bốn bước và tổng hợp bài giảng. Chuyển đổi
+xong tự mở **Tạo giọng đọc bài giảng** với bài vừa tạo, khung chọn nguồn thu gọn.
+Có thể **Tải PowerPoint không giọng** ngay, hoặc tạo giọng rồi tải bản có loa.
+
+Bấm **Mở bài giảng để dạy**, chọn bản giọng và xác nhận nội dung để mở
+PowerPoint ở trạng thái sẵn sàng cùng Mascot. Bấm **Trình chiếu (F5)** trên
+Mascot để bắt đầu; thu nhỏ BiliClass vẫn điều khiển được. Mascot gắn cố định
+với bài và bản giọng của phiên dạy: mở xem bài khác không đổi liên kết.
+Các nút đọc chỉ hiện khi slide đang chiếu có giọng tương ứng. PowerPoint
+có loa dùng được độc lập; trong phiên có Mascot, loa đã nhúng dùng cùng
+bộ phát PowerPoint. Slide không nhúng được loa vẫn có thể đọc cache từ
+Mascot; ứng dụng giải thích trường hợp đó và không tạo giọng trong giờ dạy.
+
+Chọn **Dạy** ở hàng bài giảng hoặc **Mở bài giảng để dạy** trong menu thẻ.
+Trên Mascot nổi, **Chọn / đổi bài giảng** nhận bài thư viện hoặc file `.pptx`.
+Chọn bài mở bước xác nhận; chỉ xác nhận mở mới thay bài đang gắn. **Kết
+thúc trình chiếu** trả về trạng thái chờ, **Ngắt gắn bài** kết thúc phiên
+điều khiển. Tệp PowerPoint nguồn không bị ghi đè.
 
 Trong **Cài đặt → Dữ liệu → Quản lý thuật ngữ & kiến thức**, thuật ngữ đã khóa của đúng môn được ưu tiên
 khi dịch Google. Đổi thuật ngữ làm mới riêng cache của câu có dùng từ đó;
