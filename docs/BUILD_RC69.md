@@ -33,12 +33,19 @@ Ngày 17/10/2026. Giữ luồng chuyển đổi → tạo giọng → tải đ�
   riêng; không chia đoán cho từng key. Ngay dưới key có Còn/tổng/đã dùng và
   thanh tiến độ. Đồng bộ riêng tư hỗ trợ thêm ledger theo key, đọc được
   định dạng cũ; không gửi key hoặc gọi dịch thật trong lần kiểm thử này.
+  Trong tháng nâng cấp, phần lịch sử chung chưa phân bổ được trừ dự phòng
+  khỏi hạn mức của từng key cũ. Không gán nó thành số đã dùng riêng; key mới
+  thêm sau nâng cấp không chịu dự phòng cũ. Sang tháng mới dự phòng hết áp
+  dụng. Kiểm migration cả DB trước RC69, DB ledger cũ bốn cột và đồng bộ.
+  Bản candidate đầu đã biên dịch/kiểm ZIP nhưng chưa cài/phát hành; kiểm
+  giới hạn lịch sử phát hiện cần dự phòng nên sửa và kiểm lại trước bản cuối.
 
 Cửa sổ QML lồng có thể tự gắn transient owner; xem [Qt Window](https://doc.qt.io/qt-6/qml-qtquick-window.html).
 
 ## Kiểm chứng nguồn
 
-144 kiểm thử đạt bằng `.venv`: đóng gói, cấu hình chuyển đổi, phiên dạy,
+145 tình huống kiểm thử đạt bằng `.venv`: suite tổng hợp 144 ca và một ca
+migration bổ sung cho ledger bốn cột. Phạm vi: đóng gói, cấu hình chuyển đổi, phiên dạy,
 narration workspace, bản giọng, PowerPoint, giới hạn/đổi key/đổi tháng,
 lịch sử cũ, đồng bộ riêng tư và dịch Google bằng transport giả lập.
 
@@ -68,6 +75,11 @@ lịch sử cũ, đồng bộ riêng tư và dịch Google bằng transport gi�
 Không có cảnh báo QML ở các kiểm tra đạt. Chưa chứng nhận máy vật lý thứ
 hai, màn hình phụ hoặc fullscreen GPU độc quyền/secure desktop. Báo cáo,
 thư viện cá nhân, model và EXE không vào Git.
+
+Kết nối đọc báo cáo Google chưa tích hợp trong RC69. Đã ghi lại cách cấp
+quyền cho một Gmail chính và các điều kiện tích hợp trong
+[GOOGLE_REPORTS_CONNECTION.md](GOOGLE_REPORTS_CONNECTION.md); không thay
+đổi IAM hoặc bật tài nguyên Google Cloud trên máy người dùng.
 
 ## Đóng gói
 

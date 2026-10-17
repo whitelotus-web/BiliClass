@@ -59,14 +59,21 @@ def test_unlabelled_keys_have_independent_budgets_and_keep_stable_project_metada
         store.add('Other | ' + KEY1)
 
 
-def test_legacy_group_history_is_retained_without_inventing_a_per_key_split(tmp_path):
+@pytest.mark.parametrize('four_column_ledger', [False, True])
+def test_legacy_group_history_is_retained_without_inventing_a_per_key_split(tmp_path, four_column_ledger):
     store = KeyStore(tmp_path)
     store.add(KEY1 + '\n' + KEY2)
     month = store.month()
     with closing(store.connect()) as db, db:
         db.execute('INSERT INTO usage VALUES(?,?,?)', (month, 'mặc định', 104853))
+        db.execute('DROP TABLE usage_per_key')  # Simulate the actual pre-RC69 database.
+        if four_column_ledger:
+            db.execute('CREATE TABLE usage_per_key(month TEXT,key_id TEXT,project TEXT,'
+                       'characters INTEGER NOT NULL,PRIMARY KEY(month,key_id))')
+    store = KeyStore(tmp_path)
     assert [row['used'] for row in store.public()] == [0, 0]
     assert all(row['legacyUsed'] == 104853 for row in store.public())
+    assert all(row['carryover'] == 104853 for row in store.public())
     second = store.public()[1]['id']
     store.reserve(20, 500000, only_key=second)
     store.rename(second, 'Mail thứ hai')
@@ -78,6 +85,11 @@ def test_legacy_group_history_is_retained_without_inventing_a_per_key_split(tmp_
     assert rows[1]['name'] == 'Key 2 (Mail thứ hai)'
     with closing(store.connect()) as db:
         assert db.execute('SELECT characters FROM usage WHERE month=?', (month,)).fetchone()[0] == 104873
+    with pytest.raises(TranslationProblem):
+        store.reserve(500000, 500000, only_key=second)
+    fresh = 'AIza' + 'c' * 35
+    store.add(fresh)
+    assert store.public()[-1]['carryover'] == 0, 'A genuinely new key must get its full budget'
 
 
 def test_rotation_skips_a_key_before_next_batch_would_cross_500000_and_month_rolls_over(tmp_path, monkeypatch):

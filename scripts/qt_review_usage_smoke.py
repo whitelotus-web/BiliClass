@@ -75,6 +75,7 @@ def main():
         store.reserve(40000, 500000)
         with closing(store.connect()) as ledger, ledger:
             ledger.execute('UPDATE usage SET characters=characters+104853')
+            ledger.execute('UPDATE usage_per_key SET carryover=104853')
         bridge = ReviewBridge(library)
         engine = QQmlApplicationEngine()
         warnings = []
@@ -124,7 +125,7 @@ def main():
             assert '104.853' in control(usage, 'translationLegacyUsage').property('text')
             rows = bridge.googleSettings.state['keys']
             assert rows[0]['used'] == 40000 and rows[1]['used'] == 0
-            assert '460.000 / 500.000' in c('googleKeyRemaining_' + rows[0]['id']).property('text')
+            assert '355.147 / 500.000' in c('googleKeyRemaining_' + rows[0]['id']).property('text')
             assert '500.000 / 500.000' in c('googleKeyRemaining_' + rows[1]['id']).property('text')
             assert not c('googleApiKeys').isVisible() and not c('googleCharacterBudget').isVisible()
             for width, height in ((1080, 700), (1366, 850)):

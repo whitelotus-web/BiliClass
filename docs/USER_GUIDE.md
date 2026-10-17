@@ -47,6 +47,10 @@ Sang tháng mới tự dùng bộ đếm mới, giữ lịch sử tháng trướ
 vẫn gắn với dự án Google để tính hạn mức và thanh toán; xem [tài liệu Google](https://docs.cloud.google.com/translate/docs/authentication).
 Lịch sử chung trước RC69 được giữ riêng vì chưa có chi tiết theo key; số
 đếm từng key ghi từ RC69, không tự chia hoặc gán số cũ cho một key.
+Trong tháng nâng cấp, tool trừ dự phòng phần lịch sử chung khỏi mức còn
+lại của các key cũ để tránh vượt giới hạn. Dòng dưới key giải thích số dự
+phòng; key mới thêm không bị trừ lịch sử cũ. Sang tháng mới mỗi key trở
+lại đầy đủ mức đã đặt. Bộ đếm UTC này chưa đồng bộ báo cáo/chu kỳ Google.
 Ô nhập key ẩn sau khi lưu; bấm **Thêm key** để mở. Giới hạn tháng, OCR và
 hướng dẫn đồng bộ nằm trong **Hướng dẫn & nâng cao**.
 

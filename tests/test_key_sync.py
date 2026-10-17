@@ -81,6 +81,7 @@ def test_legacy_sync_keeps_shared_history_and_does_not_reset_existing_key_counte
     download(target, 500000, client)
     row = target.public()[0]
     assert row['used'] == 70 and row['legacyUsed'] == 275
+    assert row['carryover'] == 275
     download(target, 500000, client)
     assert target.public()[0] == row
 

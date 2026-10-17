@@ -77,7 +77,7 @@ class KeyStore:
         self.root = Path(directory) / 'translation_api'
         self.root.mkdir(parents=True, exist_ok=True)
         self.path = self.root / 'keys.dpapi'
-        with closing(self.connect()) as db:
+        with _LOCK, closing(self.connect()) as db:
             db.execute('PRAGMA journal_mode=WAL')
             db.executescript('''
                 CREATE TABLE IF NOT EXISTS usage(month TEXT, project TEXT, characters INTEGER NOT NULL,
@@ -87,9 +87,30 @@ class KeyStore:
                 CREATE TABLE IF NOT EXISTS cache(id TEXT PRIMARY KEY, value TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS key_names(key_id TEXT PRIMARY KEY,
                     number INTEGER UNIQUE NOT NULL, name TEXT NOT NULL DEFAULT '');
-                CREATE TABLE IF NOT EXISTS usage_per_key(month TEXT, key_id TEXT, project TEXT,
-                    characters INTEGER NOT NULL, PRIMARY KEY(month,key_id));
             ''')
+            with db:
+                db.execute('BEGIN IMMEDIATE')
+                columns = {row[1] for row in db.execute('PRAGMA table_info(usage_per_key)')}
+                if 'carryover' not in columns:
+                    # The old ledger cannot identify which key spent a shared
+                    # amount. Reserve it conservatively for existing keys only,
+                    # so migration cannot grant another full budget this month.
+                    rows = self.keys()
+                    month = self.month()
+                    if columns:
+                        db.execute('ALTER TABLE usage_per_key ADD COLUMN carryover INTEGER NOT NULL DEFAULT 0')
+                    else:
+                        db.execute('CREATE TABLE usage_per_key(month TEXT,key_id TEXT,project TEXT,'
+                                   'characters INTEGER NOT NULL,carryover INTEGER NOT NULL DEFAULT 0,'
+                                   'PRIMARY KEY(month,key_id))')
+                    used = dict(db.execute('SELECT project,characters FROM usage WHERE month=?', (month,)))
+                    tracked = dict(db.execute('SELECT project,SUM(characters) FROM usage_per_key WHERE month=? GROUP BY project', (month,)))
+                    for row in rows:
+                        carry = max(0, used.get(row['project'], 0) - tracked.get(row['project'], 0))
+                        if carry:
+                            db.execute('INSERT INTO usage_per_key VALUES(?,?,?,?,?) ON CONFLICT(month,key_id) '
+                                       'DO UPDATE SET carryover=MAX(carryover,excluded.carryover)',
+                                       (month, row['id'], row['project'], 0, carry))
 
     def connect(self):
         return sqlite3.connect(self.root / 'usage.db', timeout=10)
@@ -165,6 +186,7 @@ class KeyStore:
             names = {row[0]: (row[1], row[2]) for row in db.execute('SELECT key_id,number,name FROM key_names')}
             used = dict(db.execute('SELECT project,characters FROM usage WHERE month=?', (self.month(),)))
             key_used = dict(db.execute('SELECT key_id,characters FROM usage_per_key WHERE month=?', (self.month(),)))
+            carried = dict(db.execute('SELECT key_id,carryover FROM usage_per_key WHERE month=?', (self.month(),)))
             tracked = dict(db.execute('SELECT project,SUM(characters) FROM usage_per_key WHERE month=? GROUP BY project',
                                       (self.month(),)))
             blocked = dict(db.execute('SELECT key_id,code FROM blocked WHERE month=?', (self.month(),)))
@@ -175,6 +197,7 @@ class KeyStore:
         return [{'id': row['id'], 'project': row['project'], 'label': '•••• ' + row['key'][-4:],
                  'name': display(row), 'customName': names[row['id']][1],
                  'used': key_used.get(row['id'], 0),
+                 'carryover': carried.get(row['id'], 0),
                  'legacyUsed': max(0, used.get(row['project'], 0) - tracked.get(row['project'], 0)),
                  'blocked': blocked.get(row['id'], '')}
                 for row in rows]
@@ -203,13 +226,13 @@ class KeyStore:
                     if row['id'] in excluded or db.execute('SELECT 1 FROM blocked WHERE month=? AND key_id=?',
                                                          (month, row['id'])).fetchone():
                         continue
-                    used = db.execute('SELECT characters FROM usage_per_key WHERE month=? AND key_id=?',
+                    used = db.execute('SELECT characters+carryover FROM usage_per_key WHERE month=? AND key_id=?',
                                       (month, row['id'])).fetchone()
                     if (used[0] if used else 0) + count > budget:
                         continue
                     db.execute('INSERT INTO usage VALUES(?,?,?) ON CONFLICT(month,project) DO UPDATE SET characters=characters+excluded.characters',
                                (month, row['project'], count))
-                    db.execute('INSERT INTO usage_per_key VALUES(?,?,?,?) ON CONFLICT(month,key_id) '
+                    db.execute('INSERT INTO usage_per_key(month,key_id,project,characters) VALUES(?,?,?,?) ON CONFLICT(month,key_id) '
                                'DO UPDATE SET characters=characters+excluded.characters',
                                (month, row['id'], row['project'], count))
                     return {**row, 'month': month}

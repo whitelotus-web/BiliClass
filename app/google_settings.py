@@ -30,8 +30,8 @@ class GoogleSettings(QObject):
         try:
             rows = self.store().public()
             budget = self.bridge.library.setting("google_character_budget", DEFAULT_BUDGET)
-            rows = [{**row, 'budget': budget, 'remaining': max(0, budget - row['used']),
-                     'percent': min(100, row['used'] * 100 / max(1, budget))} for row in rows]
+            rows = [{**row, 'budget': budget, 'remaining': max(0, budget - row['used'] - row['carryover']),
+                     'percent': min(100, (row['used'] + row['carryover']) * 100 / max(1, budget))} for row in rows]
             self._state = {
                 "keys": rows,
                 "configured": bool(rows),

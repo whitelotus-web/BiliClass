@@ -9,11 +9,12 @@ def summarize(rows, budget):
         project = row['project']
         legacy[project] = max(legacy.get(project, 0), row.get('legacyUsed', 0))
         used = max(0, row.get('used', 0))
-        percent = min(100, round(used * 100 / budget))
-        level = 'exhausted' if used >= budget else 'critical' if used * 100 >= budget * 95 else 'warning' if used * 100 >= budget * 80 else 'normal'
+        reserved = used + max(0, row.get('carryover', 0))
+        percent = min(100, round(reserved * 100 / budget))
+        level = 'exhausted' if reserved >= budget else 'critical' if reserved * 100 >= budget * 95 else 'warning' if reserved * 100 >= budget * 80 else 'normal'
         blocked = bool(row.get('blocked'))
         output.append({'project': project, 'name': row.get('name', ''), 'used': used,
-                       'keyCount': 1, 'remaining': max(0, budget-used),
+                       'keyCount': 1, 'remaining': max(0, budget-reserved),
                        'budget': budget, 'percent': percent, 'level': level, 'blocked': blocked,
                        'unverified': False})
     usable = [row for row in output if row['remaining'] and not row['blocked']]
