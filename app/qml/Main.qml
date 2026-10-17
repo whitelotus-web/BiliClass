@@ -116,8 +116,16 @@ ApplicationWindow {
     property int templatePageIndex: 0
     function refreshTemplate() { templatePages = bridge.templatePages(rescue); templatePageIndex = 0 }
     function acceptInputDocuments(urls) {
+        if (urls.length === 1 && !String(urls[0]).toLowerCase().endsWith(".pptx")) {
+            inputDocumentError = "Chỉ nhận tệp PowerPoint (.pptx), tối đa 200 MB."
+            return false
+        }
         let selection = bridge.selectInputDocument(urls)
         if (!selection.valid) { inputDocumentError = bridge.message; return false }
+        if (!selection.name.toLowerCase().endsWith(".pptx")) {
+            inputDocumentError = "Chỉ nhận tệp PowerPoint (.pptx), tối đa 200 MB."
+            return false
+        }
         inputDocumentError = ""
         let previousTitle = selectedFileName.replace(/\.[^.]+$/, "")
         selectedFile = selection.url
@@ -393,17 +401,24 @@ ApplicationWindow {
                     visible: root.page === "home" || root.page === "library"
                     clip: true; contentWidth: availableWidth
                     ColumnLayout {
-                        width: parent.width; spacing: root.page === "home" ? 18 : 23
-                        RowLayout {
-                            visible: root.page === "library"
-                            Layout.fillWidth: true
-                            ColumnLayout { Layout.fillWidth: true; spacing: 8; Heading { objectName: "libraryHomeHeading"; Layout.fillWidth: true; wrapMode: Text.WordWrap; text: root.page === "home" ? "Chào " + bridge.settings.teacher : "Thư viện bài giảng"; font.pixelSize: 28 }
-                                Copy { text: root.page === "home" ? "Tiếp tục chuẩn bị bài và sẵn sàng cho tiết dạy." : "Tìm đúng bài, chọn bản giọng và mở để dạy hoặc tải PowerPoint."; Layout.fillWidth: true } }
-                            Item { Layout.fillWidth: true }
+                        width: parent.width; spacing: root.page === "home" ? 18 : 12
+                        ColumnLayout {
+                            visible: root.page === "library"; Layout.fillWidth: true; spacing: 5
+                            Heading { objectName: "libraryHomeHeading"; text: "Thư viện bài giảng"; font.pixelSize: 28; Layout.fillWidth: true }
+                            RowLayout {
+                                Layout.fillWidth: true; spacing: 12
+                                Copy { objectName: "libraryDescription"; text: "Tìm đúng bài, chọn bản giọng và mở để dạy hoặc tải PowerPoint."; Layout.fillWidth: true }
+                                Action { id: libraryManagementAction; objectName: "libraryManagementButton"; text: "Chia sẻ & quản lý"; subtle: true; implicitHeight: 28; onClicked: libraryManagementMenu.popup() }
+                                Menu { id: libraryManagementMenu; parent: libraryManagementAction; x: parent.width - width; y: parent.height
+                                    MenuItem { objectName: "importSharedLessonButton"; text: "Nhận gói bài từ giáo viên khác…"; onTriggered: packOpen.open() }
+                                    MenuItem { text: "Thùng rác (" + bridge.trashedLessons.length + ")"; onTriggered: lessonTrashDialog.open() }
+                                }
+                            }
                         }
                         HomeWelcome {
                             objectName: "homeWelcome"
                             visible: root.page === "home"; Layout.fillWidth: true; bridge: root.appBridge
+                            inputError: root.inputDocumentError
                             onChooseDocument: { root.go("new"); documentOpen.open() }
                             onDocumentDropped: function(urls) { if (root.acceptInputDocuments(urls)) root.go("new") }
                             onContinueWork: { if (bridge.narrationBusy && bridge.narrationTaskLessonId) bridge.openLesson(bridge.narrationTaskLessonId); else root.go("new") }
@@ -441,16 +456,11 @@ ApplicationWindow {
                             }
                         }
                         RowLayout {
-                            Layout.fillWidth: true
-                            Label { text: root.page === "home" ? "Bài vừa cập nhật" : "Tất cả bài giảng"; color: root.ink; font.pixelSize: 18; font.weight: Font.DemiBold }
-                            Copy { objectName: "libraryResultCount"; text: root.page === "home" ? bridge.lessons.length + " bài" : root.libraryResult.total + " / " + bridge.lessons.length + " bài"; Layout.leftMargin: 8 }
+                            visible: root.page === "home"; Layout.fillWidth: true
+                            Label { text: "Bài vừa cập nhật"; color: root.ink; font.pixelSize: 18; font.weight: Font.DemiBold }
+                            Copy { text: bridge.lessons.length + " bài"; Layout.leftMargin: 8 }
                             Item { Layout.fillWidth: true }
-                            Action { visible: root.page === "home"; text: "Xem toàn bộ"; subtle: true; onClicked: root.go("library") }
-                            Action { id: libraryManagementAction; visible: root.page === "library"; objectName: "libraryManagementButton"; text: "Chia sẻ & quản lý"; subtle: true; onClicked: libraryManagementMenu.popup() }
-                            Menu { id: libraryManagementMenu; parent: libraryManagementAction; x: parent.width - width; y: parent.height
-                                MenuItem { objectName: "importSharedLessonButton"; text: "Nhận gói bài từ giáo viên khác…"; onTriggered: packOpen.open() }
-                                MenuItem { text: "Thùng rác (" + bridge.trashedLessons.length + ")"; onTriggered: lessonTrashDialog.open() }
-                            }
+                            Action { text: "Xem toàn bộ"; subtle: true; onClicked: root.go("library") }
                         }
                         RowLayout { visible: root.page === "library"; Layout.fillWidth: true; spacing: 12
                             Field { id: search; objectName: "librarySearch"; Layout.fillWidth: true; placeholderText: "Tìm tên bài, môn, khối… có thể gõ không dấu"; onTextChanged: root.libraryPage = 1 }
@@ -489,8 +499,15 @@ ApplicationWindow {
                             LibraryAction { objectName: "libraryDeselectAll"; text: "Bỏ chọn"; subtle: true; enabled: root.selectedLessons.length > 0; onClicked: root.selectedLessons = [] }
                             LibraryAction { objectName: "libraryDownloadSelected"; text: "Tải đã chọn"; ToolTip.visible: hovered; ToolTip.text: "Tải " + root.selectedLessons.length + " bài đã chọn"; enabled: root.selectedLessons.length > 0 && !bridge.busy && !bridge.narrationBusy; onClicked: root.downloadLibraryLessons(root.selectedLessons) }
                             LibraryAction { objectName: "libraryDeleteSelected"; text: "Xóa đã chọn"; danger: true; ToolTip.visible: hovered; ToolTip.text: "Đưa " + root.selectedLessons.length + " bài đã chọn vào thùng rác"; enabled: root.selectedLessons.length > 0 && !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !root.classroom.running; onClicked: { bulkDeleteDialog.identities = root.selectedLessons.slice(); bulkDeleteDialog.open() } }
+                            Label {
+                                objectName: "libraryResultCount"
+                                text: root.libraryResult.total + " / " + bridge.lessons.length + " bài"
+                                color: root.muted; font.pixelSize: 11; Layout.leftMargin: 3
+                                Layout.minimumWidth: 48; elide: Text.ElideRight
+                                Accessible.name: "Đang hiển thị " + root.libraryResult.total + " trong " + bridge.lessons.length + " bài giảng"
+                            }
                         }
-                        Copy { visible: root.page === "library"; text: root.selectedLessons.length + " bài đã chọn · Chọn tất cả gồm các trang đang lọc. Đổi bộ lọc sẽ bỏ chọn."; Layout.fillWidth: true; font.pixelSize: 11; Layout.topMargin: -12 }
+                        Copy { visible: root.page === "library"; text: root.selectedLessons.length + " bài đã chọn · Chọn tất cả gồm các trang đang lọc. Đổi bộ lọc sẽ bỏ chọn."; Layout.fillWidth: true; font.pixelSize: 11; Layout.topMargin: -4 }
                         Surface { visible: root.page === "library" && bridge.lessons.length > 0 && root.libraryResult.total === 0; Layout.fillWidth: true; implicitHeight: 106
                             ColumnLayout { anchors.fill: parent; anchors.margins: 20; spacing: 7
                                 Caption { text: "Không có bài phù hợp" }
@@ -614,52 +631,28 @@ ApplicationWindow {
                     visible: root.page === "new"; clip: true; contentWidth: availableWidth
                     ColumnLayout {
                         width: parent.width; spacing: 16
-                        RowLayout { Heading { text: "Từ tài liệu đến bài giảng song ngữ"; font.pixelSize: 27 } Item { Layout.fillWidth: true } Action { text: "Thư viện"; iconName: "back"; subtle: true; onClicked: root.go("library") } }
-                        Copy { text: "Nhập tài liệu → chọn kiểu chuyển đổi → chuyển đổi → xem trình chiếu → dùng để dạy."; Layout.fillWidth: true }
-                        Surface {
-                            objectName: "creationSourceArea"
-                            Layout.fillWidth: true; implicitHeight: sourceInputs.height + 36
-                            color: sourceDrop.containsDrag ? "#edf5ff" : "white"
-                            border.color: sourceDrop.containsDrag ? root.blue : root.line
-                            border.width: sourceDrop.containsDrag ? 2 : 1
-                            DropArea {
-                                id: sourceDrop; objectName: "creationDocumentDrop"
-                                anchors.fill: parent; enabled: !bridge.busy
-                                onEntered: function(drag) { drag.accepted = drag.hasUrls && drag.urls.length === 1 }
-                                onDropped: function(drop) {
-                                    let urls = []
-                                    for (let i = 0; i < drop.urls.length; i++) urls.push(drop.urls[i].toString())
-                                    if (root.acceptInputDocuments(urls)) drop.acceptProposedAction()
-                                    else drop.accepted = false
-                                }
-                            }
-                            ColumnLayout {
-                                id: sourceInputs; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 18; spacing: 10
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    Caption { text: "01   Tài liệu đầu vào"; font.pixelSize: 15 }
-                                    Item { Layout.fillWidth: true }
-                                    Action { objectName: "chooseInputDocumentButton"; text: root.selectedFile ? "Đổi tài liệu" : "Chọn từ máy tính"; iconName: "upload"; enabled: !bridge.busy; onClicked: documentOpen.open() }
-                                }
-                                Copy { objectName: "creationDropHint"; text: sourceDrop.containsDrag ? "Thả tài liệu vào đây" : "Kéo thả một tài liệu vào đây · PPTX tối đa 200 MB · DOCX, PDF, TXT, PNG/JPG tối đa 50 MB"; color: sourceDrop.containsDrag ? root.blue : root.muted; Layout.fillWidth: true; font.pixelSize: 12 }
-                                Copy { objectName: "creationDocumentError"; visible: !!root.inputDocumentError; text: root.inputDocumentError; color: "#ab5b20"; Layout.fillWidth: true; font.pixelSize: 12 }
-                                RowLayout {
-                                    visible: !!root.selectedFile; Layout.fillWidth: true
-                                    Caption { objectName: "creationSelectedFilename"; text: root.selectedFileName; elide: Text.ElideMiddle; Layout.fillWidth: true }
-                                    Pill { text: "Đã nhận tệp" }
-                                    Action { objectName: "removeInputDocumentButton"; text: "Bỏ tệp"; subtle: true; implicitHeight: 30; enabled: !bridge.busy; onClicked: root.removeInputDocument() }
-                                }
-                                Action { visible: !root.selectedFile; text: root.pasteMode ? "Thu gọn nội dung" : "Hoặc dán nội dung bài học"; subtle: true; implicitHeight: 28; enabled: !bridge.busy; onClicked: root.pasteMode = !root.pasteMode }
-                                ScrollView { visible: root.pasteMode && !root.selectedFile; Layout.fillWidth: true; Layout.preferredHeight: 110; clip: true
-                                    TextArea { id: pasteInput; objectName: "lessonContent"; enabled: !bridge.busy; wrapMode: TextEdit.Wrap; selectByMouse: true; color: root.ink; font.pixelSize: 13; placeholderText: "Dán nội dung tiếng Việt hoặc song ngữ…"; background: Rectangle { color: "#fafcff"; radius: 8; border.color: root.line } }
-                                }
-                            }
+                        Heading { text: "Chuyển đổi bài giảng PowerPoint"; font.pixelSize: 27; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                        Copy { text: "Chọn PowerPoint → chọn kiểu chuyển đổi → xem bài giảng → dùng để dạy."; Layout.fillWidth: true }
+                        PowerPointUpload {
+                            objectName: "creationSourceArea"; Layout.fillWidth: true
+                            chooseObjectName: "chooseInputDocumentButton"
+                            dropObjectName: "creationDocumentDrop"
+                            filenameObjectName: "creationSelectedFilename"
+                            errorObjectName: "creationDocumentError"
+                            removeObjectName: "removeInputDocumentButton"
+                            fileName: root.selectedFileName; errorText: root.inputDocumentError
+                            busy: bridge.busy; working: bridge.narrationBusy || !!bridge.browserState.running
+                            onChooseFile: documentOpen.open()
+                            onFilesDropped: function(urls) { root.acceptInputDocuments(urls) }
+                            onRemoveFile: root.removeInputDocument()
+                            onShowProgress: { if (bridge.narrationBusy && bridge.narrationTaskLessonId) bridge.openLesson(bridge.narrationTaskLessonId) }
                         }
+                        TextArea { id: pasteInput; objectName: "lessonContent"; visible: false }
                         Surface {
                             Layout.fillWidth: true; implicitHeight: config.height + 38
                             ColumnLayout {
                                 id: config; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 19; spacing: 12; enabled: !bridge.busy
-                                Caption { text: "02   Cấu hình bài giảng"; font.pixelSize: 15 }
+                                Caption { text: "Cấu hình bài giảng"; font.pixelSize: 15 }
                                 GridLayout {
                                     Layout.fillWidth: true; columns: 12; columnSpacing: 12; rowSpacing: 7
                                     Caption { text: "Tên bài học"; Layout.columnSpan: 4 } Caption { text: "Môn học"; Layout.columnSpan: 4 }
@@ -1327,7 +1320,7 @@ ApplicationWindow {
             }
         }
     }
-    FileDialog { id: documentOpen; objectName: "creationFileDialog"; title: "Chọn tài liệu bài giảng"; nameFilters: ["Tài liệu (*.pptx *.docx *.pdf *.txt *.png *.jpg *.jpeg)"]; onAccepted: root.acceptInputDocuments([selectedFile.toString()]) }
+    FileDialog { id: documentOpen; objectName: "creationFileDialog"; title: "Chọn file PowerPoint"; nameFilters: ["PowerPoint (*.pptx)"]; onAccepted: root.acceptInputDocuments([selectedFile.toString()]) }
     FileDialog { id: customTemplateOpen; title: "Chọn mẫu PowerPoint có khung chữ chỉnh sửa được"; nameFilters: ["PowerPoint (*.pptx)"]; onAccepted: bridge.selectCustomTemplate(selectedFile.toString()) }
     FileDialog { id: chatgptDeckOpen; title: "Nhận PowerPoint đã tải từ ChatGPT"; nameFilters: ["PowerPoint (*.pptx)"]; onAccepted: bridge.receiveChatGPTDeck(selectedFile.toString()) }
     FileDialog { id: logoOpen; title: "Chọn logo trường"; nameFilters: ["Ảnh (*.png *.jpg *.jpeg)"]; onAccepted: bridge.saveSchoolLogo(selectedFile.toString()) }

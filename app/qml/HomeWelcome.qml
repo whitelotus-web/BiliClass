@@ -5,6 +5,7 @@ import QtQuick.Layouts
 ColumnLayout {
     id: home
     required property var bridge
+    property string inputError: ""
     signal chooseDocument()
     signal continueWork()
     signal openLibrary()
@@ -57,7 +58,7 @@ ColumnLayout {
                 }
                 Rectangle { width: 46; height: 4; radius: 2; color: "#ff891c" }
                 Copy {
-                    text: "Chuyển tài liệu thành bài giảng Việt–Anh hoặc tiếng Anh, kèm giọng đọc và mascot đồng hành khi dạy."
+                    text: "Chuyển PowerPoint thành bài giảng Việt–Anh hoặc tiếng Anh, kèm giọng đọc và mascot đồng hành khi dạy."
                     color: "#355478"; font.pixelSize: home.wide ? 17 : 15
                     lineHeight: 1.35; Layout.maximumWidth: 600
                 }
@@ -93,75 +94,14 @@ ColumnLayout {
         }
     }
 
-    Rectangle {
-        id: upload
-        objectName: "homeUploadZone"
-        Layout.fillWidth: true; implicitHeight: home.wide ? 184 : 170
-        radius: 16; color: uploadDrop.containsDrag ? "#eaf3ff" : "white"
-        border.width: uploadDrop.containsDrag ? 2 : 1
-        border.color: uploadDrop.containsDrag ? "#0869f9" : "#bed6fa"
-        RowLayout {
-            anchors.centerIn: parent; width: Math.min(parent.width - 48, 780); spacing: home.wide ? 32 : 24
-            Item {
-                Layout.preferredWidth: home.wide ? 120 : 96; Layout.preferredHeight: 112
-                Rectangle { x: 18; y: 8; width: 78; height: 98; radius: 9; color: "#e7f0ff"; rotation: 9 }
-                Rectangle {
-                    x: 8; y: 2; width: 78; height: 98; radius: 8
-                    color: "#fffdfb"; border.color: "#e4eaf4"; rotation: -7
-                    Rectangle { x: 18; y: 68; width: 42; height: 3; radius: 1; color: "#dee6f1" }
-                    Rectangle { x: 18; y: 77; width: 32; height: 3; radius: 1; color: "#dee6f1" }
-                    Rectangle {
-                        x: -8; y: 25; width: 70; height: 34; radius: 6; color: "#f47b28"
-                        Label { anchors.centerIn: parent; text: "PPTX"; color: "white"; font.pixelSize: 19; font.weight: Font.Bold }
-                    }
-                }
-            }
-            ColumnLayout {
-                Layout.fillWidth: true; spacing: 9
-                Label {
-                    text: home.working ? "Bài giảng đang được chuẩn bị" : "Đưa bài giảng vào BiliClass"; color: "#0869f9"
-                    font.pixelSize: home.wide ? 23 : 20; font.weight: Font.Bold
-                    Layout.fillWidth: true; wrapMode: Text.WordWrap
-                }
-                Copy { text: home.working ? "Theo dõi tiến độ; các phần đã xong được lưu lại." : "Kéo thả tài liệu vào đây hoặc bấm để chọn tệp."; font.pixelSize: 13 }
-                ActionButton {
-                    id: uploadAction
-                    objectName: "homeChooseDocument"; text: home.working ? "Xem tiến độ" : "Chọn tài liệu"
-                    primary: true; implicitHeight: 44; Layout.preferredWidth: 224; font.pixelSize: 14
-                    enabled: home.working || !home.bridge.busy
-                    onClicked: home.working ? home.continueWork() : home.chooseDocument()
-                    contentItem: RowLayout {
-                        spacing: 9
-                        Item { Layout.fillWidth: true }
-                        Canvas {
-                            Layout.preferredWidth: 20; Layout.preferredHeight: 20
-                            property bool active: uploadAction.enabled
-                            onActiveChanged: requestPaint()
-                            onPaint: {
-                                var ctx = getContext("2d")
-                                ctx.clearRect(0, 0, width, height)
-                                ctx.strokeStyle = active ? "white" : "#96a6bc"
-                                ctx.lineWidth = 1.7; ctx.lineJoin = "round"; ctx.lineCap = "round"
-                                ctx.beginPath(); ctx.moveTo(10, 13); ctx.lineTo(10, 3)
-                                ctx.moveTo(6, 7); ctx.lineTo(10, 3); ctx.lineTo(14, 7)
-                                ctx.moveTo(4, 12); ctx.lineTo(4, 17); ctx.lineTo(16, 17); ctx.lineTo(16, 12)
-                                ctx.stroke()
-                            }
-                        }
-                        Label { text: uploadAction.text; font: uploadAction.font; color: uploadAction.enabled ? "white" : "#96a6bc" }
-                        Item { Layout.fillWidth: true }
-                    }
-                }
-                Copy { text: "PowerPoint · Word · PDF · Văn bản · Ảnh"; font.pixelSize: 11 }
-            }
-        }
-        DropArea {
-            id: uploadDrop; objectName: "homeUploadDrop"
-            anchors.fill: parent; enabled: !home.working && !home.bridge.busy
-            onDropped: function(drop) {
-                if (drop.hasUrls) { home.documentDropped(drop.urls); drop.acceptProposedAction() }
-            }
-        }
+    PowerPointUpload {
+        objectName: "homeUploadZone"; Layout.fillWidth: true
+        chooseObjectName: "homeChooseDocument"; dropObjectName: "homeUploadDrop"
+        fileName: ""; errorText: home.inputError
+        busy: home.bridge.busy; working: home.working
+        onChooseFile: home.chooseDocument()
+        onFilesDropped: function(urls) { home.documentDropped(urls) }
+        onShowProgress: home.continueWork()
     }
 
     ColumnLayout {
@@ -171,7 +111,7 @@ ColumnLayout {
             Layout.fillWidth: true; spacing: 12
             Repeater {
                 model: [
-                    {title: "Chọn tài liệu", detail: "PowerPoint, Word, PDF hoặc ảnh", icon: "upload"},
+                    {title: "Chọn tài liệu", detail: "Tệp PowerPoint có sẵn", icon: "upload"},
                     {title: "Chọn cách dịch", detail: "Việt–Anh hoặc tiếng Anh", icon: "refresh"},
                     {title: "Xem & tạo giọng", detail: "Kiểm tra bài, giọng tùy chọn", icon: "view"},
                     {title: "Sẵn sàng dạy", detail: "Mở PowerPoint cùng mascot", icon: "play"}

@@ -31,7 +31,7 @@ def value(item, name):
 def main():
     app = QGuiApplication([])
     QQuickStyle.setStyle('Basic')
-    report = Path('reports/rc54/management'); report.mkdir(parents=True, exist_ok=True)
+    report = Path('reports/rc60/management'); report.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='biliclass-management-', ignore_cleanup_errors=True) as folder:
         library = Library(Path(folder))
         lessons = []
@@ -76,13 +76,20 @@ def main():
             for width, height in ((1080, 700), (1366, 850)):
                 window.resize(width, height); pump(120)
                 toolbar = [c(name) for name in ('librarySubjectFilter','libraryGradeFilter','libraryStateFilter',
-                    'libraryVoiceFilter','librarySelectAll','libraryDeselectAll','libraryDownloadSelected','libraryDeleteSelected')]
+                    'libraryVoiceFilter','librarySelectAll','libraryDeselectAll','libraryDownloadSelected','libraryDeleteSelected','libraryResultCount')]
                 from PySide6.QtCore import QPointF
                 centers = [item.mapToScene(QPointF(item.width()/2,item.height()/2)) for item in toolbar]
                 assert max(p.y() for p in centers)-min(p.y() for p in centers)<2, 'All filters/actions must share one line'
                 assert all(0 <= p.x()-item.width()/2 and p.x()+item.width()/2 < width for item,p in zip(toolbar,centers)), 'Toolbar clipped in small window'
                 assert all(item.height() <= 34 for item in toolbar)
                 assert c('librarySelectAll').property('indicator').width() == 16
+                count = c('libraryResultCount')
+                delete = c('libraryDeleteSelected')
+                assert count.mapToScene(QPointF()).x() >= delete.mapToScene(QPointF(delete.width(), 0)).x()
+                description, management = c('libraryDescription'), c('libraryManagementButton')
+                assert abs(description.mapToScene(QPointF(0,description.height()/2)).y()-management.mapToScene(QPointF(0,management.height()/2)).y()) < 2
+                gap = c('librarySearch').mapToScene(QPointF()).y()-management.mapToScene(QPointF(0,management.height())).y()
+                assert 0 <= gap <= 14, 'Search should sit directly below the description row'
                 assert window.grabWindow().save(str(report / f'library-{width}.png'))
             click(window, c('libraryDeleteSelected'))
             click(window, c('confirmBulkDeleteLessons'))

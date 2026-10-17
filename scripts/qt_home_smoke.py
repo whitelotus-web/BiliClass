@@ -12,6 +12,7 @@ from PySide6.QtCore import Q_ARG, QCoreApplication, QEvent, QMetaObject, QObject
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
+from pptx import Presentation
 from qt_result_preview_mascot_smoke import click, control, pump
 
 from app.branding import configure_application
@@ -24,7 +25,7 @@ def main():
     app = QGuiApplication([])
     configure_application(app)
     QQuickStyle.setStyle('Basic')
-    report = Path('reports/rc59/home')
+    report = Path('reports/rc60/home')
     report.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='biliclass-home-', ignore_cleanup_errors=True) as folder:
         library = Library(Path(folder))
@@ -64,15 +65,42 @@ def main():
             assert window.property('page') == 'new' and c('navigationnew').property('selected')
             assert not c('navigationlibrary').property('selected')
             QMetaObject.invokeMethod(c('creationFileDialog'), 'reject', Qt.DirectConnection)
-            fixture = Path(folder)/'Bài học thử.txt'
-            fixture.write_text('Năng lượng được bảo toàn.', encoding='utf-8')
+            wrong = Path(folder)/'Tài liệu khác.txt'
+            wrong.write_text('Năng lượng được bảo toàn.', encoding='utf-8')
             window.setProperty('page', 'home')
+            QMetaObject.invokeMethod(c('homeWelcome'), 'documentDropped', Qt.DirectConnection,
+                                     Q_ARG('QVariant', [wrong.as_uri()]))
+            assert window.property('page') == 'home' and '.pptx' in window.property('inputDocumentError')
+            fixture = Path(folder)/'Bài học thử.pptx'
+            deck = Presentation()
+            deck.slides.add_slide(deck.slide_layouts[6])
+            deck.save(fixture)
             QMetaObject.invokeMethod(c('homeWelcome'), 'documentDropped', Qt.DirectConnection,
                                      Q_ARG('QVariant', [fixture.as_uri()]))
             pump(150)
             assert window.property('page') == 'new'
             selected = window.property('selectedFile')
-            assert selected.endswith('.txt')
+            assert selected.endswith('.pptx')
+            assert list(c('creationFileDialog').property('nameFilters')) == ['PowerPoint (*.pptx)']
+            for width, height in ((1080, 700), (1366, 850)):
+                window.resize(width, height)
+                c('creationScroll').property('contentItem').setProperty('contentY', 0)
+                pump(150)
+                area, button = c('creationSourceArea'), c('chooseInputDocumentButton')
+                area_center = area.mapToScene(QPointF(area.width()/2, 0)).x()
+                button_center = button.mapToScene(QPointF(button.width()/2, 0)).x()
+                assert abs(area_center-button_center) < 1, 'Upload button must be centered'
+                assert window.grabWindow().save(str(report/f'conversion-{width}.png'))
+            # The file-size limit is real; a sparse fixture avoids allocating 200 MB.
+            oversized = Path(folder)/'Quá lớn.pptx'
+            with oversized.open('wb') as stream:
+                stream.truncate(200 * 1024**2 + 1)
+            QMetaObject.invokeMethod(c('homeWelcome'), 'documentDropped', Qt.DirectConnection,
+                                     Q_ARG('QVariant', [oversized.as_uri()]))
+            assert '200 MB' in window.property('inputDocumentError')
+            assert window.property('selectedFile') == selected
+            QMetaObject.invokeMethod(c('homeWelcome'), 'documentDropped', Qt.DirectConnection,
+                                     Q_ARG('QVariant', [fixture.as_uri()]))
             click(window, c('navigationlibrary'))
             click(window, c('navigationnew'))
             assert window.property('selectedFile') == selected, 'Navigation must retain conversion draft'
@@ -113,6 +141,7 @@ def main():
             result = {'status': 'passed', 'qml_warnings': warnings,
                       'checks': ['1080/1366/1680 hero and upload visible without scrolling', 'large mascot follows Milo/Lumi preference', 'separate conversion navigation before library',
                                  'home choose/drop route to same conversion', 'draft retained across tabs',
+                                 'PPTX-only picker/drop with 200 MB guard and centered upload',
                                  'active work progress stays accessible and prevents new drops',
                                  'collapsed health details and settings route', 'new slogan']}
             (report/'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')

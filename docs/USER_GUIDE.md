@@ -1,29 +1,29 @@
 # BiliClass — Trợ lý dạy học song ngữ
 
-Hướng dẫn RC59, ngày 17/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
+Hướng dẫn RC60, ngày 17/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
 trên máy. Chuyển đổi hiện dùng Google Cloud Translation cho phần chữ và dựng
 PowerPoint tại máy; Browser ChatGPT/Gemini tạm ẩn.
 
 ## Cài và cập nhật
 
-1. Tải **BiliClass-RC59-Windows.zip** tại
-   [Release RC59](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc59).
+1. Tải **BiliClass-RC60-Windows.zip** tại
+   [Release RC60](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc60).
 2. Giải nén toàn bộ; không chạy trong cửa sổ ZIP. Chạy **Setup.cmd**.
 3. Bộ cài kiểm tra checksum và cài vào
-   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc59`, không cần quyền quản trị.
+   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc60`, không cần quyền quản trị.
 4. Mở BiliClass từ Desktop hoặc Start menu. Bản cài có model giọng, OCR và
    template; không cần thư mục runtime của máy phát triển.
 
 Máy đang dùng RC34: vào **Cài đặt → Thông tin BiliClass → Kiểm tra cập nhật**,
-chọn Cập nhật khi thấy RC59. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
+chọn Cập nhật khi thấy RC60. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
 Setup.cmd như trên. Các bản cài nằm cạnh nhau; thư viện ở
 `%LOCALAPPDATA%/BiliClass` được giữ nguyên. Không xóa thư mục dữ liệu này.
 Thư viện cá nhân không đưa lên GitHub. Key có thể nhận riêng như hướng dẫn dưới.
 
 ## Tạo bài giảng
 
-1. Vào **Chuyển đổi bài giảng** ngay sau Trang chủ, đưa tài liệu vào hoặc dán
-   nội dung. Nút **Chọn tài liệu** và vùng kéo thả ở Trang chủ mở cùng luồng này.
+1. Vào **Chuyển đổi bài giảng** ngay sau Trang chủ, chọn hoặc kéo thả PowerPoint
+   `.pptx` tối đa 200 MB. Nút **Chọn file PowerPoint** và vùng kéo thả ở Trang chủ mở cùng luồng này.
 2. Chọn môn, cấp/khối và **Song ngữ Việt–Anh** hoặc **Tiếng Anh 100%**.
 3. Chọn giữ thiết kế PowerPoint gốc, hoặc tạo theo mẫu BiliClass/PowerPoint
    riêng. Mẫu Universal 2026 có ba phong cách; chọn xem mẫu để kiểm tra trước.
@@ -205,10 +205,14 @@ RC58 giữ thư mục cài tùy chọn khi tự cập nhật. Nếu ổ lưu d�
 tải, ứng dụng thử dùng thư mục cập nhật trên ổ cài đã xác minh còn đủ chỗ.
 Không tự chuyển thư viện hoặc xóa bản cài/dữ liệu cũ.
 
-## Trang chủ RC59
+## Trang chủ RC60
 
 Lời chào, mascot lớn và ô thoại theo bố cục ảnh tham khảo. Nhân vật theo
-lựa chọn Milo/Lumi đã lưu. Bấm **Chọn tài liệu** hoặc kéo thả tệp để vào
+lựa chọn Milo/Lumi đã lưu. Bấm **Chọn file PowerPoint** hoặc kéo thả tệp để vào
 Chuyển đổi bài giảng. Khi đang tạo giọng/chuyển đổi, nút đổi thành **Xem tiến
 độ** và tạm ngừng nhận tệp mới. Cuộn xuống để mở lại bài, vào lớp hoặc xem
 chi tiết tình trạng ứng dụng.
+
+Màn Chuyển đổi bỏ số thứ tự 01/02 và nút trở về Thư viện ở góc phải. Các
+bộ đọc Word/PDF/ảnh vẫn trong mã nguồn để phát triển một luồng tạo bài riêng;
+không nằm trong bộ chọn tệp PPTX chính hiện tại.
