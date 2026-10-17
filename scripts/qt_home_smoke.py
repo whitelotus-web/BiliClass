@@ -24,7 +24,7 @@ def main():
     app = QGuiApplication([])
     configure_application(app)
     QQuickStyle.setStyle('Basic')
-    report = Path('reports/rc57/home')
+    report = Path('reports/rc59/home')
     report.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='biliclass-home-', ignore_cleanup_errors=True) as folder:
         library = Library(Path(folder))
@@ -44,19 +44,23 @@ def main():
             assert window.findChild(QObject, 'newLibraryLesson') is None
             assert 'NÂNG TẦM BÀI GIẢNG' in c('brandSlogan').property('text')
             assert not c('homeTranslationUsage').isVisible()
-            for width, height in ((1080, 700), (1366, 850)):
+            for width, height in ((1080, 700), (1366, 850), (1680, 960)):
                 window.resize(width, height)
                 c('libraryHomeScroll').property('contentItem').setProperty('contentY', 0)
                 pump(250)
-                for name in ('homeWelcomeHero', 'homeContinueWork', 'homeLibrarySummary'):
+                for name in ('homeWelcomeHero', 'homeHeroMascot', 'homeChooseDocument', 'homeUploadZone'):
                     item = c(name)
                     point = item.mapToScene(QPointF())
                     assert point.x() >= 0 and point.x()+item.width() <= width, name
                     assert point.y() >= 0 and point.y()+item.height() < height, name
+                assert c('homeHeroMascot').width() >= 185
+                assert c('homeHeroMascot').height() >= 225
+                assert c('homeHeroTitle').property('font').pixelSize() >= 35
+                assert not c('homeWorkPanel').isVisible(), 'Empty library should lead with upload'
                 assert c('navigationnew').mapToScene(QPointF()).y() > c('navigationhome').mapToScene(QPointF()).y()
                 assert c('navigationnew').mapToScene(QPointF()).y() < c('navigationlibrary').mapToScene(QPointF()).y()
                 assert window.grabWindow().save(str(report/f'home-{width}.png'))
-            click(window, c('homeContinueWork'))
+            click(window, c('homeChooseDocument'))
             assert window.property('page') == 'new' and c('navigationnew').property('selected')
             assert not c('navigationlibrary').property('selected')
             QMetaObject.invokeMethod(c('creationFileDialog'), 'reject', Qt.DirectConnection)
@@ -87,10 +91,29 @@ def main():
             assert c('homeContinueWork').property('text') == 'Mở bài giảng'
             c('libraryHomeScroll').property('contentItem').setProperty('contentY', 0)
             assert window.grabWindow().save(str(report/'home-with-lesson.png'))
+            library.set_setting('mascot', 'Lumi')
+            bridge.changed.emit()
+            pump(200)
+            assert 'lumi-welcome' in c('homeHeroMascot').property('source').toString()
+            assert window.grabWindow().save(str(report/'home-lumi.png'))
+            window.resize(1080, 700)
+            pump(200)
+            assert window.grabWindow().save(str(report/'home-lumi-1080.png'))
+            previous_state = bridge._browser_state
+            bridge._browser_state = {'running': True, 'phase': 'translating', 'percent': 37}
+            bridge.changed.emit()
+            pump(100)
+            assert c('homeChooseDocument').property('text') == 'Xem tiến độ'
+            assert not c('homeUploadDrop').property('enabled')
+            click(window, c('homeChooseDocument'))
+            assert window.property('page') == 'new'
+            bridge._browser_state = previous_state
+            bridge.changed.emit()
             assert not warnings, warnings
             result = {'status': 'passed', 'qml_warnings': warnings,
-                      'checks': ['1080/1366 layout', 'separate conversion navigation before library',
+                      'checks': ['1080/1366/1680 hero and upload visible without scrolling', 'large mascot follows Milo/Lumi preference', 'separate conversion navigation before library',
                                  'home choose/drop route to same conversion', 'draft retained across tabs',
+                                 'active work progress stays accessible and prevents new drops',
                                  'collapsed health details and settings route', 'new slogan']}
             (report/'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
             print(json.dumps(result, ensure_ascii=False), flush=True)
