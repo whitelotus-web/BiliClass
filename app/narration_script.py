@@ -62,8 +62,8 @@ def refresh_speech(lesson, *, edited=()):
     lesson['slide_speech'] = speech
 
 
-def prepare(library, lesson):
-    """Repair only detected mistakes once; preserve any teacher-authored overrides."""
+def prepare(library, lesson, *, new=False):
+    """Repair once; new records are normalized before their first database write."""
     if lesson.get('narration_classification_version') == 1:
         return lesson
     changed = 0
@@ -84,10 +84,11 @@ def prepare(library, lesson):
         from .chatgpt_handoff import text_signature
         from .library import now
 
-        lesson.update(revision=lesson['revision'] + 1, updated_at=now(), narration_script_version=2)
+        lesson.update(revision=lesson['revision'] + (0 if new else 1), updated_at=now(), narration_script_version=2)
         refresh_speech(lesson)
         if lesson.get('external_deck'):
             lesson['external_deck'].update(text_signature=text_signature(lesson), reviewed_revision=0)
         lesson.pop('prepared', None)
-    library._write(lesson)
+    if not new:
+        library._write(lesson)
     return lesson

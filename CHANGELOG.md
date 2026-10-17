@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.0rc72 — 18/10/2026 — Dữ liệu và rà soát toàn hệ thống
+
+- Chuẩn hóa lời đọc trước khi lưu bài mới; tránh lịch sử giả khi nhận cùng request từ nhiều kết nối.
+- Giảm đọc lặp khi chốt chuyển thư viện; giữ xác minh trước mở và trước dọn dữ liệu cũ.
+- Sao lưu/khôi phục theo khối, dùng ổ đích cho dữ liệu tạm; cùng giới hạn, giữ bản tốt khi lỗi và công bố thư viện sau kiểm tra.
+- Sửa hai smoke giao diện đã cũ; bổ sung ca dữ liệu và kế hoạch hoàn thiện có tiêu chí nghiệm thu.
+- Chi tiết: [BUILD_RC72](docs/BUILD_RC72.md), [kế hoạch](docs/OPTIMIZATION_PLAN_RC72.md).
+
+## 1.0.0rc71 — 17/10/2026 — Lời đọc và khôi phục lưu bài
+
+- Tự tách nhãn VI/EN và các dòng tiếp theo; sửa lời đọc riêng, giữ nội dung PowerPoint.
+- Thống nhất trạng thái tạo giọng, thêm hủy bài đang chọn và giữ cache khi dừng.
+- Kiểm dung lượng sớm, giữ đúng lỗi storage, tiếp tục lưu từ bản đã QA.
+- Chi tiết: [BUILD_RC71](docs/BUILD_RC71.md).
+
 ## 1.0.0rc35 — 15/10/2026 — Tối ưu cache, nhập bài và xử lý thiếu dung lượng
 
 - Chân thanh bên ghi “Copyright © 2026 Nguyễn Diệu Linh”; tên trường nằm trên dòng riêng, giữ “Vân Cốc” cùng dòng.

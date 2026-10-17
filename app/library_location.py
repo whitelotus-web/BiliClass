@@ -138,24 +138,33 @@ def rebase(value, source, target):
     return value
 
 
-def finalize_transfer(record):
+def finalize_transfer(record, progress=None):
     """After every old-library worker/connection has closed, refresh and rebase."""
     source, target = Path(record['source']).resolve(strict=True), Path(record['target']).resolve(strict=True)
     if source == target or target.is_relative_to(source) or source.is_relative_to(target):
         raise ValueError('Đường dẫn chuyển thư viện không hợp lệ.')
     names = inventory(source)
-    for name in names:
+    verified = {}
+    for index, name in enumerate(names, 1):
         original, copied = source / name, target / name
-        if original.suffix in {'.db', '.sqlite', '.sqlite3'} or not copied.is_file() or digest(original) != digest(copied):
+        original_hash = digest(original)
+        copied_hash = digest(copied) if copied.is_file() else None
+        if original.suffix in {'.db', '.sqlite', '.sqlite3'} or original_hash != copied_hash:
             copy_file(original, copied)
+            copied_hash = digest(copied)
         if copied.suffix == '.json':
             try:
                 value = json.loads(copied.read_text(encoding='utf-8'))
             except (ValueError, UnicodeError):
-                continue
-            updated = rebase(value, source, target)
-            if value != updated:
-                copied.write_text(json.dumps(updated, ensure_ascii=False), encoding='utf-8')
+                pass
+            else:
+                updated = rebase(value, source, target)
+                if value != updated:
+                    write_record(copied, updated)
+                    copied_hash = digest(copied)
+        verified[name] = {'source': original_hash, 'target': copied_hash}
+        if progress:
+            progress(index, len(names))
     database = target / 'library.db'
     with closing(sqlite3.connect(database)) as db:
         for table, column in [('lessons', 'content'), ('lesson_revisions', 'content'), ('settings', 'value')]:
@@ -166,7 +175,9 @@ def finalize_transfer(record):
                     db.execute(f'UPDATE {table} SET {column}=? WHERE rowid=?', (json.dumps(updated, ensure_ascii=False), rowid))
         db.commit()
         db.execute('PRAGMA wal_checkpoint(TRUNCATE)')
-    verified = {name: {'source': digest(source / name), 'target': digest(target / name)} for name in names}
+    # Only the database changed after the file pass. Do not reread every model,
+    # source deck and WAV a second time just to build the transfer manifest.
+    verified['library.db']['target'] = digest(database)
     manifest = {**record, 'files': verified, 'activated': False}
     write_record(target / TRANSFER_FILE, manifest)
     select_directory(target)

@@ -135,7 +135,8 @@ def main():
             c('companionWindow').setProperty('collapsed', False)
             pump(150)
             assert not c('companionExplain').isEnabled() and not c('companionNext').isEnabled()
-            assert c('companionBoundLesson').property('text') == 'Chưa gắn với trình chiếu'
+            assert not bridge.teaching_session.state['bound']
+            assert c('companionBoundLesson').property('text') == 'Chưa gắn với bài giảng'
             assert not warnings, warnings
             result = {'status': 'passed', 'qml_warnings': warnings, 'checks': [
                 'prepared lesson -> live server QR', 'question selection retained across polling',

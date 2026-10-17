@@ -153,11 +153,11 @@ def main():
             assert not c('librarySelectAll').property('checked'), 'Filtering clears selection'
             window.setProperty('page', 'home'); pump(250)
             assert not c('libraryGrid').isVisible()
-            home_area = c('lessonSelectionArea_' + identity)
-            assert not home_area.property('enabled'), 'Home cards must not enter bulk selection'
+            assert window.findChild(QObject, 'lessonSelectionArea_' + identity) is None
+            assert c('homeRecentLesson0').isVisible(), 'Home uses compact recent-lesson links'
             assert bridge.libraryCovers.images[identity]['image'], 'Leaving the page must retain cached covers'
             assert window.findChild(QObject, 'newLibraryLesson') is None
-            assert c('homeApplicationHealth').isVisible()
+            assert window.findChild(QObject, 'homeApplicationHealth') is None
             assert bridge.googleSettings.state['health']['groups'][0]['level'] == 'warning'
             assert bridge.googleSettings.state['keys'][0]['name'] == 'Key 1'
             c('libraryHomeScroll').property('contentItem').setProperty('contentY', 180); pump(100)

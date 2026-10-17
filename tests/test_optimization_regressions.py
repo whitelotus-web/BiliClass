@@ -19,8 +19,8 @@ from app.lesson_import import save_conversion
 from app.library import Library
 from app.native_bilingual import assemble, extract
 from app.slide_speech import english_text
-from app.translation_batches import parse_response
 from app.storage_space import StorageProblem
+from app.translation_batches import parse_response
 
 
 def pcm(path):
@@ -121,6 +121,8 @@ def test_worker_import_is_idempotent_across_connections_and_never_starts_voice(t
     with ThreadPoolExecutor(max_workers=2) as workers:
         results = list(workers.map(lambda _: save_conversion(root, config(), source, inspection), range(2)))
     assert results[0][0]['id'] == results[1][0]['id']
+    assert all(result[0]['narration_classification_version'] == 1 for result in results)
+    assert all(result[0]['revision'] == 1 for result in results)
     with closing(Library(root)) as library:
         assert len(library.list_lessons()) == 1
         assert library.db.execute('SELECT COUNT(*) FROM lesson_revisions').fetchone()[0] == 0

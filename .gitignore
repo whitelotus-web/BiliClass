@@ -21,7 +21,7 @@ reports/app/vieneu-integration/
 
 
 .playwright-cli/
-output/playwright/
+output/
 
 # Personal lesson data, local test evidence, and machine-specific settings.
 .env

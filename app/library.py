@@ -603,7 +603,7 @@ class Library:
         self._write(reviewed)
         return reviewed
 
-    def create_external_lesson(self, config, source, inspection):
+    def create_external_lesson(self, config, source, inspection, *, voice_only=False):
         from .chatgpt_handoff import text_signature, validate_config
 
         config = validate_config(config)
@@ -629,6 +629,13 @@ class Library:
         lesson["slide_speech"] = inspection.get("slide_speech", {})
         lesson["slide_quality"] = inspection.get("slide_quality", {})
         lesson["narration"] = {"version": 2, "mode": "none"}
+        if voice_only:
+            lesson['voice_only'] = True
+            lesson['external_deck']['provider'] = 'voice_import'
+            lesson['source_slide_speech'] = copy.deepcopy(lesson['slide_speech'])
+        from .narration_script import prepare
+
+        prepare(self, lesson, new=True)
         # Publish one complete record, never an intermediate VI-only lesson.
         self._write(lesson, new=True)
         return lesson

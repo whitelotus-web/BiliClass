@@ -2,9 +2,9 @@
 
 Ứng dụng Windows chuyển tài liệu của giáo viên thành bài giảng Anh–Việt, rồi trình chiếu bằng PowerPoint với giọng đọc và mascot trợ giảng. Hỗ trợ cấu hình từ lớp 1 đến lớp 12 và môn tự nhập.
 
-## Luồng hiện tại — RC65
+## Luồng hiện tại — RC72
 
-Đã phát hành [bộ cài Windows RC65](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc65), cập nhật được từ RC34. [Hướng dẫn sử dụng](docs/USER_GUIDE.md) · [Commit, checksum và kiểm chứng](docs/BUILD_RC65.md).
+RC72 kế thừa sửa lời đọc/tiếp tục lưu của RC71, tối ưu sao lưu, khôi phục và chuyển thư viện. [Phạm vi kiểm chứng và bộ cài](docs/BUILD_RC72.md) · [Kế hoạch hoàn thiện](docs/OPTIMIZATION_PLAN_RC72.md) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md). Bản dựng tại máy và bản trên GitHub Releases có vòng phát hành riêng; xem version trong ứng dụng/gói đang dùng.
 
 BiliClass dùng **Google Cloud Translation** dịch phần chữ và sắp xếp PowerPoint tại máy. Browser ChatGPT/Gemini tạm ẩn. Giọng VieNeu chạy ngoại tuyến, là bước tùy chọn sau khi đã có bài song ngữ.
 
@@ -32,9 +32,9 @@ RC65 bỏ khung tải lên lặp ở Trang chủ, dùng bộ icon cung cấp cho
 
 ## Cài và cập nhật
 
-Cần Windows 10/11 64-bit, Internet khi dịch và Microsoft PowerPoint desktop để trình chiếu giữ hiệu ứng. Giải nén toàn bộ ZIP RC65 rồi chạy **Setup.cmd**; gói có runtime, model giọng, OCR và template, không cần Python/Codex.
+Cần Windows 10/11 64-bit, Internet khi dịch và Microsoft PowerPoint desktop để trình chiếu giữ hiệu ứng. Giải nén toàn bộ ZIP của bản đã kiểm chứng rồi chạy **Setup.cmd**; gói có runtime, model giọng, OCR và template, không cần Python/Codex.
 
-Máy RC34: **Cài đặt → Thông tin BiliClass → Kiểm tra cập nhật** để nhận RC65. Dữ liệu mặc định ở `%LOCALAPPDATA%/BiliClass`, hoặc thư mục đã chọn trong Cài đặt → Dữ liệu; được giữ riêng khi cập nhật. [Thông tin bộ cài và giới hạn kiểm chứng](docs/BUILD_RC65.md).
+**Cài đặt → Thông tin BiliClass → Kiểm tra cập nhật** nhận bản đã công bố trên kênh phát hành. Bản dựng tại máy chưa công bố không tự xuất hiện ở đây. Dữ liệu mặc định ở `%LOCALAPPDATA%/BiliClass`, hoặc thư mục đã chọn trong Cài đặt → Dữ liệu; được giữ riêng khi cập nhật. [Thông tin bộ cài và giới hạn kiểm chứng RC72](docs/BUILD_RC72.md).
 
 ## Mã nguồn và cập nhật GitHub
 

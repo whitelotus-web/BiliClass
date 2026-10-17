@@ -114,3 +114,23 @@ def test_safe_download_names_and_existing_files(tmp_path):
     assert path.name == '_CON - Anh_Việt.pptx'
     path.touch()
     assert suggestion(tmp_path, 'CON', 'Anh/Việt', 'pptx').name.endswith('(2).pptx')
+
+
+def test_finalize_reuses_verified_file_hashes_and_reports_progress(tmp_path, monkeypatch):
+    library, _, target = fixture_library(tmp_path, monkeypatch)
+    record = location.transfer(library.directory, target)
+    library.close()
+    calls, progress = [], []
+    original_digest = location.digest
+
+    def tracked(path):
+        calls.append(path)
+        return original_digest(path)
+
+    monkeypatch.setattr(location, 'digest', tracked)
+    location.finalize_transfer(record, lambda done, total: progress.append((done, total)))
+    # Unchanged large WAV/model files are read only once on each drive.
+    assert calls.count(library.directory / 'audio/voice.wav') == 1
+    assert calls.count(target / 'audio/voice.wav') == 1
+    assert progress[-1] == (len(record['files']), len(record['files']))
+    location.verify_transfer_start(target)

@@ -34,9 +34,12 @@ def save_conversion(directory, config, source, inspection, cancel=None):
                         break
             if lesson is None:
                 lesson = library.create_external_lesson(config, source, inspection)
+            else:
+                # Legacy normalization must use the same lock as the lookup,
+                # so another connection cannot edit the lesson in between.
+                from .narration_script import prepare
+
+                lesson = prepare(library, lesson)
         # A cancellation after the commit does not delete the saved result.
         # The request ID above lets the next resume find it safely.
-        from .narration_script import prepare
-
-        lesson = prepare(library, lesson)
         return lesson, external_preview(lesson, directory)

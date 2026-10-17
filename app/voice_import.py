@@ -137,9 +137,7 @@ def import_presentation(directory, path):
                 return lesson, external_preview(lesson, directory)
         config = {'title': path.stem, 'subject': 'Bài giảng có sẵn', 'education_level': '', 'grade': '',
                   'level': 4, 'layout': 'split_view', 'style': 'source', 'preset': 'standard', 'mode': 'preserve'}
-        lesson = library.create_external_lesson(config, source, inspection)
-        lesson['voice_only'] = True
-        lesson['external_deck']['provider'] = 'voice_import'
+        lesson = library.create_external_lesson(config, source, inspection, voice_only=True)
         prepare_script(library, lesson)
         from .narration_script import prepare
 
