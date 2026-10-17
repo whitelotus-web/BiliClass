@@ -8,12 +8,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from pptx import Presentation
 from PySide6.QtCore import Q_ARG, QCoreApplication, QEvent, QMetaObject, QObject, QPointF, Qt, QUrl
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
-from pptx import Presentation
-from qt_result_preview_mascot_smoke import click, control, pump
+from qt_result_preview_mascot_smoke import click, control, pump, until
 
 from app.branding import configure_application
 from app.library import Library
@@ -25,7 +25,7 @@ def main():
     app = QGuiApplication([])
     configure_application(app)
     QQuickStyle.setStyle('Basic')
-    report = Path('reports/rc65/home')
+    report = Path('reports/rc66/home')
     report.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='biliclass-home-', ignore_cleanup_errors=True) as folder:
         library = Library(Path(folder))
@@ -44,7 +44,8 @@ def main():
             assert window.property('page') == 'home'
             assert window.findChild(QObject, 'newLibraryLesson') is None
             assert 'NÂNG TẦM BÀI GIẢNG' in c('brandSlogan').property('text')
-            assert not c('homeTranslationUsage').isVisible()
+            assert window.findChild(QObject, 'homeTranslationUsage') is None
+            assert c('homeOverviewHeading').property('text') == 'Tổng quan bài giảng'
             for width, height in ((1080, 700), (1366, 850), (1680, 960)):
                 window.resize(width, height)
                 c('libraryHomeScroll').property('contentItem').setProperty('contentY', 0)
@@ -111,18 +112,24 @@ def main():
             click(window, c('navigationnew'))
             assert window.property('selectedFile') == selected, 'Navigation must retain conversion draft'
             click(window, c('navigationhome'))
-            click(window, c('homeHealthDetailsToggle'))
-            assert c('homeTranslationUsage').isVisible()
-            click(window, c('homeHealthDetailsToggle'))
-            assert not c('homeTranslationUsage').isVisible()
-            click(window, c('homeGoogleSettings'))
-            assert window.property('page') == 'settings' and c('settingsPage').property('activeTab') == 6
+            click(window, c('homeOverviewLibrary'))
+            assert window.property('page') == 'library'
             lesson = library.create('Hệ điều hành', 'Tin học', 'THPT', '11', [('Slide 1', 'Hệ điều hành quản lý tài nguyên.')])
             bridge.selectLessonForClass(lesson['id'])
             window.setProperty('page', 'home')
             pump(200)
-            assert c('homeFeaturedTitle').property('text') == 'Hệ điều hành'
-            assert c('homeContinueWork').property('text') == 'Mở bài giảng'
+            until(lambda: c('homeMetricValue0').property('text') == '1')
+            assert not c('homeWorkPanel').isVisible()
+            assert c('homeRecentTitle0').property('text') == 'Hệ điều hành'
+            click(window, c('homeRecentLesson0'))
+            assert window.property('page') == 'result' and bridge.lesson['id'] == lesson['id']
+            window.setProperty('page', 'home')
+            pump(150)
+            for width, height in ((1080, 700), (1366, 850), (1680, 960)):
+                window.resize(width, height)
+                c('libraryHomeScroll').property('contentItem').setProperty('contentY', 440)
+                pump(150)
+                assert window.grabWindow().save(str(report / f'overview-{width}.png'))
             c('libraryHomeScroll').property('contentItem').setProperty('contentY', 0)
             assert window.grabWindow().save(str(report/'home-with-lesson.png'))
             library.set_setting('mascot', 'Lumi')
@@ -148,7 +155,7 @@ def main():
                                  'home choose/drop route to same conversion', 'draft retained across tabs',
                                  'PPTX-only picker/drop with 200 MB guard and centered upload',
                                  'active work progress stays accessible and prevents new drops',
-                                 'collapsed health details and settings route', 'new slogan']}
+                                 'overview counts match library; compact recent lesson opens correct result; health removed from Home', 'new slogan']}
             (report/'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
             print(json.dumps(result, ensure_ascii=False), flush=True)
         finally:

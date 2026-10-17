@@ -486,7 +486,7 @@ ApplicationWindow {
                             inputError: root.inputDocumentError
                             onChooseDocument: { root.go("new"); documentOpen.open() }
                             onDocumentDropped: function(urls) { if (root.acceptInputDocuments(urls)) root.go("new") }
-                            onContinueWork: { if (bridge.narrationBusy && bridge.narrationTaskLessonId) bridge.openLesson(bridge.narrationTaskLessonId); else root.go("new") }
+                            onContinueWork: root.go(bridge.narrationBusy ? "voice" : "new")
                             onOpenLibrary: root.go("library")
                             onOpenClassroom: root.go("classroom")
                         }
@@ -505,27 +505,6 @@ ApplicationWindow {
                                 }
                                 ProgressBar { visible: bridge.updateState.downloading; Layout.fillWidth: true; value: bridge.updateState.progress / 100 }
                             }
-                        }
-                        Surface {
-                            objectName: "homeApplicationHealth"; visible: root.page === "home" && bridge.googleTranslation
-                            Layout.fillWidth: true; implicitHeight: homeHealth.implicitHeight + 28
-                            ColumnLayout { id: homeHealth; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 14; spacing: 6
-                                RowLayout { Layout.fillWidth: true
-                                    Caption { text: "Ứng dụng" }
-                                    Copy { Layout.fillWidth: true; text: "Dịch · " + ((bridge.googleSettings.state.health || {}).status || "Chưa có key"); color: (bridge.googleSettings.state.health || {}).warning ? "#a66b20" : "#168567"; font.pixelSize: 12; wrapMode: Text.WordWrap }
-                                    Action { objectName: "homeHealthDetailsToggle"; text: homeUsageDetails.visible ? "Thu gọn" : "Chi tiết"; subtle: true; implicitHeight: 28; onClicked: homeUsageDetails.visible = !homeUsageDetails.visible }
-                                    Action { objectName: "homeGoogleSettings"; text: "Cài đặt"; subtle: true; implicitHeight: 28; onClicked: { root.go("settings"); settingsPanel.activeTab = 6 } }
-                                }
-                                TranslationUsage { id: homeUsageDetails; objectName: "homeTranslationUsage"; visible: false; Layout.fillWidth: true; health: bridge.googleSettings.state.health || ({}) }
-                                Copy { Layout.fillWidth: true; font.pixelSize: 11; text: "PowerPoint: " + (bridge.googleSettings.state.powerpointInstalled ? "đã phát hiện" : "chưa phát hiện") + "   ·   Gói giọng ngoại tuyến: " + (bridge.vieneuReady ? "đã có" : "chưa có") + "   ·   Gói OCR: " + (bridge.googleSettings.state.ocrReady ? "đã có" : "chưa có") }
-                            }
-                        }
-                        RowLayout {
-                            visible: root.page === "home"; Layout.fillWidth: true
-                            Label { text: "Bài vừa cập nhật"; color: root.ink; font.pixelSize: 18; font.weight: Font.DemiBold }
-                            Copy { text: bridge.lessons.length + " bài"; Layout.leftMargin: 8 }
-                            Item { Layout.fillWidth: true }
-                            Action { text: "Xem toàn bộ"; subtle: true; onClicked: root.go("library") }
                         }
                         RowLayout { visible: root.page === "library"; Layout.fillWidth: true; spacing: 12
                             Field { id: search; objectName: "librarySearch"; Layout.fillWidth: true; placeholderText: "Tìm tên bài, môn, khối… có thể gõ không dấu"; onTextChanged: root.libraryPage = 1 }
@@ -588,9 +567,9 @@ ApplicationWindow {
                                 Action { visible: root.page === "library"; text: "Chuyển đổi bài giảng"; primary: true; Layout.alignment: Qt.AlignHCenter; onClicked: root.go("new") } }
                         }
                         ColumnLayout {
-                            visible: !root.libraryLarge; Layout.fillWidth: true; spacing: 10
+                            visible: root.page === "library" && !root.libraryLarge; Layout.fillWidth: true; spacing: 10
                             Repeater {
-                                model: root.libraryLarge ? [] : root.page === "home" ? bridge.recentLessons : root.libraryResult.rows
+                                model: root.page === "library" && !root.libraryLarge ? root.libraryResult.rows : []
                                 delegate: LessonSurface {
                                     required property var modelData
                                     required property int index

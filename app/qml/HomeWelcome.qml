@@ -160,7 +160,7 @@ ColumnLayout {
     }
 
     Rectangle {
-        objectName: "homeWorkPanel"; visible: home.working || !!home.featured.id
+        objectName: "homeWorkPanel"; visible: home.working
         Layout.fillWidth: true; implicitHeight: Math.max(94, focusContent.implicitHeight + 30)
         radius: 13; color: "#edf4fd"
         RowLayout {
@@ -185,10 +185,5 @@ ColumnLayout {
             ActionButton { objectName: "homeClassroomButton"; text: home.bridge.classroomContext.running ? "Lớp đang mở" : "Vào lớp"; onClicked: home.openClassroom() }
         }
     }
-    RowLayout {
-        objectName: "homeLibrarySummary"; Layout.fillWidth: true; spacing: 18
-        Copy { text: home.bridge.librarySummary.total + " bài giảng" }
-        Copy { text: home.bridge.librarySummary.ready + " bài đã duyệt" }
-        Copy { text: home.bridge.librarySummary.voiced + " bài có giọng" }
-    }
+    HomeLibraryOverview { objectName: "homeLibrarySummary"; bridge: home.bridge; onOpenLibrary: home.openLibrary(); onCreateLesson: home.continueWork() }
 }

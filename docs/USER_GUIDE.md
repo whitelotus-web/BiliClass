@@ -256,6 +256,13 @@ bộ đọc Word/PDF/ảnh vẫn trong mã nguồn để phát triển một lu�
 không nằm trong bộ chọn tệp PPTX chính hiện tại.
 
 
+## Tổng quan bài giảng ở Trang chủ
+
+Trang chủ có **Tổng quan bài giảng**: tổng bài, số bài sẵn sàng dạy, đã có
+giọng và cần hoàn thiện; bên dưới là ba bài vừa cập nhật để mở nhanh. Nút
+**Mở thư viện** đưa tới toàn bộ bài. Mức dùng dịch và trạng thái hệ thống
+xem trong Cài đặt. Khung tiến độ chỉ hiện khi còn tác vụ đang chạy.
+
 ## Tạo giọng cho PowerPoint có sẵn
 
 Mở **Tạo giọng đọc bài giảng** trên thanh bên, chọn `.pptx` hoặc chọn bài
