@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from pptx import Presentation
-from PySide6.QtCore import QCoreApplication, QEvent
+from PySide6.QtCore import Q_ARG, QCoreApplication, QEvent, QMetaObject, QPointF, Qt
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
@@ -30,7 +30,7 @@ from app.ui import Bridge
 def main():
     app = QGuiApplication([])
     QQuickStyle.setStyle('Basic')
-    out = Path('reports/rc66/workspace')
+    out = Path('reports/rc67/workspace')
     out.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='biliclass-voice-workspace-', ignore_cleanup_errors=True) as folder:
         folder = Path(folder)
@@ -59,6 +59,26 @@ def main():
         try:
             window.resize(1366, 850)
             window.setProperty('page', 'voice')
+            pump(150)
+            for width, height in ((1080, 700), (1366, 850)):
+                window.resize(width, height)
+                c('resultScroll').property('contentItem').setProperty('contentY', 0)
+                pump(150)
+                for name in ('lessonNarrationVoiceChoice', 'lessonNarrationRateChoice', 'narrationEnglish', 'narrationVietnamese', 'narrationBoth'):
+                    item = c(name)
+                    assert item.isVisible() and item.isEnabled(), name
+                    assert 0 <= item.mapToScene(QPointF()).y() < window.height() - 25, name
+                assert not c('createLessonNarrationButton').isEnabled()
+                assert window.grabWindow().save(str(out / f'configure-before-file-{width}.png'))
+            voice_choice = c('lessonNarrationVoiceChoice')
+            voice_choice.setProperty('currentIndex', 2)
+            QMetaObject.invokeMethod(voice_choice, 'activated', Qt.DirectConnection, Q_ARG('int', 2))
+            rate_choice = c('lessonNarrationRateChoice')
+            rate_choice.setProperty('currentIndex', 4)
+            QMetaObject.invokeMethod(rate_choice, 'activated', Qt.DirectConnection, Q_ARG('int', 4))
+            click(window, c('narrationBoth'))
+            selected_voice = window.property('narrationVoice')
+            assert selected_voice == 'vieneu:Hải Đăng' and window.property('narrationRate') == 1
             path = folder / 'Bài giảng ảnh.pptx'
             deck = Presentation()
             deck.slides.add_slide(deck.slide_layouts[6])
@@ -68,6 +88,7 @@ def main():
             bridge.importNarrationPresentation(path.as_uri())
             until(lambda: not bridge.busy and bool(bridge.quickResult.get('path')))
             pump(250)
+            assert window.property('narrationVoice') == selected_voice and window.property('narrationRate') == 1
             assert window.grabWindow().save(str(out / 'imported.png'))
             assert not c('narrationEnglish').isEnabled() and not c('narrationVietnamese').isEnabled()
             assert not c('createLessonNarrationButton').isEnabled()
@@ -140,9 +161,19 @@ def main():
             assert bridge.quickResult['lesson_id'] == lesson['id'] and bridge.quickResult['path']
             assert window.property('page') == 'voice'
             assert c('lessonNarrationPanel').isVisible()
+            mono = folder / 'Chỉ Việt.pptx'
+            single = Presentation()
+            single.slides.add_slide(single.slide_layouts[6]).notes_slide.notes_text_frame.text = 'VI: Xin chào các em.'
+            single.save(mono)
+            bridge.importNarrationPresentation(mono.as_uri())
+            until(lambda: not bridge.busy and bridge.lesson.get('title') == 'Chỉ Việt')
+            assert window.property('narrationMode') == 'vi'
+            assert window.property('narrationVoice') == selected_voice and window.property('narrationRate') == 1
+            assert not c('narrationBoth').isEnabled()
             assert not warnings, warnings
             result = {'status': 'passed', 'qml_warnings': warnings,
-                      'checks': ['blank/image slide script editing without source changes', 'dirty script blocks slide switch',
+                      'checks': ['voice/rate/three modes visible and selectable before file at two sizes', 'configuration survives file/library choices and mono-language adjustment',
+                                 'blank/image slide script editing without source changes', 'dirty script blocks slide switch',
                                  'language availability', 'cancel and resume reuse cached WAV', 'busy source/download guards',
                                  'ready duplicate lock', 'ZIP WAV and embedded PowerPoint export',
                                  'regular library lesson prepares matching preview', 'no auto review or playback'],

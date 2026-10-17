@@ -9,6 +9,7 @@ Rectangle {
     property bool busy: false
     property bool working: false
     property bool illustrated: false
+    property bool compact: false
     property string chooseObjectName: ""
     property string dropObjectName: ""
     property string filenameObjectName: ""
@@ -18,14 +19,14 @@ Rectangle {
     signal filesDropped(var urls)
     signal removeFile()
     signal showProgress()
-    implicitHeight: uploadRow.implicitHeight + 44
+    implicitHeight: uploadRow.implicitHeight + (compact ? 28 : 44)
     radius: 16; color: drop.containsDrag ? "#edf5ff" : "white"
     border.color: drop.containsDrag ? "#0869f9" : "#cbdcf4"
     border.width: drop.containsDrag ? 2 : 1
 
     RowLayout {
         id: uploadRow
-        anchors.horizontalCenter: parent.horizontalCenter; anchors.top: parent.top; anchors.topMargin: 22
+        anchors.horizontalCenter: parent.horizontalCenter; anchors.top: parent.top; anchors.topMargin: upload.compact ? 14 : 22
         width: upload.illustrated ? Math.min(parent.width - 44, 840) : parent.width - 44
         spacing: upload.illustrated ? 24 : 0
         Image {
@@ -35,18 +36,18 @@ Rectangle {
             // Trim transparent canvas margins for optical balance; retain the original asset.
             sourceClipRect: Qt.rect(248, 120, 1040, 830)
             fillMode: Image.PreserveAspectFit; smooth: true; mipmap: true
-            Layout.preferredWidth: upload.width >= 1000 ? 200 : 160
-            Layout.preferredHeight: upload.width >= 1000 ? 160 : 128
+            Layout.preferredWidth: upload.compact ? 140 : upload.width >= 1000 ? 200 : 160
+            Layout.preferredHeight: upload.compact ? 110 : upload.width >= 1000 ? 160 : 128
             Layout.alignment: Qt.AlignVCenter
             Accessible.ignored: true
         }
         ColumnLayout {
             id: content
-            Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 10
+            Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: upload.compact ? 7 : 10
             Label {
                 objectName: "powerpointUploadHeading"
                 text: upload.working ? "Bài giảng đang được chuẩn bị" : "Tải lên bài giảng PowerPoint (.pptx)"
-                color: "#0869f9"; font.pixelSize: 22; font.weight: Font.Bold
+                color: "#0869f9"; font.pixelSize: upload.compact ? 19 : 22; font.weight: Font.Bold
                 Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
             }
             Label {

@@ -1,6 +1,6 @@
 # BiliClass — Trợ lý dạy học song ngữ
 
-Hướng dẫn RC66, ngày 17/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
+Hướng dẫn RC67, ngày 17/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
 trên máy. Chuyển đổi hiện dùng Google Cloud Translation cho phần chữ và dựng
 PowerPoint tại máy; Browser ChatGPT/Gemini tạm ẩn.
 
@@ -266,7 +266,11 @@ xem trong Cài đặt. Khung tiến độ chỉ hiện khi còn tác vụ đang 
 ## Tạo giọng cho PowerPoint có sẵn
 
 Mở **Tạo giọng đọc bài giảng** trên thanh bên, chọn `.pptx` hoặc chọn bài
-trong thư viện. BiliClass giữ nguyên PowerPoint và nhận diện lời đọc từ chữ
+trong thư viện. Có thể bấm **Dạy cùng Mascot** ở Quy trình đơn giản trên
+Trang chủ để mở thẳng tab này. Có thể chọn giọng, tốc độ và kiểu Anh/Việt/
+Việt–Anh ngay cả trước khi chọn bài; cấu hình giữ lại sau khi nhận file.
+Nút tạo chỉ bật khi bài có lời phù hợp với ngôn ngữ chọn. BiliClass giữ
+nguyên PowerPoint và nhận diện lời đọc từ chữ
 trên slide/ghi chú có nhãn Việt–Anh. Không tự dịch hoặc OCR ảnh trong bước
 này. Chọn giọng, tốc độ và Anh/Việt/Song ngữ, nghe thử rồi tạo; dùng cùng bộ
 xử lý với bước tạo giọng sau chuyển đổi. Bài một ngôn ngữ chỉ có lời đọc

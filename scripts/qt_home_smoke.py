@@ -25,7 +25,7 @@ def main():
     app = QGuiApplication([])
     configure_application(app)
     QQuickStyle.setStyle('Basic')
-    report = Path('reports/rc66/home')
+    report = Path('reports/rc67/home')
     report.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='biliclass-home-', ignore_cleanup_errors=True) as folder:
         library = Library(Path(folder))
@@ -64,6 +64,10 @@ def main():
                 assert c('navigationnew').mapToScene(QPointF()).y() > c('navigationhome').mapToScene(QPointF()).y()
                 assert c('navigationnew').mapToScene(QPointF()).y() < c('navigationlibrary').mapToScene(QPointF()).y()
                 assert window.grabWindow().save(str(report/f'home-{width}.png'))
+                click(window, c('homeWorkflowStep3'))
+                assert window.property('page') == 'voice' and c('navigationvoice').property('selected')
+                assert not bridge.narrationBusy, 'Opening the voice workspace must not start synthesis'
+                click(window, c('navigationhome'))
             click(window, c('homeWorkflowStep0'))
             assert window.property('page') == 'new' and c('navigationnew').property('selected')
             assert not c('navigationlibrary').property('selected')
@@ -155,7 +159,8 @@ def main():
                                  'home choose/drop route to same conversion', 'draft retained across tabs',
                                  'PPTX-only picker/drop with 200 MB guard and centered upload',
                                  'active work progress stays accessible and prevents new drops',
-                                 'overview counts match library; compact recent lesson opens correct result; health removed from Home', 'new slogan']}
+                                 'overview counts match library; compact recent lesson opens correct result; health removed from Home',
+                                 'Dạy cùng Mascot opens voice workspace without starting synthesis at three sizes', 'new slogan']}
             (report/'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
             print(json.dumps(result, ensure_ascii=False), flush=True)
         finally:

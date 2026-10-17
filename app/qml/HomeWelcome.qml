@@ -9,6 +9,7 @@ ColumnLayout {
     signal chooseDocument()
     signal continueWork()
     signal openLibrary()
+    signal openNarration()
     signal openClassroom()
     signal documentDropped(var urls)
     readonly property bool working: bridge.narrationBusy || !!bridge.browserState.running
@@ -117,7 +118,7 @@ ColumnLayout {
                         enabled: !home.bridge.busy
                         Accessible.name: (index + 1) + ". " + modelData.title + ". " + modelData.detail
                         background: Rectangle { radius: 14; color: step.hovered ? "#f8fbff" : "white"; border.color: step.visualFocus ? "#0869f9" : "#dce7f5" }
-                        onClicked: { if (index === 0) home.chooseDocument(); else if (index === 1) home.continueWork(); else home.openLibrary() }
+                        onClicked: { if (index === 0) home.chooseDocument(); else if (index === 1) home.continueWork(); else if (index === 3) home.openNarration(); else home.openLibrary() }
                         contentItem: Item {
                             Image { objectName: "homeWorkflowNumber" + index; x: -3; y: -3; width: 34; height: 34; source: "../assets/workflow/number-" + (index + 1) + ".png"; sourceClipRect: modelData.number; fillMode: Image.PreserveAspectFit; mipmap: true; Accessible.ignored: true }
                             ColumnLayout {

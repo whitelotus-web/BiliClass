@@ -39,10 +39,12 @@ ApplicationWindow {
     property string narrationMode: "en"
     property string narrationVoice: bridge.voiceSettings.voice || ""
     property int narrationRate: bridge.voiceSettings.rate || 0
+    property bool narrationOptionsPinned: false
     readonly property var narrationDrafts: bridge.narrationCreationChoices(bridge.narrationVariants, root.narrationVoice, root.narrationRate)
     readonly property var narrationDraft: narrationDrafts[root.narrationMode] || ({})
     readonly property int lessonLayoutFailures: bridge.lesson.voice_only ? 0 : ((((bridge.lesson.slide_quality || {}).counts || {}).FAIL) || 0)
     function chooseNarrationMode(mode) {
+        if (page === "voice") narrationOptionsPinned = true
         narrationMode = mode
         const choice = narrationDrafts[mode] || {}
         if (choice.ready && choice.id !== bridge.selectedNarrationVariant) bridge.selectNarrationVariant(choice.id)
@@ -214,6 +216,11 @@ ApplicationWindow {
         }
         function onSelectionChanged() {
             root.loadFields()
+            if (root.page === "voice" && root.narrationOptionsPinned) {
+                const available = bridge.narrationInputLanguages
+                if ((available.en || available.vi) && ((root.narrationMode === "both" && !(available.en && available.vi)) || !available[root.narrationMode] && root.narrationMode !== "both")) root.narrationMode = available.en ? "en" : "vi"
+                return
+            }
             const record = bridge.lesson.narration || {}
             const mode = bridge.lessonNarration.mode
             root.narrationMode = ["vi", "en", "both"].indexOf(mode) >= 0 ? mode : bridge.narrationInputLanguages.en ? "en" : "vi"
@@ -488,6 +495,7 @@ ApplicationWindow {
                             onDocumentDropped: function(urls) { if (root.acceptInputDocuments(urls)) root.go("new") }
                             onContinueWork: root.go(bridge.narrationBusy ? "voice" : "new")
                             onOpenLibrary: root.go("library")
+                            onOpenNarration: root.go("voice")
                             onOpenClassroom: root.go("classroom")
                         }
                         Surface {
@@ -965,7 +973,7 @@ ApplicationWindow {
                                 Action { objectName: "changeVoiceSource"; visible: !!bridge.quickResult.path; text: root.voiceSourceExpanded ? "Thu gọn" : "Chọn bài khác"; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !bridge.powerpointState.starting; onClicked: root.voiceSourceExpanded = !root.voiceSourceExpanded }
                             }
                             Copy { text: "Chọn PowerPoint có sẵn hoặc bài trong thư viện. Tạo giọng cho nội dung đang có; không cần chuyển ngữ lại."; Layout.fillWidth: true }
-                            PowerPointUpload { objectName: "voiceSourceArea"; visible: !bridge.quickResult.path || root.voiceSourceExpanded; illustrated: true; Layout.fillWidth: true; chooseObjectName: "chooseVoicePresentation"; dropObjectName: "voicePresentationDrop"; busy: bridge.busy || bridge.narrationBusy
+                            PowerPointUpload { objectName: "voiceSourceArea"; visible: !bridge.quickResult.path || root.voiceSourceExpanded; illustrated: true; compact: true; Layout.fillWidth: true; chooseObjectName: "chooseVoicePresentation"; dropObjectName: "voicePresentationDrop"; busy: bridge.busy || bridge.narrationBusy
                                 onChooseFile: voicePresentationOpen.open()
                                 onFilesDropped: function(urls) { if (urls.length === 1) bridge.importNarrationPresentation(urls[0]) }
                             }
@@ -977,10 +985,10 @@ ApplicationWindow {
                             Copy { objectName: "voiceWorkspaceError"; visible: bridge.error && !bridge.busy; text: bridge.message; color: "#a66318"; Layout.fillWidth: true }
                             ProgressBar { visible: bridge.busy; indeterminate: true; Layout.fillWidth: true }
                         }
-                        ColumnLayout { visible: root.page !== "voice" || !!bridge.quickResult.path; Layout.fillWidth: true; spacing: 18
+                        ColumnLayout { Layout.fillWidth: true; spacing: 18
                         Action { objectName: "backToLibraryButton"; visible: root.page !== "voice"; text: "Trở lại thư viện"; iconName: "back"; subtle: true; implicitHeight: 32; Layout.alignment: Qt.AlignRight; enabled: !bridge.busy; onClicked: root.requestAction(function() { bridge.returnToLibrary() }) }
                         RowLayout {
-                            Layout.fillWidth: true
+                            visible: root.page !== "voice" || !!bridge.quickResult.path; Layout.fillWidth: true
                             ColumnLayout {
                                 Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 6
                                 Heading { objectName: "resultLessonTitle"; font.pixelSize: root.page === "voice" ? 20 : 27; Layout.fillWidth: true; Layout.minimumWidth: 0; text: bridge.lesson.title || "Bài giảng song ngữ" }
@@ -996,7 +1004,7 @@ ApplicationWindow {
                                 MenuItem { text: "Chuyển đổi từ tài liệu khác…"; enabled: !bridge.powerpointState.active; onTriggered: root.go("new") }
                             }
                         }
-                        RowLayout { visible: root.page === "voice"; Layout.fillWidth: true
+                        RowLayout { visible: root.page === "voice" && !!bridge.quickResult.path; Layout.fillWidth: true
                             Copy { objectName: "voiceSourceSummary"; Layout.fillWidth: true; Layout.minimumWidth: 0; color: root.ink; text: bridge.narrationWorkspace.summary.total + " slide · có lời Việt: " + bridge.narrationWorkspace.summary.vi + " · có lời Anh: " + bridge.narrationWorkspace.summary.en + (bridge.narrationWorkspace.summary.empty ? " · " + bridge.narrationWorkspace.summary.empty + " slide chưa có lời đọc" : "") }
                             Action { objectName: "reviewNarrationScript"; text: "Kiểm tra lời đọc"; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !bridge.powerpointState.starting; onClicked: narrationScript.open() }
                         }
@@ -1014,7 +1022,7 @@ ApplicationWindow {
                             model: bridge.narrationVariants; textRole: "title"; valueRole: "id"
                             currentIndex: Math.max(0, bridge.narrationVariants.map(function(row) { return row.id }).indexOf(bridge.selectedNarrationVariant))
                             enabled: !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !bridge.powerpointState.starting
-                            onActivated: bridge.selectNarrationVariant(currentValue)
+                            onActivated: { root.narrationOptionsPinned = false; bridge.selectNarrationVariant(currentValue) }
                         }
                         GridLayout {
                             objectName: "resultStatusActions"; visible: root.page !== "voice"; Layout.fillWidth: true; columnSpacing: 16; rowSpacing: 10
@@ -1034,10 +1042,10 @@ ApplicationWindow {
                             } }
                             Action { objectName: "resultDetailsButton"; text: root.resultDetails ? "Ẩn chi tiết" : "Xem chi tiết"; subtle: true; implicitHeight: 32; onClicked: root.resultDetails = !root.resultDetails }
                         }
-                        ProgressBar { visible: bridge.busy; indeterminate: true; Layout.fillWidth: true }
-                        Action { visible: root.page === "voice"; text: root.voicePreviewExpanded ? "Ẩn xem trước slide" : "Xem trước slide"; onClicked: root.voicePreviewExpanded = !root.voicePreviewExpanded }
+                        ProgressBar { visible: root.page !== "voice" && bridge.busy; indeterminate: true; Layout.fillWidth: true }
+                        Action { visible: root.page === "voice" && !!bridge.quickResult.path; text: root.voicePreviewExpanded ? "Ẩn xem trước slide" : "Xem trước slide"; onClicked: root.voicePreviewExpanded = !root.voicePreviewExpanded }
                         Surface {
-                            objectName: "lessonSlidePreview"; visible: root.page !== "voice" || root.voicePreviewExpanded; Layout.fillWidth: true; implicitHeight: Math.max(260, Math.min(560, (root.height - 150) * .62)); color: "#e9eef5"
+                            objectName: "lessonSlidePreview"; visible: root.page !== "voice" || (!!bridge.quickResult.path && root.voicePreviewExpanded); Layout.fillWidth: true; implicitHeight: Math.max(260, Math.min(560, (root.height - 150) * .62)); color: "#e9eef5"
                             Image { objectName: "convertedSlideImage"; anchors.fill: parent; anchors.margins: 6; source: bridge.quickResult.image || ""; fillMode: Image.PreserveAspectFit; asynchronous: true; cache: true; sourceSize.width: 1600; opacity: bridge.previewBusy ? .6 : 1 }
                             BusyIndicator { anchors.centerIn: parent; running: bridge.previewBusy; visible: running }
                             ColumnLayout {
@@ -1055,24 +1063,24 @@ ApplicationWindow {
                             Item { Layout.fillWidth: true }
                         }
                         Surface {
-                            objectName: "lessonNarrationPanel"; visible: !!bridge.quickResult.path
+                            objectName: "lessonNarrationPanel"; visible: root.page === "voice" || !!bridge.quickResult.path
                             Layout.fillWidth: true; implicitHeight: narrationForm.height + 28
                             ColumnLayout {
                                 id: narrationForm; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 14; spacing: 8
                                 RowLayout { Layout.fillWidth: true
                                     Caption { Layout.fillWidth: true; Layout.minimumWidth: 0; wrapMode: Text.WordWrap; text: root.page === "voice" ? "Giọng đọc và ngôn ngữ" : "Tạo giọng đọc · không bắt buộc" }
                                     Item { Layout.fillWidth: true }
-                                    Copy { objectName: "lessonNarrationState"; Layout.maximumWidth: narrationForm.width * 0.55; text: bridge.lessonNarration.title || bridge.lessonNarration.label || "Chưa có giọng đọc"; color: bridge.lessonNarration.ready ? "#168567" : root.muted }
+                                    Copy { objectName: "lessonNarrationState"; Layout.maximumWidth: narrationForm.width * 0.55; text: !bridge.quickResult.path ? "Chọn bài để tạo giọng" : bridge.lessonNarration.title || bridge.lessonNarration.label || "Chưa có giọng đọc"; color: bridge.lessonNarration.ready ? "#168567" : root.muted }
                                 }
                                 GridLayout { Layout.fillWidth: true; columns: width >= 640 ? 4 : 2; columnSpacing: 10; rowSpacing: 8
                                     Choice { objectName: "lessonNarrationVoiceChoice"; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.preferredWidth: 290
                                         model: bridge.multilingualVoices; textRole: "name"; valueRole: "id"
                                         currentIndex: Math.max(0, bridge.multilingualVoices.map(function(v) { return v.id }).indexOf(root.narrationVoice))
-                                        enabled: !bridge.narrationBusy; onActivated: { bridge.stopSpeech(); root.narrationVoice = currentValue }
+                                        enabled: !bridge.busy && !bridge.narrationBusy; onActivated: { bridge.stopSpeech(); root.narrationVoice = currentValue; if (root.page === "voice") root.narrationOptionsPinned = true }
                                     }
                                     Choice { objectName: "lessonNarrationRateChoice"; Layout.preferredWidth: 100; model: ["82%", "88%", "94%", "100%", "106%", "112%", "118%"]
-                                        currentIndex: root.narrationRate + 3; enabled: !bridge.narrationBusy
-                                        onActivated: { bridge.stopSpeech(); root.narrationRate = currentIndex - 3 }
+                                        currentIndex: root.narrationRate + 3; enabled: !bridge.busy && !bridge.narrationBusy
+                                        onActivated: { bridge.stopSpeech(); root.narrationRate = currentIndex - 3; if (root.page === "voice") root.narrationOptionsPinned = true }
                                     }
                                     Action { objectName: "previewLessonNarrationVoice"; text: bridge.voiceUiState.phase === "preparing" ? "Đang chuẩn bị…" : "Nghe thử"; iconName: "play"; enabled: !!root.narrationVoice && !bridge.narrationBusy
                                         onClicked: bridge.previewMultilingualVoice(root.narrationVoice, root.narrationRate, "Xin chào các em. Let's learn together.")
@@ -1081,17 +1089,17 @@ ApplicationWindow {
                                 }
                                 Flow { Layout.fillWidth: true; spacing: 10
                                     ButtonGroup { id: narrationLanguages }
-                                    RadioButton { objectName: "narrationEnglish"; text: "Tiếng Anh · " + ((root.narrationDrafts.en || {}).label || "Chưa tạo"); ButtonGroup.group: narrationLanguages; checked: root.narrationMode === "en"; enabled: !bridge.narrationBusy && bridge.narrationInputLanguages.en; onClicked: root.chooseNarrationMode("en") }
-                                    RadioButton { objectName: "narrationVietnamese"; text: "Tiếng Việt · " + ((root.narrationDrafts.vi || {}).label || "Chưa tạo"); ButtonGroup.group: narrationLanguages; checked: root.narrationMode === "vi"; enabled: !bridge.narrationBusy && bridge.narrationInputLanguages.vi; onClicked: root.chooseNarrationMode("vi") }
-                                    RadioButton { objectName: "narrationBoth"; text: "Việt + Anh · " + ((root.narrationDrafts.both || {}).label || "Chưa tạo"); ButtonGroup.group: narrationLanguages; checked: root.narrationMode === "both"; enabled: !bridge.narrationBusy && bridge.narrationInputLanguages.vi && bridge.narrationInputLanguages.en; onClicked: root.chooseNarrationMode("both") }
-                                    Action { objectName: "createLessonNarrationButton"; primary: true; text: bridge.narrationBusy ? "Đang tạo giọng…" : root.narrationDraft.ready ? "Đã tạo đủ giọng" : root.narrationDraft.phase === "checking" ? "Đang kiểm tra…" : root.narrationDraft.phase === "partial" ? "Tiếp tục tạo giọng" : "Tạo giọng đọc"; enabled: !!root.narrationDraft.canCreate && !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !bridge.powerpointState.starting; onClicked: bridge.createLessonNarrationWithVoice(root.narrationMode, root.narrationVoice, root.narrationRate) }
+                                    RadioButton { objectName: "narrationEnglish"; text: "Tiếng Anh" + (bridge.quickResult.path ? " · " + ((root.narrationDrafts.en || {}).label || "Chưa tạo") : ""); ButtonGroup.group: narrationLanguages; checked: root.narrationMode === "en"; enabled: !bridge.busy && !bridge.narrationBusy && (!bridge.quickResult.path || bridge.narrationInputLanguages.en); onClicked: root.chooseNarrationMode("en") }
+                                    RadioButton { objectName: "narrationVietnamese"; text: "Tiếng Việt" + (bridge.quickResult.path ? " · " + ((root.narrationDrafts.vi || {}).label || "Chưa tạo") : ""); ButtonGroup.group: narrationLanguages; checked: root.narrationMode === "vi"; enabled: !bridge.busy && !bridge.narrationBusy && (!bridge.quickResult.path || bridge.narrationInputLanguages.vi); onClicked: root.chooseNarrationMode("vi") }
+                                    RadioButton { objectName: "narrationBoth"; text: "Việt + Anh" + (bridge.quickResult.path ? " · " + ((root.narrationDrafts.both || {}).label || "Chưa tạo") : ""); ButtonGroup.group: narrationLanguages; checked: root.narrationMode === "both"; enabled: !bridge.busy && !bridge.narrationBusy && (!bridge.quickResult.path || bridge.narrationInputLanguages.vi && bridge.narrationInputLanguages.en); onClicked: root.chooseNarrationMode("both") }
+                                    Action { objectName: "createLessonNarrationButton"; primary: true; text: bridge.narrationBusy ? "Đang tạo giọng…" : root.narrationDraft.ready ? "Đã tạo đủ giọng" : root.narrationDraft.phase === "checking" ? "Đang kiểm tra…" : root.narrationDraft.phase === "partial" ? "Tiếp tục tạo giọng" : "Tạo giọng đọc"; enabled: !!bridge.quickResult.path && !!root.narrationDraft.canCreate && !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !bridge.powerpointState.starting; onClicked: bridge.createLessonNarrationWithVoice(root.narrationMode, root.narrationVoice, root.narrationRate) }
                                     Action { objectName: "cancelLessonNarrationButton"; text: bridge.lessonNarration.stopping ? "Đang dừng…" : "Dừng"; enabled: !bridge.lessonNarration.stopping; visible: !!bridge.lessonNarration.running; onClicked: bridge.cancelLessonNarration() }
                                 }
-                                Copy { Layout.fillWidth: true; font.pixelSize: 12; text: "Một bài có thể lưu nhiều bản giọng. Chọn bản cần dùng khi dạy hoặc tải. Bản Song ngữ có nút Việt, Anh và đọc chung trên slide."; color: root.muted }
+                                Copy { Layout.fillWidth: true; font.pixelSize: 12; text: !bridge.quickResult.path ? "Có thể chọn cấu hình trước. Chọn PowerPoint hoặc bài trong thư viện để bật nút Tạo giọng đọc." : "Một bài có thể lưu nhiều bản giọng. Chọn bản cần dùng khi dạy hoặc tải. Bản Song ngữ có nút Việt, Anh và đọc chung trên slide."; color: root.muted }
                                 Copy { visible: !bridge.multilingualVoices.length; text: "Bộ giọng chưa sẵn sàng. Kiểm tra trong Cài đặt → Giọng đọc trước khi tạo."; color: "#a66318"; Layout.fillWidth: true }
-                                Choice { objectName: "voiceNarrationVariantChoice"; visible: root.page === "voice" && bridge.narrationVariants.length > 1; Layout.fillWidth: true; Layout.minimumWidth: 0; model: bridge.narrationVariants; textRole: "title"; valueRole: "id"; currentIndex: Math.max(0, bridge.narrationVariants.map(function(row) { return row.id }).indexOf(bridge.selectedNarrationVariant)); enabled: !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !bridge.powerpointState.starting; onActivated: bridge.selectNarrationVariant(currentValue) }
-                                Copy { visible: root.page === "voice"; Layout.fillWidth: true; font.pixelSize: 12; color: "#a66318"; text: root.narrationMode === "both" ? "Bản Song ngữ đọc những lời Việt và Anh có sẵn. Slide thiếu một ngôn ngữ chỉ đọc phần đã có." : "Chỉ tạo giọng cho slide có lời " + (root.narrationMode === "vi" ? "Việt" : "Anh") + ". Slide không có lời sẽ được bỏ qua." }
-                                CheckBox { objectName: "embedPresentationVoice"; visible: !!bridge.selectedNarrationVariant; checked: root.includeDownloadVoice; onClicked: root.includeDownloadVoice = checked; text: "Tải PowerPoint kèm bản giọng đã chọn · lời đọc hiện rõ trên slide" }
+                                Choice { objectName: "voiceNarrationVariantChoice"; visible: root.page === "voice" && !!bridge.quickResult.path && bridge.narrationVariants.length > 1; Layout.fillWidth: true; Layout.minimumWidth: 0; model: bridge.narrationVariants; textRole: "title"; valueRole: "id"; currentIndex: Math.max(0, bridge.narrationVariants.map(function(row) { return row.id }).indexOf(bridge.selectedNarrationVariant)); enabled: !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !bridge.powerpointState.starting; onActivated: { root.narrationOptionsPinned = false; bridge.selectNarrationVariant(currentValue) } }
+                                Copy { visible: root.page === "voice" && !!bridge.quickResult.path; Layout.fillWidth: true; font.pixelSize: 12; color: "#a66318"; text: root.narrationMode === "both" ? "Bản Song ngữ đọc những lời Việt và Anh có sẵn. Slide thiếu một ngôn ngữ chỉ đọc phần đã có." : "Chỉ tạo giọng cho slide có lời " + (root.narrationMode === "vi" ? "Việt" : "Anh") + ". Slide không có lời sẽ được bỏ qua." }
+                                CheckBox { objectName: "embedPresentationVoice"; visible: !!bridge.quickResult.path && !!bridge.selectedNarrationVariant; checked: root.includeDownloadVoice; onClicked: root.includeDownloadVoice = checked; text: "Tải PowerPoint kèm bản giọng đã chọn · lời đọc hiện rõ trên slide" }
                                 RowLayout { Layout.fillWidth: true; visible: !!bridge.lessonNarration.running
                                     ProgressBar { objectName: "lessonNarrationProgressBar"; Layout.fillWidth: true; from: 0; to: 100; value: bridge.lessonNarration.percent || 0 }
                                     Caption { objectName: "lessonNarrationPercent"; text: (bridge.lessonNarration.percent || 0) + "%" }
@@ -1103,7 +1111,7 @@ ApplicationWindow {
                                 }
                                 Copy { objectName: "narrationPreparationStatus"; Layout.fillWidth: true; visible: !!bridge.lessonNarration.message; text: bridge.lessonNarration.message || ""; color: root.muted; font.pixelSize: 12 }
                                 Rectangle {
-                                    objectName: "narrationReadyNextStep"; visible: !!root.narrationDraft.ready && !bridge.narrationBusy
+                                    objectName: "narrationReadyNextStep"; visible: !!bridge.quickResult.path && !!root.narrationDraft.ready && !bridge.narrationBusy
                                     Layout.fillWidth: true; implicitHeight: narrationNextContent.implicitHeight + 28
                                     radius: 10; color: "#eef8f4"; border.color: "#d2eade"
                                     ColumnLayout { id: narrationNextContent; anchors.fill: parent; anchors.margins: 14; spacing: 9
@@ -1444,7 +1452,7 @@ ApplicationWindow {
                 model: bridge.narrationVariants; textRole: "title"; valueRole: "id"
                 currentIndex: Math.max(0, bridge.narrationVariants.map(function(row) { return row.id }).indexOf(bridge.selectedNarrationVariant))
                 enabled: !bridge.busy && !bridge.narrationBusy
-                onActivated: bridge.selectNarrationVariant(currentValue)
+                onActivated: { root.narrationOptionsPinned = false; bridge.selectNarrationVariant(currentValue) }
             }
             Copy { objectName: "teachingNarrationSummary"; Layout.fillWidth: true; color: bridge.selectedNarrationVariant && !bridge.lessonNarration.ready ? "#a66318" : "#168567"; text: !bridge.selectedNarrationVariant ? "Dạy bằng PowerPoint không kèm giọng đọc." : bridge.lessonNarration.ready ? bridge.lessonNarration.title + ". Giọng chỉ phát khi thầy cô bấm nút đọc." : "Bản giọng này chưa hoàn tất. Quay lại tạo tiếp hoặc chọn bản khác." }
             Copy { Layout.fillWidth: true; text: bridge.quickResult.draft ? "Xác nhận thầy cô đã kiểm tra nội dung, lời đọc, số liệu và bố cục. BiliClass sẽ lưu xác nhận và mở trình chiếu." : "Bài đã được duyệt. Bắt đầu dạy để mở trình chiếu; các nút đọc trên mascot sẽ hoạt động theo bản giọng đã chọn." }
