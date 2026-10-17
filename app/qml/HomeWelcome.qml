@@ -94,46 +94,65 @@ ColumnLayout {
         }
     }
 
-    PowerPointUpload {
-        objectName: "homeUploadZone"; Layout.fillWidth: true
-        chooseObjectName: "homeChooseDocument"; dropObjectName: "homeUploadDrop"
-        fileName: ""; errorText: home.inputError
-        busy: home.bridge.busy; working: home.working
-        onChooseFile: home.chooseDocument()
-        onFilesDropped: function(urls) { home.documentDropped(urls) }
-        onShowProgress: home.continueWork()
-    }
-
     ColumnLayout {
         objectName: "homeWorkflow"; Layout.fillWidth: true; spacing: 12
-        Label { text: "Từ tài liệu đến tiết dạy"; color: "#16314f"; font.pixelSize: 17; font.weight: Font.DemiBold }
+        Label { objectName: "homeWorkflowHeading"; text: "Quy trình đơn giản"; color: "#16314f"; font.pixelSize: 19; font.weight: Font.DemiBold }
         RowLayout {
-            Layout.fillWidth: true; spacing: 12
+            Layout.fillWidth: true; spacing: home.width > 1000 ? 12 : 8
             Repeater {
                 model: [
-                    {title: "Chọn tài liệu", detail: "Tệp PowerPoint có sẵn", icon: "upload"},
-                    {title: "Chọn cách dịch", detail: "Việt–Anh hoặc tiếng Anh", icon: "refresh"},
-                    {title: "Xem & tạo giọng", detail: "Kiểm tra bài, giọng tùy chọn", icon: "view"},
-                    {title: "Sẵn sàng dạy", detail: "Mở PowerPoint cùng mascot", icon: "play"}
+                    {title: "Tải bài giảng", detail: "Chọn file PowerPoint\ntiếng Việt", icon: "upload", box: Qt.rect(332,282,616,719), number: Qt.rect(469,473,316,315)},
+                    {title: "Chuyển ngữ", detail: "Chọn song ngữ hoặc\ntiếng Anh 100%", icon: "translate", box: Qt.rect(304,330,654,603), number: Qt.rect(412,428,430,431)},
+                    {title: "Nhận bài giảng mới", detail: "Xem lại nội dung\nvà tải PowerPoint", icon: "slides", box: Qt.rect(308,392,639,483), number: Qt.rect(449,450,355,355)},
+                    {title: "Dạy cùng Mascot", detail: "Chọn giọng đọc\nkhi trình chiếu", icon: "voice", box: Qt.rect(372,423,540,452), number: Qt.rect(474,474,306,306)}
                 ]
-                Rectangle {
+                RowLayout {
                     required property var modelData
                     required property int index
-                    Layout.fillWidth: true; Layout.preferredWidth: 1
-                    implicitHeight: 128; radius: 12; color: "white"; border.color: "#dce7f5"
-                    ColumnLayout {
-                        anchors.fill: parent; anchors.margins: 13; spacing: 7
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Rectangle {
-                                width: 24; height: 24; radius: 12; color: "#eaf3ff"
-                                Label { anchors.centerIn: parent; text: index + 1; color: "#0869f9"; font.weight: Font.DemiBold; font.pixelSize: 12 }
+                    Layout.fillWidth: true; Layout.preferredWidth: 1; spacing: home.width > 1000 ? 12 : 8
+                    Button {
+                        id: step
+                        objectName: "homeWorkflowStep" + index
+                        Layout.fillWidth: true; Layout.preferredWidth: 1; implicitHeight: 178; padding: 13
+                        enabled: !home.bridge.busy
+                        Accessible.name: (index + 1) + ". " + modelData.title + ". " + modelData.detail
+                        background: Rectangle { radius: 14; color: step.hovered ? "#f8fbff" : "white"; border.color: step.visualFocus ? "#0869f9" : "#dce7f5" }
+                        onClicked: { if (index === 0) home.chooseDocument(); else if (index === 1) home.continueWork(); else home.openLibrary() }
+                        contentItem: Item {
+                            Image { objectName: "homeWorkflowNumber" + index; x: -3; y: -3; width: 34; height: 34; source: "../assets/workflow/number-" + (index + 1) + ".png"; sourceClipRect: modelData.number; fillMode: Image.PreserveAspectFit; mipmap: true; Accessible.ignored: true }
+                            ColumnLayout {
+                                anchors.fill: parent; anchors.topMargin: 3; spacing: 8
+                                Image { objectName: "homeWorkflowIcon" + index; source: "../assets/workflow/" + modelData.icon + ".png"; sourceClipRect: modelData.box; Layout.alignment: Qt.AlignHCenter; Layout.preferredWidth: 54; Layout.preferredHeight: 54; fillMode: Image.PreserveAspectFit; mipmap: true; Accessible.ignored: true }
+                                Label { text: modelData.title; color: "#16314f"; font.pixelSize: home.width > 1000 ? 16 : 14; font.weight: Font.DemiBold; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap }
+                                Copy { text: modelData.detail; font.pixelSize: home.width > 1000 ? 14 : 12; Layout.fillHeight: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignTop }
                             }
-                            Item { Layout.fillWidth: true }
-                            Image { source: "../assets/actions/" + modelData.icon + ".png"; sourceSize.width: 64; Layout.preferredWidth: 26; Layout.preferredHeight: 26; fillMode: Image.PreserveAspectFit }
                         }
-                        Label { text: modelData.title; color: "#16314f"; font.pixelSize: 14; font.weight: Font.DemiBold; Layout.fillWidth: true }
-                        Copy { text: modelData.detail; font.pixelSize: 12; Layout.fillHeight: true; verticalAlignment: Text.AlignTop }
+                    }
+                    Image { visible: index < 3; source: "../assets/workflow/arrow.png"; sourceClipRect: Qt.rect(396,481,463,338); Layout.preferredWidth: home.width > 1000 ? 24 : 18; Layout.preferredHeight: 24; fillMode: Image.PreserveAspectFit; mipmap: true; Accessible.ignored: true }
+                }
+            }
+        }
+        Rectangle {
+            Layout.fillWidth: true; implicitHeight: 80; color: "white"; radius: 14
+            RowLayout {
+                anchors.fill: parent; anchors.margins: 16; spacing: 16
+                Repeater {
+                    model: [
+                        {title: "2 kiểu chuyển ngữ", detail: "Song ngữ Việt–Anh · Tiếng Anh 100%", icon: "bilingual", box: Qt.rect(222,305,821,719)},
+                        {title: "3 phong cách thiết kế", detail: "Chuẩn lớp học · Trực quan · Luyện tập", icon: "palette", box: Qt.rect(151,195,950,914)},
+                        {title: "Giọng đọc & mascot", detail: "Đọc theo slide khi thầy cô yêu cầu", icon: "assistant", box: Qt.rect(189,241,876,807)}
+                    ]
+                    RowLayout {
+                        required property var modelData
+                        required property int index
+                        Layout.fillWidth: true; Layout.preferredWidth: 1; spacing: 12
+                        Rectangle { visible: index > 0; width: 1; Layout.fillHeight: true; color: "#e5edf7"; Layout.rightMargin: 4 }
+                        Image { source: "../assets/workflow/" + modelData.icon + ".png"; sourceClipRect: modelData.box; Layout.preferredWidth: 34; Layout.preferredHeight: 34; fillMode: Image.PreserveAspectFit; mipmap: true; Accessible.ignored: true }
+                        ColumnLayout {
+                            Layout.fillWidth: true; spacing: 4
+                            Label { text: modelData.title; color: "#16314f"; font.pixelSize: home.width > 1000 ? 14 : 12; font.weight: Font.DemiBold; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                            Copy { text: modelData.detail; font.pixelSize: 11 }
+                        }
                     }
                 }
             }

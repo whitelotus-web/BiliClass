@@ -17,7 +17,9 @@ def model_directory() -> Path:
 
 
 def user_data() -> Path:
+    from .library_location import selected_directory
+
     configured = os.environ.get("BILICLASS_DATA")
-    root = Path(configured) if configured else Path(os.environ.get("LOCALAPPDATA", Path.home())) / "BiliClass"
+    root = Path(configured) if configured else selected_directory()
     root.mkdir(parents=True, exist_ok=True)
     return root.resolve()

@@ -166,7 +166,9 @@ class Library:
                     "content": None,
                     "segments_count": len(lesson["segments"]),
                     "approved_count": sum(bool(s["approved"]) for s in lesson["segments"]),
-                    "status": lesson_status(lesson["segments"]),
+                    "status": ('READY_TO_TEACH' if lesson.get('voice_only') and lesson['segments']
+                               and all(s.get('approved') and (s.get('vi', '').strip() or s.get('en', '').strip())
+                                       for s in lesson['segments']) else lesson_status(lesson["segments"])),
                     "prepared": preparation_current(lesson) and not failures,
                     'quality_failures': failures,
                     'review': review_summary(lesson),
@@ -685,7 +687,8 @@ class Library:
         if quality.get("counts", {}).get("FAIL", 0):
             raise ValueError("Bản PowerPoint còn slide FAIL. Sửa các lỗi trong báo cáo và nhận lại tệp trước khi xác nhận dùng để dạy.")
         for segment in lesson["segments"]:
-            if segment["vi"].strip() and segment["en"].strip():
+            if (segment["vi"].strip() and segment["en"].strip()
+                    or lesson.get('voice_only') and (segment['vi'].strip() or segment['en'].strip())):
                 segment["approved"] = True
         lesson.update(revision=lesson["revision"] + 1, updated_at=now())
         lesson["external_deck"].update(reviewed_revision=lesson["revision"], reviewed_at=now())

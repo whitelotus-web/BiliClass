@@ -25,7 +25,7 @@ def main():
     app = QGuiApplication([])
     configure_application(app)
     QQuickStyle.setStyle('Basic')
-    report = Path('reports/rc60/home')
+    report = Path('reports/rc65/home')
     report.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='biliclass-home-', ignore_cleanup_errors=True) as folder:
         library = Library(Path(folder))
@@ -49,7 +49,7 @@ def main():
                 window.resize(width, height)
                 c('libraryHomeScroll').property('contentItem').setProperty('contentY', 0)
                 pump(250)
-                for name in ('homeWelcomeHero', 'homeHeroMascot', 'homeChooseDocument', 'homeUploadZone'):
+                for name in ('homeWelcomeHero', 'homeHeroMascot', 'homeWorkflowStep0', 'homeWorkflowStep3'):
                     item = c(name)
                     point = item.mapToScene(QPointF())
                     assert point.x() >= 0 and point.x()+item.width() <= width, name
@@ -57,11 +57,13 @@ def main():
                 assert c('homeHeroMascot').width() >= 185
                 assert c('homeHeroMascot').height() >= 225
                 assert c('homeHeroTitle').property('font').pixelSize() >= 35
-                assert not c('homeWorkPanel').isVisible(), 'Empty library should lead with upload'
+                assert not c('homeWorkPanel').isVisible()
+                assert window.findChild(QObject, 'homeUploadZone') is None
+                assert c('homeWorkflowHeading').property('text') == 'Quy trình đơn giản'
                 assert c('navigationnew').mapToScene(QPointF()).y() > c('navigationhome').mapToScene(QPointF()).y()
                 assert c('navigationnew').mapToScene(QPointF()).y() < c('navigationlibrary').mapToScene(QPointF()).y()
                 assert window.grabWindow().save(str(report/f'home-{width}.png'))
-            click(window, c('homeChooseDocument'))
+            click(window, c('homeWorkflowStep0'))
             assert window.property('page') == 'new' and c('navigationnew').property('selected')
             assert not c('navigationlibrary').property('selected')
             QMetaObject.invokeMethod(c('creationFileDialog'), 'reject', Qt.DirectConnection)
@@ -135,15 +137,14 @@ def main():
             bridge._browser_state = {'running': True, 'phase': 'translating', 'percent': 37}
             bridge.changed.emit()
             pump(100)
-            assert c('homeChooseDocument').property('text') == 'Xem tiến độ'
-            assert not c('homeUploadDrop').property('enabled')
-            click(window, c('homeChooseDocument'))
+            assert c('homeContinueWork').property('text') == 'Xem tiến độ'
+            click(window, c('homeContinueWork'))
             assert window.property('page') == 'new'
             bridge._browser_state = previous_state
             bridge.changed.emit()
             assert not warnings, warnings
             result = {'status': 'passed', 'qml_warnings': warnings,
-                      'checks': ['1080/1366/1680 hero and upload visible without scrolling', 'large mascot follows Milo/Lumi preference', 'separate conversion navigation before library',
+                      'checks': ['1080/1366/1680 hero and four workflow steps visible; home upload removed', 'large mascot follows Milo/Lumi preference', 'separate conversion navigation before library',
                                  'home choose/drop route to same conversion', 'draft retained across tabs',
                                  'PPTX-only picker/drop with 200 MB guard and centered upload',
                                  'active work progress stays accessible and prevents new drops',

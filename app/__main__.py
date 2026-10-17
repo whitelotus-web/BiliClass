@@ -29,6 +29,7 @@ def main():
         choices=[
             "home",
             "library",
+            "voice",
             "new",
             "result",
             "editor",

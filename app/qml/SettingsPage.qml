@@ -8,6 +8,8 @@ Item {
     required property var bridge
     signal requestBackup()
     signal requestLibrary()
+    signal requestRelocation()
+    signal requestBackupSave()
     signal requestLogo()
     signal requestReference()
     property int activeTab: 0
@@ -422,19 +424,26 @@ Item {
         ColumnLayout {
             visible: page.activeTab === 5; Layout.fillWidth: true; spacing: 14
             Card { Layout.fillWidth: true
+                ColumnLayout { width: parent.width; spacing: 14
+                    Title { text: "Nơi lưu bài giảng và giọng đọc" }
+                    Hint { text: "Ứng dụng và thư viện lưu riêng. Chọn ổ D, E hoặc thư mục khác để tránh đầy ổ C."; Layout.fillWidth: true }
+                    Hint { text: bridge.dataPath; Layout.fillWidth: true; wrapMode: Text.WrapAnywhere; color: page.ink }
+                    Flow { Layout.fillWidth: true; spacing: 8
+                        SaveButton { objectName: "relocateLibraryButton"; text: "Chuyển thư viện sang nơi khác"; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: page.requestRelocation() }
+                        SoftButton { text: "Mở thư mục"; onClicked: bridge.openData() }
+                        SoftButton { objectName: "settingsBackup"; text: "Sao lưu thư viện"; enabled: !bridge.busy; onClicked: page.requestBackupSave() }
+                        SoftButton { text: "Khôi phục bản sao"; enabled: !bridge.busy; onClicked: page.requestBackup() }
+                        SoftButton { text: "Mở thư viện khác"; enabled: !bridge.busy; onClicked: page.requestLibrary() }
+                    }
+                    Hint { text: "Chuyển cả bài giảng, giọng, thuật ngữ và cấu hình; BiliClass kiểm tra rồi mở lại với thư viện mới. Bản cũ chỉ được dọn sau khi mở thành công."; Layout.fillWidth: true }
+                    Hint { text: "Tải file: tên được gợi ý tự động; bạn chọn nơi lưu và BiliClass nhớ thư mục đã chọn."; Layout.fillWidth: true }
+                }
+            }
+            Card { Layout.fillWidth: true
                 ColumnLayout { width: parent.width; spacing: 12
                     Title { text: "Thuật ngữ & kiến thức · nâng cao" }
                     Hint { text: "Thuật ngữ đã khóa được dùng khi dịch đúng môn. Mở kho khi cần sửa cách dịch hoặc tra cứu; không cần thao tác ở đây mỗi lần tạo bài."; Layout.fillWidth: true }
                     SoftButton { objectName: "settingsReferenceButton"; text: "Quản lý thuật ngữ & kiến thức"; onClicked: page.requestReference() }
-                }
-            }
-            Card { Layout.fillWidth: true
-                ColumnLayout { width: parent.width; spacing: 14
-                    Title { text: "Thư viện bài giảng trên máy" }
-                    Hint { text: "Bài học, thuật ngữ, bản sao lưu và âm thanh của thầy cô được lưu tại:"; Layout.fillWidth: true }
-                    Hint { text: bridge.dataPath; Layout.fillWidth: true; wrapMode: Text.WrapAnywhere; color: page.ink }
-                    RowLayout { Layout.fillWidth: true; SoftButton { text: "Mở thư mục dữ liệu"; onClicked: bridge.openData() } SoftButton { objectName: "settingsBackup"; text: "Sao lưu thư viện"; enabled: !bridge.busy; onClicked: bridge.backupLibrary() } SoftButton { text: "Khôi phục bản sao"; enabled: !bridge.busy; onClicked: page.requestBackup() } SoftButton { text: "Mở thư viện khác"; enabled: !bridge.busy; onClicked: page.requestLibrary() } }
-                    Hint { text: "Khôi phục tạo thư mục mới; không ghi đè thư viện đang dùng. Bài riêng có thể xuất thành gói .biliclass trong trình biên tập."; Layout.fillWidth: true }
                 }
             }
         }

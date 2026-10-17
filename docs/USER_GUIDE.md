@@ -1,21 +1,21 @@
 # BiliClass — Trợ lý dạy học song ngữ
 
-Hướng dẫn RC64, ngày 17/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
+Hướng dẫn RC65, ngày 17/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
 trên máy. Chuyển đổi hiện dùng Google Cloud Translation cho phần chữ và dựng
 PowerPoint tại máy; Browser ChatGPT/Gemini tạm ẩn.
 
 ## Cài và cập nhật
 
-1. Tải **BiliClass-RC64-Windows.zip** tại
-   [Release RC64](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc64).
+1. Tải **BiliClass-RC65-Windows.zip** tại
+   [Release RC65](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc65).
 2. Giải nén toàn bộ; không chạy trong cửa sổ ZIP. Chạy **Setup.cmd**.
 3. Bộ cài kiểm tra checksum và cài vào
-   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc64`, không cần quyền quản trị.
+   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc65`, không cần quyền quản trị.
 4. Mở BiliClass từ Desktop hoặc Start menu. Bản cài có model giọng, OCR và
    template; không cần thư mục runtime của máy phát triển.
 
 Máy đang dùng RC34: vào **Cài đặt → Thông tin BiliClass → Kiểm tra cập nhật**,
-chọn Cập nhật khi thấy RC64. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
+chọn Cập nhật khi thấy RC65. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
 Setup.cmd như trên. Các bản cài nằm cạnh nhau; thư viện ở
 `%LOCALAPPDATA%/BiliClass` được giữ nguyên. Không xóa thư mục dữ liệu này.
 Thư viện cá nhân không đưa lên GitHub. Key có thể nhận riêng như hướng dẫn dưới.
@@ -254,3 +254,42 @@ chi tiết tình trạng ứng dụng.
 Màn Chuyển đổi bỏ số thứ tự 01/02 và nút trở về Thư viện ở góc phải. Các
 bộ đọc Word/PDF/ảnh vẫn trong mã nguồn để phát triển một luồng tạo bài riêng;
 không nằm trong bộ chọn tệp PPTX chính hiện tại.
+
+
+## Tạo giọng cho PowerPoint có sẵn
+
+Mở **Tạo giọng đọc bài giảng** trên thanh bên, chọn `.pptx` hoặc chọn bài
+trong thư viện. BiliClass giữ nguyên PowerPoint và nhận diện lời đọc từ chữ
+trên slide/ghi chú có nhãn Việt–Anh. Không tự dịch hoặc OCR ảnh trong bước
+này. Chọn giọng, tốc độ và Anh/Việt/Song ngữ, nghe thử rồi tạo; dùng cùng bộ
+xử lý với bước tạo giọng sau chuyển đổi. Bài một ngôn ngữ chỉ có lời đọc
+ngôn ngữ đó. Bản giọng đủ được khóa tạo trùng, vẫn chọn để tải/dạy. Nhận lại
+cùng file sẽ dùng bài đã nhập trước đó và giữ các bản giọng đã tạo.
+
+## Chuyển toàn bộ thư viện sang ổ khác
+
+Ứng dụng cài riêng với dữ liệu. Dữ liệu mặc định nằm trong
+`%LOCALAPPDATA%/BiliClass`; không cần lưu bài và voice cùng ổ cài ứng dụng.
+
+1. Hoàn tất tác vụ và đóng trình chiếu/lớp học/đọc thử.
+2. Mở **Cài đặt → Dữ liệu → Chuyển thư viện sang nơi khác**.
+3. Chọn ổ/thư mục chứa dữ liệu, ví dụ `D:/DayHoc`; đích sẽ là
+   `D:/DayHoc/BiliClass-Data`. Đích cần chưa tồn tại, đủ dung lượng; không
+   trộn với thư viện khác.
+4. Xem đường dẫn rồi chọn **Chuyển và mở lại**. BiliClass sao chép/kiểm tra,
+   đóng các kết nối, cập nhật đường dẫn nội bộ và mở lại với thư viện mới.
+5. Bản cũ chỉ dọn các tệp đã đối chiếu sau khi thư viện mới mở thành công;
+   tệp cũ thay đổi bởi tác vụ khác được giữ. Cấu hình vị trí nhỏ vẫn ở nơi
+   mặc định; runtime phát triển/cập nhật/log không chuyển cùng thư viện.
+
+Nơi lưu được nhớ ở lần mở sau và khi nâng cấp. Nếu dùng ổ rời, kết nối lại
+ổ đó trước khi mở BiliClass; không tự tạo thư viện trống thay thế khi mất
+ổ. Key mã hóa vẫn dùng trên cùng tài khoản Windows, không biến thành key
+công khai. **Mở thư viện khác** cũng mở lại ứng dụng để mọi bộ xử lý dùng
+đúng thư mục, thay vì chỉ đổi danh sách bài trong cửa sổ hiện tại.
+
+Khi **Tải/Xuất/Sao lưu**, hộp chọn lưu có sẵn tên theo bài/bộ bài/bản giọng
+hoặc ngày sao lưu. Tên loại ký tự không hợp lệ; gợi ý thêm số nếu đã có
+file cùng tên. Chọn nơi lưu và BiliClass nhớ thư mục cho lần sau. Nếu đổi
+sang một tên đã có, hộp lưu Windows vẫn hỏi trước khi ghi đè. Báo cáo CSV
+có tên lớp/tiết và phân biệt kết quả với từng phản hồi.

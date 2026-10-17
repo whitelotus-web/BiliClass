@@ -346,7 +346,7 @@ def external_preview(lesson, directory):
     complete = sum(bool(s["vi"].strip() and s["en"].strip()) for s in lesson["segments"])
     warnings = ["Đối chiếu bài đã chuyển đổi: nghĩa, thuật ngữ, số liệu, công thức, hình và hiệu ứng."]
     warnings.extend(external.get("review_notes", []))
-    if complete < len(lesson["segments"]):
+    if not lesson.get('voice_only') and complete < len(lesson["segments"]):
         warnings.append(f"Trợ giảng nhận diện được cặp Việt–Anh ở {complete}/{external['total']} slide. "
                         "Các slide còn lại vẫn trình chiếu được; mascot chưa đọc song ngữ ở các slide đó.")
     reviewed = external.get("reviewed_revision") == lesson["revision"]

@@ -9,7 +9,8 @@ from .portable_audio import available_audio
 def text_readiness(lesson, directory):
     segments = lesson.get("segments", [])
     total = len(segments)
-    approved = sum(bool(s.get("approved")) and bool(s.get("vi", "").strip() and s.get("en", "").strip())
+    approved = sum(bool(s.get("approved")) and bool((s.get('vi', '').strip() or s.get('en', '').strip())
+                   if lesson.get('voice_only') else (s.get("vi", "").strip() and s.get("en", "").strip()))
                    for s in segments)
     source = lesson.get("source")
     if source:
@@ -43,8 +44,8 @@ def assess(lesson, directory, voices, selections, rate):
         {
             "id": "review",
             "ok": total > 0 and approved == total,
-            "label": "Duyệt nội dung Anh–Việt",
-            "detail": f"{approved}/{total} đoạn có đủ hai ngôn ngữ và đã duyệt.",
+            "label": "Duyệt lời đọc có sẵn" if lesson.get('voice_only') else "Duyệt nội dung Anh–Việt",
+            "detail": f"{approved}/{total} đoạn có lời đọc và đã duyệt." if lesson.get('voice_only') else f"{approved}/{total} đoạn có đủ hai ngôn ngữ và đã duyệt.",
         },
     ]
     voice_ids = {v["id"] for v in voices}

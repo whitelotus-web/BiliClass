@@ -7,7 +7,8 @@ def summarize(lesson):
     segments = lesson.get('segments', [])
     counts = lesson.get('slide_quality', {}).get('counts', {})
     failures = max(0, int(counts.get('FAIL', 0)))
-    missing = sum(not (s.get('vi', '').strip() and s.get('en', '').strip()) for s in segments)
+    missing = sum(not ((s.get('vi', '').strip() or s.get('en', '').strip()) if lesson.get('voice_only')
+                       else (s.get('vi', '').strip() and s.get('en', '').strip())) for s in segments)
     pending = sum(not s.get('approved') for s in segments)
     result = {'failures': failures, 'missing': missing, 'pending': pending,
               'canInspect': bool(lesson.get('external_deck')),

@@ -2,9 +2,9 @@
 
 Ứng dụng Windows chuyển tài liệu của giáo viên thành bài giảng Anh–Việt, rồi trình chiếu bằng PowerPoint với giọng đọc và mascot trợ giảng. Hỗ trợ cấu hình từ lớp 1 đến lớp 12 và môn tự nhập.
 
-## Luồng hiện tại — RC64
+## Luồng hiện tại — RC65
 
-Đã phát hành [bộ cài Windows RC64](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc64), cập nhật được từ RC34. [Hướng dẫn sử dụng](docs/USER_GUIDE.md) · [Commit, checksum và kiểm chứng](docs/BUILD_RC64.md).
+Đã phát hành [bộ cài Windows RC65](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc65), cập nhật được từ RC34. [Hướng dẫn sử dụng](docs/USER_GUIDE.md) · [Commit, checksum và kiểm chứng](docs/BUILD_RC65.md).
 
 BiliClass dùng **Google Cloud Translation** dịch phần chữ và sắp xếp PowerPoint tại máy. Browser ChatGPT/Gemini tạm ẩn. Giọng VieNeu chạy ngoại tuyến, là bước tùy chọn sau khi đã có bài song ngữ.
 
@@ -24,13 +24,17 @@ RC63 rút gọn Google Dịch, hiển thị rõ số key và số nhóm đếm; 
 
 RC64 đồng bộ thanh cuộn mảnh ở các trang và hộp nội dung dài. Thanh trang nằm ở lề phải; khung nhập/xem có khoảng chừa riêng, không che chữ hoặc nút. Khung tải lên ở trang Chuyển đổi có hình PowerPoint ở bên trái, tự cân với phần hướng dẫn và nút chọn file.
 
+RC65 bỏ khung tải lên lặp ở Trang chủ, dùng bộ icon cung cấp cho **Quy trình đơn giản**. Tab **Tạo giọng đọc bài giảng** nằm giữa Chuyển đổi và Bài giảng: chọn PowerPoint có sẵn hoặc bài trong thư viện, dùng cùng bộ tạo giọng; không tự dịch hay đổi thiết kế. Bài một ngôn ngữ chỉ tạo giọng ngôn ngữ đang có; bài Song ngữ cần lời Việt và Anh.
+
+**Cài đặt → Dữ liệu → Chuyển thư viện sang nơi khác** chuyển cả bài, giọng, thuật ngữ và cấu hình vào `BiliClass-Data` dưới thư mục đã chọn. Xác minh, đóng sạch và mở lại với nơi mới; chỉ dọn các tệp cũ đã đối chiếu sau khi thư viện mới mở thành công. Nơi chọn được nhớ qua lần khởi động/cập nhật. Không tự chuyển dữ liệu thật khi nâng cấp. Hộp tải/xuất/sao lưu gợi ý tên tự động và nhớ thư mục lưu gần nhất; thầy cô vẫn chọn đích trước khi lưu.
+
 500.000 ký tự không phải hạn mức riêng cho từng key. Bộ đếm BiliClass theo nhóm dự án chỉ phản ánh lượng dùng cục bộ; hãy đặt quota trong Google Cloud. Key mã hóa theo tài khoản Windows; không nằm trong bộ cài/repo công khai hoặc bản sao lưu thư viện. Chuyển key qua kho riêng tư là snapshot khi bấm, không đồng bộ quota trực tiếp giữa các máy.
 
 ## Cài và cập nhật
 
-Cần Windows 10/11 64-bit, Internet khi dịch và Microsoft PowerPoint desktop để trình chiếu giữ hiệu ứng. Giải nén toàn bộ ZIP RC64 rồi chạy **Setup.cmd**; gói có runtime, model giọng, OCR và template, không cần Python/Codex.
+Cần Windows 10/11 64-bit, Internet khi dịch và Microsoft PowerPoint desktop để trình chiếu giữ hiệu ứng. Giải nén toàn bộ ZIP RC65 rồi chạy **Setup.cmd**; gói có runtime, model giọng, OCR và template, không cần Python/Codex.
 
-Máy RC34: **Cài đặt → Thông tin BiliClass → Kiểm tra cập nhật** để nhận RC64. Dữ liệu giáo viên ở `%LOCALAPPDATA%/BiliClass` được giữ riêng khi cập nhật. [Thông tin bộ cài và giới hạn kiểm chứng](docs/BUILD_RC64.md).
+Máy RC34: **Cài đặt → Thông tin BiliClass → Kiểm tra cập nhật** để nhận RC65. Dữ liệu mặc định ở `%LOCALAPPDATA%/BiliClass`, hoặc thư mục đã chọn trong Cài đặt → Dữ liệu; được giữ riêng khi cập nhật. [Thông tin bộ cài và giới hạn kiểm chứng](docs/BUILD_RC65.md).
 
 ## Mã nguồn và cập nhật GitHub
 
