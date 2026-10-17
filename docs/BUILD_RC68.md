@@ -61,7 +61,31 @@ Office API: [SlideShowView.Player](https://learn.microsoft.com/en-us/office/vba/
 
 ## Đóng gói
 
-Đóng gói sau khi nguồn đã kiểm tra và commit; biên dịch toàn bộ module ứng
-dụng, tái sử dụng runtime/model bất biến của RC67. ZIP, model, key, dữ liệu
-cá nhân và báo cáo kiểm tra nằm ngoài Git. Ghi nhận commit/hash và kiểm
-bản cài trong hồ sơ phát hành sau khi hoàn thành.
+[Release RC68](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc68).
+
+- Nguồn: `40016092fea0f079a1e495546c23b74687372b93`.
+- ZIP `BiliClass-RC68-Windows.zip`: 840272232 byte, 4187 tệp.
+- ZIP SHA-256: `9f10a890754f4f06441bdb1ca76f1c77b3405dfdf08e5c09e608b1c3ccd4afec`.
+- EXE SHA-256: `ba29e632b5b55413a75c2041ecc64d2478afad6779026a2e4d3661ae07733d4e`.
+
+Biên dịch 121 module ứng dụng một lần; tái sử dụng runtime/model bất biến
+của RC67. Kiểm SHA-256/CRC toàn bộ ZIP. Model, EXE, key, dữ liệu cá nhân
+và báo cáo kiểm tra nằm ngoài Git.
+
+Cài tại `F:/Applications/BiliClass/1.0.0rc68`. Tám cấu hình EXE qua: Home,
+giọng chưa có nguồn và đã chọn bài ở 1080/1366; Thư viện 1080; Cài đặt
+1366. Không truyền Python path nguồn cho EXE; QML và icon bản cài khớp
+nguồn, không có cảnh báo QML. Engine/model giữ nguyên; không chạy lại suy
+luận model cho mốc vận hành này.
+
+Đóng RC67 bình thường và mở RC68 ở tab giọng qua Explorer. Ứng dụng còn
+chạy độc lập khi launcher kết thúc và qua mười kiểm tra phản hồi. Giữ
+nguyên 18 bản ghi bài (gồm thùng rác), 1095 WAV, tùy chọn, hash key mã
+hóa, tên key và lịch sử dịch. Checkpoint 354/354 không tự chạy lại.
+Shortcut Desktop/Start chuyển sang RC68. Tài liệu hướng dẫn được cập nhật
+đúng luồng mới.
+
+Đã phát hành ZIP/checksum; digest và dung lượng phía GitHub khớp tệp được
+kiểm tra. Feed công khai chọn đúng RC68 cho bộ cập nhật RC34/RC67, khớp
+dung lượng/hash; RC68 không tự báo cập nhật chính nó. Chưa kiểm cài trên
+máy Windows thứ hai.
