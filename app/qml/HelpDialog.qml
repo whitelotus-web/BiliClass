@@ -10,8 +10,8 @@ Dialog {
     height: Math.min(parent.height - 50, 660)
     anchors.centerIn: parent
     standardButtons: Dialog.Close
-    contentItem: ScrollView {
-        clip: true; contentWidth: availableWidth
+    contentItem: ContentScrollView {
+        contentWidth: availableWidth
         ColumnLayout { width: parent.width; spacing: 18
             Repeater {
                 model: bridge.googleTranslation ? [

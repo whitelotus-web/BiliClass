@@ -36,9 +36,9 @@ Dialog {
                 ColumnLayout { Layout.fillWidth: true; Layout.fillHeight: true; spacing: 10
                     SelectBox { id: kind; Layout.fillWidth: true; model: ["Giải thích", "English đơn giản", "Ví dụ", "Câu điều hành lớp", "Câu hỏi thảo luận", "Hỗ trợ tiếng Việt", "Từ vựng"] }
                     Label { text: "Tiếng Việt"; color: "#112650" }
-                    ScrollView { Layout.fillWidth: true; Layout.fillHeight: true; clip: true; TextArea { id: itemVi; objectName: "supportVi"; wrapMode: TextEdit.Wrap; selectByMouse: true; placeholderText: "Nội dung theo bài đang dạy…" } }
+                    ContentScrollView { Layout.fillWidth: true; Layout.fillHeight: true;  TextArea { id: itemVi; objectName: "supportVi"; wrapMode: TextEdit.Wrap; selectByMouse: true; placeholderText: "Nội dung theo bài đang dạy…" } }
                     Label { text: "English"; color: "#0869f9" }
-                    ScrollView { Layout.fillWidth: true; Layout.fillHeight: true; clip: true; TextArea { id: itemEn; objectName: "supportEn"; wrapMode: TextEdit.Wrap; selectByMouse: true; placeholderText: "Prepared English explanation, example or prompt…" } }
+                    ContentScrollView { Layout.fillWidth: true; Layout.fillHeight: true;  TextArea { id: itemEn; objectName: "supportEn"; wrapMode: TextEdit.Wrap; selectByMouse: true; placeholderText: "Prepared English explanation, example or prompt…" } }
                     CheckBox { id: itemReview; objectName: "supportReview"; text: "Đã kiểm tra và duyệt mục này" }
                     RowLayout {
                         ActionButton { text: "Mục mới"; onClicked: panel.clearItem() }
@@ -65,7 +65,7 @@ Dialog {
                     TextField { id: qVi; objectName: "questionVi"; placeholderText: "Câu hỏi tiếng Việt"; Layout.fillWidth: true; maximumLength: 5000 }
                     TextField { id: qEn; objectName: "questionEn"; placeholderText: "Question in English"; Layout.fillWidth: true; maximumLength: 5000 }
                     Label { text: "Mỗi dòng: lựa chọn Việt | English | hiểu nhầm (tùy chọn)"; font.pixelSize: 11; wrapMode: Text.WordWrap; Layout.fillWidth: true }
-                    ScrollView { Layout.fillWidth: true; Layout.fillHeight: true; clip: true; TextArea { id: options; objectName: "questionOptions"; wrapMode: TextEdit.Wrap; selectByMouse: true; placeholderText: "Có | Yes\nKhông | No" } }
+                    ContentScrollView { Layout.fillWidth: true; Layout.fillHeight: true;  TextArea { id: options; objectName: "questionOptions"; wrapMode: TextEdit.Wrap; selectByMouse: true; placeholderText: "Có | Yes\nKhông | No" } }
                     RowLayout { visible: qKind.currentIndex !== 2; Label { text: "Đáp án đúng" } SelectBox { id: correct; model: ["A", "B", "C", "D", "E", "F"] } }
                     TextField { id: rationale; placeholderText: "Giải thích đáp án (chỉ công bố sau khi đóng câu)"; Layout.fillWidth: true; maximumLength: 5000 }
                     TextField { id: rationaleEn; placeholderText: "Explanation in English (after reveal)"; Layout.fillWidth: true; maximumLength: 5000 }

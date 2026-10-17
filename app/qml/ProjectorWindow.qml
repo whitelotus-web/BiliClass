@@ -42,7 +42,7 @@ Window {
                 Label { visible: !!bridge.segment.approved && projection.content.needs_keywords; text: "Chưa có từ khóa song ngữ khớp với đoạn này."; color: "#667997"; font.pixelSize: 20; Layout.fillWidth: true; wrapMode: Text.WordWrap }
                 Label { visible: !!bridge.segment.approved && !!bridge.teachingContext.response.available; text: bridge.teachingContext.response.text; font.pixelSize: 26; color: "#112650"; Layout.fillWidth: true; wrapMode: Text.WordWrap; textFormat: Text.PlainText }
         }
-        ScrollView { visible: projection.quiz; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; contentWidth: availableWidth
+        ContentScrollView { visible: projection.quiz; Layout.fillWidth: true; Layout.fillHeight: true; contentWidth: availableWidth
             ColumnLayout { width: parent.width; spacing: 20
                 Label { text: projection.classState.title || "Chưa có lớp đang mở"; color: "#112650"; font.pixelSize: 26; Layout.fillWidth: true; wrapMode: Text.WordWrap; textFormat: Text.PlainText }
                 Label { text: projection.classState.round ? ((projection.classState.round.language === "en" ? "" : projection.classState.round.vi) + "\n" + (projection.classState.round.language === "vi" ? "" : projection.classState.round.en)) : "Quét QR để tham gia lớp"; font.pixelSize: 32; color: "#112650"; wrapMode: Text.WordWrap; Layout.fillWidth: true; textFormat: Text.PlainText }

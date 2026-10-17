@@ -2,8 +2,8 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-ScrollView {
-    id: page
+ContentScrollView {
+    id: page; outerGutter: true
     required property var classroom
     required property var bridge
     signal requestLibrary()
@@ -27,7 +27,7 @@ ScrollView {
     }
     Timer { interval: 250; repeat: true; running: page.visible && page.active && page.round.status === "open"; onTriggered: page.now = Date.now() }
     onVisibleChanged: if (visible) { classroom.refreshInterfaces(); if (bridge.lesson.id) bridge.refreshReadiness() }
-    clip: true; contentWidth: availableWidth
+    contentWidth: availableWidth
     component Copy: Label { color: "#687b94"; font.pixelSize: 12; wrapMode: Text.WordWrap; textFormat: Text.PlainText; Layout.fillWidth: true }
     component Title: Label { color: "#152d4d"; font.pixelSize: 17; font.weight: Font.DemiBold; wrapMode: Text.WordWrap; Layout.fillWidth: true }
     component Panel: Frame { padding: 18; background: Rectangle { color: "white"; radius: 12; border.color: "#dce5f0" } }

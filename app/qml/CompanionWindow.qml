@@ -65,9 +65,9 @@ Window {
                 ActionButton { objectName: "companionReplayEnglish"; text: "Đọc lại"; iconName: "refresh"; Layout.fillWidth: true; implicitHeight: 32; enabled: bridge.companionCanRead && (!!bridge.audioAvailable.en || !!bridge.audioAvailable.vi); onClicked: bridge.replayCompanion() }
             }
             Label { objectName: "companionReaderStatus"; text: bridge.englishReaderState.message; color: bridge.englishReaderState.state === "error" ? "#b14828" : "#667997"; wrapMode: Text.WordWrap; Layout.fillWidth: true; font.pixelSize: 11 }
-            ScrollView {
+            ContentScrollView {
                 visible: companion.hasResponse
-                Layout.fillWidth: true; Layout.fillHeight: true; clip: true
+                Layout.fillWidth: true; Layout.fillHeight: true;
                 TextArea { text: bridge.teachingContext.response.text; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; font.pixelSize: 13; color: "#112650"; background: null; textFormat: TextEdit.PlainText }
             }
             RowLayout {

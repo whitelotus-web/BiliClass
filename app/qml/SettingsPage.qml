@@ -135,10 +135,10 @@ Item {
         }
         Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: page.line }
 
-        ScrollView {
-            id: contentScroll
+        ContentScrollView {
+            id: contentScroll; outerGutter: true
             objectName: "settingsContentScroll"
-            Layout.fillWidth: true; Layout.fillHeight: true; clip: true; contentWidth: availableWidth
+            Layout.fillWidth: true; Layout.fillHeight: true; contentWidth: availableWidth
             ColumnLayout { width: contentScroll.availableWidth; spacing: 14
 
         RowLayout {
@@ -477,9 +477,9 @@ Item {
                     }
                     Hint { text: "Dùng key theo thứ tự; tự chuyển khi hết giới hạn hoặc bị từ chối."; Layout.fillWidth: true }
                     Label { visible: !bridge.googleSettings.state.configured || page.showGoogleKeyEntry; text: "API key · mỗi key một dòng"; color: page.ink; font.bold: true }
-                    ScrollView {
+                    ContentScrollView {
                         visible: !bridge.googleSettings.state.configured || page.showGoogleKeyEntry
-                        Layout.fillWidth: true; Layout.preferredHeight: 130; clip: true
+                        Layout.fillWidth: true; Layout.preferredHeight: 130;
                         TextArea {
                             id: googleKeys; objectName: "googleApiKeys"; selectByMouse: true; wrapMode: TextEdit.NoWrap
                             placeholderText: "Tên dự án | API_KEY\nTên dự án khác | API_KEY\nHoặc chỉ nhập key trên mỗi dòng"

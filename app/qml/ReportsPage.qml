@@ -28,7 +28,7 @@ ColumnLayout {
     }
     Label { objectName: "reportEmptyMessage"; visible: page.filteredSessions.length === 0; text: classroom.sessions.length === 0 ? "Chưa có tiết học. Mở Lớp học, cho học sinh tham gia và trả lời để có kết quả ở đây." : "Không có tiết phù hợp. Thử bỏ bớt từ khóa hoặc bộ lọc."; wrapMode: Text.WordWrap; Layout.fillWidth: true; color: "#667997" }
     ActionButton { objectName: "reportGoClassroom"; visible: classroom.sessions.length === 0; text: "Mở Lớp học"; onClicked: page.requestClassroom() }
-    ScrollView { Layout.fillWidth: true; Layout.fillHeight: true; contentWidth: availableWidth; clip: true
+    ContentScrollView { objectName: "reportContentScroll"; outerGutter: true; Layout.fillWidth: true; Layout.fillHeight: true; contentWidth: availableWidth;
         ColumnLayout { width: parent.width; spacing: 18
             Label { text: classroom.selectedReport.title || "Chọn một phiên để xem"; font.pixelSize: 23; font.bold: true; color: "#112650"; textFormat: Text.PlainText }
             Label { visible: !!classroom.selectedReport.id; text: (classroom.selectedReport.participants_joined || 0) + " đã vào lớp · " + (classroom.selectedReport.participants_responded || 0) + " đã trả lời · " + (classroom.selectedReport.rounds || []).length + " lượt câu hỏi"; color: "#0869f9"; Layout.fillWidth: true; wrapMode: Text.WordWrap }

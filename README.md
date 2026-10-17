@@ -2,9 +2,9 @@
 
 Ứng dụng Windows chuyển tài liệu của giáo viên thành bài giảng Anh–Việt, rồi trình chiếu bằng PowerPoint với giọng đọc và mascot trợ giảng. Hỗ trợ cấu hình từ lớp 1 đến lớp 12 và môn tự nhập.
 
-## Luồng hiện tại — RC63
+## Luồng hiện tại — RC64
 
-Đã phát hành [bộ cài Windows RC63](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc63), cập nhật được từ RC34. [Hướng dẫn sử dụng](docs/USER_GUIDE.md) · [Commit, checksum và kiểm chứng](docs/BUILD_RC63.md).
+Đã phát hành [bộ cài Windows RC64](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc64), cập nhật được từ RC34. [Hướng dẫn sử dụng](docs/USER_GUIDE.md) · [Commit, checksum và kiểm chứng](docs/BUILD_RC64.md).
 
 BiliClass dùng **Google Cloud Translation** dịch phần chữ và sắp xếp PowerPoint tại máy. Browser ChatGPT/Gemini tạm ẩn. Giọng VieNeu chạy ngoại tuyến, là bước tùy chọn sau khi đã có bài song ngữ.
 
@@ -22,13 +22,15 @@ RC62 cho phép bấm nền, tên, thông tin hoặc ảnh bìa của bài trong 
 
 RC63 rút gọn Google Dịch, hiển thị rõ số key và số nhóm đếm; tổng giới hạn tại máy tính theo nhóm, không nhân theo số Gmail/key. Bấm trạng thái bài giảng để xem lý do, kiểm tra/tự sửa kỹ thuật hoặc mở bước xác nhận của giáo viên. Tự sửa không tự duyệt bản dịch.
 
+RC64 đồng bộ thanh cuộn mảnh ở các trang và hộp nội dung dài. Thanh trang nằm ở lề phải; khung nhập/xem có khoảng chừa riêng, không che chữ hoặc nút.
+
 500.000 ký tự không phải hạn mức riêng cho từng key. Bộ đếm BiliClass theo nhóm dự án chỉ phản ánh lượng dùng cục bộ; hãy đặt quota trong Google Cloud. Key mã hóa theo tài khoản Windows; không nằm trong bộ cài/repo công khai hoặc bản sao lưu thư viện. Chuyển key qua kho riêng tư là snapshot khi bấm, không đồng bộ quota trực tiếp giữa các máy.
 
 ## Cài và cập nhật
 
-Cần Windows 10/11 64-bit, Internet khi dịch và Microsoft PowerPoint desktop để trình chiếu giữ hiệu ứng. Giải nén toàn bộ ZIP RC63 rồi chạy **Setup.cmd**; gói có runtime, model giọng, OCR và template, không cần Python/Codex.
+Cần Windows 10/11 64-bit, Internet khi dịch và Microsoft PowerPoint desktop để trình chiếu giữ hiệu ứng. Giải nén toàn bộ ZIP RC64 rồi chạy **Setup.cmd**; gói có runtime, model giọng, OCR và template, không cần Python/Codex.
 
-Máy RC34: **Cài đặt → Thông tin BiliClass → Kiểm tra cập nhật** để nhận RC63. Dữ liệu giáo viên ở `%LOCALAPPDATA%/BiliClass` được giữ riêng khi cập nhật. [Thông tin bộ cài và giới hạn kiểm chứng](docs/BUILD_RC63.md).
+Máy RC34: **Cài đặt → Thông tin BiliClass → Kiểm tra cập nhật** để nhận RC64. Dữ liệu giáo viên ở `%LOCALAPPDATA%/BiliClass` được giữ riêng khi cập nhật. [Thông tin bộ cài và giới hạn kiểm chứng](docs/BUILD_RC64.md).
 
 ## Mã nguồn và cập nhật GitHub
 

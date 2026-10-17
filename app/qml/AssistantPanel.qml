@@ -19,7 +19,7 @@ Rectangle {
                     ActionButton { required property var modelData; text: modelData.label; implicitHeight: 30; onClicked: teaching.ask(modelData.action, modelData.action === "rescue" ? "vi" : language.currentIndex === 0 ? "en" : "vi") }
                 }
             }
-            ScrollView { Layout.fillWidth: true; Layout.fillHeight: true; clip: true; TextArea { readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; text: teaching.response.text; color: "#112650"; font.pixelSize: 14; background: null } }
+            ContentScrollView { Layout.fillWidth: true; Layout.fillHeight: true;  TextArea { readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; text: teaching.response.text; color: "#112650"; font.pixelSize: 14; background: null } }
         }
     }
 }

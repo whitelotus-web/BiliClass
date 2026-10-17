@@ -361,10 +361,10 @@ ApplicationWindow {
                     Label { text: "Bili<span style='color:#ff7d2b'>Class</span>"; textFormat: Text.RichText; color: root.ink; font.pixelSize: 25; font.weight: Font.Bold }
                 }
                 Copy { objectName: "brandSlogan"; text: "CHUYỂN NGỮ THÔNG MINH\nNÂNG TẦM BÀI GIẢNG"; font.pixelSize: 9; font.letterSpacing: 0.6; Layout.bottomMargin: 23 }
-                ScrollView {
-                    id: sidebarNavigation; objectName: "sidebarNavigation"
+                ContentScrollView {
+                    id: sidebarNavigation; objectName: "sidebarNavigation"; outerGutter: true; scrollBarGap: 2
                     Layout.fillWidth: true; Layout.fillHeight: true
-                    clip: true; contentWidth: availableWidth
+                    contentWidth: availableWidth
                     ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
                     ColumnLayout {
                         width: sidebarNavigation.availableWidth; spacing: 8
@@ -448,27 +448,11 @@ ApplicationWindow {
             }
             Item {
                 Layout.fillWidth: true; Layout.fillHeight: true
-                ScrollView {
-                    id: libraryHomeScroll; objectName: "libraryHomeScroll"; anchors.fill: parent; anchors.margins: 30
+                ContentScrollView {
+                    id: libraryHomeScroll; objectName: "libraryHomeScroll"; outerGutter: true; barObjectName: "libraryScrollBar"; anchors.fill: parent; anchors.margins: 30
                     visible: root.page === "home" || root.page === "library"
-                    clip: true; contentWidth: availableWidth
+                    contentWidth: availableWidth
                     ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
-                    ScrollBar.vertical: ScrollBar {
-                        id: libraryScrollBar; objectName: "libraryScrollBar"
-                        // Use the outer gutter so the thumb never covers page controls.
-                        parent: libraryHomeScroll.parent
-                        anchors.top: libraryHomeScroll.top; anchors.bottom: libraryHomeScroll.bottom
-                        anchors.right: parent.right; anchors.rightMargin: 6
-                        width: 18; padding: 6; minimumSize: 0.06
-                        policy: ScrollBar.AsNeeded
-                        visible: libraryHomeScroll.visible && size < 1
-                        Accessible.name: "Cuộn trang"
-                        contentItem: Rectangle {
-                            implicitWidth: 6; implicitHeight: 6; radius: 3
-                            color: libraryScrollBar.pressed ? "#637f9f" : libraryScrollBar.hovered ? "#8ca3bf" : "#bdcbdc"
-                        }
-                        background: null
-                    }
                     ColumnLayout {
                         width: libraryHomeScroll.availableWidth; spacing: root.page === "home" ? 18 : 12
                         ColumnLayout {
@@ -698,10 +682,10 @@ ApplicationWindow {
                     }
                 }
 
-                ScrollView {
-                    objectName: "creationScroll"
+                ContentScrollView {
+                    id: creationScroll; objectName: "creationScroll"; outerGutter: true
                     anchors.fill: parent; anchors.margins: 28; anchors.bottomMargin: 103
-                    visible: root.page === "new"; clip: true; contentWidth: availableWidth
+                    visible: root.page === "new"; contentWidth: availableWidth
                     ColumnLayout {
                         width: parent.width; spacing: 16
                         Heading { text: "Chuyển đổi bài giảng PowerPoint"; font.pixelSize: 27; Layout.fillWidth: true; wrapMode: Text.WordWrap }
@@ -760,7 +744,7 @@ ApplicationWindow {
                                                     id: subjectList; objectName: "creationSubjectList"; clip: true
                                                     implicitHeight: contentHeight; model: subjectPopup.visible ? subjectInput.delegateModel : null
                                                     currentIndex: subjectInput.highlightedIndex; highlightMoveDuration: 0
-                                                    ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                                                    ScrollBar.vertical: SlimScrollBar { }
                                                 }
                                                 background: Rectangle { color: "white"; radius: 8; border.color: root.line }
                                             }
@@ -851,9 +835,9 @@ ApplicationWindow {
                                     Caption { text: "Ghi chú thêm · không bắt buộc"; Layout.fillWidth: true }
                                     Copy { text: teacherNotesInput.text.trim().length + " / 6.000"; color: teacherNotesInput.text.trim().length > 6000 ? "#ab5b20" : root.muted; font.pixelSize: 11 }
                                 }
-                                ScrollView {
+                                ContentScrollView {
                                     visible: !bridge.googleTranslation
-                                    Layout.fillWidth: true; Layout.preferredHeight: 90; clip: true
+                                    Layout.fillWidth: true; Layout.preferredHeight: 90;
                                     TextArea {
                                         id: teacherNotesInput; objectName: "creationTeacherNotes"
                                         enabled: !bridge.busy; wrapMode: TextEdit.Wrap; selectByMouse: true
@@ -875,8 +859,8 @@ ApplicationWindow {
                                     Item { Layout.fillWidth: true }
                                     Action { objectName: "creationPromptToggle"; text: root.creationPromptVisible ? "Ẩn prompt" : "Hiện prompt"; iconName: "view"; subtle: true; implicitHeight: 30; onClicked: root.creationPromptVisible = !root.creationPromptVisible }
                                 }
-                                ScrollView {
-                                    visible: root.creationPromptVisible; Layout.fillWidth: true; Layout.preferredHeight: 270; clip: true
+                                ContentScrollView {
+                                    visible: root.creationPromptVisible; Layout.fillWidth: true; Layout.preferredHeight: 270;
                                     TextArea { objectName: "creationPromptText"; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; text: root.creationPrompt.prompt || ""; color: root.ink; font.pixelSize: 12; background: Rectangle { radius: 8; color: "#fafcff"; border.color: root.line } }
                                 }
                             }
@@ -899,8 +883,8 @@ ApplicationWindow {
                     }
                 }
 
-                ScrollView {
-                    anchors.fill: parent; anchors.margins: 30; visible: root.page === "chatgpt"; clip: true; contentWidth: availableWidth
+                ContentScrollView {
+                    id: conversionProgressScroll; objectName: "conversionProgressScroll"; outerGutter: true; anchors.fill: parent; anchors.margins: 30; visible: root.page === "chatgpt"; contentWidth: availableWidth
                     ColumnLayout {
                         width: parent.width; spacing: 18
                         RowLayout { Heading { text: "Tạo bài giảng song ngữ"; font.pixelSize: 28 } Item { Layout.fillWidth: true } Action { text: "Đổi cấu hình"; subtle: true; enabled: !bridge.browserState.running; onClicked: root.go("new") } }
@@ -973,15 +957,15 @@ ApplicationWindow {
                             }
                         }
                         Action { visible: !bridge.googleTranslation; text: chatgptPromptPreview.visible ? "Ẩn prompt" : "Xem prompt đã cấu hình"; subtle: true; onClicked: chatgptPromptPreview.visible = !chatgptPromptPreview.visible }
-                        ScrollView { id: chatgptPromptPreview; visible: false; Layout.fillWidth: true; Layout.preferredHeight: 240; clip: true
+                        ContentScrollView { id: chatgptPromptPreview; visible: false; Layout.fillWidth: true; Layout.preferredHeight: 240;
                             TextArea { readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; font.pixelSize: 13; text: bridge.chatgptRequest.prompt || ""; color: root.ink }
                         }
                     }
                 }
 
-                ScrollView {
-                    id: resultScroll; objectName: "resultScroll"
-                    anchors.fill: parent; anchors.margins: 28; visible: root.page === "result"; clip: true; contentWidth: availableWidth
+                ContentScrollView {
+                    id: resultScroll; objectName: "resultScroll"; outerGutter: true
+                    anchors.fill: parent; anchors.margins: 28; visible: root.page === "result"; contentWidth: availableWidth
                     ColumnLayout {
                         width: resultScroll.availableWidth; spacing: 18
                         Action { objectName: "backToLibraryButton"; text: "Trở lại thư viện"; iconName: "back"; subtle: true; implicitHeight: 32; Layout.alignment: Qt.AlignRight; enabled: !bridge.busy; onClicked: root.requestAction(function() { bridge.returnToLibrary() }) }
@@ -1231,12 +1215,12 @@ ApplicationWindow {
                                     Choice { objectName: "slideTypeChoice"; model: bridge.slideTypes; textRole: "label"; valueRole: "id"; Layout.fillWidth: true; currentIndex: Math.max(0, bridge.slideTypes.map(function(item) { return item.id }).indexOf(bridge.currentSlideType)); onActivated: { let selected = currentValue; root.requestAction(function() { bridge.setSlideType(selected) }) } }
                                 }
                                 RowLayout { Layout.fillWidth: true; Caption { text: "VI   Tiếng Việt" } Item { Layout.fillWidth: true }  }
-                                ScrollView { Layout.fillWidth: true; Layout.fillHeight: true; Layout.minimumHeight: 56; clip: true
+                                ContentScrollView { Layout.fillWidth: true; Layout.fillHeight: true; Layout.minimumHeight: 56;
                                     TextArea { id: viEdit; objectName: "viEditor"; wrapMode: TextEdit.Wrap; selectByMouse: true; color: root.ink; font.pixelSize: 15; padding: 13; onTextChanged: root.edited(); background: Rectangle { radius: 9; color: "#f8fafd"; border.color: parent.activeFocus ? root.blue : root.line } }
                                 }
                                 RowLayout { Layout.fillWidth: true; Caption { text: "EN   English"; color: root.blue } Item { Layout.fillWidth: true }
                                      }
-                                ScrollView { Layout.fillWidth: true; Layout.fillHeight: true; Layout.minimumHeight: 56; clip: true
+                                ContentScrollView { Layout.fillWidth: true; Layout.fillHeight: true; Layout.minimumHeight: 56;
                                     TextArea { id: enEdit; objectName: "enEditor"; wrapMode: TextEdit.Wrap; selectByMouse: true; color: "#1855a6"; font.pixelSize: 15; padding: 13; placeholderText: "Lời đọc tiếng Anh tương ứng với slide…"; onTextChanged: root.edited(); background: Rectangle { radius: 9; color: "#f4f8ff"; border.color: parent.activeFocus ? root.blue : "#d4e4fc" } }
                                 }
                                 Action { text: "Tìm bản dịch gần giống đã duyệt"; iconName: "search"; implicitHeight: 30; enabled: !bridge.busy && !lockedCheck.checked; onClicked: { root.translationSource = bridge.segment.source_language || bridge.lesson.source_language || "vi"; if (!root.dirty || root.save(false)) bridge.suggestSimilar(root.translationSource) } }
@@ -1269,8 +1253,8 @@ ApplicationWindow {
                     }
                     Item {
                         Layout.fillWidth: true; Layout.fillHeight: true
-                ScrollView {
-                    anchors.fill: parent; anchors.margins: 0; visible: root.referenceTab === 0; clip: true; contentWidth: availableWidth
+                ContentScrollView {
+                    id: termsScroll; objectName: "termsScroll"; outerGutter: true; anchors.fill: parent; anchors.margins: 0; visible: root.referenceTab === 0; contentWidth: availableWidth
                     ColumnLayout {
                         width: parent.width; spacing: 20
                         Copy { text: "Thuật ngữ thầy cô đã duyệt để tra cứu và giữ cách dùng từ nhất quán. Dữ liệu riêng vẫn được lưu và sao lưu trên máy."; Layout.fillWidth: true }
@@ -1311,8 +1295,8 @@ ApplicationWindow {
                     }
                 }
 
-                ScrollView {
-                    anchors.fill: parent; anchors.margins: 0; visible: root.referenceTab === 1; clip: true; contentWidth: availableWidth
+                ContentScrollView {
+                    id: knowledgeScroll; objectName: "knowledgeScroll"; outerGutter: true; anchors.fill: parent; anchors.margins: 0; visible: root.referenceTab === 1; contentWidth: availableWidth
                     ColumnLayout {
                         width: parent.width; spacing: 18
                         RowLayout { Layout.fillWidth: true
@@ -1421,8 +1405,8 @@ ApplicationWindow {
             Copy { objectName: "teachingNarrationSummary"; Layout.fillWidth: true; color: bridge.selectedNarrationVariant && !bridge.lessonNarration.ready ? "#a66318" : "#168567"; text: !bridge.selectedNarrationVariant ? "Dạy bằng PowerPoint không kèm giọng đọc." : bridge.lessonNarration.ready ? bridge.lessonNarration.title + ". Giọng chỉ phát khi thầy cô bấm nút đọc." : "Bản giọng này chưa hoàn tất. Quay lại tạo tiếp hoặc chọn bản khác." }
             Copy { Layout.fillWidth: true; text: bridge.quickResult.draft ? "Xác nhận thầy cô đã kiểm tra nội dung Việt–Anh, thuật ngữ, số liệu và bố cục. BiliClass sẽ lưu xác nhận và mở trình chiếu." : "Bài đã được duyệt. Bắt đầu dạy để mở trình chiếu; các nút đọc trên mascot sẽ hoạt động theo bản giọng đã chọn." }
             Copy { objectName: "teachingLayoutBlocker"; visible: (((bridge.lesson.slide_quality || {}).counts || {}).FAIL || 0) > 0; Layout.fillWidth: true; color: "#a66318"; text: "Bản PowerPoint còn " + ((((bridge.lesson.slide_quality || {}).counts || {}).FAIL) || 0) + " slide cần sửa trước khi dạy. Chọn Xem lại bài để kiểm tra." }
-            ScrollView {
-                visible: (bridge.quickResult.warnings || []).length > 0; Layout.fillWidth: true; Layout.preferredHeight: 150; clip: true; contentWidth: availableWidth
+            ContentScrollView {
+                visible: (bridge.quickResult.warnings || []).length > 0; Layout.fillWidth: true; Layout.preferredHeight: 150; contentWidth: availableWidth
                 Copy { width: parent.width; text: (bridge.quickResult.warnings || []).join("\n\n"); color: "#a66318" }
             }
             RowLayout {
@@ -1440,7 +1424,7 @@ ApplicationWindow {
             Caption { text: bridge.lesson.title || ""; Layout.fillWidth: true; wrapMode: Text.WordWrap; textFormat: Text.PlainText }
             Copy { objectName: "lessonReviewExplanation"; text: bridge.lessonReview.detail || ""; Layout.fillWidth: true }
             ProgressBar { visible: bridge.busy; indeterminate: true; Layout.fillWidth: true }
-            ScrollView { id: reviewIssues; visible: !!bridge.slideQualityDetails; Layout.fillWidth: true; Layout.preferredHeight: Math.min(230, reviewIssueText.implicitHeight + 6); clip: true; contentWidth: availableWidth
+            ContentScrollView { id: reviewIssues; visible: !!bridge.slideQualityDetails; Layout.fillWidth: true; Layout.preferredHeight: Math.min(230, reviewIssueText.implicitHeight + 6); contentWidth: availableWidth
                 Copy { id: reviewIssueText; width: reviewIssues.availableWidth; text: bridge.slideQualityDetails; textFormat: Text.PlainText; color: "#9c651b" }
             }
             Copy { visible: bridge.lessonReview.canRepair; text: "Sửa kỹ thuật không tự xác nhận bản dịch."; font.pixelSize: 11; Layout.fillWidth: true }
@@ -1476,8 +1460,8 @@ ApplicationWindow {
                     Image { anchors.fill: parent; anchors.margins: 3; source: bridge.comparison.result_image || ""; fillMode: Image.PreserveAspectFit }
                 }
             }
-            ScrollView {
-                id: comparisonReport; Layout.fillWidth: true; Layout.preferredHeight: Math.min(110, comparisonWarnings.implicitHeight + 4); clip: true; contentWidth: availableWidth
+            ContentScrollView {
+                id: comparisonReport; Layout.fillWidth: true; Layout.preferredHeight: Math.min(110, comparisonWarnings.implicitHeight + 4); contentWidth: availableWidth
                 Copy { id: comparisonWarnings; width: comparisonReport.availableWidth; text: (bridge.conversionReport || []).filter(function(item) { return !item.slide || item.slide === bridge.comparison.source_slide }).map(function(item) { return (item.warnings || []).join("\n") || item.message || (item.action === "added" ? "Đã thêm vùng hỗ trợ vào khoảng trống." : item.action === "support_pages" ? "Slide kín: phần hỗ trợ nằm ở trang kế tiếp." : "Giữ nội dung gốc hoặc ưu tiên ngôn ngữ đã chọn.") }).join("\n"); font.pixelSize: 11 }
             }
             Copy { text: "Ảnh đối chiếu xác nhận bố cục tĩnh. Mở PowerPoint để kiểm tra hiệu ứng, video và âm thanh."; Layout.fillWidth: true; font.pixelSize: 11 }
@@ -1564,7 +1548,7 @@ ApplicationWindow {
             }
             Copy { text: lessonTrashDialog.selected.length + " / " + lessonTrashDialog.identities.length + " bài đã chọn"; font.pixelSize: 11; Layout.fillWidth: true }
             Copy { visible: bridge.trashedLessons.length === 0; text: "Thùng rác đang trống." }
-            ScrollView { Layout.fillWidth: true; Layout.fillHeight: true; clip: true; contentWidth: availableWidth
+            ContentScrollView { Layout.fillWidth: true; Layout.fillHeight: true; contentWidth: availableWidth
                 ColumnLayout { width: parent.width; spacing: 10
                     Repeater { model: bridge.trashedLessons
                         RowLayout { required property var modelData; Layout.fillWidth: true
@@ -1665,7 +1649,7 @@ ApplicationWindow {
     }
     Dialog {
         id: sourceDialog; anchors.centerIn: parent; modal: true; title: "Văn bản trích xuất ban đầu"; width: 680; height: 420; standardButtons: Dialog.Close
-        ScrollView { anchors.fill: parent; clip: true; TextArea { text: bridge.segment.source_text || ""; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; color: root.ink; font.pixelSize: 15 } }
+        ContentScrollView { anchors.fill: parent;  TextArea { text: bridge.segment.source_text || ""; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; color: root.ink; font.pixelSize: 15 } }
     }
     Dialog {
         id: splitDialog; anchors.centerIn: parent; modal: true; width: 500; title: "Tách đoạn theo con trỏ"; standardButtons: Dialog.Ok | Dialog.Cancel
