@@ -273,6 +273,13 @@ class Bridge(QObject):
             self._voices = speech.list_voices()
         except Exception:
             self._voices = []  # text editing remains usable without SAPI
+        from .narration_workspace import NarrationWorkspace
+
+        self.narration_workspace = NarrationWorkspace(self)
+
+    @Property(QObject, constant=True)
+    def narrationWorkspace(self):
+        return self.narration_workspace
 
     @Property("QVariantList", notify=lessonsChanged)
     def lessons(self):
@@ -379,7 +386,7 @@ class Bridge(QObject):
 
         from .download_names import suggestion
 
-        extension = kind if kind in {'pptx', 'biliclass', 'bcbackup', 'csv'} else 'pptx'
+        extension = kind if kind in {'pptx', 'biliclass', 'bcbackup', 'csv', 'zip'} else 'pptx'
         title = 'BiliClass - Sao lưu ' + datetime.now().strftime('%Y-%m-%d') if kind == 'bcbackup' else self._lesson.get('title', 'Bài giảng')
         path = suggestion(QUrl(self.downloadsDirectory).toLocalFile(), title, '', extension)
         return QUrl.fromLocalFile(str(path)).toString()
@@ -1079,14 +1086,13 @@ class Bridge(QObject):
     def importNarrationPresentation(self, url):
         from .voice_import import import_presentation
 
-        if self._busy or self.narrationBusy or self.powerpoint_worker or self.classroom.running:
-            self.inform('Hoàn tất tác vụ hoặc trình chiếu trước khi chọn bài khác.', True)
+        if not self.narration_workspace.available():
             return
         directory = self.library.directory
 
         def ready(result):
             self._show_lesson(*result)
-            self.inform('Đã nhận bài để tạo giọng. Giữ nguyên PowerPoint; chỉ đọc nội dung nhận diện được, không tự dịch.')
+            self.inform('Đã nhận PowerPoint. Kiểm tra hoặc bổ sung lời đọc theo slide rồi chọn giọng để tạo.')
 
         self.launch(lambda: import_presentation(directory, QUrl(url).toLocalFile()), ready)
 
@@ -1145,6 +1151,8 @@ class Bridge(QObject):
                     self._catalog.refresh()
                 except (ValueError, KeyError):
                     pass  # A deleted/edited lesson cannot receive stale audio metadata.
+                if not state.get('running') and state.get('message'):
+                    self.inform(state['message'], bool(state.get('failed')), refresh=False)
         self.narrationChanged.emit()
 
     def _lesson_voice_settings(self):
@@ -2322,6 +2330,9 @@ class Bridge(QObject):
     def openLesson(self, lesson_id):
         if self._busy:
             return
+        if self.narrationBusy:
+            self.inform('Đang tạo giọng. Dừng hoặc chờ hoàn tất trước khi mở bài khác.', True, refresh=False)
+            return
         try:
             lesson = self.library.get(lesson_id)
             if lesson.get("external_deck"):
@@ -2334,7 +2345,7 @@ class Bridge(QObject):
         except Exception as exc:
             self.inform(str(exc), True)
 
-    def _show_lesson(self, lesson, preview=None):
+    def _show_lesson(self, lesson, preview=None, *, auto_repair=True):
         """Apply prepared UI data; file integrity checks belong to the worker."""
         self.stopSpeech()
         self._conversion_report = []
@@ -2352,7 +2363,7 @@ class Bridge(QObject):
         self.changed.emit()
         self.selectionChanged.emit()
         self.navigate.emit("result")
-        if (not lesson.get('voice_only') and lesson.get('external_deck') and lesson.get('slide_quality',{}).get('counts',{}).get('FAIL')
+        if (auto_repair and not lesson.get('voice_only') and lesson.get('external_deck') and lesson.get('slide_quality',{}).get('counts',{}).get('FAIL')
                 and 'local_repairs' not in lesson.get('slide_quality',{})
                 and lesson['id'] not in getattr(self,'_auto_reviewed',set())):
             if not hasattr(self,'_auto_reviewed'):
@@ -3025,6 +3036,9 @@ class Bridge(QObject):
 
     @Slot(str, bool)
     def downloadPresentationWithVoice(self, url, with_voice):
+        if self.narrationBusy:
+            self.inform('Dừng hoặc chờ tạo giọng xong trước khi tải PowerPoint.', True, refresh=False)
+            return
         self.rememberExportDirectory(url)
         from .lesson_files import save_presentation
 

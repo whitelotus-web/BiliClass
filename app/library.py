@@ -159,16 +159,17 @@ class Library:
             lesson = json.loads(row["content"])
             if bool(lesson.get("deleted_at")) != trash:
                 continue
-            failures = lesson.get("slide_quality", {}).get("counts", {}).get("FAIL", 0)
+            failures = 0 if lesson.get('voice_only') else lesson.get("slide_quality", {}).get("counts", {}).get("FAIL", 0)
+            readable = [s for s in lesson['segments'] if s.get('vi', '').strip() or s.get('en', '').strip()]
             result.append(
                 {
                     **dict(row),
                     "content": None,
                     "segments_count": len(lesson["segments"]),
                     "approved_count": sum(bool(s["approved"]) for s in lesson["segments"]),
-                    "status": ('READY_TO_TEACH' if lesson.get('voice_only') and lesson['segments']
+                    "status": ('READY_TO_TEACH' if lesson.get('voice_only') and readable
                                and all(s.get('approved') and (s.get('vi', '').strip() or s.get('en', '').strip())
-                                       for s in lesson['segments']) else lesson_status(lesson["segments"])),
+                                       for s in readable) else lesson_status(lesson["segments"])),
                     "prepared": preparation_current(lesson) and not failures,
                     'quality_failures': failures,
                     'review': review_summary(lesson),
@@ -668,7 +669,13 @@ class Library:
         lesson = self.get(lesson_id)
         if inspection["slide_speech"]["sha256"] != (lesson.get("source") or {}).get("sha256"):
             raise ValueError("Dữ liệu lời đọc không khớp PowerPoint hiện tại.")
-        lesson["slide_speech"] = inspection["slide_speech"]
+        if lesson.get('voice_only'):
+            from .voice_import import script_speech
+
+            lesson['source_slide_speech'] = inspection['slide_speech']
+            lesson['slide_speech'] = script_speech(lesson)
+        else:
+            lesson["slide_speech"] = inspection["slide_speech"]
         lesson["slide_quality"] = inspection["slide_quality"]
         if lesson.get("external_deck"):
             lesson["external_deck"]["review_notes"] = inspection.get("review_notes", [])
@@ -684,7 +691,7 @@ class Library:
             raise RevisionConflict("Bài vừa được sửa. Xem lại PowerPoint trước khi dùng để dạy.")
         external_preview(lesson, self.directory)
         quality = lesson.get("slide_quality", {})
-        if quality.get("counts", {}).get("FAIL", 0):
+        if not lesson.get('voice_only') and quality.get("counts", {}).get("FAIL", 0):
             raise ValueError("Bản PowerPoint còn slide FAIL. Sửa các lỗi trong báo cáo và nhận lại tệp trước khi xác nhận dùng để dạy.")
         for segment in lesson["segments"]:
             if (segment["vi"].strip() and segment["en"].strip()
@@ -693,7 +700,8 @@ class Library:
         lesson.update(revision=lesson["revision"] + 1, updated_at=now())
         lesson["external_deck"].update(reviewed_revision=lesson["revision"], reviewed_at=now())
         # Readiness for quiz/classroom text remains separate from deck approval.
-        if all(s["approved"] for s in lesson["segments"]):
+        readable = [s for s in lesson['segments'] if s['vi'].strip() or s['en'].strip()] if lesson.get('voice_only') else lesson['segments']
+        if readable and all(s["approved"] for s in readable):
             lesson["prepared"] = {"revision": lesson["revision"], "source_sha256": lesson["source"]["sha256"],
                                   "created_at": now()}
         self._write(lesson)

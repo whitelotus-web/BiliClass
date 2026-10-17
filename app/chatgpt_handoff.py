@@ -344,8 +344,10 @@ def external_preview(lesson, directory):
         raise ValueError("PowerPoint nhận về đã thay đổi; nhận lại file trước khi dạy.")
     mapped = {s["locator"]: s["id"] for s in lesson["segments"]}
     complete = sum(bool(s["vi"].strip() and s["en"].strip()) for s in lesson["segments"])
-    warnings = ["Đối chiếu bài đã chuyển đổi: nghĩa, thuật ngữ, số liệu, công thức, hình và hiệu ứng."]
-    warnings.extend(external.get("review_notes", []))
+    warnings = (["Lời đọc lưu riêng với slide gốc. Kiểm tra lời đọc; slide không có lời sẽ không phát tiếng."]
+                if lesson.get('voice_only') else ["Đối chiếu bài đã chuyển đổi: nghĩa, thuật ngữ, số liệu, công thức, hình và hiệu ứng."])
+    if not lesson.get('voice_only'):
+        warnings.extend(external.get("review_notes", []))
     if not lesson.get('voice_only') and complete < len(lesson["segments"]):
         warnings.append(f"Trợ giảng nhận diện được cặp Việt–Anh ở {complete}/{external['total']} slide. "
                         "Các slide còn lại vẫn trình chiếu được; mascot chưa đọc song ngữ ở các slide đó.")

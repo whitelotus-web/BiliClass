@@ -51,10 +51,11 @@ def test_bilingual_notes_available_without_translation(tmp_path):
     assert lesson['segments'][0]['en'] == 'A computer processes information.'
 
 
-def test_no_text_and_wrong_type_cannot_create_empty_voice_lesson(tmp_path):
+def test_no_text_can_be_completed_with_explicit_narration_and_wrong_type_rejected(tmp_path):
     source = deck(tmp_path / 'Empty.pptx', '')
-    with pytest.raises(ValueError, match='chưa có chữ'):
-        import_presentation(tmp_path / 'library', source)
+    lesson, _ = import_presentation(tmp_path / 'library', source)
+    assert not lesson['segments'][0]['vi'] and not lesson['segments'][0]['en']
+    assert lesson['voice_only'] and not lesson['segments'][0]['approved']
     wrong = tmp_path / 'image.png'
     wrong.write_bytes(b'not a deck')
     with pytest.raises(ValueError):

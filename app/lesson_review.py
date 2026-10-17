@@ -6,21 +6,23 @@ from .readiness import preparation_current
 def summarize(lesson):
     segments = lesson.get('segments', [])
     counts = lesson.get('slide_quality', {}).get('counts', {})
-    failures = max(0, int(counts.get('FAIL', 0)))
+    failures = 0 if lesson.get('voice_only') else max(0, int(counts.get('FAIL', 0)))
+    if lesson.get('voice_only'):
+        segments = [s for s in segments if s.get('vi', '').strip() or s.get('en', '').strip()]
     missing = sum(not ((s.get('vi', '').strip() or s.get('en', '').strip()) if lesson.get('voice_only')
                        else (s.get('vi', '').strip() and s.get('en', '').strip())) for s in segments)
     pending = sum(not s.get('approved') for s in segments)
     result = {'failures': failures, 'missing': missing, 'pending': pending,
-              'canInspect': bool(lesson.get('external_deck')),
-              'canRepair': bool(lesson.get('external_deck') and failures),
+              'canInspect': bool(lesson.get('external_deck') and not lesson.get('voice_only')),
+              'canRepair': bool(lesson.get('external_deck') and failures and not lesson.get('voice_only')),
               'canConfirm': bool(segments) and not missing and not failures}
     if failures:
         result.update(kind='repair', label=f'{failures} slide cần sửa',
                       detail=f'Kiểm tra kỹ thuật phát hiện {failures} slide còn lỗi. Bấm Kiểm tra lại để cập nhật chi tiết, hoặc thử Tự sửa và kiểm tra.',
                       action='Xem lỗi và tự sửa')
     elif not segments or missing:
-        result.update(kind='incomplete', label='Chưa dịch đủ',
-                      detail='Bài còn thiếu nội dung Việt–Anh. Mở phần chỉnh sửa để bổ sung hoặc tiếp tục chuyển đổi.',
+        result.update(kind='incomplete', label='Chưa có lời đọc' if lesson.get('voice_only') else 'Chưa dịch đủ',
+                      detail='Bổ sung lời đọc trong Tạo giọng đọc bài giảng → Kiểm tra lời đọc.' if lesson.get('voice_only') else 'Bài còn thiếu nội dung Việt–Anh. Mở phần chỉnh sửa để bổ sung hoặc tiếp tục chuyển đổi.',
                       action='Xem nội dung còn thiếu')
     elif pending:
         result.update(kind='confirm', label='Chờ xác nhận',

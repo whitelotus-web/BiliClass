@@ -1,0 +1,166 @@
+"""Real Qt narration workflow with disposable slides and deterministic WAV fixtures."""
+
+import json
+import logging
+import os
+import sys
+import tempfile
+import wave
+import zipfile
+from pathlib import Path
+from threading import Event
+from unittest.mock import patch
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from pptx import Presentation
+from PySide6.QtCore import QCoreApplication, QEvent
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtQml import QQmlApplicationEngine
+from PySide6.QtQuickControls2 import QQuickStyle
+from qt_result_preview_mascot_smoke import click, control, pump, until
+
+from app import speech
+from app.library import Library
+from app.paths import RESOURCE_ROOT
+from app.ui import Bridge
+
+
+def main():
+    app = QGuiApplication([])
+    QQuickStyle.setStyle('Basic')
+    out = Path('reports/rc66/workspace')
+    out.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix='biliclass-voice-workspace-', ignore_cleanup_errors=True) as folder:
+        folder = Path(folder)
+        os.environ['BILICLASS_DATA'] = str(folder / 'data')
+        library = Library(folder / 'data')
+        bridge = Bridge(library)
+        engine = QQmlApplicationEngine()
+        warnings = []
+        engine.warnings.connect(lambda values: warnings.extend(str(v) for v in values))
+        engine.rootContext().setContextProperty('bridge', bridge)
+        engine.load(RESOURCE_ROOT / 'qml/Main.qml')
+        assert engine.rootObjects(), warnings
+        window = engine.rootObjects()[0]
+
+        def c(name):
+            return control(window, name)
+
+        def render(text, voice, rate, directory, cancel):
+            target = Path(directory) / (speech.audio_key(text, voice, rate) + '.wav')
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with wave.open(str(target), 'wb') as audio:
+                audio.setparams((1, 2, 24000, 0, 'NONE', 'not compressed'))
+                audio.writeframes(b'\1\0' * 2400)
+            return {'path': str(target), 'cached': False}
+
+        try:
+            window.resize(1366, 850)
+            window.setProperty('page', 'voice')
+            path = folder / 'Bài giảng ảnh.pptx'
+            deck = Presentation()
+            deck.slides.add_slide(deck.slide_layouts[6])
+            deck.slides.add_slide(deck.slide_layouts[6])
+            deck.save(path)
+            original = path.read_bytes()
+            bridge.importNarrationPresentation(path.as_uri())
+            until(lambda: not bridge.busy and bool(bridge.quickResult.get('path')))
+            pump(250)
+            assert window.grabWindow().save(str(out / 'imported.png'))
+            assert not c('narrationEnglish').isEnabled() and not c('narrationVietnamese').isEnabled()
+            assert not c('createLessonNarrationButton').isEnabled()
+            click(window, c('reviewNarrationScript'))
+            until(lambda: c('narrationScriptDialog').property('visible'))
+            pump(150)
+            c('narrationScriptVietnamese').setProperty('text', 'Năng lượng được bảo toàn.')
+            c('narrationScriptEnglish').setProperty('text', 'Energy is conserved.')
+            assert not c('narrationScriptSlide').isEnabled(), 'Unsaved script cannot change slides'
+            assert window.grabWindow().save(str(out / 'script-1366.png'))
+            click(window, c('saveNarrationScript'))
+            assert bridge.lesson['segments'][0]['en'] == 'Energy is conserved.'
+            assert not c('narrationScriptDialog').property('dirty')
+            click(window, c('discardNarrationScript'))
+            click(window, c('narrationBoth'))
+            assert c('narrationBoth').property('checked')
+            started, calls = Event(), []
+
+            def slow(text, voice, rate, directory, cancel):
+                calls.append(text)
+                started.set()
+                cancel.wait(5)
+                return render(text, voice, rate, directory, cancel)
+
+            with patch('app.speech.narration_workers', return_value=1), patch('app.speech.synthesize_background', side_effect=slow):
+                click(window, c('createLessonNarrationButton'))
+                until(started.is_set)
+                assert bridge.narrationBusy
+                assert not c('changeVoiceSource').isEnabled() and not c('downloadPresentationButton').isEnabled()
+                previous = bridge.lesson['id']
+                bridge.narrationWorkspace.selectLibrary('different-id')
+                assert bridge.lesson['id'] == previous and bridge.error
+                click(window, c('cancelLessonNarrationButton'))
+                until(lambda: not bridge.narrationBusy)
+            assert bridge.lessonNarration['complete'] == 1 and not bridge.lessonNarration['ready']
+            assert c('createLessonNarrationButton').property('text') == 'Tiếp tục tạo giọng'
+
+            with patch('app.speech.narration_workers', return_value=1), patch('app.speech.synthesize_background', side_effect=render):
+                click(window, c('createLessonNarrationButton'))
+                until(lambda: not bridge.narrationBusy and bridge.lessonNarration.get('ready'))
+            assert bridge.narrationPreparation['cached'] == 1
+            assert not c('createLessonNarrationButton').isEnabled()
+            assert c('downloadNarrationAudioButton').isVisible()
+            assert not any(s['approved'] for s in bridge.lesson['segments'])
+            for width, height in ((1080, 700), (1366, 850)):
+                window.resize(width, height)
+                c('resultScroll').property('contentItem').setProperty('contentY', 0)
+                pump(150)
+                assert window.grabWindow().save(str(out / f'ready-{width}.png'))
+            audio_target = folder / 'Audio.zip'
+            bridge.narrationWorkspace.exportAudio(audio_target.as_uri())
+            until(lambda: not bridge.busy)
+            assert not bridge.error, bridge.message
+            with zipfile.ZipFile(audio_target) as archive:
+                assert 'Slide-001-both.wav' in archive.namelist()
+            ppt_target = folder / 'Có giọng.pptx'
+            bridge.downloadPresentationWithVoice(ppt_target.as_uri(), True)
+            until(lambda: not bridge.busy)
+            assert not bridge.error, bridge.message
+            with zipfile.ZipFile(ppt_target) as archive:
+                assert any(name.endswith('.wav') for name in archive.namelist())
+            assert path.read_bytes() == original
+            assert not bridge.powerpointState.get('active')
+
+            # The library route must prepare a preview even for an old text lesson.
+            lesson = library.create('Bài thư viện', 'Tin học', 'THPT', '10', [('Slide 1', 'Máy tính xử lý thông tin.')])
+            lesson = library.edit_segment(lesson['id'], lesson['segments'][0]['id'], 'Máy tính xử lý thông tin.', 'A computer processes information.')
+            bridge.narrationWorkspace.selectLibrary(lesson['id'])
+            until(lambda: not bridge.busy and bridge.lesson.get('id') == lesson['id'])
+            assert bridge.quickResult['lesson_id'] == lesson['id'] and bridge.quickResult['path']
+            assert window.property('page') == 'voice'
+            assert c('lessonNarrationPanel').isVisible()
+            assert not warnings, warnings
+            result = {'status': 'passed', 'qml_warnings': warnings,
+                      'checks': ['blank/image slide script editing without source changes', 'dirty script blocks slide switch',
+                                 'language availability', 'cancel and resume reuse cached WAV', 'busy source/download guards',
+                                 'ready duplicate lock', 'ZIP WAV and embedded PowerPoint export',
+                                 'regular library lesson prepares matching preview', 'no auto review or playback'],
+                      'scope': 'Real Qt and PowerPoint export; synthesized audio uses WAV fixtures'}
+            (out / 'result.json').write_text(json.dumps(result, indent=2), encoding='utf-8')
+            print(json.dumps(result), flush=True)
+        finally:
+            window.close()
+            for worker in (bridge.libraryThumbnails, bridge.slidePreview, bridge._catalog, bridge.browserAI,
+                           bridge.english_reader, bridge.narration_preparation, bridge.classroom, bridge.voice_controls):
+                worker.shutdown()
+            engine.deleteLater()
+            QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+            app.processEvents()
+            library.close()
+            logging.shutdown()
+    return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

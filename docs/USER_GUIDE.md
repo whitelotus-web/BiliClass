@@ -1,6 +1,6 @@
 # BiliClass — Trợ lý dạy học song ngữ
 
-Hướng dẫn RC65, ngày 17/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
+Hướng dẫn RC66, ngày 17/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
 trên máy. Chuyển đổi hiện dùng Google Cloud Translation cho phần chữ và dựng
 PowerPoint tại máy; Browser ChatGPT/Gemini tạm ẩn.
 
@@ -265,6 +265,28 @@ này. Chọn giọng, tốc độ và Anh/Việt/Song ngữ, nghe thử rồi t�
 xử lý với bước tạo giọng sau chuyển đổi. Bài một ngôn ngữ chỉ có lời đọc
 ngôn ngữ đó. Bản giọng đủ được khóa tạo trùng, vẫn chọn để tải/dạy. Nhận lại
 cùng file sẽ dùng bài đã nhập trước đó và giữ các bản giọng đã tạo.
+
+1. Chọn file hoặc **Dùng bài trong thư viện**. Số slide có lời Việt/Anh
+   hiện ngay sau khi nhận bài.
+2. Chọn **Kiểm tra lời đọc**. Với PowerPoint nhập riêng để tạo giọng, có
+   thể bổ sung/sửa lời Việt và Anh cho từng slide, kể cả slide ảnh. Lời đọc
+   lưu riêng, giữ nguyên file và thiết kế gốc; không tự dịch/OCR. Ghi chú
+   `VI:` hoặc `EN:` cũng có thể chỉ chứa một ngôn ngữ.
+3. **Lưu lời đọc** trước khi đổi slide. Sửa lời làm bản giọng cũ cần cập
+   nhật và yêu cầu xác nhận lại trước khi dạy. Slide không có lời sẽ được
+   bỏ qua; màn hình cho biết số slide cần bổ sung. Với bài chuyển ngữ đã có
+   trong thư viện, dùng **Thao tác khác → Sửa nội dung trợ giảng** để sửa.
+4. Chọn giọng, tốc độ, ngôn ngữ và **Tạo giọng đọc**. **Dừng** giữ các đoạn
+   đã xong; **Tiếp tục tạo giọng** chỉ tạo những đoạn còn thiếu/hỏng. Khi
+   lỗi, thông báo nêu nguyên nhân để kiểm tra bộ giọng hoặc ổ đĩa rồi thử lại.
+5. Khi sẵn sàng, tải **PowerPoint** có bản giọng đang chọn hoặc **Tải audio
+   (.zip)** gồm WAV theo slide/ngôn ngữ, bản đọc chung Việt–Anh nếu đã chọn,
+   và tệp lời đọc. ZIP dùng để phát thủ công, không tự đồng bộ hiệu ứng.
+   Nếu slide không có vùng trống để chèn nút loa, có thể tải audio ZIP.
+
+Nút nghe thử lời đọc phát tối đa 250 ký tự đầu của slide với giọng/tốc độ
+đang chọn. Tạo xong không tự phát tiếng, tự duyệt hay tự mở trình chiếu.
+**Tiếp tục: chuẩn bị dạy** mở bước xác nhận riêng trước khi dùng mascot.
 
 ## Chuyển toàn bộ thư viện sang ổ khác
 

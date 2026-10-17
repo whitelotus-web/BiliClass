@@ -8,6 +8,8 @@ from .portable_audio import available_audio
 
 def text_readiness(lesson, directory):
     segments = lesson.get("segments", [])
+    if lesson.get('voice_only'):
+        segments = [s for s in segments if s.get('vi', '').strip() or s.get('en', '').strip()]
     total = len(segments)
     approved = sum(bool(s.get("approved")) and bool((s.get('vi', '').strip() or s.get('en', '').strip())
                    if lesson.get('voice_only') else (s.get("vi", "").strip() and s.get("en", "").strip()))

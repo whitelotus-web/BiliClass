@@ -46,12 +46,14 @@ class NarrationJob(QThread):
             self.result = {'complete': 0, 'cached': 0, 'total': self.total, 'failed': 0,
                            'skipped': self.skipped, 'duplicates': self.duplicates, 'cancelled': True}
             return
-        except Exception:
+        except Exception as exc:
             self.result = {'complete': 0, 'cached': 0, 'total': self.total, 'failed': 1,
-                           'skipped': self.skipped, 'duplicates': self.duplicates, 'cancelled': False}
+                           'skipped': self.skipped, 'duplicates': self.duplicates, 'cancelled': False,
+                           'last_error': str(exc)[:280]}
             return
         complete = cached = self.initial_cached
         failed = consecutive = 0
+        last_error = ''
         tasks=deque(self.tasks)
         futures={}
         second_enabled=False
@@ -90,7 +92,7 @@ class NarrationJob(QThread):
                                 second_enabled=True
                         except InterruptedError:
                             stopping=True
-                        except Exception:
+                        except Exception as exc:
                             if slot:
                                 # Low RAM/secondary initialization must not lose a line.
                                 tasks.appendleft(task)
@@ -99,6 +101,7 @@ class NarrationJob(QThread):
                             else:
                                 failed+=1
                                 consecutive+=1
+                                last_error = str(exc)[:280]
                         self.result={'complete':complete,'cached':cached,'failed':failed,
                                      'total':self.total,'skipped':self.skipped,
                                      'duplicates':self.duplicates,'workers':2 if second_enabled else 1}
@@ -112,7 +115,7 @@ class NarrationJob(QThread):
             self.result = {"complete": complete, "cached": cached, "failed": failed,
                            "total": self.total, "skipped": self.skipped,
                            "duplicates": self.duplicates, "cancelled": self.cancel.is_set(),
-                           "workers": self.parallelism}
+                           "workers": self.parallelism, 'last_error': last_error}
 
 
 class NarrationPreparation(QObject):
@@ -152,7 +155,8 @@ class NarrationPreparation(QObject):
         self.state = {**(metadata or {}), "lesson_id": lesson_id, "running": True,
                       "complete": self.worker.initial_cached, "cached": self.worker.initial_cached, "failed": 0,
                       "voice": voices.get("voice", ""), "rate": voices["rate"],
-                      "total": self.worker.total, "skipped": self.worker.skipped,
+                      "total": (metadata or {}).get('total', self.worker.total),
+                      "skipped": (metadata or {}).get('skipped', self.worker.skipped),
                       "duplicates": self.worker.duplicates, "cancelled": False,
                       "message": "Đang kiểm tra các đoạn giọng đã lưu…"}
         self.worker.progressed.connect(self._progress)
@@ -208,7 +212,11 @@ class NarrationPreparation(QObject):
     def _completion_message(result):
         if result.get("cancelled"):
             return "Đã dừng tạo giọng. Các đoạn đã tạo được giữ lại để tiếp tục."
-        if result.get("failed") or result.get("skipped"):
+        if result.get('failed'):
+            return (f"Chưa tạo đủ giọng ({result.get('complete', 0)}/{result.get('total', 0)} đoạn). "
+                    + (result.get('last_error') or 'Bộ giọng chưa sẵn sàng.')
+                    + ' Kiểm tra bộ giọng và dung lượng ổ đĩa, rồi bấm Tiếp tục tạo giọng.')
+        if result.get("skipped"):
             return "Một số lời đọc cần kiểm tra. Bài giảng đã được lưu."
         if not result.get("total"):
             return "Chưa có nội dung phù hợp để tạo giọng đọc."
@@ -218,6 +226,9 @@ class NarrationPreparation(QObject):
         self.pending = None
         if self.worker is not None:
             self.worker.cancel.set()
+            self.state['stopping'] = True
+            self.state['message'] = 'Đang dừng sau đoạn hiện tại; giữ lại các đoạn đã tạo.'
+            self.changed.emit()
 
     def _stop_clock(self):
         self._elapsed = self.elapsedSeconds
