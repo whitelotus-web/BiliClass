@@ -714,7 +714,7 @@ ApplicationWindow {
                         Heading { text: "Chuyển đổi bài giảng PowerPoint"; font.pixelSize: root.tightCreation ? 24 : 27; Layout.fillWidth: true; wrapMode: Text.WordWrap }
                         Copy { visible: !root.tightCreation; text: "Chọn PowerPoint → chọn kiểu chuyển đổi → xem bài giảng → dùng để dạy."; Layout.fillWidth: true }
                         PowerPointUpload {
-                            objectName: "creationSourceArea"; illustrated: true; condensed: root.compactCreation; Layout.fillWidth: true
+                            objectName: "creationSourceArea"; illustrated: true; compact: true; Layout.fillWidth: true
                             chooseObjectName: "chooseInputDocumentButton"
                             dropObjectName: "creationDocumentDrop"
                             filenameObjectName: "creationSelectedFilename"
