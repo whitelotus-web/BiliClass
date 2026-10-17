@@ -388,7 +388,7 @@ ApplicationWindow {
                     ColumnLayout {
                         width: sidebarNavigation.availableWidth; spacing: 8
                         Repeater {
-                            model: [{key:"home", label:"Trang chủ", icon:"home"}, {key:"new", label:"Chuyển đổi bài giảng", icon:"bilingual"}, {key:"voice", label:"Tạo giọng đọc bài giảng", icon:"voice"}, {key:"library", label:"Bài giảng", icon:"lessons"}, {key:"classroom", label:"Lớp học", icon:"classroom"}, {key:"settings", label:"Cài đặt", icon:"settings"}]
+                            model: [{key:"home", label:"Trang chủ", icon:"home"}, {key:"new", label:"Chuyển đổi bài giảng", icon:"bilingual"}, {key:"voice", label:"Tạo giọng đọc bài giảng", icon:"narration"}, {key:"library", label:"Bài giảng", icon:"lessons"}, {key:"classroom", label:"Lớp học", icon:"classroom"}, {key:"settings", label:"Cài đặt", icon:"settings"}]
                             delegate: Button {
                                 required property var modelData
                                 objectName: "navigation" + modelData.key
@@ -398,7 +398,7 @@ ApplicationWindow {
                                 background: Rectangle { radius: 10; color: parent.selected ? "#eaf3ff" : parent.hovered ? "#f4f7fc" : "transparent" }
                                 contentItem: RowLayout {
                                     spacing: 13
-                                    Image { source: "../assets/navigation/" + modelData.icon + (selected ? "-active" : "") + ".png"; sourceSize.width: 64; sourceSize.height: 64; fillMode: Image.PreserveAspectFit; Layout.preferredWidth: 29; Layout.preferredHeight: 29 }
+                                    NavigationIcon { name: modelData.icon; active: selected; Layout.preferredWidth: 29; Layout.preferredHeight: 29 }
                                     Label { text: modelData.label; font.pixelSize: 14; font.weight: selected ? Font.DemiBold : Font.Normal; color: selected ? root.blue : root.muted; Layout.fillWidth: true; Layout.minimumWidth: 0; wrapMode: Text.WordWrap }
                                 }
                             }

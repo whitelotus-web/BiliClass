@@ -60,6 +60,22 @@ def main():
             window.resize(1366, 850)
             window.setProperty('page', 'voice')
             pump(150)
+            icon = c('narrationNavigationIcon')
+            assert icon.width() == icon.height() == 29
+
+            def blue_pixels():
+                image = window.grabWindow()
+                position = icon.mapToScene(QPointF()).toPoint()
+                return sum(color.blue() - color.green() > 70 and color.blue() - color.red() > 100
+                           for x in range(position.x(), position.x() + 29)
+                           for y in range(position.y(), position.y() + 29)
+                           for color in [image.pixelColor(x, y)])
+
+            assert blue_pixels() > 20, 'The selected supplied icon must be blue'
+            click(window, c('navigationhome'))
+            pump(150)
+            assert blue_pixels() < 3, 'The unselected supplied icon must retain its gray color'
+            click(window, c('navigationvoice'))
             for width, height in ((1080, 700), (1366, 850)):
                 window.resize(width, height)
                 c('resultScroll').property('contentItem').setProperty('contentY', 0)
@@ -172,7 +188,8 @@ def main():
             assert not c('narrationBoth').isEnabled()
             assert not warnings, warnings
             result = {'status': 'passed', 'qml_warnings': warnings,
-                      'checks': ['voice/rate/three modes visible and selectable before file at two sizes', 'configuration survives file/library choices and mono-language adjustment',
+                      'checks': ['supplied narration icon is 29px with blue/gray selection states',
+                                 'voice/rate/three modes visible and selectable before file at two sizes', 'configuration survives file/library choices and mono-language adjustment',
                                  'blank/image slide script editing without source changes', 'dirty script blocks slide switch',
                                  'language availability', 'cancel and resume reuse cached WAV', 'busy source/download guards',
                                  'ready duplicate lock', 'ZIP WAV and embedded PowerPoint export',
