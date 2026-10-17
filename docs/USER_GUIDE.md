@@ -25,23 +25,28 @@ Thư viện cá nhân không đưa lên GitHub. Key có thể nhận riêng như
 1. Vào **Chuyển đổi bài giảng** ngay sau Trang chủ, chọn hoặc kéo thả PowerPoint
    `.pptx` tối đa 200 MB. Trang chủ có hướng dẫn quy trình và tổng hợp bài giảng; bước tải tài liệu dẫn vào mục Chuyển đổi.
 2. Chọn môn, cấp/khối và **Song ngữ Việt–Anh** hoặc **Tiếng Anh 100%**.
+   Môn mặc định lấy từ **Cài đặt → Chung → Bộ môn giảng dạy**, vẫn đổi được
+   riêng cho bài đang làm. Cấp học và Khối lớp nhớ lần chọn gần nhất, kể cả
+   sau khi đóng rồi mở lại BiliClass.
 3. Chọn giữ thiết kế PowerPoint gốc, hoặc tạo theo mẫu BiliClass/PowerPoint
    riêng. Mẫu Universal 2026 có ba phong cách; chọn xem mẫu để kiểm tra trước.
+   Trên cửa sổ thấp, khu vực tải tệp và cấu hình tự thu gọn. Chọn **Tùy chọn
+   mẫu…** để mở mẫu riêng và vai trò trang; các lựa chọn này vẫn được giữ.
 4. Cấu hình key ở **Cài đặt → Google Dịch**, lưu rồi chuyển đổi.
    Dịch chỉ gửi phần chữ; nội dung trong ảnh được OCR nếu nhận diện được.
 5. Xem lại bài đã lưu. Công thức, chữ trong ảnh, hiệu ứng phức tạp và slide
    dày chữ vẫn cần đối chiếu. Bài còn lỗi chưa được coi là đã duyệt để dạy.
 
-Key được lưu mã hóa theo tài khoản Windows. Nhiều key có thể dùng theo cấu
-hình nhóm/hạn mức, nhưng 500.000 ký tự không phải số dư riêng được BiliClass
-đọc từ mỗi key. Kiểm soát hạn mức và chi phí trong Google Cloud của dự án.
+Key được lưu mã hóa theo tài khoản Windows. Mỗi key có bộ đếm cục bộ riêng,
+mặc định tối đa **500.000 ký tự/key/tháng**. Ngay dưới key là **Còn lại /
+tổng ký tự**, số đã dùng và thanh tiến độ. BiliClass kiểm tra trước mỗi
+lượt gửi; nếu key không đủ cho cả lượt thì tự chuyển sang key còn mức.
+Sang tháng mới tự dùng bộ đếm mới, giữ lịch sử tháng trước. Tháng tính UTC.
 
-Màn Google Dịch hiện số key và số nhóm đếm riêng. Hai key trong cùng nhóm
-vẫn có một giới hạn; hai nhóm đã cấu hình có tổng giới hạn tại máy bằng
-tổng hai nhóm. Hai Gmail khác nhau không đủ để BiliClass xác nhận hai mức
-miễn phí Google. [Bảng giá Google](https://cloud.google.com/products/translate/pricing)
-và [API key gắn với dự án](https://docs.cloud.google.com/translate/docs/authentication).
-Số dùng đã lưu được giữ nguyên, không chia đoán lại lịch sử theo từng key.
+Đây là giới hạn tại BiliClass, không phải số dư được Google trả về. Key
+vẫn gắn với dự án Google để tính hạn mức và thanh toán; xem [tài liệu Google](https://docs.cloud.google.com/translate/docs/authentication).
+Lịch sử chung trước RC69 được giữ riêng vì chưa có chi tiết theo key; số
+đếm từng key ghi từ RC69, không tự chia hoặc gán số cũ cho một key.
 Ô nhập key ẩn sau khi lưu; bấm **Thêm key** để mở. Giới hạn tháng, OCR và
 hướng dẫn đồng bộ nằm trong **Hướng dẫn & nâng cao**.
 
@@ -84,16 +89,16 @@ Bộ đếm đã ghi nhận được giữ theo giá trị lớn hơn, nhưng ha
 
 Key được đánh số tự động **Key 1, Key 2…**, giữ số khi đổi tên. Nếu có tên
 đầu vào, tên hiện trong ngoặc; bấm **Đổi tên** để sửa tên phụ. Đổi tên không
-đổi bộ đếm hay dự án. Key cùng dự án Google Cloud phải cùng tên nhóm dự án.
-Key chỉ nhập riêng không có nhóm vẫn dùng chung bộ đếm lịch sử; hai Gmail
-khác nhau không đủ để ứng dụng tự xác minh hai dự án.
+đổi bộ đếm hay dự án. Xóa rồi thêm lại cùng key giữ số đã dùng trong tháng.
+Tên dự án là thông tin nhận diện/đồng bộ, không gộp bộ đếm của các key.
 
 Ứng dụng ưu tiên key theo thứ tự đã lưu. Khi Google xác nhận key bị từ chối
 hoặc hết quota, chuyển key kế tiếp; lỗi mạng/tốc độ chỉ thử lại có giới hạn.
-Khi một nhóm chạm giới hạn cục bộ, các key cùng nhóm đều ngừng nhận yêu cầu
-mới. Bản dịch trong cache vẫn dùng lại mà không gửi Google.
+Khi một key chạm giới hạn cục bộ, tool dùng key khác; tất cả key hết mức thì
+dừng gửi mới và giữ phần đã dịch. Lần gửi chưa rõ kết quả vẫn được tính,
+không chuyển key để gửi lặp miễn phí. Cache vẫn dùng lại mà không gửi Google.
 
-**Trang chủ → Tình trạng ứng dụng** và **Cài đặt → Google Dịch** cho biết
+**Cài đặt → Google Dịch** cho biết
 ký tự đã ghi nhận trong tháng, phần còn lại theo giới hạn BiliClass và cảnh
 báo 80%/95%. Đây là ước tính tại máy, không phải hạn mức/số dư thật từ Google,
 không bao gồm máy khác. API key đơn thuần không cung cấp quyền đọc số dư
@@ -122,12 +127,16 @@ thay cấu hình mặc định trong Cài đặt. Giọng chạy ngoại tuyến
 
 ## Dạy và mascot
 
-Chọn **Dùng để dạy** hoặc **Tiếp tục: chuẩn bị dạy**, kiểm tra bản giọng,
+Chọn **Dùng để dạy** hoặc **Mở bài giảng để dạy**, kiểm tra bản giọng,
 xác nhận nội dung rồi Bắt đầu dạy. Trình chiếu dùng Microsoft PowerPoint
 cài trên máy. Giọng chỉ phát khi bấm đọc; đóng/đổi slide sẽ dừng hàng đợi.
 
 Bấm **Mở trợ giảng nổi** để hiện mascot; bấm lại **Ẩn trợ giảng nổi** để ẩn.
 Ẩn từ menu mascot cũng cập nhật trạng thái nút bên trái.
+Thu nhỏ BiliClass vẫn giữ Mascot nổi độc lập. **Cài đặt → Mascot → Luôn nổi
+trên cùng** mặc định bật, giữ Mascot phía trên cửa sổ khác và trình chiếu.
+Tắt lựa chọn này cho phép cửa sổ khác che Mascot; bấm **Lưu cài đặt Mascot**
+để áp dụng. Bấm Escape chỉ thu gọn công cụ Mascot, không ẩn.
 
 Mascot có nút mở bài và đọc Việt/Anh/chung. Các nút đọc trên mascot chỉ bật
 khi có phiên trình chiếu đúng bài. Trong Cài đặt Mascot, chọn tự theo môn của
@@ -294,14 +303,16 @@ cùng file sẽ dùng bài đã nhập trước đó và giữ các bản giọn
 
 1. Chọn file hoặc **Dùng bài trong thư viện**. Số slide có lời Việt/Anh
    hiện ngay sau khi nhận bài.
-2. Chọn **Kiểm tra lời đọc**. Với PowerPoint nhập riêng để tạo giọng, có
+2. BiliClass tự kiểm tra số slide có lời theo ngôn ngữ đang chọn; chỉ hiện
+   nhắc khi có slide thiếu lời. Muốn xem hoặc sửa, mở **Thao tác khác →
+   Xem / sửa lời đọc** (bài thư viện ghi **Xem lời đọc**). Với PowerPoint nhập riêng, có
    thể bổ sung/sửa lời Việt và Anh cho từng slide, kể cả slide ảnh. Lời đọc
    lưu riêng, giữ nguyên file và thiết kế gốc; không tự dịch/OCR. Ghi chú
    `VI:` hoặc `EN:` cũng có thể chỉ chứa một ngôn ngữ.
 3. **Lưu lời đọc** trước khi đổi slide. Sửa lời làm bản giọng cũ cần cập
    nhật và yêu cầu xác nhận lại trước khi dạy. Slide không có lời sẽ được
    bỏ qua; màn hình cho biết số slide cần bổ sung. Với bài chuyển ngữ đã có
-   trong thư viện, dùng **Thao tác khác → Sửa nội dung trợ giảng** để sửa.
+   trong thư viện, dùng **Thao tác khác → Bài giảng → Sửa nội dung trợ giảng** để sửa.
 4. Chọn giọng, tốc độ, ngôn ngữ và **Tạo giọng đọc**. **Dừng** giữ các đoạn
    đã xong; **Tiếp tục tạo giọng** chỉ tạo những đoạn còn thiếu/hỏng. Khi
    lỗi, thông báo nêu nguyên nhân để kiểm tra bộ giọng hoặc ổ đĩa rồi thử lại.
@@ -312,7 +323,11 @@ cùng file sẽ dùng bài đã nhập trước đó và giữ các bản giọn
 
 Nút nghe thử lời đọc phát tối đa 250 ký tự đầu của slide với giọng/tốc độ
 đang chọn. Tạo xong không tự phát tiếng, tự duyệt hay tự mở trình chiếu.
-**Tiếp tục: chuẩn bị dạy** mở bước xác nhận riêng trước khi dùng mascot.
+**Mở bài giảng để dạy** mở bước xác nhận riêng trước khi dùng Mascot.
+**Nghe thử** đổi thành **Dừng nghe** trong lúc phát. Khi giọng sẵn sàng,
+chỉ một khu vực tải/mở dạy được hiển thị; muốn lấy bản không giọng, mở
+**Thao tác khác → Bài giảng → Tải PowerPoint không giọng…**. Các thao tác
+mở PowerPoint, xác nhận nội dung và gửi gói bài vẫn có trong nhóm Bài giảng.
 
 ## Chuyển toàn bộ thư viện sang ổ khác
 

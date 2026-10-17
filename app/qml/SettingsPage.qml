@@ -156,8 +156,36 @@ Item {
                     }
                     ColumnLayout { Layout.fillWidth: true; spacing: 6
                         Label { text: "Bộ môn giảng dạy"; color: page.ink }
-                        Field { id: teachingSubjects; objectName: "settingsSubjects"; text: bridge.settings.subjects.join(", "); placeholderText: "Ví dụ: Ngữ văn, Lịch sử, Giáo dục kinh tế và pháp luật"; maximumLength: 500; Layout.fillWidth: true }
-                        Hint { text: "Có thể nhập nhiều môn, ngăn cách bằng dấu phẩy. Đây là hồ sơ tham khảo; vẫn tạo được bài của mọi môn học."; Layout.fillWidth: true }
+                        Choice {
+                            id: teachingSubjects; objectName: "settingsSubjects"; Layout.fillWidth: true
+                            model: bridge.conversionSubjects; leftPadding: 12; rightPadding: 36
+                            currentIndex: { const subject = bridge.defaultTeachingSubject; const index = model.indexOf(subject); return !subject ? -1 : index >= 0 ? index : model.indexOf("Khác") }
+                            displayText: currentIndex < 0 ? "Chọn bộ môn giảng dạy" : currentText
+                            Accessible.name: "Bộ môn giảng dạy"
+                            contentItem: Text { text: teachingSubjects.displayText; font: teachingSubjects.font; color: teachingSubjects.currentIndex < 0 ? page.muted : page.ink; verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight }
+                            delegate: ItemDelegate {
+                                required property string modelData
+                                required property int index
+                                width: teachingSubjectList.width - 16; height: 38; text: modelData; font: teachingSubjects.font
+                                highlighted: teachingSubjects.highlightedIndex === index
+                                contentItem: Text { text: parent.text; font: parent.font; color: page.ink; verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight }
+                                background: Rectangle { radius: 5; color: parent.highlighted || parent.hovered ? "#e8f1ff" : "transparent" }
+                            }
+                            popup: Popup {
+                                id: teachingSubjectPopup; objectName: "settingsSubjectPopup"
+                                y: teachingSubjects.height + 4; width: Math.min(page.width - 32, Math.max(teachingSubjects.width, 400)); padding: 6
+                                implicitHeight: Math.min(contentItem.implicitHeight + 12, 400, page.height - 60)
+                                contentItem: ListView {
+                                    id: teachingSubjectList; clip: true; implicitHeight: contentHeight
+                                    model: teachingSubjectPopup.visible ? teachingSubjects.delegateModel : null
+                                    currentIndex: teachingSubjects.highlightedIndex; highlightMoveDuration: 0
+                                    ScrollBar.vertical: SlimScrollBar { }
+                                }
+                                background: Rectangle { color: "white"; radius: 8; border.color: page.line }
+                            }
+                        }
+                        Field { id: otherTeachingSubject; objectName: "settingsCustomSubject"; visible: teachingSubjects.currentText === "Khác"; text: bridge.conversionSubjects.indexOf(bridge.defaultTeachingSubject) < 0 ? bridge.defaultTeachingSubject : ""; placeholderText: "Nhập tên môn học khác"; maximumLength: 100; Layout.fillWidth: true }
+                        Hint { text: "Môn mặc định cho bài mới ở Chuyển đổi bài giảng. Thầy cô vẫn có thể chọn môn khác cho từng bài."; Layout.fillWidth: true }
                     }
                     RowLayout { Layout.fillWidth: true
                         SoftButton { objectName: "uploadSchoolLogo"; text: "Tải logo trường (PNG/JPG)"; iconName: "upload"; onClicked: page.requestLogo() }
@@ -166,7 +194,7 @@ Item {
                     }
                     Hint { text: "Logo tối đa 5 MB, tự lưu vào thư viện khi chọn và đi cùng bản sao lưu."; Layout.fillWidth: true }
                     CheckBox { id: showProfile; objectName: "settingsShowProfile"; text: "Hiện tên, trường và logo trên màn hình bài giảng"; checked: bridge.settings.show_profile }
-                    RowLayout { Layout.fillWidth: true; Hint { text: "Mỗi bài chọn môn và khối 10, 11 hoặc 12 riêng; mỗi buổi chọn tên lớp riêng."; Layout.fillWidth: true } SaveButton { objectName: "saveProfile"; text: "Lưu thông tin"; onClicked: bridge.saveTeacherProfile(teacherName.text, schoolName.text, teachingSubjects.text, showProfile.checked) } }
+                    RowLayout { Layout.fillWidth: true; Hint { text: "Cấp học và khối lớp nhớ lần chọn gần nhất; mỗi buổi chọn tên lớp riêng."; Layout.fillWidth: true } SaveButton { objectName: "saveProfile"; text: "Lưu thông tin"; enabled: teachingSubjects.currentText !== "Khác" || !!otherTeachingSubject.text.trim(); onClicked: bridge.savePrimaryTeachingProfile(teacherName.text, schoolName.text, teachingSubjects.currentText === "Khác" ? otherTeachingSubject.text : teachingSubjects.currentText, showProfile.checked) } }
                 }
             }
             Card {
@@ -368,6 +396,7 @@ Item {
                         CheckBox { id: mascotQuiz; objectName: "mascotQuiz"; text: "Hiện khi quiz"; checked: bridge.mascotSettings.show_quiz }
                         CheckBox { id: mascotAccessories; objectName: "mascotAccessories"; text: "Phụ kiện theo môn học"; checked: bridge.mascotSettings.accessories }
                         CheckBox { id: reducedMotion; objectName: "mascotReducedMotion"; text: "Giảm chuyển động"; checked: bridge.mascotSettings.reduced_motion }
+                        CheckBox { id: mascotOnTop; objectName: "mascotAlwaysOnTop"; text: "Luôn nổi trên cùng"; checked: bridge.mascotSettings.always_on_top }
                     }
                     Rectangle { Layout.fillWidth: true; height: 1; color: page.line }
                     RowLayout { Layout.fillWidth: true; spacing: 14
@@ -396,7 +425,7 @@ Item {
                         }
                     }
                     Hint { text: "Chọn môn sẽ chuyển sang dùng môn đã chọn; bấm Lưu để áp dụng ngay cho mascot nổi. Chọn Tự theo bài đang dạy nếu muốn phụ kiện tự đổi theo bài."; Layout.fillWidth: true; font.pixelSize: 11 }
-                    RowLayout { Layout.fillWidth: true; Hint { text: "Mascot chỉ đọc bài khi trình chiếu đang mở. Kéo để đặt vị trí; bấm mascot để mở công cụ."; Layout.fillWidth: true } SaveButton { objectName: "saveMascot"; text: "Lưu cài đặt Mascot"; onClicked: bridge.saveMascotPreferences(page.selectedMascot, mascotVisible.checked, Math.round(mascotSize.value), mascotPosition.currentIndex ? "left" : "right", reducedMotion.checked, mascotAccessories.checked, mascotExplanation.checked, mascotQuiz.checked, mascotSubjectMode.currentIndex === 1 ? "fixed" : "auto", page.previewSubject) } }
+                    RowLayout { Layout.fillWidth: true; Hint { text: "Thu nhỏ BiliClass vẫn giữ Mascot trên màn hình. Kéo để đặt vị trí; bấm Mascot để mở công cụ hoặc chọn Ẩn khi cần."; Layout.fillWidth: true } SaveButton { objectName: "saveMascot"; text: "Lưu cài đặt Mascot"; onClicked: bridge.saveMascotPreferences(page.selectedMascot, mascotVisible.checked, Math.round(mascotSize.value), mascotPosition.currentIndex ? "left" : "right", reducedMotion.checked, mascotAccessories.checked, mascotExplanation.checked, mascotQuiz.checked, mascotSubjectMode.currentIndex === 1 ? "fixed" : "auto", page.previewSubject, mascotOnTop.checked) } }
                 }
             }
         }
@@ -496,7 +525,7 @@ Item {
                             background: Rectangle { radius: 9; color: "#fbfdff"; border.color: page.line }
                         }
                     }
-                    Hint { visible: !bridge.googleSettings.state.configured || page.showGoogleKeyEntry; text: "Nhập Tên nhóm | key. Key cùng nguồn hạn mức dùng cùng nhóm; không đặt tên sẽ vào nhóm chung."; Layout.fillWidth: true }
+                    Hint { visible: !bridge.googleSettings.state.configured || page.showGoogleKeyEntry; text: "Mỗi key một dòng; có thể ghi Tên dự án | key. Mỗi key có bộ đếm riêng, mặc định tối đa 500.000 ký tự/tháng tại máy."; Layout.fillWidth: true }
                     RowLayout { Layout.fillWidth: true; spacing: 12
                         visible: !bridge.googleSettings.state.configured || page.showGoogleKeyEntry
                         Item { Layout.fillWidth: true }
@@ -510,7 +539,7 @@ Item {
                     ColumnLayout { visible: page.googleAdvanced; Layout.fillWidth: true; spacing: 10
                     Hint { text: "Google có mức miễn phí tương đương 500.000 ký tự/tháng theo chính sách tài khoản thanh toán. Số key hoặc số Gmail không tự xác định mức này. Bộ đếm BiliClass chỉ ghi nhận tại thư viện này."; Layout.fillWidth: true }
                     RowLayout { Layout.fillWidth: true
-                        Hint { text: "Giới hạn tại máy / nhóm / tháng"; Layout.fillWidth: true }
+                        Hint { text: "Giới hạn tại máy / key / tháng"; Layout.fillWidth: true }
                         SpinBox { id: googleBudget; objectName: "googleCharacterBudget"; from: 1; to: 500000; value: bridge.googleSettings.state.budget || 500000; editable: true; Layout.preferredWidth: 175 }
                         SaveButton { objectName: "saveGoogleBudget"; text: "Lưu giới hạn"; enabled: !bridge.busy; onClicked: bridge.googleSettings.save("", googleBudget.value) }
                     }
@@ -540,7 +569,12 @@ Item {
                             Layout.fillWidth: true
                             ColumnLayout { Layout.fillWidth: true; spacing: 4
                                 Label { text: modelData.name + " · " + modelData.label; color: page.ink; font.bold: true; Layout.fillWidth: true; elide: Text.ElideRight }
-                                Hint { text: "Nhóm: " + (modelData.project === "mặc định" ? "Chung" : modelData.project) + (modelData.blocked ? " · Cần kiểm tra" : ""); Layout.fillWidth: true }
+                                Hint { objectName: "googleKeyRemaining_" + modelData.id; text: "Còn " + Number(modelData.remaining).toLocaleString(Qt.locale("vi_VN"), "f", 0) + " / " + Number(modelData.budget).toLocaleString(Qt.locale("vi_VN"), "f", 0) + " ký tự · Đã dùng " + Number(modelData.used).toLocaleString(Qt.locale("vi_VN"), "f", 0); color: modelData.blocked || modelData.remaining <= 0 ? "#b14828" : page.muted; Layout.fillWidth: true }
+                                ProgressBar { objectName: "googleKeyProgress_" + modelData.id; Layout.fillWidth: true; from: 0; to: 100; value: modelData.percent
+                                    background: Rectangle { implicitHeight: 5; radius: 2; color: "#e8eef7" }
+                                    contentItem: Item { implicitHeight: 5; Rectangle { width: parent.width * Math.min(1, modelData.percent / 100); height: parent.height; radius: 2; color: modelData.percent >= 95 ? "#b14828" : modelData.percent >= 80 ? "#d59020" : "#168567" } }
+                                }
+                                Hint { visible: !!modelData.blocked || modelData.remaining <= 0; text: modelData.blocked ? "Key bị từ chối; tool sẽ thử key khác. Có thể kiểm tra rồi cho phép thử lại." : "Đã dùng hết giới hạn tháng này; tool tự chuyển key khác."; color: "#b14828"; Layout.fillWidth: true; font.pixelSize: 11 }
                             }
                             SoftButton { objectName: "renameGoogleKey_" + modelData.id; text: "Đổi tên"; enabled: !bridge.busy; onClicked: { renameGoogleKey.keyId = modelData.id; keyDisplayName.text = modelData.customName; renameGoogleKey.open() } }
                             SoftButton { text: "Xóa key"; enabled: !bridge.busy; onClicked: bridge.googleSettings.remove(modelData.id) }

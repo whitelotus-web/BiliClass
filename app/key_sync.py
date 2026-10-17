@@ -14,7 +14,7 @@ import urllib.error
 import urllib.request
 from contextlib import closing
 
-from .google_translation import _LOCK, DEFAULT_BUDGET
+from .google_translation import _LOCK, DEFAULT_BUDGET, _digest
 
 REPOSITORY = 'whitelotus-web/BiliClass-Private-Config'
 CONFIG_PATH = '/contents/google-translation-keys.json'
@@ -95,6 +95,18 @@ def validate(data):
             _require(isinstance(row[0], str) and re.fullmatch(r'\d{4}-(?:0[1-9]|1[0-2])', row[0]))
             _require(isinstance(row[1], str) and row[1] in projects)
             _require(isinstance(row[2], int) and not isinstance(row[2], bool) and 0 <= row[2] <= 2**63-1)
+        key_usage = data.get('key_usage', [])
+        _require(isinstance(key_usage, list) and len(key_usage) <= 6000)
+        for row in key_usage:
+            _require(isinstance(row, list) and len(row) == 4)
+            _require(isinstance(row[0], str) and re.fullmatch(r'\d{4}-(?:0[1-9]|1[0-2])', row[0]))
+            _require(isinstance(row[1], str) and re.fullmatch('[0-9a-f]{64}', row[1]))
+            _require(isinstance(row[2], str) and row[2] in projects)
+            _require(isinstance(row[3], int) and not isinstance(row[3], bool) and 0 <= row[3] <= 2**63-1)
+        # Historical entries may belong to removed keys; a current key must
+        # retain its original project metadata when importing accounting.
+        by_id = {_digest(row['key']): row['project'] for row in rows}
+        _require(all(key_id not in by_id or by_id[key_id] == project for _, key_id, project, _ in key_usage))
         return data
     except (AssertionError, KeyError, TypeError, ValueError):
         raise ValueError('Tệp cấu hình key không đúng định dạng; chưa thay đổi key tại máy.') from None
@@ -105,7 +117,9 @@ def snapshot(store, budget):
         keys = [{'project': r['project'], 'key': r['key']} for r in store.keys()]
         projects = {r['project'] for r in keys}
         usage = [list(r) for r in db.execute('SELECT month,project,characters FROM usage') if r[1] in projects]
-        return validate({'format': 'BiliClass Google keys v1', 'keys': keys, 'usage': usage, 'budget': budget})
+        key_usage = [list(r) for r in db.execute('SELECT month,key_id,project,characters FROM usage_per_key') if r[2] in projects]
+        return validate({'format': 'BiliClass Google keys v1', 'keys': keys, 'usage': usage,
+                         'key_usage': key_usage, 'budget': budget})
 
 
 def merge(first, second):
@@ -119,8 +133,21 @@ def merge(first, second):
     usage = {}
     for month, project, count in first['usage'] + second['usage']:
         usage[month, project] = max(usage.get((month, project), 0), count)
+    key_usage = {}
+    for month, key_id, project, count in first.get('key_usage', []) + second.get('key_usage', []):
+        identity = month, key_id
+        previous = key_usage.get(identity)
+        if previous and previous[0] != project:
+            raise ValueError('Lịch sử key đang thuộc hai tên nhóm khác nhau; chưa thay đổi dữ liệu.')
+        key_usage[identity] = project, max(previous[1] if previous else 0, count)
+    totals = {}
+    for (month, _), (project, count) in key_usage.items():
+        totals[month, project] = totals.get((month, project), 0) + count
+    for identity, total in totals.items():
+        usage[identity] = max(usage.get(identity, 0), total)
     return validate({'format': first['format'], 'keys': list(rows.values()),
                      'usage': [[*key, count] for key, count in usage.items()],
+                     'key_usage': [[*key, *value] for key, value in key_usage.items()],
                      'budget': min(first['budget'], second['budget'])})
 
 
@@ -168,5 +195,7 @@ def download(store, budget, client=None):
         with closing(store.connect()) as db, db:
             db.executemany('INSERT INTO usage VALUES(?,?,?) ON CONFLICT(month,project) '
                            'DO UPDATE SET characters=MAX(characters,excluded.characters)', data['usage'])
+            db.executemany('INSERT INTO usage_per_key VALUES(?,?,?,?) ON CONFLICT(month,key_id) '
+                           'DO UPDATE SET characters=MAX(characters,excluded.characters)', data.get('key_usage', []))
         store.add('\n'.join(r['project'] + ' | ' + r['key'] for r in data['keys']))
     return {'count': len(data['keys']), 'budget': min(budget, data['budget'])}

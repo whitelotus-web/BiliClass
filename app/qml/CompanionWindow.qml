@@ -20,7 +20,9 @@ Window {
     readonly property int mascotExtent: Math.max(90, Math.min(178, bridge.mascotSettings.size + 18))
     readonly property bool hasResponse: bridge.companionCanRead && !companion.response.untouched
 
-    flags: Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.NoDropShadowWindowHint | Qt.WindowDoesNotAcceptFocus
+    // An owned tool window is hidden by Windows when its owner is minimized.
+    transientParent: null
+    flags: Qt.Tool | Qt.FramelessWindowHint | (bridge.mascotSettings.always_on_top ? Qt.WindowStaysOnTopHint : 0) | Qt.NoDropShadowWindowHint | Qt.WindowDoesNotAcceptFocus
     title: "BiliClass · Trợ giảng"
     width: collapsed ? mascotExtent : 344
     height: collapsed ? mascotExtent : Math.min(Screen.desktopAvailableHeight - 16, mascotExtent + menuContent.implicitHeight + 32)
@@ -31,7 +33,7 @@ Window {
     }
     onWidthChanged: reposition()
     onHeightChanged: reposition()
-    Shortcut { sequence: "Escape"; onActivated: { if (companion.collapsed) companion.hide(); else companion.collapsed = true } }
+    Shortcut { sequence: "Escape"; onActivated: companion.collapsed = true }
 
     Shortcut { sequence: "F5"; onActivated: bridge.startTeachingShow() }
     FileDialog { id: teachingFile; objectName: "companionPresentationDialog"; title: "Chọn PowerPoint để dạy cùng Mascot"; nameFilters: ["PowerPoint (*.pptx)"]; onAccepted: bridge.openTeachingPresentation(selectedFile.toString()) }

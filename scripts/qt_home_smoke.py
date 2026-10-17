@@ -97,9 +97,13 @@ def main():
                 button_center = button.mapToScene(QPointF(button.width()/2, 0)).x()
                 heading = control(c('creationSourceArea'), 'powerpointUploadHeading')
                 heading_center = heading.mapToScene(QPointF(heading.width() / 2, 0)).x()
-                assert abs(heading_center-button_center) < 1, 'Upload button must center with the upload text'
                 art = c('chooseInputDocumentButtonIllustration')
-                assert art.isVisible() and art.property('paintedWidth') > 100 and art.property('paintedHeight') > 100
+                if c('creationSourceArea').property('condensed'):
+                    assert button.mapToScene(QPointF()).x() >= heading.mapToScene(QPointF(heading.width(), 0)).x()
+                    assert art.isVisible() and art.property('paintedWidth') > 60 and art.property('paintedHeight') > 50
+                else:
+                    assert abs(heading_center-button_center) < 1, 'Upload button must center with the upload text'
+                    assert art.isVisible() and art.property('paintedWidth') > 100 and art.property('paintedHeight') > 100
                 assert art.mapToScene(QPointF(art.width(), 0)).x() < heading.mapToScene(QPointF()).x()
                 assert window.grabWindow().save(str(report/f'conversion-{width}.png'))
             # The file-size limit is real; a sparse fixture avoids allocating 200 MB.

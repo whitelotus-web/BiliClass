@@ -7,6 +7,7 @@ guards. This script is not evidence of native PowerPoint quality inspection.
 import json
 import sys
 import tempfile
+from contextlib import closing
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -55,7 +56,7 @@ class ReviewBridge(Bridge):
 def main():
     app = QGuiApplication([])
     QQuickStyle.setStyle('Basic')
-    report = Path('reports/rc63/review-usage')
+    report = Path('reports/rc69/review-usage')
     report.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='biliclass-review-ui-', ignore_cleanup_errors=True) as folder:
         library = Library(Path(folder))
@@ -72,6 +73,8 @@ def main():
         store = KeyStore(Path(folder))
         store.add('AIza' + 'a'*35 + '\nAIza' + 'b'*35)
         store.reserve(40000, 500000)
+        with closing(store.connect()) as ledger, ledger:
+            ledger.execute('UPDATE usage SET characters=characters+104853')
         bridge = ReviewBridge(library)
         engine = QQmlApplicationEngine()
         warnings = []
@@ -116,8 +119,13 @@ def main():
             c('settingsPage').setProperty('activeTab', 6)
             pump(150)
             usage = c('settingsTranslationUsage')
-            assert control(usage, 'translationGroupCount').property('text') == '2 key · 1 nhóm đếm'
-            assert '500.000' in control(usage, 'translationTotalUsage').property('text')
+            assert control(usage, 'translationGroupCount').property('text') == '2 key · 2 bộ đếm riêng'
+            assert '1.000.000' in control(usage, 'translationTotalUsage').property('text')
+            assert '104.853' in control(usage, 'translationLegacyUsage').property('text')
+            rows = bridge.googleSettings.state['keys']
+            assert rows[0]['used'] == 40000 and rows[1]['used'] == 0
+            assert '460.000 / 500.000' in c('googleKeyRemaining_' + rows[0]['id']).property('text')
+            assert '500.000 / 500.000' in c('googleKeyRemaining_' + rows[1]['id']).property('text')
             assert not c('googleApiKeys').isVisible() and not c('googleCharacterBudget').isVisible()
             for width, height in ((1080, 700), (1366, 850)):
                 window.resize(width, height)
@@ -138,7 +146,7 @@ def main():
                 'status badge explains and routes without selecting a card',
                 'technical failures block confirmation; repair/inspect route to existing slots',
                 'repair does not approve text; confirmation opens explicit teacher review',
-                'two unlabelled keys show one 500000 local group, not Cloud credit',
+                'two unlabelled keys have separate counters and remaining/total beneath each key',
                 'key input and advanced controls collapsed; budget save preserves usage/groups',
                 '1080/1366 screenshots',
             ]}

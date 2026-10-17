@@ -3,7 +3,7 @@ from threading import Event
 
 import pytest
 
-from app.google_translation import KeyStore, Translator, TranslationProblem, chunks, protected_html, unprotect
+from app.google_translation import KeyStore, TranslationProblem, Translator, chunks, protected_html, unprotect
 
 KEY1, KEY2 = 'AIza' + 'a' * 35, 'AIza' + 'b' * 35
 
@@ -33,7 +33,8 @@ def test_keys_encrypted_masked_and_readding_does_not_reset_budget(tmp_path):
     first = store.reserve(50, 50)
     store.remove(first['id'])
     store.add('Project A | ' + KEY1)
-    assert all(row['used'] == 50 for row in store.public())
+    assert [row['used'] for row in store.public()] == [0, 50]
+    assert store.reserve(50, 50)['key'] == KEY2
     with pytest.raises(TranslationProblem, match='giới hạn'):
         store.reserve(1, 50)
 
@@ -47,20 +48,61 @@ def test_ordered_distinct_projects_advance_at_local_budget(tmp_path):
         store.reserve(1, 10)
 
 
-def test_unlabelled_keys_share_budget_and_duplicate_key_cannot_change_group(tmp_path):
+def test_unlabelled_keys_have_independent_budgets_and_keep_stable_project_metadata(tmp_path):
     store = KeyStore(tmp_path)
     store.add(KEY1 + '\n' + KEY2)
     store.reserve(8, 8)
+    assert store.reserve(8, 8)['key'] == KEY2
     with pytest.raises(TranslationProblem):
         store.reserve(1, 8)
     with pytest.raises(TranslationProblem):
         store.add('Other | ' + KEY1)
 
 
-def test_concurrent_reservations_never_overspend(tmp_path):
+def test_legacy_group_history_is_retained_without_inventing_a_per_key_split(tmp_path):
+    store = KeyStore(tmp_path)
+    store.add(KEY1 + '\n' + KEY2)
+    month = store.month()
+    with closing(store.connect()) as db, db:
+        db.execute('INSERT INTO usage VALUES(?,?,?)', (month, 'mặc định', 104853))
+    assert [row['used'] for row in store.public()] == [0, 0]
+    assert all(row['legacyUsed'] == 104853 for row in store.public())
+    second = store.public()[1]['id']
+    store.reserve(20, 500000, only_key=second)
+    store.rename(second, 'Mail thứ hai')
+    store.remove(second)
+    store.add(KEY2)
+    rows = store.public()
+    assert [row['used'] for row in rows] == [0, 20]
+    assert all(row['legacyUsed'] == 104853 for row in rows)
+    assert rows[1]['name'] == 'Key 2 (Mail thứ hai)'
+    with closing(store.connect()) as db:
+        assert db.execute('SELECT characters FROM usage WHERE month=?', (month,)).fetchone()[0] == 104873
+
+
+def test_rotation_skips_a_key_before_next_batch_would_cross_500000_and_month_rolls_over(tmp_path, monkeypatch):
+    monkeypatch.setattr(KeyStore, 'month', staticmethod(lambda: '2026-10'))
+    store = KeyStore(tmp_path)
+    store.add(KEY1 + '\n' + KEY2)
+    assert store.reserve(499999, 500000)['key'] == KEY1
+    assert store.reserve(2, 500000)['key'] == KEY2
+    assert store.reserve(1, 500000)['key'] == KEY1
+    assert store.reserve(499998, 500000)['key'] == KEY2
+    with pytest.raises(TranslationProblem):
+        store.reserve(1, 500000)
+    assert [row['used'] for row in store.public()] == [500000, 500000]
+    monkeypatch.setattr(KeyStore, 'month', staticmethod(lambda: '2026-11'))
+    assert [row['used'] for row in store.public()] == [0, 0]
+    assert store.reserve(5, 500000)['key'] == KEY1
+    with closing(store.connect()) as db:
+        assert db.execute("SELECT SUM(characters) FROM usage_per_key WHERE month='2026-10'").fetchone()[0] == 1000000
+
+
+@pytest.mark.parametrize('key_count', [1, 2])
+def test_concurrent_reservations_never_overspend(tmp_path, key_count):
     from concurrent.futures import ThreadPoolExecutor
     store = KeyStore(tmp_path)
-    store.add(KEY1)
+    store.add('\n'.join((KEY1, KEY2)[:key_count]))
     def reserve():
         try:
             store.reserve(7, 20)
@@ -68,8 +110,8 @@ def test_concurrent_reservations_never_overspend(tmp_path):
         except TranslationProblem:
             return False
     with ThreadPoolExecutor(8) as pool:
-        assert sum(pool.map(lambda _: reserve(), range(8))) == 2
-    assert store.public()[0]['used'] == 14
+        assert sum(pool.map(lambda _: reserve(), range(8))) == 2 * key_count
+    assert all(row['used'] == 14 for row in store.public())
 
 
 def test_translation_dedup_cache_protection_and_resumption(tmp_path):
@@ -176,6 +218,7 @@ def test_http_request_uses_header_no_redirect_and_checks_result(monkeypatch):
 def test_http_error_does_not_echo_key_or_source(monkeypatch):
     import io
     import urllib.error
+
     from app import google_translation as module
     class Opener:
         def open(self, req, timeout):

@@ -24,7 +24,7 @@ Dialog {
     onOpened: loadSlide()
     contentItem: ColumnLayout {
         spacing: 12
-        Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: "#667997"; text: dialog.editable ? "Lời đọc lưu riêng, giữ nguyên slide PowerPoint. Slide không có lời đọc sẽ được bỏ qua. Lưu thay đổi rồi tạo lại giọng." : "Đây là lời đọc của bài trong thư viện. Muốn sửa, mở Thao tác khác → Sửa nội dung trợ giảng." }
+        Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: "#667997"; text: dialog.editable ? "Lời đọc lưu riêng, giữ nguyên slide PowerPoint. Slide không có lời đọc sẽ được bỏ qua. Lưu thay đổi rồi tạo lại giọng." : "Đây là lời đọc của bài trong thư viện. Muốn sửa, mở Thao tác khác → Bài giảng → Sửa nội dung trợ giảng." }
         ComboBox {
             objectName: "narrationScriptSlide"; Layout.fillWidth: true
             model: dialog.workspace ? dialog.workspace.summary.slides : []; textRole: "label"

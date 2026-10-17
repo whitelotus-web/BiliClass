@@ -45,7 +45,7 @@ def main():
         QFontDatabase.addApplicationFont(str(path))
     app.setFont(QFont("Be Vietnam Pro", 10))
     checks = []
-    with tempfile.TemporaryDirectory(prefix="biliclass-settings-", ignore_cleanup_errors=True) as directory:
+    with tempfile.TemporaryDirectory(prefix="biliclass-settings-", ignore_cleanup_errors=True) as directory, tempfile.TemporaryDirectory(prefix="biliclass-settings-export-") as exports:
         library = Library(Path(directory))
         library.set_setting("class_name", "Lớp cũ không nên tự điền")
         library.set_setting("level", 4)
@@ -110,16 +110,16 @@ def main():
         assert control("uploadSchoolLogo").mapToScene(QPointF(0, 0)).y() < control("saveProfile").mapToScene(QPointF(0, 0)).y()
         control("settingsTeacher").setProperty("text", "Cô Minh")
         control("settingsSchool").setProperty("text", "THPT Bình Minh")
-        control("settingsSubjects").setProperty("text", "Ngữ văn, Lịch sử")
+        control("settingsSubjects").setProperty("currentIndex", bridge.conversionSubjects.index("Ngữ văn"))
         assert control("savedProfileTeacher").property("text") == "Thầy cô"
         assert control("savedProfileSubjects").property("text") == "Chưa thêm bộ môn"
         click("saveProfile")
         assert bridge.settings["teacher"] == "Cô Minh"
         assert bridge.settings["school"] == "THPT Bình Minh"
-        assert bridge.settings["subjects"] == ["Ngữ văn", "Lịch sử"]
+        assert bridge.settings["subjects"] == ["Ngữ văn"]
         assert control("savedProfileTeacher").property("text") == "Cô Minh"
         assert control("savedProfileSchool").property("text") == "THPT Bình Minh"
-        assert "Ngữ văn, Lịch sử" in control("savedProfileSubjects").property("text")
+        assert "Ngữ văn" in control("savedProfileSubjects").property("text")
         assert "Cô Minh" in control("projectorProfile").property("text")
         from PIL import Image
         logo = Path(directory) / "sample-logo.png"
@@ -218,7 +218,7 @@ def main():
         control("mascotVisible").setProperty("checked", False)
         click("saveMascot")
         assert bridge.settings["mascot"] == "Lumi"
-        assert bridge.mascotSettings == {"visible": False, "size": 140, "position": "left", "reduced_motion": False, "accessories": False, "show_explanation": False, "show_quiz": False, 'subject_mode': 'fixed', 'subject': 'Môn tự chọn'}
+        assert bridge.mascotSettings == {"visible": False, "size": 140, "position": "left", "reduced_motion": False, "accessories": False, "show_explanation": False, "show_quiz": False, 'subject_mode': 'fixed', 'subject': 'Môn tự chọn', 'always_on_top': True}
         assert not control("companionWindow").isVisible()
         assert not control("mascotProjectorLeft").property("visible")
         assert not control("mascotProjectorRight").property("visible")
@@ -285,8 +285,13 @@ def main():
 
         click("settingsTab5")
         click("settingsBackup")
+        assert control("backupSaveDialog").property("visible")
+        QMetaObject.invokeMethod(control("backupSaveDialog"), "reject")
+        backup_path = Path(exports) / "settings-check.bcbackup"
+        bridge.backupLibrary(QUrl.fromLocalFile(str(backup_path)).toString())
         until(lambda: not bridge.busy)
         assert "sao lưu" in bridge.message.lower(), bridge.message
+        assert backup_path.is_file()
         shot("data")
         checks.append("data tab creates isolated library backup")
 
@@ -324,7 +329,7 @@ def main():
         try:
             assert reopened.setting("teacher", "") == "Cô Minh"
             assert reopened.setting("school", "") == "THPT Bình Minh"
-            assert reopened.setting("teaching_subjects", []) == ["Ngữ văn", "Lịch sử"]
+            assert reopened.setting("teaching_subjects", []) == ["Ngữ văn"]
             assert (Path(directory) / "assets" / "school-logo.png").is_file()
             assert reopened.setting("mascot", "") == "Lumi"
             assert reopened.setting("voice_options", {}) == {"voice": "vieneu:Hải Đăng", "rate": 2}

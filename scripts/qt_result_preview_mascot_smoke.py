@@ -16,7 +16,18 @@ from unittest.mock import patch
 from PIL import Image
 from pptx import Presentation
 from pptx.util import Inches, Pt
-from PySide6.QtCore import Q_ARG, QCoreApplication, QEvent, QEventLoop, QMetaObject, QObject, QPointF, Qt, QTimer, QUrl
+from PySide6.QtCore import (
+    Q_ARG,
+    QCoreApplication,
+    QEvent,
+    QEventLoop,
+    QMetaObject,
+    QObject,
+    QPointF,
+    Qt,
+    QTimer,
+    QUrl,
+)
 from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
@@ -266,8 +277,6 @@ def main():
         assert window.property('includeDownloadVoice')
 
         # All six choices use the shipped sample here, without changing defaults.
-        from app import speech
-        from app.lesson_narration import variant_id
         original_preferences = library.setting('voice_options', None)
         played = []
         with patch.object(bridge, '_play_audio', side_effect=lambda path: played.append(path)):
@@ -278,7 +287,9 @@ def main():
                 assert window.property('narrationVoice') == voice['id']
                 click(window, c('previewLessonNarrationVoice'))
                 until(lambda: len(played) == index + 1)
-                click(window, c('stopLessonNarrationPreview'))
+                assert c('previewLessonNarrationVoice').property('text') == 'Dừng nghe'
+                click(window, c('previewLessonNarrationVoice'))
+                assert c('previewLessonNarrationVoice').property('text') == 'Nghe thử'
         assert library.setting('voice_options', None) == original_preferences
         click(window, c('createLessonNarrationButton'))
         assert narration[-1][2]['voice'] == bridge.multilingualVoices[-1]['id']
@@ -318,7 +329,7 @@ def main():
         assert 'Hải Đăng' in QUrl(bridge.presentationDownloadSuggestion(True)).toLocalFile()
         for width in (1080,1366):
             window.resize(width,850);pump(120)
-            click(window,c('stopLessonNarrationPreview'))
+            bridge.stopSpeech()
             for name in ('lessonNarrationVoiceChoice','lessonNarrationVariantChoice','previewLessonNarrationVoice'):
                 target=c(name);p=target.mapToScene(QPointF(0,0))
                 assert p.x()>=0 and p.x()+target.width()<=width,(name,width)
@@ -336,9 +347,11 @@ def main():
         window.setProperty('page', 'new')
         pump(100)
         click(window, c('creationUseTemplate'))
+        click(window, c('creationTemplateOptionsButton'))
         assert c('chooseCustomTemplateButton').isVisible()
         assert c('templateContentPage').property('value') == 3
         bridge.clearCustomTemplate()
+        c('creationTemplateOptionsDialog').setProperty('visible', False)
         assert not bridge.customTemplate
 
         window.setProperty("page", "settings")

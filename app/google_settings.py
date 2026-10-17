@@ -29,10 +29,13 @@ class GoogleSettings(QObject):
     def refresh(self):
         try:
             rows = self.store().public()
+            budget = self.bridge.library.setting("google_character_budget", DEFAULT_BUDGET)
+            rows = [{**row, 'budget': budget, 'remaining': max(0, budget - row['used']),
+                     'percent': min(100, row['used'] * 100 / max(1, budget))} for row in rows]
             self._state = {
                 "keys": rows,
                 "configured": bool(rows),
-                "budget": self.bridge.library.setting("google_character_budget", DEFAULT_BUDGET),
+                "budget": budget,
                 "month": KeyStore.month(),
                 "message": "",
             }
@@ -66,7 +69,7 @@ class GoogleSettings(QObject):
         try:
             self.store().rename(key_id, name)
             self.refresh()
-            self.bridge.inform('Đã đổi tên key. Bộ đếm và nhóm dự án được giữ nguyên.')
+            self.bridge.inform('Đã đổi tên key. Bộ đếm riêng được giữ nguyên.')
         except ValueError as exc:
             self.bridge.inform(str(exc), True)
 
@@ -92,7 +95,7 @@ class GoogleSettings(QObject):
             return False
         try:
             if not 1 <= budget <= DEFAULT_BUDGET:
-                raise ValueError("Giới hạn ký tự từ 1 đến 500.000/dự án/tháng.")
+                raise ValueError("Giới hạn cục bộ từ 1 đến 500.000 ký tự/key/tháng.")
             if text.strip():
                 self.store().add(text)
             self.bridge.library.set_setting("google_character_budget", budget)

@@ -30,7 +30,7 @@ from app.ui import Bridge
 def main():
     app = QGuiApplication([])
     QQuickStyle.setStyle('Basic')
-    out = Path('reports/rc67/workspace')
+    out = Path('reports/rc69/workspace')
     out.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='biliclass-voice-workspace-', ignore_cleanup_errors=True) as folder:
         folder = Path(folder)
@@ -108,6 +108,12 @@ def main():
             assert window.grabWindow().save(str(out / 'imported.png'))
             assert not c('narrationEnglish').isEnabled() and not c('narrationVietnamese').isEnabled()
             assert not c('createLessonNarrationButton').isEnabled()
+            assert c('narrationScriptNotice').isVisible()
+            assert 'Chưa có lời đọc' in c('narrationCoverageMessage').property('text')
+            assert c('fixMissingNarration').isVisible()
+            click(window, c('resultMoreButton'))
+            assert c('resultMoreMenu').property('count') == 3
+            assert window.grabWindow().save(str(out / 'more-menu.png'))
             click(window, c('reviewNarrationScript'))
             until(lambda: c('narrationScriptDialog').property('visible'))
             pump(150)
@@ -148,12 +154,31 @@ def main():
             assert bridge.narrationPreparation['cached'] == 1
             assert not c('createLessonNarrationButton').isEnabled()
             assert c('downloadNarrationAudioButton').isVisible()
+            assert not c('voiceDownloadWithoutNarration').isVisible()
+            assert not c('voiceTeachWithoutNarration').isVisible()
+            assert c('continueAfterNarrationButton').isVisible()
+            assert c('downloadAfterNarrationButton').isVisible()
+            click(window, c('resultMoreButton'))
+            assert QMetaObject.invokeMethod(c('resultAdvancedMenu'), 'open')
+            pump(100)
+            assert c('voiceDownloadWithoutNarrationMenu').isVisible()
+            assert QMetaObject.invokeMethod(c('resultAdvancedMenu'), 'close')
+            assert QMetaObject.invokeMethod(c('resultMoreMenu'), 'close')
+            assert 'Tự bỏ qua 1 slide' in c('narrationCoverageMessage').property('text')
             assert not any(s['approved'] for s in bridge.lesson['segments'])
             for width, height in ((1080, 700), (1366, 850)):
                 window.resize(width, height)
                 c('resultScroll').property('contentItem').setProperty('contentY', 0)
                 pump(150)
+                action = c('downloadAfterNarrationButton')
+                bottom = action.mapToScene(QPointF(0, action.height())).y()
+                assert bottom <= window.height() - 30, (width, height, bottom)
                 assert window.grabWindow().save(str(out / f'ready-{width}.png'))
+            window.setProperty('includeDownloadVoice', False)
+            click(window, c('downloadAfterNarrationButton'))
+            assert window.property('includeDownloadVoice'), 'The voice download automatically includes the chosen voice'
+            assert c('presentationSaveDialog').property('visible')
+            assert QMetaObject.invokeMethod(c('presentationSaveDialog'), 'reject')
             audio_target = folder / 'Audio.zip'
             bridge.narrationWorkspace.exportAudio(audio_target.as_uri())
             until(lambda: not bridge.busy)

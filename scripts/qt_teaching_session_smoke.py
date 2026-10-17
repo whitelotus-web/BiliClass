@@ -9,6 +9,9 @@ import tempfile
 from multiprocessing import freeze_support
 from pathlib import Path
 
+import win32con
+import win32gui
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tests'))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -65,7 +68,8 @@ def main():
             until(lambda: not bridge.previewBusy and not bridge.busy)
             assert window.property('page') == 'voice'
             assert not c('voiceSourceArea').isVisible()
-            assert c('voiceDownloadWithoutNarration').isVisible()
+            assert not c('voiceDownloadWithoutNarration').isVisible(), 'Ready narration has a single main download/teach area'
+            assert c('voiceDownloadWithoutNarrationMenu') is not None
             assert c('continueAfterNarrationButton').property('text') == 'Mở bài giảng để dạy'
             assert window.findChild(QObject, 'navigationteach') is None
             for size in [(1080, 700), (1366, 850)]:
@@ -112,6 +116,8 @@ def main():
             window.showMinimized()
             pump(120)
             assert companion.isVisible() and bridge.powerpointState['active']
+            assert win32gui.IsWindowVisible(int(companion.winId())) and not win32gui.IsIconic(int(companion.winId()))
+            assert win32gui.GetWindowLong(int(companion.winId()), win32con.GWL_EXSTYLE) & win32con.WS_EX_TOPMOST
             tap('companionPrevious')
             until(lambda: bridge.powerpointState['slide'] == 2)
             tap('companionEndShow')

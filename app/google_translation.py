@@ -2,8 +2,8 @@
 
 Keys are never returned to QML, logged, backed up or stored in the library DB.
 Usage is a conservative local budget, NOT Google's billing/free-credit balance.
-Keys without a project label share one budget. Keys for one project must share
-the same label, including after key replacement.
+Each key has its own local budget. The legacy project ledger is retained for
+history; it cannot be split retrospectively into individual key usage.
 """
 
 import ctypes
@@ -87,6 +87,8 @@ class KeyStore:
                 CREATE TABLE IF NOT EXISTS cache(id TEXT PRIMARY KEY, value TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS key_names(key_id TEXT PRIMARY KEY,
                     number INTEGER UNIQUE NOT NULL, name TEXT NOT NULL DEFAULT '');
+                CREATE TABLE IF NOT EXISTS usage_per_key(month TEXT, key_id TEXT, project TEXT,
+                    characters INTEGER NOT NULL, PRIMARY KEY(month,key_id));
             ''')
 
     def connect(self):
@@ -162,6 +164,9 @@ class KeyStore:
                         db.execute('INSERT INTO key_names(key_id,number) VALUES(?,?)', (row['id'], number))
             names = {row[0]: (row[1], row[2]) for row in db.execute('SELECT key_id,number,name FROM key_names')}
             used = dict(db.execute('SELECT project,characters FROM usage WHERE month=?', (self.month(),)))
+            key_used = dict(db.execute('SELECT key_id,characters FROM usage_per_key WHERE month=?', (self.month(),)))
+            tracked = dict(db.execute('SELECT project,SUM(characters) FROM usage_per_key WHERE month=? GROUP BY project',
+                                      (self.month(),)))
             blocked = dict(db.execute('SELECT key_id,code FROM blocked WHERE month=?', (self.month(),)))
         def display(row):
             number, name = names[row['id']]
@@ -169,7 +174,9 @@ class KeyStore:
             return f'Key {number}' + (f' ({name})' if name else '')
         return [{'id': row['id'], 'project': row['project'], 'label': '•••• ' + row['key'][-4:],
                  'name': display(row), 'customName': names[row['id']][1],
-                 'used': used.get(row['project'], 0), 'blocked': blocked.get(row['id'], '')}
+                 'used': key_used.get(row['id'], 0),
+                 'legacyUsed': max(0, used.get(row['project'], 0) - tracked.get(row['project'], 0)),
+                 'blocked': blocked.get(row['id'], '')}
                 for row in rows]
 
     def rename(self, key_id, name):
@@ -196,12 +203,15 @@ class KeyStore:
                     if row['id'] in excluded or db.execute('SELECT 1 FROM blocked WHERE month=? AND key_id=?',
                                                          (month, row['id'])).fetchone():
                         continue
-                    used = db.execute('SELECT characters FROM usage WHERE month=? AND project=?',
-                                      (month, row['project'])).fetchone()
+                    used = db.execute('SELECT characters FROM usage_per_key WHERE month=? AND key_id=?',
+                                      (month, row['id'])).fetchone()
                     if (used[0] if used else 0) + count > budget:
                         continue
                     db.execute('INSERT INTO usage VALUES(?,?,?) ON CONFLICT(month,project) DO UPDATE SET characters=characters+excluded.characters',
                                (month, row['project'], count))
+                    db.execute('INSERT INTO usage_per_key VALUES(?,?,?,?) ON CONFLICT(month,key_id) '
+                               'DO UPDATE SET characters=characters+excluded.characters',
+                               (month, row['id'], row['project'], count))
                     return {**row, 'month': month}
         raise TranslationProblem('api_budget', 'Các key đã hết giới hạn cục bộ hoặc chưa dùng được. Kiểm tra hạn mức/thanh toán trong Google Cloud; phần dịch xong đã lưu.')
 
@@ -212,6 +222,8 @@ class KeyStore:
             month = row.get('month', self.month())
             db.execute('UPDATE usage SET characters=MAX(0,characters-?) WHERE month=? AND project=?',
                        (count, month, row['project']))
+            db.execute('UPDATE usage_per_key SET characters=MAX(0,characters-?) WHERE month=? AND key_id=?',
+                       (count, month, row['id']))
             if code in {'api_key', 'api_quota'}:
                 db.execute('INSERT OR REPLACE INTO blocked VALUES(?,?,?)', (month, row['id'], code))
 

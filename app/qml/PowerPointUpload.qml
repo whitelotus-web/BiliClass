@@ -10,6 +10,7 @@ Rectangle {
     property bool working: false
     property bool illustrated: false
     property bool compact: false
+    property bool condensed: false
     property string chooseObjectName: ""
     property string dropObjectName: ""
     property string filenameObjectName: ""
@@ -19,18 +20,19 @@ Rectangle {
     signal filesDropped(var urls)
     signal removeFile()
     signal showProgress()
-    implicitHeight: uploadRow.implicitHeight + (compact ? 28 : 44)
+    implicitHeight: condensed ? condensedRow.implicitHeight + 20 : uploadRow.implicitHeight + (compact ? 28 : 44)
     radius: 16; color: drop.containsDrag ? "#edf5ff" : "white"
     border.color: drop.containsDrag ? "#0869f9" : "#cbdcf4"
     border.width: drop.containsDrag ? 2 : 1
 
     RowLayout {
         id: uploadRow
+        visible: !upload.condensed
         anchors.horizontalCenter: parent.horizontalCenter; anchors.top: parent.top; anchors.topMargin: upload.compact ? 14 : 22
         width: upload.illustrated ? Math.min(parent.width - 44, 840) : parent.width - 44
         spacing: upload.illustrated ? 24 : 0
         Image {
-            objectName: upload.chooseObjectName + "Illustration"
+            objectName: upload.condensed ? "" : upload.chooseObjectName + "Illustration"
             visible: upload.illustrated
             source: "../assets/powerpoint-upload.png"
             // Trim transparent canvas margins for optical balance; retain the original asset.
@@ -45,7 +47,7 @@ Rectangle {
             id: content
             Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: upload.compact ? 7 : 10
             Label {
-                objectName: "powerpointUploadHeading"
+                objectName: upload.condensed ? "" : "powerpointUploadHeading"
                 text: upload.working ? "Bài giảng đang được chuẩn bị" : "Tải lên bài giảng PowerPoint (.pptx)"
                 color: "#0869f9"; font.pixelSize: upload.compact ? 19 : 22; font.weight: Font.Bold
                 Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
@@ -57,7 +59,7 @@ Rectangle {
             }
             ActionButton {
                 id: choose
-                objectName: upload.chooseObjectName
+                objectName: upload.condensed ? "" : upload.chooseObjectName
                 text: upload.working ? "Xem tiến độ" : upload.fileName ? "Đổi file PowerPoint" : "Chọn file PowerPoint"
                 primary: true; font.pixelSize: 14; implicitHeight: 44
                 Layout.alignment: Qt.AlignHCenter; Layout.preferredWidth: 258
@@ -95,22 +97,63 @@ Rectangle {
                 Layout.maximumWidth: content.width; spacing: 9
                 Label {
                     id: selectedName
-                    objectName: upload.filenameObjectName
+                    objectName: upload.condensed ? "" : upload.filenameObjectName
                     text: upload.fileName; textFormat: Text.PlainText; elide: Text.ElideMiddle
                     color: "#16314f"; font.pixelSize: 12; Layout.fillWidth: true
                 }
                 ActionButton {
                     id: removeSelected
-                    objectName: upload.removeObjectName; text: "Bỏ tệp"; implicitHeight: 30
+                    objectName: upload.condensed ? "" : upload.removeObjectName; text: "Bỏ tệp"; implicitHeight: 30
                     enabled: !upload.busy && !upload.working; onClicked: upload.removeFile()
                 }
             }
             Label {
-                objectName: upload.errorObjectName
+                objectName: upload.condensed ? "" : upload.errorObjectName
                 visible: !!upload.errorText; text: upload.errorText; textFormat: Text.PlainText
                 Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
                 color: "#ab5b20"; font.pixelSize: 12
             }
+        }
+    }
+    RowLayout {
+        id: condensedRow
+        visible: upload.condensed
+        anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
+        anchors.margins: 10; spacing: 14
+        Image {
+            objectName: upload.condensed ? upload.chooseObjectName + "Illustration" : ""
+            visible: upload.illustrated; source: "../assets/powerpoint-upload.png"
+            sourceClipRect: Qt.rect(248, 120, 1040, 830)
+            fillMode: Image.PreserveAspectFit; smooth: true; mipmap: true
+            Layout.preferredWidth: 80; Layout.preferredHeight: 64
+            Accessible.ignored: true
+        }
+        ColumnLayout {
+            Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 4
+            Label {
+                objectName: upload.condensed ? "powerpointUploadHeading" : ""
+                text: upload.working ? "Bài giảng đang được chuẩn bị" : "Tải lên bài giảng PowerPoint (.pptx)"
+                color: "#0869f9"; font.pixelSize: 17; font.weight: Font.Bold
+                Layout.fillWidth: true; wrapMode: Text.WordWrap
+            }
+            Label {
+                visible: !upload.fileName && !upload.errorText
+                text: upload.working ? "Theo dõi tiến độ; các phần đã xong được lưu lại." : "Kéo thả tệp .pptx vào đây · Tối đa 200 MB"
+                color: "#687e9b"; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap
+            }
+            RowLayout {
+                visible: !!upload.fileName; Layout.fillWidth: true; spacing: 8
+                Label { objectName: upload.condensed ? upload.filenameObjectName : ""; text: upload.fileName; textFormat: Text.PlainText; elide: Text.ElideMiddle; color: "#16314f"; font.pixelSize: 12; Layout.fillWidth: true; Layout.minimumWidth: 0 }
+                ActionButton { objectName: upload.condensed ? upload.removeObjectName : ""; text: "Bỏ tệp"; implicitHeight: 26; font.pixelSize: 11; enabled: !upload.busy && !upload.working; onClicked: upload.removeFile() }
+            }
+            Label { objectName: upload.condensed ? upload.errorObjectName : ""; visible: !!upload.errorText; text: upload.errorText; textFormat: Text.PlainText; Layout.fillWidth: true; wrapMode: Text.WordWrap; maximumLineCount: 1; elide: Text.ElideRight; color: "#ab5b20"; font.pixelSize: 12; HoverHandler { id: uploadErrorHover } ToolTip.visible: uploadErrorHover.hovered; ToolTip.text: upload.errorText }
+        }
+        ActionButton {
+            objectName: upload.condensed ? upload.chooseObjectName : ""
+            text: upload.working ? "Xem tiến độ" : upload.fileName ? "Đổi file PowerPoint" : "Chọn file PowerPoint"
+            primary: true; implicitHeight: 38; font.pixelSize: 13
+            Layout.preferredWidth: 220; enabled: upload.working || !upload.busy
+            onClicked: upload.working ? upload.showProgress() : upload.chooseFile()
         }
     }
     DropArea {

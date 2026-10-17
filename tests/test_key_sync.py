@@ -72,6 +72,31 @@ def test_merge_additional_keys_without_resetting_existing_local_usage(tmp_path):
     assert len(source.keys()) == 2 and source.public()[0]['used'] == 70
 
 
+def test_legacy_sync_keeps_shared_history_and_does_not_reset_existing_key_counter(tmp_path):
+    target = KeyStore(tmp_path)
+    target.add('A | ' + KEY)
+    target.reserve(70, 500000)
+    client = Client({'format': 'BiliClass Google keys v1', 'keys': [{'project': 'a', 'key': KEY}],
+                     'usage': [[target.month(), 'a', 345]], 'budget': 500000})
+    download(target, 500000, client)
+    row = target.public()[0]
+    assert row['used'] == 70 and row['legacyUsed'] == 275
+    download(target, 500000, client)
+    assert target.public()[0] == row
+
+
+def test_import_rejects_malformed_per_key_accounting_without_changing_keys(tmp_path):
+    store = KeyStore(tmp_path)
+    store.add(KEY)
+    data = snapshot(store, 500000)
+    data['key_usage'] = [[store.month(), store.public()[0]['id'], 'mặc định', -1]]
+    before = store.path.read_bytes()
+    with pytest.raises(ValueError, match='chưa thay đổi'):
+        download(store, 500000, Client(data))
+    assert store.path.read_bytes() == before
+    assert store.public()[0]['used'] == 0
+
+
 def test_conflicting_project_and_invalid_remote_do_not_change_store(tmp_path):
     source, target = KeyStore(tmp_path / 'one'), KeyStore(tmp_path / 'two')
     source.add('A | ' + KEY)

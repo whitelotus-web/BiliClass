@@ -74,6 +74,8 @@ class Bridge(QObject):
     teachingLessonReady = Signal()
     mascotStateChanged = Signal()
     mascotPreferencesSaved = Signal(bool)
+    teacherProfileSaved = Signal()
+    conversionDefaultsChanged = Signal()
     updateChanged = Signal()
     updateAvailable = Signal()
     narrationChanged = Signal()
@@ -584,6 +586,33 @@ class Bridge(QObject):
         from .school_subjects import subject_options
 
         return subject_options()
+
+    @Property(str, notify=changed)
+    def defaultTeachingSubject(self):
+        return next(iter(self.settings['subjects']), '')
+
+    @Property('QVariantMap', notify=conversionDefaultsChanged)
+    def conversionClassSelection(self):
+        from .conversion_input import education_grades
+
+        saved = self.library.setting('conversion_class_selection', {})
+        education = saved.get('education', 'THPT') if isinstance(saved, dict) else 'THPT'
+        grades = education_grades(education)
+        if not grades:
+            education, grades = 'THPT', education_grades('THPT')
+        grade = saved.get('grade') if isinstance(saved, dict) else None
+        return {'education': education, 'grade': grade if grade in grades else grades[0]}
+
+    @Slot(str, str)
+    def rememberConversionClass(self, education, grade):
+        from .conversion_input import education_grades
+
+        if grade not in education_grades(education):
+            return
+        selection = {'education': education, 'grade': grade}
+        if selection != self.conversionClassSelection:
+            self.library.set_setting('conversion_class_selection', selection)
+            self.conversionDefaultsChanged.emit()
 
     @Property(str, notify=changed)
     def conversionLabel(self):
@@ -1604,7 +1633,7 @@ class Bridge(QObject):
     @Property("QVariantMap", notify=changed)
     def mascotSettings(self):
         defaults = {
-            "visible": True, "size": 110, "position": "right", "reduced_motion": False,
+            "visible": True, "size": 110, "position": "right", "reduced_motion": False, "always_on_top": True,
             "accessories": True, "show_explanation": True, "show_quiz": True,
             'subject_mode': 'auto', 'subject': '',
         }
@@ -2991,11 +3020,19 @@ class Bridge(QObject):
 
     @Slot(str, str, str, bool)
     def saveTeacherProfile(self, teacher, school, subjects_text, show_profile):
+        subjects = list(dict.fromkeys(item.strip() for item in subjects_text.replace(";", ",").split(",") if item.strip()))
+        self._save_teacher_profile(teacher, school, subjects, show_profile)
+
+    @Slot(str, str, str, bool)
+    def savePrimaryTeachingProfile(self, teacher, school, subject, show_profile):
+        # A curriculum subject may itself contain a comma. Keep its full name.
+        self._save_teacher_profile(teacher, school, [subject.strip()] if subject.strip() else [], show_profile)
+
+    def _save_teacher_profile(self, teacher, school, subjects, show_profile):
         values = {"teacher": teacher.strip() or "Thầy cô", "school": school.strip()}
         if any(len(value) > 100 for value in values.values()):
             self.inform("Mỗi thông tin hồ sơ tối đa 100 ký tự.", True)
             return
-        subjects = list(dict.fromkeys(item.strip() for item in subjects_text.replace(";", ",").split(",") if item.strip()))
         if len(subjects) > 20 or any(len(item) > 100 for item in subjects):
             self.inform("Tối đa 20 bộ môn, mỗi tên tối đa 100 ký tự.", True)
             return
@@ -3004,6 +3041,7 @@ class Bridge(QObject):
         self.library.set_setting("teaching_subjects", subjects)
         self.library.set_setting("show_profile", show_profile)
         self.inform("Đã lưu hồ sơ giáo viên và cách hiển thị trên bài giảng.")
+        self.teacherProfileSaved.emit()
 
     @Slot(str)
     def saveSchoolLogo(self, url):
@@ -3041,7 +3079,8 @@ class Bridge(QObject):
 
     @Slot(str, bool, int, str, bool, bool, bool, bool)
     @Slot(str, bool, int, str, bool, bool, bool, bool, str, str)
-    def saveMascotPreferences(self, mascot, visible, size, position, reduced_motion, accessories, show_explanation, show_quiz, subject_mode='auto', subject=''):
+    @Slot(str, bool, int, str, bool, bool, bool, bool, str, str, bool)
+    def saveMascotPreferences(self, mascot, visible, size, position, reduced_motion, accessories, show_explanation, show_quiz, subject_mode='auto', subject='', always_on_top=None):
         if mascot not in ("Milo", "Lumi"):
             self.inform("Mascot không hợp lệ.", True)
             return
@@ -3057,6 +3096,7 @@ class Bridge(QObject):
             "reduced_motion": reduced_motion, "accessories": accessories,
             "show_explanation": show_explanation, "show_quiz": show_quiz,
             'subject_mode': subject_mode, 'subject': subject.strip(),
+            'always_on_top': self.mascotSettings['always_on_top'] if always_on_top is None else always_on_top,
         })
         self.mascotPreferencesSaved.emit(visible)
         self.inform("Đã lưu mascot và cách hiển thị.")
