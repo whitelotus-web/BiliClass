@@ -1,21 +1,21 @@
 # BiliClass — Trợ lý dạy học song ngữ
 
-Hướng dẫn RC60, ngày 17/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
+Hướng dẫn RC61, ngày 17/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
 trên máy. Chuyển đổi hiện dùng Google Cloud Translation cho phần chữ và dựng
 PowerPoint tại máy; Browser ChatGPT/Gemini tạm ẩn.
 
 ## Cài và cập nhật
 
-1. Tải **BiliClass-RC60-Windows.zip** tại
-   [Release RC60](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc60).
+1. Tải **BiliClass-RC61-Windows.zip** tại
+   [Release RC61](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc61).
 2. Giải nén toàn bộ; không chạy trong cửa sổ ZIP. Chạy **Setup.cmd**.
 3. Bộ cài kiểm tra checksum và cài vào
-   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc60`, không cần quyền quản trị.
+   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc61`, không cần quyền quản trị.
 4. Mở BiliClass từ Desktop hoặc Start menu. Bản cài có model giọng, OCR và
    template; không cần thư mục runtime của máy phát triển.
 
 Máy đang dùng RC34: vào **Cài đặt → Thông tin BiliClass → Kiểm tra cập nhật**,
-chọn Cập nhật khi thấy RC60. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
+chọn Cập nhật khi thấy RC61. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
 Setup.cmd như trên. Các bản cài nằm cạnh nhau; thư viện ở
 `%LOCALAPPDATA%/BiliClass` được giữ nguyên. Không xóa thư mục dữ liệu này.
 Thư viện cá nhân không đưa lên GitHub. Key có thể nhận riêng như hướng dẫn dưới.
@@ -154,6 +154,11 @@ Mở bài để chọn người đọc, tốc độ và bản giọng cần dùn
 hoặc **Xóa đã chọn**. Chọn tất cả áp dụng cho mọi kết quả của bộ lọc, kể cả
 trang khác; đổi bộ lọc sẽ bỏ chọn. Xóa có xác nhận và đưa vào thùng rác để
 khôi phục, không xóa file PowerPoint, âm thanh hoặc báo cáo.
+
+Dòng trạng thái cạnh nút xóa hiện **10 bài** khi xem toàn bộ, **3 kết quả**
+khi đang lọc, hoặc **Đã chọn 2 bài** khi tích bài. Rê chuột vào trạng thái
+để xem tổng số, hoặc vào **Chọn tất cả** để xem phạm vi chọn. Không còn
+hàng giải thích dài bên dưới; thanh cuộn mảnh nằm riêng ngoài lề nội dung.
 
 Tải nhiều bài tạo một file ZIP, chứa PowerPoint với tên riêng và hướng dẫn
 giọng. Có thể kèm bản giọng đang chọn nếu đã tạo đủ; bài thiếu/chưa có giọng

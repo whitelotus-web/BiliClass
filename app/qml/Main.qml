@@ -58,6 +58,7 @@ ApplicationWindow {
     Timer { id: coverRequests; interval: 120; onTriggered: bridge.requestLibraryCovers(root.libraryLarge ? root.libraryResult.rows : []) }
     property var selectedLessons: []
     readonly property string librarySelectionScope: [search.text, subjectFilter.currentValue, gradeFilter.currentValue, stateFilter.currentValue, voiceFilter.currentValue].join("|")
+    readonly property bool libraryFiltersActive: !!(search.text.trim() || subjectFilter.currentValue || gradeFilter.currentValue || stateFilter.currentValue || voiceFilter.currentValue)
     onLibrarySelectionScopeChanged: selectedLessons = []
     onLibraryResultChanged: {
         coverRequests.restart()
@@ -397,11 +398,28 @@ ApplicationWindow {
             Item {
                 Layout.fillWidth: true; Layout.fillHeight: true
                 ScrollView {
-                    objectName: "libraryHomeScroll"; anchors.fill: parent; anchors.margins: 30
+                    id: libraryHomeScroll; objectName: "libraryHomeScroll"; anchors.fill: parent; anchors.margins: 30
                     visible: root.page === "home" || root.page === "library"
                     clip: true; contentWidth: availableWidth
+                    ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                    ScrollBar.vertical: ScrollBar {
+                        id: libraryScrollBar; objectName: "libraryScrollBar"
+                        // Use the outer gutter so the thumb never covers page controls.
+                        parent: libraryHomeScroll.parent
+                        anchors.top: libraryHomeScroll.top; anchors.bottom: libraryHomeScroll.bottom
+                        anchors.right: parent.right; anchors.rightMargin: 6
+                        width: 18; padding: 6; minimumSize: 0.06
+                        policy: ScrollBar.AsNeeded
+                        visible: libraryHomeScroll.visible && size < 1
+                        Accessible.name: "Cuộn trang"
+                        contentItem: Rectangle {
+                            implicitWidth: 6; implicitHeight: 6; radius: 3
+                            color: libraryScrollBar.pressed ? "#637f9f" : libraryScrollBar.hovered ? "#8ca3bf" : "#bdcbdc"
+                        }
+                        background: null
+                    }
                     ColumnLayout {
-                        width: parent.width; spacing: root.page === "home" ? 18 : 12
+                        width: libraryHomeScroll.availableWidth; spacing: root.page === "home" ? 18 : 12
                         ColumnLayout {
                             visible: root.page === "library"; Layout.fillWidth: true; spacing: 5
                             Heading { objectName: "libraryHomeHeading"; text: "Thư viện bài giảng"; font.pixelSize: 28; Layout.fillWidth: true }
@@ -495,19 +513,21 @@ ApplicationWindow {
                                 LibraryFilter { id: voiceFilter; objectName: "libraryVoiceFilter"; emptyLabel: "Giọng đọc"; Layout.fillWidth: true; Layout.minimumWidth: 78; Layout.preferredWidth: 92; Layout.maximumWidth: 170; textRole: "label"; valueRole: "id"; model: [{id:"",label:"Tất cả giọng đọc"},{id:"en",label:"Có bản giọng Anh"},{id:"vi",label:"Có bản giọng Việt"},{id:"both",label:"Có bản giọng Việt–Anh"},{id:"none",label:"Chưa tạo giọng"},{id:"partial",label:"Giọng chưa hoàn tất"}]; onActivated: root.libraryPage = 1 }
                             }
                             LibraryAction { objectName: "libraryClearFilters"; text: "↺"; font.pixelSize: 18; Layout.preferredWidth: 30; Accessible.name: "Xóa bộ lọc"; ToolTip.visible: hovered; ToolTip.text: "Xóa bộ lọc"; onClicked: { search.clear(); subjectFilter.currentIndex = 0; gradeFilter.currentIndex = 0; stateFilter.currentIndex = 0; voiceFilter.currentIndex = 0; root.libraryPage = 1 } }
-                            LibraryCheck { objectName: "librarySelectAll"; text: "Chọn tất cả (" + root.libraryResult.total + ")"; checkState: !root.selectedLessons.length ? Qt.Unchecked : root.selectedLessons.length === root.libraryResult.total ? Qt.Checked : Qt.PartiallyChecked; nextCheckState: function() { return checkState === Qt.Checked ? Qt.Unchecked : Qt.Checked }; enabled: root.libraryResult.total > 0; onClicked: root.selectedLessons = checked ? root.libraryResult.ids.slice() : [] }
+                            LibraryCheck { objectName: "librarySelectAll"; text: "Chọn tất cả"; ToolTip.visible: hovered; ToolTip.delay: 600; ToolTip.text: "Chọn toàn bộ " + root.libraryResult.total + " bài khớp bộ lọc, kể cả các trang khác.\nĐổi bộ lọc sẽ bỏ chọn."; Accessible.description: ToolTip.text; checkState: !root.selectedLessons.length ? Qt.Unchecked : root.selectedLessons.length === root.libraryResult.total ? Qt.Checked : Qt.PartiallyChecked; nextCheckState: function() { return checkState === Qt.Checked ? Qt.Unchecked : Qt.Checked }; enabled: root.libraryResult.total > 0; onClicked: root.selectedLessons = checked ? root.libraryResult.ids.slice() : [] }
                             LibraryAction { objectName: "libraryDeselectAll"; text: "Bỏ chọn"; subtle: true; enabled: root.selectedLessons.length > 0; onClicked: root.selectedLessons = [] }
                             LibraryAction { objectName: "libraryDownloadSelected"; text: "Tải đã chọn"; ToolTip.visible: hovered; ToolTip.text: "Tải " + root.selectedLessons.length + " bài đã chọn"; enabled: root.selectedLessons.length > 0 && !bridge.busy && !bridge.narrationBusy; onClicked: root.downloadLibraryLessons(root.selectedLessons) }
                             LibraryAction { objectName: "libraryDeleteSelected"; text: "Xóa đã chọn"; danger: true; ToolTip.visible: hovered; ToolTip.text: "Đưa " + root.selectedLessons.length + " bài đã chọn vào thùng rác"; enabled: root.selectedLessons.length > 0 && !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !root.classroom.running; onClicked: { bulkDeleteDialog.identities = root.selectedLessons.slice(); bulkDeleteDialog.open() } }
                             Label {
                                 objectName: "libraryResultCount"
-                                text: root.libraryResult.total + " / " + bridge.lessons.length + " bài"
+                                text: root.selectedLessons.length ? "Đã chọn " + root.selectedLessons.length + " bài" : root.libraryResult.total + (root.libraryFiltersActive ? " kết quả" : " bài")
                                 color: root.muted; font.pixelSize: 11; Layout.leftMargin: 3
-                                Layout.minimumWidth: 48; elide: Text.ElideRight
-                                Accessible.name: "Đang hiển thị " + root.libraryResult.total + " trong " + bridge.lessons.length + " bài giảng"
+                                Layout.minimumWidth: implicitWidth
+                                HoverHandler { id: libraryCountHover }
+                                ToolTip.visible: libraryCountHover.hovered; ToolTip.delay: 600
+                                ToolTip.text: "Tìm thấy " + root.libraryResult.total + " trong tổng số " + bridge.lessons.length + " bài giảng." + (root.selectedLessons.length ? "\nĐã chọn " + root.selectedLessons.length + " bài. Đổi bộ lọc sẽ bỏ chọn." : "")
+                                Accessible.name: text; Accessible.description: ToolTip.text
                             }
                         }
-                        Copy { visible: root.page === "library"; text: root.selectedLessons.length + " bài đã chọn · Chọn tất cả gồm các trang đang lọc. Đổi bộ lọc sẽ bỏ chọn."; Layout.fillWidth: true; font.pixelSize: 11; Layout.topMargin: -4 }
                         Surface { visible: root.page === "library" && bridge.lessons.length > 0 && root.libraryResult.total === 0; Layout.fillWidth: true; implicitHeight: 106
                             ColumnLayout { anchors.fill: parent; anchors.margins: 20; spacing: 7
                                 Caption { text: "Không có bài phù hợp" }
