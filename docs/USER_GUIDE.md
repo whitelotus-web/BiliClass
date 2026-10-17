@@ -30,8 +30,10 @@ Thư viện cá nhân không đưa lên GitHub. Key có thể nhận riêng như
    sau khi đóng rồi mở lại BiliClass.
 3. Chọn giữ thiết kế PowerPoint gốc, hoặc tạo theo mẫu BiliClass/PowerPoint
    riêng. Mẫu Universal 2026 có ba phong cách; chọn xem mẫu để kiểm tra trước.
-   Trên cửa sổ thấp, khu vực tải tệp và cấu hình tự thu gọn. Chọn **Tùy chọn
-   mẫu…** để mở mẫu riêng và vai trò trang; các lựa chọn này vẫn được giữ.
+   Khung tải tệp dùng cùng bố cục với Tạo giọng đọc: ảnh PowerPoint bên trái,
+   hướng dẫn và nút chọn tệp bên phải. Cấu hình vẫn thu gọn trên cửa sổ thấp;
+   có thể cuộn khi hiện nhiều trường. Chọn **Tùy chọn mẫu…** để mở mẫu riêng
+   và vai trò trang; các lựa chọn này vẫn được giữ.
 4. Cấu hình key ở **Cài đặt → Google Dịch**, lưu rồi chuyển đổi.
    Dịch chỉ gửi phần chữ; nội dung trong ảnh được OCR nếu nhận diện được.
 5. Xem lại bài đã lưu. Công thức, chữ trong ảnh, hiệu ứng phức tạp và slide
