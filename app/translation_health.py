@@ -22,6 +22,7 @@ def summarize(rows, budget):
     warning = not rows or not usable or any(row['level'] != 'normal' or row['blocked'] for row in output)
     return {'groups': output, 'used': sum(row['used'] for row in output),
             'remaining': sum(row['remaining'] for row in usable), 'budget': budget,
+            'keyCount': len(rows), 'groupCount': len(output), 'totalBudget': budget * len(output),
             'configured': bool(rows), 'available': bool(usable), 'warning': warning,
             'unverified': any(row['unverified'] for row in output),
             'status': 'Chưa có key' if not rows else 'Cần kiểm tra giới hạn/key' if not usable else

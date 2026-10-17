@@ -2142,6 +2142,12 @@ class Bridge(QObject):
             messages = ["Cần rà soát · " + n for n in bodies]
         return "\n\n".join(messages)
 
+    @Property("QVariantMap", notify=changed)
+    def lessonReview(self):
+        from .lesson_review import summarize
+
+        return summarize(self._lesson)
+
     @Slot()
     def repairConvertedLesson(self):
         from .slide_refinement import repair_existing

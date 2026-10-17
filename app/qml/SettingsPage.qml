@@ -11,6 +11,8 @@ Item {
     signal requestLogo()
     signal requestReference()
     property int activeTab: 0
+    property bool showGoogleKeyEntry: false
+    property bool googleAdvanced: false
     property string draftVoice: bridge.voiceSettings.voice
     property int draftRate: bridge.voiceSettings.rate
     readonly property bool voiceDirty: draftVoice !== bridge.voiceSettings.voice || draftRate !== bridge.voiceSettings.rate
@@ -444,6 +446,7 @@ Item {
                 ColumnLayout { width: parent.width; spacing: 14
                     RowLayout { Layout.fillWidth: true; spacing: 12
                         Title { text: "Google Cloud Translation"; Layout.fillWidth: true }
+                        SoftButton { objectName: "toggleGoogleKeyEntry"; visible: bridge.googleSettings.state.configured; text: page.showGoogleKeyEntry ? "Ẩn ô nhập" : "Thêm key"; onClicked: page.showGoogleKeyEntry = !page.showGoogleKeyEntry }
                         SoftButton {
                             id: googleKeyGuide; objectName: "googleKeyGuideButton"
                             text: "Hướng dẫn lấy Key"
@@ -472,10 +475,10 @@ Item {
                             ToolTip.text: "Mở trang quản lý API key trên Google Cloud"
                         }
                     }
-                    Hint { text: "Dịch phần chữ Việt–Anh, sắp xếp PowerPoint tại máy. Giọng đọc được tạo riêng sau khi bài giảng đã lưu."; Layout.fillWidth: true }
-                    Hint { text: "Bật Cloud Translation API và thanh toán trên Google Cloud. Google có tín dụng miễn phí cho 500.000 ký tự/tháng theo điều kiện của dự án/tài khoản thanh toán, không phải mỗi API key. BiliClass không đọc được số dư này."; Layout.fillWidth: true }
-                    Label { text: "API key · mỗi key một dòng"; color: page.ink; font.bold: true }
+                    Hint { text: "Dùng key theo thứ tự; tự chuyển khi hết giới hạn hoặc bị từ chối."; Layout.fillWidth: true }
+                    Label { visible: !bridge.googleSettings.state.configured || page.showGoogleKeyEntry; text: "API key · mỗi key một dòng"; color: page.ink; font.bold: true }
                     ScrollView {
+                        visible: !bridge.googleSettings.state.configured || page.showGoogleKeyEntry
                         Layout.fillWidth: true; Layout.preferredHeight: 130; clip: true
                         TextArea {
                             id: googleKeys; objectName: "googleApiKeys"; selectByMouse: true; wrapMode: TextEdit.NoWrap
@@ -484,32 +487,40 @@ Item {
                             background: Rectangle { radius: 9; color: "#fbfdff"; border.color: page.line }
                         }
                     }
-                    Hint { text: "Key cùng dự án phải dùng cùng tên nhóm. Các dòng chỉ có key dùng chung nhóm Mặc định. Key được dùng theo thứ tự đã lưu; lỗi key/hạn mức xác định sẽ chuyển sang key khả dụng tiếp theo. Không tự đổi key khi yêu cầu còn chưa rõ kết quả."; Layout.fillWidth: true }
+                    Hint { visible: !bridge.googleSettings.state.configured || page.showGoogleKeyEntry; text: "Nhập Tên nhóm | key. Key cùng nguồn hạn mức dùng cùng nhóm; không đặt tên sẽ vào nhóm chung."; Layout.fillWidth: true }
                     RowLayout { Layout.fillWidth: true; spacing: 12
-                        Hint { text: "Giới hạn cục bộ mỗi nhóm/tháng (ký tự)"; Layout.fillWidth: true }
+                        visible: !bridge.googleSettings.state.configured || page.showGoogleKeyEntry
+                        Item { Layout.fillWidth: true }
+                        SaveButton { objectName: "saveGoogleApiKeys"; text: "Lưu key"; enabled: !bridge.busy; onClicked: { if (bridge.googleSettings.save(googleKeys.text, googleBudget.value)) { googleKeys.clear(); page.showGoogleKeyEntry = false } } }
+                    }
+                    Flow { Layout.fillWidth: true; spacing: 10
+                        SoftButton { objectName: "receiveGoogleKeysGitHub"; text: "Nhận key từ GitHub"; enabled: !bridge.busy; onClicked: bridge.googleSettings.syncGitHub(true) }
+                        SoftButton { objectName: "sendGoogleKeysGitHub"; text: "Đồng bộ key lên GitHub"; enabled: !bridge.busy && bridge.googleSettings.state.configured; onClicked: bridge.googleSettings.syncGitHub(false) }
+                        SoftButton { objectName: "toggleGoogleAdvanced"; text: page.googleAdvanced ? "Thu gọn" : "Hướng dẫn & nâng cao"; onClicked: page.googleAdvanced = !page.googleAdvanced }
+                    }
+                    ColumnLayout { visible: page.googleAdvanced; Layout.fillWidth: true; spacing: 10
+                    Hint { text: "Google có mức miễn phí tương đương 500.000 ký tự/tháng theo chính sách tài khoản thanh toán. Số key hoặc số Gmail không tự xác định mức này. Bộ đếm BiliClass chỉ ghi nhận tại thư viện này."; Layout.fillWidth: true }
+                    RowLayout { Layout.fillWidth: true
+                        Hint { text: "Giới hạn tại máy / nhóm / tháng"; Layout.fillWidth: true }
                         SpinBox { id: googleBudget; objectName: "googleCharacterBudget"; from: 1; to: 500000; value: bridge.googleSettings.state.budget || 500000; editable: true; Layout.preferredWidth: 175 }
-                        SaveButton { objectName: "saveGoogleApiKeys"; text: "Lưu cấu hình"; enabled: !bridge.busy; onClicked: { if (bridge.googleSettings.save(googleKeys.text, googleBudget.value)) googleKeys.clear() } }
+                        SaveButton { objectName: "saveGoogleBudget"; text: "Lưu giới hạn"; enabled: !bridge.busy; onClicked: bridge.googleSettings.save("", googleBudget.value) }
                     }
                     RowLayout { Layout.fillWidth: true
                         Hint { Layout.fillWidth: true; text: bridge.googleSettings.state.ocrReady ? "Nhận diện chữ trong ảnh: đã sẵn sàng tại máy. Chỉ chữ nhận rõ và có vùng đặt phù hợp được dịch tự động." : "Chuẩn bị OCR một lần để dịch thêm chữ trong ảnh. Tải bộ nhận diện công khai; không tải bài giảng lên để OCR." }
                         SoftButton { objectName: "preparePictureOcr"; text: bridge.googleSettings.state.ocrReady ? "OCR đã sẵn sàng" : "Chuẩn bị OCR Việt–Anh"; enabled: !bridge.busy && !bridge.googleSettings.state.ocrReady; onClicked: bridge.googleSettings.prepareOcr() }
                     }
-                    Hint { text: "Bộ đếm theo tháng UTC chỉ tính yêu cầu từ thư viện BiliClass này, gồm cả phần bảo vệ số liệu và các lần gửi chưa rõ kết quả. Không đảm bảo miễn phí nếu dự án còn được dùng ở ứng dụng/máy khác. Hãy đặt quota trong Google Cloud để kiểm soát chi phí."; Layout.fillWidth: true }
-                    Hint { text: "Key được mã hóa theo tài khoản Windows, không đi cùng gói bài giảng hay bản sao lưu. Có thể nhận key từ kho GitHub riêng tư bằng quyền GitHub đã đăng nhập trên máy, không cần mật khẩu BiliClass."; Layout.fillWidth: true }
-                    Flow { Layout.fillWidth: true; spacing: 10
-                        SoftButton { objectName: "receiveGoogleKeysGitHub"; text: "Nhận key từ GitHub"; enabled: !bridge.busy; onClicked: bridge.googleSettings.syncGitHub(true) }
-                        SoftButton { objectName: "sendGoogleKeysGitHub"; text: "Đồng bộ key lên GitHub"; enabled: !bridge.busy && bridge.googleSettings.state.configured; onClicked: bridge.googleSettings.syncGitHub(false) }
+                    Hint { text: "Bộ đếm theo tháng UTC, gồm nội dung gửi và lần gửi chưa rõ kết quả. Cảnh báo ở 80% và 95%, dừng gửi mới khi chạm mức đặt; không tự chuyển key với yêu cầu chưa rõ kết quả. Muốn kiểm soát chi phí thực, đặt quota trên Google Cloud."; Layout.fillWidth: true }
+                    Hint { text: "Key được mã hóa theo Windows. Đồng bộ qua kho GitHub riêng tư khi bấm, cần Git và quyền truy cập; không cộng trực tiếp mức dùng của hai máy."; Layout.fillWidth: true }
                     }
-                    Hint { text: "Cần Git for Windows và đăng nhập GitHub có quyền vào kho BiliClass-Private-Config. Đây là chuyển cấu hình khi bấm, không cộng dồn trực tiếp mức dùng của hai máy. Hạn mức Google Cloud vẫn dùng chung; đặt quota tại Google để kiểm soát chi phí."; Layout.fillWidth: true }
                 }
             }
             Card {
                 Layout.fillWidth: true
                 ColumnLayout { width: parent.width; spacing: 13
                     TranslationUsage { objectName: "settingsTranslationUsage"; Layout.fillWidth: true; health: bridge.googleSettings.state.health || ({}) }
-                    SoftButton { text: "Xem mức dùng trên Google Cloud"; onClicked: Qt.openUrlExternally("https://console.cloud.google.com/apis/api/translate.googleapis.com/metrics") }
                     RowLayout { Layout.fillWidth: true
                         Title { text: "Key đã lưu"; Layout.fillWidth: true }
+                        SoftButton { text: "Xem Google Cloud"; onClicked: Qt.openUrlExternally("https://console.cloud.google.com/apis/api/translate.googleapis.com/metrics") }
                         SoftButton { objectName: "recheckGoogleApiKeys"; text: "Cho phép thử lại key"; enabled: !bridge.busy; onClicked: bridge.googleSettings.recheck() }
                     }
                     Hint { visible: !bridge.googleSettings.state.configured; text: bridge.googleSettings.state.message || "Chưa có API key. Thêm key ở trên để bắt đầu."; Layout.fillWidth: true }
@@ -520,7 +531,7 @@ Item {
                             Layout.fillWidth: true
                             ColumnLayout { Layout.fillWidth: true; spacing: 4
                                 Label { text: modelData.name + " · " + modelData.label; color: page.ink; font.bold: true; Layout.fillWidth: true; elide: Text.ElideRight }
-                                Hint { text: "Nhóm đếm: " + modelData.project + " · " + (modelData.blocked ? "Cần kiểm tra key/hạn mức" : "Ưu tiên theo thứ tự danh sách"); Layout.fillWidth: true }
+                                Hint { text: "Nhóm: " + (modelData.project === "mặc định" ? "Chung" : modelData.project) + (modelData.blocked ? " · Cần kiểm tra" : ""); Layout.fillWidth: true }
                             }
                             SoftButton { objectName: "renameGoogleKey_" + modelData.id; text: "Đổi tên"; enabled: !bridge.busy; onClicked: { renameGoogleKey.keyId = modelData.id; keyDisplayName.text = modelData.customName; renameGoogleKey.open() } }
                             SoftButton { text: "Xóa key"; enabled: !bridge.busy; onClicked: bridge.googleSettings.remove(modelData.id) }

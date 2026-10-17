@@ -1,21 +1,21 @@
 # BiliClass — Trợ lý dạy học song ngữ
 
-Hướng dẫn RC62, ngày 17/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
+Hướng dẫn RC63, ngày 17/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
 trên máy. Chuyển đổi hiện dùng Google Cloud Translation cho phần chữ và dựng
 PowerPoint tại máy; Browser ChatGPT/Gemini tạm ẩn.
 
 ## Cài và cập nhật
 
-1. Tải **BiliClass-RC62-Windows.zip** tại
-   [Release RC62](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc62).
+1. Tải **BiliClass-RC63-Windows.zip** tại
+   [Release RC63](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc63).
 2. Giải nén toàn bộ; không chạy trong cửa sổ ZIP. Chạy **Setup.cmd**.
 3. Bộ cài kiểm tra checksum và cài vào
-   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc62`, không cần quyền quản trị.
+   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc63`, không cần quyền quản trị.
 4. Mở BiliClass từ Desktop hoặc Start menu. Bản cài có model giọng, OCR và
    template; không cần thư mục runtime của máy phát triển.
 
 Máy đang dùng RC34: vào **Cài đặt → Thông tin BiliClass → Kiểm tra cập nhật**,
-chọn Cập nhật khi thấy RC62. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
+chọn Cập nhật khi thấy RC63. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
 Setup.cmd như trên. Các bản cài nằm cạnh nhau; thư viện ở
 `%LOCALAPPDATA%/BiliClass` được giữ nguyên. Không xóa thư mục dữ liệu này.
 Thư viện cá nhân không đưa lên GitHub. Key có thể nhận riêng như hướng dẫn dưới.
@@ -35,6 +35,15 @@ Thư viện cá nhân không đưa lên GitHub. Key có thể nhận riêng như
 Key được lưu mã hóa theo tài khoản Windows. Nhiều key có thể dùng theo cấu
 hình nhóm/hạn mức, nhưng 500.000 ký tự không phải số dư riêng được BiliClass
 đọc từ mỗi key. Kiểm soát hạn mức và chi phí trong Google Cloud của dự án.
+
+Màn Google Dịch hiện số key và số nhóm đếm riêng. Hai key trong cùng nhóm
+vẫn có một giới hạn; hai nhóm đã cấu hình có tổng giới hạn tại máy bằng
+tổng hai nhóm. Hai Gmail khác nhau không đủ để BiliClass xác nhận hai mức
+miễn phí Google. [Bảng giá Google](https://cloud.google.com/products/translate/pricing)
+và [API key gắn với dự án](https://docs.cloud.google.com/translate/docs/authentication).
+Số dùng đã lưu được giữ nguyên, không chia đoán lại lịch sử theo từng key.
+Ô nhập key ẩn sau khi lưu; bấm **Thêm key** để mở. Giới hạn tháng, OCR và
+hướng dẫn đồng bộ nằm trong **Hướng dẫn & nâng cao**.
 
 **Bài giảng** là thư viện: tìm, lọc, mở, tải và quản lý bài đã lưu. Đổi qua lại
 giữa các mục vẫn giữ tài liệu/cấu hình đang nhập ở mục Chuyển đổi bài giảng.
@@ -119,6 +128,21 @@ bị khóa. Đóng trình chiếu sẽ ngừng đọc. Chọn môn trong Cài đ
 phụ kiện theo cấu hình đã lưu, không chọn bài giảng hay khóa bài vĩnh viễn.
 
 ## Thư viện, lớp học và báo cáo
+
+Nhãn trạng thái bài có thể bấm để xem lý do và cách xử lý:
+
+- **N slide cần sửa**: kiểm tra kỹ thuật còn lỗi trên các slide đó. Chọn
+  **Kiểm tra lại** hoặc **Tự sửa và kiểm tra**; chi tiết nêu số slide/lỗi.
+- **Chờ xác nhận**: đã có nội dung song ngữ nhưng thầy cô chưa xác nhận
+  cả bài. Xem bản trình chiếu, rồi **Xem và xác nhận để dạy**. Không cần
+  duyệt từng đoạn nếu đã xem cả bài.
+- **Chưa dịch đủ**: còn thiếu cặp Việt–Anh; mở **Xem/sửa nội dung** hoặc
+  tiếp tục chuyển đổi. **Đã duyệt nội dung** và **Sẵn sàng dạy** phân biệt
+  nội dung đã duyệt với bản hiện tại đã chốt.
+
+Tự sửa xử lý lỗi kỹ thuật có thể sửa; không xác nhận thay giáo viên về ý
+nghĩa, thuật ngữ hoặc độ đúng của bản dịch. Khi vẫn còn lỗi kỹ thuật, nút
+xác nhận bị khóa. Bước xác nhận cuối dùng cơ chế duyệt/chốt đã có trước đây.
 
 Trang chủ hiển thị việc đang làm và ba bài vừa cập nhật. **Bài giảng** là
 thư viện đầy đủ: tìm không dấu, lọc môn/khối/trạng thái/giọng, sắp xếp và

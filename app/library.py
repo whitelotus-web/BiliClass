@@ -10,6 +10,7 @@ from uuid import uuid4
 
 from .lesson_design import PRESETS, classify_block
 from .lesson_narration import library_audio_status as audio_status
+from .lesson_review import summarize as review_summary
 from .readiness import preparation_current
 from .speech import voice_settings
 
@@ -168,6 +169,7 @@ class Library:
                     "status": lesson_status(lesson["segments"]),
                     "prepared": preparation_current(lesson) and not failures,
                     'quality_failures': failures,
+                    'review': review_summary(lesson),
                     "created_at": lesson.get("created_at", lesson["updated_at"]),
                     "created_at_estimated": lesson.get("created_at_estimated", False),
                     "deleted_at": lesson.get("deleted_at", ""),
