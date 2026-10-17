@@ -36,4 +36,7 @@ def save_conversion(directory, config, source, inspection, cancel=None):
                 lesson = library.create_external_lesson(config, source, inspection)
         # A cancellation after the commit does not delete the saved result.
         # The request ID above lets the next resume find it safely.
+        from .narration_script import prepare
+
+        lesson = prepare(library, lesson)
         return lesson, external_preview(lesson, directory)

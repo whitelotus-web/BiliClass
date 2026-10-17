@@ -1119,7 +1119,9 @@ class Bridge(QObject):
 
     @Property('QVariantMap', notify=selectionChanged)
     def narrationInputLanguages(self):
-        return {language: any(segment.get(language, '').strip() for segment in self._lesson.get('segments', []))
+        from .narration_script import segments
+
+        return {language: any(segment.get(language, '').strip() for segment in segments(self._lesson))
                 for language in ('vi', 'en')}
 
     @Slot(str)
@@ -1178,6 +1180,26 @@ class Bridge(QObject):
             self.inform("Đang dừng tạo giọng; các đoạn đã tạo được giữ lại.")
 
     @Slot()
+    def dismissNarrationLesson(self):
+        if self._busy or self.powerpoint_worker or self.classroom.running:
+            self.inform('Hoàn tất tác vụ hoặc đóng trình chiếu trước khi hủy bài đang chọn.', True, refresh=False)
+            return
+        if self.narrationBusy:
+            self._narration_clear_pending = self._lesson.get('id')
+            self.cancelLessonNarration()
+            return
+        self._clear_narration_selection()
+
+    def _clear_narration_selection(self):
+        self._narration_clear_pending = None
+        self.stopSpeech()
+        self._lesson, self._quick_result, self._segment_index = {}, {}, 0
+        self.changed.emit()
+        self.selectionChanged.emit()
+        self.navigate.emit('voice')
+        self.inform('Đã hủy bài đang chọn. Bài trong thư viện và âm thanh đã tạo vẫn được giữ.', refresh=False)
+
+    @Slot()
     def _narration_updated(self):
         state = self.narration_preparation.state
         if state.get("version") == 2 and state.get("signature"):
@@ -1194,6 +1216,10 @@ class Bridge(QObject):
                 if not state.get('running') and state.get('message'):
                     self.inform(state['message'], bool(state.get('failed')), refresh=False)
         self.narrationChanged.emit()
+
+        if (not state.get('running') and getattr(self, '_narration_clear_pending', None)
+                and self._narration_clear_pending == self._lesson.get('id')):
+            self._clear_narration_selection()
 
     def _lesson_voice_settings(self):
         from .lesson_narration import audio_status
@@ -2042,6 +2068,9 @@ class Bridge(QObject):
         return self._segment_reading_text(self.segment, language)
 
     def _segment_reading_text(self, value, language):
+        override = self._lesson.get('narration_script', {}).get(value.get('id'), {})
+        if language in override:
+            return override[language]
         if value.get("ai_provider") != "chatgpt_plan":
             return value.get(language, "")
         import copy
@@ -2395,10 +2424,10 @@ class Bridge(QObject):
         try:
             lesson = self.library.get(lesson_id)
             if lesson.get("external_deck"):
-                from .chatgpt_handoff import external_preview
+                from .voice_import import prepare_library_lesson
 
-                self.launch(lambda: external_preview(lesson, self.library.directory),
-                            lambda preview: self._show_lesson(lesson, preview))
+                self.launch(lambda: prepare_library_lesson(self.library.directory, lesson_id),
+                            lambda result: self._show_lesson(*result))
             else:
                 self._show_lesson(lesson)
         except Exception as exc:

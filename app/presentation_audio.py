@@ -10,6 +10,7 @@ from lxml import etree
 
 from .layout_regions import empty_region
 from .lesson_narration import MODES, audio_status, valid_key
+from .narration_script import segments as narration_segments
 from .paths import RESOURCE_ROOT
 from .powerpoint import slide_for_locator
 from .source_deck import NS, _bytes, _rels_path, _xml, source_slide_parts
@@ -39,7 +40,7 @@ def slide_audio(lesson, directory):
         ):
             languages["vi"] = [
                 part
-                for unit in lesson["segments"]
+                for unit in narration_segments(lesson)
                 if slide_for_locator(unit.get("locator", "")) == page["slide"]
                 for part in speech_chunks(unit["vi"])
             ]
@@ -67,7 +68,7 @@ def paired_keys(lesson, number, languages, record):
     allowed = {lang: set(keys) for lang, keys in languages.items()}
     used = {'vi': set(), 'en': set()}
     result = []
-    for unit in lesson['segments']:
+    for unit in narration_segments(lesson):
         if slide_for_locator(unit.get('locator', '')) != number:
             continue
         pair = {lang: [speech.audio_key(text, record['voice'], record['rate']) for text in speech_chunks(unit[lang])]
@@ -87,7 +88,7 @@ def static_vietnamese(slide, lesson, number):
     rules = animation_rules(slide)
     visible = normalized(' '.join(item['text'] for item in objects(slide)
                         if not item['hidden'] and not any(str(parent) in rules for parent in item['ancestors'])))
-    texts = [normalized(unit['vi']) for unit in lesson['segments']
+    texts = [normalized(unit['vi']) for unit in narration_segments(lesson)
              if slide_for_locator(unit.get('locator', '')) == number and unit['vi'].strip()]
     return bool(texts) and all(text in visible for text in texts)
 

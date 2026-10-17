@@ -10,6 +10,7 @@ from app.chatgpt_handoff import external_preview
 from app.lesson_narration import audio_status, make_plan
 from app.library import Library, RevisionConflict
 from app.narration_audio_export import export_audio
+from app.narration_script import segments as narration_segments
 from app.readiness import text_readiness
 from app.voice_import import import_presentation, prepare_library_lesson, save_script
 
@@ -142,3 +143,56 @@ def test_failed_narration_exposes_cause_and_stops_repeated_failures(tmp_path, mo
     job.run()
     assert job.result['failed'] == 3 and job.result['last_error'] == 'engine missing'
     assert 'engine missing' in NarrationPreparation._completion_message(job.result)
+
+
+def test_labelled_multiline_heading_and_formula_are_split_without_losing_continuations(tmp_path):
+    from app.input_analysis import split_existing_pair
+
+    text = 'VI: I. ĐỘNG NĂNG\nCÔNG THỨC VÀ ĐỒ THỊ\nW = 1/2 mv²\nEN: I. KINETIC ENERGY\nFORMULAS AND GRAPHS\nW = 1/2 mv²'
+    pair = split_existing_pair(text)
+    assert pair['vi'] == 'I. ĐỘNG NĂNG\nCÔNG THỨC VÀ ĐỒ THỊ\nW = 1/2 mv²'
+    assert pair['en'] == 'I. KINETIC ENERGY\nFORMULAS AND GRAPHS\nW = 1/2 mv²'
+    lesson, _ = import_presentation(tmp_path / 'data', source(tmp_path / 'Bilingual.pptx', text))
+    assert lesson['segments'][0]['vi'] == pair['vi']
+    assert lesson['segments'][0]['en'] == pair['en']
+
+
+def test_old_converted_lesson_is_repaired_and_editable_without_changing_slide_text_or_source(tmp_path):
+    from app.chatgpt_handoff import text_signature
+
+    text = 'VI: Động năng của vật.\nEN: The kinetic energy of the object.'
+    path = source(tmp_path / 'Old.pptx', text)
+    before = path.read_bytes()
+    lesson, _ = import_presentation(tmp_path / 'data', path)
+    library = Library(tmp_path / 'data')
+    try:
+        lesson.pop('narration_classification_version', None)
+        lesson['voice_only'] = False
+        lesson['segments'][0].update(vi=text, en='')
+        lesson['external_deck']['text_signature'] = text_signature(lesson)
+        library._write(lesson)
+        signature_before = text_signature(lesson)
+        restored, preview = prepare_library_lesson(library.directory, lesson['id'])
+        assert restored['id'] == lesson['id'] and not restored['voice_only']
+        assert restored['segments'][0]['vi'] == text
+        assert narration_segments(restored)[0]['en'] == 'The kinetic energy of the object.'
+        assert text_signature(restored) == signature_before
+        assert preview['revision'] == restored['revision']
+        complete(library, restored)
+        restored = library.get(lesson['id'])
+        changed = save_script(library, restored['id'], restored['segments'][0]['id'],
+                              restored['revision'], 'Động năng đã sửa.', 'Edited kinetic energy.')
+        assert changed['segments'][0]['vi'] == text
+        assert narration_segments(changed)[0]['en'] == 'Edited kinetic energy.'
+        assert text_signature(changed) == signature_before
+        assert audio_status(changed, library.directory)['status'] == 'stale'
+        changed = complete(library, changed)
+        target = export_audio(changed, library.directory, tmp_path / 'Edited.zip')
+        with zipfile.ZipFile(target) as archive:
+            assert 'Edited kinetic energy.' in archive.read('loi-doc.txt').decode('utf-8')
+        assert path.read_bytes() == before
+        assert external_preview(changed, library.directory)['path'] == preview['path']
+        again, _ = prepare_library_lesson(library.directory, changed['id'])
+        assert narration_segments(again)[0]['en'] == 'Edited kinetic energy.'
+    finally:
+        library.close()

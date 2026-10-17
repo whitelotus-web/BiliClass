@@ -2,6 +2,8 @@
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
+from .narration_script import segments as narration_segments
+
 
 class NarrationWorkspace(QObject):
     changed = Signal()
@@ -22,9 +24,9 @@ class NarrationWorkspace(QObject):
     @Property('QVariantMap', notify=changed)
     def summary(self):
         lesson = self.bridge._lesson
-        rows = lesson.get('segments', [])
+        rows = narration_segments(lesson)
         counts = {lang: sum(bool(s.get(lang, '').strip()) for s in rows) for lang in ('vi', 'en')}
-        return {'total': len(rows), **counts, 'editable': bool(lesson.get('voice_only')),
+        return {'total': len(rows), **counts, 'editable': bool(lesson.get('external_deck')),
                 'empty': sum(not s.get('vi', '').strip() and not s.get('en', '').strip() for s in rows),
                 'name': (lesson.get('source') or {}).get('original_name', lesson.get('title', '')),
                 'slides': [{'id': s['id'], 'label': s.get('locator', str(i + 1)) + (
@@ -33,7 +35,7 @@ class NarrationWorkspace(QObject):
 
     @Property('QVariantMap', notify=changed)
     def slide(self):
-        rows = self.bridge._lesson.get('segments', [])
+        rows = narration_segments(self.bridge._lesson)
         self.index = max(0, min(self.index, len(rows) - 1))
         return {**rows[self.index], 'index': self.index,
                 'revision': self.bridge._lesson['revision']} if rows else {}
@@ -59,6 +61,13 @@ class NarrationWorkspace(QObject):
     @Slot(int)
     def selectSlide(self, index):
         self.index = index
+        self.changed.emit()
+
+    @Slot(str)
+    def selectProblem(self, mode):
+        wanted = ('vi', 'en') if mode == 'both' else (mode,)
+        rows = narration_segments(self.bridge._lesson)
+        self.index = next((i for i, row in enumerate(rows) if any(not row.get(lang, '').strip() for lang in wanted)), 0)
         self.changed.emit()
 
     @Slot(str, str, str, int, result=bool)

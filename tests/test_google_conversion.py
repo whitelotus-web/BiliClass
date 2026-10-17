@@ -85,6 +85,7 @@ def test_changed_source_cannot_resume(tmp_path):
 def test_only_final_checked_artifact_is_published_without_retranslation(tmp_path, monkeypatch):
     import hashlib
     from pathlib import Path
+
     from app.chatgpt_handoff import inspect_returned_deck
 
     KeyStore(tmp_path).add('AIza' + 'a' * 35)
@@ -119,9 +120,51 @@ def test_google_job_cannot_load_outside_current_library(tmp_path):
         load(tmp_path, tmp_path.parent)
 
 
+def test_low_disk_is_reported_before_creating_a_google_job(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from app.storage_space import MIB, StorageProblem
+
+    monkeypatch.setattr('app.storage_space.shutil.disk_usage', lambda _: SimpleNamespace(free=64 * MIB))
+    with pytest.raises(StorageProblem):
+        prepare(tmp_path, config(), text='Cơ năng')
+    assert not (tmp_path / 'google_jobs').exists()
+
+
+def test_storage_failure_at_publish_preserves_code_and_resume_reuses_checked_deck(tmp_path, monkeypatch):
+    from pathlib import Path
+
+    from app.chatgpt_handoff import inspect_returned_deck
+    from app.storage_space import StorageProblem
+
+    checks, calls = [], []
+    def checked(path, directory, **kwargs):
+        checks.append(1)
+        return {'path': str(path), 'inspection': inspect_returned_deck(path), 'changes': []}
+    def translated(*args):
+        calls.append(1)
+        return transport(*args)
+    monkeypatch.setattr('app.slide_repair.repair_and_inspect', checked)
+    job = prepare(tmp_path, config(), text='Năng lượng được bảo toàn.')
+    KeyStore(tmp_path).add('AIza' + 'a' * 35)
+    store = Library.store_source
+    monkeypatch.setattr(Library, 'store_source', lambda *_: (_ for _ in ()).throw(StorageProblem('disk full')))
+    with pytest.raises(StorageProblem) as caught:
+        convert(tmp_path, job, Event(), ConversionProgress(job['folder'], lambda _: None),
+                translator=Translator(tmp_path, transport=translated))
+    assert caught.value.code == 'storage'
+    assert (Path(job['folder']) / 'publish-ready.json').is_file()
+    monkeypatch.setattr(Library, 'store_source', store)
+    lesson, preview = convert(tmp_path, job, Event(), ConversionProgress(job['folder'], lambda _: None),
+                              translator=Translator(tmp_path, transport=translated))
+    assert preview['lesson_id'] == lesson['id']
+    assert len(calls) == len(checks) == 1
+
+
 def test_document_parser_failure_is_not_reported_as_missing_key(tmp_path, monkeypatch):
     import json
     from pathlib import Path
+
     from app import importers
     from app.google_translation import TranslationProblem
 

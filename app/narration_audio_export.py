@@ -8,6 +8,7 @@ from pathlib import Path
 
 from . import speech
 from .lesson_narration import MODES, audio_status, valid_key
+from .narration_script import segments as narration_segments
 from .powerpoint import slide_for_locator
 from .presentation_audio import joined_wav, paired_keys
 from .slide_speech import speech_chunks
@@ -23,7 +24,7 @@ def export_audio(lesson, directory, destination):
         raise ValueError('Thư mục lưu chưa tồn tại.')
     record = lesson['narration']
     pages = {}
-    for index, unit in enumerate(lesson['segments'], 1):
+    for index, unit in enumerate(narration_segments(lesson), 1):
         number = slide_for_locator(unit.get('locator', '')) or index
         if number and 'vi' in MODES[record['mode']]:
             pages.setdefault(number, {}).setdefault('vi', []).extend(speech_chunks(unit['vi']))
@@ -35,7 +36,7 @@ def export_audio(lesson, directory, destination):
                     part for segment in page['englishSpeechSegments'] if segment['status'] == 'ready'
                     for part in speech_chunks(segment['english_text']))
     elif 'en' in MODES[record['mode']]:
-        for index, unit in enumerate(lesson['segments'], 1):
+        for index, unit in enumerate(narration_segments(lesson), 1):
             number = slide_for_locator(unit.get('locator', '')) or index
             pages.setdefault(number, {}).setdefault('en', []).extend(speech_chunks(unit['en']))
     pending = None
@@ -60,7 +61,7 @@ def export_audio(lesson, directory, destination):
             if not exported:
                 raise ValueError('Chưa tìm thấy audio theo slide để tải.')
             archive.writestr('loi-doc.txt', '\n\n'.join(
-                f"{unit['locator']}\nVI: {unit['vi']}\nEN: {unit['en']}" for unit in lesson['segments']))
+                f"{unit['locator']}\nVI: {unit['vi']}\nEN: {unit['en']}" for unit in narration_segments(lesson)))
             archive.writestr('manifest.json', json.dumps({
                 'version': 1, 'title': lesson['title'], 'mode': record['mode'],
                 'voice': record['voice'], 'rate': record['rate'], 'files': exported,

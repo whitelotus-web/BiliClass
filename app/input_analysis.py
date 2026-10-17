@@ -29,6 +29,22 @@ def language_of(text):
 
 def split_existing_pair(text):
     """Only split clear labelled/alternating lines; never invent a translation."""
+    # A label owns subsequent lines, including short headings and equations.
+    # Reclassifying every continuation used to discard the entire valid pair.
+    labelled = {'vi': [], 'en': []}
+    active = None
+    for line in text.splitlines():
+        match = re.match(r'^\s*(VI|VN|Tiếng Việt|EN|English|Tiếng Anh)\s*[:：]\s*(.*)$', line, re.I)
+        if match:
+            active = 'vi' if match[1].casefold() in {'vi', 'vn', 'tiếng việt'} else 'en'
+            labelled[active].append(match[2].strip())
+        elif re.match(r'^\s*(CHECK|QUIZ|SPEECH|BILICLASS_NOTES)\s*[:：]', line, re.I):
+            active = None
+        elif active and line.strip():
+            labelled[active].append(line.strip())
+    paired = {lang: '\n'.join(lines).strip() for lang, lines in labelled.items()}
+    if all(paired.values()):
+        return paired
     if "|" in text:
         # A single bilingual heading is common in teachers' decks. Multi-row
         # or multi-column grids remain intact for the native table exporter.

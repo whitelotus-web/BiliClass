@@ -7,6 +7,7 @@ from pathlib import Path
 
 from . import speech
 from .browser_audio import narration_tasks
+from .narration_script import segments as narration_segments
 
 MODES = {"en": ("en",), "vi": ("vi",), "both": ("vi", "en")}
 LABELS = {"en": "Tiếng Anh", "vi": "Tiếng Việt", "both": "Việt + Anh"}
@@ -104,13 +105,13 @@ def creation_choices(lesson, voice, rate, verified=(), live=None):
 
 
 def inspection_for(lesson):
-    return {"profile": {"units": [{"vi": s["vi"], "en": s["en"]} for s in lesson["segments"]]},
+    return {"profile": {"units": [{"vi": s["vi"], "en": s["en"]} for s in narration_segments(lesson)]},
             "slide_speech": lesson.get("slide_speech", {})}
 
 
 def signature(lesson):
     value = {"source": (lesson.get("source") or {}).get("sha256", ""),
-             "units": [{"vi": s["vi"], "en": s["en"]} for s in lesson["segments"]],
+             "units": [{"vi": s["vi"], "en": s["en"]} for s in narration_segments(lesson)],
              "speech": lesson.get("slide_speech", {})}
     return hashlib.sha256(json.dumps(value, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
 

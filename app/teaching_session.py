@@ -105,14 +105,17 @@ class TeachingSession(QObject):
         preview = self.bound.get('preview', {})
         number = state.get('slide', 0)
         indexes = slide_segment_indexes(lesson, number, preview.get('slide_map', []), preview.get('segment_map', []))
-        units = [lesson['segments'][i] for i in indexes]
+        from .narration_script import segments as narration_segments
+
+        spoken = narration_segments(lesson)
+        units = [spoken[i] for i in indexes]
         page = next((row for row in self.bound.get('speech', {}).get('slides', []) if row['slide'] == number), {})
         english = [part for row in visible_segments(page, state.get('click_index'),
                    time.monotonic() - state.get('build_started', time.monotonic()))
                    for part in speech_chunks(row['english_text'])]
         if language == 'en':
             return english
-        vietnamese = [part for unit in units if lesson.get('voice_only') or
+        vietnamese = [part for unit in units if lesson.get('voice_only') or lesson.get('narration_script') or
                       (speech_chunks(unit.get('en', '')) and set(speech_chunks(unit['en'])) <= set(english))
                       for part in speech_chunks(unit.get('vi', ''))]
         if language == 'vi':
@@ -124,7 +127,7 @@ class TeachingSession(QObject):
                 paired.extend(speech_chunks(unit.get('vi', '')))
                 paired.extend(partner)
                 used.update(partner)
-            elif lesson.get('voice_only') and not partner:
+            elif (lesson.get('voice_only') or lesson.get('narration_script')) and not partner:
                 paired.extend(speech_chunks(unit.get('vi', '')))
         return paired + [part for part in english if part not in used]
 

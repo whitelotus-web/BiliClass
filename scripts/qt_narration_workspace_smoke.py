@@ -30,7 +30,7 @@ from app.ui import Bridge
 def main():
     app = QGuiApplication([])
     QQuickStyle.setStyle('Basic')
-    out = Path('reports/rc69/workspace')
+    out = Path('reports/rc71/workspace')
     out.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='biliclass-voice-workspace-', ignore_cleanup_errors=True) as folder:
         folder = Path(folder)
@@ -109,7 +109,7 @@ def main():
             assert not c('narrationEnglish').isEnabled() and not c('narrationVietnamese').isEnabled()
             assert not c('createLessonNarrationButton').isEnabled()
             assert c('narrationScriptNotice').isVisible()
-            assert 'Chưa có lời đọc' in c('narrationCoverageMessage').property('text')
+            assert 'slide thiếu lời' in c('narrationCoverageMessage').property('text')
             assert c('fixMissingNarration').isVisible()
             click(window, c('resultMoreButton'))
             assert c('resultMoreMenu').property('count') == 3
@@ -164,7 +164,7 @@ def main():
             assert c('voiceDownloadWithoutNarrationMenu').isVisible()
             assert QMetaObject.invokeMethod(c('resultAdvancedMenu'), 'close')
             assert QMetaObject.invokeMethod(c('resultMoreMenu'), 'close')
-            assert 'Tự bỏ qua 1 slide' in c('narrationCoverageMessage').property('text')
+            assert '1 slide thiếu lời Việt' in c('narrationCoverageMessage').property('text')
             assert not any(s['approved'] for s in bridge.lesson['segments'])
             for width, height in ((1080, 700), (1366, 850)):
                 window.resize(width, height)
@@ -211,6 +211,40 @@ def main():
             assert window.property('narrationMode') == 'vi'
             assert window.property('narrationVoice') == selected_voice and window.property('narrationRate') == 1
             assert not c('narrationBoth').isEnabled()
+            assert c('lessonNarrationState').property('text') == 'Chưa tạo'
+            assert 'Chưa có lời đọc' in c('narrationEnglish').property('text')
+            saved_id = bridge.lesson['id']
+            with patch('app.speech.narration_workers', return_value=1), patch('app.speech.synthesize_background', side_effect=slow):
+                started.clear()
+                click(window, c('createLessonNarrationButton'))
+                until(started.is_set)
+                click(window, c('dismissVoiceLesson'))
+                until(lambda: not bridge.narrationBusy and not bridge.quickResult.get('path'))
+            assert library.get(saved_id)['narration_variants'], 'Cancel selection retains voice progress'
+            assert window.property('page') == 'voice'
+            assert not c('dismissVoiceLesson').isVisible()
+            assert c('voiceSourceArea').isVisible()
+            for name in ('narrationEnglish', 'narrationVietnamese', 'narrationBoth'):
+                assert 'Chưa chọn bài' in c(name).property('text')
+            bridge.narrationWorkspace.selectLibrary(saved_id)
+            until(lambda: not bridge.busy and bool(bridge.quickResult.get('path')))
+            converted = library.get(saved_id)
+            converted['voice_only'] = False
+            library._write(converted)
+            bridge.narrationWorkspace.selectLibrary(saved_id)
+            until(lambda: not bridge.busy)
+            click(window, c('resultMoreButton'))
+            click(window, c('reviewNarrationScript'))
+            until(lambda: c('narrationScriptDialog').property('visible'))
+            assert not c('narrationScriptEnglish').property('readOnly')
+            c('narrationScriptEnglish').setProperty('text', 'Hello, students.')
+            click(window, c('saveNarrationScript'))
+            assert bridge.narrationInputLanguages['en']
+            assert library.get(saved_id)['segments'][0]['en'] == '', 'Narration edit keeps converted slide text intact'
+            assert library.get(saved_id)['narration_script'][converted['segments'][0]['id']]['en'] == 'Hello, students.'
+            click(window, c('discardNarrationScript'))
+            click(window, c('dismissVoiceLesson'))
+            assert not bridge.lesson and library.get(saved_id)
             assert not warnings, warnings
             result = {'status': 'passed', 'qml_warnings': warnings,
                       'checks': ['supplied narration icon is 29px with blue/gray selection states',
@@ -219,6 +253,7 @@ def main():
                                  'language availability', 'cancel and resume reuse cached WAV', 'busy source/download guards',
                                  'ready duplicate lock', 'ZIP WAV and embedded PowerPoint export',
                                  'regular library lesson prepares matching preview', 'no auto review or playback'],
+                      'new_checks': ['consistent unselected and missing-language status', 'cancel selected lesson while idle or synthesizing preserves library and WAVs', 'edit converted lesson narration directly without changing slide text'],
                       'scope': 'Real Qt and PowerPoint export; synthesized audio uses WAV fixtures'}
             (out / 'result.json').write_text(json.dumps(result, indent=2), encoding='utf-8')
             print(json.dumps(result), flush=True)

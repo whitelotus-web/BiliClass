@@ -12,7 +12,7 @@ Dialog {
     readonly property bool editable: !!workspace && workspace.summary.editable
     readonly property bool dirty: editable && (vietnamese.text !== (currentSlide.vi || "") || english.text !== (currentSlide.en || ""))
     objectName: "narrationScriptDialog"
-    title: "Kiểm tra lời đọc theo slide"
+    title: "Kiểm tra / sửa lời đọc theo slide"
     modal: true; width: Math.min(880, parent.width - 60); height: Math.min(670, parent.height - 60)
     anchors.centerIn: parent
     closePolicy: Popup.CloseOnEscape
@@ -24,7 +24,7 @@ Dialog {
     onOpened: loadSlide()
     contentItem: ColumnLayout {
         spacing: 12
-        Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: "#667997"; text: dialog.editable ? "Lời đọc lưu riêng, giữ nguyên slide PowerPoint. Slide không có lời đọc sẽ được bỏ qua. Lưu thay đổi rồi tạo lại giọng." : "Đây là lời đọc của bài trong thư viện. Muốn sửa, mở Thao tác khác → Bài giảng → Sửa nội dung trợ giảng." }
+        Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: "#667997"; text: dialog.editable ? "Tool đã tự phân loại lời Việt–Anh. Có thể sửa ngay bên dưới; lời đọc lưu riêng, giữ nguyên slide PowerPoint. Lưu thay đổi rồi tạo lại giọng." : "Lời đọc của bài này lấy từ nội dung đã lưu. Mở phần sửa nội dung trợ giảng để cập nhật." }
         ComboBox {
             objectName: "narrationScriptSlide"; Layout.fillWidth: true
             model: dialog.workspace ? dialog.workspace.summary.slides : []; textRole: "label"

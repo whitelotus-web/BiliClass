@@ -311,17 +311,22 @@ cùng file sẽ dùng bài đã nhập trước đó và giữ các bản giọn
    hiện ngay sau khi nhận bài.
 2. BiliClass tự kiểm tra số slide có lời theo ngôn ngữ đang chọn; chỉ hiện
    nhắc khi có slide thiếu lời. Muốn xem hoặc sửa, mở **Thao tác khác →
-   Xem / sửa lời đọc** (bài thư viện ghi **Xem lời đọc**). Với PowerPoint nhập riêng, có
-   thể bổ sung/sửa lời Việt và Anh cho từng slide, kể cả slide ảnh. Lời đọc
+   Kiểm tra / sửa lời đọc**. Có thể bổ sung/sửa trực tiếp lời Việt và Anh cho
+   từng slide của bài nhập riêng hoặc bài đã chuyển đổi, kể cả slide ảnh. Lời đọc
    lưu riêng, giữ nguyên file và thiết kế gốc; không tự dịch/OCR. Ghi chú
-   `VI:` hoặc `EN:` cũng có thể chỉ chứa một ngôn ngữ.
+   `VI:` hoặc `EN:` cũng có thể chỉ chứa một ngôn ngữ. Tool tự tách các dòng
+   theo nhãn và rà lại bài cũ bị gộp hai ngôn ngữ; giữ dòng tiêu đề/công thức.
 3. **Lưu lời đọc** trước khi đổi slide. Sửa lời làm bản giọng cũ cần cập
    nhật và yêu cầu xác nhận lại trước khi dạy. Slide không có lời sẽ được
-   bỏ qua; màn hình cho biết số slide cần bổ sung. Với bài chuyển ngữ đã có
-   trong thư viện, dùng **Thao tác khác → Bài giảng → Sửa nội dung trợ giảng** để sửa.
+   bỏ qua; màn hình ghi rõ thiếu lời Việt hay Anh. Bấm **Kiểm tra / bổ sung**
+   để mở ngay slide cần xử lý. Thay đổi ở đây chỉ sửa lời đọc riêng; muốn sửa
+   chữ hiển thị trên slide vẫn dùng phần chỉnh nội dung bài giảng.
 4. Chọn giọng, tốc độ, ngôn ngữ và **Tạo giọng đọc**. **Dừng** giữ các đoạn
    đã xong; **Tiếp tục tạo giọng** chỉ tạo những đoạn còn thiếu/hỏng. Khi
    lỗi, thông báo nêu nguyên nhân để kiểm tra bộ giọng hoặc ổ đĩa rồi thử lại.
+   **Hủy bài đang chọn** dừng an toàn rồi trở về bước chọn nguồn, giữ bài
+   trong thư viện và âm thanh đã tạo. Các chế độ đều hiện trạng thái; chế
+   độ không có nội dung sẽ ghi **Chưa có lời đọc**.
 5. Khi sẵn sàng, tải **PowerPoint** có bản giọng đang chọn hoặc **Tải audio
    (.zip)** gồm WAV theo slide/ngôn ngữ, bản đọc chung Việt–Anh nếu đã chọn,
    và tệp lời đọc. ZIP dùng để phát thủ công, không tự đồng bộ hiệu ứng.

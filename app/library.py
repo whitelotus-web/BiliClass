@@ -669,11 +669,15 @@ class Library:
         lesson = self.get(lesson_id)
         if inspection["slide_speech"]["sha256"] != (lesson.get("source") or {}).get("sha256"):
             raise ValueError("Dữ liệu lời đọc không khớp PowerPoint hiện tại.")
-        if lesson.get('voice_only'):
+        if lesson.get('voice_only') or lesson.get('narration_script'):
             from .voice_import import script_speech
-
             lesson['source_slide_speech'] = inspection['slide_speech']
-            lesson['slide_speech'] = script_speech(lesson)
+            if lesson.get('voice_only'):
+                lesson['slide_speech'] = script_speech(lesson)
+            else:
+                from .narration_script import refresh_speech
+
+                refresh_speech(lesson)
         else:
             lesson["slide_speech"] = inspection["slide_speech"]
         lesson["slide_quality"] = inspection["slide_quality"]
@@ -728,6 +732,11 @@ class Library:
                 support["approved"] = False
         lesson.update(source=source, slide_speech=inspection["slide_speech"], slide_quality=inspection["slide_quality"],
                       revision=lesson["revision"] + 1, updated_at=now())
+        if lesson.get('narration_script'):
+            from .narration_script import refresh_speech
+
+            lesson['source_slide_speech'] = inspection['slide_speech']
+            refresh_speech(lesson)
         lesson.pop("prepared", None)
         lesson["external_deck"].update(sha256=source["sha256"], reviewed_revision=0,
                                        text_signature=text_signature(lesson), review_notes=inspection.get("review_notes", []))

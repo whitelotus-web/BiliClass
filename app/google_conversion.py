@@ -16,6 +16,9 @@ from .google_translation import TranslationProblem, Translator, chunks
 
 def prepare(directory, config, source=None, text=''):
     from .document_limits import check_document_size
+    from .storage_space import MIB, require_space
+
+    require_space(directory, (Path(source).stat().st_size * 4 if source else len(text.encode('utf-8')) * 4) + 128 * MIB)
 
     config = {**config, 'provider': 'google_translate', 'request_id': uuid4().hex,
               'adaptive_bilingual':config.get('conversion_format')=='parallel_columns'}
@@ -238,6 +241,10 @@ def convert(directory, job, cancel, progress, *, budget=500_000, translator=None
         try:
             return _convert(directory, job, cancel, progress, budget=budget, translator=translator)
         except (AttributeError, KeyError, TypeError, ValueError) as exc:
+            from .storage_space import StorageProblem
+
+            if isinstance(exc, StorageProblem):
+                raise
             if isinstance(exc, TranslationProblem):
                 raise
             # Keep structural diagnostics private and never mistake a document
@@ -261,7 +268,6 @@ def convert(directory, job, cancel, progress, *, budget=500_000, translator=None
 
 
 def _convert(directory, job, cancel, progress, *, budget=500_000, translator=None):
-    from .lesson_import import save_conversion
     from .library import Library
     from .native_bilingual import assemble, extract
 
@@ -285,6 +291,15 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
             if library.setting('google_request_folder', '') == str(folder):
                 library.set_setting('google_request_folder', '')
             return lesson, external_preview(lesson, directory)
+    checkpoint = folder / 'publish-ready.json'
+    if checkpoint.is_file():
+        saved = json.loads(checkpoint.read_text(encoding='utf-8'))
+        target = (Path(directory) / saved['artifact']).resolve()
+        if (target.is_relative_to(Path(directory).resolve()) and target.is_file()
+                and saved['source_sha256'] == config['source_sha256']
+                and saved['job_config'] == job['config']
+                and hashlib.sha256(target.read_bytes()).hexdigest() == saved['inspection']['slide_speech']['sha256']):
+            return _publish_checked(directory, folder, saved['config'], target, saved['inspection'], cancel, progress)
     source = folder / config['source_file']
     progress.stage('upload', 'Đang đọc nội dung tài liệu.')
     manifest = extract(source, config['conversion_format'], preserve_design=True,
@@ -405,13 +420,27 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
     (folder/'automatic-layout-check.json').write_text(json.dumps({
         'changes':checked['changes'],'counts':inspection['slide_quality']['counts']}),encoding='utf-8')
     inspection['review_notes'] = list(dict.fromkeys(inspection['review_notes'] + warnings))
+    ready = {'source_sha256': job['config']['source_sha256'], 'job_config': job['config'], 'config': config,
+             'artifact': target.resolve().relative_to(Path(directory).resolve()).as_posix(), 'inspection': inspection}
+    pending = (folder / 'publish-ready.json').with_suffix('.tmp')
+    pending.write_text(json.dumps(ready, ensure_ascii=False), encoding='utf-8')
+    pending.replace(folder / 'publish-ready.json')
+    return _publish_checked(directory, folder, config, target, inspection, cancel, progress)
+
+
+def _publish_checked(directory, folder, config, target, inspection, cancel, progress):
+    from .lesson_import import save_conversion
+    from .library import Library
+
     progress.stage('save', 'Đang lưu bài giảng song ngữ.')
     with closing(Library(directory)) as library:
         stored = library.store_source(target)
     lesson, preview = save_conversion(directory, config, stored, inspection, cancel)
+    completed = folder / 'saved.json'
     pending = completed.with_suffix('.tmp')
     pending.write_text(json.dumps({'lesson_id': lesson['id']}), encoding='utf-8')
     pending.replace(completed)
+    (folder / 'conversion-error.json').unlink(missing_ok=True)
     with closing(Library(directory)) as library:
         if library.setting('google_request_folder', '') == str(folder):
             library.set_setting('google_request_folder', '')

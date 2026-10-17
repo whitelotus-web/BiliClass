@@ -7,6 +7,7 @@ from pathlib import Path
 
 from .chatgpt_handoff import external_preview, inspect_returned_deck
 from .library import Library, RevisionConflict, now
+from .narration_script import segments as narration_segments
 
 
 def script_speech(lesson):
@@ -21,7 +22,7 @@ def script_speech(lesson):
               'visibility': {'kind': 'always'}, 'kind': 'body', 'order': 0,
               'source': {'source_type': 'narration_script'}, 'x': 0, 'y': 0}
          ] if segment['en'].strip() else []}
-        for index, segment in enumerate(lesson['segments'])]}
+        for index, segment in enumerate(narration_segments(lesson))]}
 
 
 def prepare_script(library, lesson):
@@ -38,8 +39,6 @@ def save_script(library, lesson_id, segment_id, revision, vi, en):
     from .chatgpt_handoff import text_signature
 
     lesson = library.get(lesson_id)
-    if not lesson.get('voice_only'):
-        raise ValueError('Bài chuyển ngữ dùng phần Sửa nội dung trợ giảng để cập nhật lời đọc.')
     if lesson['revision'] != revision:
         raise RevisionConflict('Bài vừa thay đổi. Đóng và mở lại lời đọc trước khi lưu.')
     if not isinstance(vi, str) or not isinstance(en, str) or len(vi) + len(en) > 100_000:
@@ -50,13 +49,21 @@ def save_script(library, lesson_id, segment_id, revision, vi, en):
     if segment is None:
         raise ValueError('Không tìm thấy slide cần sửa.')
     vi, en = vi.strip(), en.strip()
-    if sum(len(s['vi']) + len(s['en']) for s in lesson['segments'] if s['id'] != segment_id) + len(vi) + len(en) > 1_000_000:
+    if sum(len(s['vi']) + len(s['en']) for s in narration_segments(lesson) if s['id'] != segment_id) + len(vi) + len(en) > 1_000_000:
         raise ValueError('Tổng lời đọc của bài tối đa 1.000.000 ký tự.')
-    if (segment['vi'], segment['en']) == (vi, en):
+    effective = next(s for s in narration_segments(lesson) if s['id'] == segment_id)
+    if (effective['vi'], effective['en']) == (vi, en):
         return lesson
-    segment.update(vi=vi, en=en, approved=False)
-    lesson.update(revision=lesson['revision'] + 1, updated_at=now(), narration_script_version=1)
-    lesson['slide_speech'] = script_speech(lesson)
+    if lesson.get('voice_only'):
+        segment.update(vi=vi, en=en, approved=False)
+    else:
+        lesson.setdefault('narration_script', {})[segment_id] = {'vi': vi, 'en': en, 'manual': True}
+    lesson.update(revision=lesson['revision'] + 1, updated_at=now(), narration_script_version=2)
+    lesson['narration_classification_version'] = 1
+    from .narration_script import refresh_speech
+    from .powerpoint import slide_for_locator
+
+    refresh_speech(lesson, edited=(slide_for_locator(segment['locator']),))
     lesson['external_deck']['text_signature'] = text_signature(lesson)
     lesson['external_deck']['reviewed_revision'] = 0
     lesson.pop('prepared', None)
@@ -68,9 +75,13 @@ def prepare_library_lesson(directory, identity, profile=None):
     from .quick_conversion import build_preview
 
     with closing(Library(directory)) as library:
-        lesson = prepare_script(library, library.get(identity))
+        lesson = library.get(identity)
         if lesson.get('deleted_at'):
             raise ValueError('Khôi phục bài từ thùng rác trước khi tạo giọng.')
+        lesson = prepare_script(library, lesson)
+        from .narration_script import prepare
+
+        lesson = prepare(library, lesson)
         if lesson.get('external_deck'):
             return lesson, external_preview(lesson, directory)
         if all(s['vi'].strip() and s['en'].strip() for s in lesson['segments']):
@@ -120,7 +131,9 @@ def import_presentation(directory, path):
         for row in library.db.execute('SELECT content FROM lessons'):
             lesson = json.loads(row[0])
             if lesson.get('voice_only') and (lesson.get('source') or {}).get('sha256') == source['sha256'] and not lesson.get('deleted_at'):
-                lesson = prepare_script(library, lesson)
+                from .narration_script import prepare
+
+                lesson = prepare(library, prepare_script(library, lesson))
                 return lesson, external_preview(lesson, directory)
         config = {'title': path.stem, 'subject': 'Bài giảng có sẵn', 'education_level': '', 'grade': '',
                   'level': 4, 'layout': 'split_view', 'style': 'source', 'preset': 'standard', 'mode': 'preserve'}
@@ -128,4 +141,7 @@ def import_presentation(directory, path):
         lesson['voice_only'] = True
         lesson['external_deck']['provider'] = 'voice_import'
         prepare_script(library, lesson)
+        from .narration_script import prepare
+
+        lesson = prepare(library, lesson)
         return lesson, external_preview(lesson, directory)
