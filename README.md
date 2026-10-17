@@ -22,7 +22,7 @@ RC62 cho phép bấm nền, tên, thông tin hoặc ảnh bìa của bài trong 
 
 RC63 rút gọn Google Dịch, hiển thị rõ số key và số nhóm đếm; tổng giới hạn tại máy tính theo nhóm, không nhân theo số Gmail/key. Bấm trạng thái bài giảng để xem lý do, kiểm tra/tự sửa kỹ thuật hoặc mở bước xác nhận của giáo viên. Tự sửa không tự duyệt bản dịch.
 
-RC64 đồng bộ thanh cuộn mảnh ở các trang và hộp nội dung dài. Thanh trang nằm ở lề phải; khung nhập/xem có khoảng chừa riêng, không che chữ hoặc nút.
+RC64 đồng bộ thanh cuộn mảnh ở các trang và hộp nội dung dài. Thanh trang nằm ở lề phải; khung nhập/xem có khoảng chừa riêng, không che chữ hoặc nút. Khung tải lên ở trang Chuyển đổi có hình PowerPoint ở bên trái, tự cân với phần hướng dẫn và nút chọn file.
 
 500.000 ký tự không phải hạn mức riêng cho từng key. Bộ đếm BiliClass theo nhóm dự án chỉ phản ánh lượng dùng cục bộ; hãy đặt quota trong Google Cloud. Key mã hóa theo tài khoản Windows; không nằm trong bộ cài/repo công khai hoặc bản sao lưu thư viện. Chuyển key qua kho riêng tư là snapshot khi bấm, không đồng bộ quota trực tiếp giữa các máy.
 

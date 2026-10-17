@@ -86,10 +86,14 @@ def main():
                 window.resize(width, height)
                 c('creationScroll').property('contentItem').setProperty('contentY', 0)
                 pump(150)
-                area, button = c('creationSourceArea'), c('chooseInputDocumentButton')
-                area_center = area.mapToScene(QPointF(area.width()/2, 0)).x()
+                button = c('chooseInputDocumentButton')
                 button_center = button.mapToScene(QPointF(button.width()/2, 0)).x()
-                assert abs(area_center-button_center) < 1, 'Upload button must be centered'
+                heading = control(c('creationSourceArea'), 'powerpointUploadHeading')
+                heading_center = heading.mapToScene(QPointF(heading.width() / 2, 0)).x()
+                assert abs(heading_center-button_center) < 1, 'Upload button must center with the upload text'
+                art = c('chooseInputDocumentButtonIllustration')
+                assert art.isVisible() and art.property('paintedWidth') > 100 and art.property('paintedHeight') > 100
+                assert art.mapToScene(QPointF(art.width(), 0)).x() < heading.mapToScene(QPointF()).x()
                 assert window.grabWindow().save(str(report/f'conversion-{width}.png'))
             # The file-size limit is real; a sparse fixture avoids allocating 200 MB.
             oversized = Path(folder)/'Quá lớn.pptx'
