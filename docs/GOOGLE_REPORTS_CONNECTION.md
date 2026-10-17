@@ -13,7 +13,7 @@ toán/dự án; không nên hiểu báo cáo này là bộ đếm riêng từng 
 Để xem báo cáo trên web, chủ tài khoản thanh toán thực hiện một lần:
 
 1. Mở Google Cloud → **Billing**, chọn tài khoản thanh toán.
-2. Mở **Account management / Permissions**, thêm Gmail chính.
+2. Mở **Account management → Show info panel → Add principal**, thêm Gmail chính.
 3. Gán **Billing Account Viewer** và lưu.
 4. Đăng nhập Gmail chính, vào **Billing → Reports**.
 
@@ -21,7 +21,8 @@ Lặp lại việc cấp quyền cho các tài khoản thanh toán khác cần x
 cần cấp quyền quản trị cho Gmail chỉ dùng xem báo cáo. Dữ liệu có độ trễ;
 không dùng báo cáo cũ để kết luận ngay rằng một key còn đủ hạn mức.
 
-Nguồn: [Cloud Billing Reports và quyền truy cập](https://docs.cloud.google.com/billing/docs/how-to/reports).
+Nguồn: [Cấp quyền xem Billing](https://docs.cloud.google.com/billing/docs/how-to/grant-access-to-billing),
+[Cloud Billing Reports](https://docs.cloud.google.com/billing/docs/how-to/reports).
 
 ## Tích hợp vào BiliClass sau này
 

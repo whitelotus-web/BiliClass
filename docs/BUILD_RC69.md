@@ -83,5 +83,29 @@ quyền cho một Gmail chính và các điều kiện tích hợp trong
 
 ## Đóng gói
 
-Thông tin commit, checksum, bản cài và xác minh phát hành sẽ ghi sau khi
-đóng gói và kiểm tra bản RC69.
+- Phiên bản `1.0.0rc69`, mã nguồn `248e428f024a7a2acd5efe3b039f81055773c5a4`.
+- Biên dịch lại đủ 121 module app bằng PyInstaller, giữ runtime/model đã
+  kiểm của RC68; không chạy suy luận model mới trong mốc này.
+- ZIP `BiliClass-RC69-Windows.zip`: **840.280.232 byte**, 4.187 mục. Kiểm
+  SHA-256/CRC toàn bộ mục trước cài và đối chiếu digest tài sản GitHub.
+- SHA-256 ZIP: `e8b360034ed5a12dace4f067d83b8f96f56c571d395064cd61e148571986df92`.
+- SHA-256 EXE: `06696da994885f70792de918cb9b511e49bbb4c52be1ccb06b127debb5050229`.
+- Đã cài tại `F:/Applications/BiliClass/1.0.0rc69`; kiểm 13 cấu hình Qt
+  frozen, không dùng PYTHONPATH nguồn: Chuyển đổi, Trang chủ, Tạo giọng
+  trước/sau chọn bài, Thư viện, Cài đặt chung/Google, gồm 1080×700. QML và
+  tài sản điều hướng khớp nguồn, không có cảnh báo QML.
+- Kiểm cửa sổ native frozen: Mascot không có owner, mặc định topmost,
+  giữ hiển thị qua ba lần thu nhỏ/khôi phục, giữ trạng thái Ẩn chủ động.
+- Đã mở bản cài bằng Explorer, ngoài job của trình kiểm thử; phản hồi đủ
+  10 lần kiểm tra. Shortcut Desktop/Start trỏ RC69, mở Google Dịch để xem
+  bộ đếm. So sánh trước/sau giữ nguyên 19 bản ghi bài giảng, 1.096 WAV và
+  cấu hình giọng/Mascot/hồ sơ. Tác vụ giọng hoàn tất không tự chạy lại.
+- Key mã hóa, tên key, lịch sử usage/blocked giữ nguyên; ledger mới chỉ
+  thêm phần dự phòng từ lịch sử chung, không gán thành số dùng riêng.
+- [Phát hành RC69](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc69).
+  Bộ chọn cập nhật công khai kiểm RC34/RC68 nhận RC69 cùng digest/kích
+  thước; RC69 không nhận bản cũ. Đây không phải kiểm cài trên máy thứ hai.
+
+Báo cáo tại `reports/rc69/` và `reports/rc69-installed/` (ngoài Git). Bản
+candidate đầu không phát hành; chỉ candidate cuối từ commit trên được cài
+và đưa lên release. Commit tài liệu sau đóng gói không thay mã trong EXE.
