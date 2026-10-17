@@ -1,21 +1,21 @@
 # BiliClass — Trợ lý dạy học song ngữ
 
-Hướng dẫn RC61, ngày 17/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
+Hướng dẫn RC62, ngày 17/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
 trên máy. Chuyển đổi hiện dùng Google Cloud Translation cho phần chữ và dựng
 PowerPoint tại máy; Browser ChatGPT/Gemini tạm ẩn.
 
 ## Cài và cập nhật
 
-1. Tải **BiliClass-RC61-Windows.zip** tại
-   [Release RC61](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc61).
+1. Tải **BiliClass-RC62-Windows.zip** tại
+   [Release RC62](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc62).
 2. Giải nén toàn bộ; không chạy trong cửa sổ ZIP. Chạy **Setup.cmd**.
 3. Bộ cài kiểm tra checksum và cài vào
-   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc61`, không cần quyền quản trị.
+   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc62`, không cần quyền quản trị.
 4. Mở BiliClass từ Desktop hoặc Start menu. Bản cài có model giọng, OCR và
    template; không cần thư mục runtime của máy phát triển.
 
 Máy đang dùng RC34: vào **Cài đặt → Thông tin BiliClass → Kiểm tra cập nhật**,
-chọn Cập nhật khi thấy RC61. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
+chọn Cập nhật khi thấy RC62. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
 Setup.cmd như trên. Các bản cài nằm cạnh nhau; thư viện ở
 `%LOCALAPPDATA%/BiliClass` được giữ nguyên. Không xóa thư mục dữ liệu này.
 Thư viện cá nhân không đưa lên GitHub. Key có thể nhận riêng như hướng dẫn dưới.
@@ -150,7 +150,13 @@ Mỗi bài có nút **Tải**. Một bài lưu nhiều bản giọng bên trong;
 sao thư viện cho mỗi giọng. Dòng giọng chỉ tóm tắt Anh / Việt / Song ngữ.
 Mở bài để chọn người đọc, tốc độ và bản giọng cần dùng trước khi tải.
 
-Ô chọn luôn hiển thị trong Thư viện. Tích từng bài hoặc **Chọn tất cả**, rồi **Tải đã chọn**
+Ô chọn luôn hiển thị trong Thư viện. Có thể tích ô hoặc bấm nền, tên, thông
+tin, ảnh bìa của bài để chọn/bỏ chọn ở cả danh sách và thẻ; viền xanh báo
+bài đã chọn. Các nút **Mở bài**, **Tải**, **Sửa**, **Xóa** và menu vẫn thực
+hiện chức năng riêng. Kéo chuột trên bài không tính là bấm chọn. Thao tác
+chọn này chỉ áp dụng trong Thư viện; Trang chủ giữ cách dùng trước đó.
+
+Tích từng bài hoặc **Chọn tất cả**, rồi **Tải đã chọn**
 hoặc **Xóa đã chọn**. Chọn tất cả áp dụng cho mọi kết quả của bộ lọc, kể cả
 trang khác; đổi bộ lọc sẽ bỏ chọn. Xóa có xác nhận và đưa vào thùng rác để
 khôi phục, không xóa file PowerPoint, âm thanh hoặc báo cáo.

@@ -12,6 +12,7 @@ from PySide6.QtCore import QCoreApplication, QEvent, QMetaObject, QObject, QPoin
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
+from PySide6.QtTest import QTest
 
 from qt_result_preview_mascot_smoke import click, control, pump, until
 from app.library import Library
@@ -23,7 +24,7 @@ from app.ui import Bridge
 def main():
     app = QGuiApplication([])
     QQuickStyle.setStyle('Basic')
-    report = Path('reports/rc55/library-views'); report.mkdir(parents=True, exist_ok=True)
+    report = Path('reports/rc62/library-views'); report.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='biliclass-views-', ignore_cleanup_errors=True) as folder:
         library = Library(Path(folder))
         keys = KeyStore(Path(folder))
@@ -51,6 +52,45 @@ def main():
             print('Catalog ready', flush=True)
             assert bridge.libraryView == 'list' and bridge.libraryThumbnails.worker is None
             identity = bridge.lessons[0]['id']
+            def selected():
+                return c('lessonSelect_' + identity).property('checked')
+
+            def point_click(item, x, y):
+                point = item.mapToScene(QPointF(x, y)).toPoint()
+                QTest.mouseClick(window, Qt.LeftButton, Qt.NoModifier, point)
+                pump(100)
+
+            # Selection must work on text/background as well as the checkbox.
+            card = c('lessonCard_' + identity)
+            point_click(card, 20, 8)
+            assert selected() and card.property('selected')
+            click(window, c('lessonTitle_' + identity))
+            assert not selected(), 'Title click should deselect, not open the lesson'
+            click(window, c('lessonNarrationBadge_' + identity))
+            assert selected() and not bridge.lesson.get('id')
+            click(window, c('lessonSelect_' + identity))
+            assert not selected(), 'Checkbox must toggle exactly once'
+            click(window, c('lessonDownload_' + identity))
+            assert c('libraryDownloadDialog').property('visible') and not selected()
+            QMetaObject.invokeMethod(c('libraryDownloadDialog'), 'close', Qt.DirectConnection)
+            click(window, c('lessonEdit_' + identity))
+            assert c('lessonMetadataDialog').property('visible') and not selected()
+            QMetaObject.invokeMethod(c('lessonMetadataDialog'), 'reject', Qt.DirectConnection)
+            click(window, c('lessonDelete_' + identity))
+            assert c('deleteLessonDialog').property('visible') and not selected()
+            click(window, c('cancelDeleteLessonButton'))
+            download = c('lessonDownload_' + identity)
+            download.setEnabled(False)
+            point_click(download, download.width()/2, download.height()/2)
+            assert not selected(), 'Disabled actions must not select a card'
+            download.setEnabled(True)
+            start = card.mapToScene(QPointF(20, 8)).toPoint()
+            end = card.mapToScene(QPointF(130, 8)).toPoint()
+            QTest.mousePress(window, Qt.LeftButton, Qt.NoModifier, start)
+            QTest.mouseMove(window, end, 40)
+            QTest.mouseRelease(window, Qt.LeftButton, Qt.NoModifier, end)
+            pump(100)
+            assert not selected(), 'Dragging over a row must not select it'
             assert c('libraryListIcon').isVisible() and not c('libraryGridIcon').isVisible()
             click(window, c('lessonSelect_' + identity))
             click(window, c('libraryViewToggle'))
@@ -63,8 +103,27 @@ def main():
             assert not bridge.lesson.get('id'), 'Covers must not select/open a lesson'
             assert library.setting('library_view', '') == 'grid'
             assert c('lessonSelect_' + identity).property('checked'), 'Switch must retain selection'
+            click(window, c('lessonCover_' + identity))
+            assert not selected() and not bridge.lesson.get('id'), 'Cover must toggle selection without opening the lesson'
+            click(window, c('lessonTitle_' + identity))
+            assert selected()
+            card = c('lessonCard_' + identity)
+            point_click(card, 20, 8)
+            assert not selected()
+            click(window, c('lessonSelect_' + identity))
+            assert selected(), 'Grid checkbox must toggle exactly once'
+            click(window, c('lessonMore_' + identity))
+            assert selected() and c('lessonEdit_' + identity).isVisible()
+            click(window, c('lessonDelete_' + identity))
+            assert c('deleteLessonDialog').property('visible') and selected()
+            click(window, c('cancelDeleteLessonButton'))
+            click(window, c('lessonMore_' + identity))
+            click(window, c('lessonEdit_' + identity))
+            assert c('lessonMetadataDialog').property('visible') and selected()
+            QMetaObject.invokeMethod(c('lessonMetadataDialog'), 'reject', Qt.DirectConnection)
             click(window, c('lessonDownload_' + identity))
             assert c('libraryDownloadDialog').property('visible')
+            assert selected(), 'Download action must not toggle selection'
             ids = c('libraryDownloadDialog').property('identities').toVariant()
             assert ids == [identity]
             QMetaObject.invokeMethod(c('libraryDownloadDialog'), 'close', Qt.DirectConnection)
@@ -94,6 +153,8 @@ def main():
             assert not c('librarySelectAll').property('checked'), 'Filtering clears selection'
             window.setProperty('page', 'home'); pump(250)
             assert not c('libraryGrid').isVisible()
+            home_area = c('lessonSelectionArea_' + identity)
+            assert not home_area.property('enabled'), 'Home cards must not enter bulk selection'
             assert bridge.libraryCovers.images[identity]['image'], 'Leaving the page must retain cached covers'
             assert window.findChild(QObject, 'newLibraryLesson') is None
             assert c('homeApplicationHealth').isVisible()
@@ -118,6 +179,12 @@ def main():
             assert bridge.googleSettings.state['keys'][0]['used'] == 400000
             window.setProperty('page','library'); pump(200)
             assert bridge.libraryThumbnails.worker is None
+            before_open = list(window.property('selectedLessons').toVariant())
+            open_id = next(row['id'] for row in bridge.lessons if row['subject'] == 'Tin học')
+            click(window, c('lessonOpen_' + open_id))
+            until(lambda: bool(bridge.lesson.get('id')))
+            assert bridge.lesson['id'] == open_id
+            assert list(window.property('selectedLessons').toVariant()) == before_open
             assert not warnings, warnings
             result = {'status': 'passed', 'qml_warnings': warnings, 'checks': [
                 'native PowerPoint first-slide images for three disposable lessons',
@@ -128,6 +195,7 @@ def main():
                 'cover cache retained across modes and tabs without restarting worker',
                 'home local-budget warning at 80%; rename dialog preserves usage',
                 'mascot sidebar toggle and menu Hide synchronize visibility and label']}
+            result['checks'].append('row/card background, text and cover toggle selection; checkbox once; actions/disabled actions/menu/drag do not toggle; Open still opens lesson')
             (report/'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
             print(json.dumps(result, ensure_ascii=False), flush=True)
         finally:

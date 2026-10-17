@@ -289,6 +289,34 @@ ApplicationWindow {
         }
     }
     component Surface: Rectangle { color: "white"; radius: 16; border.color: root.line }
+    component LessonSurface: Surface {
+        id: lessonSurface
+        required property string lessonId
+        property var selectionExclusions: []
+        readonly property bool selectable: root.page === "library"
+        readonly property bool selected: selectable && root.selectedLessons.indexOf(lessonId) >= 0
+        border.color: selected ? root.blue : root.line
+        color: selected ? "#f6faff" : selectionArea.containsMouse ? "#fafcff" : "white"
+        MouseArea {
+            id: selectionArea; objectName: "lessonSelectionArea_" + lessonSurface.lessonId
+            anchors.fill: parent; enabled: lessonSurface.selectable
+            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+            property point pressPoint
+            property bool moved: false
+            onPressed: function(mouse) { pressPoint = Qt.point(mouse.x, mouse.y); moved = false }
+            onPositionChanged: function(mouse) {
+                if (pressed && Math.hypot(mouse.x - pressPoint.x, mouse.y - pressPoint.y) > Qt.styleHints.startDragDistance) moved = true
+            }
+            onClicked: function(mouse) {
+                if (moved) return
+                // Disabled action buttons must not turn into card-selection targets.
+                for (const item of lessonSurface.selectionExclusions) {
+                    if (item && item.visible && item.contains(item.mapFromItem(selectionArea, mouse.x, mouse.y))) return
+                }
+                root.selectLibraryLesson(lessonSurface.lessonId, !lessonSurface.selected)
+            }
+        }
+    }
     component Pill: Rectangle {
         property string text: ""
         property color tone: root.blue
@@ -544,26 +572,28 @@ ApplicationWindow {
                             visible: !root.libraryLarge; Layout.fillWidth: true; spacing: 10
                             Repeater {
                                 model: root.libraryLarge ? [] : root.page === "home" ? bridge.recentLessons : root.libraryResult.rows
-                                delegate: Surface {
+                                delegate: LessonSurface {
                                     required property var modelData
                                     required property int index
+                                    lessonId: modelData.id
+                                    selectionExclusions: [rowCheck, rowOpen, rowDownload, rowEdit, rowDelete]
                                     objectName: "lessonCard_" + modelData.id
                                     Layout.fillWidth: true; implicitHeight: Math.max(root.page === "home" ? 96 : 120, lessonRow.implicitHeight + 32)
                                     RowLayout {
                                         id: lessonRow; anchors.fill: parent; anchors.margins: 16; spacing: 14
-                                        LibraryCheck { objectName: "lessonSelect_" + modelData.id; visible: root.page === "library"; Layout.preferredWidth: 28; checked: root.selectedLessons.indexOf(modelData.id) >= 0; Accessible.name: "Chọn " + modelData.title; onClicked: root.selectLibraryLesson(modelData.id, checked) }
+                                        LibraryCheck { id: rowCheck; objectName: "lessonSelect_" + modelData.id; visible: root.page === "library"; Layout.preferredWidth: 28; checked: root.selectedLessons.indexOf(modelData.id) >= 0; Accessible.name: "Chọn " + modelData.title; onClicked: root.selectLibraryLesson(modelData.id, checked) }
                                         Rectangle { width: 44; height: 48; radius: 10; color: "#edf4ff"; Label { anchors.centerIn: parent; text: "VI\nEN"; color: root.blue; font.pixelSize: 12; font.weight: Font.Bold; lineHeight: 1.1 } }
                                         ColumnLayout { Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 5
-                                            Label { text: modelData.title; color: root.ink; font.pixelSize: 15; font.weight: Font.DemiBold; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight; Layout.fillWidth: true; Layout.minimumWidth: 0 }
+                                            Label { objectName: "lessonTitle_" + modelData.id; text: modelData.title; color: root.ink; font.pixelSize: 15; font.weight: Font.DemiBold; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight; Layout.fillWidth: true; Layout.minimumWidth: 0 }
                                             Copy { Layout.fillWidth: true; text: modelData.subject + "  ·  " + modelData.education_level + " " + modelData.grade + "  ·  " + (modelData.slides_count ? modelData.slides_count + " slide" : modelData.segments_count + " phần"); font.pixelSize: 12 }
                                             Copy { objectName: "lessonCreated_" + modelData.id; Layout.fillWidth: true; visible: root.page === "library"; text: (modelData.created_at_estimated ? "Lưu sớm nhất còn lại: " : "Tạo: ") + bridge.lessonDateLabel(modelData.created_at); font.pixelSize: 11 }
                                             Copy { objectName: "lessonNarrationBadge_" + modelData.id; Layout.fillWidth: true; text: (modelData.narration || {}).label || "Chưa có giọng đọc"; font.pixelSize: 11; color: (modelData.narration || {}).ready ? "#168567" : root.muted }
                                         }
                                         Pill { text: modelData.quality_failures ? "Cần kiểm tra" : modelData.prepared ? "Đã chốt bài" : root.statusLabel(modelData.status); tone: modelData.prepared ? "#168567" : "#9c651b" }
-                                        Action { objectName: "lessonOpen_" + modelData.id; text: "Mở bài"; enabled: !bridge.busy; onClicked: bridge.openLesson(modelData.id) }
-                                        Action { objectName: "lessonDownload_" + modelData.id; text: "Tải"; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: root.downloadLibraryLessons([modelData.id]) }
-                                        Action { objectName: "lessonEdit_" + modelData.id; visible: root.page === "library"; text: "Sửa"; subtle: true; enabled: !bridge.busy && !bridge.powerpointState.active; onClicked: { metadataDialog.lessonData = modelData; metadataDialog.open() } }
-                                        Action { objectName: "lessonDelete_" + modelData.id; visible: root.page === "library"; text: "Xóa"; danger: true; subtle: true; enabled: !bridge.busy && !bridge.powerpointState.active; onClicked: { deleteLessonDialog.lessonId = modelData.id; deleteLessonDialog.lessonTitle = modelData.title; deleteLessonDialog.open() } }
+                                        Action { id: rowOpen; objectName: "lessonOpen_" + modelData.id; text: "Mở bài"; enabled: !bridge.busy; onClicked: bridge.openLesson(modelData.id) }
+                                        Action { id: rowDownload; objectName: "lessonDownload_" + modelData.id; text: "Tải"; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: root.downloadLibraryLessons([modelData.id]) }
+                                        Action { id: rowEdit; objectName: "lessonEdit_" + modelData.id; visible: root.page === "library"; text: "Sửa"; subtle: true; enabled: !bridge.busy && !bridge.powerpointState.active; onClicked: { metadataDialog.lessonData = modelData; metadataDialog.open() } }
+                                        Action { id: rowDelete; objectName: "lessonDelete_" + modelData.id; visible: root.page === "library"; text: "Xóa"; danger: true; subtle: true; enabled: !bridge.busy && !bridge.powerpointState.active; onClicked: { deleteLessonDialog.lessonId = modelData.id; deleteLessonDialog.lessonTitle = modelData.title; deleteLessonDialog.open() } }
                                     }
                                 }
                             }
@@ -575,19 +605,20 @@ ApplicationWindow {
                             columnSpacing: 16; rowSpacing: 16
                             Repeater {
                                 model: root.libraryLarge ? root.libraryResult.rows : []
-                                delegate: Surface {
+                                delegate: LessonSurface {
                                     id: largeCard
                                     required property var modelData
+                                    lessonId: modelData.id
+                                    selectionExclusions: [cardCheck, cardOpen, cardDownload, largeCardMore]
                                     readonly property var cover: bridge.libraryCovers.images[modelData.id] || ({loading:true,image:""})
                                     objectName: "lessonCard_" + modelData.id
                                     Layout.fillWidth: true; Layout.preferredWidth: 1
                                     Layout.alignment: Qt.AlignTop
                                     implicitHeight: cardContent.implicitHeight + 28
-                                    border.color: root.selectedLessons.indexOf(modelData.id) >= 0 ? root.blue : root.line
                                     ColumnLayout {
                                         id: cardContent; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 14; spacing: 10
                                         RowLayout { Layout.fillWidth: true
-                                            LibraryCheck { objectName: "lessonSelect_" + modelData.id; checked: root.selectedLessons.indexOf(modelData.id) >= 0; Accessible.name: "Chọn " + modelData.title; onClicked: root.selectLibraryLesson(modelData.id, checked) }
+                                            LibraryCheck { id: cardCheck; objectName: "lessonSelect_" + modelData.id; checked: root.selectedLessons.indexOf(modelData.id) >= 0; Accessible.name: "Chọn " + modelData.title; onClicked: root.selectLibraryLesson(modelData.id, checked) }
                                             Item { Layout.fillWidth: true }
                                             Pill { text: modelData.quality_failures ? "Cần kiểm tra" : modelData.prepared ? "Đã chốt bài" : root.statusLabel(modelData.status); tone: modelData.prepared ? "#168567" : "#9c651b" }
                                         }
@@ -600,17 +631,16 @@ ApplicationWindow {
                                                 Label { text: largeCard.cover.loading ? "Đang tải ảnh slide…" : "Chưa có ảnh xem trước"; color: root.muted; font.pixelSize: 12; anchors.horizontalCenter: parent.horizontalCenter }
                                                 Label { text: "Mở bài để xem nội dung"; visible: !largeCard.cover.loading; color: root.muted; font.pixelSize: 11; anchors.horizontalCenter: parent.horizontalCenter }
                                             }
-                                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; enabled: !bridge.busy; onClicked: bridge.openLesson(modelData.id) }
                                         }
-                                        Label { text: modelData.title; color: root.ink; font.pixelSize: 15; font.weight: Font.DemiBold; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.preferredHeight: 40; verticalAlignment: Text.AlignTop }
+                                        Label { objectName: "lessonTitle_" + modelData.id; text: modelData.title; color: root.ink; font.pixelSize: 15; font.weight: Font.DemiBold; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.preferredHeight: 40; verticalAlignment: Text.AlignTop }
                                         Copy { Layout.fillWidth: true; font.pixelSize: 12; text: modelData.subject + " · " + modelData.education_level + " " + modelData.grade + " · " + (modelData.slides_count ? modelData.slides_count + " slide" : modelData.segments_count + " phần") }
                                         RowLayout { Layout.fillWidth: true
                                             Copy { objectName: "lessonNarrationBadge_" + modelData.id; Layout.fillWidth: true; Layout.minimumWidth: 0; font.pixelSize: 11; elide: Text.ElideRight; text: (modelData.narration || {}).label || "Chưa có giọng đọc"; color: (modelData.narration || {}).ready ? "#168567" : root.muted }
                                             Copy { font.pixelSize: 10; text: bridge.lessonDateLabel(modelData.created_at).split(" · ").pop() }
                                         }
                                         RowLayout { Layout.fillWidth: true; spacing: 6
-                                            Action { objectName: "lessonOpen_" + modelData.id; text: "Mở bài"; primary: true; Layout.fillWidth: true; onClicked: bridge.openLesson(modelData.id); enabled: !bridge.busy }
-                                            Action { objectName: "lessonDownload_" + modelData.id; text: "Tải"; onClicked: root.downloadLibraryLessons([modelData.id]); enabled: !bridge.busy && !bridge.narrationBusy }
+                                            Action { id: cardOpen; objectName: "lessonOpen_" + modelData.id; text: "Mở bài"; primary: true; Layout.fillWidth: true; onClicked: bridge.openLesson(modelData.id); enabled: !bridge.busy }
+                                            Action { id: cardDownload; objectName: "lessonDownload_" + modelData.id; text: "Tải"; onClicked: root.downloadLibraryLessons([modelData.id]); enabled: !bridge.busy && !bridge.narrationBusy }
                                             LibraryAction { id: largeCardMore; objectName: "lessonMore_" + modelData.id; text: "⋯"; font.pixelSize: 20; implicitHeight: 40; Accessible.name: "Thao tác với " + modelData.title; onClicked: largeCardMenu.popup() }
                                             Menu { id: largeCardMenu; parent: largeCardMore; x: parent.width - width; y: parent.height
                                                 MenuItem { objectName: "lessonEdit_" + modelData.id; text: "Sửa thông tin"; enabled: !bridge.busy && !bridge.powerpointState.active; onTriggered: { metadataDialog.lessonData = modelData; metadataDialog.open() } }
