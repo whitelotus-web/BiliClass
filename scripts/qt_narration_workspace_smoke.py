@@ -63,6 +63,11 @@ def main():
             assert window.property('narrationMode') == 'en'
             assert c('narrationEnglish').property('checked')
             assert c('narrationBoth').property('text') == 'Việt + Anh'
+            placement = c('narrationSpeakerPosition')
+            assert placement.property('currentIndex') == 2
+            placement.setProperty('currentIndex', 0)
+            QMetaObject.invokeMethod(placement, 'activated', Qt.DirectConnection, Q_ARG('int', 0))
+            until(lambda: library.setting('narration_speaker_position', '') == 'bottom_left')
             click(window, c('narrationVietnamese'))
             until(lambda: library.setting('narration_last_mode', '') == 'vi')
             click(window, c('narrationBoth'))
@@ -162,6 +167,13 @@ def main():
                 click(window, c('createLessonNarrationButton'))
                 until(lambda: not bridge.narrationBusy and bridge.lessonNarration.get('ready'))
             assert bridge.narrationPreparation['cached'] == 1
+            # Placement is presentation metadata: cached voice and revision stay valid.
+            before_position = bridge.lesson['revision']
+            before_voice = dict(bridge.lesson['narration'])
+            bridge.narrationWorkspace.setSpeakerPosition('bottom_center')
+            until(lambda: not bridge.busy and bridge.lesson.get('speaker_position') == 'bottom_center')
+            assert bridge.lesson['revision'] == before_position
+            assert bridge.lesson['narration'] == before_voice and bridge.lessonNarration['ready']
             assert c('createLessonNarrationButton').isEnabled()
             assert not window.findChild(type(c('createLessonNarrationButton')), 'voiceNarrationVariantChoice')
             assert 'hai ngôn ngữ' in c('narrationConfigurationExplanation').property('text')

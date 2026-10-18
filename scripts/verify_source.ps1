@@ -59,6 +59,7 @@ if ($Qt) {
 }
 # Office integration is deliberately sequential, after unit/Qt checks.
 if ($Office) {
+    Invoke-Check 'speaker-export-native' $taskPython @('-m', 'scripts.verify_speaker_export')
     Invoke-Check 'quality-corpus-native' $taskPython @('-m', 'scripts.verify_quality_corpus', '--native')
     Invoke-Check 'teaching-parent-exit' $taskPython @('-m', 'scripts.verify_teaching_parent_exit')
 }

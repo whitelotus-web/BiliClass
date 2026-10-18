@@ -11,35 +11,8 @@ from app.chatgpt_handoff import external_preview, inspect_returned_deck
 from app.lesson_files import save_presentation
 from app.lesson_narration import make_plan
 from app.library import Library
-from app.presentation_audio import control_slots, slide_audio
+from app.presentation_audio import slide_audio
 from app.source_deck import NS, source_slide_parts
-
-
-def test_crowded_slide_can_place_controls_in_separate_clear_gaps():
-    from app.layout_regions import intersection
-
-    occupied = [(0, 50, 300, 100), (70, 0, 32, 50), (166, 0, 32, 50), (262, 0, 38, 50)]
-    slots = control_slots(['vi', 'en', 'both'], (300, 150), occupied, lambda _: True)
-    assert slots and len(slots) == 3
-    boxes = [(x, y, 40 if compact else 44, 48 if compact else 42) for x, y, compact in slots.values()]
-    assert all(not intersection(box, obstacle) for box in boxes for obstacle in occupied)
-    assert not any(intersection(boxes[i], boxes[j]) for i in range(3) for j in range(i))
-
-
-def test_controls_never_cover_evidence_when_no_clear_slot_exists():
-    assert control_slots(['en', 'vi'], (300, 150), [(0, 0, 300, 150)], lambda _: True) is None
-
-
-def test_labelled_speaker_can_use_a_clear_narrow_header_without_covering_text():
-    slots = control_slots(['en'], (960, 540), [(0, 26, 960, 514)], lambda _: True)
-    assert slots and slots['en'][2] == 'mini'
-    assert slots['en'][1] + 20 <= 26
-
-
-def test_compact_bilingual_controls_keep_vietnamese_english_combined_order():
-    slots = control_slots(['vi', 'en', 'both'], (960, 540), [(0, 26, 960, 514)], lambda _: True)
-    assert all(position[2] == 'mini' for position in slots.values())
-    assert slots['vi'][0] < slots['en'][0] < slots['both'][0]
 
 
 def fixture(tmp_path, mode="both", crowded=False):
@@ -78,7 +51,7 @@ def fixture(tmp_path, mode="both", crowded=False):
     return library, lesson, path
 
 
-def test_crowded_page_does_not_discard_other_speakers_and_is_reported(tmp_path):
+def test_fixed_footer_keeps_all_speakers_on_crowded_pages_and_reports_overlap(tmp_path):
     library, lesson, source = fixture(tmp_path, crowded=True)
     original = source.read_bytes()
     try:
@@ -86,13 +59,16 @@ def test_crowded_page_does_not_discard_other_speakers_and_is_reported(tmp_path):
         target = tmp_path / 'partial.pptx'
         save_presentation(lesson, external_preview(lesson, library.directory), library.directory,
                           target, with_voice=True, report=report)
-        assert report['embedded_pages'] == [1]
-        assert report['unplaced_pages'] == [2]
-        assert report['speakers'] == 2
+        assert report['embedded_pages'] == [1, 2]
+        assert report['unplaced_pages'] == []
+        assert report['overlap_pages'] == [2]
+        assert report['speakers'] == 4
         assert source.read_bytes() == original
         with zipfile.ZipFile(source) as before, zipfile.ZipFile(target) as after:
             part = source_slide_parts(source)[1]
-            assert before.read(part) == after.read(part), 'Unplaceable artwork and animations stay intact'
+            old = etree.fromstring(before.read(part))
+            new = etree.fromstring(after.read(part))
+            assert etree.tostring(old.find('p:cSld/p:spTree/p:sp', NS)) == etree.tostring(new.find('p:cSld/p:spTree/p:sp', NS))
     finally:
         library.close()
 
@@ -115,6 +91,15 @@ def test_selected_speakers_are_embedded_internal_click_only_and_source_is_unchan
             part = source_slide_parts(target)[0]
             tree = etree.fromstring(archive.read(part))
             assert len(tree.findall(".//p:audio", NS)) == count
+            media = tree.xpath('.//p:pic[p:nvPicPr/p:nvPr/a:audioFile]', namespaces=NS)
+            assert all(p.find('p:nvPicPr/p:cNvPr', NS).get('hidden') == '0' for p in media)
+            assert all(int(p.find('p:spPr/a:xfrm/a:off', NS).get('x')) > Presentation(target).slide_width for p in media)
+            buttons = tree.xpath('.//p:pic[not(p:nvPicPr/p:nvPr/a:audioFile)]', namespaces=NS)
+            assert len(buttons) == count * 2
+            assert all(p.find('p:nvPicPr/p:cNvPr', NS).get('hidden') == '0' for p in buttons)
+            assert not any(p.xpath('.//a:hlinkClick[@action="ppaction://media"]', namespaces=NS) for p in buttons)
+            assert len(tree.xpath('.//p:cmd[@cmd="togglePause"]', namespaces=NS)) == count
+            assert len(tree.xpath('.//p:cmd[@cmd="pause"]', namespaces=NS)) == count
             clocks = tree.xpath(".//p:cTn/@id", namespaces=NS)
             assert len(clocks) == len(set(clocks))
             assert tree.xpath('.//p:cond[@evt="onClick"]/p:tgtEl/p:spTgt', namespaces=NS)
@@ -132,6 +117,30 @@ def test_selected_speakers_are_embedded_internal_click_only_and_source_is_unchan
                         if n.get("Type", "").endswith(("/audio", "/media"))
                     )
         assert source.read_bytes() == original
+    finally:
+        library.close()
+
+
+@pytest.mark.parametrize('selected', ['bottom_left', 'bottom_center', 'bottom_right'])
+def test_export_position_is_identical_across_pages_and_reuses_saved_audio(tmp_path, monkeypatch, selected):
+    from app.speaker_layout import fixed_slots
+
+    library, lesson, source = fixture(tmp_path, crowded=True)
+    try:
+        lesson['speaker_position'] = selected
+        monkeypatch.setattr(speech, 'synthesize', lambda *_: pytest.fail('Position change must reuse saved audio'))
+        target = tmp_path / (selected + '.pptx')
+        save_presentation(lesson, external_preview(lesson, library.directory), library.directory, target, with_voice=True)
+        deck = Presentation(target)
+        expected = fixed_slots((deck.slide_width / 12700, deck.slide_height / 12700), selected,
+                               mini=True, languages=('vi', 'en'))
+        pages = []
+        for slide in deck.slides:
+            boxes = {shape.name.split()[-1].lower(): (shape.left / 12700, shape.top / 12700)
+                     for shape in slide.shapes if shape.name.startswith('BiliClass control ')}
+            assert boxes == {lang: slot[:2] for lang, slot in expected.items()}
+            pages.append(boxes)
+        assert pages[0] == pages[1]
     finally:
         library.close()
 

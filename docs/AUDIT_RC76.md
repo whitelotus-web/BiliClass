@@ -106,3 +106,14 @@ so sánh hoặc kết quả Wi-Fi trường. Báo cáo: `reports/app/classroom-l
 
 Quy trình nghiệm thu thiết bị: [ACCEPTANCE_FIELD](ACCEPTANCE_FIELD.md).
 Không bỏ cảnh báo chất lượng hoặc tự duyệt bài để làm kết quả trông đạt.
+
+## Gói RC76 đã xác minh sau audit
+
+Đã build từ source `a5fb229ad07825a60e86b7bf8a39f3f542b0efb6`, tái dùng
+runtime RC75 đã kiểm manifest, biên dịch lại toàn bộ module ứng dụng.
+ZIP 871.096.996 byte, SHA-256
+`4f76cd2c09410d0d1bae76351d6b08711a617d58afec490d12942f7894100a20`.
+Cài vào vùng Unicode riêng, Qt Windows, VieNeu Anh/Việt thật ngoại tuyến,
+template, lớp học/backup và gỡ giữ thư viện đều đạt. Chứng cứ:
+`reports/release/1.0.0rc76-761e19c4/installer.json`. Không thay bộ cài chính
+hoặc phát hành Release RC76; các yêu cầu loa mới tiếp tục ở RC77.

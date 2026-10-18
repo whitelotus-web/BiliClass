@@ -5,6 +5,10 @@ PowerPoint/mascot, lớp học/báo cáo, dữ liệu, cài đặt, kiểm thử
 Đây là kế hoạch triển khai tiếp; không coi các tiêu chí bên dưới là đã đạt.
 Giữ các tab Cài đặt Chung, Song ngữ, Giọng đọc, Mascot.
 
+**RC77:** nút loa cho PPTX mở độc lập, nền trong, vị trí cố định có lựa
+chọn và dùng lại audio đã kiểm ở [BUILD_RC77](BUILD_RC77.md). Các mốc
+thiết bị, nội dung và bảo trì chưa được coi là hoàn tất chỉ vì đã build.
+
 **Cập nhật 18/10, RC76:** đây là bản kế hoạch lịch sử. Sao lưu ZIP64 và
 khôi phục thư viện thật trên 2 GiB đã kiểm ở [RC73](BUILD_RC73.md);
 nhãn loa/phím/Mascot tiếp tục ở RC74–75. Kết quả rà soát hệ thống, phiên Qt

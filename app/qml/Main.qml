@@ -1176,6 +1176,16 @@ ApplicationWindow {
                                     RadioButton { objectName: "narrationVietnamese"; text: "Tiếng Việt"; ButtonGroup.group: narrationLanguages; checked: root.narrationMode === "vi"; enabled: !bridge.busy && !bridge.narrationBusy && (!bridge.quickResult.path || bridge.narrationInputLanguages.vi); onClicked: root.chooseNarrationMode("vi") }
                                     RadioButton { objectName: "narrationBoth"; text: "Việt + Anh"; ButtonGroup.group: narrationLanguages; checked: root.narrationMode === "both"; enabled: !bridge.busy && !bridge.narrationBusy && (!bridge.quickResult.path || bridge.narrationInputLanguages.vi && bridge.narrationInputLanguages.en); onClicked: root.chooseNarrationMode("both") }
                                 }
+                                RowLayout { Layout.fillWidth: true; spacing: 10
+                                    Caption { text: "Vị trí loa" }
+                                    Choice { objectName: "narrationSpeakerPosition"; Layout.preferredWidth: 170
+                                        model: ["Trái dưới", "Giữa dưới", "Phải dưới"]
+                                        currentIndex: Math.max(0, ["bottom_left", "bottom_center", "bottom_right"].indexOf(bridge.narrationWorkspace.speakerPosition))
+                                        enabled: !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.opened && !bridge.powerpointState.starting
+                                        onActivated: bridge.narrationWorkspace.setSpeakerPosition(["bottom_left", "bottom_center", "bottom_right"][currentIndex])
+                                    }
+                                    Copy { Layout.fillWidth: true; text: "Cố định trên mọi slide · đổi vị trí dùng lại giọng đã lưu"; font.pixelSize: 11 }
+                                }
                                 NarrationConfiguration {
                                     objectName: "narrationConfiguration"; Layout.fillWidth: true
                                     mode: root.narrationMode

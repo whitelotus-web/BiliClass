@@ -8,24 +8,35 @@ def add_pause_badges(presentation):
     badges = {}
     other_media = False
     for slide in presentation.Slides:
+        named = {str(shape.Name): shape for shape in slide.Shapes}
         for shape in list(slide.Shapes):
             if str(shape.Name).startswith('BiliClass audio '):
                 language = str(shape.Name).split()[-1].lower()
                 mini = float(shape.Width) > float(shape.Height) * 1.8
                 filename = 'speaker-pause-' + language + ('-mini' if mini else '') + '.png' if language in {'vi', 'en', 'both'} else 'speaker-pause.png'
                 icon = str(RESOURCE_ROOT / 'assets/actions' / filename)
-                badge = slide.Shapes.AddPicture(icon, False, True, shape.Left, shape.Top, shape.Width, shape.Height)
-                badge.Name = 'BiliClass pause ' + str(shape.Id)
+                ready = named.get('BiliClass control ' + language.upper(), shape)
+                badge = named.get('BiliClass pause ' + language.upper())
+                if badge is None:
+                    badge = slide.Shapes.AddPicture(icon, False, True, shape.Left, shape.Top, shape.Width, shape.Height)
+                    badge.Name = 'BiliClass pause ' + str(shape.Id)
                 badge.Visible = False
-                badges[(int(slide.SlideID), int(shape.Id))] = badge
+                ready.Visible = True
+                badges[(int(slide.SlideID), int(shape.Id))] = (ready, badge)
             elif int(shape.Type) == 16:  # Source video/audio must keep its native controls.
                 other_media = True
     return badges, other_media
 
 
 def speaker_boxes(slide):
-    return [(str(shape.Name).split()[-1].lower(), float(shape.Left), float(shape.Top), float(shape.Width), float(shape.Height))
-            for shape in slide.Shapes if str(shape.Name).startswith('BiliClass audio ')]
+    named = {str(shape.Name): shape for shape in slide.Shapes}
+    result = []
+    for shape in slide.Shapes:
+        if str(shape.Name).startswith('BiliClass audio '):
+            language = str(shape.Name).split()[-1].lower()
+            control = named.get('BiliClass control ' + language.upper(), shape)
+            result.append((language, float(control.Left), float(control.Top), float(control.Width), float(control.Height)))
+    return result
 
 
 def speaker_regions(boxes, hwnd, slide_width, slide_height):

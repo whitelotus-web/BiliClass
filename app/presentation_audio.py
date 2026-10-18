@@ -8,7 +8,6 @@ from pathlib import Path
 
 from lxml import etree
 
-from .layout_regions import empty_region
 from .lesson_narration import MODES, audio_status, valid_key
 from .narration_script import segments as narration_segments
 from .paths import RESOURCE_ROOT
@@ -117,44 +116,6 @@ def joined_wav(directory, keys):
     return buffer.getvalue(), round(total / parameters[2] * 1000)
 
 
-def control_slots(languages, bounds, occupied, clear):
-    """Try rows, columns and separate safe gaps before rejecting a crowded page."""
-    languages = list(languages)
-    for cell_w, cell_h, columns in ((44, 42, len(languages)), (44, 42, 1), (40, 48, len(languages))):
-        width = cell_w * columns
-        height = cell_h * ((len(languages) + columns - 1) // columns)
-        slot = empty_region((bounds[0] - width - 12, bounds[1] - height - 12, width, height),
-                            (width, height), bounds, occupied, clear=clear)
-        if slot is not None:
-            return {lang: (slot[0] + index % columns * cell_w,
-                           slot[1] + index // columns * cell_h, cell_w == 40)
-                    for index, lang in enumerate(languages)}
-    for width, height in ((44, 42), (40, 48)):
-        used, result = list(occupied), {}
-        for lang in languages:
-            slot = empty_region((bounds[0] - width - 12, bounds[1] - height - 12, width, height),
-                                (width, height), bounds, used, clear=clear)
-            if slot is None:
-                break
-            used.append(slot)
-            result[lang] = slot[0], slot[1], width == 40
-        if len(result) == len(languages):
-            return result
-    # A narrow header/margin can still hold labelled native audio controls.
-    # Keep the same collision rules; do not shrink or cover the source content.
-    used, result = list(occupied), {}
-    for lang in languages:
-        slot = empty_region((bounds[0] - 62, 6, 50, 20), (50, 20), bounds, used, clear=clear)
-        if slot is None:
-            break
-        used.append(slot)
-        result[lang] = slot[0], slot[1], 'mini'
-    if len(result) == len(languages):
-        positions = sorted(result.values(), key=lambda position: (position[1], position[0]))
-        return dict(zip(languages, positions, strict=True))
-    return None
-
-
 def coverage_message(report):
     message = f"Đã nhúng {report.get('speakers', 0)} nút loa trên {report.get('slides', 0)} slide. Bấm F5 rồi bấm loa để nghe."
     if report.get('unplaced_pages'):
@@ -166,6 +127,8 @@ def coverage_message(report):
         message += f" {len(report['missing_pages'])} slide chưa có lời đọc cho ngôn ngữ đã chọn."
     if report.get('scope') == 'full_slide':
         message += ' Loa đọc toàn bộ lời đã lưu của slide, kể cả phần xuất hiện sau; không tự phát theo hiệu ứng.'
+    if report.get('overlap_pages'):
+        message += ' Kiểm tra khoảng trống chân trang ở slide: ' + ', '.join(map(str, report['overlap_pages'])) + '.'
     return message
 
 
@@ -212,75 +175,13 @@ def media_shape(identity, language, box, audio_relation, media_relation, icon_re
     return picture
 
 
-def add_playback(tree, identity, duration):
-    timing = tree.find("p:timing", NS)
-    if timing is None:
-        timing = etree.Element(f"{{{NS['p']}}}timing")
-        following = tree.find("p:extLst", NS)
-        if following is None:
-            tree.append(timing)
-        else:
-            following.addprevious(timing)
-    clocks = [int(v) for v in timing.xpath(".//p:cTn/@id", namespaces=NS)]
-    next_id = max(clocks + [0])
-
-    def clock(parent, **attributes):
-        nonlocal next_id
-        next_id += 1
-        return _node(parent, "p", "cTn", id=next_id, **attributes)
-
-    root = timing.find('p:tnLst/p:par/p:cTn[@nodeType="tmRoot"]', NS)
-    if root is None:
-        nodes = timing.find("p:tnLst", NS)
-        if nodes is None:
-            nodes = etree.Element(f"{{{NS['p']}}}tnLst")
-            timing.insert(0, nodes)
-        root = clock(_node(nodes, "p", "par"), dur="indefinite", restart="never", nodeType="tmRoot")
-    children = root.find("p:childTnLst", NS)
-    if children is None:
-        children = _node(root, "p", "childTnLst")
-    sequence = _node(children, "p", "seq", concurrent="1", nextAc="seek")
-    sequence_clock = clock(
-        sequence, restart="whenNotActive", fill="hold", evtFilter="cancelBubble", nodeType="interactiveSeq"
-    )
-    condition = _node(_node(sequence_clock, "p", "stCondLst"), "p", "cond", evt="onClick", delay="0")
-    _node(_node(condition, "p", "tgtEl"), "p", "spTgt", spid=identity)
-    _node(_node(sequence_clock, "p", "endSync", evt="end", delay="0"), "p", "rtn", val="all")
-    container = _node(sequence_clock, "p", "childTnLst")
-    for attributes in (
-        {"fill": "hold"},
-        {"fill": "hold"},
-        {
-            "presetID": "1",
-            "presetClass": "mediacall",
-            "presetSubtype": "0",
-            "fill": "hold",
-            "nodeType": "clickEffect",
-        },
-    ):
-        parent = clock(_node(container, "p", "par"), **attributes)
-        _node(_node(parent, "p", "stCondLst"), "p", "cond", delay="0")
-        container = _node(parent, "p", "childTnLst")
-    command = _node(container, "p", "cmd", type="call", cmd="playFrom(0.0)")
-    behavior = _node(command, "p", "cBhvr")
-    clock(behavior, dur=duration, fill="hold")
-    _node(_node(behavior, "p", "tgtEl"), "p", "spTgt", spid=identity)
-    condition = _node(_node(sequence, "p", "nextCondLst"), "p", "cond", evt="onClick", delay="0")
-    _node(_node(condition, "p", "tgtEl"), "p", "spTgt", spid=identity)
-    media = _node(_node(children, "p", "audio"), "p", "cMediaNode", vol="80000")
-    media_clock = clock(media, fill="hold", display="0")
-    _node(_node(media_clock, "p", "stCondLst"), "p", "cond", delay="indefinite")
-    condition = _node(_node(media_clock, "p", "endCondLst"), "p", "cond", evt="onStopAudio", delay="0")
-    _node(_node(condition, "p", "tgtEl"), "p", "sldTgt")
-    _node(_node(media, "p", "tgtEl"), "p", "spTgt", spid=identity)
-
-
 def embed_audio(source, destination, lesson, directory, *, scope='full_slide'):
-    from PIL import Image
     from pptx import Presentation
 
-    from .picture_translation import background
+    from .layout_regions import intersection
+    from .presentation_controls import add_controls, picture
     from .slide_speech import objects
+    from .speaker_layout import default_position, fixed_slots, position
 
     pages = slide_audio(lesson, directory, scope=scope)
     deck = Presentation(source)
@@ -292,7 +193,11 @@ def embed_audio(source, destination, lesson, directory, *, scope='full_slide'):
     for extension, kind in [("wav", "audio/wav"), ("png", "image/png")]:
         if not any(n.get("Extension") == extension for n in types):
             etree.SubElement(types, f"{{{NS['ct']}}}Default", Extension=extension, ContentType=kind)
-    count, embedded_pages, unplaced_pages = 0, [], []
+    count, embedded_pages, unplaced_pages, overlap_pages = 0, [], [], []
+    selected_position = position(lesson.get('speaker_position', default_position(directory)))
+    deck_languages = [lang for lang in ('vi', 'en', 'both') if any(lang in languages for languages in pages.values())]
+    slots = fixed_slots((deck.slide_width / 12700, deck.slide_height / 12700), selected_position,
+                        mini=True, languages=deck_languages)
     missing_pages = sorted(set(range(1, len(parts) + 1)) - set(pages))
     restricted_pages = list(missing_pages) if scope == 'visible' else []
     for number, languages in pages.items():
@@ -320,27 +225,16 @@ def embed_audio(source, destination, lesson, directory, *, scope='full_slide'):
             return identity
 
         occupied = []
-        backdrops = []
         for item in objects(deck.slides[number - 1]):
             box = tuple(item[k] / 12700 for k in ("x", "y", "w", "h"))
             if not item["hidden"] and (item['source_type'] != 'image' or
                     box[2] * box[3] < deck.slide_width * deck.slide_height / 12700**2 * 0.6):
                 occupied.append(box)
-            elif item["source_type"] == "image" and not item["hidden"]:
-                try:
-                    image = Image.open(io.BytesIO(item["shape"].image.blob)).convert("RGB")
-                    backdrops.append((image, box))
-                except (OSError, ValueError):
-                    occupied.append(box)
-        slots = control_slots(languages, (deck.slide_width / 12700, deck.slide_height / 12700), occupied,
-                              lambda candidate: all(background(image, box, candidate) for image, box in backdrops))
-        for image, _ in backdrops:
-            image.close()
-        if slots is None:
-            unplaced_pages.append(number)
-            continue
+        if any(intersection((slots[lang][0], slots[lang][1], 50, 20), box) for lang in languages for box in occupied):
+            overlap_pages.append(number)
         embedded_pages.append(number)
         identity = max(int(v) for v in tree.xpath(".//p:cNvPr/@id", namespaces=NS))
+        controls = []
         for language, keys in languages.items():
             audio, duration = joined_wav(directory, keys)
             audio_name = "ppt/media/biliclass-" + hashlib.sha256(audio).hexdigest() + ".wav"
@@ -358,9 +252,22 @@ def embed_audio(source, destination, lesson, directory, *, scope='full_slide'):
             entries[icon_name] = icon
             icon_id = relation(NS['r'] + '/image', '../media/' + Path(icon_name).name)
             box = (left, top, 50, 20) if mini else (left + (2 if compact else 4), top + 2, 36, 36)
-            shape_tree.append(media_shape(identity, language, box, audio_id, media_id, icon_id))
-            add_playback(tree, identity, duration)
+            media = media_shape(identity, language, box, audio_id, media_id, icon_id)
+            shape_tree.append(media)
+            shape_tree.append(picture(media, identity + 1, language, icon_id))
+            pause_icon = (RESOURCE_ROOT / 'assets/actions' / ('speaker-pause-' + language + ('-mini' if mini else '') + '.png')).read_bytes()
+            pause_name = 'ppt/media/biliclass-' + hashlib.sha256(pause_icon).hexdigest() + '.png'
+            entries[pause_name] = pause_icon
+            pause_id = relation(NS['r'] + '/image', '../media/' + Path(pause_name).name)
+            shape_tree.append(picture(media, identity + 2, language, pause_id, paused=True))
+            # A selection-pane-hidden audio shape cannot reliably start in Office.
+            # Keep its native player enabled, outside the canvas; only ordinary
+            # picture controls occupy the footer, so hover has no media toolbar.
+            media.find('p:spPr/a:xfrm/a:off', NS).set('x', str(deck.slide_width + 12700 * 50))
+            controls.append((identity, identity + 1, identity + 2, duration))
+            identity += 2
             count += 1
+        add_controls(tree, controls)
         entries[part] = _bytes(tree)
         entries[_rels_path(part)] = _bytes(relationships)
     if not count:
@@ -380,4 +287,5 @@ def embed_audio(source, destination, lesson, directory, *, scope='full_slide'):
                 raise ValueError("Tài nguyên nguồn không khớp sau khi nhúng voice.")
     return {"speakers": count, "slides": len(embedded_pages), "embedded_pages": embedded_pages, "scope": scope,
             "unplaced_pages": unplaced_pages, "restricted_pages": sorted(set(restricted_pages)),
-            "missing_pages": missing_pages if scope == 'full_slide' else []}
+            "missing_pages": missing_pages if scope == 'full_slide' else [],
+            'speaker_position': selected_position, 'overlap_pages': overlap_pages}

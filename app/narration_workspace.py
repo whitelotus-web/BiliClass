@@ -15,6 +15,32 @@ class NarrationWorkspace(QObject):
         self.identity = ''
         bridge.selectionChanged.connect(self._selection)
         bridge.narrationChanged.connect(self.changed)
+        bridge.narrationPreferences.changed.connect(self.changed)
+
+    @Property(str, notify=changed)
+    def speakerPosition(self):
+        from .speaker_layout import position
+
+        return position(self.bridge._lesson.get('speaker_position', self.bridge.narrationPreferences.position))
+
+    @Slot(str)
+    def setSpeakerPosition(self, selected):
+        from .narration_preferences import store_lesson_position
+        from .speaker_layout import POSITIONS
+
+        if selected not in POSITIONS or not self.available():
+            return
+        bridge = self.bridge
+        bridge.narrationPreferences.selectPosition(selected)
+        identity = bridge._lesson.get('id')
+        if not identity:
+            return
+        def saved(lesson):
+            if bridge._lesson.get('id') == identity:
+                bridge._lesson = lesson
+                bridge.changed.emit()
+                self.changed.emit()
+        bridge.launch(lambda: store_lesson_position(bridge.library.directory, identity, selected), saved)
 
     def _selection(self):
         identity = self.bridge._lesson.get('id', '')

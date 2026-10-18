@@ -1,5 +1,15 @@
 # Trạng thái BiliClass
 
+Ngày 18/10/2026 — RC77 thêm vị trí loa cố định trên toàn bài, mặc định
+Phải dưới; đổi vị trí dùng lại WAV. PPTX xuất mới có nút ảnh nền trong,
+interactive sequence cho đọc/tạm dừng/đọc tiếp/đổi ngôn ngữ, tách khỏi
+đối tượng media để tránh toolbar khi rê vào loa. Office đã nhận/giữ
+lệnh qua roundtrip và phát được audio ngoài canvas. Thao tác chuột thật
+trên nút RC77 còn cần giáo viên test; xem [BUILD_RC77](BUILD_RC77.md).
+899 core, 47 ca liên quan lượt cuối, 11 luồng Qt Windows, export native,
+8 corpus và parent-exit đạt. Đã xuất bản riêng bài thật 86 slide/258 loa
+để thử, dùng lại WAV, giữ nguyên bài trong thư viện.
+
 Ngày 18/10/2026 — RC76 tiếp tục rà soát hệ thống: chặn lệnh/ack audio từ
 slide cũ, fallback cache khi Office thiếu player, giữ trạng thái đọc qua
 hiệu ứng, đóng helper khi parent thoát đột ngột và xử lý lỗi lưu phím.

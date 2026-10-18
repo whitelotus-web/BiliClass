@@ -335,9 +335,11 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
             playing = now_playing
             visible_badges = {(current[1], identity) for identity in now_playing - paused}
             for identity in badge_state ^ visible_badges:
-                badge = badges.get(identity)
-                if badge is not None:
+                pair = badges.get(identity)
+                if pair is not None:
                     try:
+                        ready, badge = pair
+                        ready.Visible = identity not in visible_badges
                         badge.Visible = identity in visible_badges
                     except Exception:
                         pass

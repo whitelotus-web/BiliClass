@@ -11,18 +11,16 @@ def icon_svg(language, paused=False, mini=False):
     label = {'vi': 'VI', 'en': 'EN', 'both': 'VI+EN'}[language]
     if mini:
         width, height = 160, 64
-        plate = '<rect x="1" y="1" width="158" height="62" rx="16" fill="#fff" stroke="#cbdcf4" stroke-width="2"/>'
         glyph_transform = 'translate(6,6) scale(1.05)'
-        badge = f'<rect x="72" y="23" width="80" height="32" rx="9" fill="#0869f9"/><text x="112" y="46" text-anchor="middle" font-size="24" fill="#fff">{label}</text>'
+        badge = f'<text x="112" y="46" text-anchor="middle" font-size="24" fill="#0869f9">{label}</text>'
     else:
         width = height = 72
-        plate = '<rect x="1" y="1" width="62" height="62" rx="15" fill="#fff" stroke="#cbdcf4" stroke-width="2"/>'
         glyph_transform = 'translate(3,2)'
         badge_width = 48 if language == 'both' else 28
-        badge = f'<rect x="{72-badge_width}" y="48" width="{badge_width}" height="22" rx="7" fill="#0869f9"/><text x="{72-badge_width/2}" y="64" text-anchor="middle" font-size="16" fill="#fff">{label}</text>'
+        badge = f'<text x="{72-badge_width/2}" y="64" text-anchor="middle" font-size="16" fill="#0869f9">{label}</text>'
     glyph = ('<rect x="18" y="14" width="8" height="28" rx="2" fill="#0869f9"/><rect x="33" y="14" width="8" height="28" rx="2" fill="#0869f9"/>' if paused else
              '<path d="M11 22h10l13-10v34L21 36H11z M41 20q9 8 0 16 M46 14q15 14 0 28" fill="none" stroke="#0869f9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>')
-    return f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}"><g font-family="Segoe UI" font-weight="700">{plate}<g transform="{glyph_transform}">{glyph}</g>{badge}</g></svg>'
+    return f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}"><g font-family="Segoe UI" font-weight="700"><g transform="{glyph_transform}">{glyph}</g>{badge}</g></svg>'
 
 
 def rasterize(source, path, width, height):
