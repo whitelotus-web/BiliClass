@@ -74,3 +74,7 @@ Kiểm ảnh xuất thật bổ sung: thứ tự loa VI → EN → VI+EN đượ
 thường và cụm nhỏ; mở rộng nhãn nhỏ để VI+EN không xuống dòng. Thêm ca
 vùng header hẹp, 27 ca export/phiên dạy/thư viện đạt. Gói/frozen, bản cài và
 commit/hash gói cập nhật sau vòng kiểm tương ứng.
+
+Giữ chiều cao cụm loa nhỏ ở 20 pt để vừa header 26 pt có lề 6 pt; tăng độ
+rộng nhãn thay vì tăng chiều cao. Fixture vùng hẹp và 18 ca audio/phiên dạy
+đạt; xuất lại bài thật có đủ 258 loa/86 slide, không thiếu vùng đặt hoặc lời.
