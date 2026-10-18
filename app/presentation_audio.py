@@ -60,7 +60,8 @@ def slide_audio(lesson, directory, *, scope='full_slide'):
         raise ValueError(
             "Chưa có lời đọc tĩnh phù hợp để nhúng; phần theo hiệu ứng vẫn dùng trong BiliClass."
         )
-    return pages
+    return {number: {lang: languages[lang] for lang in ('vi', 'en', 'both') if lang in languages}
+            for number, languages in pages.items()}
 
 
 def paired_keys(lesson, number, languages, record):
@@ -143,13 +144,14 @@ def control_slots(languages, bounds, occupied, clear):
     # Keep the same collision rules; do not shrink or cover the source content.
     used, result = list(occupied), {}
     for lang in languages:
-        slot = empty_region((bounds[0] - 52, 6, 40, 20), (40, 20), bounds, used, clear=clear)
+        slot = empty_region((bounds[0] - 62, 6, 50, 22), (50, 22), bounds, used, clear=clear)
         if slot is None:
             break
         used.append(slot)
         result[lang] = slot[0], slot[1], 'mini'
     if len(result) == len(languages):
-        return result
+        positions = sorted(result.values(), key=lambda position: (position[1], position[0]))
+        return dict(zip(languages, positions, strict=True))
     return None
 
 
@@ -355,14 +357,14 @@ def embed_audio(source, destination, lesson, directory, *, scope='full_slide'):
             identity += 1
             left, top, compact = slots[language]
             mini = compact == 'mini'
-            box = (left + (6 if compact is True else 0), top, 20 if mini else 28, 20 if mini else 28)
+            box = (left + (6 if compact is True else 0), top, 22 if mini else 28, 22 if mini else 28)
             shape_tree.append(media_shape(identity, language, box, audio_id, media_id, icon_id))
             add_playback(tree, identity, duration)
             identity += 1
             label = text_shape(
                 identity,
                 {'vi': 'VI', 'en': 'EN', 'both': 'VI+EN'}[language],
-                (left + 20, top, 20, 20) if mini else (left, top + 29, 40, 16) if compact else (box[0] + 29, box[1] + 5, 33, 24),
+                (left + 22, top, 28, 22) if mini else (left, top + 29, 40, 16) if compact else (box[0] + 29, box[1] + 5, 33, 24),
                 8 if mini else 9 if language == 'both' else 12,
                 english=False,
             )

@@ -33,7 +33,13 @@ def test_controls_never_cover_evidence_when_no_clear_slot_exists():
 def test_labelled_speaker_can_use_a_clear_narrow_header_without_covering_text():
     slots = control_slots(['en'], (960, 540), [(0, 28, 960, 512)], lambda _: True)
     assert slots and slots['en'][2] == 'mini'
-    assert slots['en'][1] + 20 <= 28
+    assert slots['en'][1] + 22 <= 28
+
+
+def test_compact_bilingual_controls_keep_vietnamese_english_combined_order():
+    slots = control_slots(['vi', 'en', 'both'], (960, 540), [(0, 28, 960, 512)], lambda _: True)
+    assert all(position[2] == 'mini' for position in slots.values())
+    assert slots['vi'][0] < slots['en'][0] < slots['both'][0]
 
 
 def fixture(tmp_path, mode="both", crowded=False):

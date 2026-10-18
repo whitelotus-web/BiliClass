@@ -66,5 +66,11 @@ thay bài đã lưu hoặc đánh dấu chất lượng đạt. Bài đang thử
 báo tràn chữ slide 15; giọng hoàn tất không đồng nghĩa bố cục đã được duyệt.
 
 GitHub CI hai lượt đầu thiếu pywin32 cho fixture COM rồi numpy cho nhúng
-audio; đã bổ sung dependency, kiểm lượt mới sau push. Lint script/test, gói/frozen,
-bản cài và commit/hash gói cập nhật sau vòng kiểm tương ứng.
+audio; bổ sung dependency, lượt `5d650cc` đạt. Lint app/script/test sạch;
+161 ca và ba Qt liên quan đạt sau dọn lint. Bước format 16 file giữ nguyên
+AST, sau đó sửa import và biến giữ vòng đời Qt trong commit riêng.
+
+Kiểm ảnh xuất thật bổ sung: thứ tự loa VI → EN → VI+EN được giữ ở cả cụm
+thường và cụm nhỏ; mở rộng nhãn nhỏ để VI+EN không xuống dòng. Thêm ca
+vùng header hẹp, 27 ca export/phiên dạy/thư viện đạt. Gói/frozen, bản cài và
+commit/hash gói cập nhật sau vòng kiểm tương ứng.
