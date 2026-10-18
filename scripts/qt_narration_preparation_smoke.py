@@ -7,18 +7,21 @@ from pathlib import Path
 from threading import Event
 from unittest.mock import patch
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path[:0] = [str(ROOT), str(ROOT / 'scripts')]
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from pptx import Presentation
 from PySide6.QtCore import QCoreApplication, QEvent, QTimer
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
 from qt_result_preview_mascot_smoke import pump, until
+
 from app import speech
 from app.chatgpt_handoff import inspect_returned_deck
 from app.library import Library
 from app.ui import Bridge
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def main():

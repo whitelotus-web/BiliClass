@@ -14,6 +14,7 @@ from app.slide_repair import _compact_fixed_spacing, normalize_titles, repair_la
 
 def test_fitting_font_also_releases_excessive_fixed_line_spacing():
     from lxml import etree
+
     from app.slide_repair import NS
 
     body = etree.fromstring(('''<p:txBody xmlns:p="''' + NS['p'] + '" xmlns:a="' + NS['a'] + '''">
@@ -98,7 +99,9 @@ def test_layout_rejects_stale_report_and_never_touches_original(tmp_path):
 
 def test_repair_handles_source_and_office_using_different_slide_part_names(tmp_path, monkeypatch):
     import hashlib
+
     from lxml import etree
+
     from app.slide_repair import NS
 
     source = tmp_path / 'original.pptx'

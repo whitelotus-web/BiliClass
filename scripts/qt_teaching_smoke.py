@@ -29,7 +29,7 @@ def main():
     from PySide6.QtQuickControls2 import QQuickStyle
     from PySide6.QtTest import QTest
 
-    from app import speech, ui
+    from app import speech
     from app.chatgpt_handoff import inspect_returned_deck
     from app.lesson_narration import make_plan
     from app.library import Library

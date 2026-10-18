@@ -65,6 +65,6 @@ Office, giữ media/nguồn nhưng vẫn 44 FAIL/26 CHECK sau 179 thay đổi; k
 thay bài đã lưu hoặc đánh dấu chất lượng đạt. Bài đang thử voice còn cảnh
 báo tràn chữ slide 15; giọng hoàn tất không đồng nghĩa bố cục đã được duyệt.
 
-GitHub CI lượt đầu thất bại do môi trường thiếu pywin32 cho fixture COM;
-đã bổ sung dependency, kiểm lượt mới sau push. Lint script/test, gói/frozen,
+GitHub CI hai lượt đầu thiếu pywin32 cho fixture COM rồi numpy cho nhúng
+audio; đã bổ sung dependency, kiểm lượt mới sau push. Lint script/test, gói/frozen,
 bản cài và commit/hash gói cập nhật sau vòng kiểm tương ứng.

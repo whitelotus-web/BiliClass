@@ -5,8 +5,8 @@ import time
 from pathlib import Path
 from threading import Event, get_ident
 
-from PySide6.QtCore import QCoreApplication, QEvent, QEventLoop, QObject, QPointF, QThread, Qt, QTimer, QUrl
-from PySide6.QtGui import QGuiApplication, QFont, QFontDatabase
+from PySide6.QtCore import QCoreApplication, QEvent, QEventLoop, QObject, QPointF, Qt, QThread, QTimer, QUrl
+from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
 from PySide6.QtTest import QTest

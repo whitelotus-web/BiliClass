@@ -112,6 +112,7 @@ def managed_install(tmp_path, monkeypatch):
 
 def test_low_data_disk_uses_verified_install_disk_and_keeps_digest_checks(tmp_path, monkeypatch):
     from types import SimpleNamespace
+
     from app import updater
 
     installed = managed_install(tmp_path, monkeypatch)

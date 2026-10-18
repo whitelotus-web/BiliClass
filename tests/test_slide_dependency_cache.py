@@ -130,6 +130,7 @@ def test_non_placeholder_dynamic_field_is_never_cached(tmp_path):
 
 def test_only_visible_date_footer_renders_again_after_midnight(tmp_path, monkeypatch):
     from datetime import date
+
     import app.slide_render_cache as cache_module
 
     path = source(tmp_path / 'source.pptx')

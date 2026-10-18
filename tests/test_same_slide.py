@@ -16,12 +16,16 @@ from app.source_deck import NS, source_slide_parts
 
 def test_native_measurement_visits_group_children_but_does_not_fit_rotated_groups():
     from types import SimpleNamespace as Shape
+
     from app.native_layout import office_text_shapes
 
-    text=Shape(Type=17,Rotation=0,Id=11,HasTextFrame=True)
-    nested=Shape(Type=6,Rotation=0,GroupItems=[text])
-    rotated=Shape(Type=6,Rotation=15,GroupItems=[Shape(Type=17,Rotation=0,Id=12)])
-    assert [s.Id for s in office_text_shapes([nested,rotated,Shape(Type=13,Rotation=0,Id=13,HasTextFrame=False)])]==[11]
+    text = Shape(Type=17, Rotation=0, Id=11, HasTextFrame=True)
+    nested = Shape(Type=6, Rotation=0, GroupItems=[text])
+    rotated = Shape(Type=6, Rotation=15, GroupItems=[Shape(Type=17, Rotation=0, Id=12)])
+    assert [
+        s.Id
+        for s in office_text_shapes([nested, rotated, Shape(Type=13, Rotation=0, Id=13, HasTextFrame=False)])
+    ] == [11]
 
 
 def fixture(path, *, animated=False):
@@ -71,17 +75,18 @@ def translations(manifest):
 
 
 def test_english_only_keeps_source_art_without_visible_vietnamese(tmp_path):
-    source = fixture(tmp_path / 'original.pptx')
-    manifest = extract(source, 'english_only', preserve_design=True)
-    output = assemble(source, tmp_path / 'english.pptx', manifest, translations(manifest), 'english_only')
+    source = fixture(tmp_path / "original.pptx")
+    manifest = extract(source, "english_only", preserve_design=True)
+    output = assemble(source, tmp_path / "english.pptx", manifest, translations(manifest), "english_only")
     deck = Presentation(output)
-    text = '\n'.join(s.text for s in deck.slides[0].shapes if s.has_text_frame)
-    assert 'The energy' in text and 'The velocity' in text
-    assert 'Năng lượng' not in text and 'Cơ năng' not in text
+    text = "\n".join(s.text for s in deck.slides[0].shapes if s.has_text_frame)
+    assert "The energy" in text and "The velocity" in text
+    assert "Năng lượng" not in text and "Cơ năng" not in text
     assert any(int(s.shape_type) == 13 for s in deck.slides[0].shapes)
     original = Presentation(source)
-    assert [(s.shape_id,s.left,s.top,s.width,s.height) for s in deck.slides[0].shapes] == [
-        (s.shape_id,s.left,s.top,s.width,s.height) for s in original.slides[0].shapes]
+    assert [(s.shape_id, s.left, s.top, s.width, s.height) for s in deck.slides[0].shapes] == [
+        (s.shape_id, s.left, s.top, s.width, s.height) for s in original.slides[0].shapes
+    ]
 
 
 @pytest.mark.parametrize("mode", ["parallel_columns", "sentence_pairs"])
@@ -182,80 +187,115 @@ def test_formula_variable_and_protected_xml_are_language_neutral(tmp_path):
 
 
 def test_roman_badges_and_standalone_cosine_equations_are_not_translated(tmp_path):
-    deck=Presentation()
-    slide=deck.slides.add_slide(deck.slide_layouts[6])
-    slide.shapes.add_textbox(Inches(.2),Inches(.2),Inches(.5),Inches(.5)).text='II'
-    shape=slide.shapes.add_textbox(Inches(1),Inches(2),Inches(6),Inches(3))
-    shape.text='Phương trình của gia tốc là:\na = -ω²A cos(ωt + φ)'
+    deck = Presentation()
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    slide.shapes.add_textbox(Inches(0.2), Inches(0.2), Inches(0.5), Inches(0.5)).text = "II"
+    shape = slide.shapes.add_textbox(Inches(1), Inches(2), Inches(6), Inches(3))
+    shape.text = "Phương trình của gia tốc là:\na = -ω²A cos(ωt + φ)"
     for p in shape.text_frame.paragraphs:
-        p.font.name='Arial';p.font.size=Pt(24)
-    source=tmp_path/'equations.pptx';deck.save(source)
-    manifest=extract(source,'sentence_pairs',same_slide=True)
-    assert [u['language'] for u in manifest['units']] == ['neutral','vi','neutral']
-    values={u['id']:{'en':u['text'] if u['language']=='neutral' else 'The equation of acceleration is:'} for u in manifest['units']}
-    output=assemble(source,tmp_path/'paired.pptx',manifest,values,'sentence_pairs')
-    text='\n'.join(s.text for s in Presentation(output).slides[0].shapes if s.has_text_frame)
-    assert text.count('II')==1 and text.count('a = -ω²A cos(ωt + φ)')==1
-    assert 'The equation of acceleration is:' in text
-    assert not any(i['code']=='translation_pair_missing' for row in inspect_returned_deck(
-        output,source,'sentence_pairs',layout_plan=manifest['layout_plan'])['slide_quality']['slides'] for i in row['issues'])
+        p.font.name = "Arial"
+        p.font.size = Pt(24)
+    source = tmp_path / "equations.pptx"
+    deck.save(source)
+    manifest = extract(source, "sentence_pairs", same_slide=True)
+    assert [u["language"] for u in manifest["units"]] == ["neutral", "vi", "neutral"]
+    values = {
+        u["id"]: {"en": u["text"] if u["language"] == "neutral" else "The equation of acceleration is:"}
+        for u in manifest["units"]
+    }
+    output = assemble(source, tmp_path / "paired.pptx", manifest, values, "sentence_pairs")
+    text = "\n".join(s.text for s in Presentation(output).slides[0].shapes if s.has_text_frame)
+    assert text.count("II") == 1 and text.count("a = -ω²A cos(ωt + φ)") == 1
+    assert "The equation of acceleration is:" in text
+    assert not any(
+        i["code"] == "translation_pair_missing"
+        for row in inspect_returned_deck(
+            output, source, "sentence_pairs", layout_plan=manifest["layout_plan"]
+        )["slide_quality"]["slides"]
+        for i in row["issues"]
+    )
 
 
 def test_short_bold_section_headers_keep_same_stacked_style_at_different_heights(tmp_path):
-    deck=Presentation();deck.slide_width=Inches(13.333);deck.slide_height=Inches(7.5)
-    slide=deck.slides.add_slide(deck.slide_layouts[6])
-    for text,y in [('Vận tốc của vật dao động điều hòa',.5),('Gia tốc của vật dao động điều hòa',4.5)]:
-        shape=slide.shapes.add_textbox(Inches(4),Inches(y),Inches(5),Inches(.6))
-        shape.text=text
-        p=shape.text_frame.paragraphs[0];p.font.name='Arial';p.font.size=Pt(24)
-        for run in p.runs:run.font.bold=True
-    source=tmp_path/'headers.pptx';deck.save(source)
-    manifest=extract(source,'parallel_columns',same_slide=True)
-    assert all(u['title'] for u in manifest['units'])
-    output=assemble(source,tmp_path/'headers-en.pptx',manifest,
-        {u['id']:{'en':'The acceleration of an object undergoing simple harmonic motion.'} for u in manifest['units']},'parallel_columns')
-    assert all(p['inline'] for p in manifest['layout_plan'][0]['pairs'])
+    deck = Presentation()
+    deck.slide_width = Inches(13.333)
+    deck.slide_height = Inches(7.5)
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    for text, y in [("Vận tốc của vật dao động điều hòa", 0.5), ("Gia tốc của vật dao động điều hòa", 4.5)]:
+        shape = slide.shapes.add_textbox(Inches(4), Inches(y), Inches(5), Inches(0.6))
+        shape.text = text
+        p = shape.text_frame.paragraphs[0]
+        p.font.name = "Arial"
+        p.font.size = Pt(24)
+        for run in p.runs:
+            run.font.bold = True
+    source = tmp_path / "headers.pptx"
+    deck.save(source)
+    manifest = extract(source, "parallel_columns", same_slide=True)
+    assert all(u["title"] for u in manifest["units"])
+    _output = assemble(
+        source,
+        tmp_path / "headers-en.pptx",
+        manifest,
+        {
+            u["id"]: {"en": "The acceleration of an object undergoing simple harmonic motion."}
+            for u in manifest["units"]
+        },
+        "parallel_columns",
+    )
+    assert all(p["inline"] for p in manifest["layout_plan"][0]["pairs"])
 
 
 def test_short_caption_keeps_original_height_over_a_raster_backdrop(tmp_path):
     deck = Presentation()
     slide = deck.slides.add_slide(deck.slide_layouts[6])
-    background = tmp_path / 'backdrop.png'
-    Image.new('RGB', (400, 300), '#ffe066').save(background)
+    background = tmp_path / "backdrop.png"
+    Image.new("RGB", (400, 300), "#ffe066").save(background)
     slide.shapes.add_picture(str(background), 0, 0, width=deck.slide_width, height=deck.slide_height)
-    caption = slide.shapes.add_textbox(Inches(1), Inches(2), Inches(4.5), Inches(.78))
-    caption.text = 'Nội dung bài học'
+    caption = slide.shapes.add_textbox(Inches(1), Inches(2), Inches(4.5), Inches(0.78))
+    caption.text = "Nội dung bài học"
     caption.text_frame.paragraphs[0].font.size = Pt(32)
-    source = tmp_path / 'decorated.pptx'
+    source = tmp_path / "decorated.pptx"
     deck.save(source)
-    manifest = extract(source, 'parallel_columns', same_slide=True)
-    unit = next(u for u in manifest['units'] if u['shape_id'] == caption.shape_id)
-    assert unit['same_slide_box']['h'] == caption.height
-    output = assemble(source, tmp_path / 'bilingual.pptx', manifest,
-                      {unit['id']: {'en': 'Lesson content'}}, 'parallel_columns')
+    manifest = extract(source, "parallel_columns", same_slide=True)
+    unit = next(u for u in manifest["units"] if u["shape_id"] == caption.shape_id)
+    assert unit["same_slide_box"]["h"] == caption.height
+    output = assemble(
+        source,
+        tmp_path / "bilingual.pptx",
+        manifest,
+        {unit["id"]: {"en": "Lesson content"}},
+        "parallel_columns",
+    )
     result = next(s for s in Presentation(output).slides[0].shapes if s.shape_id == caption.shape_id)
-    assert result.height == caption.height and 'Lesson content' in result.text
+    assert result.height == caption.height and "Lesson content" in result.text
 
 
 def test_group_child_outside_in_local_coordinates_is_translated_when_visible(tmp_path):
-    deck=Presentation()
-    slide=deck.slides.add_slide(deck.slide_layouts[6])
-    group=slide.shapes.add_group_shape()
-    child=group.shapes.add_textbox(Inches(50),Inches(50),Inches(7),Inches(3))
-    child.text='Kéo quả nặng lệch khỏi vị trí cân bằng rồi buông tay.'
-    child.text_frame.paragraphs[0].font.size=Pt(24)
-    transform=group._element.find('p:grpSpPr/a:xfrm',NS)
-    transform.find('a:off',NS).set('x',str(Inches(1)))
-    transform.find('a:off',NS).set('y',str(Inches(2)))
-    source=tmp_path/'group.pptx'
+    deck = Presentation()
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    group = slide.shapes.add_group_shape()
+    child = group.shapes.add_textbox(Inches(50), Inches(50), Inches(7), Inches(3))
+    child.text = "Kéo quả nặng lệch khỏi vị trí cân bằng rồi buông tay."
+    child.text_frame.paragraphs[0].font.size = Pt(24)
+    transform = group._element.find("p:grpSpPr/a:xfrm", NS)
+    transform.find("a:off", NS).set("x", str(Inches(1)))
+    transform.find("a:off", NS).set("y", str(Inches(2)))
+    source = tmp_path / "group.pptx"
     deck.save(source)
-    manifest=extract(source,'parallel_columns',same_slide=True)
-    assert len(manifest['units'])==1 and manifest['units'][0]['shape_id']==child.shape_id
-    output=assemble(source,tmp_path/'output.pptx',manifest,
-                    {manifest['units'][0]['id']:{'en':'Displace the weight from equilibrium and release it.'}},'parallel_columns')
+    manifest = extract(source, "parallel_columns", same_slide=True)
+    assert len(manifest["units"]) == 1 and manifest["units"][0]["shape_id"] == child.shape_id
+    output = assemble(
+        source,
+        tmp_path / "output.pptx",
+        manifest,
+        {manifest["units"][0]["id"]: {"en": "Displace the weight from equilibrium and release it."}},
+        "parallel_columns",
+    )
     from app.slide_speech import objects
-    text=' '.join(item['text'] for item in objects(Presentation(output).slides[0]))
-    assert 'Kéo quả nặng' in text and 'Displace the weight' in text
+
+    text = " ".join(item["text"] for item in objects(Presentation(output).slides[0]))
+    assert "Kéo quả nặng" in text and "Displace the weight" in text
 
 
 @pytest.mark.parametrize("mode", ["parallel_columns", "sentence_pairs"])

@@ -151,8 +151,10 @@ def test_draft_audio_never_approves_or_plays_and_does_not_discard_other_voice(mo
     from app import speech
 
     calls = []
-    units = [{"vi": "Một câu tiếng Việt.", "en": "One English sentence.", "approved": False},
-             {"vi": "", "en": "x" * 5001, "approved": False}]
+    units = [
+        {"vi": "Một câu tiếng Việt.", "en": "One English sentence.", "approved": False},
+        {"vi": "", "en": "x" * 5001, "approved": False},
+    ]
 
     def synthesize(text, voice, rate, directory):
         calls.append((text, voice, rate, directory))
@@ -161,14 +163,24 @@ def test_draft_audio_never_approves_or_plays_and_does_not_discard_other_voice(mo
 
     monkeypatch.setattr(speech, "synthesize", synthesize)
     monkeypatch.setattr(speech, "play", lambda *_: pytest.fail("Draft audio must not play"))
-    result = prepare_narration({"profile": {"units": units}}, {"vi": "unavailable", "en": "good", "rate": 0},
-                               tmp_path, Event(), lambda _: None)
+    result = prepare_narration(
+        {"profile": {"units": units}},
+        {"vi": "unavailable", "en": "good", "rate": 0},
+        tmp_path,
+        Event(),
+        lambda _: None,
+    )
     assert result == {"complete": 1, "cached": 0, "duplicates": 0, "skipped": 1, "failed": 1, "total": 3}
     assert len(calls) == 2 and not any(u["approved"] for u in units)
     cancelled = Event()
     cancelled.set()
-    result = prepare_narration({"profile": {"units": units}}, {"vi": "good", "en": "good", "rate": 0},
-                               tmp_path, cancelled, lambda _: None)
+    result = prepare_narration(
+        {"profile": {"units": units}},
+        {"vi": "good", "en": "good", "rate": 0},
+        tmp_path,
+        cancelled,
+        lambda _: None,
+    )
     assert result["complete"] == 0 and len(calls) == 2
 
 
@@ -183,6 +195,7 @@ def test_profiles_do_not_enter_library_backup(tmp_path):
         (accounts.profile(item["id"]) / "session-marker").write_text("Not a credential")
         path = backup_library(library.directory, tmp_path / "backup.bcbackup")
         import zipfile
+
         with zipfile.ZipFile(path) as archive:
             assert not any("browser_ai" in name or "session-marker" in name for name in archive.namelist())
     finally:
@@ -213,13 +226,24 @@ def browser_fixture(monkeypatch, tmp_path):
     source = tmp_path / "source.pptx"
     deck = Presentation()
     slide = deck.slides.add_slide(deck.slide_layouts[6])
-    slide.shapes.add_textbox(Inches(.5), Inches(.5), Inches(8), Inches(2)).text = "Một slide để kiểm tra"
-    slide.notes_slide.notes_text_frame.text = "VI: Một câu tiếng Việt.\nEN: One English sentence.\nCHECK: Kiểm tra số liệu."
+    slide.shapes.add_textbox(Inches(0.5), Inches(0.5), Inches(8), Inches(2)).text = "Một slide để kiểm tra"
+    slide.notes_slide.notes_text_frame.text = (
+        "VI: Một câu tiếng Việt.\nEN: One English sentence.\nCHECK: Kiểm tra số liệu."
+    )
     deck.save(source)
     accounts = BrowserAccounts(tmp_path / "library")
     accounts.add("Fixture account", "chrome")
-    config = {"title": "Fixture", "subject": "Toán", "education_level": "THPT", "grade": "11",
-              "level": 2, "layout": "split_view", "preset": "standard", "style": "source", "mode": "level"}
+    config = {
+        "title": "Fixture",
+        "subject": "Toán",
+        "education_level": "THPT",
+        "grade": "11",
+        "level": 2,
+        "layout": "split_view",
+        "preset": "standard",
+        "style": "source",
+        "mode": "level",
+    }
     request = prepare_request(tmp_path / "library", config, source)
     original = adapter.open_context
     captured = {"sends": [], "contexts": 0, "challenge": False, "download_failure": False, "html": ""}
@@ -240,17 +264,36 @@ def browser_fixture(monkeypatch, tmp_path):
                 elif captured.get("download_url"):
                     req.fulfill(status=302, headers={"Location": captured["download_url"]})
                 else:
-                    req.fulfill(body=source.read_bytes(), headers={"Content-Type": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                                                                 "Content-Disposition": f'attachment; filename="fixture-{captured["contexts"]}.pptx"'})
+                    req.fulfill(
+                        body=source.read_bytes(),
+                        headers={
+                            "Content-Type": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                            "Content-Disposition": f'attachment; filename="fixture-{captured["contexts"]}.pptx"',
+                        },
+                    )
             else:
-                content = '<html><head><title>Just a moment...</title></head><body id="challenge-stage">Verify</body></html>' if captured["challenge"] else captured["html"] or FIXTURE
-                content = content.replace("result.pptx", f'result-{captured["contexts"]}.pptx')
-                req.fulfill(status=403 if captured["challenge"] else 200, content_type="text/html", body=content)
+                content = (
+                    '<html><head><title>Just a moment...</title></head><body id="challenge-stage">Verify</body></html>'
+                    if captured["challenge"]
+                    else captured["html"] or FIXTURE
+                )
+                content = content.replace("result.pptx", f"result-{captured['contexts']}.pptx")
+                req.fulfill(
+                    status=403 if captured["challenge"] else 200, content_type="text/html", body=content
+                )
 
         context.route("**/*", route)
+
         def observe_page(page):
-            page.on("console", lambda msg: captured["sends"].append(json.loads(msg.text.split(":", 1)[1]))
-                    if msg.text.startswith("FIXTURE-SEND:") else None)
+            page.on(
+                "console",
+                lambda msg: (
+                    captured["sends"].append(json.loads(msg.text.split(":", 1)[1]))
+                    if msg.text.startswith("FIXTURE-SEND:")
+                    else None
+                ),
+            )
+
         context.on("page", observe_page)
         for page in context.pages:
             observe_page(page)
@@ -262,7 +305,9 @@ def browser_fixture(monkeypatch, tmp_path):
 
 def test_real_browser_upload_download_and_repeat_does_not_send_twice(browser_fixture):
     adapter, accounts, request, captured, source = browser_fixture
-    result = adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+    result = adapter.convert(
+        accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10
+    )
     assert Path(result["path"]).read_bytes() == source.read_bytes()
     assert len(captured["sends"]) == 1
     assert captured["sends"][0] == {"files": ["tai-lieu-goc.pptx"], "prompt": request["prompt"]}
@@ -281,12 +326,17 @@ def test_real_browser_upload_download_and_repeat_does_not_send_twice(browser_fix
 
 def test_hidden_browser_send_activates_button_when_pointer_is_blocked(browser_fixture):
     adapter, accounts, request, captured, source = browser_fixture
-    captured["html"] = FIXTURE.replace('<script>', '''<script>
+    captured["html"] = FIXTURE.replace(
+        "<script>",
+        """<script>
 const blocker=document.createElement('div'), r=document.querySelector('#send').getBoundingClientRect();
 blocker.style.cssText=`position:fixed;left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;z-index:999;background:transparent`;
 document.body.appendChild(blocker);
-''')
-    result = adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+""",
+    )
+    result = adapter.convert(
+        accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10
+    )
     assert Path(result["path"]).read_bytes() == source.read_bytes()
     assert len(captured["sends"]) == 1
 
@@ -305,7 +355,9 @@ def test_click_timeout_after_send_observes_receipt_without_clicking_again(browse
         return result
 
     monkeypatch.setattr(Locator, "evaluate", interrupted)
-    result = adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+    result = adapter.convert(
+        accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10
+    )
     assert Path(result["path"]).read_bytes() == source.read_bytes()
     assert len(activations) == 1 and len(captured["sends"]) == 1
     assert read_record(request["folder"], accounts.get()["id"])["state"] == "completed"
@@ -313,10 +365,15 @@ def test_click_timeout_after_send_observes_receipt_without_clicking_again(browse
 
 def test_send_button_works_when_composer_consumes_enter(browser_fixture):
     adapter, accounts, request, captured, source = browser_fixture
-    captured["html"] = FIXTURE.replace('<script>', '''<script>
+    captured["html"] = FIXTURE.replace(
+        "<script>",
+        """<script>
 document.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); e.stopImmediatePropagation(); } }, true);
-''')
-    result = adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+""",
+    )
+    result = adapter.convert(
+        accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10
+    )
     assert Path(result["path"]).read_bytes() == source.read_bytes()
     assert len(captured["sends"]) == 1
 
@@ -324,24 +381,33 @@ document.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDe
 @pytest.mark.parametrize("prompt_matches", [True, False])
 def test_recovery_expands_long_message_but_requires_complete_prompt(browser_fixture, prompt_matches):
     from app.browser_receipt import save_intent
+
     adapter, accounts, request, captured, source = browser_fixture
     record = read_record(request["folder"], accounts.get()["id"])
     record.update(state="submitting", user_before=0, assistant_before=0)
     save_intent(request["folder"], record, request["prompt"])
     adapter.write_record(request["folder"], record)
-    actual = request["prompt"] if prompt_matches else request["prompt"][:-100] + 'different ending'
-    captured["html"] = receipt_fixture_html(actual).replace(
-        "user.textContent=", "user.dataset.fullPrompt=").replace(
-        "document.querySelector('#messages').prepend(user);",
-        "user.textContent='Truncated teacher prompt'; const expand=document.createElement('button'); "
-        "expand.textContent='Show more'; expand.onclick=()=>{ user.textContent=user.dataset.fullPrompt; }; "
-        "user.append(expand); document.querySelector('#messages').prepend(user);")
+    actual = request["prompt"] if prompt_matches else request["prompt"][:-100] + "different ending"
+    captured["html"] = (
+        receipt_fixture_html(actual)
+        .replace("user.textContent=", "user.dataset.fullPrompt=")
+        .replace(
+            "document.querySelector('#messages').prepend(user);",
+            "user.textContent='Truncated teacher prompt'; const expand=document.createElement('button'); "
+            "expand.textContent='Show more'; expand.onclick=()=>{ user.textContent=user.dataset.fullPrompt; }; "
+            "user.append(expand); document.querySelector('#messages').prepend(user);",
+        )
+    )
     if prompt_matches:
-        result = adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+        result = adapter.convert(
+            accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10
+        )
         assert Path(result["path"]).read_bytes() == source.read_bytes()
     else:
         with pytest.raises(BrowserProblem) as exc:
-            adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+            adapter.convert(
+                accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10
+            )
         assert exc.value.code == "receipt"
     assert not captured["sends"]
 
@@ -352,12 +418,13 @@ def receipt_fixture_html(prompt, *, duplicate=False, conversation="/c/receipt-on
     history = f'<nav><a href="{conversation}">Recent chat</a>'
     if duplicate:
         history += '<a href="/c/receipt-two">Other chat</a>'
-    history += '</nav>'
+    history += "</nav>"
     return FIXTURE.replace('<div id="messages">', history + '<div id="messages">').replace(
         "if (location.pathname.startsWith('/c/')) result();",
         "if (location.pathname.startsWith('/c/')) { result(); const user=document.createElement('div');"
         "user.setAttribute('data-message-author-role','user'); user.textContent=" + json.dumps(prompt) + ";"
-        "document.querySelector('#messages').prepend(user); }")
+        "document.querySelector('#messages').prepend(user); }",
+    )
 
 
 def test_lost_first_ack_finds_chat_and_finishes_without_resubmit(browser_fixture, monkeypatch):
@@ -378,12 +445,15 @@ def test_lost_first_ack_finds_chat_and_finishes_without_resubmit(browser_fixture
         # describe that same server conversation, not invent a second chat
         # containing the identical message on every /c/ URL.
         captured["sent_url"] = sent_url
-        captured["html"] = receipt_fixture_html(request["prompt"], conversation=sent_url.removeprefix("https://chatgpt.com"))
+        captured["html"] = receipt_fixture_html(
+            request["prompt"], conversation=sent_url.removeprefix("https://chatgpt.com")
+        )
         raise BrowserProblem("receipt", "Fixture lost acknowledgement")
 
     monkeypatch.setattr(adapter, "submit", lose_receipt)
-    result = convert_available(accounts.candidates(), accounts.root, request["folder"], Event(), lambda _: None,
-                               retry_delays=(0,))
+    result = convert_available(
+        accounts.candidates(), accounts.root, request["folder"], Event(), lambda _: None, retry_delays=(0,)
+    )
     assert len(captured["sends"]) == 1 and captured["contexts"] == 2
     assert Path(result["path"]).read_bytes() == source.read_bytes()
     record = read_record(request["folder"], accounts.get()["id"])
@@ -401,15 +471,22 @@ def test_pending_send_is_received_only_on_unique_full_prompt_match(browser_fixtu
         save_intent(request["folder"], record, request["prompt"])
         (Path(request["folder"]) / "send-intent.txt").write_text("Changed prompt", encoding="utf-8")
     adapter.write_record(request["folder"], record)
-    captured["html"] = receipt_fixture_html(request["prompt"] if kind != "mismatch" else "An unrelated request",
-                                           duplicate=kind == "duplicate")
+    captured["html"] = receipt_fixture_html(
+        request["prompt"] if kind != "mismatch" else "An unrelated request", duplicate=kind == "duplicate"
+    )
     if kind == "legacy":
-        result = adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+        result = adapter.convert(
+            accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10
+        )
         assert Path(result["path"]).read_bytes() == source.read_bytes()
     else:
         with pytest.raises(BrowserProblem) as exc:
-            adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
-        assert exc.value.code == ("record" if kind == "tampered" else "receipt" if kind == "mismatch" else "submission")
+            adapter.convert(
+                accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10
+            )
+        assert exc.value.code == (
+            "record" if kind == "tampered" else "receipt" if kind == "mismatch" else "submission"
+        )
         assert read_record(request["folder"], accounts.get()["id"])["state"] == "submitting"
     assert not captured["sends"]
 
@@ -439,7 +516,9 @@ def test_powerpoint_above_old_limit_uploads_downloads_stores_and_reopens(browser
     class Download(BaseHTTPRequestHandler):
         def do_GET(self):
             self.send_response(200)
-            self.send_header("Content-Type", "application/vnd.openxmlformats-officedocument.presentationml.presentation")
+            self.send_header(
+                "Content-Type", "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+            )
             self.send_header("Content-Disposition", 'attachment; filename="large-fixture.pptx"')
             self.send_header("Content-Length", str(source.stat().st_size))
             self.end_headers()
@@ -455,7 +534,9 @@ def test_powerpoint_above_old_limit_uploads_downloads_stores_and_reopens(browser
     worker.start()
     captured["download_url"] = f"http://127.0.0.1:{server.server_port}/large-fixture.pptx"
     try:
-        result = adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=30)
+        result = adapter.convert(
+            accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=30
+        )
         assert hashlib.sha256(Path(result["path"]).read_bytes()).hexdigest() == digest
         assert hashlib.sha256(source.read_bytes()).hexdigest() == digest
         assert len(captured["sends"]) == 1
@@ -465,7 +546,9 @@ def test_powerpoint_above_old_limit_uploads_downloads_stores_and_reopens(browser
         try:
             stored = library.store_source(result["path"])
             assert stored["sha256"] == digest
-            lesson = library.create_external_lesson(request["config"], stored, adapter.inspect_returned_deck(result["path"]))
+            lesson = library.create_external_lesson(
+                request["config"], stored, adapter.inspect_returned_deck(result["path"])
+            )
             preview = external_preview(library.get(lesson["id"]), library.directory)
             assert preview["sha256"] == digest and preview["draft"]
         finally:
@@ -482,29 +565,40 @@ def test_filename_button_downloads_real_pptx_and_never_matches_user_source(brows
     adapter, accounts, request, captured, source = browser_fixture
     captured["html"] = FIXTURE.replace(
         '<a href="/backend-api/files/result.pptx">bai-giang-song-ngu.pptx</a>',
-        '<button aria-label="bai-giang-song-ngu.pptx" onclick="downloadFile()">PPTX</button>')
-    captured["html"] = captured["html"].replace('<script>', "<script>function downloadFile() { location.href='/backend-api/files/result.pptx'; }")
-    result = adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+        '<button aria-label="bai-giang-song-ngu.pptx" onclick="downloadFile()">PPTX</button>',
+    )
+    captured["html"] = captured["html"].replace(
+        "<script>", "<script>function downloadFile() { location.href='/backend-api/files/result.pptx'; }"
+    )
+    result = adapter.convert(
+        accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10
+    )
     assert Path(result["path"]).read_bytes() == source.read_bytes() and len(captured["sends"]) == 1
     from playwright.sync_api import sync_playwright
+
     with sync_playwright() as playwright:
         context = adapter.open_context(playwright, accounts.get(), background=True)
         try:
             page = context.pages[0]
             page.goto(adapter.CHATGPT)
-            page.locator('#messages').evaluate("e => { e.innerHTML = '<div data-message-author-role=\"user\"><button aria-label=\"source.pptx\">PPTX</button></div><div data-message-author-role=\"assistant\">No result yet</div>'; }")
+            page.locator("#messages").evaluate(
+                'e => { e.innerHTML = \'<div data-message-author-role="user"><button aria-label="source.pptx">PPTX</button></div><div data-message-author-role="assistant">No result yet</div>\'; }'
+            )
             assert adapter.result_link(page) is None
         finally:
             context.close()
 
 
-@pytest.mark.parametrize('pressable', [False, True])
+@pytest.mark.parametrize("pressable", [False, True])
 def test_file_preview_download_uses_matching_artifact_and_sends_once(browser_fixture, pressable):
     adapter, accounts, request, captured, source = browser_fixture
     captured["html"] = FIXTURE.replace(
         '<a href="/backend-api/files/result.pptx">bai-giang-song-ngu.pptx</a>',
-        '<button aria-label="bai-giang-song-ngu.pptx" onclick="showFile()">PPTX</button>')
-    captured["html"] = captured["html"].replace('<script>', '''<script>
+        '<button aria-label="bai-giang-song-ngu.pptx" onclick="showFile()">PPTX</button>',
+    )
+    captured["html"] = captured["html"].replace(
+        "<script>",
+        """<script>
 function showFile() {
     const preview = document.createElement('div');
     preview.innerHTML = `<h3>bai-giang-song-ngu.pptx</h3><button aria-label="Download file" onclick="location.href='/backend-api/files/result.pptx'">Download</button>`;
@@ -513,62 +607,83 @@ function showFile() {
     other.innerHTML = `<h3>other.pptx</h3><button aria-label="Download file" onclick="throw Error('Do not download unrelated artifact')">Download</button>`;
     document.body.appendChild(other);
 }
-''', 1)
+""",
+        1,
+    )
     if pressable:
-        captured['html'] = captured['html'].replace(
+        captured["html"] = captured["html"].replace(
             '<button aria-label="bai-giang-song-ngu.pptx" onclick="showFile()">PPTX</button>',
-            '<span role="link" data-d-component="pressable" aria-label="Open Download bai-giang-song-ngu.pptx" onclick="showFile()">bai-giang-song-ngu.pptx</span>')
-    result = adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+            '<span role="link" data-d-component="pressable" aria-label="Open Download bai-giang-song-ngu.pptx" onclick="showFile()">bai-giang-song-ngu.pptx</span>',
+        )
+    result = adapter.convert(
+        accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10
+    )
     assert Path(result["path"]).read_bytes() == source.read_bytes() and len(captured["sends"]) == 1
 
 
 def test_result_preview_in_new_tab_downloads_matching_file_without_resubmission(browser_fixture):
     adapter, accounts, request, captured, source = browser_fixture
-    captured['html'] = FIXTURE.replace(
+    captured["html"] = FIXTURE.replace(
         '<a href="/backend-api/files/result.pptx">bai-giang-song-ngu.pptx</a>',
-        '<span role="link" data-d-component="pressable" aria-label="Open Download bai-giang-song-ngu.pptx" onclick="showPreview()">bai-giang-song-ngu.pptx</span>')
-    captured['html'] = captured['html'].replace('</script>', '''
+        '<span role="link" data-d-component="pressable" aria-label="Open Download bai-giang-song-ngu.pptx" onclick="showPreview()">bai-giang-song-ngu.pptx</span>',
+    )
+    captured["html"] = captured["html"].replace(
+        "</script>",
+        """
 function showPreview(){window.open('/preview');}
 if(location.pathname==='/preview'){
  document.body.innerHTML=`<section><h3>bai-giang-song-ngu.pptx</h3><button aria-label="Download file" onclick="location.href='/backend-api/files/result.pptx'">Download</button></section>`;
 }
-</script>''')
-    result = adapter.convert(accounts.get(), accounts.root, request['folder'], Event(), lambda _: None, timeout=10)
-    assert Path(result['path']).read_bytes() == source.read_bytes() and len(captured['sends']) == 1
+</script>""",
+    )
+    result = adapter.convert(
+        accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10
+    )
+    assert Path(result["path"]).read_bytes() == source.read_bytes() and len(captured["sends"]) == 1
 
 
-@pytest.mark.parametrize('label',['Download file','Download'])
-def test_current_preview_card_downloads_directly_without_loading_preview(browser_fixture,label):
-    adapter,accounts,request,captured,source=browser_fixture
-    captured['html']=FIXTURE.replace(
+@pytest.mark.parametrize("label", ["Download file", "Download"])
+def test_current_preview_card_downloads_directly_without_loading_preview(browser_fixture, label):
+    adapter, accounts, request, captured, source = browser_fixture
+    captured["html"] = FIXTURE.replace(
         '<a href="/backend-api/files/result.pptx">bai-giang-song-ngu.pptx</a>',
-        '<section><span>bai-giang-song-ngu.pptx</span>'
+        "<section><span>bai-giang-song-ngu.pptx</span>"
         '<button aria-label="Open preview of bai-giang-song-ngu.pptx" onclick="badPreview()">PPTX</button>'
         f'<button aria-label="{label}" onclick="downloadDirect()">Download</button></section>'
-        '<section><span>other.pptx</span><button aria-label="Download file" onclick="wrongArtifact()">Download</button></section>')
-    captured['html']=captured['html'].replace('<script>', '''<script>
+        '<section><span>other.pptx</span><button aria-label="Download file" onclick="wrongArtifact()">Download</button></section>',
+    )
+    captured["html"] = captured["html"].replace(
+        "<script>",
+        """<script>
 function badPreview(){throw Error('Preview must not open');}
 function downloadDirect(){location.href='/backend-api/files/result.pptx';}
 function wrongArtifact(){throw Error('Wrong artifact');}
-''',1)
-    result=adapter.convert(accounts.get(),accounts.root,request['folder'],Event(),lambda _:None,timeout=10)
-    assert Path(result['path']).read_bytes()==source.read_bytes() and len(captured['sends'])==1
+""",
+        1,
+    )
+    result = adapter.convert(
+        accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10
+    )
+    assert Path(result["path"]).read_bytes() == source.read_bytes() and len(captured["sends"]) == 1
 
 
 def test_missing_own_download_never_uses_a_sibling_artifact(browser_fixture):
     from playwright.sync_api import sync_playwright
-    adapter,accounts,_,_,_=browser_fixture
+
+    adapter, accounts, _, _, _ = browser_fixture
     with sync_playwright() as playwright:
-        context=adapter.open_context(playwright,accounts.get(),background=True)
+        context = adapter.open_context(playwright, accounts.get(), background=True)
         try:
-            page=context.new_page()
-            page.set_content('<div data-message-author-role="assistant"><section><span>lesson.pptx</span>'
+            page = context.new_page()
+            page.set_content(
+                '<div data-message-author-role="assistant"><section><span>lesson.pptx</span>'
                 '<button aria-label="Open preview of lesson.pptx">PPTX</button></section>'
                 '<section><span>other.pptx</span><button aria-label="Download file" '
-                'onclick="window.wrongDownload=true">Download</button></section></div>')
-            with pytest.raises(BrowserProblem,match='Chưa tải được PowerPoint'):
-                adapter.receive_download(page,adapter.result_link(page),Event(),timeout=.3)
-            assert not page.evaluate('Boolean(window.wrongDownload)')
+                'onclick="window.wrongDownload=true">Download</button></section></div>'
+            )
+            with pytest.raises(BrowserProblem, match="Chưa tải được PowerPoint"):
+                adapter.receive_download(page, adapter.result_link(page), Event(), timeout=0.3)
+            assert not page.evaluate("Boolean(window.wrongDownload)")
         finally:
             context.close()
 
@@ -581,10 +696,12 @@ def test_answer_download_link_is_preferred_to_a_preview_card_without_dil_marker(
         context = adapter.open_context(playwright, accounts.get(), background=True)
         try:
             page = context.pages[0]
-            page.set_content('<div data-message-author-role="assistant">'
+            page.set_content(
+                '<div data-message-author-role="assistant">'
                 '<span role="link" tabindex="0" aria-label="Open 📥 Tải lesson.pptx">📥 Tải lesson.pptx</span>'
-                '<button aria-label="Open preview of lesson.pptx"></button></div>')
-            assert adapter.result_link(page).get_attribute('role') == 'link'
+                '<button aria-label="Open preview of lesson.pptx"></button></div>'
+            )
+            assert adapter.result_link(page).get_attribute("role") == "link"
         finally:
             context.close()
 
@@ -601,38 +718,40 @@ def test_interrupted_file_fetch_is_detected_before_download_timeout(tmp_path):
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
             self.send_response(200)
-            if self.path == '/result':
-                self.send_header('Content-Type', 'application/octet-stream')
-                self.send_header('Content-Disposition', 'attachment; filename="lesson.pptx"')
-                self.send_header('Content-Length', '100000')
+            if self.path == "/result":
+                self.send_header("Content-Type", "application/octet-stream")
+                self.send_header("Content-Disposition", 'attachment; filename="lesson.pptx"')
+                self.send_header("Content-Length", "100000")
                 self.end_headers()
-                self.wfile.write(b'incomplete stream')
+                self.wfile.write(b"incomplete stream")
                 self.close_connection = True
             else:
-                self.send_header('Content-Type', 'text/html; charset=utf-8')
+                self.send_header("Content-Type", "text/html; charset=utf-8")
                 self.end_headers()
-                self.wfile.write(b'<div data-message-author-role="assistant"><span role="link" '
+                self.wfile.write(
+                    b'<div data-message-author-role="assistant"><span role="link" '
                     b'tabindex="0" aria-label="Open lesson.pptx" '
-                    b'onclick="fetch(\'/result\').then(r=>r.blob()).catch(()=>{})">lesson.pptx</span></div>')
+                    b"onclick=\"fetch('/result').then(r=>r.blob()).catch(()=>{})\">lesson.pptx</span></div>"
+                )
 
         def log_message(self, *_):
             pass
 
-    server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     thread = Thread(target=server.serve_forever, daemon=True)
     thread.start()
     accounts = BrowserAccounts(tmp_path)
-    accounts.add('Interrupted download fixture')
+    accounts.add("Interrupted download fixture")
     try:
         with sync_playwright() as playwright:
             context = adapter.open_context(playwright, accounts.get(), background=True)
             try:
                 page = context.pages[0]
-                page.goto(f'http://127.0.0.1:{server.server_port}/')
+                page.goto(f"http://127.0.0.1:{server.server_port}/")
                 started = time.monotonic()
                 with pytest.raises(BrowserProblem) as error:
                     adapter.receive_download(page, adapter.result_link(page), Event(), timeout=10)
-                assert error.value.code == 'file_transfer'
+                assert error.value.code == "file_transfer"
                 assert time.monotonic() - started < 5
             finally:
                 context.close()
@@ -655,14 +774,20 @@ def test_chat_only_storage_notice_cannot_block_upload_or_download(browser_fixtur
     document.body.appendChild(dialog);
     }
     """
-    content = FIXTURE.replace('<head>', '<head><meta charset="utf-8">').replace('<script>', '<script>'+notice, 1)
+    content = FIXTURE.replace("<head>", '<head><meta charset="utf-8">').replace(
+        "<script>", "<script>" + notice, 1
+    )
     if notice_at == "attachment":
-        content = content.replace("document.querySelector('#files').onchange = (e) => {",
-                                  "document.querySelector('#files').onchange = (e) => {attachmentNotice();")
+        content = content.replace(
+            "document.querySelector('#files').onchange = (e) => {",
+            "document.querySelector('#files').onchange = (e) => {attachmentNotice();",
+        )
     else:
         content = content.replace("function result() {", "function result() {attachmentNotice();")
     captured["html"] = content
-    result = adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+    result = adapter.convert(
+        accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10
+    )
     assert Path(result["path"]).read_bytes() == source.read_bytes()
     assert len(captured["sends"]) == 1
 
@@ -676,22 +801,30 @@ def test_attachment_notice_does_not_dismiss_failure_or_verification(browser_fixt
         try:
             page = context.pages[0]
             page.goto(adapter.CHATGPT)
-            for warning in ["Upload failed. You don't have enough storage space left to save this file.",
-                            "Verify you are human", "File added to chat only. Other confirmation required."]:
-                page.locator('body').evaluate("(body,text)=>{document.querySelector('[role=dialog]')?.remove();"
-                                             "const d=document.createElement('div');d.setAttribute('role','dialog');"
-                                             "d.textContent=text;const b=document.createElement('button');"
-                                             "b.textContent='Close dialog';b.onclick=()=>d.remove();d.append(b);body.append(d)}", warning)
+            for warning in [
+                "Upload failed. You don't have enough storage space left to save this file.",
+                "Verify you are human",
+                "File added to chat only. Other confirmation required.",
+            ]:
+                page.locator("body").evaluate(
+                    "(body,text)=>{document.querySelector('[role=dialog]')?.remove();"
+                    "const d=document.createElement('div');d.setAttribute('role','dialog');"
+                    "d.textContent=text;const b=document.createElement('button');"
+                    "b.textContent='Close dialog';b.onclick=()=>d.remove();d.append(b);body.append(d)}",
+                    warning,
+                )
                 assert not adapter.dismiss_attachment_notice(page)
-                assert page.get_by_role('dialog').is_visible()
+                assert page.get_by_role("dialog").is_visible()
             assert not captured["sends"]
         finally:
             context.close()
 
 
 def test_free_quality_correction_reuses_chat_files_and_happens_once(browser_fixture, monkeypatch):
-    monkeypatch.setattr("app.slide_repair.repair_layout", lambda path, *a, **kw: {"path": str(path), "changes": []})
-    from app import browser_capabilities, slide_quality
+    monkeypatch.setattr(
+        "app.slide_repair.repair_layout", lambda path, *a, **kw: {"path": str(path), "changes": []}
+    )
+    from app import browser_capabilities
 
     adapter, accounts, request, captured, source = browser_fixture
     config_path = Path(request["folder"]) / "config.json"
@@ -705,17 +838,23 @@ def test_free_quality_correction_reuses_chat_files_and_happens_once(browser_fixt
         report["slides"][0]["issues"].append({"code": "text_overflow", "severity": "FAIL", "shape_id": 2})
         return report
 
-    monkeypatch.setattr('app.office_tasks.render_quality', measured_overflow)
-    content = FIXTURE.replace("document.querySelector('#messages').innerHTML =",
-                              "document.querySelector('#messages').innerHTML +=")
-    content = content.replace("history.pushState({},'', '/c/fixture-123');result();", """
+    monkeypatch.setattr("app.office_tasks.render_quality", measured_overflow)
+    content = FIXTURE.replace(
+        "document.querySelector('#messages').innerHTML =", "document.querySelector('#messages').innerHTML +="
+    )
+    content = content.replace(
+        "history.pushState({},'', '/c/fixture-123');result();",
+        """
         const user=document.createElement('div');user.setAttribute('data-message-author-role','user');
         user.textContent=document.querySelector('#prompt-textarea').value;
         document.querySelector('#messages').appendChild(user);
         history.pushState({},'', '/c/fixture-123');result();
-        document.querySelector('#files').value='';""")
+        document.querySelector('#files').value='';""",
+    )
     captured["html"] = content
-    result = adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+    result = adapter.convert(
+        accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10
+    )
     assert Path(result["path"]).read_bytes() == source.read_bytes()
     assert len(captured["sends"]) == 2
     assert captured["sends"][0]["files"] == ["tai-lieu-goc.pptx"]
@@ -737,10 +876,12 @@ def test_current_web_collapsed_thinking_uses_reply_ids_to_find_only_new_export(b
             page = context.pages[0]
             page.goto(adapter.CHATGPT)
             markup = '<div data-chatgpt-search-message-ids="old old"><h4 data-conversation-role="assistant">ChatGPT said</h4><a href="/backend-api/files/old.pptx">old.pptx</a></div>'
-            page.locator('#messages').evaluate('(node, html) => node.innerHTML = html', markup)
+            page.locator("#messages").evaluate("(node, html) => node.innerHTML = html", markup)
             assert adapter.result_link(page, 10, assistant_ids_before=["old"]) is None
             markup = '<div data-chatgpt-search-message-ids="new new"><h4 data-conversation-role="assistant">ChatGPT said</h4><a href="/backend-api/files/new.pptx">new.pptx</a></div>'
-            page.locator('#messages').evaluate('(node, html) => node.insertAdjacentHTML("beforeend", html)', markup)
+            page.locator("#messages").evaluate(
+                '(node, html) => node.insertAdjacentHTML("beforeend", html)', markup
+            )
             # The saved count includes thinking nodes that the web removed.
             link = adapter.result_link(page, 10, assistant_ids_before=["old"])
             assert link.inner_text() == "new.pptx" and not captured["sends"]
@@ -750,21 +891,31 @@ def test_current_web_collapsed_thinking_uses_reply_ids_to_find_only_new_export(b
 
 def test_current_web_pressable_download_link_receives_native_pptx(browser_fixture):
     adapter, accounts, request, captured, source = browser_fixture
-    content = FIXTURE.replace('<head>', '<head><meta charset="utf-8">')
-    content = content.replace('<div data-message-author-role="assistant">',
-        '<div data-chatgpt-search-message-ids="final"><h4 data-conversation-role="assistant">ChatGPT said</h4>')
-    content = content.replace('<a href="/backend-api/files/result.pptx">bai-giang-song-ngu.pptx</a>',
+    content = FIXTURE.replace("<head>", '<head><meta charset="utf-8">')
+    content = content.replace(
+        '<div data-message-author-role="assistant">',
+        '<div data-chatgpt-search-message-ids="final"><h4 data-conversation-role="assistant">ChatGPT said</h4>',
+    )
+    content = content.replace(
+        '<a href="/backend-api/files/result.pptx">bai-giang-song-ngu.pptx</a>',
         '<span role="link" data-d-component="pressable" tabindex="0" '
         'aria-label="Open Tải xuống tệp PowerPoint (.pptx)" '
-        'onclick="downloadFile()">Tải xuống tệp PowerPoint (.pptx)</span>')
-    content = content.replace('<script>', '<script>function downloadFile() {location.href="/backend-api/files/result.pptx";}')
+        'onclick="downloadFile()">Tải xuống tệp PowerPoint (.pptx)</span>',
+    )
+    content = content.replace(
+        "<script>", '<script>function downloadFile() {location.href="/backend-api/files/result.pptx";}'
+    )
     captured["html"] = content
-    result = adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+    result = adapter.convert(
+        accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10
+    )
     assert Path(result["path"]).read_bytes() == source.read_bytes() and len(captured["sends"]) == 1
     assert read_record(request["folder"], accounts.get()["id"])["state"] == "completed"
 
 
-def test_download_transport_failure_keeps_login_and_resumes_without_another_send(browser_fixture, monkeypatch):
+def test_download_transport_failure_keeps_login_and_resumes_without_another_send(
+    browser_fixture, monkeypatch
+):
     from playwright.sync_api import TimeoutError
 
     from app.browser_dispatch import convert_available
@@ -772,14 +923,27 @@ def test_download_transport_failure_keeps_login_and_resumes_without_another_send
     adapter, accounts, request, captured, _ = browser_fixture
     accounts.observe(accounts.get()["id"], "free")
     original = adapter.receive_download
-    monkeypatch.setattr(adapter, "receive_download", lambda *_a, **_k: (_ for _ in ()).throw(TimeoutError("Download fixture interruption")))
+    monkeypatch.setattr(
+        adapter,
+        "receive_download",
+        lambda *_a, **_k: (_ for _ in ()).throw(TimeoutError("Download fixture interruption")),
+    )
     with pytest.raises(BrowserProblem) as exc:
-        convert_available(accounts.candidates(), accounts.root, request["folder"], Event(), lambda _: None,
-                          failed=accounts.login_error, retry_delays=())
+        convert_available(
+            accounts.candidates(),
+            accounts.root,
+            request["folder"],
+            Event(),
+            lambda _: None,
+            failed=accounts.login_error,
+            retry_delays=(),
+        )
     assert exc.value.code == "download" and accounts.get()["ready"]
     assert read_record(request["folder"], accounts.get()["id"])["state"] == "waiting"
     monkeypatch.setattr(adapter, "receive_download", original)
-    result = convert_available(accounts.candidates(), accounts.root, request["folder"], Event(), lambda _: None)
+    result = convert_available(
+        accounts.candidates(), accounts.root, request["folder"], Event(), lambda _: None
+    )
     assert Path(result["path"]).is_file() and len(captured["sends"]) == 1
 
 
@@ -800,7 +964,9 @@ def test_resume_download_uses_conversation_without_resending_input(browser_fixtu
     record = read_record(request["folder"], accounts.get()["id"])
     record.update(state="waiting", url="https://chatgpt.com/c/fixture-123")
     write_record(request["folder"], record)
-    result = adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+    result = adapter.convert(
+        accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10
+    )
     assert Path(result["path"]).read_bytes() == source.read_bytes() and not captured["sends"]
 
 
@@ -819,9 +985,11 @@ def test_latest_answer_only_and_lesson_limits_do_not_become_quota_errors(browser
     from playwright.sync_api import sync_playwright
 
     adapter, accounts, _, captured, _ = browser_fixture
-    captured["html"] = FIXTURE.replace('<div id="messages"></div>',
+    captured["html"] = FIXTURE.replace(
+        '<div id="messages"></div>',
         '<div id="messages"><div data-message-author-role="assistant"><a href="/backend-api/files/old.pptx">old.pptx</a></div>'
-        '<div data-message-author-role="assistant">Bài toán giới hạn; hạn mức là một khái niệm trong bài.</div></div>')
+        '<div data-message-author-role="assistant">Bài toán giới hạn; hạn mức là một khái niệm trong bài.</div></div>',
+    )
     with sync_playwright() as playwright:
         context = adapter.open_context(playwright, accounts.get(), background=True)
         try:
@@ -829,12 +997,20 @@ def test_latest_answer_only_and_lesson_limits_do_not_become_quota_errors(browser
             page.goto(adapter.CHATGPT)
             adapter.page_problem(page)
             assert adapter.result_link(page) is None  # Ignore the older PPTX.
-            page.locator('#messages').evaluate("node => node.insertAdjacentHTML('beforeend', "
-                + json.dumps('<div data-message-author-role="assistant"><a href="/backend-api/files/new.pptx">new.pptx</a></div>') + ")")
+            page.locator("#messages").evaluate(
+                "node => node.insertAdjacentHTML('beforeend', "
+                + json.dumps(
+                    '<div data-message-author-role="assistant"><a href="/backend-api/files/new.pptx">new.pptx</a></div>'
+                )
+                + ")"
+            )
             assert adapter.result_link(page, 2).inner_text() == "new.pptx"
             assert adapter.result_link(page, 3) is None
-            page.locator('body').evaluate("node => node.insertAdjacentHTML('beforeend', "
-                + json.dumps('<div role="alert">You have reached your usage limit. Try again later.</div>') + ")")
+            page.locator("body").evaluate(
+                "node => node.insertAdjacentHTML('beforeend', "
+                + json.dumps('<div role="alert">You have reached your usage limit. Try again later.</div>')
+                + ")"
+            )
             with pytest.raises(BrowserProblem) as failure:
                 adapter.page_problem(page)
             assert failure.value.code == "limit"
@@ -844,7 +1020,9 @@ def test_latest_answer_only_and_lesson_limits_do_not_become_quota_errors(browser
 
 def test_followup_waits_for_new_answer_without_resending_source(browser_fixture):
     adapter, accounts, request, captured, source = browser_fixture
-    captured["html"] = FIXTURE[:FIXTURE.index('<script>')] + '''<script>
+    captured["html"] = (
+        FIXTURE[: FIXTURE.index("<script>")]
+        + """<script>
 let sent = 0;
 document.querySelector('#files').onchange = (e) => {
     document.querySelector('#attached').innerHTML = [...e.target.files].map(f => `<span>${f.name}</span>`).join('');
@@ -859,8 +1037,11 @@ document.querySelector('#send').onclick = () => {
         '<div data-message-author-role="assistant">Bài giảng về giới hạn và hạn mức. Đây là dàn ý.</div>');
     else setTimeout(() => document.querySelector('#messages').insertAdjacentHTML('beforeend',
         '<div data-message-author-role="assistant"><a href="/backend-api/files/result.pptx">new.pptx</a></div>'), 700);
-};</script></body></html>'''
-    result = adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=15)
+};</script></body></html>"""
+    )
+    result = adapter.convert(
+        accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=15
+    )
     assert Path(result["path"]).read_bytes() == source.read_bytes()
     assert len(captured["sends"]) == 2 and captured["sends"][1]["prompt"] == adapter.EXPORT_PROMPT
     assert captured["sends"][1]["files"] == []
@@ -871,13 +1052,17 @@ document.querySelector('#send').onclick = () => {
 
 
 @pytest.mark.parametrize("send_label,stop_label", [("Send", "Stop"), ("Gửi", "Dừng")])
-def test_current_web_generation_finishes_before_export_followup_or_download(browser_fixture, send_label, stop_label):
+def test_current_web_generation_finishes_before_export_followup_or_download(
+    browser_fixture, send_label, stop_label
+):
     adapter, accounts, request, captured, source = browser_fixture
-    content = FIXTURE[:FIXTURE.index('<script>')].replace('<head>', '<head><meta charset="utf-8">')
-    content = content.replace('<textarea', '<form onsubmit="event.preventDefault()"><textarea')
-    content = content.replace('<button data-testid="send-button"', f'<button type="submit" aria-label="{send_label}"')
+    content = FIXTURE[: FIXTURE.index("<script>")].replace("<head>", '<head><meta charset="utf-8">')
+    content = content.replace("<textarea", '<form onsubmit="event.preventDefault()"><textarea')
+    content = content.replace(
+        '<button data-testid="send-button"', f'<button type="submit" aria-label="{send_label}"'
+    )
     content = content.replace('<div id="messages">', '</form><div id="messages">')
-    content += '''<script>
+    content += """<script>
 document.querySelector('#files').onchange = (e) => {
     document.querySelector('#attached').innerHTML = [...e.target.files].map(f => `<span>${f.name}</span>`).join('');
 };
@@ -893,17 +1078,21 @@ document.querySelector('#send').onclick = () => {
         stop.remove(); document.querySelector('#send').hidden=false;
         document.querySelector('#messages').insertAdjacentHTML('beforeend', '<div data-chatgpt-search-message-ids="final"><h4 data-conversation-role="assistant">ChatGPT said</h4><div data-markdown-text-style="assistant-message"><a href="/backend-api/files/result.pptx">final.pptx</a></div></div>');
     }, 6500);
-};</script></body></html>'''.replace('STOP_LABEL', json.dumps(stop_label))
+};</script></body></html>""".replace("STOP_LABEL", json.dumps(stop_label))
     captured["html"] = content
-    result = adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=12)
+    result = adapter.convert(
+        accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=12
+    )
     assert len(captured["sends"]) == 1 and Path(result["path"]).read_bytes() == source.read_bytes()
     assert read_record(request["folder"], accounts.get()["id"])["followups"] == 0
 
 
 def test_empty_draft_after_web_rerender_is_restored_and_sent_once(browser_fixture):
     adapter, accounts, request, captured, _ = browser_fixture
-    captured["html"] = FIXTURE.replace("document.querySelector('#files').onchange = (e) => {",
-        "document.querySelector('#files').onchange = (e) => {document.querySelector('#prompt-textarea').value='';")
+    captured["html"] = FIXTURE.replace(
+        "document.querySelector('#files').onchange = (e) => {",
+        "document.querySelector('#files').onchange = (e) => {document.querySelector('#prompt-textarea').value='';",
+    )
     adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
     assert captured["sends"] == [{"prompt": request["prompt"], "files": ["tai-lieu-goc.pptx"]}]
     assert read_record(request["folder"], accounts.get()["id"])["state"] == "completed"
@@ -911,8 +1100,10 @@ def test_empty_draft_after_web_rerender_is_restored_and_sent_once(browser_fixtur
 
 def test_changed_nonempty_prompt_is_never_sent(browser_fixture):
     adapter, accounts, request, captured, _ = browser_fixture
-    captured["html"] = FIXTURE.replace("document.querySelector('#files').onchange = (e) => {",
-        "document.querySelector('#files').onchange = (e) => {document.querySelector('#prompt-textarea').value='changed prompt';")
+    captured["html"] = FIXTURE.replace(
+        "document.querySelector('#files').onchange = (e) => {",
+        "document.querySelector('#files').onchange = (e) => {document.querySelector('#prompt-textarea').value='changed prompt';",
+    )
     with pytest.raises(BrowserProblem, match="Ô prompt đã thay đổi"):
         adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
     assert not captured["sends"]
@@ -941,9 +1132,13 @@ def test_upload_timeout_without_rendered_attachment_never_sends(browser_fixture,
     from playwright.sync_api import Locator, TimeoutError
 
     adapter, accounts, request, captured, _ = browser_fixture
-    monkeypatch.setattr(Locator, "set_input_files", lambda *_a, **_k: (_ for _ in ()).throw(TimeoutError("No attachment")))
+    monkeypatch.setattr(
+        Locator, "set_input_files", lambda *_a, **_k: (_ for _ in ()).throw(TimeoutError("No attachment"))
+    )
     original = adapter.wait_upload
-    monkeypatch.setattr(adapter, "wait_upload", lambda *args, **kwargs: original(*args, timeout=.2, **kwargs))
+    monkeypatch.setattr(
+        adapter, "wait_upload", lambda *args, **kwargs: original(*args, timeout=0.2, **kwargs)
+    )
     with pytest.raises(BrowserProblem) as error:
         adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
     assert error.value.code == "upload" and not captured["sends"]
@@ -964,8 +1159,9 @@ def test_one_click_recovers_upload_then_receives_file_without_second_send(browse
         return original(*args, **kwargs)
 
     monkeypatch.setattr(adapter, "wait_upload", interrupted_upload)
-    result = convert_available(accounts.candidates(), accounts.root, request["folder"], Event(), lambda _: None,
-                               retry_delays=(0,))
+    result = convert_available(
+        accounts.candidates(), accounts.root, request["folder"], Event(), lambda _: None, retry_delays=(0,)
+    )
     assert len(attempts) == captured["contexts"] == 2
     assert captured["sends"] == [{"prompt": request["prompt"], "files": ["tai-lieu-goc.pptx"]}]
     assert Path(result["path"]).read_bytes() == source.read_bytes()
@@ -974,34 +1170,50 @@ def test_one_click_recovers_upload_then_receives_file_without_second_send(browse
 
 def test_file_upload_skips_image_only_input_and_accepts_editor_paragraph_spacing(browser_fixture):
     adapter, accounts, request, captured, _ = browser_fixture
-    captured["html"] = FIXTURE.replace('<textarea id="prompt-textarea"></textarea>',
+    captured["html"] = FIXTURE.replace(
+        '<textarea id="prompt-textarea"></textarea>',
         '<input type="file" id="camera" accept="image/*" multiple>'
-        '<div id="prompt-textarea" contenteditable="true"></div>')
-    captured["html"] = captured["html"].replace("document.querySelector('#prompt-textarea').value",
-                                               "document.querySelector('#prompt-textarea').innerText")
-    captured["html"] = captured["html"].replace('<script>', '''<script>
+        '<div id="prompt-textarea" contenteditable="true"></div>',
+    )
+    captured["html"] = captured["html"].replace(
+        "document.querySelector('#prompt-textarea').value",
+        "document.querySelector('#prompt-textarea').innerText",
+    )
+    captured["html"] = captured["html"].replace(
+        "<script>",
+        """<script>
 document.querySelector('#camera').onchange = () => { throw Error('Must not upload PPTX as photo'); };
 document.querySelector('#prompt-textarea').oninput = (e) => {
     const lines = e.target.innerText.split('\\n');
     e.target.replaceChildren(...lines.map(text => { const p = document.createElement('p'); p.textContent = text || ' '; return p; }));
 };
-''', 1)
+""",
+        1,
+    )
     adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
     import re
+
     assert len(captured["sends"]) == 1 and captured["sends"][0]["files"] == ["tai-lieu-goc.pptx"]
-    assert re.sub(r"\s+", " ", captured["sends"][0]["prompt"]).strip() == re.sub(r"\s+", " ", request["prompt"]).strip()
+    assert (
+        re.sub(r"\s+", " ", captured["sends"][0]["prompt"]).strip()
+        == re.sub(r"\s+", " ", request["prompt"]).strip()
+    )
 
 
 def test_web_renamed_attachment_is_recognized_after_app_draft_cleanup(browser_fixture):
     adapter, accounts, request, captured, _ = browser_fixture
-    captured["html"] = FIXTURE.replace('<div id="attached"></div>',
+    captured["html"] = FIXTURE.replace(
+        '<div id="attached"></div>',
         '<div id="attached"><div id="stale" aria-label="tai-lieu-goc(7).pptx">'
         '<button aria-label="Remove file 1: tai-lieu-goc(7).pptx" '
-        'onclick="this.parentElement.remove()">Remove old draft</button></div></div>')
-    captured["html"] = captured["html"].replace('n.textContent=f.name;',
-        '''n.setAttribute('aria-label', f.name.replace('.pptx','(8).pptx'));
+        'onclick="this.parentElement.remove()">Remove old draft</button></div></div>',
+    )
+    captured["html"] = captured["html"].replace(
+        "n.textContent=f.name;",
+        """n.setAttribute('aria-label', f.name.replace('.pptx','(8).pptx'));
         n.textContent=f.name.replace('.pptx','(8)');
-        if (document.querySelector('#stale')) throw Error('Old draft was not cleared');''')
+        if (document.querySelector('#stale')) throw Error('Old draft was not cleared');""",
+    )
     adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
     assert len(captured["sends"]) == 1 and captured["sends"][0]["files"] == ["tai-lieu-goc.pptx"]
 
@@ -1018,18 +1230,28 @@ def test_active_profile_cannot_overwrite_another_running_job(browser_fixture):
 
 
 def models_fixture(plan):
-    profile = f'<button data-testid="accounts-profile-button"><div>Fixture account</div><div>{plan}</div></button>'
-    choices = '''<button data-testid="model-switcher-dropdown-button" id="model-picker" onclick="document.querySelector('#model-menu').hidden=false">GPT-6.1 Sol</button>
+    profile = (
+        f'<button data-testid="accounts-profile-button"><div>Fixture account</div><div>{plan}</div></button>'
+    )
+    choices = """<button data-testid="model-switcher-dropdown-button" id="model-picker" onclick="document.querySelector('#model-menu').hidden=false">GPT-6.1 Sol</button>
     <div role="menu" id="model-menu" hidden>
     <button role="menuitemradio" onclick="choose(this)">GPT-6 Luna</button>
     <button role="menuitemradio" onclick="choose(this)">GPT-6.1 Sol</button>
     <button role="menuitemradio" %s onclick="choose(this)">Astra</button>
     <button role="menuitemradio" onclick="throw Error('Must not buy a plan')">Astra · Upgrade to Plus</button></div>
-    <script>function choose(item) {item.setAttribute('aria-checked','true');document.querySelector('#model-picker').textContent=item.textContent;document.querySelector('#model-menu').hidden=true;}</script>''' % ("disabled" if plan == "Free" else "")
+    <script>function choose(item) {item.setAttribute('aria-checked','true');document.querySelector('#model-picker').textContent=item.textContent;document.querySelector('#model-menu').hidden=true;}</script>""" % (
+        "disabled" if plan == "Free" else ""
+    )
     if plan == "Free":
-        choices = choices.replace('onclick="choose(this)">GPT-6.1 Sol', 'disabled onclick="choose(this)">GPT-6.1 Sol')
-    return FIXTURE.replace('<button data-testid="accounts-profile-button">Fixture account</button>', profile + choices).replace(
-        "files:[...document.querySelector('#files').files]", "model:document.querySelector('#model-picker').textContent,files:[...document.querySelector('#files').files]")
+        choices = choices.replace(
+            'onclick="choose(this)">GPT-6.1 Sol', 'disabled onclick="choose(this)">GPT-6.1 Sol'
+        )
+    return FIXTURE.replace(
+        '<button data-testid="accounts-profile-button">Fixture account</button>', profile + choices
+    ).replace(
+        "files:[...document.querySelector('#files').files]",
+        "model:document.querySelector('#model-picker').textContent,files:[...document.querySelector('#files').files]",
+    )
 
 
 def test_downgrade_selects_free_model_before_upload_and_keeps_cancelled_request(browser_fixture):
@@ -1037,8 +1259,15 @@ def test_downgrade_selects_free_model_before_upload_and_keeps_cancelled_request(
 
     adapter, accounts, request, captured, source = browser_fixture
     captured["html"] = models_fixture("Plus")
-    adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10,
-                    observed=accounts.observe)
+    adapter.convert(
+        accounts.get(),
+        accounts.root,
+        request["folder"],
+        Event(),
+        lambda _: None,
+        timeout=10,
+        observed=accounts.observe,
+    )
     assert captured["sends"][0]["model"] == "Astra"
     assert accounts.get()["plan"] == "plus"
     captured["html"] = models_fixture("Free")
@@ -1050,8 +1279,15 @@ def test_downgrade_selects_free_model_before_upload_and_keeps_cancelled_request(
         cancel.set()
 
     with pytest.raises(BrowserProblem, match="Đã dừng"):
-        adapter.convert(accounts.get(), accounts.root, next_request["folder"], cancel, lambda _: None, timeout=10,
-                        observed=stop_before_upload)
+        adapter.convert(
+            accounts.get(),
+            accounts.root,
+            next_request["folder"],
+            cancel,
+            lambda _: None,
+            timeout=10,
+            observed=stop_before_upload,
+        )
     assert accounts.get()["plan"] == "free" and accounts.get()["model"] == "GPT-6 Luna"
     record = read_record(next_request["folder"], accounts.get()["id"])
     assert record["plan"] == "free" and record["model"] == "GPT-6 Luna" and record["state"] == "prepared"
@@ -1076,9 +1312,15 @@ def test_login_saves_automatically_without_finish_button(browser_fixture, monkey
 
 def test_guest_composer_with_profile_control_is_not_a_saved_login(browser_fixture, monkeypatch):
     adapter, accounts, _, captured, _ = browser_fixture
-    captured["html"] = FIXTURE.replace("<textarea", '<button data-testid="login-button">Log in</button><textarea')
+    captured["html"] = FIXTURE.replace(
+        "<textarea", '<button data-testid="login-button">Log in</button><textarea'
+    )
     opening = adapter.open_context
-    monkeypatch.setattr(adapter, "open_context", lambda playwright, account, **_: opening(playwright, account, background=True))
+    monkeypatch.setattr(
+        adapter,
+        "open_context",
+        lambda playwright, account, **_: opening(playwright, account, background=True),
+    )
     with pytest.raises(BrowserProblem, match="Hết thời gian"):
         adapter.login_observed(accounts.get(), accounts.root, Event(), lambda _: None, timeout=2)
     assert not accounts.get()["ready"] and not captured["sends"]
@@ -1121,8 +1363,15 @@ def test_plain_login_attaches_only_after_user_confirmation_and_saves_once(plain_
             assert captured["contexts"] == 0 and not captured["sends"]
             finish.set()  # Simulated human confirmation, not web form automation.
 
-    result = adapter.login(accounts.get(), accounts.root, Event(), lambda _: None,
-        finish=finish, awaiting_confirmation=confirmation, timeout=10)
+    result = adapter.login(
+        accounts.get(),
+        accounts.root,
+        Event(),
+        lambda _: None,
+        finish=finish,
+        awaiting_confirmation=confirmation,
+        timeout=10,
+    )
     assert result["ready"] and phases == [True, False] and captured["contexts"] == 1
     assert native["opened"] == [(accounts.get()["id"], adapter.CHATGPT)] and native["closed"] == 1
     assert not captured["sends"]
@@ -1133,8 +1382,13 @@ def test_plain_login_cancel_does_not_attach_or_mark_account_ready(plain_login):
     native["running"] = True
     cancel = Event()
     with pytest.raises(BrowserProblem) as error:
-        adapter.login(accounts.get(), accounts.root, cancel, lambda _: None,
-            awaiting_confirmation=lambda waiting: cancel.set() if waiting else None)
+        adapter.login(
+            accounts.get(),
+            accounts.root,
+            cancel,
+            lambda _: None,
+            awaiting_confirmation=lambda waiting: cancel.set() if waiting else None,
+        )
     assert error.value.code == "cancelled" and captured["contexts"] == 0
     assert native["closed"] == 1 and not accounts.get()["ready"]
     with profile_lock(accounts.root, accounts.get()["id"]):
@@ -1143,7 +1397,9 @@ def test_plain_login_cancel_does_not_attach_or_mark_account_ready(plain_login):
 
 def test_plain_login_closed_before_sign_in_is_not_connected(plain_login):
     adapter, accounts, captured, _ = plain_login
-    captured["html"] = FIXTURE.replace('<textarea', '<button data-testid="login-button">Log in</button><textarea')
+    captured["html"] = FIXTURE.replace(
+        "<textarea", '<button data-testid="login-button">Log in</button><textarea'
+    )
     with pytest.raises(BrowserProblem) as error:
         adapter.login(accounts.get(), accounts.root, Event(), lambda _: None)
     assert error.value.code == "login" and not accounts.get()["ready"] and not captured["sends"]
@@ -1151,7 +1407,9 @@ def test_plain_login_closed_before_sign_in_is_not_connected(plain_login):
 
 def test_authentication_content_type_error_is_not_session_timeout(plain_login):
     adapter, accounts, captured, _ = plain_login
-    captured["html"] = '<html><h1>Oops, an error occurred!</h1><p>Route Error (400 Invalid content type: text/html; charset=UTF-8)</p></html>'
+    captured["html"] = (
+        "<html><h1>Oops, an error occurred!</h1><p>Route Error (400 Invalid content type: text/html; charset=UTF-8)</p></html>"
+    )
     with pytest.raises(BrowserProblem) as error:
         adapter.login(accounts.get(), accounts.root, Event(), lambda _: None)
     assert error.value.code == "auth_response" and "400" in str(error.value)
@@ -1160,13 +1418,13 @@ def test_authentication_content_type_error_is_not_session_timeout(plain_login):
 
 def test_readonly_health_probe_reads_current_plan_without_upgrade_or_sending(browser_fixture):
     adapter, accounts, _, captured, _ = browser_fixture
-    captured["html"] = '''<html><title>Fixture</title>
+    captured["html"] = """<html><title>Fixture</title>
     <button data-testid="accounts-profile-button" onclick="document.querySelector('#menu').hidden=false">TO</button>
     <textarea id="prompt-textarea"></textarea><button data-testid="send-button">Send</button>
     <div id="menu" role="menu" hidden><span>Upgrade to Plus</span><span data-testid="account-name">Fixture teacher</span>
     <button role="menuitem" onclick="document.querySelector('#dialog').hidden=false">Settings</button></div>
     <div id="dialog" role="dialog" hidden><button role="tab">Account</button>
-    <div data-testid="current-plan">Current plan: Free</div><button>Upgrade to Plus</button></div></html>'''
+    <div data-testid="current-plan">Current plan: Free</div><button>Upgrade to Plus</button></div></html>"""
     result = adapter.check_session(accounts.get(), accounts.root, Event(), lambda _: None)
     assert result["ready"] and result["plan"] == "free" and result["name"] == "Fixture teacher"
     assert not result["quota_limited"] and not captured["sends"]
@@ -1190,7 +1448,11 @@ def test_health_probe_reports_lost_session_without_opening_human_login(browser_f
 def test_slow_first_document_keeps_login_alive_and_can_finish(browser_fixture, monkeypatch):
     adapter, accounts, _, captured, _ = browser_fixture
     opening, navigating = adapter.open_context, adapter.navigate
-    monkeypatch.setattr(adapter, "open_context", lambda playwright, account, **_: opening(playwright, account, background=True))
+    monkeypatch.setattr(
+        adapter,
+        "open_context",
+        lambda playwright, account, **_: opening(playwright, account, background=True),
+    )
     navigations = []
 
     def slow_navigation(page, url, cancel):
@@ -1209,8 +1471,14 @@ def test_slow_first_document_keeps_login_alive_and_can_finish(browser_fixture, m
 def test_slow_first_document_waits_for_user_cancel_without_false_success(browser_fixture, monkeypatch):
     adapter, accounts, _, captured, _ = browser_fixture
     opening = adapter.open_context
-    monkeypatch.setattr(adapter, "open_context", lambda playwright, account, **_: opening(playwright, account, background=True))
-    monkeypatch.setattr(adapter, "navigate", lambda *_: (_ for _ in ()).throw(BrowserProblem("network", "Fixture timeout")))
+    monkeypatch.setattr(
+        adapter,
+        "open_context",
+        lambda playwright, account, **_: opening(playwright, account, background=True),
+    )
+    monkeypatch.setattr(
+        adapter, "navigate", lambda *_: (_ for _ in ()).throw(BrowserProblem("network", "Fixture timeout"))
+    )
     cancel = Event()
 
     def progress(message):
@@ -1225,11 +1493,17 @@ def test_slow_first_document_waits_for_user_cancel_without_false_success(browser
 def test_visible_login_is_not_ready_if_saved_chrome_session_cannot_reopen(browser_fixture, monkeypatch):
     adapter, accounts, _, captured, _ = browser_fixture
     opening = adapter.open_context
-    monkeypatch.setattr(adapter, "open_context", lambda playwright, account, **_: opening(playwright, account, background=True))
+    monkeypatch.setattr(
+        adapter,
+        "open_context",
+        lambda playwright, account, **_: opening(playwright, account, background=True),
+    )
 
     def progress(message):
         if "kiểm tra phiên" in message:
-            captured["html"] = FIXTURE.replace('<textarea', '<button data-testid="login-button">Log in</button><textarea')
+            captured["html"] = FIXTURE.replace(
+                "<textarea", '<button data-testid="login-button">Log in</button><textarea'
+            )
 
     with pytest.raises(BrowserProblem) as error:
         adapter.login_observed(accounts.get(), accounts.root, Event(), progress, timeout=10)
@@ -1237,14 +1511,22 @@ def test_visible_login_is_not_ready_if_saved_chrome_session_cannot_reopen(browse
     assert captured["contexts"] == 2 and not accounts.get()["ready"] and not captured["sends"]
 
 
-def test_login_verification_loop_stops_with_recoverable_reason_and_releases_profile(browser_fixture, monkeypatch):
+def test_login_verification_loop_stops_with_recoverable_reason_and_releases_profile(
+    browser_fixture, monkeypatch
+):
     adapter, accounts, _, captured, _ = browser_fixture
     captured["challenge"] = True
     opening = adapter.open_context
-    monkeypatch.setattr(adapter, "open_context", lambda playwright, account, **_: opening(playwright, account, background=True))
+    monkeypatch.setattr(
+        adapter,
+        "open_context",
+        lambda playwright, account, **_: opening(playwright, account, background=True),
+    )
     messages = []
     with pytest.raises(BrowserProblem) as failure:
-        adapter.login_observed(accounts.get(), accounts.root, Event(), messages.append, timeout=10, verification_timeout=.3)
+        adapter.login_observed(
+            accounts.get(), accounts.root, Event(), messages.append, timeout=10, verification_timeout=0.3
+        )
     assert failure.value.code == "verification"
     assert "Cloudflare" in str(failure.value)
     assert any("xác minh" in message for message in messages)
@@ -1259,20 +1541,30 @@ def test_login_can_finish_after_user_resolves_fixture_challenge(browser_fixture,
     adapter, accounts, _, captured, _ = browser_fixture
     # The fixture simulates a human completing the challenge, not an automated
     # click or a request to any real challenge endpoint.
-    captured["html"] = '<html><head><title>Just a moment...</title></head><body>' + (
+    captured["html"] = "<html><head><title>Just a moment...</title></head><body>" + (
         '<script>setTimeout(() => { document.title="ChatGPT"; document.body.innerHTML='
-        + json.dumps('<button data-testid="accounts-profile-button">Teacher<br>Free</button><textarea id="prompt-textarea"></textarea>')
-        + '; }, 700)</script></body></html>')
+        + json.dumps(
+            '<button data-testid="accounts-profile-button">Teacher<br>Free</button><textarea id="prompt-textarea"></textarea>'
+        )
+        + "; }, 700)</script></body></html>"
+    )
     opening = adapter.open_context
-    monkeypatch.setattr(adapter, "open_context", lambda playwright, account, **_: opening(playwright, account, background=True))
+    monkeypatch.setattr(
+        adapter,
+        "open_context",
+        lambda playwright, account, **_: opening(playwright, account, background=True),
+    )
     accounts.login_error(accounts.get()["id"], "verification", "Fixture")
+
     def progress(message):
         if "kiểm tra phiên" in message:
             # The mock verification has completed; the persisted fixture
             # session returns directly to signed-in controls on next launch.
             captured["html"] = models_fixture("Free")
 
-    result = adapter.login_observed(accounts.get(), accounts.root, Event(), progress, timeout=10, verification_timeout=5)
+    result = adapter.login_observed(
+        accounts.get(), accounts.root, Event(), progress, timeout=10, verification_timeout=5
+    )
     assert result["ready"] and result["plan"] == "free"
     accounts.observe(accounts.get()["id"], result["plan"], identity=result)
     assert "last_error" not in accounts.get() and not captured["sends"]
@@ -1282,14 +1574,20 @@ def test_cancel_during_verification_is_not_success_or_unnecessary_timeout(browse
     adapter, accounts, _, captured, _ = browser_fixture
     captured["challenge"] = True
     opening = adapter.open_context
-    monkeypatch.setattr(adapter, "open_context", lambda playwright, account, **_: opening(playwright, account, background=True))
+    monkeypatch.setattr(
+        adapter,
+        "open_context",
+        lambda playwright, account, **_: opening(playwright, account, background=True),
+    )
     cancel = Event()
 
     def on_progress(message):
         if "xác minh" in message:
             cancel.set()
 
-    result = adapter.login_observed(accounts.get(), accounts.root, cancel, on_progress, timeout=10, verification_timeout=5)
+    result = adapter.login_observed(
+        accounts.get(), accounts.root, cancel, on_progress, timeout=10, verification_timeout=5
+    )
     assert not result["ready"] and cancel.is_set() and not captured["sends"]
 
 
@@ -1302,55 +1600,81 @@ def test_upgrade_labels_are_not_plan_or_model_entitlements():
     assert model_priority("GPT-6.1 Sol") > model_priority("GPT-6 Sol") > model_priority("GPT-6 Luna")
 
 
-@pytest.mark.parametrize("plan", ['Free','Plus'])
+@pytest.mark.parametrize("plan", ["Free", "Plus"])
 def test_required_highest_model_and_reasoning_are_verified_before_real_chrome_submit(browser_fixture, plan):
     adapter, accounts, request, captured, _ = browser_fixture
-    config_path = Path(request['folder']) / 'config.json'
-    config = json.loads(config_path.read_text(encoding='utf-8'))
-    config['require_highest_model'] = True
-    config_path.write_text(json.dumps(config), encoding='utf-8')
-    think = '<button aria-pressed="false" onclick="this.setAttribute(\'aria-pressed\',\'true\')">Think</button>'
-    high = '''<button id="effort" onclick="document.querySelector('#efforts').hidden=false">Standard</button>
-    <div id="efforts" role="menu" hidden><button role="menuitemradio" onclick="document.querySelector('#effort').textContent='High';this.setAttribute('aria-checked','true');this.parentNode.hidden=true">High</button></div>'''
-    captured['html'] = models_fixture(plan).replace('<textarea id="prompt-textarea">', (think if plan=='Free' else high) + '<textarea id="prompt-textarea">')
-    adapter.convert(accounts.get(),accounts.root,request['folder'],Event(),lambda *_:None,timeout=10)
-    record = read_record(request['folder'],accounts.get()['id'])
-    assert record['highest_model_verified'] and record['reasoning_verified']
-    assert record['model'] == ('GPT-6 Luna' if plan=='Free' else 'Astra')
-    assert record['reasoning'] == ('Đã bật suy luận trên web' if plan=='Free' else 'Suy luận trên web: High')
-    assert len(captured['sends']) == 1
+    config_path = Path(request["folder"]) / "config.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    config["require_highest_model"] = True
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+    think = (
+        "<button aria-pressed=\"false\" onclick=\"this.setAttribute('aria-pressed','true')\">Think</button>"
+    )
+    high = """<button id="effort" onclick="document.querySelector('#efforts').hidden=false">Standard</button>
+    <div id="efforts" role="menu" hidden><button role="menuitemradio" onclick="document.querySelector('#effort').textContent='High';this.setAttribute('aria-checked','true');this.parentNode.hidden=true">High</button></div>"""
+    captured["html"] = models_fixture(plan).replace(
+        '<textarea id="prompt-textarea">',
+        (think if plan == "Free" else high) + '<textarea id="prompt-textarea">',
+    )
+    adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda *_: None, timeout=10)
+    record = read_record(request["folder"], accounts.get()["id"])
+    assert record["highest_model_verified"] and record["reasoning_verified"]
+    assert record["model"] == ("GPT-6 Luna" if plan == "Free" else "Astra")
+    assert record["reasoning"] == (
+        "Đã bật suy luận trên web" if plan == "Free" else "Suy luận trên web: High"
+    )
+    assert len(captured["sends"]) == 1
 
 
 def test_restored_composer_waits_for_think_control_before_sending(browser_fixture):
     adapter, accounts, request, captured, _ = browser_fixture
-    config_path = Path(request['folder']) / 'config.json'
-    config = json.loads(config_path.read_text(encoding='utf-8'))
-    config['require_highest_model'] = True
-    config_path.write_text(json.dumps(config), encoding='utf-8')
-    captured['html'] = models_fixture('Free').replace('<textarea id="prompt-textarea">',
-        '<button id="hydrating-think" hidden aria-pressed="true">Think</button>'
-        '<textarea id="prompt-textarea">').replace('</script>',
-        'setTimeout(()=>document.querySelector("#hydrating-think").hidden=false,1200);</script>')
-    adapter.convert(accounts.get(), accounts.root, request['folder'], Event(), lambda _: None, timeout=10)
-    record = read_record(request['folder'], accounts.get()['id'])
-    assert record['reasoning_verified'] and record['reasoning'] == 'Đã bật suy luận trên web'
-    assert len(captured['sends']) == 1
+    config_path = Path(request["folder"]) / "config.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    config["require_highest_model"] = True
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+    captured["html"] = (
+        models_fixture("Free")
+        .replace(
+            '<textarea id="prompt-textarea">',
+            '<button id="hydrating-think" hidden aria-pressed="true">Think</button>'
+            '<textarea id="prompt-textarea">',
+        )
+        .replace(
+            "</script>",
+            'setTimeout(()=>document.querySelector("#hydrating-think").hidden=false,1200);</script>',
+        )
+    )
+    adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
+    record = read_record(request["folder"], accounts.get()["id"])
+    assert record["reasoning_verified"] and record["reasoning"] == "Đã bật suy luận trên web"
+    assert len(captured["sends"]) == 1
 
 
 @pytest.mark.parametrize("composer_label", ["Ask ChatGPT", "Hỏi ChatGPT"])
-def test_current_web_composer_saves_real_profile_identity_and_sends_full_prompt(browser_fixture, composer_label):
+def test_current_web_composer_saves_real_profile_identity_and_sends_full_prompt(
+    browser_fixture, composer_label
+):
     adapter, accounts, request, captured, _ = browser_fixture
-    content = models_fixture("Free").replace("<head>", '<head><meta charset="utf-8">').replace(
-        "<div>Fixture account</div>", "<div>Loading profile</div><div>Fixture account</div>")
-    content = content.replace('<textarea id="prompt-textarea"></textarea>',
+    content = (
+        models_fixture("Free")
+        .replace("<head>", '<head><meta charset="utf-8">')
+        .replace("<div>Fixture account</div>", "<div>Loading profile</div><div>Fixture account</div>")
+    )
+    content = content.replace(
+        '<textarea id="prompt-textarea"></textarea>',
         f'<form><div contenteditable="true" role="textbox" aria-label="{composer_label}" id="modern-composer"></div>'
-        '<button type="button" aria-pressed="false" onclick="this.setAttribute(\'aria-pressed\',\'true\')">Think</button>')
+        '<button type="button" aria-pressed="false" onclick="this.setAttribute(\'aria-pressed\',\'true\')">Think</button>',
+    )
     send_label = "Send" if composer_label == "Ask ChatGPT" else "Gửi"
-    content = content.replace('<form>', '<form onsubmit="event.preventDefault()">')
-    content = content.replace('<button data-testid="send-button"', f'<button type="submit" aria-label="{send_label}"')
+    content = content.replace("<form>", '<form onsubmit="event.preventDefault()">')
+    content = content.replace(
+        '<button data-testid="send-button"', f'<button type="submit" aria-label="{send_label}"'
+    )
     content = content.replace('<div id="messages">', '</form><div id="messages">')
-    content = content.replace("document.querySelector('#prompt-textarea').value",
-                              "document.querySelector('#modern-composer').innerText")
+    content = content.replace(
+        "document.querySelector('#prompt-textarea').value",
+        "document.querySelector('#modern-composer').innerText",
+    )
     captured["html"] = content
     result = adapter.check_session(accounts.get(), accounts.root, Event(), lambda _: None)
     assert result["ready"] and result["plan"] == "free" and result["name"] == "Fixture account"
@@ -1366,7 +1690,8 @@ def test_slow_model_menu_is_waited_for_and_highest_model_selected_before_send(br
     adapter, accounts, request, captured, _ = browser_fixture
     captured["html"] = models_fixture("Plus").replace(
         "document.querySelector('#model-menu').hidden=false",
-        "setTimeout(() => {document.querySelector('#model-menu').hidden=false}, 800)")
+        "setTimeout(() => {document.querySelector('#model-menu').hidden=false}, 800)",
+    )
     adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
     assert len(captured["sends"]) == 1 and captured["sends"][0]["model"] == "Astra"
 
@@ -1375,7 +1700,9 @@ def test_highest_model_must_be_confirmed_before_any_upload_or_send(browser_fixtu
     adapter, accounts, request, captured, _ = browser_fixture
     captured["html"] = models_fixture("Plus").replace(
         'onclick="choose(this)">Astra',
-        'onclick="document.querySelector(\'#model-menu\').hidden=true">Astra', 1)
+        "onclick=\"document.querySelector('#model-menu').hidden=true\">Astra",
+        1,
+    )
     with pytest.raises(BrowserProblem) as error:
         adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
     assert error.value.code == "model" and not captured["sends"]
@@ -1386,7 +1713,8 @@ def test_highest_model_must_be_confirmed_before_any_upload_or_send(browser_fixtu
 def test_model_with_generic_heading_is_verified_in_reopened_visible_menu(browser_fixture):
     adapter, accounts, request, captured, _ = browser_fixture
     captured["html"] = models_fixture("Plus").replace(
-        "document.querySelector('#model-picker').textContent=item.textContent;", "")
+        "document.querySelector('#model-picker').textContent=item.textContent;", ""
+    )
     adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
     record = read_record(request["folder"], accounts.get()["id"])
     assert record["model"] == "Astra" and len(captured["sends"]) == 1
@@ -1396,9 +1724,11 @@ def test_free_think_toggle_and_account_priority_do_not_change_a_sent_job(browser
     adapter, accounts, request, captured, _ = browser_fixture
     free_id = accounts.get()["id"]
     accounts.observe(free_id, "free")
-    captured["html"] = models_fixture("Free").replace('<textarea id="prompt-textarea">',
-        '<button aria-pressed="false" onclick="this.setAttribute(\'aria-pressed\',\'true\')">Think</button>'
-        '<textarea id="prompt-textarea">')
+    captured["html"] = models_fixture("Free").replace(
+        '<textarea id="prompt-textarea">',
+        "<button aria-pressed=\"false\" onclick=\"this.setAttribute('aria-pressed','true')\">Think</button>"
+        '<textarea id="prompt-textarea">',
+    )
     adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
     record = read_record(request["folder"], free_id)
     assert record["reasoning"] == "Đã bật suy luận trên web"
@@ -1420,9 +1750,11 @@ def test_reasoning_toggle_is_idempotent_and_verified_from_live_controls(browser_
 
     adapter, accounts, _request, captured, _source = browser_fixture
     off, on = ("false", "true") if state == "aria-pressed" else ("off", "on")
-    captured["html"] = FIXTURE.replace('<textarea id="prompt-textarea">',
+    captured["html"] = FIXTURE.replace(
+        '<textarea id="prompt-textarea">',
         f'<button id="think" {state}="{off}" onclick="window.clicks=(window.clicks||0)+1;this.setAttribute(\'{state}\',\'{on}\')">Think</button>'
-        '<textarea id="prompt-textarea">')
+        '<textarea id="prompt-textarea">',
+    )
     with sync_playwright() as playwright:
         context = adapter.open_context(playwright, accounts.get(), background=True)
         try:
@@ -1437,14 +1769,16 @@ def test_reasoning_toggle_is_idempotent_and_verified_from_live_controls(browser_
 
 def test_strongest_enabled_effort_is_selected_before_sending(browser_fixture):
     adapter, accounts, request, captured, _source = browser_fixture
-    controls = '''<button id="effort" onclick="document.querySelector('#efforts').hidden=false">Standard</button>
+    controls = """<button id="effort" onclick="document.querySelector('#efforts').hidden=false">Standard</button>
     <div id="efforts" role="menu" hidden>
       <button role="menuitemradio" aria-checked="false" onclick="document.querySelector('#effort').textContent='High';this.setAttribute('aria-checked','true');this.parentNode.hidden=true">High</button>
       <button role="menuitemradio" aria-checked="false" onclick="document.querySelector('#effort').textContent='Extended';this.setAttribute('aria-checked','true');this.parentNode.hidden=true">Extended</button>
       <button role="menuitemradio" disabled>Extra high</button>
       <button role="menuitemradio" onclick="throw Error('Must not upgrade')">Max · Upgrade to Plus</button>
-    </div>'''
-    captured["html"] = FIXTURE.replace('<textarea id="prompt-textarea">', controls + '<textarea id="prompt-textarea">')
+    </div>"""
+    captured["html"] = FIXTURE.replace(
+        '<textarea id="prompt-textarea">', controls + '<textarea id="prompt-textarea">'
+    )
     adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
     assert read_record(request["folder"], accounts.get()["id"])["reasoning"] == "Suy luận trên web: Extended"
     assert len(captured["sends"]) == 1
@@ -1456,10 +1790,12 @@ def test_free_tools_menu_can_enable_think_without_sending_a_chat(browser_fixture
     from app.browser_capabilities import select_reasoning
 
     adapter, accounts, _request, captured, _source = browser_fixture
-    controls = '''<button onclick="document.querySelector('#tools').hidden=false">Tools</button>
+    controls = """<button onclick="document.querySelector('#tools').hidden=false">Tools</button>
     <div id="tools" role="menu" hidden><button role="menuitemcheckbox" onclick="document.querySelector('#think').hidden=false;this.parentNode.hidden=true">Think</button></div>
-    <button id="think" aria-pressed="true" hidden onclick="throw Error('Must not disable Think')">Think</button>'''
-    captured["html"] = FIXTURE.replace('<textarea id="prompt-textarea">', controls + '<textarea id="prompt-textarea">')
+    <button id="think" aria-pressed="true" hidden onclick="throw Error('Must not disable Think')">Think</button>"""
+    captured["html"] = FIXTURE.replace(
+        '<textarea id="prompt-textarea">', controls + '<textarea id="prompt-textarea">'
+    )
     with sync_playwright() as playwright:
         context = adapter.open_context(playwright, accounts.get(), background=True)
         try:
@@ -1472,8 +1808,10 @@ def test_free_tools_menu_can_enable_think_without_sending_a_chat(browser_fixture
 
 def test_unconfirmed_reasoning_selection_stops_before_upload_or_send(browser_fixture):
     adapter, accounts, request, captured, _source = browser_fixture
-    captured["html"] = FIXTURE.replace('<textarea id="prompt-textarea">',
-        '<button aria-pressed="false">Think</button><textarea id="prompt-textarea">')
+    captured["html"] = FIXTURE.replace(
+        '<textarea id="prompt-textarea">',
+        '<button aria-pressed="false">Think</button><textarea id="prompt-textarea">',
+    )
     with pytest.raises(BrowserProblem) as exc:
         adapter.convert(accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10)
     assert exc.value.code == "model" and not captured["sends"]
@@ -1486,9 +1824,11 @@ def test_lesson_buttons_and_generic_retry_notice_are_not_effort_or_quota(browser
     from app.browser_capabilities import select_reasoning
 
     adapter, accounts, _request, captured, _source = browser_fixture
-    captured["html"] = FIXTURE.replace('<div id="messages">',
+    captured["html"] = FIXTURE.replace(
+        '<div id="messages">',
         '<div role="alert">Something went wrong. Try again later.</div><div id="messages">'
-        '<div data-message-author-role="assistant"><button aria-pressed="false" onclick="throw Error(\'Must not click lesson text\')">Think</button></div>')
+        '<div data-message-author-role="assistant"><button aria-pressed="false" onclick="throw Error(\'Must not click lesson text\')">Think</button></div>',
+    )
     with sync_playwright() as playwright:
         context = adapter.open_context(playwright, accounts.get(), background=True)
         try:
@@ -1504,22 +1844,33 @@ def test_stream_interruption_reloads_same_conversation_without_a_second_send(bro
     from playwright.sync_api import sync_playwright
 
     adapter, accounts, request, captured, _source = browser_fixture
-    record = {"account_id": accounts.get()["id"], "state": "waiting", "url": "https://chatgpt.com/c/fixture-123",
-              "followups": 0, "send_sha256": "a" * 64, "assistant_before": 0, "assistant_ids_before": []}
+    record = {
+        "account_id": accounts.get()["id"],
+        "state": "waiting",
+        "url": "https://chatgpt.com/c/fixture-123",
+        "followups": 0,
+        "send_sha256": "a" * 64,
+        "assistant_before": 0,
+        "assistant_ids_before": [],
+    }
     original = adapter.navigate
     reloads = []
+
     def recover(page, url, cancel):
         reloads.append(url)
         captured["html"] = FIXTURE
         original(page, url, cancel)
+
     monkeypatch.setattr(adapter, "navigate", recover)
     with sync_playwright() as driver:
         context = adapter.open_context(driver, accounts.get(), background=True)
         try:
             page = context.pages[0]
             page.goto(record["url"])
-            page.set_content('<button data-testid="stop-button">Stop</button><div role="status">'
-                             'Connection interrupted. Waiting for the complete answer</div>')
+            page.set_content(
+                '<button data-testid="stop-button">Stop</button><div role="status">'
+                "Connection interrupted. Waiting for the complete answer</div>"
+            )
             link = adapter.wait_result(page, request["folder"], record, Event(), lambda _: None, timeout=15)
             assert ".pptx" in link.inner_text()
             assert reloads == [record["url"]] and not captured["sends"]
@@ -1528,17 +1879,30 @@ def test_stream_interruption_reloads_same_conversation_without_a_second_send(bro
             context.close()
 
 
-def test_stream_reconnections_are_durable_and_bounded_even_when_stop_button_remains(browser_fixture, monkeypatch):
+def test_stream_reconnections_are_durable_and_bounded_even_when_stop_button_remains(
+    browser_fixture, monkeypatch
+):
     from playwright.sync_api import sync_playwright
 
     adapter, accounts, request, captured, _source = browser_fixture
-    captured["html"] = FIXTURE.replace('<div id="messages">', '<button data-testid="stop-button">Stop</button>'
-        '<div role="status">Connection interrupted. Waiting for the complete answer</div><div id="messages">')
-    record = {"account_id": accounts.get()["id"], "state": "waiting", "url": "https://chatgpt.com/c/fixture-123",
-              "followups": 0, "send_sha256": "a" * 64, "assistant_before": 1}
+    captured["html"] = FIXTURE.replace(
+        '<div id="messages">',
+        '<button data-testid="stop-button">Stop</button>'
+        '<div role="status">Connection interrupted. Waiting for the complete answer</div><div id="messages">',
+    )
+    record = {
+        "account_id": accounts.get()["id"],
+        "state": "waiting",
+        "url": "https://chatgpt.com/c/fixture-123",
+        "followups": 0,
+        "send_sha256": "a" * 64,
+        "assistant_before": 1,
+    }
     original = adapter.navigate
     reloads = []
-    monkeypatch.setattr(adapter, "navigate", lambda p, url, cancel: (reloads.append(url), original(p, url, cancel))[-1])
+    monkeypatch.setattr(
+        adapter, "navigate", lambda p, url, cancel: (reloads.append(url), original(p, url, cancel))[-1]
+    )
     with sync_playwright() as driver:
         context = adapter.open_context(driver, accounts.get(), background=True)
         try:
@@ -1550,14 +1914,18 @@ def test_stream_reconnections_are_durable_and_bounded_even_when_stop_button_rema
                 assert exc.value.code == "network"
             assert reloads == [record["url"], record["url"]] and not captured["sends"]
             assert read_record(request["folder"], accounts.get()["id"])["stream_reconnects"] == 2
-            page.set_content('<div data-message-author-role="assistant"><div role="status">'
-                             'Connection interrupted. Waiting for the complete answer</div></div>')
+            page.set_content(
+                '<div data-message-author-role="assistant"><div role="status">'
+                "Connection interrupted. Waiting for the complete answer</div></div>"
+            )
             assert not adapter.interrupted_answer(page)
         finally:
             context.close()
 
 
-def test_stopped_activity_without_answer_gets_one_export_only_after_matching_prompt(browser_fixture, monkeypatch):
+def test_stopped_activity_without_answer_gets_one_export_only_after_matching_prompt(
+    browser_fixture, monkeypatch
+):
     from html import escape
 
     from playwright.sync_api import sync_playwright
@@ -1565,37 +1933,52 @@ def test_stopped_activity_without_answer_gets_one_export_only_after_matching_pro
     from app.browser_receipt import save_intent
 
     adapter, accounts, request, captured, _source = browser_fixture
-    monkeypatch.setattr(adapter, 'INCOMPLETE_ANSWER_GRACE', .1)
-    record = {'account_id': accounts.get()['id'], 'state': 'waiting', 'url': 'https://chatgpt.com/c/fixture-123',
-              'followups': 0, 'assistant_before': 0, 'assistant_ids_before': [], 'user_before': 0}
-    save_intent(request['folder'], record, request['prompt'])
-    markup = ('<div data-chatgpt-search-unit-key="turn:0:user" data-chatgpt-search-message-ids="source">'
-              + escape(request['prompt']) + '</div><div data-markdown-text-style="assistant-message" '
-              'data-markdown-text-tone="tertiary">Prepared the slides</div>')
+    monkeypatch.setattr(adapter, "INCOMPLETE_ANSWER_GRACE", 0.1)
+    record = {
+        "account_id": accounts.get()["id"],
+        "state": "waiting",
+        "url": "https://chatgpt.com/c/fixture-123",
+        "followups": 0,
+        "assistant_before": 0,
+        "assistant_ids_before": [],
+        "user_before": 0,
+    }
+    save_intent(request["folder"], record, request["prompt"])
+    markup = (
+        '<div data-chatgpt-search-unit-key="turn:0:user" data-chatgpt-search-message-ids="source">'
+        + escape(request["prompt"])
+        + '</div><div data-markdown-text-style="assistant-message" '
+        'data-markdown-text-tone="tertiary">Prepared the slides</div>'
+    )
     with sync_playwright() as driver:
         context = adapter.open_context(driver, accounts.get(), background=True)
         try:
             page = context.pages[0]
-            page.goto(record['url'])
-            page.locator('#messages').evaluate('(e, html) => e.innerHTML = html', markup)
-            entry = adapter.wait_result(page, request['folder'], record, Event(), lambda _: None, timeout=10)
-            assert '.pptx' in entry.inner_text()
-            assert record['followups'] == 1 and len(captured['sends']) == 1
-            assert captured['sends'][0]['prompt'] == adapter.EXPORT_PROMPT and not captured['sends'][0]['files']
+            page.goto(record["url"])
+            page.locator("#messages").evaluate("(e, html) => e.innerHTML = html", markup)
+            entry = adapter.wait_result(page, request["folder"], record, Event(), lambda _: None, timeout=10)
+            assert ".pptx" in entry.inner_text()
+            assert record["followups"] == 1 and len(captured["sends"]) == 1
+            assert (
+                captured["sends"][0]["prompt"] == adapter.EXPORT_PROMPT and not captured["sends"][0]["files"]
+            )
             # An unrelated last user turn must not receive an export request.
             record.update(followups=0, assistant_before=0, assistant_ids_before=[], user_before=0)
-            save_intent(request['folder'], record, request['prompt'])
-            page.locator('#messages').evaluate('(e, html) => e.innerHTML = html', markup.replace(escape(request['prompt']), 'Different request'))
+            save_intent(request["folder"], record, request["prompt"])
+            page.locator("#messages").evaluate(
+                "(e, html) => e.innerHTML = html",
+                markup.replace(escape(request["prompt"]), "Different request"),
+            )
             with pytest.raises(BrowserProblem) as exc:
-                adapter.wait_result(page, request['folder'], record, Event(), lambda _: None, timeout=10)
-            assert exc.value.code == 'submission' and len(captured['sends']) == 1
+                adapter.wait_result(page, request["folder"], record, Event(), lambda _: None, timeout=10)
+            assert exc.value.code == "submission" and len(captured["sends"]) == 1
             # An acknowledged export that stalls is not sent a second time.
             record.update(followups=1)
-            save_intent(request['folder'], record, request['prompt'])
-            page.locator('#messages').evaluate('(e, html) => e.innerHTML = html', markup)
+            save_intent(request["folder"], record, request["prompt"])
+            page.locator("#messages").evaluate("(e, html) => e.innerHTML = html", markup)
             with pytest.raises(BrowserProblem) as exc:
-                adapter.wait_result(page, request['folder'], record, Event(), lambda _: None, timeout=10)
-            assert exc.value.code == 'no_file' and len(captured['sends']) == 1
+                adapter.wait_result(page, request["folder"], record, Event(), lambda _: None, timeout=10)
+            assert exc.value.code == "no_file" and len(captured["sends"]) == 1
         finally:
             context.close()
 
@@ -1604,21 +1987,27 @@ def test_exhausted_response_wait_can_receive_ready_file_but_never_starts_another
     from playwright.sync_api import sync_playwright
 
     adapter, accounts, request, captured, _source = browser_fixture
-    record = {'account_id': accounts.get()['id'], 'state': 'waiting', 'url': 'https://chatgpt.com/c/fixture-123',
-              'followups': 0, 'send_sha256': 'a' * 64, 'assistant_before': 0,
-              'response_wait': {'key': 'a' * 64, 'seconds': 900}}
+    record = {
+        "account_id": accounts.get()["id"],
+        "state": "waiting",
+        "url": "https://chatgpt.com/c/fixture-123",
+        "followups": 0,
+        "send_sha256": "a" * 64,
+        "assistant_before": 0,
+        "response_wait": {"key": "a" * 64, "seconds": 900},
+    }
     with sync_playwright() as driver:
         context = adapter.open_context(driver, accounts.get(), background=True)
         try:
             page = context.pages[0]
-            page.goto(record['url'])
-            assert adapter.wait_result(page, request['folder'], record, Event(), lambda _: None)
-            page.locator('#messages').evaluate('e => e.replaceChildren()')
+            page.goto(record["url"])
+            assert adapter.wait_result(page, request["folder"], record, Event(), lambda _: None)
+            page.locator("#messages").evaluate("e => e.replaceChildren()")
             for _ in range(2):
                 with pytest.raises(BrowserProblem) as exc:
-                    adapter.wait_result(page, request['folder'], record, Event(), lambda _: None)
-                assert exc.value.code == 'timeout' and record['wait_exhausted']
-            assert not captured['sends']
+                    adapter.wait_result(page, request["folder"], record, Event(), lambda _: None)
+                assert exc.value.code == "timeout" and record["wait_exhausted"]
+            assert not captured["sends"]
         finally:
             context.close()
 
@@ -1627,20 +2016,26 @@ def test_active_generation_after_fifteen_minutes_finishes_without_another_send(b
     from playwright.sync_api import sync_playwright
 
     adapter, accounts, request, captured, _source = browser_fixture
-    record = {'account_id': accounts.get()['id'], 'state':'waiting', 'url':'https://chatgpt.com/c/fixture-123',
-              'followups':0, 'send_sha256':'a'*64, 'assistant_before':0,
-              'response_wait':{'key':'a'*64, 'seconds':900.3, 'limit':900}}
+    record = {
+        "account_id": accounts.get()["id"],
+        "state": "waiting",
+        "url": "https://chatgpt.com/c/fixture-123",
+        "followups": 0,
+        "send_sha256": "a" * 64,
+        "assistant_before": 0,
+        "response_wait": {"key": "a" * 64, "seconds": 900.3, "limit": 900},
+    }
     with sync_playwright() as driver:
         context = adapter.open_context(driver, accounts.get(), background=True)
         try:
             page = context.pages[0]
-            page.goto(record['url'])
-            page.set_content('''<button data-testid="stop-button">Stop</button>
-<script>window.stopCount=0;document.querySelector('button').onclick=()=>window.stopCount++;setTimeout(()=>document.body.innerHTML='<div data-message-author-role="assistant"><a href="/backend-api/files/result.pptx">result.pptx</a></div>',700)</script>''')
-            entry = adapter.wait_result(page, request['folder'], record, Event(), lambda _: None)
-            assert entry and record['response_wait']['limit'] > 900
-            assert not record['wait_exhausted'] and not captured['sends']
-            assert page.evaluate('window.stopCount') == 0
+            page.goto(record["url"])
+            page.set_content("""<button data-testid="stop-button">Stop</button>
+<script>window.stopCount=0;document.querySelector('button').onclick=()=>window.stopCount++;setTimeout(()=>document.body.innerHTML='<div data-message-author-role="assistant"><a href="/backend-api/files/result.pptx">result.pptx</a></div>',700)</script>""")
+            entry = adapter.wait_result(page, request["folder"], record, Event(), lambda _: None)
+            assert entry and record["response_wait"]["limit"] > 900
+            assert not record["wait_exhausted"] and not captured["sends"]
+            assert page.evaluate("window.stopCount") == 0
         finally:
             context.close()
 
@@ -1649,18 +2044,24 @@ def test_silent_generation_refreshes_saved_chat_and_receives_without_resending(b
     from playwright.sync_api import sync_playwright
 
     adapter, accounts, request, captured, _source = browser_fixture
-    monkeypatch.setattr(adapter, 'STALE_RESPONSE_GRACE', .1)
-    record = {'account_id': accounts.get()['id'], 'state':'waiting', 'url':'https://chatgpt.com/c/fixture-123',
-              'followups':0, 'send_sha256':'a'*64, 'assistant_before':0}
+    monkeypatch.setattr(adapter, "STALE_RESPONSE_GRACE", 0.1)
+    record = {
+        "account_id": accounts.get()["id"],
+        "state": "waiting",
+        "url": "https://chatgpt.com/c/fixture-123",
+        "followups": 0,
+        "send_sha256": "a" * 64,
+        "assistant_before": 0,
+    }
     with sync_playwright() as driver:
         context = adapter.open_context(driver, accounts.get(), background=True)
         try:
             page = context.pages[0]
-            page.goto(record['url'])
+            page.goto(record["url"])
             page.set_content('<button data-testid="stop-button">Stop</button>')
-            entry = adapter.wait_result(page, request['folder'], record, Event(), lambda _: None, timeout=10)
-            assert entry and record['response_watch']['refreshes'] == 1
-            assert page.url == record['url'] and not captured['sends']
+            entry = adapter.wait_result(page, request["folder"], record, Event(), lambda _: None, timeout=10)
+            assert entry and record["response_watch"]["refreshes"] == 1
+            assert page.url == record["url"] and not captured["sends"]
         finally:
             context.close()
 
@@ -1674,35 +2075,55 @@ def test_expired_wait_can_finish_a_stopped_answer_with_one_export(browser_fixtur
     from app.browser_receipt import save_intent
 
     adapter, accounts, request, captured, _source = browser_fixture
-    captured['html'] = FIXTURE.replace("document.querySelector('#messages').innerHTML = ",
-                                       "document.querySelector('#messages').innerHTML += ")
-    record = {'account_id':accounts.get()['id'], 'state':'waiting', 'url':'https://chatgpt.com/c/fixture-old',
-              'followups':0, 'assistant_before':0, 'assistant_ids_before':[], 'user_before':0}
-    save_intent(request['folder'], record, request['prompt'])
-    record['response_wait'] = {'key':record['send_sha256'], 'seconds':900.1, 'limit':900}
+    captured["html"] = FIXTURE.replace(
+        "document.querySelector('#messages').innerHTML = ",
+        "document.querySelector('#messages').innerHTML += ",
+    )
+    record = {
+        "account_id": accounts.get()["id"],
+        "state": "waiting",
+        "url": "https://chatgpt.com/c/fixture-old",
+        "followups": 0,
+        "assistant_before": 0,
+        "assistant_ids_before": [],
+        "user_before": 0,
+    }
+    save_intent(request["folder"], record, request["prompt"])
+    record["response_wait"] = {"key": record["send_sha256"], "seconds": 900.1, "limit": 900}
     cancel = Event()
     timer = Timer(20, cancel.set)
     with sync_playwright() as driver:
         context = adapter.open_context(driver, accounts.get(), background=True)
         try:
             page = context.pages[0]
-            page.goto(record['url'])
-            markup = '<div data-message-author-role="user">'+escape(request['prompt'])+'</div>'
+            page.goto(record["url"])
+            markup = '<div data-message-author-role="user">' + escape(request["prompt"]) + "</div>"
             markup += '<div data-message-author-role="assistant">Prepared; ready to export the file.</div>'
-            page.locator('#messages').evaluate('(e, html)=>e.innerHTML=html', markup)
+            page.locator("#messages").evaluate("(e, html)=>e.innerHTML=html", markup)
             timer.start()
-            entry = adapter.wait_result(page, request['folder'], record, cancel, lambda _:None)
-            assert entry and record['followups'] == 1 and not record['wait_exhausted']
-            assert len(captured['sends']) == 1 and captured['sends'][0]['prompt'] == adapter.EXPORT_PROMPT
-            assert not captured['sends'][0]['files']
+            entry = adapter.wait_result(page, request["folder"], record, cancel, lambda _: None)
+            assert entry and record["followups"] == 1 and not record["wait_exhausted"]
+            assert len(captured["sends"]) == 1 and captured["sends"][0]["prompt"] == adapter.EXPORT_PROMPT
+            assert not captured["sends"][0]["files"]
         finally:
             timer.cancel()
             context.close()
 
 
-@pytest.mark.parametrize('matching,file_ready,blocked', [(True, False, ''), (False, False, ''), (True, True, ''),
-    (True, False, 'already_requested'), (True, False, 'already_stopped'), (True, False, 'quality')])
-def test_old_interrupted_turn_is_finalized_once_only_after_exact_user_match(browser_fixture, matching, file_ready, blocked):
+@pytest.mark.parametrize(
+    "matching,file_ready,blocked",
+    [
+        (True, False, ""),
+        (False, False, ""),
+        (True, True, ""),
+        (True, False, "already_requested"),
+        (True, False, "already_stopped"),
+        (True, False, "quality"),
+    ],
+)
+def test_old_interrupted_turn_is_finalized_once_only_after_exact_user_match(
+    browser_fixture, matching, file_ready, blocked
+):
     from html import escape
     from threading import Timer
 
@@ -1711,94 +2132,135 @@ def test_old_interrupted_turn_is_finalized_once_only_after_exact_user_match(brow
     from app.browser_receipt import save_intent
 
     adapter, accounts, request, captured, _source = browser_fixture
-    record = {'account_id':accounts.get()['id'], 'state':'waiting', 'url':'https://chatgpt.com/c/fixture-old',
-              'followups':0, 'assistant_before':0, 'assistant_ids_before':[], 'user_before':0}
-    save_intent(request['folder'], record, request['prompt'])
-    record.update(stream_reconnect_key=record['send_sha256'], stream_reconnects=2,
-                  response_wait={'key':record['send_sha256'], 'seconds':900.1, 'limit':1200, 'base_limit':900})
-    if blocked == 'already_requested':
-        record['followups'] = 1
-    elif blocked == 'already_stopped':
-        record['finalization_recovery'] = {'key':record['send_sha256'], 'stop_requested':True}
-    elif blocked == 'quality':
-        record['quality_stage'] = 'waiting'
+    record = {
+        "account_id": accounts.get()["id"],
+        "state": "waiting",
+        "url": "https://chatgpt.com/c/fixture-old",
+        "followups": 0,
+        "assistant_before": 0,
+        "assistant_ids_before": [],
+        "user_before": 0,
+    }
+    save_intent(request["folder"], record, request["prompt"])
+    record.update(
+        stream_reconnect_key=record["send_sha256"],
+        stream_reconnects=2,
+        response_wait={"key": record["send_sha256"], "seconds": 900.1, "limit": 1200, "base_limit": 900},
+    )
+    if blocked == "already_requested":
+        record["followups"] = 1
+    elif blocked == "already_stopped":
+        record["finalization_recovery"] = {"key": record["send_sha256"], "stop_requested": True}
+    elif blocked == "quality":
+        record["quality_stage"] = "waiting"
     cancel = Event()
     timer = Timer(20, cancel.set)
     with sync_playwright() as driver:
         context = adapter.open_context(driver, accounts.get(), background=True)
         try:
             page = context.pages[0]
-            page.goto(record['url'])
-            prompt = request['prompt'] if matching else 'Unrelated lesson request'
-            page.locator('#messages').evaluate('(e,html)=>e.innerHTML=html', '<div data-message-author-role="user">'+escape(prompt)+'</div>')
+            page.goto(record["url"])
+            prompt = request["prompt"] if matching else "Unrelated lesson request"
+            page.locator("#messages").evaluate(
+                "(e,html)=>e.innerHTML=html",
+                '<div data-message-author-role="user">' + escape(prompt) + "</div>",
+            )
             if file_ready:
-                page.locator('#messages').evaluate('''e=>e.insertAdjacentHTML('beforeend','<div data-message-author-role="assistant"><a href="/backend-api/files/result.pptx">result.pptx</a></div>')''')
-            page.evaluate('''() => {
+                page.locator("#messages").evaluate(
+                    """e=>e.insertAdjacentHTML('beforeend','<div data-message-author-role="assistant"><a href="/backend-api/files/result.pptx">result.pptx</a></div>')"""
+                )
+            page.evaluate("""() => {
               window.stopCount=0;
               let stop=document.createElement('button');stop.id='stalled';stop.dataset.testid='stop-button';stop.textContent='Stop';
               let notice=document.createElement('div');notice.id='interrupted';notice.setAttribute('role','status');notice.textContent='Connection interrupted. Waiting for the complete answer';
               stop.onclick=()=>{window.stopCount++;stop.remove();notice.remove();};document.body.append(stop,notice);
-            }''')
+            }""")
             timer.start()
             if matching and not blocked:
-                entry = adapter.wait_result(page, request['folder'], record, cancel, lambda _:None)
-                assert entry and page.evaluate('window.stopCount') == 1
-                assert record['finalization_recovery']['stop_requested']
+                entry = adapter.wait_result(page, request["folder"], record, cancel, lambda _: None)
+                assert entry and page.evaluate("window.stopCount") == 1
+                assert record["finalization_recovery"]["stop_requested"]
                 if file_ready:
-                    assert not captured['sends'] and record['followups'] == 0
+                    assert not captured["sends"] and record["followups"] == 0
                 else:
-                    assert record['followups'] == 1
-                    assert len(captured['sends']) == 1 and captured['sends'][0]['prompt'] == adapter.EXPORT_PROMPT
-                    assert not captured['sends'][0]['files']
+                    assert record["followups"] == 1
+                    assert (
+                        len(captured["sends"]) == 1
+                        and captured["sends"][0]["prompt"] == adapter.EXPORT_PROMPT
+                    )
+                    assert not captured["sends"][0]["files"]
             else:
                 with pytest.raises(BrowserProblem) as exc:
-                    adapter.wait_result(page, request['folder'], record, cancel, lambda _:None)
-                assert exc.value.code == ('network' if blocked else 'submission') and not captured['sends']
-                assert page.evaluate('window.stopCount') == 0
+                    adapter.wait_result(page, request["folder"], record, cancel, lambda _: None)
+                assert exc.value.code == ("network" if blocked else "submission") and not captured["sends"]
+                assert page.evaluate("window.stopCount") == 0
         finally:
             timer.cancel()
             context.close()
 
+
 def test_recovery_uses_latest_complete_prompt_after_web_reduces_message_count(browser_fixture):
     from app.browser_receipt import save_intent
-    adapter,accounts,request,captured,source=browser_fixture
-    record=read_record(request['folder'],accounts.get()['id'])
-    record.update(state='submitting',user_before=99,assistant_before=0)
-    save_intent(request['folder'],record,request['prompt']);adapter.write_record(request['folder'],record)
-    captured['html']=receipt_fixture_html(request['prompt'])
-    result=adapter.convert(accounts.get(),accounts.root,request['folder'],Event(),lambda _:None,timeout=10)
-    assert Path(result['path']).read_bytes()==source.read_bytes() and not captured['sends']
+
+    adapter, accounts, request, captured, source = browser_fixture
+    record = read_record(request["folder"], accounts.get()["id"])
+    record.update(state="submitting", user_before=99, assistant_before=0)
+    save_intent(request["folder"], record, request["prompt"])
+    adapter.write_record(request["folder"], record)
+    captured["html"] = receipt_fixture_html(request["prompt"])
+    result = adapter.convert(
+        accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10
+    )
+    assert Path(result["path"]).read_bytes() == source.read_bytes() and not captured["sends"]
 
 
 def test_same_chat_same_message_count_still_acknowledges_complete_prompt(browser_fixture):
     from playwright.sync_api import sync_playwright
-    from app.browser_receipt import wait_receipt
-    adapter,accounts,request,captured,_=browser_fixture
-    captured['html']=receipt_fixture_html(request['prompt'])
-    record=read_record(request['folder'],accounts.get()['id'])
-    record.update(state='submitting',user_before=1,assistant_before=1)
-    with sync_playwright() as pw:
-        context=adapter.open_context(pw,accounts.get(),background=True,cancel=Event())
-        try:
-            page=context.new_page();adapter.navigate(page,'https://chatgpt.com/c/receipt-one',Event())
-            assert wait_receipt(page,request['folder'],record,request['prompt'],Event(),previous_url=page.url,timeout=1)
-        finally:context.close()
-    assert record['state']=='waiting' and not captured['sends']
 
-@pytest.mark.parametrize('quoted',[False,True])
-def test_unavailable_saved_chat_is_distinct_from_expired_login_and_lesson_quotes(browser_fixture,quoted):
-    adapter,accounts,request,captured,source=browser_fixture
-    record=read_record(request['folder'],accounts.get()['id'])
-    record.update(state='waiting',url='https://chatgpt.com/c/receipt-one',assistant_before=0,assistant_ids_before=[])
-    adapter.write_record(request['folder'],record)
-    warning='<div>Could not load this ChatGPT conversation</div>'
-    captured['html']=FIXTURE.replace('</body>',warning+'</body>') if not quoted else FIXTURE.replace(
-        '<a href="/backend-api/files/result.pptx">',warning+'<a href="/backend-api/files/result.pptx">')
+    from app.browser_receipt import wait_receipt
+
+    adapter, accounts, request, captured, _ = browser_fixture
+    captured["html"] = receipt_fixture_html(request["prompt"])
+    record = read_record(request["folder"], accounts.get()["id"])
+    record.update(state="submitting", user_before=1, assistant_before=1)
+    with sync_playwright() as pw:
+        context = adapter.open_context(pw, accounts.get(), background=True, cancel=Event())
+        try:
+            page = context.new_page()
+            adapter.navigate(page, "https://chatgpt.com/c/receipt-one", Event())
+            assert wait_receipt(
+                page, request["folder"], record, request["prompt"], Event(), previous_url=page.url, timeout=1
+            )
+        finally:
+            context.close()
+    assert record["state"] == "waiting" and not captured["sends"]
+
+
+@pytest.mark.parametrize("quoted", [False, True])
+def test_unavailable_saved_chat_is_distinct_from_expired_login_and_lesson_quotes(browser_fixture, quoted):
+    adapter, accounts, request, captured, source = browser_fixture
+    record = read_record(request["folder"], accounts.get()["id"])
+    record.update(
+        state="waiting", url="https://chatgpt.com/c/receipt-one", assistant_before=0, assistant_ids_before=[]
+    )
+    adapter.write_record(request["folder"], record)
+    warning = "<div>Could not load this ChatGPT conversation</div>"
+    captured["html"] = (
+        FIXTURE.replace("</body>", warning + "</body>")
+        if not quoted
+        else FIXTURE.replace(
+            '<a href="/backend-api/files/result.pptx">', warning + '<a href="/backend-api/files/result.pptx">'
+        )
+    )
     if quoted:
-        result=adapter.convert(accounts.get(),accounts.root,request['folder'],Event(),lambda _:None,timeout=10)
-        assert Path(result['path']).read_bytes()==source.read_bytes()
+        result = adapter.convert(
+            accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10
+        )
+        assert Path(result["path"]).read_bytes() == source.read_bytes()
     else:
         with pytest.raises(BrowserProblem) as error:
-            adapter.convert(accounts.get(),accounts.root,request['folder'],Event(),lambda _:None,timeout=10)
-        assert error.value.code=='conversation'
-    assert not captured['sends']
+            adapter.convert(
+                accounts.get(), accounts.root, request["folder"], Event(), lambda _: None, timeout=10
+            )
+        assert error.value.code == "conversation"
+    assert not captured["sends"]

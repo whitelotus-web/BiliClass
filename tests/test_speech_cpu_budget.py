@@ -3,11 +3,11 @@
 import ctypes
 import os
 import shutil
+from threading import Event, Thread
 from uuid import uuid4
 
 import numpy as np
 import pytest
-from threading import Event, Thread
 from threadpoolctl import threadpool_info
 
 from app import speech
@@ -15,31 +15,44 @@ from app.voice_threads import _blas_controls, blas_budget
 
 
 def test_overlapping_inference_keeps_shared_blas_limit_until_both_finish():
-    before=pool_snapshot()
-    first,second,release_first,release_second=Event(),Event(),Event(),Event()
-    errors=[]
-    def worker(entered,release):
+    before = pool_snapshot()
+    first, second, release_first, release_second = Event(), Event(), Event(), Event()
+    errors = []
+
+    def worker(entered, release):
         try:
             with blas_budget():
-                entered.set();assert release.wait(5)
-                assert all(p['num_threads']==1 for p in pool_snapshot() if p['user_api']=='blas')
-        except BaseException as exc:errors.append(exc)
-    a=Thread(target=worker,args=(first,release_first));b=Thread(target=worker,args=(second,release_second))
+                entered.set()
+                assert release.wait(5)
+                assert all(p["num_threads"] == 1 for p in pool_snapshot() if p["user_api"] == "blas")
+        except BaseException as exc:
+            errors.append(exc)
+
+    a = Thread(target=worker, args=(first, release_first))
+    b = Thread(target=worker, args=(second, release_second))
     a.start()
     try:
-        assert first.wait(5);b.start();assert second.wait(5)
-        release_first.set();a.join(5)
-        assert all(p['num_threads']==1 for p in pool_snapshot() if p['user_api']=='blas')
+        assert first.wait(5)
+        b.start()
+        assert second.wait(5)
+        release_first.set()
+        a.join(5)
+        assert all(p["num_threads"] == 1 for p in pool_snapshot() if p["user_api"] == "blas")
     finally:
-        release_first.set();release_second.set();a.join(5)
-        if b.ident:b.join(5)
-    assert not errors and not b.is_alive() and pool_snapshot()==before
+        release_first.set()
+        release_second.set()
+        a.join(5)
+        if b.ident:
+            b.join(5)
+    assert not errors and not b.is_alive() and pool_snapshot() == before
 
 
 def pool_snapshot():
-    if os.name == 'nt':
-        return [{'handle': handle, 'user_api': 'blas', 'num_threads': get()}
-                for handle, get, _ in _blas_controls()]
+    if os.name == "nt":
+        return [
+            {"handle": handle, "user_api": "blas", "num_threads": get()}
+            for handle, get, _ in _blas_controls()
+        ]
     return threadpool_info()
 
 
@@ -55,7 +68,7 @@ def test_blas_budget_is_limited_only_during_inference(monkeypatch, tmp_path, fai
             assert pools and all(pool["num_threads"] == 1 for pool in pools)
             if failure:
                 raise RuntimeError("inference failed")
-            return np.ones(4800, dtype=np.float32) * .05
+            return np.ones(4800, dtype=np.float32) * 0.05
 
     monkeypatch.setattr(speech, "_vieneu_engine", lambda _: Engine())
     path = tmp_path / "test.wav"
@@ -73,7 +86,7 @@ def test_blas_budget_is_limited_only_during_inference(monkeypatch, tmp_path, fai
 def test_unicode_dll_is_controlled_by_its_loaded_handle_without_path_reload(tmp_path):
     # threadpoolctl's Windows filename snapshot can replace Vietnamese letters
     # with '?'. Read the live module's Unicode filename instead.
-    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
     kernel.GetModuleFileNameW.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p, ctypes.c_uint32]
     kernel.GetModuleFileNameW.restype = ctypes.c_uint32
     name = ctypes.create_unicode_buffer(32768)

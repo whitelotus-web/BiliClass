@@ -39,7 +39,9 @@ def test_busy_native_profile_is_not_launched_or_its_live_endpoint_removed(tmp_pa
 
 def test_profile_probe_reads_command_lines_only_for_chrome(tmp_path, monkeypatch):
     from types import SimpleNamespace
+
     import psutil
+
     from app.chrome_session import require_idle_profile
 
     reads = []
@@ -56,7 +58,9 @@ def test_profile_probe_reads_command_lines_only_for_chrome(tmp_path, monkeypatch
 
 def test_lingering_crash_reporter_is_not_a_live_profile_owner(tmp_path, monkeypatch):
     from types import SimpleNamespace
+
     import psutil
+
     from app.chrome_session import require_idle_profile
 
     profile = tmp_path/'chrome'

@@ -18,6 +18,7 @@ def test_bundle_walk_includes_nested_models_and_hashes_real_contents(tmp_path):
 
 def test_source_and_package_versions_match():
     import tomllib
+
     from app import __version__
     root = Path(__file__).parents[1]
     assert tomllib.loads((root/'pyproject.toml').read_text(encoding='utf-8'))['project']['version'] == __version__

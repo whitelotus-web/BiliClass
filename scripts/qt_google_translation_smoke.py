@@ -4,13 +4,13 @@ import tempfile
 import time
 from pathlib import Path
 
+from pptx import Presentation
+from pptx.util import Inches, Pt
 from PySide6.QtCore import QCoreApplication, QEvent, QEventLoop, QPointF, Qt, QTimer, QUrl
-from PySide6.QtGui import QGuiApplication, QFont, QFontDatabase
+from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
 from PySide6.QtTest import QTest
-from pptx import Presentation
-from pptx.util import Inches, Pt
 
 from app import google_conversion
 from app.branding import configure_application

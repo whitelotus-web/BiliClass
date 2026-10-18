@@ -1,11 +1,11 @@
 """Local release folder: application, user installer and license notices."""
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import sys
 import tomllib
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 

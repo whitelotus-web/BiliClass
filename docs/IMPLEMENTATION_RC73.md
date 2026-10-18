@@ -20,7 +20,7 @@ mục chưa có bằng chứng không được coi là hoàn tất.
 - [ ] Cache render qua ngày cho slide tĩnh; phiên chạy dài và đo nguội/nóng.
 - [x] Chẩn đoán theo whitelist, không xuất dữ liệu riêng/key/token; phân nhóm lỗi.
 - [x] Luồng lớp học/thiết bị/cài đặt có kịch bản nghiệm thu và công cụ đo thực tế.
-- [ ] Tách cầu nối UI/QML theo chức năng, lint sạch, lệnh kiểm chuẩn, CI.
+- [x] Tách lifecycle/Job và thành phần giọng/QML, lint app/script/test sạch, lệnh kiểm chuẩn, CI.
 - [ ] Build/package/kiểm gói tái lập từ code đã commit; nguồn runtime/model có hash.
 - [ ] Kiểm toàn bộ, Qt, bản cài, dữ liệu thật; commit/push; cài và mở bản mới.
 
@@ -57,6 +57,23 @@ mục chưa có bằng chứng không được coi là hoàn tất.
   script kiểm chuẩn, build từ baseline có hash và hướng dẫn kênh phát hành.
   CI trên GitHub, corpus native, phiên dài, lint script/test và bản cài còn
   được cập nhật sau khi hoàn tất các vòng kiểm chứng đang chạy.
+
+## Cập nhật luồng giọng / F5
+
+- Tên tải gán trước khi mở dialog Windows, dùng tên bài và bản ngôn ngữ/voice
+  trong ngoặc; chung quy tắc ở workspace, thư viện và file trong ZIP.
+- Loa mặc định đọc toàn bộ lời đã lưu khi bấm. Bài thật 86 trang có 258 loa,
+  phát VI/EN/chung ở năm trang (gồm trang trước thiếu loa) qua native player;
+  ảnh F5 thấy loa. Mascot có lựa chọn đọc theo hiệu ứng, không sinh lại voice.
+- Màn hoàn tất thu cấu hình, có xem slide/nghe cache, mở PowerPoint trực tiếp,
+  tải PPTX/audio và về đúng bài trong thư viện; không tự duyệt nội dung.
+- Native player cập nhật trạng thái mascot; nút dừng đỏ, nhận HWND dự phòng
+  đúng phiên F5. Mẫu nghe thử dùng sample đóng gói, tránh suy luận sáu giọng.
+- 862 core, 104 browser AI, 14 browser translation đạt theo nhóm; Qt giọng
+  thêm 150% DPI. Lint script/test đã dọn riêng, giữ AST ở bước format.
+- Phiên dài bị gián đoạn ở 49 phút, chưa hoàn tất mục 60 phút. Bản ứng viên
+  khôi phục cũ vẫn 44 FAIL/26 CHECK sau native, không được thay bài đã lưu.
+  Chi tiết và giới hạn xem [BUILD_RC73](BUILD_RC73.md).
 
 ## Nghiệm thu ngoài máy hiện tại
 

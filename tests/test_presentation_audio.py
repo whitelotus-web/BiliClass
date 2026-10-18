@@ -171,8 +171,9 @@ def test_slide_recording_excludes_answers_hidden_behind_click(tmp_path):
 
 
 def test_bilingual_product_has_individual_and_combined_speakers_with_no_new_inference(tmp_path, monkeypatch):
-    from app.presentation_audio import joined_wav
     import io
+
+    from app.presentation_audio import joined_wav
 
     library, lesson, source = fixture(tmp_path)
     try:

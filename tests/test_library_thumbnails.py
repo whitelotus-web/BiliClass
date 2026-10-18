@@ -2,15 +2,15 @@ import threading
 
 from PIL import Image
 from PySide6.QtCore import QCoreApplication, QObject, QUrl
+from test_library_catalog import pump_until
 
 from app.library import Library
 from app.library_thumbnails import CoverJob, LibraryThumbnails, cover_image
-from test_library_catalog import pump_until
 
 
 def test_cover_preserves_whole_four_by_three_slide_and_repairs_bad_cache(tmp_path):
-    image = tmp_path / 'slide.png'
-    Image.new('RGB', (400, 300), '#ff0000').save(image)
+    image = tmp_path / "slide.png"
+    Image.new("RGB", (400, 300), "#ff0000").save(image)
     path = cover_image(image, tmp_path)
     with Image.open(path) as cover:
         assert cover.size == (640, 360)
@@ -18,7 +18,8 @@ def test_cover_preserves_whole_four_by_three_slide_and_repairs_bad_cache(tmp_pat
         assert cover.getpixel((559, 359)) == (255, 0, 0)
         assert cover.getpixel((0, 180)) != (255, 0, 0)
     from pathlib import Path
-    Path(path).write_bytes(b'bad thumbnail')
+
+    Path(path).write_bytes(b"bad thumbnail")
     assert cover_image(image, tmp_path) == path
     with Image.open(path) as restored:
         restored.verify()
@@ -27,29 +28,31 @@ def test_cover_preserves_whole_four_by_three_slide_and_repairs_bad_cache(tmp_pat
 def test_queue_is_lazy_background_revision_scoped_and_does_not_edit_lessons(tmp_path, monkeypatch):
     app = QCoreApplication.instance() or QCoreApplication([])
     library = Library(tmp_path)
-    first = library.create('Một', 'Toán', 'THCS', '6', [('Slide 1', 'Một')])
-    second = library.create('Hai', 'Toán', 'THCS', '6', [('Slide 1', 'Hai')])
-    image = tmp_path / 'slide.png'; Image.new('RGB', (320, 180), 'blue').save(image)
+    first = library.create("Một", "Toán", "THCS", "6", [("Slide 1", "Một")])
+    second = library.create("Hai", "Toán", "THCS", "6", [("Slide 1", "Hai")])
+    image = tmp_path / "slide.png"
+    Image.new("RGB", (320, 180), "blue").save(image)
     main_thread = threading.get_ident()
     entered, release = threading.Event(), threading.Event()
     calls = []
 
     def build(lesson, directory):
         assert threading.get_ident() != main_thread
-        return {'lesson_id': lesson['id']}
+        return {"lesson_id": lesson["id"]}
 
     def render(session, lesson, result, number, **options):
         assert threading.get_ident() != main_thread
-        calls.append((lesson['id'], options))
-        if lesson['id'] == first['id']:
-            entered.set(); assert release.wait(5)
+        calls.append((lesson["id"], options))
+        if lesson["id"] == first["id"]:
+            entered.set()
+            assert release.wait(5)
         return str(image)
 
-    monkeypatch.setattr('app.quick_conversion.build_preview', build)
-    monkeypatch.setattr('app.slide_preview.PreviewSession.render', render)
+    monkeypatch.setattr("app.quick_conversion.build_preview", build)
+    monkeypatch.setattr("app.slide_preview.PreviewSession.render", render)
     owner = QObject()
     covers = LibraryThumbnails(tmp_path, owner)
-    snapshot = library.db.execute('SELECT id, content FROM lessons ORDER BY id').fetchall()
+    snapshot = library.db.execute("SELECT id, content FROM lessons ORDER BY id").fetchall()
     try:
         app.processEvents()
         assert not calls and covers.worker is None
@@ -57,48 +60,65 @@ def test_queue_is_lazy_background_revision_scoped_and_does_not_edit_lessons(tmp_
         pump_until(app, entered.is_set)
         covers.request([second])
         release.set()
-        pump_until(app, lambda: covers.worker is None and second['id'] in covers.images and not covers.images[second['id']]['loading'])
-        assert first['id'] not in covers.images
-        assert QUrl(covers.images[second['id']]['image']).isLocalFile()
-        assert list(library.db.execute('SELECT id, content FROM lessons ORDER BY id')) == snapshot
+        pump_until(
+            app,
+            lambda: (
+                covers.worker is None
+                and second["id"] in covers.images
+                and not covers.images[second["id"]]["loading"]
+            ),
+        )
+        assert first["id"] not in covers.images
+        assert QUrl(covers.images[second["id"]]["image"]).isLocalFile()
+        assert list(library.db.execute("SELECT id, content FROM lessons ORDER BY id")) == snapshot
         covers.request([])
-        assert covers.images[second['id']]['image']
+        assert covers.images[second["id"]]["image"]
         before_calls = len(calls)
         covers.request([second])
         app.processEvents()
-        assert covers.worker is None and len(calls) == before_calls, 'Returning to cards must reuse the cover immediately'
+        assert covers.worker is None and len(calls) == before_calls, (
+            "Returning to cards must reuse the cover immediately"
+        )
         covers.request([])
-        library.trash_lesson(second['id'])
+        library.trash_lesson(second["id"])
         covers.invalidate(library.list_lessons(verify_audio=False))
         covers.request([second])
         pump_until(app, lambda: covers.worker is None)
-        assert not covers.images[second['id']]['image'] and not covers.images[second['id']]['loading']
+        assert not covers.images[second["id"]]["image"] and not covers.images[second["id"]]["loading"]
     finally:
-        release.set(); covers.shutdown(); app.processEvents(); library.close()
+        release.set()
+        covers.shutdown()
+        app.processEvents()
+        library.close()
 
 
 def test_first_open_metadata_change_rechecks_verified_cache_without_reopening_office(tmp_path, monkeypatch):
     app = QCoreApplication.instance() or QCoreApplication([])
     library = Library(tmp_path)
-    lesson = library.create('Một', 'Toán', 'THCS', '6', [('Slide 1', 'Một')])
-    image = tmp_path / 'slide.png'; Image.new('RGB', (320, 180), 'blue').save(image)
-    monkeypatch.setattr('app.quick_conversion.build_preview', lambda *_: {})
+    lesson = library.create("Một", "Toán", "THCS", "6", [("Slide 1", "Một")])
+    image = tmp_path / "slide.png"
+    Image.new("RGB", (320, 180), "blue").save(image)
+    monkeypatch.setattr("app.quick_conversion.build_preview", lambda *_: {})
     calls = []
 
     def render(session, lesson, result, number, **options):
         calls.append(options)
         if len(calls) == 1:
-            raise LookupError('No cached image')
+            raise LookupError("No cached image")
         if len(calls) == 2:
-            raise ValueError('NTFS metadata changed during first Office open')
-        assert options == {'cached_only': True}, 'Retry must verify cache, never render again'
+            raise ValueError("NTFS metadata changed during first Office open")
+        assert options == {"cached_only": True}, "Retry must verify cache, never render again"
         return str(image)
 
-    monkeypatch.setattr('app.slide_preview.PreviewSession.render', render)
-    owner = QObject(); job = CoverJob(tmp_path, [(lesson['id'], lesson['revision'])], owner)
-    results = []; job.ready.connect(results.append)
+    monkeypatch.setattr("app.slide_preview.PreviewSession.render", render)
+    owner = QObject()
+    job = CoverJob(tmp_path, [(lesson["id"], lesson["revision"])], owner)
+    results = []
+    job.ready.connect(results.append)
     try:
         job.run()
         assert len(calls) == 3 and len(results) == 1 and results[0][1]
     finally:
-        job.deleteLater(); app.processEvents(); library.close()
+        job.deleteLater()
+        app.processEvents()
+        library.close()

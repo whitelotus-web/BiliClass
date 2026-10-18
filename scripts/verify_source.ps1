@@ -17,7 +17,7 @@ function Invoke-Check([string]$Name, [string]$Program, [string[]]$Parameters) {
     if ($LASTEXITCODE -ne 0) { throw ('Failed ' + $Name + '; inspect ' + $taskReport) }
     $taskChecks.Add($Name)
 }
-Invoke-Check 'lint-app' $taskRuff @('check', 'app')
+Invoke-Check 'lint-source' $taskRuff @('check', 'app', 'scripts', 'tests')
 Invoke-Check 'compile' $taskPython @('-m', 'compileall', '-q', 'app', 'scripts')
 $taskTests = @('-m', 'pytest', '-vv', '-o', 'faulthandler_timeout=90', '--tb=short')
 if ($Quick) {

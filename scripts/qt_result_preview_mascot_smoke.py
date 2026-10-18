@@ -101,6 +101,7 @@ def main():
         QFontDatabase.addApplicationFont(str(font))
     app.setFont(QFont("Be Vietnam Pro", 10))
     import sys
+
     reports = Path(sys.argv[1] if len(sys.argv) > 1 else "reports/rc45")
     reports.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="biliclass-result-", ignore_cleanup_errors=True) as folder:
@@ -123,7 +124,13 @@ def main():
         inspection = inspect_returned_deck(source)
         lesson = library.create_external_lesson(
             creation_config(
-                "Bài 6 – Dao Động Tắt Dần, Dao Động Cưỡng Bức & Hiện Tượng Cộng Hưởng · Bài thử giao diện với tên dài", "Vật lý", "THPT", "11", "parallel_columns", "standard", "source"
+                "Bài 6 – Dao Động Tắt Dần, Dao Động Cưỡng Bức & Hiện Tượng Cộng Hưởng · Bài thử giao diện với tên dài",
+                "Vật lý",
+                "THPT",
+                "11",
+                "parallel_columns",
+                "standard",
+                "source",
             ),
             stored,
             inspection,
@@ -159,14 +166,16 @@ def main():
         window.setProperty("page", "result")
         until(lambda: not bridge.previewBusy)
         pump(200)
+
         def c(name):
             return control(window, name)
+
         teacher = c("sidebarTeacherName")
         assert teacher.property("text") == "Cô Nguyễn Diệu Linh"
         assert not teacher.property("truncated")
-        help_button = c('sidebarHelpButton')
-        assert abs(help_button.x()+help_button.width()/2-help_button.parentItem().width()/2) <= 1
-        assert [row['label'] for row in bridge.conversionFormats] == ['Song ngữ Việt–Anh','Tiếng Anh 100%']
+        help_button = c("sidebarHelpButton")
+        assert abs(help_button.x() + help_button.width() / 2 - help_button.parentItem().width() / 2) <= 1
+        assert [row["label"] for row in bridge.conversionFormats] == ["Song ngữ Việt–Anh", "Tiếng Anh 100%"]
         assert c("lessonSlidePreview").y() < c("lessonNarrationPanel").y()
         assert not c("lessonDetailsPanel").isVisible()
         assert window.findChild(QObject, "repairConvertedLessonButton") is None
@@ -175,23 +184,34 @@ def main():
         for width, height in ((1080, 700), (1366, 850)):
             window.resize(width, height)
             pump(150)
-            for name in ('downloadPresentationButton', 'useConvertedLessonButton', 'createLessonNarrationButton'):
+            for name in (
+                "downloadPresentationButton",
+                "useConvertedLessonButton",
+                "createLessonNarrationButton",
+            ):
                 item = c(name)
                 point = item.mapToScene(QPointF(0, 0))
-                assert point.x() >= 0 and point.x() + item.width() <= width, (name, point.x(), item.width(), width)
+                assert point.x() >= 0 and point.x() + item.width() <= width, (
+                    name,
+                    point.x(),
+                    item.width(),
+                    width,
+                )
                 assert item.isVisible()
-            scroll = c('resultScroll')
-            assert scroll.property('contentWidth') <= scroll.width()
-            status=c('resultSaveStatus');download=c('downloadPresentationButton')
-            status_center=status.mapToScene(QPointF(0,status.height()/2)).y()
-            action_center=download.mapToScene(QPointF(0,download.height()/2)).y()
-            assert abs(status_center-action_center)<=1, (width,status_center,action_center)
-            nav=c('resultSlideNavigation');counter=c('resultSlideCounter')
-            nav_center=nav.mapToScene(QPointF(nav.width()/2,0)).x()
-            counter_center=counter.mapToScene(QPointF(counter.width()/2,0)).x()
-            assert abs(nav_center-counter_center)<=1, (width,nav_center,counter_center)
+            scroll = c("resultScroll")
+            assert scroll.property("contentWidth") <= scroll.width()
+            status = c("resultSaveStatus")
+            download = c("downloadPresentationButton")
+            status_center = status.mapToScene(QPointF(0, status.height() / 2)).y()
+            action_center = download.mapToScene(QPointF(0, download.height() / 2)).y()
+            assert abs(status_center - action_center) <= 1, (width, status_center, action_center)
+            nav = c("resultSlideNavigation")
+            counter = c("resultSlideCounter")
+            nav_center = nav.mapToScene(QPointF(nav.width() / 2, 0)).x()
+            counter_center = counter.mapToScene(QPointF(counter.width() / 2, 0)).x()
+            assert abs(nav_center - counter_center) <= 1, (width, nav_center, counter_center)
             responsive.append([width, height])
-            assert window.grabWindow().save(str(reports / ('result-' + str(width) + '.png')))
+            assert window.grabWindow().save(str(reports / ("result-" + str(width) + ".png")))
 
         # Deliberately slow the worker to exercise coalescing and UI ticking.
         render = bridge.slidePreview.session.render
@@ -219,24 +239,27 @@ def main():
         timer.stop()
         # A real worker remains blocked inside synthesis. The visible clock must
         # continue even though it cannot emit chunk progress during this call.
-        entered,release=Event(),Event()
+        entered, release = Event(), Event()
+
         def held_synthesis(*args):
             entered.set()
             assert release.wait(10)
-            raise InterruptedError('Disposable cancellation fixture')
-        with patch('app.speech.synthesize_background',side_effect=held_synthesis):
-            bridge.createLessonNarration('en')
+            raise InterruptedError("Disposable cancellation fixture")
+
+        with patch("app.speech.synthesize_background", side_effect=held_synthesis):
+            bridge.createLessonNarration("en")
             until(entered.is_set)
             pump(1250)
-            elapsed=bridge.narrationClock.elapsedSeconds
-            assert elapsed>=1 and bridge.lessonNarration['complete']==0
-            label=c('lessonNarrationElapsed')
-            assert label.isVisible() and '00:00:00' not in label.property('text')
-            bridge.cancelLessonNarration();release.set()
+            elapsed = bridge.narrationClock.elapsedSeconds
+            assert elapsed >= 1 and bridge.lessonNarration["complete"] == 0
+            label = c("lessonNarrationElapsed")
+            assert label.isVisible() and "00:00:00" not in label.property("text")
+            bridge.cancelLessonNarration()
+            release.set()
             until(lambda: bridge.narration_preparation.worker is None)
-            frozen=bridge.narrationClock.elapsedSeconds
+            frozen = bridge.narrationClock.elapsedSeconds
             pump(1100)
-            assert bridge.narrationClock.elapsedSeconds==frozen
+            assert bridge.narrationClock.elapsedSeconds == frozen
             assert not bridge.narration_preparation.clock.isActive()
         narration = []
         bridge.narration_preparation.start = lambda *args, **kwargs: narration.append(args)
@@ -244,142 +267,176 @@ def main():
         click(window, c("createLessonNarrationButton"))
         assert len(narration) == 1 and narration[0][-1]["total"] > 0
         from app.lesson_narration import make_plan
-        plan,_=make_plan(bridge._lesson,'en',bridge.voiceSettings)
-        for key in plan['keys']['en']:
-            wav=library.directory/'audio'/(key+'.wav')
+
+        plan, _ = make_plan(bridge._lesson, "en", bridge.voiceSettings)
+        for key in plan["keys"]["en"]:
+            wav = library.directory / "audio" / (key + ".wav")
             wav.parent.mkdir(exist_ok=True)
-            with wave.open(str(wav),'wb') as writer:
-                writer.setparams((1,2,24000,0,'NONE','not compressed'))
-                writer.writeframes(b'\x01\x00'*240)
-        bridge._lesson=library.update_narration(lesson['id'],plan)
+            with wave.open(str(wav), "wb") as writer:
+                writer.setparams((1, 2, 24000, 0, "NONE", "not compressed"))
+                writer.writeframes(b"\x01\x00" * 240)
+        bridge._lesson = library.update_narration(lesson["id"], plan)
         bridge.narrationChanged.emit()
         pump(120)
-        assert bridge.lessonNarration['ready']
-        assert c('createLessonNarrationButton').isEnabled()
-        assert c('narrationEnglish').property('text') == 'Tiếng Anh'
-        assert c('narrationEnglish').isEnabled()
-        assert c('narrationReadyNextStep').isVisible()
-        assert not c('wholeLessonReview').property('visible'), 'Completion must not open a dialog automatically'
-        bridge._lesson['slide_quality']['counts']['FAIL'] = 1
-        bridge.changed.emit();pump(50)
+        assert bridge.lessonNarration["ready"]
+        assert c("createLessonNarrationButton").isEnabled()
+        assert c("narrationEnglish").property("text") == "Tiếng Anh"
+        assert c("narrationEnglish").isEnabled()
+        assert c("narrationReadyNextStep").isVisible()
+        assert not c("wholeLessonReview").property("visible"), (
+            "Completion must not open a dialog automatically"
+        )
+        bridge._lesson["slide_quality"]["counts"]["FAIL"] = 1
+        bridge.changed.emit()
+        pump(50)
         opened = []
-        with patch.object(bridge, '_activate_teaching', side_effect=opened.append):
-            click(window,c('continueAfterNarrationButton'))
+        with patch.object(bridge, "_activate_teaching", side_effect=opened.append):
+            click(window, c("continueAfterNarrationButton"))
             until(lambda: not bridge.busy)
-        assert len(opened) == 1 and not c('wholeLessonReview').property('visible')
-        assert not any(row['approved'] for row in library.get(lesson['id'])['segments'])
-        assert bridge.lesson['slide_quality']['counts']['FAIL'] == 1, 'Opening never certifies layout'
-        assert window.grabWindow().save(str(reports / 'teaching-preparation.png'))
-        bridge._lesson['slide_quality']['counts']['FAIL'] = 0
-        bridge.changed.emit();pump(50)
-        assert c('embedPresentationVoice').isVisible() and c('embedPresentationVoice').property('checked')
-        click(window,c('embedPresentationVoice'))
-        assert not window.property('includeDownloadVoice')
-        click(window,c('embedPresentationVoice'))
-        assert window.property('includeDownloadVoice')
+        assert len(opened) == 1 and not c("wholeLessonReview").property("visible")
+        assert not any(row["approved"] for row in library.get(lesson["id"])["segments"])
+        assert bridge.lesson["slide_quality"]["counts"]["FAIL"] == 1, "Opening never certifies layout"
+        assert window.grabWindow().save(str(reports / "teaching-preparation.png"))
+        bridge._lesson["slide_quality"]["counts"]["FAIL"] = 0
+        bridge.changed.emit()
+        pump(50)
+        assert c("embedPresentationVoice").isVisible() and c("embedPresentationVoice").property("checked")
+        click(window, c("embedPresentationVoice"))
+        assert not window.property("includeDownloadVoice")
+        click(window, c("embedPresentationVoice"))
+        assert window.property("includeDownloadVoice")
 
         # All six choices use the shipped sample here, without changing defaults.
-        original_preferences = library.setting('voice_options', None)
+        original_preferences = library.setting("voice_options", None)
         played = []
-        with patch.object(bridge, '_play_audio', side_effect=lambda path: played.append(path)), patch.object(
-                __import__('app.speech', fromlist=['speech']), 'synthesize_background',
-                side_effect=AssertionError('Voice choices must preview the shipped sample without inference')):
+        with (
+            patch.object(bridge, "_play_audio", side_effect=lambda path: played.append(path)),
+            patch.object(
+                __import__("app.speech", fromlist=["speech"]),
+                "synthesize_background",
+                side_effect=AssertionError("Voice choices must preview the shipped sample without inference"),
+            ),
+        ):
             for index, voice in enumerate(bridge.multilingualVoices):
-                choice = c('lessonNarrationVoiceChoice')
-                choice.setProperty('currentIndex', index)
-                QMetaObject.invokeMethod(choice, 'activated', Qt.DirectConnection, Q_ARG(int, index))
-                assert window.property('narrationVoice') == voice['id']
-                scroll = c('resultScroll').property('contentItem')
-                button = c('previewLessonNarrationVoice')
-                scroll.setProperty('contentY', max(0, scroll.property('contentY') + button.mapToScene(QPointF()).y() - window.height() / 2))
+                choice = c("lessonNarrationVoiceChoice")
+                choice.setProperty("currentIndex", index)
+                QMetaObject.invokeMethod(choice, "activated", Qt.DirectConnection, Q_ARG(int, index))
+                assert window.property("narrationVoice") == voice["id"]
+                scroll = c("resultScroll").property("contentItem")
+                button = c("previewLessonNarrationVoice")
+                scroll.setProperty(
+                    "contentY",
+                    max(
+                        0,
+                        scroll.property("contentY") + button.mapToScene(QPointF()).y() - window.height() / 2,
+                    ),
+                )
                 pump(80)
-                click(window, c('previewLessonNarrationVoice'))
+                click(window, c("previewLessonNarrationVoice"))
                 until(lambda: len(played) == index + 1)
-                assert c('previewLessonNarrationVoice').property('text') == 'Dừng nghe'
-                click(window, c('previewLessonNarrationVoice'))
-                assert c('previewLessonNarrationVoice').property('text') == 'Nghe thử'
-        assert library.setting('voice_options', None) == original_preferences
-        click(window, c('createLessonNarrationButton'))
-        assert narration[-1][2]['voice'] == bridge.multilingualVoices[-1]['id']
-        for mode, voice in [('vi', 'vieneu:Hải Đăng'), ('both', 'vieneu:Mai Anh')]:
-            plan, _ = make_plan(bridge._lesson, mode, {'voice': voice, 'rate': 0},
-                                playback='both_controls' if mode == 'both' else 'separate')
-            for keys in plan['keys'].values():
+                assert c("previewLessonNarrationVoice").property("text") == "Dừng nghe"
+                click(window, c("previewLessonNarrationVoice"))
+                assert c("previewLessonNarrationVoice").property("text") == "Nghe thử"
+        assert library.setting("voice_options", None) == original_preferences
+        click(window, c("createLessonNarrationButton"))
+        assert narration[-1][2]["voice"] == bridge.multilingualVoices[-1]["id"]
+        for mode, voice in [("vi", "vieneu:Hải Đăng"), ("both", "vieneu:Mai Anh")]:
+            plan, _ = make_plan(
+                bridge._lesson,
+                mode,
+                {"voice": voice, "rate": 0},
+                playback="both_controls" if mode == "both" else "separate",
+            )
+            for keys in plan["keys"].values():
                 for key in keys:
-                    path = library.directory/'audio'/(key+'.wav')
+                    path = library.directory / "audio" / (key + ".wav")
                     path.parent.mkdir(exist_ok=True)
-                    with wave.open(str(path), 'wb') as writer:
-                        writer.setparams((1,2,24000,0,'NONE','not compressed'));writer.writeframes(b'\x01\x00'*240)
-            bridge._lesson = library.update_narration(lesson['id'], plan)
+                    with wave.open(str(path), "wb") as writer:
+                        writer.setparams((1, 2, 24000, 0, "NONE", "not compressed"))
+                        writer.writeframes(b"\x01\x00" * 240)
+            bridge._lesson = library.update_narration(lesson["id"], plan)
         bridge._catalog.refresh(force=True)
-        until(lambda: any(v['ready'] and 'riêng và chung' in v['title'] for v in bridge.narrationVariants))
-        bridge.narrationChanged.emit();pump(100)
-        vi = next(v for v in bridge.narrationVariants if v['title'].startswith('Tiếng Việt'))
-        choice = c('lessonNarrationVariantChoice')
-        index = next(i for i,v in enumerate(bridge.narrationVariants) if v['id']==vi['id'])
-        choice.setProperty('currentIndex', index)
-        QMetaObject.invokeMethod(choice,'activated',Qt.DirectConnection,Q_ARG(int,index))
-        assert bridge._lesson_voice_settings()['vi'] == 'vieneu:Hải Đăng'
-        assert not bridge._lesson_voice_settings()['en']
-        assert c('createLessonNarrationButton').isEnabled() and c('narrationVietnamese').isEnabled()
-        click(window,c('narrationEnglish'))
-        assert c('createLessonNarrationButton').isEnabled(), 'English has not been made with this voice'
-        assert not c('narrationReadyNextStep').isVisible()
-        click(window,c('narrationVietnamese'))
-        assert c('createLessonNarrationButton').isEnabled()
-        rate=c('lessonNarrationRateChoice');rate.setProperty('currentIndex',4)
-        QMetaObject.invokeMethod(rate,'activated',Qt.DirectConnection,Q_ARG(int,4));pump(100)
-        assert c('createLessonNarrationButton').isEnabled(), 'New speed is a separate product'
-        rate.setProperty('currentIndex',3)
-        QMetaObject.invokeMethod(rate,'activated',Qt.DirectConnection,Q_ARG(int,3));pump(100)
-        assert c('createLessonNarrationButton').isEnabled()
-        assert 'Tiếng Việt' in c('presentationSaveDialog').property('title')
-        assert 'Hải Đăng' in QUrl(bridge.presentationDownloadSuggestion(True)).toLocalFile()
-        for width in (1080,1366):
-            window.resize(width,850);pump(120)
+        until(lambda: any(v["ready"] and "riêng và chung" in v["title"] for v in bridge.narrationVariants))
+        bridge.narrationChanged.emit()
+        pump(100)
+        vi = next(v for v in bridge.narrationVariants if v["title"].startswith("Tiếng Việt"))
+        choice = c("lessonNarrationVariantChoice")
+        index = next(i for i, v in enumerate(bridge.narrationVariants) if v["id"] == vi["id"])
+        choice.setProperty("currentIndex", index)
+        QMetaObject.invokeMethod(choice, "activated", Qt.DirectConnection, Q_ARG(int, index))
+        assert bridge._lesson_voice_settings()["vi"] == "vieneu:Hải Đăng"
+        assert not bridge._lesson_voice_settings()["en"]
+        assert c("createLessonNarrationButton").isEnabled() and c("narrationVietnamese").isEnabled()
+        click(window, c("narrationEnglish"))
+        assert c("createLessonNarrationButton").isEnabled(), "English has not been made with this voice"
+        assert not c("narrationReadyNextStep").isVisible()
+        click(window, c("narrationVietnamese"))
+        assert c("createLessonNarrationButton").isEnabled()
+        rate = c("lessonNarrationRateChoice")
+        rate.setProperty("currentIndex", 4)
+        QMetaObject.invokeMethod(rate, "activated", Qt.DirectConnection, Q_ARG(int, 4))
+        pump(100)
+        assert c("createLessonNarrationButton").isEnabled(), "New speed is a separate product"
+        rate.setProperty("currentIndex", 3)
+        QMetaObject.invokeMethod(rate, "activated", Qt.DirectConnection, Q_ARG(int, 3))
+        pump(100)
+        assert c("createLessonNarrationButton").isEnabled()
+        assert "Tiếng Việt" in c("presentationSaveDialog").property("title")
+        assert "Hải Đăng" in QUrl(bridge.presentationDownloadSuggestion(True)).toLocalFile()
+        for width in (1080, 1366):
+            window.resize(width, 850)
+            pump(120)
             bridge.stopSpeech()
-            for name in ('lessonNarrationVoiceChoice','lessonNarrationVariantChoice','previewLessonNarrationVoice'):
-                target=c(name);p=target.mapToScene(QPointF(0,0))
-                assert p.x()>=0 and p.x()+target.width()<=width,(name,width)
-            assert window.grabWindow().save(str(reports/f'voice-variants-{width}.png'))
+            for name in (
+                "lessonNarrationVoiceChoice",
+                "lessonNarrationVariantChoice",
+                "previewLessonNarrationVoice",
+            ):
+                target = c(name)
+                p = target.mapToScene(QPointF(0, 0))
+                assert p.x() >= 0 and p.x() + target.width() <= width, (name, width)
+            assert window.grabWindow().save(str(reports / f"voice-variants-{width}.png"))
         bridge.stopSpeech()
 
         from app.template_builtin import create
-        template = create(library.directory/'own-template.pptx', 'visual')
+
+        template = create(library.directory / "own-template.pptx", "visual")
         bridge.selectCustomTemplate(QUrl.fromLocalFile(str(template)).toString())
         until(lambda: not bridge.busy)
-        assert bridge.customTemplate['name'] == 'own-template.pptx'
-        assert len(bridge.customTemplate['pages']) == 4
+        assert bridge.customTemplate["name"] == "own-template.pptx"
+        assert len(bridge.customTemplate["pages"]) == 4
         bridge.setCustomTemplateRoles(1, 0, 3, 4)
-        assert bridge.customTemplate['roles']['intro'] == 0
-        window.setProperty('page', 'new')
+        assert bridge.customTemplate["roles"]["intro"] == 0
+        window.setProperty("page", "new")
         pump(100)
-        click(window, c('creationUseTemplate'))
-        click(window, c('creationTemplateOptionsButton'))
-        assert c('chooseCustomTemplateButton').isVisible()
-        assert c('templateContentPage').property('value') == 3
+        click(window, c("creationUseTemplate"))
+        click(window, c("creationTemplateOptionsButton"))
+        assert c("chooseCustomTemplateButton").isVisible()
+        assert c("templateContentPage").property("value") == 3
         bridge.clearCustomTemplate()
-        c('creationTemplateOptionsDialog').setProperty('visible', False)
+        c("creationTemplateOptionsDialog").setProperty("visible", False)
         assert not bridge.customTemplate
 
         window.setProperty("page", "settings")
         pump(100)
-        click(window, c('settingsTab6'))
-        assert c('receiveGoogleKeysGitHub').isVisible()
-        assert c('sendGoogleKeysGitHub').isVisible()
-        assert window.grabWindow().save(str(reports / 'private-key-sync.png'))
+        click(window, c("settingsTab6"))
+        assert c("receiveGoogleKeysGitHub").isVisible()
+        assert c("sendGoogleKeysGitHub").isVisible()
+        assert window.grabWindow().save(str(reports / "private-key-sync.png"))
         click(window, c("settingsTab3"))
         click(window, c("mascotLumi"))
         assert c("mascotPreview").property("character") == "Lumi"
-        subject=c('mascotSubject');idx=bridge.conversionSubjects.index('Mĩ thuật')
-        subject.setProperty('currentIndex',idx)
-        QMetaObject.invokeMethod(subject,'activated',Qt.DirectConnection,Q_ARG(int,idx))
-        assert c('mascotSubjectMode').property('currentIndex')==1
-        click(window,c('saveMascot'));pump(100)
-        assert bridge.mascotSubject=='Mĩ thuật'
-        assert c('mascotCompanion').property('subject')=='Mĩ thuật'
+        subject = c("mascotSubject")
+        idx = bridge.conversionSubjects.index("Mĩ thuật")
+        subject.setProperty("currentIndex", idx)
+        QMetaObject.invokeMethod(subject, "activated", Qt.DirectConnection, Q_ARG(int, idx))
+        assert c("mascotSubjectMode").property("currentIndex") == 1
+        click(window, c("saveMascot"))
+        pump(100)
+        assert bridge.mascotSubject == "Mĩ thuật"
+        assert c("mascotCompanion").property("subject") == "Mĩ thuật"
         assert not bridge.companionCanRead
-        assert not c('companionReadEnglish').isEnabled() and not c('companionReadBoth').isEnabled()
+        assert not c("companionReadEnglish").isEnabled() and not c("companionReadBoth").isEnabled()
         assert window.findChild(QObject, "mascotSlideLumi") is None
         assert window.findChild(QObject, "mascotSlideMilo") is None
         assert window.grabWindow().save(str(reports / "mascot-settings.png"))
@@ -422,10 +479,10 @@ Window { visible: true; width: 700; height: 470; color: "#f3f7fc"
             "status": "passed",
             "qml_warnings": warnings,
             "responsive_result_sizes": responsive,
-            "status_and_actions_same_row":True,
-            "slide_navigation_centered":True,
-            "narration_clock_ticks_without_chunk_progress":True,
-            "narration_clock_freezes_after_cancel":True,
+            "status_and_actions_same_row": True,
+            "slide_navigation_centered": True,
+            "narration_clock_ticks_without_chunk_progress": True,
+            "narration_clock_freezes_after_cancel": True,
             "custom_template_roles": "passed",
             "queued_pages_rendered": rendered,
             "ui_ticks_while_previewing": len(beats),
@@ -433,14 +490,14 @@ Window { visible: true; width: 700; height: 470; color: "#f3f7fc"
             "preview_before_voice": True,
             "full_teacher_name": True,
             "download_voice_checkbox": True,
-            'six_local_voice_previews_without_global_save': True,
-            'saved_variants_route_selected_voice': True,
-            'saved_subject_updates_floating_mascot': True,
-            'companion_read_disabled_without_slideshow': True,
-            'completed_voice_creation_offers_explicit_regeneration': True,
-            'new_voice_or_speed_unlocks_creation': True,
-            'explicit_next_step_opens_powerpoint_without_automatic_approval': True,
-            'completion_does_not_auto_navigate_or_approve': True,
+            "six_local_voice_previews_without_global_save": True,
+            "saved_variants_route_selected_voice": True,
+            "saved_subject_updates_floating_mascot": True,
+            "companion_read_disabled_without_slideshow": True,
+            "completed_voice_creation_offers_explicit_regeneration": True,
+            "new_voice_or_speed_unlocks_creation": True,
+            "explicit_next_step_opens_powerpoint_without_automatic_approval": True,
+            "completion_does_not_auto_navigate_or_approve": True,
             "mascot_checks": [
                 "card selection",
                 "blink timer",

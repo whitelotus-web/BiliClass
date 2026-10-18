@@ -35,6 +35,7 @@ def test_repair_of_old_web_lesson_uses_only_local_repair_in_google_mode(tmp_path
 
 def test_key_save_readback_failure_preserves_the_input(monkeypatch):
     from PySide6.QtCore import QCoreApplication, QObject
+
     from app.google_settings import GoogleSettings
 
     app = QCoreApplication.instance() or QCoreApplication([])
