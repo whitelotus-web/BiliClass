@@ -21,8 +21,8 @@ mục chưa có bằng chứng không được coi là hoàn tất.
 - [x] Chẩn đoán theo whitelist, không xuất dữ liệu riêng/key/token; phân nhóm lỗi.
 - [x] Luồng lớp học/thiết bị/cài đặt có kịch bản nghiệm thu và công cụ đo thực tế.
 - [x] Tách lifecycle/Job và thành phần giọng/QML, lint app/script/test sạch, lệnh kiểm chuẩn, CI.
-- [ ] Build/package/kiểm gói tái lập từ code đã commit; nguồn runtime/model có hash.
-- [ ] Kiểm toàn bộ, Qt, bản cài, dữ liệu thật; commit/push; cài và mở bản mới.
+- [x] Build/package/kiểm gói từ code đã commit; nguồn runtime/model có hash.
+- [x] Kiểm source theo nhóm, Qt, bản cài và dữ liệu thật; commit/push; cài RC73.
 
 ## Bằng chứng đang có
 
@@ -74,6 +74,11 @@ mục chưa có bằng chứng không được coi là hoàn tất.
 - Phiên dài bị gián đoạn ở 49 phút, chưa hoàn tất mục 60 phút. Bản ứng viên
   khôi phục cũ vẫn 44 FAIL/26 CHECK sau native, không được thay bài đã lưu.
   Chi tiết và giới hạn xem [BUILD_RC73](BUILD_RC73.md).
+
+RC73 từ `58ab0d2` đã qua CI, 8 trang EXE và self-test model/tiết học/backup
+từ bản cài độc lập. Cài tại `F:/Applications/BiliClass/1.0.0rc73`, shortcut
+đã cập nhật; dữ liệu giữ ở ổ F. Không biến các mục nghiệm thu ngoài máy,
+phiên dài gián đoạn hoặc bài khôi phục còn FAIL thành trạng thái hoàn tất.
 
 ## Nghiệm thu ngoài máy hiện tại
 

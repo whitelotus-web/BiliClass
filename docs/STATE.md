@@ -4,7 +4,9 @@ Ngày 18/10/2026 — Source RC73 đã kiểm 862 core + 104 browser AI + 14 brow
 translation. Đã sửa tải tên trống, thiếu loa do lọc hiệu ứng, màn hoàn tất
 và mở PowerPoint/Mascot. Bài thật có 258 loa trên 86 slide; Office phát
 VI/EN/chung, pause/resume ở các trang từng thiếu loa đạt. F5 đã chụp thấy loa.
-RC72 đang mở được giữ nguyên; bản cài RC73 đang chốt theo [BUILD_RC73.md](BUILD_RC73.md).
+Đã cài RC73 từ source `58ab0d2`, kiểm 8 trang EXE, model ngoại tuyến và bộ
+cài/gỡ cài Unicode đạt; shortcut đã chuyển sang RC73. RC72 đóng bình thường
+khi đã rảnh. Chi tiết và hash gói tại [BUILD_RC73.md](BUILD_RC73.md).
 Không coi đây là chứng nhận bản dịch, mọi bài cũ hay nghiệm thu lớp học thật.
 
 Ngày 18/10/2026 — RC72 tiếp tục công việc RC71, tối ưu bộ nhớ sao lưu,

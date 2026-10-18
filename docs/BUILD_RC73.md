@@ -78,3 +78,25 @@ commit/hash gói cập nhật sau vòng kiểm tương ứng.
 Giữ chiều cao cụm loa nhỏ ở 20 pt để vừa header 26 pt có lề 6 pt; tăng độ
 rộng nhãn thay vì tăng chiều cao. Fixture vùng hẹp và 18 ca audio/phiên dạy
 đạt; xuất lại bài thật có đủ 258 loa/86 slide, không thiếu vùng đặt hoặc lời.
+
+## Gói đã cài và kiểm chứng
+
+- Source gói: `58ab0d28103ebcc9426a28bd6a3de40e5f0bce9f`, version `1.0.0rc73`.
+  CI source của commit này đạt. Tất cả module app biên dịch từ source đã
+  commit; dependency/model dùng runtime baseline có manifest/hash kiểm đủ.
+- EXE SHA-256: `ee16bd11ab281bc67db0d1335eb486052d80b4d066a49e37c3b7d48e4710bac2`.
+- ZIP 871.000.738 byte, 4.194 mục; hash
+  `08441097b8f10cb98f94fa39f0e9a8c569de9a67074a47b1217a9546d203c119`.
+  Mỗi nội dung ZIP đối chiếu manifest và CRC, không chứa dữ liệu giáo viên.
+- 8 trang EXE cuối đạt, không QML warning: Home, New, Voice, Library,
+  Settings, Classroom, Reports, Editor. Cài thử ở đường dẫn Unicode, kiểm
+  hai trang từ bản cài; self-test model VieNeu thật VI/EN/xen kẽ/tốc độ/cache,
+  template, lớp học spawn/WebSocket, backup và gỡ cài giữ thư viện đều đạt.
+  Bằng chứng máy: `reports/release/1.0.0rc73-826fb2e8/installer.json`.
+- Cài tại `F:/Applications/BiliClass/1.0.0rc73`; Desktop/Start menu trỏ RC73.
+  Thư viện `F:/BiliClassData` giữ nguyên, không chuyển hoặc phục hồi đè. RC72
+  được đóng bình thường khi không còn tác vụ, cả cửa sổ Mascot còn mở; không
+  cưỡng bức dừng và không mở đồng thời hai bản ghi chung thư viện.
+- Bản xuất kiểm cuối có đủ 3 loa ở từng trang trong 86 trang; native phát
+  VI/EN/chung, pause/resume trên 1, 3, 4, 13, 15, 59, 60 đạt. Giữ bản nguồn,
+  bài đã lưu và cache cũ. Đợt này chưa tạo GitHub Release công khai.
