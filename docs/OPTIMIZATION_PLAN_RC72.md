@@ -102,6 +102,10 @@ bàn phím; không che nút/nội dung ở ba kích thước và hai mức DPI.
   Đánh giá 6 giọng trên cùng tập câu, tốc độ và loa; không đổi model ngầm.
 - Đo riêng tải model, tiếng đầu tiên, suy luận, ghi WAV, cache, nhúng PPTX.
   Đo nguội/nóng, bài nhỏ/vừa/lớn; sửa một đoạn chỉ tạo lại đoạn cần đổi.
+- Cache render hiện đưa ngày vào khóa môi trường chung, nên qua ngày mới
+  có thể phải render lại cả bài dù PPTX không đổi. Đánh giá tách slide có
+  trường ngày/giờ động khỏi slide tĩnh; vẫn kiểm hash ảnh, nội dung, font và
+  phiên bản Office. Không bỏ kiểm môi trường chỉ để có cache hit.
 - Đo GUI trong khi tổng hợp, đổi slide và dừng. Giới hạn worker theo CPU/RAM;
   tránh tạo cache/ảnh trên luồng UI. Theo dõi RAM/handle sau 60–120 phút.
 
@@ -109,7 +113,13 @@ bàn phím; không che nút/nội dung ở ba kích thước và hai mức DPI.
 nguồn không đổi; cache sai nội dung/giọng/tốc độ không phát lại. Chỉ công bố
 tăng tốc khi có ít nhất 10 lượt đo cùng cấu hình và không giảm chất lượng.
 
-## Mốc 4 — Dữ liệu và vận hành (P1, dự kiến 2–3 ngày)
+## Mốc 4 — Dữ liệu và vận hành (sao lưu lớn P0, phần còn lại P1, dự kiến 2–3 ngày)
+
+Lượt dùng thư viện thật sau cài RC72 đã chạm giới hạn ZIP 2 GiB, nên sao lưu
+tự động không thành công dù dữ liệu đang mở bình thường. Đây là phần chưa
+hoàn tất: ưu tiên hỗ trợ gói lớn và khôi phục tương ứng, kể cả gói quá 2 GiB
+do bản cũ từng tạo. Giữ giới hạn tài nguyên và kiểm checksum; không chỉ bỏ
+kiểm kích thước. UI phải hiện lỗi và lần sao lưu thành công gần nhất.
 
 - Kiểm khôi phục thư viện trên ổ khác, gồm đường dẫn nguồn, thumbnail,
   checkpoint, custom template, lịch sử và phiên lớp. Cho xem trước phạm vi

@@ -64,3 +64,14 @@ tuyến thực với VieNeu (VI/EN/mixed/tốc độ/cache), tiến trình lớp
 WebSocket, xuất bài đã duyệt và round-trip backup. Không tải model hay gọi
 API dịch. Có tạo âm thanh thật nhưng chưa nghe nghiệm thu phát âm; đây vẫn
 là Windows hiện tại, chưa đại diện Windows sạch.
+
+Đã mở EXE độc lập qua desktop Explorer với thư viện chuyển ổ, xác minh
+SQLite và hoàn tất dọn tệp nguồn có hash khớp sau mở đích thành công. Bài
+dừng ở bước lưu đã được khôi phục thành nháp sau kiểm PowerPoint lại;
+không gọi dịch, không tự duyệt các cảnh báo chất lượng.
+
+**Giới hạn thực tế còn lại:** sao lưu tự động trên thư viện lớn của máy này
+bị chặn vì ZIP vượt giới hạn khôi phục 2 GiB; đã tái hiện bằng lời gọi sao
+lưu riêng. Các kiểm thử round-trip nhỏ đạt không chứng nhận trường hợp này
+đã hoạt động. Hỗ trợ gói lớn/đọc gói cũ quá giới hạn và báo lỗi trên UI được
+đưa lên P0 trong kế hoạch. Không xóa các bản sao lưu cũ.
