@@ -206,6 +206,7 @@ class Bridge(QObject):
         self._conversion_clock_timer.timeout.connect(self._tick_conversion_clock)
         self._conversion_clock_timer.start()
         self._browser_running = False
+        self._discard_conversion = False
         saved_request = self.library.setting("chatgpt_request_folder", "") if not self.googleTranslation else ''
         if saved_request:
             try:
@@ -240,8 +241,13 @@ class Bridge(QObject):
             saved_google = self.library.setting('google_request_folder', '')
             if saved_google:
                 try:
-                    from .google_conversion import load
-                    self._chatgpt_request = load(self.library.directory, saved_google, verify_source=False)
+                    from .google_conversion import ConversionDiscarded, discard, load
+                    try:
+                        self._chatgpt_request = load(self.library.directory, saved_google, verify_source=False)
+                    except ConversionDiscarded:
+                        discard(self.library.directory, saved_google)
+                        self._chatgpt_request = {}
+                        raise
                     self._browser_state.update(phase='error', errorCode='api_resume',
                         message='Bài trước đã lưu; bấm Tiếp tục để dùng lại các phần đã dịch.')
                 except (ValueError, OSError, KeyError):
@@ -722,7 +728,7 @@ class Bridge(QObject):
         hours, rest = divmod(int(seconds), 3600)
         minutes, seconds = divmod(rest, 60)
         label = f'{hours:02d}:{minutes:02d}:{seconds:02d}'
-        status = 'Đang xử lý' if self._browser_state.get('running') else 'Đã hoàn tất' if self._browser_state.get('phase') == 'completed' else 'Đã tạm dừng'
+        status = ('Đang hủy…' if self._browser_state.get('stopping') else 'Đang xử lý') if self._browser_state.get('running') else 'Đã hoàn tất' if self._browser_state.get('phase') == 'completed' else 'Đã hủy' if self._browser_state.get('phase') == 'discarded' else 'Đã tạm dừng'
         return {'seconds': hours * 3600 + minutes * 60 + seconds, 'label': label, 'status': status,
                 'longWait': bool(self._browser_state.get('running') and self._browser_state.get('waiting')
                                  and hours * 3600 + minutes * 60 + seconds >= 300)}
@@ -742,6 +748,8 @@ class Bridge(QObject):
 
     @Slot(str)
     def _on_browser_progress(self, message):
+        if not self._browser_running and self._browser_state.get('phase') in {'completed', 'cancelled', 'discarded', 'error'}:
+            return
         self._browser_state.update(message=message)
         self.browserStateChanged.emit()
         self.inform(message, refresh=False)
@@ -750,6 +758,11 @@ class Bridge(QObject):
     def _on_conversion_progress(self, event):
         import time
 
+        if event.get('runId') and (self._conversion_progress_sink is None
+                                  or event['runId'] != self._conversion_progress_sink.run_id):
+            return
+        if not self._browser_running and self._browser_state.get('phase') in {'completed', 'cancelled', 'discarded', 'error'}:
+            return
         self._browser_state.update(event)
         self._browser_clock_mark = time.monotonic()
         self.browserStateChanged.emit()
@@ -828,6 +841,8 @@ class Bridge(QObject):
         self.runBrowserAI()
 
     def _prepare_google(self, title, subject, education, grade, text, file_url, mode, preset, style):
+        from uuid import uuid4
+
         from .chatgpt_handoff import validate_config
         from .conversion_input import creation_config, local_document
         from .google_conversion import prepare
@@ -845,9 +860,10 @@ class Bridge(QObject):
             if bool(file_url) == bool(text.strip()):
                 raise ValueError('Chọn một nguồn: tài liệu hoặc nội dung dán vào.')
             path = local_document(file_url) if file_url else None
+            self._discard_conversion = False
             self._chatgpt_request = {'config': {**config, 'provider': 'google_translate'}}
             self._browser_state = {'running': True, 'phase': 'working', 'stage': 'session',
-                'percent': 0, 'elapsedSeconds': 0, 'waiting': False}
+                'percent': 0, 'elapsedSeconds': 0, 'waiting': False, 'conversionId': uuid4().hex}
             import time
             self._browser_clock_mark = time.monotonic()
             self._browser_running = True
@@ -863,6 +879,8 @@ class Bridge(QObject):
             self.inform(str(exc), True)
 
     def _run_google_conversion(self):
+        from uuid import uuid4
+
         from .conversion_progress import ConversionProgress
         from .google_conversion import convert, load
 
@@ -878,7 +896,8 @@ class Bridge(QObject):
             return
         self._browser_running = True
         self._browser_state = {'running': True, 'phase': 'working', 'percent': 0,
-                              'stage': 'session', 'elapsedSeconds': self._browser_state.get('elapsedSeconds', 0)}
+                              'stage': 'session', 'elapsedSeconds': self._browser_state.get('elapsedSeconds', 0),
+                              'conversionId': self._browser_state.get('conversionId') or uuid4().hex}
         progress = ConversionProgress(job['folder'], self.browserConversionProgress.emit)
         self._conversion_progress_sink = progress
         progress.stage('session', 'Đang chuẩn bị bài giảng.')
@@ -889,9 +908,12 @@ class Bridge(QObject):
             progress.stage('completed', 'Đã lưu bài giảng song ngữ.')
             self._freeze_conversion_clock()
             self._browser_running = False
-            self._browser_state.update(running=False, phase='completed', percent=100, waiting=False)
-            self._google_settings.refresh()
+            self._browser_state.update(running=False, phase='completed', percent=100, waiting=False,
+                                       lessonId=lesson['id'])
+            self.browserStateChanged.emit()
+            self.conversionClockChanged.emit()
             self._show_lesson(lesson, preview, destination='voice')
+            self._google_settings.refresh()
             failures = lesson.get('slide_quality', {}).get('counts', {}).get('FAIL', 0)
             self.inform(f'Đã lưu bài giảng. Còn {failures} slide cần sửa.' if failures else
                         'Đã lưu bài giảng song ngữ. Có thể tải về hoặc tạo giọng đọc nếu cần.', bool(failures))
@@ -1031,7 +1053,9 @@ class Bridge(QObject):
             progress.stage("completed", "Đã nhận và lưu bài giảng song ngữ.")
             self._freeze_conversion_clock()
             self._browser_running = False
-            self._browser_state.update(running=False, phase="completed", message="Đã nhận bài giảng song ngữ.")
+            self._browser_state.update(running=False, phase="completed", percent=100, waiting=False,
+                                       lessonId=lesson['id'], message="Đã nhận bài giảng song ngữ.")
+            self.browserStateChanged.emit()
             self.conversionClockChanged.emit()
             self._show_lesson(lesson, preview, destination='voice')
             failures = lesson.get("slide_quality", {}).get("counts", {}).get("FAIL", 0)
@@ -1040,6 +1064,24 @@ class Bridge(QObject):
             self.inform(message, bool(failures))
 
         self.launch(work, completed)
+
+    @Slot()
+    def openConvertedLesson(self):
+        """Return to the saved conversion without submitting another request."""
+        from .voice_import import prepare_library_lesson
+
+        if self._busy or self.narrationBusy:
+            return
+        identity = self._browser_state.get('lessonId')
+        if not identity or self._browser_state.get('phase') != 'completed':
+            self.inform('Chọn bài đã lưu trong Bài giảng để tiếp tục tạo giọng đọc.', True, refresh=False)
+            return
+        if self._lesson.get('id') == identity and self.quickResult.get('lesson_id') == identity:
+            self.navigate.emit('voice')
+            return
+        directory = self.library.directory
+        self.launch(lambda: prepare_library_lesson(directory, identity),
+                    lambda result: self._show_lesson(*result, destination='voice'))
 
     @Property("QVariantMap", notify=narrationChanged)
     def narrationPreparation(self):
@@ -1992,6 +2034,29 @@ class Bridge(QObject):
         self.worker = self.callback = self.job_result = None
         try:
             if self.cancel_event.is_set():
+                if self._discard_conversion:
+                    from .google_conversion import discard
+
+                    # Preparation can finish after confirmation, before a job
+                    # folder was known to the UI. Never apply its callback.
+                    if isinstance(result, dict) and result.get('folder'):
+                        self._chatgpt_request = result
+                    folder = self._chatgpt_request.get('folder')
+                    if folder:
+                        identities = discard(self.library.directory, folder)
+                        if self._lesson.get('id') in identities:
+                            self._clear_narration_selection()
+                    self._freeze_conversion_clock()
+                    self._browser_running = False
+                    self._browser_state.update(running=False, phase='discarded', stopping=False, waiting=False)
+                    self._chatgpt_request = {}
+                    self._discard_conversion = False
+                    self.browserStateChanged.emit()
+                    self.conversionClockChanged.emit()
+                    self._google_settings.refresh()
+                    self.navigate.emit('new')
+                    self.inform('Đã hủy và xóa bài đang tạo. File gốc và các bài khác được giữ nguyên.')
+                    return
                 if self._browser_running:
                     self._freeze_conversion_clock()
                     self._browser_running = False
@@ -2015,9 +2080,31 @@ class Bridge(QObject):
                 self._browser_running = False
                 self._web_conversion_failure(str(exc))
             self.inform(str(exc), True)
-        self.storage.failed()
-        worker.deleteLater()
-        self.changed.emit()
+        finally:
+            self.storage.failed()
+            worker.deleteLater()
+            self.changed.emit()
+
+    @Slot(str)
+    def discardConversion(self, conversion_id):
+        if (not self.googleTranslation or not self._busy or not self._browser_running
+                or self._discard_conversion or conversion_id != self._browser_state.get('conversionId')):
+            return
+        from .google_conversion import mark_discarded
+
+        try:
+            folder = self._chatgpt_request.get('folder')
+            if folder:
+                mark_discarded(self.library.directory, folder)
+        except (ValueError, OSError) as exc:
+            self.inform(str(exc), True)
+            return
+        self._discard_conversion = True
+        self._browser_state['stopping'] = True
+        self.cancel_event.set()
+        self.browserStateChanged.emit()
+        self.conversionClockChanged.emit()
+        self.inform('Đang hủy chuyển đổi sau bước hiện tại…', refresh=False)
 
     @Slot()
     def cancelJob(self):

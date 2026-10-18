@@ -66,10 +66,17 @@ def main():
                 assert c('homeWorkflowHeading').property('text') == 'Quy trình đơn giản'
                 assert c('navigationnew').mapToScene(QPointF()).y() > c('navigationhome').mapToScene(QPointF()).y()
                 assert c('navigationnew').mapToScene(QPointF()).y() < c('navigationlibrary').mapToScene(QPointF()).y()
-                click(window, c('homeWorkflowStep3'))
+                assert [c('homeWorkflowTitle' + str(i)).property('text') for i in range(4)] == [
+                    'Tải bài giảng', 'Chuyển đổi bài giảng', 'Tạo giọng đọc bài giảng', 'Dạy cùng Mascot']
+                click(window, c('homeWorkflowStep2'))
                 assert window.property('page') == 'voice' and c('navigationvoice').property('selected')
                 assert not bridge.narrationBusy, 'Opening the voice workspace must not start synthesis'
                 click(window, c('navigationhome'))
+                click(window, c('homeWorkflowStep3'))
+                companion = c('companionWindow')
+                assert companion.isVisible() and companion.property('choosingLesson')
+                assert not bridge.powerpoint_worker and not bridge.narrationBusy
+                companion.hide()
             click(window, c('homeWorkflowStep0'))
             assert window.property('page') == 'new' and c('navigationnew').property('selected')
             assert not c('navigationlibrary').property('selected')
@@ -166,7 +173,7 @@ def main():
                                  'PPTX-only picker/drop with 200 MB guard and centered upload',
                                  'active work progress stays accessible and prevents new drops',
                                  'overview counts match library; compact recent lesson opens correct result; health removed from Home',
-                                 'Dạy cùng Mascot opens voice workspace without starting synthesis at three sizes', 'new slogan']}
+                                 'four accurate workflow steps; voice opens workspace and teaching opens Mascot picker', 'new slogan']}
             (report/'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
             print(json.dumps(result, ensure_ascii=False), flush=True)
         finally:

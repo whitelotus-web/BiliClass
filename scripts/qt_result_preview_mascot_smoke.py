@@ -422,9 +422,10 @@ def main():
         window.setProperty("page", "settings")
         pump(100)
         click(window, c("settingsTab6"))
-        assert c("receiveGoogleKeysGitHub").isVisible()
-        assert c("sendGoogleKeysGitHub").isVisible()
-        assert window.grabWindow().save(str(reports / "private-key-sync.png"))
+        assert window.findChild(QObject, "receiveGoogleKeysGitHub") is None
+        assert window.findChild(QObject, "sendGoogleKeysGitHub") is None
+        assert c("googleApiKeys").isVisible()
+        assert window.grabWindow().save(str(reports / "local-google-keys.png"))
         click(window, c("settingsTab3"))
         click(window, c("mascotLumi"))
         assert c("mascotPreview").property("character") == "Lumi"

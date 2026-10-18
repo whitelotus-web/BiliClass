@@ -268,6 +268,61 @@ def _office_fit(path, target, targets, cancel):
         pythoncom.CoUninitialize()
 
 
+def _grow_formula_frame(shape, slide, width, height):
+    """Grow only generated math text into verified empty space below its frame.
+
+    Keep the entire math/text body intact. Native COM text fitting can rewrite
+    OMML, so it must never replace this body with Office's serialized version.
+    """
+    from .slide_speech import objects
+
+    identity = shape.find('p:nvSpPr/p:cNvPr', NS)
+    transform = shape.find('p:spPr/a:xfrm', NS)
+    if (identity is None or not identity.get('name', '').startswith('BCL_')
+            or transform is None or transform.get('rot', '0') != '0'
+            or transform.get('flipH', '0') in {'1', 'true'} or transform.get('flipV', '0') in {'1', 'true'}):
+        return False
+    for parent in shape.iterancestors():
+        if parent.tag == '{' + NS['p'] + '}grpSp':
+            group = parent.find('p:grpSpPr/a:xfrm', NS)
+            if group is not None and (group.get('rot', '0') != '0'
+                                      or group.get('flipH', '0') in {'1', 'true'}
+                                      or group.get('flipV', '0') in {'1', 'true'}):
+                return False
+    offset, extent = transform.find('a:off', NS), transform.find('a:ext', NS)
+    body = shape.find('p:txBody/a:bodyPr', NS)
+    if offset is None or extent is None or body is None or body.get('vert', 'horz') != 'horz':
+        return False
+    items = list(objects(slide))
+    target = next((item for item in items if item['shape_id'] == int(identity.get('id'))), None)
+    if target is None:
+        return False
+    x, y, w, h = (target[k] for k in ('x', 'y', 'w', 'h'))
+    original_height = int(extent.get('cy'))
+    target_index = items.index(target)
+    if x < 0 or y < 0 or x + w > width or y + h > height or min(w, h) <= 0:
+        return False
+    ceiling = height - 12 * 12700
+    for index, item in enumerate(items):
+        if item['hidden'] or item['shape_id'] == int(identity.get('id')):
+            continue
+        bx, by, bw, bh = (item[k] for k in ('x', 'y', 'w', 'h'))
+        if (index < target_index and not item['text'].strip() and item['source_type'] in {'image', 'object'}
+                and bw * bh >= width * height * .6):
+            continue  # Background artwork; do not treat the entire slide as occupied.
+        if bx + bw <= x or bx >= x + w or by + bh <= y + h:
+            continue
+        if by < y + h:
+            return False  # A foreground object already crosses this lower edge.
+        ceiling = min(ceiling, by - 6 * 12700)
+    grown = min(round(h * 1.5), h + 24 * 12700, ceiling - y)
+    if grown <= h + 2 * 12700:
+        return False
+    extent.set('cy', str(round(original_height * grown / h)))
+    body.set('anchor', 't')
+    return True
+
+
 def repair_layout(path, directory, report, cancel=None, progress=None):
     """Change only overflowing, horizontal native text. Never rewrite prose."""
     path, directory = Path(path), Path(directory)
@@ -289,6 +344,8 @@ def repair_layout(path, directory, report, cancel=None, progress=None):
     ordered_parts = source_slide_parts(path)
     parts = {number: ordered_parts[number - 1] for number in targets}
     replacements, roots = {}, {}
+    native_targets, math_changes = {}, []
+    deck = None
     with zipfile.ZipFile(path) as archive:
         for number, part in parts.items():
             root = etree.fromstring(archive.read(part))
@@ -300,6 +357,14 @@ def repair_layout(path, directory, report, cancel=None, progress=None):
                 body = shape.find("p:txBody", NS)
                 if body is None:
                     continue
+                if body.xpath(".//*[local-name()='oMath' or local-name()='oMathPara']"):
+                    if deck is None:
+                        from pptx import Presentation
+                        deck = Presentation(path)
+                    if _grow_formula_frame(shape, deck.slides[number - 1], deck.slide_width, deck.slide_height):
+                        math_changes.append({'slide': number, 'shape_id': shape_id, 'operation': 'grow_formula_frame'})
+                    continue
+                native_targets.setdefault(number, set()).add(shape_id)
                 _compact_fixed_spacing(body)
                 # Empty trailing paragraphs can double a bilingual box's height.
                 paragraphs = body.findall("a:p", NS)
@@ -317,18 +382,21 @@ def repair_layout(path, directory, report, cancel=None, progress=None):
     try:
         from .office_tasks import fit_text
 
-        fit_text(trimmed, fitted, targets, cancel)
+        if native_targets:
+            fit_text(trimmed, fitted, native_targets, cancel)
+        else:
+            fitted = trimmed
     except Exception as exc:
         if cancel and cancel.is_set():
             raise ValueError("Đã dừng sửa bài giảng; bản trước vẫn được giữ.")
         (folder / "unavailable.txt").write_text(type(exc).__name__ + ": " + str(exc), encoding="utf-8")
         return {"path": str(path), "changes": [], "unavailable": True}
-    changes = []
+    changes = list(math_changes)
     fitted_parts = source_slide_parts(fitted)
     with zipfile.ZipFile(fitted) as archive:
         for number, part in parts.items():
             office_root = etree.fromstring(archive.read(fitted_parts[number - 1]))
-            for shape_id in targets[number]:
+            for shape_id in native_targets.get(number, ()):
                 original, adjusted = _shape(roots[number], shape_id), _shape(office_root, shape_id)
                 if original is None or adjusted is None:
                     continue
@@ -344,6 +412,8 @@ def repair_layout(path, directory, report, cancel=None, progress=None):
                 original.replace(original_body, copy.deepcopy(adjusted.find("p:txBody", NS)))
                 changes.append({"slide": number, "shape_id": shape_id, "operation": "fit_text"})
             replacements[part] = etree.tostring(roots[number], xml_declaration=True, encoding="UTF-8", standalone=True)
+    if not changes:
+        return {"path": str(path), "changes": []}
     _write_copy(path, candidate, replacements)
     (folder / "changes.json").write_text(json.dumps(changes, indent=2), encoding="utf-8")
     return {"path": str(candidate), "changes": changes}

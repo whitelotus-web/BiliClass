@@ -59,11 +59,17 @@ def prepare(directory, config, source=None, text=''):
     return {'folder': str(folder), 'config': config}
 
 
-def load(directory, folder, *, verify_source=True):
+class ConversionDiscarded(ValueError):
+    pass
+
+
+def load(directory, folder, *, verify_source=True, allow_discarded=False):
     root = (Path(directory) / 'google_jobs').resolve()
     folder = Path(folder).resolve()
     if folder.parent != root or not folder.is_dir():
         raise ValueError('Bản ghi chuyển đổi không thuộc thư viện này.')
+    if not allow_discarded and (folder / 'conversion-discarded').exists():
+        raise ConversionDiscarded('Bài đang tạo đã được hủy. Chọn tài liệu để tạo bài mới.')
     config = json.loads((folder / 'config.json').read_text(encoding='utf-8'))
     name = config['source_file']
     if Path(name).name != name or (folder / name).resolve().parent != folder:
@@ -73,6 +79,37 @@ def load(directory, folder, *, verify_source=True):
     if config.get('template_sha256') and hashlib.sha256((folder / 'template.pptx').read_bytes()).hexdigest() != config['template_sha256']:
         raise ValueError('Mẫu của lượt chuyển đổi đã thay đổi; tạo lượt mới.')
     return {'folder': str(folder), 'config': config}
+
+
+def mark_discarded(directory, folder):
+    """Durable stop marker, scoped to one validated Google job."""
+    job = load(directory, folder, verify_source=False, allow_discarded=True)
+    if job['config'].get('provider') != 'google_translate' or job['config'].get('request_id') != Path(job['folder']).name:
+        raise ValueError('Bản ghi chuyển đổi không hợp lệ.')
+    (Path(job['folder']) / 'conversion-discarded').touch()
+    return job
+
+
+def discard(directory, folder):
+    """Remove only this run from active work; use recoverable library deletion.
+
+    Source/audio objects are shared by hash and must never be unlinked here.
+    Also catches the race where save committed just before the teacher canceled.
+    """
+    from .library import Library
+
+    job = mark_discarded(directory, folder)
+    request_id = job['config']['request_id']
+    with closing(Library(directory)) as library:
+        rows = [json.loads(row[0]) for row in library.db.execute('SELECT content FROM lessons')]
+        identities = [row['id'] for row in rows if not row.get('deleted_at')
+                      and row.get('external_deck', {}).get('provider') == 'google_translate'
+                      and row['external_deck'].get('request_id') == request_id]
+        if identities:
+            library.trash_lessons(identities)
+        if library.setting('google_request_folder', '') == job['folder']:
+            library.set_setting('google_request_folder', '')
+    return identities
 
 
 def original_source(directory, lesson):
@@ -432,6 +469,9 @@ def _publish_checked(directory, folder, config, target, inspection, cancel, prog
     from .lesson_import import save_conversion
     from .library import Library
 
+    load(directory, folder, verify_source=False)
+    if cancel.is_set():
+        raise InterruptedError('Đã dừng chuyển đổi.')
     progress.stage('save', 'Đang lưu bài giảng song ngữ.')
     with closing(Library(directory)) as library:
         stored = library.store_source(target)

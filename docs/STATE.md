@@ -1,5 +1,22 @@
 # Trạng thái BiliClass
 
+Ngày 19/10/2026 — mã nguồn RC78 sửa trạng thái hoàn tất/đồng hồ và đường
+về Tạo giọng đọc sau chuyển đổi. Thêm xác nhận Hủy và xóa lượt đang tạo,
+chặn hủy nhầm lượt mới và xử lý trường hợp vừa lưu xong; file gốc/key và
+bài khác giữ nguyên. Thu gọn loading, bỏ cấu hình Google khi đang chạy.
+Google Dịch chỉ lưu key mã hóa trên máy, không còn module/nút đồng bộ
+GitHub; giữ bộ đếm. Cài đặt có tiêu đề thống nhất/mô tả riêng bảy tab.
+Trang chủ đúng bốn bước; Mascot có sơ đồ mũi tên lớn, bố cục thích ứng.
+Gộp cả hai sửa footer/bố cục sau RC77 bên dưới. 898 core đạt; nhóm
+Browser 103 đạt lượt đầu, một fixture ERR_ABORTED đạt khi chạy lại cùng
+14 ca Browser Translation. Không gửi bài/key thật ra ngoài để kiểm thử.
+PowerPoint kiểm bản sửa bài thật 51 slide: tăng khung công thức slide 33
+trong khoảng trống, từ 1 FAIL thành 0 FAIL/51 CHECK, giữ XML công thức và
+mọi ZIP part ngoài slide đó. Chưa tự duyệt nội dung. Xem [BUILD_RC78](BUILD_RC78.md).
+13 luồng Qt Windows, native speaker export, 8 corpus và parent-exit đạt,
+không QML warning. Kết quả đóng gói/cài đặt được cập nhật sau khi kiểm
+chứng gói độc lập.
+
 Sau RC77 — mã nguồn đã bỏ dòng hướng dẫn lặp ở chân trang Chuyển đổi,
 thu footer còn 60 px. Giữ cảnh báo khi đang tạo giọng và nút tiếp tục
 công việc chưa xong. Qt layout ở 4 kích thước và responsiveness đạt,

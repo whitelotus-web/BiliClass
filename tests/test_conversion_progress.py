@@ -41,6 +41,7 @@ def test_resume_keeps_progress_but_needs_a_new_library_commit_for_100(tmp_path):
     next_run = ConversionProgress(tmp_path, events.append)
     next_run.stage("import", "verify cached file")
     assert events[-1]["percent"] == 99
+    assert events[-1]['runId'] != events[0]['runId'], 'A resumed run must reject queued events from the earlier run'
 
 
 def test_invalid_checkpoint_and_failed_persistence_do_not_fail_a_web_job(tmp_path):

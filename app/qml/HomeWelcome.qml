@@ -10,6 +10,7 @@ ColumnLayout {
     signal continueWork()
     signal openLibrary()
     signal openNarration()
+    signal openTeaching()
     signal openClassroom()
     signal documentDropped(var urls)
     readonly property bool working: bridge.narrationBusy || !!bridge.browserState.running
@@ -103,9 +104,9 @@ ColumnLayout {
             Repeater {
                 model: [
                     {title: "Tải bài giảng", detail: "Chọn file PowerPoint\ntiếng Việt", icon: "upload", box: Qt.rect(332,282,616,719), number: Qt.rect(469,473,316,315)},
-                    {title: "Chuyển ngữ", detail: "Chọn song ngữ hoặc\ntiếng Anh 100%", icon: "translate", box: Qt.rect(304,330,654,603), number: Qt.rect(412,428,430,431)},
-                    {title: "Nhận bài giảng mới", detail: "Xem lại nội dung\nvà tải PowerPoint", icon: "slides", box: Qt.rect(308,392,639,483), number: Qt.rect(449,450,355,355)},
-                    {title: "Dạy cùng Mascot", detail: "Chọn giọng đọc\nkhi trình chiếu", icon: "voice", box: Qt.rect(372,423,540,452), number: Qt.rect(474,474,306,306)}
+                    {title: "Chuyển đổi bài giảng", detail: "Chọn song ngữ hoặc\ntiếng Anh 100%", icon: "translate", box: Qt.rect(304,330,654,603), number: Qt.rect(412,428,430,431)},
+                    {title: "Tạo giọng đọc bài giảng", detail: "Chọn giọng và ngôn ngữ\nrồi tạo giọng đọc", icon: "voice", box: Qt.rect(372,423,540,452), number: Qt.rect(449,450,355,355)},
+                    {title: "Dạy cùng Mascot", detail: "Chọn bài trên Mascot\nvà mở PowerPoint để dạy", icon: "assistant", box: Qt.rect(189,241,876,807), number: Qt.rect(474,474,306,306)}
                 ]
                 RowLayout {
                     required property var modelData
@@ -118,13 +119,13 @@ ColumnLayout {
                         enabled: !home.bridge.busy
                         Accessible.name: (index + 1) + ". " + modelData.title + ". " + modelData.detail
                         background: Rectangle { radius: 14; color: step.hovered ? "#f8fbff" : "white"; border.color: step.visualFocus ? "#0869f9" : "#dce7f5" }
-                        onClicked: { if (index === 0) home.chooseDocument(); else if (index === 1) home.continueWork(); else if (index === 3) home.openNarration(); else home.openLibrary() }
+                        onClicked: { if (index === 0) home.chooseDocument(); else if (index === 1) home.continueWork(); else if (index === 2) home.openNarration(); else home.openTeaching() }
                         contentItem: Item {
                             Image { objectName: "homeWorkflowNumber" + index; x: -3; y: -3; width: 34; height: 34; source: "../assets/workflow/number-" + (index + 1) + ".png"; sourceClipRect: modelData.number; fillMode: Image.PreserveAspectFit; mipmap: true; Accessible.ignored: true }
                             ColumnLayout {
                                 anchors.fill: parent; anchors.topMargin: 3; spacing: 8
                                 Image { objectName: "homeWorkflowIcon" + index; source: "../assets/workflow/" + modelData.icon + ".png"; sourceClipRect: modelData.box; Layout.alignment: Qt.AlignHCenter; Layout.preferredWidth: 54; Layout.preferredHeight: 54; fillMode: Image.PreserveAspectFit; mipmap: true; Accessible.ignored: true }
-                                Label { text: modelData.title; color: "#16314f"; font.pixelSize: home.width > 1000 ? 16 : 14; font.weight: Font.DemiBold; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap }
+                                Label { objectName: "homeWorkflowTitle" + index; text: modelData.title; color: "#16314f"; font.pixelSize: home.width > 1000 ? 16 : 14; font.weight: Font.DemiBold; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap }
                                 Copy { text: modelData.detail; font.pixelSize: home.width > 1000 ? 14 : 12; Layout.fillHeight: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignTop }
                             }
                         }

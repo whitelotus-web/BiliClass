@@ -251,6 +251,7 @@ ApplicationWindow {
     }
     Connections {
         target: bridge
+        function onBrowserStateChanged() { if (!bridge.browserState.running) cancelConversionDialog.close() }
         function onNarrationAlreadyCreated(config) { existingNarration.selection = config; existingNarration.open() }
         function onUpdateAvailable() { updateDialog.open() }
         function onPowerpointSlideChanged(slide) { if (!root.dirty) bridge.followPowerPoint() }
@@ -543,6 +544,7 @@ ApplicationWindow {
                             onContinueWork: root.go(bridge.narrationBusy ? "voice" : "new")
                             onOpenLibrary: root.go("library")
                             onOpenNarration: root.go("voice")
+                            onOpenTeaching: { companion.collapsed = false; companion.choosingLesson = !bridge.teachingSession.state.bound; bridge.showCompanion(companion) }
                             onOpenClassroom: root.go("classroom")
                         }
                         Surface {
@@ -934,7 +936,7 @@ ApplicationWindow {
                             Layout.fillWidth: true; spacing: 3
                             Copy { visible: root.page !== "new" || bridge.narrationBusy; text: root.page === "new" ? "Đang tạo giọng đọc · Chờ hoàn tất hoặc dừng trước khi chuyển đổi bài mới." : "Chọn cấu hình → kiểm tra lời đọc → tạo giọng đọc"; Layout.fillWidth: true; font.pixelSize: 12 }
                             RowLayout { visible: root.page === "new" && !!bridge.chatgptRequest.folder && !bridge.narrationBusy; Layout.fillWidth: true; spacing: 6
-                                Action { objectName: "resumeCreationTask"; text: "Tiếp tục bài đang chuẩn bị"; visible: !!bridge.chatgptRequest.folder && !bridge.narrationBusy; subtle: true; implicitHeight: 28; font.pixelSize: 11; onClicked: root.go("chatgpt") }
+                                Action { objectName: "resumeCreationTask"; text: bridge.browserState.phase === "completed" ? "Mở bài vừa chuyển đổi" : "Tiếp tục bài đang chuẩn bị"; visible: !!bridge.chatgptRequest.folder && !bridge.narrationBusy; subtle: true; implicitHeight: 28; font.pixelSize: 11; onClicked: { if (bridge.browserState.phase === "completed") bridge.openConvertedLesson(); else root.go("chatgpt") } }
                             }
                         }
                         Action { objectName: "createLessonButton"; visible: root.page === "new"; text: bridge.busy ? "Đang chuẩn bị…" : "Chuyển đổi bài giảng"; primary: true; enabled: !bridge.busy && !bridge.narrationBusy && !root.inputDocumentError && root.creationPrompt.ready; onClicked: bridge.convertDocument(titleInput.text, root.creationSubject, educationInput.currentText, gradeInput.currentText, pasteInput.text, root.selectedFile, root.selectedConversionFormat.id, ["standard", "visual", "practice"][creationPreset.currentIndex], root.creationKeepSource ? "source" : "template", teacherNotesInput.text) }
@@ -989,14 +991,13 @@ ApplicationWindow {
                                     Item { Layout.fillWidth: true }
                                     Copy { objectName: "browserConversionClockState"; text: bridge.conversionClock.status; color: bridge.browserState.running ? root.blue : root.muted }
                                 }
-                                Copy { objectName: "browserConversionLongWait"; Layout.fillWidth: true; visible: !!bridge.conversionClock.longWait; text: "Bài đang mất nhiều thời gian hơn thường lệ. BiliClass vẫn theo dõi kết quả và sẽ báo ngay nếu cần bạn xử lý."; color: "#a66318"; font.pixelSize: 12 }
-                                Copy { Layout.fillWidth: true; text: "Bài giảng song ngữ · Trình chiếu · Giọng đọc · Trợ giảng" }
+                                Copy { objectName: "browserConversionLongWait"; Layout.fillWidth: true; visible: !!bridge.conversionClock.longWait && !bridge.browserState.stopping; text: "Bài đang mất nhiều thời gian hơn thường lệ. BiliClass vẫn theo dõi kết quả và sẽ báo ngay nếu cần bạn xử lý."; color: "#a66318"; font.pixelSize: 12 }
                                 RowLayout { Layout.fillWidth: true
-                                    Action { objectName: "browserConversionResume"; text: !bridge.googleTranslation && bridge.browserAI.webMode && bridge.browserState.needsLogin ? "Kết nối và tiếp tục" : bridge.browserState.errorCode === "submission" ? "Kiểm tra và tiếp tục" : "Tiếp tục chuyển đổi"; primary: true; visible: !bridge.browserState.running && bridge.browserState.phase !== "completed"; enabled: !bridge.busy && (bridge.googleTranslation || !bridge.browserAI.loginBusy) && !!bridge.chatgptRequest.folder; onClicked: { if (!bridge.googleTranslation && bridge.browserAI.webMode && (bridge.browserState.needsLogin || bridge.browserState.errorCode === "submission")) bridge.reconnectBrowserAI(); else bridge.runBrowserAI() } }
-                                    Action { id: conversionCancel; objectName: "browserConversionCancel"; text: "Dừng"; visible: !!bridge.browserState.running; onClicked: bridge.cancelJob() }
-                                    Action { text: bridge.googleTranslation ? "Cấu hình Google Dịch" : "Đăng nhập / Browser AI"; visible: !bridge.browserState.running && (bridge.googleTranslation || !!bridge.browserState.needsLogin); enabled: !bridge.busy; onClicked: { root.go("settings"); settingsPanel.activeTab = 6 } }
+                                    Action { objectName: "openConvertedVoiceButton"; text: "Tiếp tục tạo giọng đọc"; primary: true; visible: bridge.browserState.phase === "completed"; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: bridge.openConvertedLesson() }
+                                    Action { objectName: "browserConversionResume"; text: !bridge.googleTranslation && bridge.browserAI.webMode && bridge.browserState.needsLogin ? "Kết nối và tiếp tục" : bridge.browserState.errorCode === "submission" ? "Kiểm tra và tiếp tục" : "Tiếp tục chuyển đổi"; primary: true; visible: !bridge.browserState.running && bridge.browserState.phase !== "completed" && !!bridge.chatgptRequest.folder; enabled: !bridge.busy && (bridge.googleTranslation || !bridge.browserAI.loginBusy); onClicked: { if (!bridge.googleTranslation && bridge.browserAI.webMode && (bridge.browserState.needsLogin || bridge.browserState.errorCode === "submission")) bridge.reconnectBrowserAI(); else bridge.runBrowserAI() } }
+                                    Action { id: conversionCancel; objectName: "browserConversionCancel"; danger: true; symbol: "×"; text: bridge.browserState.stopping ? "Đang hủy…" : "Hủy chuyển đổi"; visible: !!bridge.browserState.running; enabled: !bridge.browserState.stopping; onClicked: { if (bridge.googleTranslation) { cancelConversionDialog.conversionId = bridge.browserState.conversionId || ""; cancelConversionDialog.open() } else bridge.cancelJob() } }
+                                    Action { objectName: "browserConversionSettings"; text: bridge.googleTranslation ? "Kiểm tra Google Dịch" : "Đăng nhập / Browser AI"; visible: !bridge.browserState.running && bridge.browserState.phase === "error" && (bridge.googleTranslation ? ["api_settings", "api_key", "api_budget", "api_quota", "api_request"].indexOf(bridge.browserState.errorCode) >= 0 : !!bridge.browserState.needsLogin); enabled: !bridge.busy; onClicked: { root.go("settings"); settingsPanel.activeTab = 6 } }
                                 }
-                                Copy { text: bridge.browserState.running ? "BiliClass tự động xử lý. Bài giảng sẽ xuất hiện trong thư viện khi hoàn tất." : "Tài liệu và các phần đã hoàn tất được lưu để tiếp tục."; Layout.fillWidth: true; font.pixelSize: 12 }
                             }
                         }
                         Surface {
@@ -1688,6 +1689,16 @@ ApplicationWindow {
                 Item { Layout.fillWidth: true }
                 Action { text: "Hủy"; onClicked: metadataDialog.close() }
                 Action { objectName: "saveLessonMetadataButton"; text: "Lưu"; primary: true; onClicked: if (bridge.editLessonMetadata(metadataDialog.lessonData.id, metaTitle.text, metaSubject.text, metaEducation.text, metaGrade.text)) metadataDialog.close() }
+            }
+        }
+    }
+    Dialog { id: cancelConversionDialog; objectName: "cancelConversionDialog"; anchors.centerIn: parent; modal: true; title: "Hủy và xóa bài đang tạo?"; width: Math.min(root.width - 48, 520)
+        property string conversionId: ""
+        contentItem: ColumnLayout { spacing: 16
+            Copy { text: "Chuyển đổi sẽ dừng và bài giảng đang tạo sẽ bị xóa. File PowerPoint gốc và các bài giảng khác được giữ nguyên."; Layout.fillWidth: true }
+            RowLayout { Item { Layout.fillWidth: true }
+                Action { objectName: "keepConvertingButton"; text: "Tiếp tục chuyển đổi"; primary: true; onClicked: cancelConversionDialog.close() }
+                Action { objectName: "confirmCancelConversionButton"; text: "Hủy và xóa bài"; danger: true; symbol: "×"; enabled: !!bridge.browserState.running && !bridge.browserState.stopping && bridge.browserState.conversionId === cancelConversionDialog.conversionId; onClicked: { bridge.discardConversion(cancelConversionDialog.conversionId); cancelConversionDialog.close() } }
             }
         }
     }

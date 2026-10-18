@@ -15,7 +15,6 @@ Item {
     signal requestReference()
     property int activeTab: 0
     property bool showGoogleKeyEntry: false
-    property bool googleAdvanced: false
     property string draftVoice: bridge.voiceSettings.voice
     property int draftRate: bridge.voiceSettings.rate
     readonly property bool voiceDirty: draftVoice !== bridge.voiceSettings.voice || draftRate !== bridge.voiceSettings.rate
@@ -96,8 +95,18 @@ Item {
 
     ColumnLayout {
         anchors.fill: parent; spacing: 15
-        Label { text: page.activeTab === 3 ? "Cài đặt Mascot" : "Cài đặt"; color: page.ink; font.pixelSize: 37; font.weight: Font.Bold }
-        Hint { text: page.activeTab === 3 ? "Chọn bạn đồng hành và xem trước cách mascot xuất hiện trong tiết học." : "Thiết lập không gian dạy học của thầy cô. Mỗi nhóm có thể lưu riêng."; Layout.fillWidth: true }
+        Label { objectName: "settingsPageTitle"; text: "Cài đặt"; color: page.ink; font.pixelSize: 37; font.weight: Font.Bold }
+        Hint { objectName: "settingsPageDescription"; Layout.fillWidth: true
+            text: ({
+                0: "Thông tin thầy cô, trường học và các lựa chọn dùng chung trên máy.",
+                1: "Phiên bản, bản quyền và thông tin cập nhật của BiliClass.",
+                2: "Chọn giọng đọc và tốc độ mặc định cho bài giảng.",
+                3: "Chọn bạn đồng hành, cách hiển thị và phím tắt khi dạy cùng Mascot.",
+                4: "Thiết lập mặc định cho lớp học và cách học sinh tham gia.",
+                5: "Quản lý nơi lưu bài giảng, sao lưu và khôi phục dữ liệu.",
+                6: bridge.googleTranslation ? "Thêm key Google Dịch và xem số ký tự còn lại của từng key." : "Kết nối tài khoản AI để chuyển đổi bài giảng."
+            })[page.activeTab] || "Thiết lập BiliClass trên máy này."
+        }
 
         RowLayout {
             Layout.fillWidth: true; spacing: 5
@@ -515,7 +524,7 @@ Item {
                                 delay: 350; timeout: -1
                                 width: Math.min(440, page.width - 32); padding: 14
                                 closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-                                text: "Hướng dẫn lấy Key Google Cloud\n\n1. Bấm Lấy key, đăng nhập Google và chọn hoặc tạo dự án.\n2. Bật thanh toán cho dự án.\n3. Vào APIs & Services → Library, tìm và bật Cloud Translation API.\n4. Vào Credentials → Create credentials → API key.\n5. Giới hạn key chỉ dùng Cloud Translation API rồi sao chép key.\n6. Dán vào ô bên dưới, mỗi dòng: Tên dự án | key, rồi bấm Lưu cấu hình.\n\nDùng key Google Cloud Translation, không phải key Gemini."
+                                text: "Hướng dẫn lấy Key Google Cloud\n\n1. Bấm Lấy key, đăng nhập Google và chọn hoặc tạo dự án.\n2. Bật thanh toán cho dự án.\n3. Vào APIs & Services → Library, tìm và bật Cloud Translation API.\n4. Vào Credentials → Create credentials → API key.\n5. Giới hạn key chỉ dùng Cloud Translation API rồi sao chép key.\n6. Dán vào ô bên dưới, mỗi dòng: Tên dự án | key, rồi bấm Lưu key.\n\nDùng key Google Cloud Translation, không phải key Gemini."
                                 contentItem: Label {
                                     text: googleKeyGuideTip.text; color: page.ink
                                     font.pixelSize: 13; wrapMode: Text.WordWrap
@@ -548,37 +557,17 @@ Item {
                     RowLayout { Layout.fillWidth: true; spacing: 12
                         visible: !bridge.googleSettings.state.configured || page.showGoogleKeyEntry
                         Item { Layout.fillWidth: true }
-                        SaveButton { objectName: "saveGoogleApiKeys"; text: "Lưu key"; enabled: !bridge.busy; onClicked: { if (bridge.googleSettings.save(googleKeys.text, googleBudget.value)) { googleKeys.clear(); page.showGoogleKeyEntry = false } } }
+                        SaveButton { objectName: "saveGoogleApiKeys"; text: "Lưu key"; enabled: !bridge.busy; onClicked: { if (bridge.googleSettings.save(googleKeys.text, bridge.googleSettings.state.budget)) { googleKeys.clear(); page.showGoogleKeyEntry = false } } }
                     }
-                    Flow { Layout.fillWidth: true; spacing: 10
-                        SoftButton { objectName: "receiveGoogleKeysGitHub"; text: "Nhận key từ GitHub"; enabled: !bridge.busy; onClicked: bridge.googleSettings.syncGitHub(true) }
-                        SoftButton { objectName: "sendGoogleKeysGitHub"; text: "Đồng bộ key lên GitHub"; enabled: !bridge.busy && bridge.googleSettings.state.configured; onClicked: bridge.googleSettings.syncGitHub(false) }
-                        SoftButton { objectName: "toggleGoogleAdvanced"; text: page.googleAdvanced ? "Thu gọn" : "Hướng dẫn & nâng cao"; onClicked: page.googleAdvanced = !page.googleAdvanced }
-                    }
-                    ColumnLayout { visible: page.googleAdvanced; Layout.fillWidth: true; spacing: 10
-                    Hint { text: "Google có mức miễn phí tương đương 500.000 ký tự/tháng theo chính sách tài khoản thanh toán. Số key hoặc số Gmail không tự xác định mức này. Bộ đếm BiliClass chỉ ghi nhận tại thư viện này."; Layout.fillWidth: true }
-                    RowLayout { Layout.fillWidth: true
-                        Hint { text: "Giới hạn tại máy / key / tháng"; Layout.fillWidth: true }
-                        SpinBox { id: googleBudget; objectName: "googleCharacterBudget"; from: 1; to: 500000; value: bridge.googleSettings.state.budget || 500000; editable: true; Layout.preferredWidth: 175 }
-                        SaveButton { objectName: "saveGoogleBudget"; text: "Lưu giới hạn"; enabled: !bridge.busy; onClicked: bridge.googleSettings.save("", googleBudget.value) }
-                    }
-                    RowLayout { Layout.fillWidth: true
-                        Hint { Layout.fillWidth: true; text: bridge.googleSettings.state.ocrReady ? "Nhận diện chữ trong ảnh: đã sẵn sàng tại máy. Chỉ chữ nhận rõ và có vùng đặt phù hợp được dịch tự động." : "Chuẩn bị OCR một lần để dịch thêm chữ trong ảnh. Tải bộ nhận diện công khai; không tải bài giảng lên để OCR." }
-                        SoftButton { objectName: "preparePictureOcr"; text: bridge.googleSettings.state.ocrReady ? "OCR đã sẵn sàng" : "Chuẩn bị OCR Việt–Anh"; enabled: !bridge.busy && !bridge.googleSettings.state.ocrReady; onClicked: bridge.googleSettings.prepareOcr() }
-                    }
-                    Hint { text: "Bộ đếm theo tháng UTC, gồm nội dung gửi và lần gửi chưa rõ kết quả. Cảnh báo ở 80% và 95%, dừng gửi mới khi chạm mức đặt; không tự chuyển key với yêu cầu chưa rõ kết quả. Muốn kiểm soát chi phí thực, đặt quota trên Google Cloud."; Layout.fillWidth: true }
-                    Hint { text: "Key được mã hóa theo Windows. Đồng bộ qua kho GitHub riêng tư khi bấm, cần Git và quyền truy cập; không cộng trực tiếp mức dùng của hai máy."; Layout.fillWidth: true }
-                    }
+                    Hint { text: "Key được mã hóa và lưu trên máy này."; Layout.fillWidth: true; font.pixelSize: 11 }
                 }
             }
             Card {
                 Layout.fillWidth: true
                 ColumnLayout { width: parent.width; spacing: 13
-                    TranslationUsage { objectName: "settingsTranslationUsage"; Layout.fillWidth: true; health: bridge.googleSettings.state.health || ({}) }
                     RowLayout { Layout.fillWidth: true
                         Title { text: "Key đã lưu"; Layout.fillWidth: true }
-                        SoftButton { text: "Xem Google Cloud"; onClicked: Qt.openUrlExternally("https://console.cloud.google.com/apis/api/translate.googleapis.com/metrics") }
-                        SoftButton { objectName: "recheckGoogleApiKeys"; text: "Cho phép thử lại key"; enabled: !bridge.busy; onClicked: bridge.googleSettings.recheck() }
+                        SoftButton { objectName: "recheckGoogleApiKeys"; visible: bridge.googleSettings.state.keys.some(function(row) { return !!row.blocked }); text: "Thử lại key đã kiểm tra"; enabled: !bridge.busy; onClicked: bridge.googleSettings.recheck() }
                     }
                     Hint { visible: !bridge.googleSettings.state.configured; text: bridge.googleSettings.state.message || "Chưa có API key. Thêm key ở trên để bắt đầu."; Layout.fillWidth: true }
                     Repeater {
@@ -588,8 +577,7 @@ Item {
                             Layout.fillWidth: true
                             ColumnLayout { Layout.fillWidth: true; spacing: 4
                                 Label { text: modelData.name + " · " + modelData.label; color: page.ink; font.bold: true; Layout.fillWidth: true; elide: Text.ElideRight }
-                                Hint { objectName: "googleKeyRemaining_" + modelData.id; text: "Còn " + Number(modelData.remaining).toLocaleString(Qt.locale("vi_VN"), "f", 0) + " / " + Number(modelData.budget).toLocaleString(Qt.locale("vi_VN"), "f", 0) + " ký tự · " + (modelData.carryover > 0 ? "Đã ghi riêng " : "Đã dùng ") + Number(modelData.used).toLocaleString(Qt.locale("vi_VN"), "f", 0); color: modelData.blocked || modelData.remaining <= 0 ? "#b14828" : page.muted; Layout.fillWidth: true }
-                                Hint { objectName: "googleKeyCarryover_" + modelData.id; visible: modelData.carryover > 0; text: "Đã trừ dự phòng " + Number(modelData.carryover).toLocaleString(Qt.locale("vi_VN"), "f", 0) + " ký tự lịch sử chung trong tháng chuyển đổi."; Layout.fillWidth: true; font.pixelSize: 11 }
+                                Hint { objectName: "googleKeyRemaining_" + modelData.id; text: "Còn " + Number(modelData.remaining).toLocaleString(Qt.locale("vi_VN"), "f", 0) + " / " + Number(modelData.budget).toLocaleString(Qt.locale("vi_VN"), "f", 0) + " ký tự"; color: modelData.blocked || modelData.remaining <= 0 ? "#b14828" : page.muted; Layout.fillWidth: true }
                                 ProgressBar { objectName: "googleKeyProgress_" + modelData.id; Layout.fillWidth: true; from: 0; to: 100; value: modelData.percent
                                     background: Rectangle { implicitHeight: 5; radius: 2; color: "#e8eef7" }
                                     contentItem: Item { implicitHeight: 5; Rectangle { width: parent.width * Math.min(1, modelData.percent / 100); height: parent.height; radius: 2; color: modelData.percent >= 95 ? "#b14828" : modelData.percent >= 80 ? "#d59020" : "#168567" } }

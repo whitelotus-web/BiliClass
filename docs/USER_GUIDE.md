@@ -1,24 +1,24 @@
 # BiliClass — Trợ lý dạy học song ngữ
 
-Hướng dẫn luồng RC75, ngày 18/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
+Hướng dẫn luồng RC78, ngày 18/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
 trên máy. Chuyển đổi hiện dùng Google Cloud Translation cho phần chữ và dựng
 PowerPoint tại máy; Browser ChatGPT/Gemini tạm ẩn.
 
 ## Cài và cập nhật
 
-1. Tải **BiliClass-RC68-Windows.zip** tại
-   [Release RC68](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc68).
+1. Tải **BiliClass-RC78-Windows.zip** tại
+   [Release RC78](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc78).
 2. Giải nén toàn bộ; không chạy trong cửa sổ ZIP. Chạy **Setup.cmd**.
 3. Bộ cài kiểm tra checksum và cài vào
-   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc68`, không cần quyền quản trị.
+   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc78`, không cần quyền quản trị.
 4. Mở BiliClass từ Desktop hoặc Start menu. Bản cài có model giọng, OCR và
    template; không cần thư mục runtime của máy phát triển.
 
-Máy đang dùng RC34: vào **Cài đặt → Thông tin BiliClass → Kiểm tra cập nhật**,
-chọn Cập nhật khi thấy RC68. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
+Máy đang dùng bản cũ: vào **Cài đặt → Thông tin BiliClass → Kiểm tra cập nhật**,
+chọn Cập nhật khi thấy RC78. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
 Setup.cmd như trên. Các bản cài nằm cạnh nhau; thư viện ở
 `%LOCALAPPDATA%/BiliClass` được giữ nguyên. Không xóa thư mục dữ liệu này.
-Thư viện cá nhân không đưa lên GitHub. Key có thể nhận riêng như hướng dẫn dưới.
+Thư viện cá nhân và API key không đưa lên GitHub. Key chỉ lưu mã hóa trên máy.
 
 ## Tạo bài giảng
 
@@ -39,6 +39,15 @@ Thư viện cá nhân không đưa lên GitHub. Key có thể nhận riêng như
 5. Xem lại bài đã lưu. Công thức, chữ trong ảnh, hiệu ứng phức tạp và slide
    dày chữ vẫn cần đối chiếu. Bài còn lỗi chưa được coi là đã duyệt để dạy.
 
+Khi đang xử lý, màn hình hiển thị bước hiện tại, phần trăm và thời gian.
+**Hủy chuyển đổi** mở hộp xác nhận; chọn **Tiếp tục chuyển đổi** để giữ
+tác vụ hoặc **Hủy và xóa bài** để bỏ lượt đang tạo. Tool chờ bước hiện tại
+dừng an toàn. File gốc và bài khác được giữ; nếu bài vừa kịp lưu thì chuyển
+vào Thùng rác. Hủy không hoàn lại số ký tự đã gửi dịch. Lượt đã hủy không
+tự tiếp tục khi mở lại tool. Nếu chỉ gặp gián đoạn, nút **Tiếp tục chuyển
+đổi** dùng lại phần hợp lệ đã lưu. Nút kiểm tra Google Dịch chỉ hiện khi
+lỗi cấu hình/key/hạn mức cần xử lý.
+
 Key được lưu mã hóa theo tài khoản Windows. Mỗi key có bộ đếm cục bộ riêng,
 mặc định tối đa **500.000 ký tự/key/tháng**. Ngay dưới key là **Còn lại /
 tổng ký tự**, số đã dùng và thanh tiến độ. BiliClass kiểm tra trước mỗi
@@ -50,11 +59,12 @@ vẫn gắn với dự án Google để tính hạn mức và thanh toán; xem [
 Lịch sử chung trước RC69 được giữ riêng vì chưa có chi tiết theo key; số
 đếm từng key ghi từ RC69, không tự chia hoặc gán số cũ cho một key.
 Trong tháng nâng cấp, tool trừ dự phòng phần lịch sử chung khỏi mức còn
-lại của các key cũ để tránh vượt giới hạn. Dòng dưới key giải thích số dự
-phòng; key mới thêm không bị trừ lịch sử cũ. Sang tháng mới mỗi key trở
+lại của các key cũ để tránh vượt giới hạn; key mới thêm không bị trừ lịch
+sử cũ. Sang tháng mới mỗi key trở
 lại đầy đủ mức đã đặt. Bộ đếm UTC này chưa đồng bộ báo cáo/chu kỳ Google.
-Ô nhập key ẩn sau khi lưu; bấm **Thêm key** để mở. Giới hạn tháng, OCR và
-hướng dẫn đồng bộ nằm trong **Hướng dẫn & nâng cao**.
+Ô nhập key ẩn sau khi lưu; bấm **Thêm key** để mở. Có **Hướng dẫn lấy Key**,
+**Lấy key**, đổi tên/xóa từng key và số ký tự còn lại. Không còn chức năng
+nhận/gửi key qua GitHub; nâng cấp giữ nguyên key, hạn mức và lịch sử đã lưu.
 
 **Bài giảng** là thư viện: tìm, lọc, mở, tải và quản lý bài đã lưu. Đổi qua lại
 giữa các mục vẫn giữ tài liệu/cấu hình đang nhập ở mục Chuyển đổi bài giảng.
@@ -92,21 +102,18 @@ khi dịch Google. Đổi thuật ngữ làm mới riêng cache của câu có d
 các câu không liên quan vẫn dùng lại bản dịch cũ. Thuật ngữ chưa khóa và
 kiến thức tham khảo không tự ghi đè bản dịch.
 
-Máy thứ hai có thể vào **Cài đặt → Google Dịch → Nhận key từ GitHub**.
-Cần Git for Windows và đăng nhập GitHub bằng Git Credential Manager, với quyền
-truy cập kho riêng tư `whitelotus-web/BiliClass-Private-Config`. Không có mật
-khẩu BiliClass bổ sung. Key được chuyển qua HTTPS rồi mã hóa bằng Windows
-trên máy nhận, không chứa trong bộ cài hay repo mã nguồn công khai.
-**Đồng bộ key lên GitHub** lưu/gộp cấu hình khi bấm; không chạy nền tự động.
-Bộ đếm đã ghi nhận được giữ theo giá trị lớn hơn, nhưng hai máy sau đó vẫn
-đếm riêng; không coi đây là đồng bộ trực tiếp quota. Đặt quota trong Google.
+Trong **Cài đặt → Google Dịch**, nhập mỗi key một dòng rồi bấm **Lưu key**.
+Có **Hướng dẫn lấy Key** và **Lấy key** để mở trang Google Cloud.
+Key được mã hóa bằng Windows và chỉ lưu trên máy; không đồng bộ GitHub.
+Mỗi key có bộ đếm ký tự còn lại riêng. Thêm key hoặc đổi tên không đặt lại
+lịch sử đã dùng; số này là bộ đếm tại máy, không phải số dư Google Cloud.
 
 ## Tên key, giới hạn dịch và Trang chủ
 
 Key được đánh số tự động **Key 1, Key 2…**, giữ số khi đổi tên. Nếu có tên
 đầu vào, tên hiện trong ngoặc; bấm **Đổi tên** để sửa tên phụ. Đổi tên không
 đổi bộ đếm hay dự án. Xóa rồi thêm lại cùng key giữ số đã dùng trong tháng.
-Tên dự án là thông tin nhận diện/đồng bộ, không gộp bộ đếm của các key.
+Tên dự án là thông tin nhận diện, không gộp bộ đếm của các key.
 
 Ứng dụng ưu tiên key theo thứ tự đã lưu. Khi Google xác nhận key bị từ chối
 hoặc hết quota, chuyển key kế tiếp; lỗi mạng/tốc độ chỉ thử lại có giới hạn.

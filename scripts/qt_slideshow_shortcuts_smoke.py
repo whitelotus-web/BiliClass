@@ -18,7 +18,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tests'))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from PySide6.QtCore import QCoreApplication, QEvent, Qt
+from PySide6.QtCore import QCoreApplication, QEvent, QPointF, Qt
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
@@ -88,6 +88,24 @@ def main():
             click(window, control(window, 'resetMascotShortcuts'))
             assert bridge.mascotShortcuts.state['bindings']['en'] == 'Space'
             assert not panel.property('dirty')
+            for width, height in ((1920, 1080), (1366, 850), (1080, 700)):
+                window.resize(width, height)
+                pump(150)
+                click(window, control(window, 'resetMascotShortcuts'))
+                bindings = control(window, 'shortcutBindings')
+                guide = control(window, 'shortcutNavigationGuide')
+                bp = bindings.mapToItem(panel, QPointF())
+                gp = guide.mapToItem(panel, QPointF())
+                if panel.property('wideGuide'):
+                    assert gp.x() >= bp.x() + bindings.width() + 20
+                else:
+                    assert gp.y() >= bp.y() + bindings.height() + 12
+                for direction in ('Up', 'Down', 'Left', 'Right'):
+                    key = control(window, 'shortcutGuide' + direction)
+                    assert key.width() >= 50 and key.height() >= 48
+                    point = key.mapToItem(panel, QPointF())
+                    assert 0 <= point.x() <= panel.width() - key.width()
+                assert window.grabWindow().save(str(out / f'keyboard-guide-{width}.png'))
             assert window.grabWindow().save(str(out / 'mascot-settings.png'))
             if options.interactive:
                 if options.animated:

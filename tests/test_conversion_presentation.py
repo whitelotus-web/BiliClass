@@ -31,3 +31,10 @@ def test_failed_file_transfer_does_not_claim_completion_or_expired_login():
     assert 'chưa hoàn tất' in shown['displayMessage']
     assert 'đăng nhập' not in shown['displayMessage']
     assert shown['percent'] == 55 and shown['displayStage'] == 'Chuyển đổi tạm dừng'
+
+
+def test_cancel_requested_and_discarded_states_do_not_claim_creation_or_resume():
+    stopping = display_state({'running': True, 'stopping': True, 'stage': 'translate', 'percent': 40})
+    assert 'Đang hủy' in stopping['displayStage'] and stopping['percent'] == 40
+    discarded = display_state({'running': False, 'phase': 'discarded', 'stage': 'save'})
+    assert 'Đã hủy' in discarded['displayStage'] and 'bài giảng mới' in discarded['displayMessage']

@@ -128,21 +128,3 @@ class GoogleSettings(QObject):
             self.store().recheck()
             self.refresh()
             self.bridge.inform("Đã cho phép thử lại key ở lượt dịch tiếp theo. Bộ đếm ký tự được giữ nguyên.")
-
-    @Slot(bool)
-    def syncGitHub(self, receive):
-        if self.bridge._busy:
-            return
-        from .key_sync import download, upload
-
-        store = self.store()
-        budget = self.bridge.library.setting('google_character_budget', DEFAULT_BUDGET)
-
-        def done(result):
-            if receive:
-                self.bridge.library.set_setting('google_character_budget', result['budget'])
-            self.refresh()
-            self.bridge.inform('Đã nhận key từ kho GitHub riêng tư và mã hóa trên Windows máy này.' if receive
-                               else 'Đã đồng bộ key lên kho GitHub riêng tư. Máy kia có thể bấm Nhận key từ GitHub.')
-
-        self.bridge.launch(lambda: download(store, budget) if receive else upload(store, budget), done)

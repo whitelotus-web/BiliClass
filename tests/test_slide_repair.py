@@ -97,6 +97,51 @@ def test_layout_rejects_stale_report_and_never_touches_original(tmp_path):
     assert source.read_bytes() == before
 
 
+@pytest.mark.parametrize('blocked,generated', [(False, True), (True, True), (False, False)])
+def test_formula_frame_grows_only_into_free_space_and_preserves_math(tmp_path, monkeypatch, blocked, generated):
+    import hashlib
+
+    from lxml import etree
+
+    from app.slide_repair import NS
+
+    deck = Presentation()
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    group = slide.shapes.add_group_shape()
+    formula = group.shapes.add_textbox(Inches(4), Inches(1), Inches(4), Inches(.5))
+    formula.name = 'BCL_BODY English' if generated else 'Original formula'
+    formula.text = 'Speed = '
+    formula.text_frame.paragraphs[0].font.size = Pt(20)
+    math_ns = 'http://schemas.openxmlformats.org/officeDocument/2006/math'
+    math = etree.SubElement(formula.text_frame.paragraphs[0]._p, '{' + math_ns + '}oMath')
+    fraction = etree.SubElement(math, '{' + math_ns + '}f')
+    for tag, text in [('num', 'v'), ('den', 'ω')]:
+        run = etree.SubElement(etree.SubElement(fraction, '{' + math_ns + '}' + tag), '{' + math_ns + '}r')
+        etree.SubElement(run, '{' + math_ns + '}t').text = text
+    original_math = etree.tostring(math, method='c14n')
+    if blocked:
+        obstacle = slide.shapes.add_textbox(Inches(4), Inches(1.6), Inches(4), Inches(1))
+        obstacle.text = 'Do not cover this caption'
+    source = tmp_path / 'formula.pptx'
+    deck.save(source)
+    original = source.read_bytes()
+    monkeypatch.setattr('app.office_tasks.fit_text', lambda *_: pytest.fail('Never serialize math through COM text fitting'))
+    report = {'sha256': hashlib.sha256(original).hexdigest(), 'slides': [
+        {'slide': 1, 'issues': [{'code': 'text_overflow', 'shape_id': formula.shape_id}]}]}
+    result = repair_layout(source, tmp_path, report)
+    assert source.read_bytes() == original
+    if blocked or not generated:
+        assert result['path'] == str(source) and not result['changes']
+        return
+    assert result['changes'][0]['operation'] == 'grow_formula_frame'
+    repaired = Presentation(result['path']).slides[0].shapes[0].shapes[0]
+    assert repaired.height > formula.height
+    assert (repaired.left, repaired.top, repaired.width) == (formula.left, formula.top, formula.width)
+    assert etree.tostring(repaired._element.find('.//{' + math_ns + '}oMath'), method='c14n') == original_math
+    assert repaired._element.xpath('.//a:rPr/@sz') == formula._element.xpath('.//a:rPr/@sz')
+    assert repaired._element.find('p:txBody/a:bodyPr', NS).get('anchor') == 't'
+
+
 def test_repair_handles_source_and_office_using_different_slide_part_names(tmp_path, monkeypatch):
     import hashlib
 

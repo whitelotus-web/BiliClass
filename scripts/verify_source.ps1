@@ -42,7 +42,7 @@ if ($Quick) {
 if ($Qt) {
     foreach ($taskFlow in @('qt_conversion_layout_smoke', 'qt_narration_workspace_smoke',
         'qt_save_dialog_smoke', 'qt_result_preview_mascot_smoke',
-        'qt_storage_voice_smoke', 'qt_home_smoke', 'qt_library_views_smoke',
+        'qt_storage_voice_smoke', 'qt_home_smoke', 'qt_google_translation_smoke', 'qt_review_usage_smoke', 'qt_library_views_smoke',
         'qt_teaching_session_smoke', 'qt_slideshow_shortcuts_smoke', 'qt_classroom_flow_smoke', 'qt_conversion_responsiveness_smoke')) {
         $taskPreviousPlatform = $env:QT_QPA_PLATFORM
         try {

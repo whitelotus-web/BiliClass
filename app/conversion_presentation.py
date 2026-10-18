@@ -60,7 +60,13 @@ ERROR_COPY = {
 def display_state(state):
     """Do not suggest work is running after retries have stopped."""
     label, message = STAGE_COPY.get(state.get("stage"), STAGE_COPY["session"])
-    if not state.get("running") and state.get("phase") == "error":
+    if state.get("running") and state.get("stopping"):
+        label, message = "Đang hủy chuyển đổi", "Đang dừng bước hiện tại trước khi xóa bài đang tạo."
+    elif state.get("phase") == "discarded":
+        label, message = "Đã hủy bài đang tạo", "Chọn tài liệu để bắt đầu một bài giảng mới."
+    elif state.get("phase") == "cancelled":
+        label, message = "Đã dừng chuyển đổi", ERROR_COPY["cancelled"]
+    elif not state.get("running") and state.get("phase") == "error":
         message = ERROR_COPY.get(state.get("errorCode"),
                                  "Chuyển đổi đang tạm dừng do kết nối gián đoạn. Bài đang làm đã được giữ để tiếp tục.")
         label = "Cần xác minh tài khoản" if state.get("needsLogin") else "Chuyển đổi tạm dừng"

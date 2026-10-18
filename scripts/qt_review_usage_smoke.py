@@ -13,7 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from PySide6.QtCore import QCoreApplication, QEvent, QMetaObject, Qt, QUrl, Slot
+from PySide6.QtCore import QCoreApplication, QEvent, QMetaObject, QObject, Qt, QUrl, Slot
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
@@ -117,17 +117,23 @@ def main():
             assert not any(s['approved'] for s in library.get(failed['id'])['segments'])
             QMetaObject.invokeMethod(c('wholeLessonReview'), 'close', Qt.DirectConnection)
             window.setProperty('page', 'settings')
+            descriptions = set()
+            for tab in (0, 6, 2, 3, 4, 5, 1):
+                c('settingsPage').setProperty('activeTab', tab)
+                pump(50)
+                assert c('settingsPageTitle').property('text') == 'Cài đặt'
+                descriptions.add(c('settingsPageDescription').property('text'))
+            assert len(descriptions) == 7
             c('settingsPage').setProperty('activeTab', 6)
             pump(150)
-            usage = c('settingsTranslationUsage')
-            assert control(usage, 'translationGroupCount').property('text') == '2 key · 2 bộ đếm riêng'
-            assert '1.000.000' in control(usage, 'translationTotalUsage').property('text')
-            assert '104.853' in control(usage, 'translationLegacyUsage').property('text')
             rows = bridge.googleSettings.state['keys']
             assert rows[0]['used'] == 40000 and rows[1]['used'] == 0
             assert '355.147 / 500.000' in c('googleKeyRemaining_' + rows[0]['id']).property('text')
             assert '500.000 / 500.000' in c('googleKeyRemaining_' + rows[1]['id']).property('text')
-            assert not c('googleApiKeys').isVisible() and not c('googleCharacterBudget').isVisible()
+            assert not c('googleApiKeys').isVisible()
+            for removed in ('googleCharacterBudget', 'toggleGoogleAdvanced', 'settingsTranslationUsage',
+                            'receiveGoogleKeysGitHub', 'sendGoogleKeysGitHub', 'preparePictureOcr'):
+                assert window.findChild(QObject, removed) is None, removed
             for width, height in ((1080, 700), (1366, 850)):
                 window.resize(width, height)
                 pump(150)
@@ -135,11 +141,6 @@ def main():
             click(window, c('toggleGoogleKeyEntry'))
             assert c('googleApiKeys').isVisible()
             click(window, c('toggleGoogleKeyEntry'))
-            click(window, c('toggleGoogleAdvanced'))
-            assert c('googleCharacterBudget').isVisible()
-            c('googleCharacterBudget').setProperty('value', 450000)
-            click(window, c('saveGoogleBudget'))
-            assert bridge.googleSettings.state['budget'] == 450000
             assert store.public()[0]['used'] == 40000
             assert store.public()[0]['project'] == 'mặc định'
             assert not warnings, warnings
@@ -148,7 +149,7 @@ def main():
                 'technical failures block confirmation; repair/inspect route to existing slots',
                 'repair does not approve text; confirmation opens explicit teacher review',
                 'two unlabelled keys have separate counters and remaining/total beneath each key',
-                'key input and advanced controls collapsed; budget save preserves usage/groups',
+                'local key entry and per-key counters; removed sync/advanced controls; usage preserved',
                 '1080/1366 screenshots',
             ]}
             (report / 'result.json').write_text(json.dumps(result, indent=2), encoding='utf-8')

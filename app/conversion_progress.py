@@ -4,6 +4,7 @@ import json
 import time
 from contextlib import contextmanager, nullcontext
 from pathlib import Path
+from uuid import uuid4
 
 STAGES = {
     "session": (2, 5, "Mở phiên ChatGPT"),
@@ -48,6 +49,7 @@ class ConversionProgress:
     def __init__(self, folder, notify):
         self.path = Path(folder) / "conversion-progress.json"
         self.notify = notify
+        self.run_id = uuid4().hex
         self.started = time.monotonic()
         self.state = {"percent": 0, "stage": "session", "stageLabel": STAGES["session"][2],
                       "done": 0, "total": 0, "waiting": False, "elapsedSeconds": 0}
@@ -117,7 +119,7 @@ class ConversionProgress:
 
     def _emit(self, force=False):
         self.state["elapsedSeconds"] = self.elapsed + int((self.ended if self.ended is not None else time.monotonic())-self.started)
-        self.notify({**self.state, "emittedAtMs": int(time.time()*1000)})
+        self.notify({**self.state, "emittedAtMs": int(time.time()*1000), "runId": self.run_id})
         checkpoint = (self.state["stage"], self.state["percent"])
         if not force and self.persisted == checkpoint and self.last_saved is not None and time.monotonic() - self.last_saved < 5:
             return
