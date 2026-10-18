@@ -2,6 +2,8 @@
 
 Ngày 18/10/2026 — RC72 tiếp tục công việc RC71, tối ưu bộ nhớ sao lưu,
 khôi phục trên ổ đích, xác minh chuyển dữ liệu và lần ghi đầu của bài mới.
+Đã cài RC72 tại máy này; 938 tests, 8 smoke giao diện EXE và self-test với
+model ngoại tuyến thực đã qua. Chưa công bố GitHub Release RC72.
 Đã rà soát luồng Qt, lớp học loopback và bộ kiểm thử toàn hệ thống; các kết
 quả/giới hạn cuối ghi tại [BUILD_RC72.md](BUILD_RC72.md). Ưu tiên tiếp theo
 là chất lượng slide, độ tin cậy Office, trạng thái UI và nghiệm thu tại lớp;

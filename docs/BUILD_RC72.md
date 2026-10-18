@@ -44,3 +44,23 @@ Sao lưu tệp thử 24 MiB: peak cấp phát Python 24,45 → 2,29 MiB; tổng 
 Mã nguồn, tài liệu và kiểm thử được commit/push riêng với gói Windows.
 Gói ghi version/commit/hash, không chứa thư viện cá nhân. Kế hoạch tiếp theo:
 [OPTIMIZATION_PLAN_RC72.md](OPTIMIZATION_PLAN_RC72.md).
+
+## Gói Windows đã cài và kiểm chứng
+
+- Version: `1.0.0rc72`; mã nguồn build:
+  `7445dd334f7f8bc74ee98737641aea940704c4b4`.
+- `BiliClass-RC72-Windows.zip`: 840.289.515 byte, 4.187 tệp; đã đối chiếu
+  SHA-256/CRC toàn bộ entry. Runtime/model đầy đủ tái dùng từ gói RC71 đã kiểm.
+- SHA-256 ZIP: `cd32268ca1a2419f87129c816e5bc9cc07860ddec34bb90e8ae0d2935b53eeb7`.
+- SHA-256 EXE: `0bec256e9774ad7627a2edf3d9a5809085b42a6da9e2f81241e93937d7d4057f`.
+- Cài tại `F:/Applications/BiliClass/1.0.0rc72`; marker cài đặt là RC72.
+  Đây là gói cài trên máy này, chưa công bố thành GitHub Release.
+
+Bản EXE đã cài vượt qua 8 smoke giao diện: Trang chủ, Chuyển đổi, Giọng đọc,
+Cài đặt ở 1080×700 và 1366×850; không có QML warning. Self-test tách dữ liệu
+và bỏ đường dẫn phát triển đã qua: DOCX/PPTX, bốn prompt/chế độ nhập kết quả,
+ba mẫu tích hợp và 12 preview, SQLite/history/gói nháp, tổng hợp WAV ngoại
+tuyến thực với VieNeu (VI/EN/mixed/tốc độ/cache), tiến trình lớp học và ACK
+WebSocket, xuất bài đã duyệt và round-trip backup. Không tải model hay gọi
+API dịch. Có tạo âm thanh thật nhưng chưa nghe nghiệm thu phát âm; đây vẫn
+là Windows hiện tại, chưa đại diện Windows sạch.

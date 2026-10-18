@@ -48,6 +48,13 @@ của tiến trình, hoặc kết quả trên thư viện giáo viên lớn.
 
 ## Mốc 1 — Chất lượng và khôi phục (P0, dự kiến 2–4 ngày làm việc)
 
+**Quyền truy cập kho cần xử lý riêng:** kiểm tra GitHub ngày 18/10 trả
+`private: false` cho `whitelotus-web/BiliClass`, khác mô tả kho riêng tư trong
+quy ước làm việc. Cần chốt nguồn riêng tư hay công khai và kênh phát hành;
+không tự đổi visibility vì updater hiện dùng GitHub Releases. Phương án cần
+đánh giá là tách kho nguồn riêng tư khỏi kho phát hành công khai, hoặc bổ sung
+xác thực cập nhật phù hợp. Dữ liệu cá nhân/key/model/EXE tiếp tục nằm ngoài Git.
+
 1. Chọn 8–12 bài chuẩn có quyền sử dụng: văn bản thường, bảng, công thức,
    ảnh/OCR, nhiều hiệu ứng, slide kín chữ và bài song ngữ có sẵn. Ghi phiên
    bản nguồn và kết quả mong đợi; dữ liệu riêng nằm ngoài Git.
