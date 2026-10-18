@@ -429,6 +429,9 @@ Item {
                     RowLayout { Layout.fillWidth: true; Hint { text: "Thu nhỏ BiliClass vẫn giữ Mascot trên màn hình. Kéo để đặt vị trí; bấm Mascot để mở công cụ hoặc chọn Ẩn khi cần."; Layout.fillWidth: true } SaveButton { objectName: "saveMascot"; text: "Lưu cài đặt Mascot"; onClicked: bridge.saveMascotPreferences(page.selectedMascot, mascotVisible.checked, Math.round(mascotSize.value), mascotPosition.currentIndex ? "left" : "right", reducedMotion.checked, mascotAccessories.checked, mascotExplanation.checked, mascotQuiz.checked, mascotSubjectMode.currentIndex === 1 ? "fixed" : "auto", page.previewSubject, mascotOnTop.checked) } }
                 }
             }
+            Card { Layout.fillWidth: true
+                MascotShortcuts { objectName: "mascotShortcutPanel"; width: parent.width; settings: bridge.mascotShortcuts }
+            }
         }
 
         ColumnLayout {

@@ -34,5 +34,6 @@ jobs:
           tests/test_support_report.py tests/test_slide_dependency_cache.py
           tests/test_slide_render_cache.py
           tests/test_download_names.py tests/test_presentation_audio.py
+          tests/test_slideshow_shortcuts.py tests/test_teaching_session.py tests/test_english_reader.py
       - name: Fixture corpus (structural; no Office)
         run: python -m scripts.verify_quality_corpus

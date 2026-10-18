@@ -2,7 +2,9 @@
 
 Ứng dụng Windows chuyển tài liệu của giáo viên thành bài giảng Anh–Việt, rồi trình chiếu bằng PowerPoint với giọng đọc và mascot trợ giảng. Hỗ trợ cấu hình từ lớp 1 đến lớp 12 và môn tự nhập.
 
-## Luồng hiện tại — RC73
+## Luồng hiện tại — RC74
+
+RC74 thêm phím đọc và nút phát/tạm dừng trong phiên PowerPoint gắn với Mascot: Cách = Anh, Enter = Việt, Ctrl+Cách = hai ngôn ngữ; ←/→ điều hướng, ↑/↓ âm lượng lời đọc. Gán phím tại Cài đặt → Mascot; xem bảng phím ngay trên Mascot. [Kiểm chứng và phạm vi](docs/BUILD_RC74.md).
 
 RC73 hoàn thiện cấu hình giọng, màn hoàn tất, mở PowerPoint và tải bài có loa; thêm sao lưu ZIP64, khôi phục có checkpoint và Office worker riêng. [Phạm vi kiểm chứng và bộ cài](docs/BUILD_RC73.md) · [Tiến độ kế hoạch](docs/IMPLEMENTATION_RC73.md) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md). Bản dựng tại máy và bản trên GitHub Releases có vòng phát hành riêng; xem version trong ứng dụng/gói đang dùng.
 

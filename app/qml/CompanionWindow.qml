@@ -11,9 +11,15 @@ Window {
     property bool collapsed: true
     property bool choosingLesson: false
     property bool showAssistant: false
+    property bool showShortcutGuide: false
     readonly property var session: bridge.teachingSession.state
     readonly property var availableAudio: session.bound ? bridge.teachingSession.audio : bridge.audioAvailable
     readonly property var reader: session.bound ? bridge.teachingSession.reader : bridge.englishReaderState
+    function readText(language, label) {
+        const shortLabel = {en: "Anh", vi: "Việt", both: "Việt–Anh"}[language]
+        return reader.language === language && reader.state === "reading" ? "Tạm dừng · " + shortLabel : reader.language === language && reader.state === "paused" ? "Đọc tiếp · " + shortLabel : "Đọc " + label
+    }
+    function readIcon(language) { return reader.language === language && reader.state === "reading" ? "pause" : "play" }
     readonly property var response: session.bound ? (session.response || {}) : bridge.teachingContext.response
     property bool mascotAtRight: bridge.mascotSettings.position === "right"
     property bool mascotAtBottom: true
@@ -86,15 +92,38 @@ Window {
                 text: companion.session.reading_scope === "visible" ? "Chỉ đọc lời đã xác định đang hiện; chuyển hiệu ứng rồi bấm đọc tiếp." : "Bấm đọc sẽ nghe trọn lời đã lưu của slide, kể cả phần xuất hiện sau."
                 font.pixelSize: 11; color: "#667997"
             }
+            ActionButton { objectName: "companionShortcutGuideToggle"; text: companion.showShortcutGuide ? "Thu hướng dẫn phím" : "⌨  Hướng dẫn phím"; Layout.fillWidth: true; implicitHeight: 32; onClicked: companion.showShortcutGuide = !companion.showShortcutGuide }
+            ColumnLayout {
+                objectName: "companionShortcutGuide"; visible: companion.showShortcutGuide
+                Layout.fillWidth: true; spacing: 5
+                Repeater {
+                    model: [{key: bridge.mascotShortcuts.state.labels.en, action: "Đọc / tạm dừng tiếng Anh"}, {key: bridge.mascotShortcuts.state.labels.vi, action: "Đọc / tạm dừng tiếng Việt"}, {key: bridge.mascotShortcuts.state.labels.both, action: "Đọc / tạm dừng hai ngôn ngữ"}, {key: "← / →", action: "Lùi / tiến hiệu ứng, slide"}, {key: "↑ / ↓", action: "Âm lượng lời đọc ±5%"}, {key: "Esc", action: "Thoát trình chiếu"}]
+                    RowLayout {
+                        required property var modelData
+                        Layout.fillWidth: true; spacing: 6
+                        Rectangle { implicitWidth: 82; implicitHeight: 25; color: "#f4f7fb"; border.color: "#cbdcf4"; radius: 5
+                            Label { anchors.centerIn: parent; text: modelData.key; color: "#102e54"; font.pixelSize: 11; font.bold: true }
+                        }
+                        Label { text: modelData.action; Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 11; color: "#526888" }
+                    }
+                }
+                Label { text: "Bấm tiếp để đọc tiếp từ chỗ dừng. Đổi phím tại Cài đặt → Mascot. Chỉ có tác dụng khi cửa sổ trình chiếu đang được chọn."; Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 10; color: "#667997" }
+            }
+            RowLayout {
+                visible: companion.session.bound && !!companion.session.active; Layout.fillWidth: true
+                Label { text: "Âm lượng lời đọc"; font.pixelSize: 11; color: "#667997" }
+                Slider { objectName: "companionVolume"; from: 0; to: 100; stepSize: 5; value: companion.reader.volume === undefined ? 80 : companion.reader.volume; Layout.fillWidth: true; onMoved: bridge.teachingSession.setVolume(Math.round(value)) }
+                Label { text: (companion.reader.volume === undefined ? 80 : companion.reader.volume) + "%"; font.pixelSize: 11; color: "#102e54" }
+            }
             GridLayout {
                 Layout.fillWidth: true; columns: 2; columnSpacing: 6; rowSpacing: 5
                 ActionButton { visible: companion.showAssistant; objectName: "companionExplain"; text: "Giải thích Anh"; enabled: bridge.companionCanRead; iconName: "view"; Layout.fillWidth: true; implicitHeight: 32; onClicked: bridge.companionAsk("explanation", "en") }
                 ActionButton { visible: companion.showAssistant; text: "Ví dụ"; enabled: bridge.companionCanRead; iconName: "add"; Layout.fillWidth: true; implicitHeight: 32; onClicked: bridge.companionAsk("example", "en") }
                 ActionButton { visible: companion.showAssistant; text: "Câu hỏi gợi mở"; enabled: bridge.companionCanRead; iconName: "students"; Layout.fillWidth: true; implicitHeight: 32; onClicked: bridge.companionAsk("question", "en") }
                 ActionButton { visible: companion.showAssistant; text: "Gợi ý Việt"; enabled: bridge.companionCanRead; iconName: "back"; Layout.fillWidth: true; implicitHeight: 32; onClicked: bridge.companionAsk("rescue", "vi") }
-                ActionButton { objectName: "companionReadEnglish"; visible: bridge.companionCanRead && !!companion.availableAudio.en; text: "Đọc tiếng Anh"; iconName: "play"; Layout.fillWidth: true; implicitHeight: 32; enabled: bridge.companionCanRead && !!companion.availableAudio.en; onClicked: bridge.companionRead("en") }
-                ActionButton { objectName: "companionReadVietnamese"; visible: bridge.companionCanRead && !!companion.availableAudio.vi; text: "Đọc tiếng Việt"; iconName: "play"; Layout.fillWidth: true; implicitHeight: 32; enabled: bridge.companionCanRead && !!companion.availableAudio.vi; onClicked: bridge.companionRead("vi") }
-                ActionButton { objectName: "companionReadBoth"; visible: bridge.companionCanRead && !!companion.availableAudio.both; text: "Đọc Việt–Anh chung"; iconName: "play"; Layout.fillWidth: true; implicitHeight: 32; enabled: bridge.companionCanRead && !!companion.availableAudio.both; onClicked: bridge.companionRead("both") }
+                ActionButton { objectName: "companionReadEnglish"; visible: bridge.companionCanRead && !!companion.availableAudio.en; text: companion.readText("en", "tiếng Anh"); iconName: companion.readIcon("en"); Layout.fillWidth: true; implicitHeight: 32; enabled: bridge.companionCanRead && !!companion.availableAudio.en; onClicked: bridge.companionRead("en") }
+                ActionButton { objectName: "companionReadVietnamese"; visible: bridge.companionCanRead && !!companion.availableAudio.vi; text: companion.readText("vi", "tiếng Việt"); iconName: companion.readIcon("vi"); Layout.fillWidth: true; implicitHeight: 32; enabled: bridge.companionCanRead && !!companion.availableAudio.vi; onClicked: bridge.companionRead("vi") }
+                ActionButton { objectName: "companionReadBoth"; visible: bridge.companionCanRead && !!companion.availableAudio.both; text: companion.readText("both", "Việt–Anh"); iconName: companion.readIcon("both"); Layout.fillWidth: true; implicitHeight: 32; enabled: bridge.companionCanRead && !!companion.availableAudio.both; onClicked: bridge.companionRead("both") }
                 ActionButton { objectName: "companionStopSpeech"; text: "Dừng đọc"; danger: true; symbol: "■"; Layout.fillWidth: true; implicitHeight: 32; onClicked: bridge.teachingSession.state.bound ? bridge.teachingSession.stop() : bridge.stopSpeech() }
                 ActionButton { objectName: "companionPauseEnglish"; text: companion.reader.state === "paused" ? "Tiếp tục" : "Tạm dừng"; iconName: "pause"; Layout.fillWidth: true; implicitHeight: 32; enabled: bridge.companionCanRead && ["reading", "preparing", "paused"].indexOf(companion.reader.state) >= 0; onClicked: bridge.teachingSession.state.bound ? bridge.teachingSession.pauseResume() : companion.reader.state === "paused" ? bridge.resumeEnglish() : bridge.pauseEnglish() }
                 ActionButton { objectName: "companionReplayEnglish"; text: "Đọc lại"; iconName: "refresh"; Layout.fillWidth: true; implicitHeight: 32; enabled: bridge.companionCanRead && (!!companion.availableAudio.en || !!companion.availableAudio.vi); onClicked: bridge.replayCompanion() }

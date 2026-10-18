@@ -198,6 +198,48 @@ def test_explicit_no_voice_and_independent_embedded_powerpoint_are_teachable(tmp
     assert session.audio == {'vi': True, 'en': True, 'both': True}
 
 
+def test_key_and_mouse_toggle_pause_resume_switch_and_missing_language(tmp_path):
+    lesson, preview, directory, _ = prepared_lesson(tmp_path)
+    bridge = FakeBridge(directory)
+    session = TeachingSession(bridge)
+    session.bind(prepare_teaching(lesson, preview, directory))
+    bridge._powerpoint_state['slide_id'] = 256
+    session.event({'event': 'read_requested', 'slide_id': 256, 'language': 'en'})
+    assert bridge.calls[-1] == ('play_media', 'en')
+    session.event({'event': 'media_started', 'language': 'en'})
+    session.toggleRead('en')
+    assert bridge.calls[-1] == ('pause_media',)
+    session.event({'event': 'media_paused'})
+    session.toggleRead('en')
+    assert bridge.calls[-1] == ('resume_media',)
+    session.event({'event': 'media_resumed'})
+    session.toggleRead('vi')
+    assert bridge.calls[-1] == ('play_media', 'vi')
+    assert session.language == 'vi'
+    before = list(bridge.calls)
+    session.event({'event': 'read_requested', 'slide_id': 999, 'language': 'en'})
+    assert bridge.calls == before, 'Drop key-downs belonging to a previous slide'
+    bridge._powerpoint_state['slide'] = 3
+    session.toggleRead('en')
+    assert bridge.calls[-1][0] == 'message'
+    assert not any(call == ('play_media', 'en') for call in bridge.calls[len(before):])
+
+
+def test_repeated_press_while_native_player_prepares_queues_pause_without_restarting(tmp_path):
+    lesson, preview, directory, _ = prepared_lesson(tmp_path)
+    bridge = FakeBridge(directory)
+    session = TeachingSession(bridge)
+    session.bind(prepare_teaching(lesson, preview, directory))
+    session.toggleRead('en')
+    assert session.native_state == 'preparing'
+    before = list(bridge.calls)
+    session.toggleRead('en')
+    assert bridge.calls == before
+    session.event({'event': 'media_started', 'language': 'en'})
+    assert bridge.calls[-1] == ('pause_media',)
+    assert bridge.calls.count(('play_media', 'en')) == 1
+
+
 def test_build_aware_reading_bypasses_whole_slide_media_and_only_uses_visible_cached_words(tmp_path):
     import time
 

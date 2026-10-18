@@ -1,6 +1,6 @@
 # BiliClass — Trợ lý dạy học song ngữ
 
-Hướng dẫn luồng RC73, ngày 18/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
+Hướng dẫn luồng RC74, ngày 18/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
 trên máy. Chuyển đổi hiện dùng Google Cloud Translation cho phần chữ và dựng
 PowerPoint tại máy; Browser ChatGPT/Gemini tạm ẩn.
 
@@ -151,6 +151,32 @@ Tắt lựa chọn này cho phép cửa sổ khác che Mascot; bấm **Lưu cài
 Mascot có nút mở bài và đọc Việt/Anh/chung. Các nút đọc trên mascot chỉ bật
 khi có phiên trình chiếu đúng bài. Trong Cài đặt Mascot, chọn tự theo môn của
 bài hoặc môn cố định rồi Lưu để áp dụng cho mascot nổi.
+
+Khi cửa sổ trình chiếu hoặc Presenter View của bài đang gắn được chọn:
+
+| Phím mặc định | Chức năng |
+| --- | --- |
+| Cách | Đọc tiếng Anh |
+| Enter | Đọc tiếng Việt |
+| Ctrl+Cách | Đọc hai ngôn ngữ |
+| ← / → | Lùi / tiến hiệu ứng, hết hiệu ứng thì chuyển slide |
+| ↑ / ↓ | Tăng / giảm âm lượng lời đọc 5% |
+| Esc | Thoát trình chiếu |
+
+Cùng phím/loa: bấm lần đầu phát, lần hai tạm dừng, lần tiếp theo đọc tiếp
+từ chỗ dừng. Loa đang phát hiện hình Ⅱ; chỉ hiện ngôn ngữ thực có trên
+slide. **Dừng đọc ■** dừng hẳn; **Đọc lại** phát lại từ đầu. Chọn ngôn ngữ
+khác sẽ dừng giọng trước. Phím của giọng chưa có chỉ báo nhắc, không
+chuyển slide hoặc tự tạo giọng.
+
+Đổi phím tại **Cài đặt → Mascot → Phím đọc khi trình chiếu** rồi Lưu.
+Anh/Việt dùng một phím; hai ngôn ngữ dùng Ctrl, Alt hoặc Shift cùng một
+phím. Không dùng trùng phím, Esc, F5 hoặc mũi tên. Có nút khôi phục mặc
+định. **Hướng dẫn phím** trên Mascot luôn hiển thị phím đã lưu.
+
+Ngoài cửa sổ bài đang gắn, phím giữ chức năng gốc. PPTX mở riêng vẫn
+dùng loa/điều khiển native của PowerPoint; muốn dùng phím và badge động,
+gắn file qua Mascot. Các phím này không được nhúng thành macro trong PPTX.
 
 ## Mascot đi theo bài nào?
 

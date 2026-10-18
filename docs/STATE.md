@@ -1,5 +1,11 @@
 # Trạng thái BiliClass
 
+Ngày 18/10/2026 — Source RC74 thêm phím đọc có gán lại trong Mascot,
+phát/tạm dừng/tiếp tục bằng cùng phím hoặc loa, badge Ⅱ trên slideshow,
+bảng hướng dẫn phím và âm lượng lời đọc. 882 core tests, 49 ca liên quan
+ở lượt cuối, Qt Settings và thao tác bàn phím/chuột thật trên Office đạt.
+Chi tiết và giới hạn PowerPoint mở độc lập tại [BUILD_RC74](BUILD_RC74.md).
+
 Ngày 18/10/2026 — Source RC73 đã kiểm 862 core + 104 browser AI + 14 browser
 translation. Đã sửa tải tên trống, thiếu loa do lọc hiệu ứng, màn hoàn tất
 và mở PowerPoint/Mascot. Bài thật có 258 loa trên 86 slide; Office phát

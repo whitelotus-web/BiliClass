@@ -65,12 +65,16 @@ class TeachingSession(QObject):
         self.pending_read = None
         self.token = 0
         self.native_state = 'stopped'
+        self.language = ''
+        self.pause_on_start = False
         self.reading_scope = 'full_slide'
+        self.volume = 80
         bridge.changed.connect(self.changed)
         bridge.speechStateChanged.connect(self.changed)
 
     def bind(self, prepared):
         self.bound = copy.deepcopy(prepared)
+        self._verified_stamp = None
         self.reading_scope = 'full_slide'
         self.reset_reading()
 
@@ -85,6 +89,8 @@ class TeachingSession(QObject):
         self.token += 1
         self.pending_read = None
         self.native_state = 'stopped'
+        self.language = ''
+        self.pause_on_start = False
         self.response = {'untouched': True, 'text': ''}
         self.changed.emit()
 
@@ -170,12 +176,21 @@ class TeachingSession(QObject):
     @Property('QVariantMap', notify=changed)
     def reader(self):
         if self.native_state != 'stopped':
-            return {'state': self.native_state, 'message': 'PowerPoint · ' + ('Tạm dừng' if self.native_state == 'paused' else 'Đang đọc')}
-        return self.bridge.englishReaderState
+            return {'state': self.native_state, 'language': self.language, 'volume': self.volume,
+                    'message': 'PowerPoint · ' + {'paused': 'Tạm dừng', 'preparing': 'Đang chuẩn bị', 'reading': 'Đang đọc'}[self.native_state]}
+        return {**self.bridge.englishReaderState, 'language': self.language, 'volume': self.volume}
 
     def event(self, state):
         event = state['event']
-        if event == 'media_stopped' and self.pending_read:
+        if event == 'read_requested':
+            if state.get('slide_id') == self.bridge._powerpoint_state.get('slide_id') and self.bound:
+                if state.get('language') in {'volume_up', 'volume_down'}:
+                    self.setVolume(self.volume + (5 if state['language'] == 'volume_up' else -5))
+                else:
+                    self.toggleRead(state.get('language', ''))
+        elif event == 'input_warning':
+            self.bridge.inform(state['message'], True, refresh=False)
+        elif event == 'media_stopped' and self.pending_read:
             token, number, texts, voice, rate = self.pending_read
             self.pending_read = None
             if token == state.get('token') == self.token and number == self.bridge._powerpoint_state.get('slide'):
@@ -185,6 +200,10 @@ class TeachingSession(QObject):
             self.pending_read = None
             self.bridge.stopSpeech()
             self.native_state = 'reading'
+            self.language = state.get('language', self.language)
+            if self.pause_on_start and self.bridge.powerpoint_worker:
+                self.pause_on_start = False
+                self.bridge.powerpoint_worker.navigate('pause_media')
         elif event in {'media_paused', 'media_resumed', 'media_finished'}:
             self.native_state = {'media_paused': 'paused', 'media_resumed': 'reading', 'media_finished': 'stopped'}[event]
         elif event == 'media_error':
@@ -197,14 +216,25 @@ class TeachingSession(QObject):
         if language not in {'vi', 'en', 'both'} or not self.audio.get(language):
             return
         path = Path(self.bound['path'])
-        if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != self.bound['sha256']:
+        stamp = self._file_stamp(path)
+        try:
+            verified = stamp is not None and (stamp == self._verified_stamp or
+                       hashlib.sha256(path.read_bytes()).hexdigest() == self.bound['sha256'])
+        except OSError:
+            verified = False
+        if not verified:
             self.bridge.inform('PowerPoint đã thay đổi. Chọn lại bài để gắn đúng lời đọc.', True, refresh=False)
             return
+        self._verified_stamp = stamp
         self.bridge.stopSpeech()
         self.reset_reading()
         self.bridge._companion_language = language
+        self.language = language
+        if hasattr(getattr(self.bridge.english_reader, 'player', None), 'set_volume'):
+            self.bridge.english_reader.player.set_volume(self.volume)
         worker = self.bridge.powerpoint_worker
         if self.reading_scope == 'full_slide' and language in self.bound.get('media', {}).get(self.bridge._powerpoint_state.get('slide'), []):
+            self.native_state = 'preparing'
             worker.navigate('play_media', language)
         else:
             record = self.bound['lesson'].get('narration') or {}
@@ -212,6 +242,47 @@ class TeachingSession(QObject):
             self.pending_read = (self.token, self.bridge._powerpoint_state['slide'], self.texts(language),
                                  record['voice'], record['rate'])
             worker.navigate('stop_media', self.token)
+        self.changed.emit()
+
+    @staticmethod
+    def _file_stamp(path):
+        try:
+            info = path.stat()
+            return info.st_size, info.st_mtime_ns, info.st_ctime_ns
+        except OSError:
+            return None
+
+    @Slot(str)
+    def toggleRead(self, language):
+        if language not in {'vi', 'en', 'both'} or not self.bound or not self.bridge._powerpoint_state.get('active'):
+            return
+        if not self.audio.get(language):
+            self.bridge.inform('Slide này chưa có giọng ' + {'vi': 'tiếng Việt', 'en': 'tiếng Anh', 'both': 'hai ngôn ngữ'}[language] + '. Chọn loa đang có giọng.', refresh=False)
+            return
+        state = self.native_state if self.native_state != 'stopped' else getattr(self.bridge.english_reader, 'state', 'stopped')
+        if self.language == language and state == 'preparing':
+            self.pause_on_start = not self.pause_on_start
+        elif self.language == language and state in {'reading', 'paused'}:
+            self.pauseResume()
+        elif not self.pending_read:
+            self.read(language)
+
+    @Slot(int)
+    def setVolume(self, volume):
+        if not self.bound or not self.bridge._powerpoint_state.get('active'):
+            return
+        volume = max(0, min(100, volume))
+        try:
+            player = getattr(self.bridge.english_reader, 'player', None)
+            if hasattr(player, 'set_volume'):
+                player.set_volume(volume)
+        except Exception:
+            self.bridge.inform('Chưa đổi được âm lượng lời đọc. Kiểm tra loa của Windows.', True, refresh=False)
+            return
+        self.volume = volume
+        if self.bridge.powerpoint_worker:
+            self.bridge.powerpoint_worker.navigate('set_volume', volume)
+        self.changed.emit()
 
     @Slot()
     def stop(self):

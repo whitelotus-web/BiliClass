@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.0rc74 — 18/10/2026 — Phím đọc và loa trong trình chiếu
+
+- Cách/Enter/Ctrl+Cách phát, tạm dừng và đọc tiếp Anh/Việt/hai ngôn ngữ trong bài gắn với Mascot; giữ ←/→ để điều hướng, dùng ↑/↓ cho âm lượng lời đọc.
+- Gán lại phím trong Cài đặt Mascot, kiểm tra trùng và số phím, khôi phục mặc định; thêm bảng hướng dẫn phím và slider âm lượng trên Mascot.
+- Bấm loa trực tiếp dùng cùng trạng thái với phím; hiện badge Ⅱ khi phát, giữ điều khiển video nguồn, tránh chồng giọng, bỏ lệnh thuộc slide cũ và không tự tạo voice.
+- Chi tiết phạm vi và kiểm chứng: [BUILD_RC74](docs/BUILD_RC74.md).
+
 ## 1.0.0rc73 — 18/10/2026 — Hoàn tất giọng, PowerPoint và khôi phục
 
 - Mặc định tạo giọng Anh lần đầu, nhớ lựa chọn gần nhất; diễn giải cấu hình, nút Hủy/Dừng đỏ, popup dùng lại/tạo lại giữ WAV cũ khi dừng/lỗi.

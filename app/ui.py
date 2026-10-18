@@ -116,6 +116,9 @@ class Bridge(QObject):
         self._speaking = False
         self._speech_generation = 0
         self._companion_language = 'en'
+        from .shortcut_settings import ShortcutSettings
+
+        self.shortcut_settings = ShortcutSettings(self)
         from .voice_controls import VoiceControls
 
         self.voice_controls = VoiceControls(library.directory, self)
@@ -275,6 +278,10 @@ class Bridge(QObject):
     @Property(QObject, constant=True)
     def teachingSession(self):
         return self.teaching_session
+
+    @Property(QObject, constant=True)
+    def mascotShortcuts(self):
+        return self.shortcut_settings
 
     @Property(QObject, constant=True)
     def narrationWorkspace(self):
@@ -1724,7 +1731,7 @@ class Bridge(QObject):
             return
         self._companion_language = language
         if self.teaching_session.bound:
-            self.teaching_session.read(language)
+            self.teaching_session.toggleRead(language)
             return
         if language == 'vi':
             self._read_visible_vietnamese()
@@ -1779,7 +1786,10 @@ class Bridge(QObject):
 
     @Slot()
     def replayCompanion(self):
-        self.companionRead(self._companion_language)
+        if self.teaching_session.bound and self.companionCanRead:
+            self.teaching_session.read(self._companion_language)
+        else:
+            self.companionRead(self._companion_language)
 
     @Slot(QObject)
     @Slot(QObject, bool)
@@ -2566,7 +2576,8 @@ class Bridge(QObject):
         if prepared:
             self.teaching_session.bind(prepared)
             initial = 1
-        worker = PowerPointSession(path, initial, self, autostart=not bool(prepared))
+        worker = PowerPointSession(path, initial, self, autostart=not bool(prepared),
+                                  shortcuts=self.shortcut_settings.bindings if prepared else None)
         self.powerpoint_worker = worker
         self._powerpoint_lesson_id = prepared['lesson']['id'] if prepared else self._lesson["id"]
         self._powerpoint_state = {"active": False, "starting": True, "slide": 0, "total": 0,

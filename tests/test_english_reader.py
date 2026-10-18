@@ -175,3 +175,27 @@ def test_native_player_uses_short_unchanged_copy_and_cleans_only_owned_file(tmp_
     assert 'read.wav"' in commands[0] and source.name not in commands[0]
     player.stop()
     assert not directory.exists() and source.read_bytes() == b"wav fixture"
+
+
+def test_volume_attenuates_private_pcm_without_modifying_cache_and_keeps_pause_position(tmp_path, monkeypatch):
+    import array
+    import wave
+
+    path = tmp_path / 'speech.wav'
+    with wave.open(str(path), 'wb') as audio:
+        audio.setparams((1, 2, 24000, 0, 'NONE', 'not compressed'))
+        audio.writeframes(array.array('h', [10000, -10000] * 24000).tobytes())
+    original = path.read_bytes()
+    player = WindowsWavePlayer()
+    commands = []
+    def command(value):
+        commands.append(value)
+        return '450' if value.endswith(' position') else 'paused' if value.endswith(' mode') else ''
+    monkeypatch.setattr(player, '_command', command)
+    player.play(path)
+    player.set_volume(50)
+    with wave.open(str(player.playback_directory / 'read.wav'), 'rb') as audio:
+        assert array.array('h', audio.readframes(2)).tolist() == [5000, -5000]
+    assert commands[-1] == f'seek {player.alias} to 450'
+    assert path.read_bytes() == original
+    player.stop()

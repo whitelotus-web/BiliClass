@@ -3,6 +3,7 @@
 import ctypes
 import shutil
 import tempfile
+import wave
 from pathlib import Path
 
 from PySide6.QtCore import QObject, QThread, QTimer, Signal, Slot
@@ -18,6 +19,8 @@ class WindowsWavePlayer:
         self.alias = "bcl_reader_" + str(id(self))
         self.opened = False
         self.playback_directory = None
+        self.volume = 100
+        self.source = None
 
     def _command(self, command):
         buffer = ctypes.create_unicode_buffer(512)
@@ -26,21 +29,54 @@ class WindowsWavePlayer:
             raise RuntimeError("Không phát được âm thanh. Kiểm tra thiết bị loa của Windows.")
         return buffer.value
 
-    def play(self, path):
+    def play(self, path, *, start_ms=0, paused=False):
         self.stop()
         path = str(Path(path).resolve())
+        self.source = path
         if '"' in path:
             raise ValueError("Đường dẫn âm thanh không hợp lệ.")
         # MCI rejects some long, hash-named WAV paths even though the WAV is valid.
         # Play an unchanged copy with a short filename; keep the content cache intact.
         self.playback_directory = Path(tempfile.mkdtemp(prefix="bclr-"))
         copy = self.playback_directory / "read.wav"
-        shutil.copyfile(path, copy)
+        if self.volume == 100:
+            shutil.copyfile(path, copy)
+        else:
+            self._attenuate(path, copy, self.volume)
         path = str(copy)
         self._command(f'open "{path}" type waveaudio alias {self.alias}')
         self.opened = True
         self._command(f"set {self.alias} time format milliseconds")
-        self._command(f"play {self.alias}")
+        if paused:
+            self._command(f'seek {self.alias} to {int(start_ms)}')
+        else:
+            self._command(f"play {self.alias}" + (f' from {int(start_ms)}' if start_ms else ''))
+
+    @staticmethod
+    def _attenuate(source, destination, volume):
+        import numpy as np
+
+        with wave.open(str(source), 'rb') as original:
+            if original.getsampwidth() != 2 or original.getcomptype() != 'NONE':
+                raise ValueError('Chỉ điều chỉnh âm lượng lời đọc PCM 16 bit đã lưu.')
+            samples = np.frombuffer(original.readframes(original.getnframes()), dtype='<i2')
+            samples = (samples.astype(np.float32) * (volume / 100)).astype('<i2')
+            with wave.open(str(destination), 'wb') as output:
+                output.setparams(original.getparams())
+                output.writeframes(samples.tobytes())
+
+    def set_volume(self, volume):
+        volume = max(0, min(100, int(volume)))
+        if volume == self.volume:
+            return
+        self.volume = volume
+        if not self.opened:
+            return
+        # Attenuate only our private playback copy. Reopen at the same position;
+        # never change Windows/device volume or the cached teaching WAV.
+        position = int(self._command(f'status {self.alias} position'))
+        paused = self._command(f'status {self.alias} mode') == 'paused'
+        self.play(self.source, start_ms=position, paused=paused)
 
     def pause(self):
         if self.opened:
