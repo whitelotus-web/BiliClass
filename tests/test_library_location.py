@@ -137,7 +137,7 @@ def test_safe_download_names_and_existing_files(tmp_path):
     from app.download_names import suggestion
 
     path = suggestion(tmp_path, 'CON', 'Anh/Việt', 'pptx')
-    assert path.name == '_CON - Anh_Việt.pptx'
+    assert path.name == '_CON (Anh_Việt).pptx'
     path.touch()
     assert suggestion(tmp_path, 'CON', 'Anh/Việt', 'pptx').name.endswith('(2).pptx')
 

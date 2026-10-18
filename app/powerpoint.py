@@ -197,7 +197,7 @@ def _office_session(path, initial_slide, commands, events, autostart=True):
                 try:
                     hwnd = int(window.HWND)
                 except Exception:
-                    hwnd = 0
+                    hwnd = slideshow_handle(path)
                 events.put({"active": True, "opened": True, "starting": False,
                             "slide": current[0], "slide_id": current[1], "total": total,
                             "hwnd": hwnd, "click_index": click_index, "build_started": build_started,

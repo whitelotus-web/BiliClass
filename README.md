@@ -2,17 +2,17 @@
 
 Ứng dụng Windows chuyển tài liệu của giáo viên thành bài giảng Anh–Việt, rồi trình chiếu bằng PowerPoint với giọng đọc và mascot trợ giảng. Hỗ trợ cấu hình từ lớp 1 đến lớp 12 và môn tự nhập.
 
-## Luồng hiện tại — RC72
+## Luồng hiện tại — RC73
 
-RC72 kế thừa sửa lời đọc/tiếp tục lưu của RC71, tối ưu sao lưu, khôi phục và chuyển thư viện. [Phạm vi kiểm chứng và bộ cài](docs/BUILD_RC72.md) · [Kế hoạch hoàn thiện](docs/OPTIMIZATION_PLAN_RC72.md) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md). Bản dựng tại máy và bản trên GitHub Releases có vòng phát hành riêng; xem version trong ứng dụng/gói đang dùng.
+RC73 hoàn thiện cấu hình giọng, màn hoàn tất, mở PowerPoint và tải bài có loa; thêm sao lưu ZIP64, khôi phục có checkpoint và Office worker riêng. [Phạm vi kiểm chứng và bộ cài](docs/BUILD_RC73.md) · [Tiến độ kế hoạch](docs/IMPLEMENTATION_RC73.md) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md). Bản dựng tại máy và bản trên GitHub Releases có vòng phát hành riêng; xem version trong ứng dụng/gói đang dùng.
 
 BiliClass dùng **Google Cloud Translation** dịch phần chữ và sắp xếp PowerPoint tại máy. Browser ChatGPT/Gemini tạm ẩn. Giọng VieNeu chạy ngoại tuyến, là bước tùy chọn sau khi đã có bài song ngữ.
 
 1. Cài đặt → Google Dịch: thêm key, mỗi dòng `Tên dự án | API_KEY`, rồi lưu. Có thể nhận key từ kho GitHub riêng tư nếu máy đã đăng nhập GitHub có quyền; không có mật khẩu BiliClass bổ sung.
 2. Chọn PowerPoint `.pptx` tối đa 200 MB, chọn **Song ngữ Việt–Anh** hoặc **Tiếng Anh 100%**; giữ thiết kế gốc hoặc dùng mẫu Universal 2026/mẫu PowerPoint riêng.
 3. Chuyển đổi và xem lại bài. Song ngữ cùng slide tự chọn cách xếp theo vùng; vùng quá kín có thể dùng trang tiếp nối song ngữ. Hình, công thức, nội dung OCR và hiệu ứng phức tạp vẫn cần đối chiếu.
-4. Tải PowerPoint ngay hoặc chọn người đọc/tốc độ để tạo giọng Anh, Việt hay Song ngữ. Một bài giữ nhiều bản giọng; bản đủ khóa tạo trùng, vẫn chọn để tải/dạy. Bản Song ngữ có thể nhúng nút VI, EN và đọc chung trên cùng slide.
-5. Chọn **Tiếp tục: chuẩn bị dạy**, xác nhận bài rồi mở PowerPoint và mascot. Muốn học sinh trả lời câu hỏi, dùng Lớp học; kết quả nằm trong **Lớp học → Kết quả lớp học**.
+4. Tải PowerPoint ngay hoặc chọn người đọc/tốc độ để tạo giọng Anh, Việt hay Việt–Anh. Lần đầu mặc định Tiếng Anh, lần sau nhớ lựa chọn gần nhất. Tạo trùng có popup dùng lại/tạo lại. Tên tải có sẵn tên bài và ngôn ngữ/bản giọng trong ngoặc.
+5. Khi đủ giọng, chọn **Mở PowerPoint**, **Kiểm tra slide và giọng**, tải PPTX/audio hoặc xem trong Bài giảng. PowerPoint mở trực tiếp; bấm F5 rồi bấm loa. Loa đọc trọn lời đã lưu của slide khi bấm, kể cả phần xuất hiện sau. Mascot có lựa chọn đọc theo phần đang hiện. Việc mở không tự duyệt nội dung/bố cục. Muốn học sinh trả lời câu hỏi, dùng Lớp học; kết quả nằm trong **Lớp học → Kết quả lớp học**.
 
 Thư viện có tìm/lọc, một nút biểu tượng đổi Danh sách/Thẻ lớn với trang đầu 16:9 và chọn nhiều bài để tải ZIP hoặc đưa vào thùng rác. Thuật ngữ & kiến thức dùng để tra cứu và quản lý cách dùng từ riêng. [Thay đổi thư viện và dạy học](docs/WORKFLOW_RC51.md). [Rà soát và tối ưu RC58](docs/AUDIT_RC58.md). [Trang chủ RC60](docs/HOME_RC60.md).
 

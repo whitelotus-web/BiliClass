@@ -2,6 +2,7 @@ import copy
 import wave
 from types import SimpleNamespace
 
+import pytest
 from pptx import Presentation
 from PySide6.QtCore import QObject, Signal
 
@@ -38,6 +39,72 @@ def prepared_lesson(tmp_path, mode='both'):
     lesson = library.select_narration_variant(lesson['id'], variant_id(plan))
     library.close()
     return lesson, external_preview(lesson, directory), directory, path
+
+
+def test_ready_voice_opens_powerpoint_without_approving_or_blocking_on_layout_warning(tmp_path, monkeypatch):
+    import time
+
+    from PySide6.QtCore import QCoreApplication
+
+    from app.ui import Bridge
+
+    app = QCoreApplication.instance() or QCoreApplication([])
+    lesson, preview, directory, source = prepared_lesson(tmp_path)
+    lesson['voice_only'] = False
+    lesson['slide_quality'] = {'counts': {'FAIL': 1, 'CHECK': 2}, 'slides': []}
+    library = Library(directory)
+    library._write(lesson)
+    original, opened = source.read_bytes(), []
+    bridge = Bridge(library)
+    bridge._lesson, bridge._quick_result = lesson, preview
+    monkeypatch.setattr(bridge, '_activate_teaching', opened.append)
+    monkeypatch.setattr(speech, 'synthesize', lambda *a, **k: pytest.fail('Opening must reuse existing WAVs'))
+    try:
+        bridge.openNarratedPowerPoint(variant_id(lesson['narration']))
+        deadline = time.monotonic() + 8
+        while bridge.busy and time.monotonic() < deadline:
+            app.processEvents()
+            time.sleep(.01)
+        assert not bridge.busy and len(opened) == 1, bridge.message
+        assert set(opened[0]['media'][1]) == {'vi', 'en', 'both'}
+        saved = library.get(lesson['id'])
+        assert saved['revision'] == lesson['revision']
+        assert not any(row['approved'] for row in saved['segments'])
+        assert saved['slide_quality']['counts']['FAIL'] == 1
+        assert source.read_bytes() == original
+    finally:
+        for worker in (bridge._catalog, bridge.browserAI, bridge.slidePreview, bridge.libraryThumbnails,
+                       bridge.narrationPreferences, bridge.narration_preparation, bridge.english_reader):
+            worker.shutdown()
+        library.close()
+
+
+def test_completed_preview_uses_the_saved_voice_without_synthesis(tmp_path, monkeypatch):
+    from PySide6.QtCore import QCoreApplication
+
+    from app.ui import Bridge
+
+    app = QCoreApplication.instance() or QCoreApplication([])
+    lesson, preview, directory, _ = prepared_lesson(tmp_path)
+    library = Library(directory)
+    bridge = Bridge(library)
+    bridge._lesson, bridge._quick_result = lesson, preview
+    calls = []
+    monkeypatch.setattr(bridge.english_reader, 'start', lambda *a, **k: calls.append((a, k)))
+    try:
+        bridge.narrationWorkspace.listenCreated(1, 'en', variant_id(lesson['narration']))
+        assert calls == [((['Hello.'], lesson['narration']['voice'], 0), {'cache_only': True})]
+        bridge.narrationWorkspace.listenCreated(2, 'en', variant_id(lesson['narration']))
+        assert len(calls) == 1 and 'không có lời' in bridge.message
+        lesson['segments'][0]['en'] = 'Changed since generation.'
+        bridge.narrationWorkspace.listenCreated(1, 'en', variant_id(lesson['narration']))
+        assert len(calls) == 1 and bridge.error
+        app.processEvents()
+    finally:
+        for worker in (bridge._catalog, bridge.browserAI, bridge.slidePreview, bridge.libraryThumbnails,
+                       bridge.narrationPreferences, bridge.narration_preparation, bridge.english_reader):
+            worker.shutdown()
+        library.close()
 
 
 class FakeBridge(QObject):
@@ -129,3 +196,26 @@ def test_explicit_no_voice_and_independent_embedded_powerpoint_are_teachable(tmp
     session = TeachingSession(bridge)
     session.bind(independent)
     assert session.audio == {'vi': True, 'en': True, 'both': True}
+
+
+def test_build_aware_reading_bypasses_whole_slide_media_and_only_uses_visible_cached_words(tmp_path):
+    import time
+
+    lesson, preview, directory, _ = prepared_lesson(tmp_path)
+    prepared = prepare_teaching(lesson, preview, directory)
+    page = prepared['speech']['slides'][0]
+    for row in page['englishSpeechSegments']:
+        row['visibility'] = {'kind': 'click', 'show_after': 1, 'hide_after': None, 'settle_seconds': 0}
+    bridge = FakeBridge(directory)
+    bridge._powerpoint_state.update(click_index=0, build_started=time.monotonic() - 2)
+    session = TeachingSession(bridge)
+    session.bind(prepared)
+    assert session.audio['en'], 'Whole-slide playback includes the saved script behind builds'
+    session.setReadingScope('visible')
+    assert not session.audio['en']
+    bridge._powerpoint_state['click_index'] = 1
+    assert session.audio['en']
+    session.read('en')
+    assert bridge.calls[-1] == ('stop_media', session.token), 'Wait for native stop before cached playback'
+    session.event({'event': 'media_stopped', 'token': session.token})
+    assert bridge.calls[-1][1] == {'cache_only': True}

@@ -64,14 +64,14 @@ ColumnLayout {
         }
     }
     Flow { Layout.fillWidth: true; spacing: 10
-        ActionButton { text: "Xuất CSV"; iconName: "download"; enabled: !!classroom.selectedReport.id; onClicked: csvSave.open() }
-        ActionButton { text: "CSV từng phản hồi"; iconName: "download"; enabled: !!classroom.selectedReport.id; onClicked: responsesSave.open() }
+        ActionButton { text: "Xuất CSV"; iconName: "download"; enabled: !!classroom.selectedReport.id; onClicked: csvSave.openSuggested() }
+        ActionButton { text: "CSV từng phản hồi"; iconName: "download"; enabled: !!classroom.selectedReport.id; onClicked: responsesSave.openSuggested() }
         ActionButton { text: "Xóa phiên"; iconName: "delete"; enabled: !!classroom.selectedReport.id; onClicked: deleteDialog.open() }
         SelectBox { id: host; width: 185; model: classroom.interfaces; textRole: "name"; visible: classroom.selectedReport.status === "active" }
         ActionButton { text: "Mở lại tiết học"; visible: classroom.selectedReport.status === "active"; enabled: !classroom.running && !classroom.busy && host.currentIndex >= 0 && host.currentIndex < classroom.interfaces.length; onClicked: classroom.start("", "anonymous", 50, classroom.interfaces[host.currentIndex].host, classroom.selectedReport.id) }
     }
     Label { text: classroom.message; color: "#667997"; wrapMode: Text.WordWrap; Layout.fillWidth: true; textFormat: Text.PlainText }
-    FileDialog { id: responsesSave; title: "Xuất từng phản hồi"; fileMode: FileDialog.SaveFile; currentFolder: bridge.downloadsDirectory; onVisibleChanged: if (visible) selectedFile = bridge.reportDownloadSuggestion(classroom.selectedReport.title, true); nameFilters: ["CSV (*.csv)"]; defaultSuffix: "csv"; onAccepted: { bridge.rememberExportDirectory(selectedFile.toString()); classroom.exportResponses(selectedFile.toString()) } }
-    FileDialog { id: csvSave; title: "Xuất kết quả"; fileMode: FileDialog.SaveFile; currentFolder: bridge.downloadsDirectory; onVisibleChanged: if (visible) selectedFile = bridge.reportDownloadSuggestion(classroom.selectedReport.title, false); nameFilters: ["CSV (*.csv)"]; defaultSuffix: "csv"; onAccepted: { bridge.rememberExportDirectory(selectedFile.toString()); classroom.exportReport(selectedFile.toString()) } }
+    SuggestedSaveDialog { id: responsesSave; title: "Xuất từng phản hồi"; currentFolder: bridge.downloadsDirectory; suggestedFile: bridge.reportDownloadSuggestion(classroom.selectedReport.title, true); nameFilters: ["CSV (*.csv)"]; defaultSuffix: "csv"; onAccepted: { bridge.rememberExportDirectory(selectedFile.toString()); classroom.exportResponses(selectedFile.toString()) } }
+    SuggestedSaveDialog { id: csvSave; title: "Xuất kết quả"; currentFolder: bridge.downloadsDirectory; suggestedFile: bridge.reportDownloadSuggestion(classroom.selectedReport.title, false); nameFilters: ["CSV (*.csv)"]; defaultSuffix: "csv"; onAccepted: { bridge.rememberExportDirectory(selectedFile.toString()); classroom.exportReport(selectedFile.toString()) } }
     Dialog { id: deleteDialog; anchors.centerIn: parent; modal: true; title: "Xóa phiên và toàn bộ câu trả lời?"; standardButtons: Dialog.Ok | Dialog.Cancel; onAccepted: classroom.deleteReport(classroom.selectedReport.id) }
 }

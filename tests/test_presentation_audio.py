@@ -11,17 +11,42 @@ from app.chatgpt_handoff import external_preview, inspect_returned_deck
 from app.lesson_files import save_presentation
 from app.lesson_narration import make_plan
 from app.library import Library
-from app.presentation_audio import slide_audio
+from app.presentation_audio import control_slots, slide_audio
 from app.source_deck import NS, source_slide_parts
 
 
-def fixture(tmp_path, mode="both"):
+def test_crowded_slide_can_place_controls_in_separate_clear_gaps():
+    from app.layout_regions import intersection
+
+    occupied = [(0, 50, 300, 100), (70, 0, 32, 50), (166, 0, 32, 50), (262, 0, 38, 50)]
+    slots = control_slots(['vi', 'en', 'both'], (300, 150), occupied, lambda _: True)
+    assert slots and len(slots) == 3
+    boxes = [(x, y, 40 if compact else 62, 48 if compact else 42) for x, y, compact in slots.values()]
+    assert all(not intersection(box, obstacle) for box in boxes for obstacle in occupied)
+    assert not any(intersection(boxes[i], boxes[j]) for i in range(3) for j in range(i))
+
+
+def test_controls_never_cover_evidence_when_no_clear_slot_exists():
+    assert control_slots(['en', 'vi'], (300, 150), [(0, 0, 300, 150)], lambda _: True) is None
+
+
+def test_labelled_speaker_can_use_a_clear_narrow_header_without_covering_text():
+    slots = control_slots(['en'], (960, 540), [(0, 28, 960, 512)], lambda _: True)
+    assert slots and slots['en'][2] == 'mini'
+    assert slots['en'][1] + 20 <= 28
+
+
+def fixture(tmp_path, mode="both", crowded=False):
     deck = Presentation()
     slide = deck.slides.add_slide(deck.slide_layouts[6])
     slide.shapes.add_textbox(
         Inches(1), Inches(1), Inches(7), Inches(2)
     ).text = "Năng lượng được bảo toàn.\nEnergy is conserved."
     slide.notes_slide.notes_text_frame.text = "VI: Năng lượng được bảo toàn.\nEN: Energy is conserved."
+    if crowded:
+        second = deck.slides.add_slide(deck.slide_layouts[6])
+        second.shapes.add_textbox(0, 0, deck.slide_width, deck.slide_height).text = slide.shapes[0].text
+        second.notes_slide.notes_text_frame.text = slide.notes_slide.notes_text_frame.text
     path = tmp_path / "source.pptx"
     deck.save(path)
     library = Library(tmp_path / "library")
@@ -45,6 +70,25 @@ def fixture(tmp_path, mode="both"):
                 writer.writeframes(bytes([int(key[:2],16),0]) * 2400)
     lesson = library.update_narration(lesson["id"], plan)
     return library, lesson, path
+
+
+def test_crowded_page_does_not_discard_other_speakers_and_is_reported(tmp_path):
+    library, lesson, source = fixture(tmp_path, crowded=True)
+    original = source.read_bytes()
+    try:
+        report = {}
+        target = tmp_path / 'partial.pptx'
+        save_presentation(lesson, external_preview(lesson, library.directory), library.directory,
+                          target, with_voice=True, report=report)
+        assert report['embedded_pages'] == [1]
+        assert report['unplaced_pages'] == [2]
+        assert report['speakers'] == 2
+        assert source.read_bytes() == original
+        with zipfile.ZipFile(source) as before, zipfile.ZipFile(target) as after:
+            part = source_slide_parts(source)[1]
+            assert before.read(part) == after.read(part), 'Unplaceable artwork and animations stay intact'
+    finally:
+        library.close()
 
 
 @pytest.mark.parametrize("mode,count", [("en", 1), ("vi", 1), ("both", 2)])
@@ -120,7 +164,8 @@ def test_slide_recording_excludes_answers_hidden_behind_click(tmp_path):
         plan, _ = make_plan(lesson, "both", {"voice": "vieneu:Mai Anh", "rate": 0})
         lesson["narration"] = plan
         with pytest.raises(ValueError, match="Chưa có lời đọc tĩnh"):
-            slide_audio(lesson, library.directory)
+            slide_audio(lesson, library.directory, scope='visible')
+        assert set(slide_audio(lesson, library.directory)[1]) == {'vi', 'en'}, 'An explicit whole-slide speaker retains saved words behind builds'
     finally:
         library.close()
 

@@ -80,7 +80,7 @@ def main():
                           ticks=ticks, navigations=navigations, max_ui_gap_seconds=round(longest, 4),
                           recent_p95_gap_seconds=round(ordered[int((len(ordered)-1)*.95)], 4) if ordered else None,
                           samples=samples, qml_warnings=warnings,
-                          scope='Actual Qt navigation and repeated catalog scans, 120 synthetic lessons; '
+                          scope='Actual Qt navigation and revision-aware catalog refresh calls, 120 synthetic lessons; '
                                 'no network, teacher data, Office, voice inference or performance improvement claim.')
             write_record(args.output, report)
             print(json.dumps(sample), flush=True)

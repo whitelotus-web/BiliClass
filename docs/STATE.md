@@ -1,5 +1,12 @@
 # Trạng thái BiliClass
 
+Ngày 18/10/2026 — Source RC73 đã kiểm 862 core + 104 browser AI + 14 browser
+translation. Đã sửa tải tên trống, thiếu loa do lọc hiệu ứng, màn hoàn tất
+và mở PowerPoint/Mascot. Bài thật có 258 loa trên 86 slide; Office phát
+VI/EN/chung, pause/resume ở các trang từng thiếu loa đạt. F5 đã chụp thấy loa.
+RC72 đang mở được giữ nguyên; bản cài RC73 đang chốt theo [BUILD_RC73.md](BUILD_RC73.md).
+Không coi đây là chứng nhận bản dịch, mọi bài cũ hay nghiệm thu lớp học thật.
+
 Ngày 18/10/2026 — RC72 tiếp tục công việc RC71, tối ưu bộ nhớ sao lưu,
 khôi phục trên ổ đích, xác minh chuyển dữ liệu và lần ghi đầu của bài mới.
 Đã cài RC72 tại máy này; 938 tests, 8 smoke giao diện EXE và self-test với

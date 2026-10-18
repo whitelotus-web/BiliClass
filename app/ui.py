@@ -387,22 +387,32 @@ class Bridge(QObject):
     def exportSuggestion(self, kind):
         from datetime import datetime
 
-        from .download_names import suggestion
+        from .download_names import presentation_suffix, suggestion
 
-        extension = kind if kind in {'pptx', 'biliclass', 'bcbackup', 'csv', 'zip'} else 'pptx'
+        extension = kind if kind in {'pptx', 'biliclass', 'bcbackup', 'csv', 'zip', 'json'} else 'pptx'
         title = 'BiliClass - Sao lưu ' + datetime.now().strftime('%Y-%m-%d') if kind == 'bcbackup' else self._lesson.get('title', 'Bài giảng')
-        path = suggestion(QUrl(self.downloadsDirectory).toLocalFile(), title, '', extension)
+        if kind == 'json':
+            title = 'BiliClass - Chẩn đoán ' + datetime.now().strftime('%Y-%m-%d')
+        suffix = presentation_suffix(self._lesson, kind == 'zip') if kind in {'pptx', 'zip'} else ''
+        path = suggestion(QUrl(self.downloadsDirectory).toLocalFile(), title, suffix, extension)
         return QUrl.fromLocalFile(str(path)).toString()
 
     @Slot('QVariantList', bool, result=str)
     def libraryDownloadSuggestion(self, identities, with_voice):
         from datetime import datetime
 
-        from .download_names import suggestion
+        from .download_names import presentation_suffix, suggestion
 
         if len(identities) == 1:
-            title = self.library.get(identities[0])['title']
-            suffix, extension = 'Kèm giọng nếu có' if with_voice else 'Không kèm giọng', 'pptx'
+            from .lesson_narration import variant_id
+
+            lesson = self.library.get(identities[0])
+            title = lesson['title']
+            row = next((row for row in self._catalog.rows() if row['id'] == identities[0]), {})
+            active = variant_id(lesson.get('narration'))
+            variants = row.get('narration', {}).get('variants', [])
+            voice = bool(with_voice and any(item.get('id') == active and item.get('ready') for item in variants))
+            suffix, extension = presentation_suffix(lesson, voice), 'pptx'
         else:
             title = f'BiliClass - {len(identities)} bài giảng - ' + datetime.now().strftime('%Y-%m-%d')
             suffix, extension = '', 'zip'
@@ -2593,6 +2603,7 @@ class Bridge(QObject):
     def _powerpoint_changed(self, state):
         if state.get('event'):
             self.teaching_session.event(state)
+            self.mascotStateChanged.emit()
             return
         if self.teaching_session.bound or self._powerpoint_lesson_id == self._lesson.get("id"):
             index = state.get("slide", 0)
@@ -2736,6 +2747,7 @@ class Bridge(QObject):
         result = dict(self.quickResult)
         if not 1 <= slide <= result.get("total", 0):
             return
+        self.stopSpeech()
         self._quick_result.update(slide=slide)
         self.quickResultChanged.emit()
         self.slidePreview.start(self._lesson,result,slide)
@@ -2810,6 +2822,25 @@ class Bridge(QObject):
         preview = prepared['preview']
         self._start_powerpoint_session(prepared['path'], preview.get('slide_map'), preview.get('segment_map'), prepared=prepared)
         self.inform(prepared.get('warning') or 'Đang mở PowerPoint và gắn bài với Mascot. Bấm Trình chiếu (F5) khi sẵn sàng.')
+
+    @Slot(str)
+    def openNarratedPowerPoint(self, identity):
+        """Open the chosen audio product without approving translation or layout."""
+        import copy
+
+        from .teaching_session import prepare_teaching
+
+        if self._busy or self.narrationBusy or self.powerpoint_worker or self.classroom.running:
+            self.inform('Hoàn tất tác vụ hoặc đóng trình chiếu hiện tại trước khi mở PowerPoint.', True, refresh=False)
+            return
+        if identity != self.selectedNarrationVariant:
+            self.selectNarrationVariant(identity)
+        if not identity or identity != self.selectedNarrationVariant or not self.lessonNarration.get('ready'):
+            self.inform('Bản giọng đã chọn chưa hoàn tất. Tạo tiếp phần còn thiếu trước khi mở.', True, refresh=False)
+            return
+        lesson, preview, directory = copy.deepcopy(self._lesson), dict(self.quickResult), self.library.directory
+        self.launch(lambda: prepare_teaching(lesson, preview, directory), self._activate_teaching)
+        self.inform('Đang chuẩn bị bản có giọng và mở PowerPoint…', refresh=False)
 
     @Slot(str)
     def openTeachingLibraryLesson(self, identity):
@@ -3251,10 +3282,9 @@ class Bridge(QObject):
 
     @Slot(bool, result=str)
     def presentationDownloadSuggestion(self, with_voice):
-        from .download_names import suggestion
-        from .lesson_narration import variant_title
+        from .download_names import presentation_suffix, suggestion
 
-        suffix = variant_title(self._lesson.get('narration', {})) if with_voice and self.selectedNarrationVariant else 'Không kèm giọng'
+        suffix = presentation_suffix(self._lesson, with_voice and bool(self.selectedNarrationVariant))
         path = suggestion(QUrl(self.downloadsDirectory).toLocalFile(), self._lesson.get('title', 'BiliClass'), suffix, 'pptx')
         return QUrl.fromLocalFile(str(path)).toString()
 
@@ -3270,9 +3300,19 @@ class Bridge(QObject):
         if not preview.get("path"):
             self.inform("Tạo hoặc nhận bản trình chiếu trước khi tải về máy.", True)
             return
-        self.launch(lambda: save_presentation(lesson, preview, directory, QUrl(url).toLocalFile(), with_voice=with_voice),
-                    lambda path: self.inform(("Đã tải PowerPoint kèm giọng đọc nhúng: " if with_voice else
-                                              "Đã tải đúng bản PowerPoint đang xem: ") + str(path)))
+        report = {}
+
+        def completed(path):
+            from .presentation_audio import coverage_message
+
+            message = ("Đã tải PowerPoint kèm giọng đọc nhúng: " if with_voice else
+                       "Đã tải đúng bản PowerPoint đang xem: ") + str(path)
+            if with_voice:
+                message += '\n' + coverage_message(report)
+            self.inform(message)
+
+        self.launch(lambda: save_presentation(lesson, preview, directory, QUrl(url).toLocalFile(),
+                                            with_voice=with_voice, report=report), completed)
 
     @Slot('QVariantList', str, bool)
     def downloadLibraryPresentations(self, identities, url, with_voice):
@@ -3284,7 +3324,8 @@ class Bridge(QObject):
         destination = QUrl(url).toLocalFile()
         self.rememberExportDirectory(url)
         self.launch(lambda: export(directory, identities, destination, with_voice, self.cancel_event),
-                    lambda result: self.inform(f"Đã tải {result['count']} bài · {result['voiced']} bài kèm giọng: {result['path']}"))
+                    lambda result: self.inform(f"Đã tải {result['count']} bài · {result['voiced']} bài kèm giọng: {result['path']}" +
+                                              ('\n' + result['warnings'][0] if result.get('warnings') else '')))
 
 
     @Slot(str)

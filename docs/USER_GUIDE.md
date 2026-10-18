@@ -1,6 +1,6 @@
 # BiliClass — Trợ lý dạy học song ngữ
 
-Hướng dẫn RC68, ngày 17/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
+Hướng dẫn luồng RC73, ngày 18/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
 trên máy. Chuyển đổi hiện dùng Google Cloud Translation cho phần chữ và dựng
 PowerPoint tại máy; Browser ChatGPT/Gemini tạm ẩn.
 
@@ -62,14 +62,24 @@ Trang chủ có mascot lớn, hướng dẫn bốn bước và tổng hợp bài
 xong tự mở **Tạo giọng đọc bài giảng** với bài vừa tạo, khung chọn nguồn thu gọn.
 Có thể **Tải PowerPoint không giọng** ngay, hoặc tạo giọng rồi tải bản có loa.
 
-Bấm **Mở bài giảng để dạy**, chọn bản giọng và xác nhận nội dung để mở
-PowerPoint ở trạng thái sẵn sàng cùng Mascot. Bấm **Trình chiếu (F5)** trên
-Mascot để bắt đầu; thu nhỏ BiliClass vẫn điều khiển được. Mascot gắn cố định
-với bài và bản giọng của phiên dạy: mở xem bài khác không đổi liên kết.
-Các nút đọc chỉ hiện khi slide đang chiếu có giọng tương ứng. PowerPoint
-có loa dùng được độc lập; trong phiên có Mascot, loa đã nhúng dùng cùng
-bộ phát PowerPoint. Slide không nhúng được loa vẫn có thể đọc cache từ
-Mascot; ứng dụng giải thích trường hợp đó và không tạo giọng trong giờ dạy.
+Sau khi tạo đủ giọng, bấm **Mở PowerPoint** để mở trực tiếp cùng Mascot,
+không cần qua popup duyệt. Bấm **Trình chiếu (F5)** trên Mascot khi sẵn sàng.
+**Kiểm tra slide và giọng** mở preview/nghe đúng audio đã lưu, không tạo lại.
+Có thể tải PPTX/audio hoặc về đúng bài trong thư viện; không tự chuyển tab
+hoặc tự phát khi hoàn tất. Nội dung/bố cục chưa rà soát vẫn giữ cảnh báo.
+
+Loa trong PowerPoint đọc toàn bộ lời đã lưu của slide khi bấm, **kể cả phần
+xuất hiện sau theo hiệu ứng**. Bản Việt–Anh có ba loa VI, EN, VI+EN. Âm thanh
+nhúng trong file, dùng được độc lập. Mascot mặc định cùng cách đọc; chọn
+**Đọc phần đang hiện theo hiệu ứng** nếu chỉ muốn đọc phần đã xác định hiện.
+Phần chưa xác định không được đọc trong chế độ này. Nút **■ Dừng đọc** dừng
+cả native audio và cache; đổi slide cũng dừng giọng cũ. Không sinh giọng trong
+phiên dạy. Mascot gắn cố định với bài đang mở, xem bài khác không đổi liên kết.
+
+Tên tải đã có sẵn: **Tên bài (Song ngữ Việt–Anh)** hoặc **Tên bài (Có giọng
+Việt–Anh · Mai Anh · 100%)**. Đồng bộ ở tab Giọng, bài đã chuyển đổi và thư
+viện/ZIP. Thông báo xuất nêu số slide có loa và trang còn thiếu lời/chỗ đặt;
+slide chủ ý không đọc không được tính là đã có audio.
 
 Chọn **Dạy** ở hàng bài giảng hoặc **Mở bài giảng để dạy** trong menu thẻ.
 Trên Mascot nổi, **Chọn / đổi bài giảng** nhận bài thư viện hoặc file `.pptx`.
@@ -117,19 +127,13 @@ Giọng là bước tùy chọn sau khi bài đã lưu. Chọn một trong sáu 
 thử, chọn tốc độ và tiếng Anh / tiếng Việt / Việt + Anh. Chọn ở đây không
 thay cấu hình mặc định trong Cài đặt. Giọng chạy ngoại tuyến trên máy.
 
-- Mỗi bản được phân biệt bằng nội dung, ngôn ngữ, giọng và tốc độ. Các bản
-  đã tạo được giữ lại. Bản đã đủ hiện **Đã tạo**, khóa nút tạo trùng nhưng
-  vẫn cho chọn để dùng/tải. Bản thiếu hiện **Tiếp tục tạo giọng**.
-- Đổi giọng/tốc độ mở tạo bản mới. Nếu WAV bị thiếu/hỏng, tạo tiếp sẽ bổ sung
-  phần thiếu. Bộ đếm thời gian chạy trong lượt tạo; không tự mở trình chiếu.
-- Khi sẵn sàng, chọn **Tiếp tục: chuẩn bị dạy** ngay dưới phần giọng. Chọn
-  đúng bản ở màn chuẩn bị rồi **Bắt đầu dạy**, hoặc tải PowerPoint.
-- Bản Việt–Anh mới có ba nút EN, VI và VI+EN trên cùng slide khi nhúng được
-  lời đọc tĩnh đã xác minh. Nút chung dùng lại WAV, không tổng hợp lần thứ ba.
-  File đã nhúng phát được bằng PowerPoint mà không cần BiliClass.
-- Đáp án ẩn và hiệu ứng chưa xác định không được đưa vào lời đọc cả slide.
-  Trang không đủ khoảng trống/không có lời đọc tĩnh có thể không nhúng được;
-  dùng BiliClass hoặc tải bản không kèm giọng trong trường hợp đó.
+- Lần đầu mặc định **Tiếng Anh**; lần sau nhớ lựa chọn ngôn ngữ gần nhất.
+- Mỗi bản được phân biệt bằng nội dung, ngôn ngữ, giọng và tốc độ. Tạo đúng
+  bản đã có mở popup **Dùng bản có sẵn / Tạo lại**. Dừng/lỗi tạo lại giữ WAV cũ.
+- Đổi giọng/tốc độ tạo bản khác. Thiếu/hỏng WAV được bổ sung khi tạo tiếp.
+  **Nghe thử** dùng câu mẫu Việt–Anh có sẵn, không phải lời của bài.
+- Màn hoàn tất hiện số slide có lời cho cấu hình đã chọn; không đồng nhất
+  số đoạn đủ WAV với đủ lời ở tất cả slide. Mở **Đổi cấu hình** khi cần tạo thêm.
 
 ## Dạy và mascot
 

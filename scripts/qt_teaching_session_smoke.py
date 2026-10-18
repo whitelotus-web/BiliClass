@@ -70,16 +70,18 @@ def main():
             assert not c('voiceSourceArea').isVisible()
             assert not c('voiceDownloadWithoutNarration').isVisible(), 'Ready narration has a single main download/teach area'
             assert c('voiceDownloadWithoutNarrationMenu') is not None
-            assert c('continueAfterNarrationButton').property('text') == 'Mở bài giảng để dạy'
+            assert c('continueAfterNarrationButton').property('text') == 'Mở PowerPoint'
             assert window.findChild(QObject, 'navigationteach') is None
             for size in [(1080, 700), (1366, 850)]:
                 window.resize(*size)
                 pump(100)
                 assert window.grabWindow().save(str(out / f'voice-{size[0]}.png'))
-            # Teaching confirmation remains explicit. No synthesis or automatic playback.
-            bridge.useConvertedLesson()
+            # Ready voice opens a managed PowerPoint copy directly. No automatic approval/playback.
+            before_revision = library.get(lesson['id'])['revision']
+            bridge.openNarratedPowerPoint(bridge.selectedNarrationVariant)
             until(lambda: bool(bridge.powerpointState.get('opened')), timeout=50)
             assert not bridge.powerpointState.get('active')
+            assert library.get(lesson['id'])['revision'] == before_revision
             assert bridge.teachingSession.state['lesson_id'] == lesson['id']
             independent = folder / 'Downloaded with voice.pptx'
             shutil.copyfile(bridge.teachingSession.bound['path'], independent)
@@ -88,10 +90,14 @@ def main():
             tap('companionStartShow')
             until(lambda: bridge.powerpointState.get('active'), timeout=50)
             assert bridge.teachingSession.audio == {'vi': True, 'en': True, 'both': True}
+            assert bridge.powerpointState.get('hwnd'), 'Mascot must resolve this slideshow window when Office omits HWND'
+            assert cc('companionReadingScope').isVisible()
+            assert cc('companionStopSpeech').property('danger') and cc('companionStopSpeech').property('symbol') == '■'
             assert cc('companionReadEnglish').isVisible() and cc('companionReadVietnamese').isVisible()
             # Existing slide speakers and Mascot use PowerPoint's same native player.
             tap('companionReadEnglish')
             until(lambda: bridge.teachingSession.native_state == 'reading', timeout=10)
+            assert cc('mascotCompanion').property('expression') == 'speaking', 'Native media updates the mascot state'
             assert bridge.english_reader.worker is None
             assert not bridge.english_reader.queue
             bridge.teachingSession.pauseResume()

@@ -239,7 +239,7 @@ def main():
             assert bridge.narrationClock.elapsedSeconds==frozen
             assert not bridge.narration_preparation.clock.isActive()
         narration = []
-        bridge.narration_preparation.start = lambda *args: narration.append(args)
+        bridge.narration_preparation.start = lambda *args, **kwargs: narration.append(args)
         assert c("createLessonNarrationButton").isEnabled()
         click(window, c("createLessonNarrationButton"))
         assert len(narration) == 1 and narration[0][-1]["total"] > 0
@@ -256,18 +256,20 @@ def main():
         pump(120)
         assert bridge.lessonNarration['ready']
         assert c('createLessonNarrationButton').isEnabled()
-        assert 'Đã tạo' in c('narrationEnglish').property('text')
+        assert c('narrationEnglish').property('text') == 'Tiếng Anh'
         assert c('narrationEnglish').isEnabled()
         assert c('narrationReadyNextStep').isVisible()
         assert not c('wholeLessonReview').property('visible'), 'Completion must not open a dialog automatically'
         bridge._lesson['slide_quality']['counts']['FAIL'] = 1
         bridge.changed.emit();pump(50)
-        click(window,c('continueAfterNarrationButton'))
-        assert c('wholeLessonReview').property('visible')
-        assert 'Tiếng Anh' in c('teachingNarrationSummary').property('text')
-        assert not c('confirmWholeLessonButton').isEnabled(), 'Layout FAIL must not be silently approved'
+        opened = []
+        with patch.object(bridge, '_activate_teaching', side_effect=opened.append):
+            click(window,c('continueAfterNarrationButton'))
+            until(lambda: not bridge.busy)
+        assert len(opened) == 1 and not c('wholeLessonReview').property('visible')
+        assert not any(row['approved'] for row in library.get(lesson['id'])['segments'])
+        assert bridge.lesson['slide_quality']['counts']['FAIL'] == 1, 'Opening never certifies layout'
         assert window.grabWindow().save(str(reports / 'teaching-preparation.png'))
-        QMetaObject.invokeMethod(c('wholeLessonReview'),'close',Qt.DirectConnection);pump(100)
         bridge._lesson['slide_quality']['counts']['FAIL'] = 0
         bridge.changed.emit();pump(50)
         assert c('embedPresentationVoice').isVisible() and c('embedPresentationVoice').property('checked')
@@ -279,12 +281,18 @@ def main():
         # All six choices use the shipped sample here, without changing defaults.
         original_preferences = library.setting('voice_options', None)
         played = []
-        with patch.object(bridge, '_play_audio', side_effect=lambda path: played.append(path)):
+        with patch.object(bridge, '_play_audio', side_effect=lambda path: played.append(path)), patch.object(
+                __import__('app.speech', fromlist=['speech']), 'synthesize_background',
+                side_effect=AssertionError('Voice choices must preview the shipped sample without inference')):
             for index, voice in enumerate(bridge.multilingualVoices):
                 choice = c('lessonNarrationVoiceChoice')
                 choice.setProperty('currentIndex', index)
                 QMetaObject.invokeMethod(choice, 'activated', Qt.DirectConnection, Q_ARG(int, index))
                 assert window.property('narrationVoice') == voice['id']
+                scroll = c('resultScroll').property('contentItem')
+                button = c('previewLessonNarrationVoice')
+                scroll.setProperty('contentY', max(0, scroll.property('contentY') + button.mapToScene(QPointF()).y() - window.height() / 2))
+                pump(80)
                 click(window, c('previewLessonNarrationVoice'))
                 until(lambda: len(played) == index + 1)
                 assert c('previewLessonNarrationVoice').property('text') == 'Dừng nghe'
@@ -429,9 +437,9 @@ Window { visible: true; width: 700; height: 470; color: "#f3f7fc"
             'saved_variants_route_selected_voice': True,
             'saved_subject_updates_floating_mascot': True,
             'companion_read_disabled_without_slideshow': True,
-            'completed_voice_creation_locked_but_selectable': True,
+            'completed_voice_creation_offers_explicit_regeneration': True,
             'new_voice_or_speed_unlocks_creation': True,
-            'explicit_next_step_opens_teaching_preparation': True,
+            'explicit_next_step_opens_powerpoint_without_automatic_approval': True,
             'completion_does_not_auto_navigate_or_approve': True,
             "mascot_checks": [
                 "card selection",
@@ -454,6 +462,7 @@ Window { visible: true; width: 700; height: 470; color: "#f3f7fc"
         bridge.browserAI.shutdown()
         bridge.english_reader.shutdown()
         bridge.narration_preparation.shutdown()
+        bridge.voice_controls.shutdown()
         bridge.classroom.disconnect()
         engine.deleteLater()
         QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)

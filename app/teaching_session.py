@@ -36,9 +36,11 @@ def prepare_teaching(lesson, preview, directory):
         target = Path(directory) / 'temp/teaching' / (uuid4().hex + '.pptx')
         target.parent.mkdir(parents=True, exist_ok=True)
         try:
-            embed_audio(path, target, lesson, directory)
+            coverage = embed_audio(path, target, lesson, directory)
             path = target
             owned_path = str(target)
+            if coverage.get('unplaced_pages'):
+                warning = f"{len(coverage['unplaced_pages'])} slide chưa đủ chỗ đặt loa; Mascot dùng giọng đã lưu."
         except ValueError as exc:
             target.unlink(missing_ok=True)
             warning = str(exc) + ' Mascot vẫn dùng giọng đã lưu; bản gốc không thay đổi.'
@@ -63,12 +65,21 @@ class TeachingSession(QObject):
         self.pending_read = None
         self.token = 0
         self.native_state = 'stopped'
+        self.reading_scope = 'full_slide'
         bridge.changed.connect(self.changed)
         bridge.speechStateChanged.connect(self.changed)
 
     def bind(self, prepared):
         self.bound = copy.deepcopy(prepared)
+        self.reading_scope = 'full_slide'
         self.reset_reading()
+
+    @Slot(str)
+    def setReadingScope(self, scope):
+        if scope in {'full_slide', 'visible'} and scope != self.reading_scope:
+            self.stop()
+            self.reading_scope = scope
+            self.changed.emit()
 
     def reset_reading(self):
         self.token += 1
@@ -97,6 +108,8 @@ class TeachingSession(QObject):
         return {**state, 'bound': bool(lesson), 'lesson_id': lesson.get('id', ''),
                 'title': lesson.get('title', ''), 'response': self.response,
                 'warning': self.bound.get('warning', ''),
+                'reading_scope': self.reading_scope,
+                'can_choose_scope': bool(lesson.get('narration', {}).get('keys')),
                 'voice': (lesson.get('narration') or {}).get('voice', '')}
 
     def texts(self, language):
@@ -110,16 +123,20 @@ class TeachingSession(QObject):
         spoken = narration_segments(lesson)
         units = [spoken[i] for i in indexes]
         page = next((row for row in self.bound.get('speech', {}).get('slides', []) if row['slide'] == number), {})
-        english = [part for row in visible_segments(page, state.get('click_index'),
-                   time.monotonic() - state.get('build_started', time.monotonic()))
+        visible = ([row for row in page.get('englishSpeechSegments', []) if row['status'] == 'ready']
+                   if self.reading_scope == 'full_slide' else visible_segments(page, state.get('click_index'),
+                   time.monotonic() - state.get('build_started', time.monotonic())))
+        english = [part for row in visible
                    for part in speech_chunks(row['english_text'])]
         if language == 'en':
             return english
-        vietnamese = [part for unit in units if lesson.get('voice_only') or lesson.get('narration_script') or
+        vietnamese = [part for unit in units if self.reading_scope == 'full_slide' or lesson.get('voice_only') or lesson.get('narration_script') or
                       (speech_chunks(unit.get('en', '')) and set(speech_chunks(unit['en'])) <= set(english))
                       for part in speech_chunks(unit.get('vi', ''))]
         if language == 'vi':
             return vietnamese
+        if self.reading_scope == 'full_slide':
+            return vietnamese + english
         paired, used = [], set()
         for unit in units:
             partner = speech_chunks(unit.get('en', ''))
@@ -138,7 +155,7 @@ class TeachingSession(QObject):
         state = self.bridge._powerpoint_state
         if not self.bound or not state.get('active'):
             return {'vi': False, 'en': False, 'both': False}
-        embedded = self.bound.get('media', {}).get(state.get('slide'), [])
+        embedded = self.bound.get('media', {}).get(state.get('slide'), []) if self.reading_scope == 'full_slide' else []
         record = self.bound['lesson'].get('narration') or {}
         def available(language):
             if language in embedded:
@@ -187,7 +204,7 @@ class TeachingSession(QObject):
         self.reset_reading()
         self.bridge._companion_language = language
         worker = self.bridge.powerpoint_worker
-        if language in self.bound.get('media', {}).get(self.bridge._powerpoint_state.get('slide'), []):
+        if self.reading_scope == 'full_slide' and language in self.bound.get('media', {}).get(self.bridge._powerpoint_state.get('slide'), []):
             worker.navigate('play_media', language)
         else:
             record = self.bound['lesson'].get('narration') or {}

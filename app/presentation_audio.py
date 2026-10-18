@@ -16,10 +16,12 @@ from .powerpoint import slide_for_locator
 from .source_deck import NS, _bytes, _rels_path, _xml, source_slide_parts
 
 
-def slide_audio(lesson, directory):
+def slide_audio(lesson, directory, *, scope='full_slide'):
     from . import speech
     from .slide_speech import speech_chunks
 
+    if scope not in {'full_slide', 'visible'}:
+        raise ValueError('Chọn phạm vi lời đọc hợp lệ.')
     status = audio_status(lesson, directory)
     if not status["ready"]:
         raise ValueError("Tạo đủ giọng đọc đã chọn trước khi tải PowerPoint kèm giọng.")
@@ -28,16 +30,17 @@ def slide_audio(lesson, directory):
     for page in lesson.get("slide_speech", {}).get("slides", []):
         segments = page["englishSpeechSegments"]
         safe = [
-            s for s in segments if s["status"] == "ready" and s.get("visibility", {}).get("kind") == "always"
+            s for s in segments if s["status"] == "ready" and (
+                scope == 'full_slide' or s.get("visibility", {}).get("kind") == "always")
         ]
         languages = {}
         if "en" in MODES[record["mode"]]:
             languages["en"] = [part for s in safe for part in speech_chunks(s["english_text"])]
-        # Notes may contain answers that only appear after a click. Do not expose
-        # those in a single per-slide Vietnamese recording.
-        if "vi" in MODES[record["mode"]] and not any(
+        # The explicit whole-slide button reads the saved script on demand.
+        # The optional build-aware route excludes words hidden behind clicks.
+        if "vi" in MODES[record["mode"]] and (scope == 'full_slide' or not any(
             s.get("visibility", {}).get("kind") != "always" for s in segments if s["english_text"]
-        ):
+        )):
             languages["vi"] = [
                 part
                 for unit in narration_segments(lesson)
@@ -113,6 +116,57 @@ def joined_wav(directory, keys):
     return buffer.getvalue(), round(total / parameters[2] * 1000)
 
 
+def control_slots(languages, bounds, occupied, clear):
+    """Try rows, columns and separate safe gaps before rejecting a crowded page."""
+    languages = list(languages)
+    for cell_w, cell_h, columns in ((62, 42, len(languages)), (62, 42, 1), (40, 48, len(languages))):
+        width = cell_w * columns
+        height = cell_h * ((len(languages) + columns - 1) // columns)
+        slot = empty_region((bounds[0] - width - 12, bounds[1] - height - 12, width, height),
+                            (width, height), bounds, occupied, clear=clear)
+        if slot is not None:
+            return {lang: (slot[0] + index % columns * cell_w,
+                           slot[1] + index // columns * cell_h, cell_w == 40)
+                    for index, lang in enumerate(languages)}
+    for width, height in ((62, 42), (40, 48)):
+        used, result = list(occupied), {}
+        for lang in languages:
+            slot = empty_region((bounds[0] - width - 12, bounds[1] - height - 12, width, height),
+                                (width, height), bounds, used, clear=clear)
+            if slot is None:
+                break
+            used.append(slot)
+            result[lang] = slot[0], slot[1], width == 40
+        if len(result) == len(languages):
+            return result
+    # A narrow header/margin can still hold labelled native audio controls.
+    # Keep the same collision rules; do not shrink or cover the source content.
+    used, result = list(occupied), {}
+    for lang in languages:
+        slot = empty_region((bounds[0] - 52, 6, 40, 20), (40, 20), bounds, used, clear=clear)
+        if slot is None:
+            break
+        used.append(slot)
+        result[lang] = slot[0], slot[1], 'mini'
+    if len(result) == len(languages):
+        return result
+    return None
+
+
+def coverage_message(report):
+    message = f"Đã nhúng {report.get('speakers', 0)} nút loa trên {report.get('slides', 0)} slide. Bấm F5 rồi bấm loa để nghe."
+    if report.get('unplaced_pages'):
+        pages = ', '.join(str(n) for n in report['unplaced_pages'])
+        message += f' Slide {pages} không đủ chỗ đặt loa; nghe giọng đã lưu bằng Mascot trong BiliClass.'
+    if report.get('restricted_pages'):
+        message += ' Phần lời phụ thuộc hiệu ứng hoặc chưa xác định khả năng hiển thị chỉ phát trong BiliClass.'
+    if report.get('missing_pages'):
+        message += f" {len(report['missing_pages'])} slide chưa có lời đọc cho ngôn ngữ đã chọn."
+    if report.get('scope') == 'full_slide':
+        message += ' Loa đọc toàn bộ lời đã lưu của slide, kể cả phần xuất hiện sau; không tự phát theo hiệu ứng.'
+    return message
+
+
 def _node(parent, prefix, tag, **attributes):
     return etree.SubElement(parent, f"{{{NS[prefix]}}}{tag}", **{k: str(v) for k, v in attributes.items()})
 
@@ -127,8 +181,10 @@ def media_shape(identity, language, box, audio_relation, media_relation, icon_re
         id=identity,
         name="BiliClass audio " + language.upper(),
         descr="Play " + language.upper(),
+        hidden="0",
     )
-    link = _node(props, "a", "hlinkClick", action="ppaction://media")
+    link = _node(props, "a", "hlinkClick", action="ppaction://media",
+                 tooltip="Bấm để đọc toàn bộ lời đã lưu của slide · " + language.upper())
     link.set(f"{{{NS['r']}}}id", "")
     _node(_node(nonvisual, "p", "cNvPicPr"), "a", "picLocks", noChangeAspect="1")
     application = _node(nonvisual, "p", "nvPr")
@@ -217,14 +273,14 @@ def add_playback(tree, identity, duration):
     _node(_node(media, "p", "tgtEl"), "p", "spTgt", spid=identity)
 
 
-def embed_audio(source, destination, lesson, directory):
+def embed_audio(source, destination, lesson, directory, *, scope='full_slide'):
     from PIL import Image
     from pptx import Presentation
 
     from .picture_translation import background, text_shape
     from .slide_speech import objects
 
-    pages = slide_audio(lesson, directory)
+    pages = slide_audio(lesson, directory, scope=scope)
     deck = Presentation(source)
     parts = source_slide_parts(source)
     with zipfile.ZipFile(source) as archive:
@@ -237,16 +293,21 @@ def embed_audio(source, destination, lesson, directory):
     icon = (RESOURCE_ROOT / "assets/navigation/voice-active.png").read_bytes()
     icon_name = "ppt/media/biliclass-" + hashlib.sha256(icon).hexdigest() + ".png"
     entries[icon_name] = icon
-    count = 0
+    count, embedded_pages, unplaced_pages = 0, [], []
+    missing_pages = sorted(set(range(1, len(parts) + 1)) - set(pages))
+    restricted_pages = list(missing_pages) if scope == 'visible' else []
     for number, languages in pages.items():
         if not 1 <= number <= len(parts):
             raise ValueError("Số trang giọng đọc không khớp PowerPoint.")
         part = parts[number - 1]
         tree = _xml(entries[part])
-        if tree.find("p:timing", NS) is not None and not static_vietnamese(deck.slides[number - 1], lesson, number):
+        if scope == 'visible' and tree.find("p:timing", NS) is not None and not static_vietnamese(deck.slides[number - 1], lesson, number):
             languages = {lang: keys for lang, keys in languages.items() if lang not in {"vi", "both"}}
         if not languages:
+            restricted_pages.append(number)
             continue  # Vietnamese notes may include answers hidden in native builds.
+        if set(languages) != set(pages[number]) or set(languages) - {'both'} != set(MODES[lesson['narration']['mode']]):
+            restricted_pages.append(number)
         shape_tree = tree.find("p:cSld/p:spTree", NS)
         relationships = _xml(entries[_rels_path(part)])
 
@@ -263,7 +324,8 @@ def embed_audio(source, destination, lesson, directory):
         backdrops = []
         for item in objects(deck.slides[number - 1]):
             box = tuple(item[k] / 12700 for k in ("x", "y", "w", "h"))
-            if box[2] * box[3] < deck.slide_width * deck.slide_height / 12700**2 * 0.6 and not item["hidden"]:
+            if not item["hidden"] and (item['source_type'] != 'image' or
+                    box[2] * box[3] < deck.slide_width * deck.slide_height / 12700**2 * 0.6):
                 occupied.append(box)
             elif item["source_type"] == "image" and not item["hidden"]:
                 try:
@@ -271,22 +333,16 @@ def embed_audio(source, destination, lesson, directory):
                     backdrops.append((image, box))
                 except (OSError, ValueError):
                     occupied.append(box)
-        width = 62 * len(languages)
-        slot = empty_region(
-            (deck.slide_width / 12700 - width - 12, deck.slide_height / 12700 - 54, width, 42),
-            (width, 42),
-            (deck.slide_width / 12700, deck.slide_height / 12700),
-            occupied,
-            clear=lambda candidate: all(background(image, box, candidate) for image, box in backdrops),
-        )
+        slots = control_slots(languages, (deck.slide_width / 12700, deck.slide_height / 12700), occupied,
+                              lambda candidate: all(background(image, box, candidate) for image, box in backdrops))
         for image, _ in backdrops:
             image.close()
-        if slot is None:
-            raise ValueError(
-                f"Slide {number} chưa có vùng trống cho nút loa. Tải bản không giọng hoặc dàn lại slide này."
-            )
+        if slots is None:
+            unplaced_pages.append(number)
+            continue
+        embedded_pages.append(number)
         identity = max(int(v) for v in tree.xpath(".//p:cNvPr/@id", namespaces=NS))
-        for index, (language, keys) in enumerate(languages.items()):
+        for language, keys in languages.items():
             audio, duration = joined_wav(directory, keys)
             audio_name = "ppt/media/biliclass-" + hashlib.sha256(audio).hexdigest() + ".wav"
             entries[audio_name] = audio
@@ -297,15 +353,17 @@ def embed_audio(source, destination, lesson, directory):
             )
             icon_id = relation(NS["r"] + "/image", "../media/" + Path(icon_name).name)
             identity += 1
-            box = (slot[0] + index * 62, slot[1], 28, 28)
+            left, top, compact = slots[language]
+            mini = compact == 'mini'
+            box = (left + (6 if compact is True else 0), top, 20 if mini else 28, 20 if mini else 28)
             shape_tree.append(media_shape(identity, language, box, audio_id, media_id, icon_id))
             add_playback(tree, identity, duration)
             identity += 1
             label = text_shape(
                 identity,
                 {'vi': 'VI', 'en': 'EN', 'both': 'VI+EN'}[language],
-                (box[0] + 29, box[1] + 5, 33, 24),
-                9 if language == 'both' else 12,
+                (left + 20, top, 20, 20) if mini else (left, top + 29, 40, 16) if compact else (box[0] + 29, box[1] + 5, 33, 24),
+                8 if mini else 9 if language == 'both' else 12,
                 english=False,
             )
             label.find("p:nvSpPr/p:cNvPr", NS).set("name", "BCL_DECORATION audio label")
@@ -315,7 +373,7 @@ def embed_audio(source, destination, lesson, directory):
         entries[_rels_path(part)] = _bytes(relationships)
     if not count:
         raise ValueError(
-            "Các lời đọc đã chọn phụ thuộc hiệu ứng; dùng BiliClass hoặc tải bản không kèm voice."
+            "Không đủ chỗ đặt loa hoặc lời đọc phụ thuộc hiệu ứng. Nghe trong BiliClass hoặc tải bản không giọng."
         )
     entries["[Content_Types].xml"] = _bytes(types)
     with zipfile.ZipFile(destination, "w", zipfile.ZIP_DEFLATED, compresslevel=1) as archive:
@@ -328,4 +386,6 @@ def embed_audio(source, destination, lesson, directory):
                 name
             ) != exported.read(name):
                 raise ValueError("Tài nguyên nguồn không khớp sau khi nhúng voice.")
-    return {"speakers": count, "slides": len(pages)}
+    return {"speakers": count, "slides": len(embedded_pages), "embedded_pages": embedded_pages, "scope": scope,
+            "unplaced_pages": unplaced_pages, "restricted_pages": sorted(set(restricted_pages)),
+            "missing_pages": missing_pages if scope == 'full_slide' else []}

@@ -9,7 +9,7 @@ from pathlib import Path
 from .quick_conversion import verify_preview
 
 
-def save_presentation(lesson, preview, directory, destination, *, with_voice=False):
+def save_presentation(lesson, preview, directory, destination, *, with_voice=False, report=None):
     source = verify_preview(lesson, preview, directory).resolve()
     destination = Path(destination).resolve()
     if destination.suffix.lower() != ".pptx":
@@ -29,7 +29,9 @@ def save_presentation(lesson, preview, directory, destination, *, with_voice=Fal
         if with_voice:
             from .presentation_audio import embed_audio
 
-            embed_audio(source, pending, lesson, directory)
+            result = embed_audio(source, pending, lesson, directory)
+            if report is not None:
+                report.update(result)
         os.replace(pending, destination)
     finally:
         if pending:

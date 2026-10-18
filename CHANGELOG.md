@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.0rc73 — 18/10/2026 — Hoàn tất giọng, PowerPoint và khôi phục
+
+- Mặc định tạo giọng Anh lần đầu, nhớ lựa chọn gần nhất; diễn giải cấu hình, nút Hủy/Dừng đỏ, popup dùng lại/tạo lại giữ WAV cũ khi dừng/lỗi.
+- Màn hoàn tất có xem slide/nghe giọng đã lưu, mở PowerPoint trực tiếp và về đúng bài trong thư viện; không tự phát hoặc tự duyệt nội dung.
+- Đồng bộ tên tải theo tên bài và bản ngôn ngữ/giọng trong ngoặc; gán tên trước khi mở hộp lưu Windows.
+- Nhúng loa đọc trọn lời đã lưu theo slide; không bỏ giọng chỉ vì có hiệu ứng. Đặt loa vào vùng trống, có phương án nhỏ gọn và báo phần chưa nhúng được. Mascot có chế độ đọc theo hiệu ứng riêng, nhận đúng cửa sổ F5 và phản ánh phát/dừng native.
+- Sao lưu ZIP64, restore gói cũ lớn, checkpoint chuyển thư viện, dung lượng/trạng thái sao lưu và chẩn đoán không chứa dữ liệu riêng.
+- Office worker có giới hạn thời gian, dừng đúng tiến trình và giữ cache từng slide; slide tĩnh tái dùng render qua ngày. Thêm corpus, CI và quy trình dựng từ source đã commit.
+- Chi tiết kiểm chứng và giới hạn: [BUILD_RC73](docs/BUILD_RC73.md), [tiến độ](docs/IMPLEMENTATION_RC73.md).
+
 ## 1.0.0rc72 — 18/10/2026 — Dữ liệu và rà soát toàn hệ thống
 
 - Chuẩn hóa lời đọc trước khi lưu bài mới; tránh lịch sử giả khi nhận cùng request từ nhiều kết nối.

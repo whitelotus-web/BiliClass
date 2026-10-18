@@ -75,6 +75,17 @@ Window {
             ActionButton { objectName: "companionOpenLesson"; text: companion.session.bound ? "Xem bài đang gắn" : bridge.companionCanRead ? "Trở lại bài giảng" : "Mở bài để dạy"; iconName: "view"; Layout.fillWidth: true; implicitHeight: 32; onClicked: companion.requestOpenLesson() }
             Label { visible: !bridge.companionCanRead; text: companion.session.bound ? "Bài đã gắn với Mascot. Bấm Trình chiếu (F5) khi sẵn sàng." : "Chọn bài từ thư viện hoặc file PowerPoint để gắn với Mascot."; color: "#667997"; wrapMode: Text.WordWrap; Layout.fillWidth: true; font.pixelSize: 10 }
             ActionButton { objectName: "companionAssistantToggle"; text: companion.showAssistant ? "Thu công cụ trợ giảng" : "Công cụ trợ giảng"; Layout.fillWidth: true; implicitHeight: 30; onClicked: companion.showAssistant = !companion.showAssistant }
+            ComboBox {
+                objectName: "companionReadingScope"; visible: !!companion.session.can_choose_scope
+                Layout.fillWidth: true; model: ["Đọc toàn bộ slide", "Đọc phần đang hiện theo hiệu ứng"]
+                currentIndex: companion.session.reading_scope === "visible" ? 1 : 0
+                onActivated: bridge.teachingSession.setReadingScope(currentIndex === 1 ? "visible" : "full_slide")
+            }
+            Label {
+                visible: !!companion.session.bound; Layout.fillWidth: true; wrapMode: Text.WordWrap
+                text: companion.session.reading_scope === "visible" ? "Chỉ đọc lời đã xác định đang hiện; chuyển hiệu ứng rồi bấm đọc tiếp." : "Bấm đọc sẽ nghe trọn lời đã lưu của slide, kể cả phần xuất hiện sau."
+                font.pixelSize: 11; color: "#667997"
+            }
             GridLayout {
                 Layout.fillWidth: true; columns: 2; columnSpacing: 6; rowSpacing: 5
                 ActionButton { visible: companion.showAssistant; objectName: "companionExplain"; text: "Giải thích Anh"; enabled: bridge.companionCanRead; iconName: "view"; Layout.fillWidth: true; implicitHeight: 32; onClicked: bridge.companionAsk("explanation", "en") }
@@ -84,7 +95,7 @@ Window {
                 ActionButton { objectName: "companionReadEnglish"; visible: bridge.companionCanRead && !!companion.availableAudio.en; text: "Đọc tiếng Anh"; iconName: "play"; Layout.fillWidth: true; implicitHeight: 32; enabled: bridge.companionCanRead && !!companion.availableAudio.en; onClicked: bridge.companionRead("en") }
                 ActionButton { objectName: "companionReadVietnamese"; visible: bridge.companionCanRead && !!companion.availableAudio.vi; text: "Đọc tiếng Việt"; iconName: "play"; Layout.fillWidth: true; implicitHeight: 32; enabled: bridge.companionCanRead && !!companion.availableAudio.vi; onClicked: bridge.companionRead("vi") }
                 ActionButton { objectName: "companionReadBoth"; visible: bridge.companionCanRead && !!companion.availableAudio.both; text: "Đọc Việt–Anh chung"; iconName: "play"; Layout.fillWidth: true; implicitHeight: 32; enabled: bridge.companionCanRead && !!companion.availableAudio.both; onClicked: bridge.companionRead("both") }
-                ActionButton { objectName: "companionStopSpeech"; text: "Dừng đọc"; iconName: "pause"; Layout.fillWidth: true; implicitHeight: 32; onClicked: bridge.teachingSession.state.bound ? bridge.teachingSession.stop() : bridge.stopSpeech() }
+                ActionButton { objectName: "companionStopSpeech"; text: "Dừng đọc"; danger: true; symbol: "■"; Layout.fillWidth: true; implicitHeight: 32; onClicked: bridge.teachingSession.state.bound ? bridge.teachingSession.stop() : bridge.stopSpeech() }
                 ActionButton { objectName: "companionPauseEnglish"; text: companion.reader.state === "paused" ? "Tiếp tục" : "Tạm dừng"; iconName: "pause"; Layout.fillWidth: true; implicitHeight: 32; enabled: bridge.companionCanRead && ["reading", "preparing", "paused"].indexOf(companion.reader.state) >= 0; onClicked: bridge.teachingSession.state.bound ? bridge.teachingSession.pauseResume() : companion.reader.state === "paused" ? bridge.resumeEnglish() : bridge.pauseEnglish() }
                 ActionButton { objectName: "companionReplayEnglish"; text: "Đọc lại"; iconName: "refresh"; Layout.fillWidth: true; implicitHeight: 32; enabled: bridge.companionCanRead && (!!companion.availableAudio.en || !!companion.availableAudio.vi); onClicked: bridge.replayCompanion() }
             }

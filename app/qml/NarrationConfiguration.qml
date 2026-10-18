@@ -30,6 +30,10 @@ Rectangle {
             color: "#667997"; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap
         }
         Label {
+            text: "Loa đọc toàn bộ lời đã lưu của slide khi bấm, kể cả phần xuất hiện sau. Đọc theo từng hiệu ứng được chọn riêng trong Mascot."
+            color: "#667997"; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap
+        }
+        Label {
             objectName: "narrationConfigurationCoverage"
             text: card.hasLesson ? card.readable + "/" + card.total + " slide có lời phù hợp. Có thể kiểm tra lời đọc hoặc nghe thử trước khi tạo."
                                   : "Chọn bài giảng để kiểm tra lời đọc cho cấu hình này."

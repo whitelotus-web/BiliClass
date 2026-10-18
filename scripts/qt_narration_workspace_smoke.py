@@ -72,10 +72,11 @@ def main():
 
             def blue_pixels():
                 image = window.grabWindow()
-                position = icon.mapToScene(QPointF()).toPoint()
+                ratio = image.devicePixelRatio()
+                position = (icon.mapToScene(QPointF()) * ratio).toPoint()
                 return sum(color.blue() - color.green() > 70 and color.blue() - color.red() > 100
-                           for x in range(position.x(), position.x() + 29)
-                           for y in range(position.y(), position.y() + 29)
+                           for x in range(position.x(), position.x() + round(29 * ratio))
+                           for y in range(position.y(), position.y() + round(29 * ratio))
                            for color in [image.pixelColor(x, y)])
 
             assert blue_pixels() > 20, 'The selected supplied icon must be blue'
@@ -178,6 +179,9 @@ def main():
             assert not c('voiceTeachWithoutNarration').isVisible()
             assert c('continueAfterNarrationButton').isVisible()
             assert c('downloadAfterNarrationButton').isVisible()
+            assert c('continueAfterNarrationButton').property('text') == 'Mở PowerPoint'
+            assert 'lưu vào Bài giảng' in c('narrationCompletionTitle').property('text')
+            assert not c('narrationCreationOptions').isVisible()
             click(window, c('resultMoreButton'))
             assert QMetaObject.invokeMethod(c('resultAdvancedMenu'), 'open')
             pump(100)
@@ -200,6 +204,23 @@ def main():
                 bottom = create.mapToScene(QPointF(0, create.height())).y()
                 assert bottom <= window.height() - 30, (width, height, bottom)
                 assert window.grabWindow().save(str(out / f'ready-{width}.png'))
+            clicked_audio = []
+            with patch.object(bridge.english_reader, 'start', side_effect=lambda *a, **k: clicked_audio.append((a, k))):
+                c('checkCompletedNarrationButton').clicked.emit()
+                until(lambda: not bridge.previewBusy)
+                assert window.property('voicePreviewExpanded')
+                assert not clicked_audio, 'Opening a preview never starts playback'
+                c('listenCreatedEnglish').clicked.emit()
+                assert len(clicked_audio) == 1 and clicked_audio[0][1] == {'cache_only': True}
+            c('toggleVoiceSlidePreview').clicked.emit()
+            assert not window.property('voicePreviewExpanded')
+            c('viewCompletedNarrationInLibrary').clicked.emit()
+            pump(100)
+            assert window.property('page') == 'library'
+            assert bridge.lesson['id'] in window.property('selectedLessons').toVariant()
+            window.setProperty('page', 'voice')
+            c('resultScroll').property('contentItem').setProperty('contentY', 0)
+            pump(100)
             window.setProperty('includeDownloadVoice', False)
             click(window, c('downloadAfterNarrationButton'))
             assert window.property('includeDownloadVoice'), 'The voice download automatically includes the chosen voice'

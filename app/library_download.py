@@ -1,12 +1,12 @@
 """Atomic PowerPoint/ZIP export from immutable lesson snapshots, on a worker."""
 
 import os
-import re
 import tempfile
 import zipfile
 from contextlib import closing
 from pathlib import Path
 
+from .download_names import presentation_suffix, suggestion
 from .lesson_files import save_presentation
 from .lesson_narration import audio_status, variant_title
 from .library import Library
@@ -30,7 +30,7 @@ def export(directory, identities, destination, with_voice=True, cancel=None):
         work = Path(temporary).resolve()
         if not work.is_relative_to(target.parent):
             raise ValueError('Không tạo được thư mục tải tạm.')
-        notes, paths, voiced = [], [], 0
+        notes, paths, voiced, warnings = [], [], 0, []
         for index, lesson in enumerate(lessons, 1):
             if cancel and cancel.is_set():
                 raise InterruptedError('Đã dừng tải. Tệp đích cũ được giữ nguyên.')
@@ -42,13 +42,17 @@ def export(directory, identities, destination, with_voice=True, cancel=None):
                 preview = build_preview(lesson, directory, terms=[r for r in terms if r['subject'] == lesson['subject']])
             voice = bool(with_voice and audio_status(lesson, directory).get('ready'))
             label = variant_title(lesson['narration']) if voice else 'Không kèm giọng'
-            safe = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', lesson['title'])[:85].strip(' .') or 'Bài giảng'
-            suffix = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', label)[:85].strip(' .')
-            path = work / f'{index:03d} - {safe} - {suffix}.pptx'
-            save_presentation(lesson, preview, directory, path, with_voice=voice)
+            path = suggestion(work, f'{index:03d} - ' + lesson['title'], presentation_suffix(lesson, voice), 'pptx')
+            coverage = {}
+            save_presentation(lesson, preview, directory, path, with_voice=voice, report=coverage)
             paths.append(path)
             voiced += int(voice)
             notes.append(path.name + '\n  Giọng: ' + label + '\n  Cần kiểm tra nội dung và bố cục trước khi dạy.\n')
+            if voice:
+                from .presentation_audio import coverage_message
+                notes.append(coverage_message(coverage) + '\n')
+                if coverage.get('unplaced_pages') or coverage.get('restricted_pages'):
+                    warnings.append(coverage_message(coverage))
         if cancel and cancel.is_set():
             raise InterruptedError('Đã dừng tải. Tệp đích cũ được giữ nguyên.')
         if len(paths) == 1:
@@ -60,4 +64,4 @@ def export(directory, identities, destination, with_voice=True, cancel=None):
                     archive.write(path, path.name)
                 archive.writestr('HUONG_DAN.txt', 'BiliClass - Các bài giảng đã chọn\n\n' + '\n'.join(notes))
         os.replace(pending, target)
-    return {'path': str(target), 'count': len(lessons), 'voiced': voiced}
+    return {'path': str(target), 'count': len(lessons), 'voiced': voiced, 'warnings': warnings}
