@@ -5,6 +5,8 @@ dừng. Bản thật đã xuất đủ 86 slide/258 loa, giữ nguyên source/b�
 Chưa thay bộ cài đang dùng; chi tiết mốc kiểm chứng tại
 [BUILD_RC75](BUILD_RC75.md). RC74 đã có ZIP xác minh SHA/CI đạt nhưng chưa
 nghiệm thu GUI EXE/cài chính do giáo viên dừng Computer Use bằng Escape.
+RC75 đã qua kiểm bộ cài vào vùng riêng và Qt offscreen, TTS ngoại tuyến,
+lớp học/backup/gỡ giữ dữ liệu; CI đạt. Bản RC73 đang dùng vẫn giữ nguyên.
 
 Ngày 18/10/2026 — Source RC74 thêm phím đọc có gán lại trong Mascot,
 phát/tạm dừng/tiếp tục bằng cùng phím hoặc loa, badge Ⅱ trên slideshow,

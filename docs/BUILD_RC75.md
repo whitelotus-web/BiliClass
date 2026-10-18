@@ -24,4 +24,19 @@ bitmap đầu thiếu cả master/header và poster trên slide 4 dù shape Visi
 đang bật. Lượt xuất tiếp đầy đủ; renderer nay prime một lượt trước khi
 ghi cache để tránh ảnh xem trước thiếu thành phần trong tình huống này.
 
-Gói cài cập nhật sau khi hoàn tất xác minh.
+## Gói cài đã kiểm
+
+- Dựng một lần từ `073cb3c4de294ac3035c07af1735a4d174562c5f`; CI commit
+  này đạt. Runtime RC74 được xác minh trước khi tái dùng; mã app dựng lại.
+- Gói `dist/rc75-speaker-badges/BiliClass-RC75-Windows.zip`: 871.094.765
+  byte, 4.209 entry; đối chiếu SHA từng file trong archive đạt.
+- EXE SHA256: `b1004f3d56c06fbc4da5f5b815afa775c3512a8075b6e483479a6188107b9a15`.
+- ZIP SHA256: `c73bd2a7fbc93334638c820b8cb5877b32b6589294d57725ffc4986c77add1b1`.
+- Cài vào đường dẫn Unicode riêng, kiểm Qt hai trang, VieNeu Việt/Anh,
+  template, lớp học process, backup và gỡ giữ thư viện đạt. Qt chạy
+  offscreen, không thao tác desktop sau Escape. Trang Cài đặt EXE cũng
+  có smoke offscreen riêng đạt. Báo cáo tại
+  `reports/release/1.0.0rc75-571c4571` và `reports/rc75/frozen-settings.png`.
+- Chưa thay bộ cài/shortcut RC73 đang dùng hoặc kiểm lại F5 bằng desktop
+  input trên EXE RC75. Phiên test RC74 khởi động riêng dùng fixture,
+  không dùng thư viện thật; đã kết thúc khi hoàn tất kiểm tra.
