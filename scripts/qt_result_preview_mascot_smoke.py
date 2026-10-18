@@ -174,7 +174,9 @@ def main():
         assert teacher.property("text") == "Cô Nguyễn Diệu Linh"
         assert not teacher.property("truncated")
         help_button = c("sidebarHelpButton")
-        assert abs(help_button.x() + help_button.width() / 2 - help_button.parentItem().width() / 2) <= 1
+        assert window.grabWindow().save(str(reports / 'sidebar-before-check.png'))
+        assert abs(help_button.x() + help_button.width() / 2 - help_button.parentItem().width() / 2) <= 1, {
+            'x': help_button.x(), 'width': help_button.width(), 'parent_width': help_button.parentItem().width()}
         assert [row["label"] for row in bridge.conversionFormats] == ["Song ngữ Việt–Anh", "Tiếng Anh 100%"]
         assert c("lessonSlidePreview").y() < c("lessonNarrationPanel").y()
         assert not c("lessonDetailsPanel").isVisible()

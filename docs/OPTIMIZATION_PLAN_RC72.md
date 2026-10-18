@@ -5,6 +5,14 @@ PowerPoint/mascot, lớp học/báo cáo, dữ liệu, cài đặt, kiểm thử
 Đây là kế hoạch triển khai tiếp; không coi các tiêu chí bên dưới là đã đạt.
 Giữ các tab Cài đặt Chung, Song ngữ, Giọng đọc, Mascot.
 
+**Cập nhật 18/10, RC76:** đây là bản kế hoạch lịch sử. Sao lưu ZIP64 và
+khôi phục thư viện thật trên 2 GiB đã kiểm ở [RC73](BUILD_RC73.md);
+nhãn loa/phím/Mascot tiếp tục ở RC74–75. Kết quả rà soát hệ thống, phiên Qt
+60 phút, tải lớp học và các sửa lỗi phiên dạy mới nhất nằm tại
+[AUDIT_RC76](AUDIT_RC76.md). Các mục thiết bị/người đánh giá vẫn cần nghiệm
+thu theo [ACCEPTANCE_FIELD](ACCEPTANCE_FIELD.md); không coi kế hoạch này là
+danh sách mọi mục đã hoàn tất.
+
 ## Kết luận và phần đã xử lý
 
 Lõi ứng dụng đã có luồng nghiệp vụ tương đối đầy đủ. Điểm cần ưu tiên là

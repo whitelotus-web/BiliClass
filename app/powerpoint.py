@@ -44,6 +44,11 @@ def verified_presentation(lesson, library_directory):
     return path
 
 
+def _deck_window_title(title, path):
+    # A stem substring can bind Lesson.pptx to Lesson extra.pptx instead.
+    return bool(re.search(r'(?:^|\[)' + re.escape(Path(path).name) + r'(?=$|\s|\])', title, re.IGNORECASE))
+
+
 def slideshow_handle(path):
     """Resolve the native window without relying on optional COM HWND members."""
     import win32gui
@@ -52,7 +57,7 @@ def slideshow_handle(path):
 
     def collect(hwnd, _):
         if (win32gui.IsWindowVisible(hwnd) and win32gui.GetClassName(hwnd) == "screenClass"
-                and Path(path).stem.casefold() in win32gui.GetWindowText(hwnd).casefold()):
+                and _deck_window_title(win32gui.GetWindowText(hwnd), path)):
             matches.append(hwnd)
 
     win32gui.EnumWindows(collect, None)
@@ -65,10 +70,49 @@ def presenter_handle(path):
     matches = []
     def collect(hwnd, _):
         if (win32gui.IsWindowVisible(hwnd) and win32gui.GetClassName(hwnd) in {'PPTPresenterView', 'PodiumParent'}
-                and Path(path).stem.casefold() in win32gui.GetWindowText(hwnd).casefold()):
+                and _deck_window_title(win32gui.GetWindowText(hwnd), path)):
             matches.append(hwnd)
     win32gui.EnumWindows(collect, None)
     return matches[0] if len(matches) == 1 else 0
+
+
+def _control_media(command, target, slide_id, players, languages, playing):
+    """Apply queued input only after resolving the real Office slide/players."""
+    if command not in {'stop_media', 'play_media', 'pause_media', 'resume_media'}:
+        return None, playing
+    request = target if isinstance(target, dict) else {}
+    token = request.get('token', target if command == 'stop_media' else None)
+    language = request.get('language', target if command == 'play_media' else '')
+    event = {'slide_id': slide_id, 'token': token, 'language': language, 'operation': command}
+    if (request and request.get('slide_id') != slide_id) or (slide_id is None and command != 'stop_media'):
+        return dict(event, event='media_rejected'), playing
+    try:
+        if command in {'stop_media', 'play_media'}:
+            for identity, player in players.items():
+                try:
+                    player.Stop()
+                except Exception:
+                    if identity in playing:
+                        raise  # Never acknowledge a stop while selected media may still play.
+            playing = set()
+        if command == 'stop_media':
+            return dict(event, event='media_stopped'), playing
+        if command == 'play_media':
+            identity = next((key for key, lang in languages.items() if lang == language and key in players), None)
+            if identity is None:
+                raise ValueError('Native player unavailable')
+            players[identity].Play()
+            return dict(event, event='media_started'), {identity}
+        if not playing:
+            raise ValueError('Native player no longer selected')
+        for identity in playing:
+            if command == 'pause_media':
+                players[identity].Pause()
+            else:
+                players[identity].Play()
+        return dict(event, event='media_paused' if command == 'pause_media' else 'media_resumed'), playing
+    except Exception:
+        return dict(event, event='media_error', message='PowerPoint chưa điều khiển được loa này. Kiểm tra thiết bị âm thanh hoặc dùng giọng đã lưu.'), playing
 
 
 def _office_session(path, initial_slide, commands, events, autostart=True, shortcuts=None):
@@ -80,6 +124,7 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
     from .slideshow_shortcuts import SlideshowKeys
 
     keys = SlideshowKeys(shortcuts)
+    parent = multiprocessing.parent_process()
 
     existing_office = any(
         (p.info["name"] or "").lower() == "powerpnt.exe" for p in psutil.process_iter(["name"])
@@ -94,6 +139,7 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
     volume = 80
     boxes = []
     media_starting = 0
+    media_token = None
     presenter = 0
 
     def stop_media():
@@ -138,6 +184,8 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
         last = None
         build_started = time.monotonic()
         while True:
+            if parent is not None and not parent.is_alive():
+                break  # A crashed desktop must not leave a hook or bound deck behind.
             try:
                 command, target = commands.get(timeout=0.15)
             except queue.Empty:
@@ -174,6 +222,9 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
                 players, playing = {}, set()
             if view is None:
                 keys.bind()
+                media_event, playing = _control_media(command, target, None, {}, {}, set())
+                if media_event:
+                    events.put(media_event)
                 state = ("ready",)
                 if state != last:
                     events.put({"active": False, "opened": True, "starting": False,
@@ -181,31 +232,7 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
                                 "message": "Đã gắn bài với Mascot · Bấm Trình chiếu (F5)."})
                     last = state
                 continue
-            if command == "stop_media":
-                stop_media()
-                events.put({"event": "media_stopped", "token": target})
-            elif command == "play_media":
-                stop_media()
-                identity = next((key for key, lang in player_languages.items() if lang == target), None)
-                if identity is not None:
-                    try:
-                        players[identity].Play()
-                        playing = {identity}
-                        media_starting = time.monotonic() + 2
-                        events.put({"event": "media_started", "language": target})
-                    except Exception:
-                        events.put({"event": "media_error", "message": "PowerPoint chưa phát được loa này. Kiểm tra thiết bị âm thanh hoặc dùng bản audio đã tải."})
-            elif command in {"pause_media", "resume_media"}:
-                try:
-                    for identity in playing:
-                        if command == "pause_media":
-                            players[identity].Pause()
-                        else:
-                            players[identity].Play()
-                    events.put({"event": "media_paused" if command == "pause_media" else "media_resumed"})
-                except Exception:
-                    events.put({"event": "media_error", "message": "Chưa điều khiển được âm thanh PowerPoint. Trình chiếu vẫn hoạt động."})
-            elif command == "goto":
+            if command == "goto":
                 if type(target) is int and 1 <= target <= total:
                     view.GotoSlide(target)
             elif command == "next":
@@ -234,9 +261,11 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
             if current != last:
                 build_started = time.monotonic()
                 if not isinstance(last, tuple) or current[0] != last[0]:
+                    stop_media()
                     players = {}
                     player_languages = {}
                     playing = set()
+                    media_token = None
                     boxes = speaker_boxes(slide)
                     for shape in slide.Shapes:
                         if str(shape.Name).startswith("BiliClass audio "):
@@ -255,6 +284,12 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
                             "hwnd": hwnd, "click_index": click_index, "build_started": build_started,
                             "message": f"PowerPoint · slide {current[0]}/{total}"})
                 last = current
+            media_event, playing = _control_media(command, target, current[1], players, player_languages, playing)
+            if media_event:
+                events.put(media_event)
+                if media_event['event'] == 'media_started':
+                    media_starting = time.monotonic() + 2
+                    media_token = media_event['token']
             presenter = presenter_handle(path)
             # Refresh screen geometry as the teacher can change monitor/DPI
             # without changing slides. Hit-testing never covers source content.
@@ -286,12 +321,13 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
                         players[identity].Stop()
                     except Exception:
                         pass
-                events.put({"event": "media_started", "language": player_languages.get(newest, "")})
+                media_token = None  # Native click, rather than a queued Mascot request.
+                events.put({"event": "media_started", "language": player_languages.get(newest, ""), 'slide_id': current[1]})
                 now_playing = {newest}
             elif playing and not now_playing and command != "pause_media":
                 # A paused player stays selected so Resume can address it.
                 if not playing.intersection(paused) and time.monotonic() >= media_starting:
-                    events.put({"event": "media_finished"})
+                    events.put({"event": "media_finished", 'slide_id': current[1], 'token': media_token})
             if command == "pause_media" or (playing and not now_playing and playing.intersection(paused)):
                 now_playing = playing
             elif playing and not now_playing and time.monotonic() < media_starting:

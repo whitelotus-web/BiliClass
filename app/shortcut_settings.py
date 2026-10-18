@@ -1,5 +1,7 @@
 """Mascot shortcut preferences, separate from appearance preferences."""
 
+import sqlite3
+
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from .slideshow_shortcuts import DEFAULTS, display, saved_bindings, validate
@@ -27,6 +29,10 @@ class ShortcutSettings(QObject):
             self.bridge.library.set_setting('mascot_shortcuts', result)
         except (ValueError, OSError) as exc:
             self.message, self.error = str(exc), True
+            self.changed.emit()
+            return False
+        except sqlite3.Error:
+            self.message, self.error = 'Chưa lưu được phím đọc. Thử lại khi thư viện sẵn sàng.', True
             self.changed.emit()
             return False
         self.bindings = result

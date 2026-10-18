@@ -106,6 +106,15 @@ def main():
             until(lambda: bridge.teachingSession.native_state == 'reading')
             bridge.teachingSession.stop()
             pump(300)
+            stale = {'language': 'en', 'slide_id': bridge.powerpointState['slide_id'],
+                     'token': bridge.teachingSession.token}
+            bridge.powerpoint_worker.navigate('goto', 3)
+            bridge.powerpoint_worker.navigate('play_media', stale)
+            until(lambda: bridge.powerpointState.get('slide') == 3)
+            pump(350)
+            assert bridge.teachingSession.native_state == 'stopped', 'Late slide 1 playback must not start on slide 3'
+            bridge.powerpoint_worker.navigate('goto', 1)
+            until(lambda: bridge.powerpointState.get('slide') == 1)
             tap('companionNext')
             until(lambda: bridge.powerpointState.get('slide') == 2)
             assert not cc('companionReadEnglish').isVisible() and not cc('companionReadVietnamese').isVisible()
@@ -171,6 +180,7 @@ def main():
                                  'per-slide language buttons', 'browsing does not rebind', 'minimized app keeps Mascot',
                                  'floating library and file choices', 'cancel retains old binding', 'confirmed switch',
                                  'no-voice teaching', 'external PPTX with embedded voices', 'native pause/resume',
+                                 'delayed playback rejected after native slide change',
                                  'source unchanged'],
                       'scope': 'Current Windows/Office, silent WAV fixtures; no physical projector or second monitor certification'}
             (out / 'result.json').write_text(json.dumps(result, indent=2), encoding='utf-8')

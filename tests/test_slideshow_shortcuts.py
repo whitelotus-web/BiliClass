@@ -58,3 +58,25 @@ def test_volume_keys_are_scoped_and_reserved_without_stealing_horizontal_navigat
         assert policy.key(key, 1, True, True) == (False, None)
     for key in (0x25, 0x27):
         assert policy.key(key, 0, True, True) == (False, None)
+
+
+def test_shortcut_storage_failure_keeps_previous_binding_and_live_worker():
+    import sqlite3
+    from types import SimpleNamespace
+
+    from PySide6.QtCore import QCoreApplication, QObject
+
+    from app.shortcut_settings import ShortcutSettings
+
+    app = QCoreApplication.instance() or QCoreApplication([])
+    calls = []
+    bridge = QObject()
+    def fail(*args):
+        raise sqlite3.OperationalError('database is locked')
+    bridge.library = SimpleNamespace(setting=lambda *a: dict(DEFAULTS), set_setting=fail)
+    bridge.powerpoint_worker = SimpleNamespace(navigate=lambda *a: calls.append(a))
+    settings = ShortcutSettings(bridge)
+    assert not settings.save(DEFAULTS | {'en': 'A'})
+    assert settings.bindings == DEFAULTS and settings.error and 'Chưa lưu' in settings.message
+    assert not calls
+    app.processEvents()

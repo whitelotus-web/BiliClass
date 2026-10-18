@@ -50,11 +50,14 @@ def main():
                 window.resize(width, height)
                 c('libraryHomeScroll').property('contentItem').setProperty('contentY', 0)
                 pump(250)
+                # Force the resized window's layout/render before measuring it,
+                # including when Windows has occluded this test window.
+                assert window.grabWindow().save(str(report/f'home-{width}.png'))
                 for name in ('homeWelcomeHero', 'homeHeroMascot', 'homeWorkflowStep0', 'homeWorkflowStep3'):
                     item = c(name)
                     point = item.mapToScene(QPointF())
                     assert point.x() >= 0 and point.x()+item.width() <= width, name
-                    assert point.y() >= 0 and point.y()+item.height() < height, name
+                    assert point.y() >= 0 and point.y()+item.height() < height, (name, point.y(), item.height(), height)
                 assert c('homeHeroMascot').width() >= 185
                 assert c('homeHeroMascot').height() >= 225
                 assert c('homeHeroTitle').property('font').pixelSize() >= 35
@@ -63,7 +66,6 @@ def main():
                 assert c('homeWorkflowHeading').property('text') == 'Quy trình đơn giản'
                 assert c('navigationnew').mapToScene(QPointF()).y() > c('navigationhome').mapToScene(QPointF()).y()
                 assert c('navigationnew').mapToScene(QPointF()).y() < c('navigationlibrary').mapToScene(QPointF()).y()
-                assert window.grabWindow().save(str(report/f'home-{width}.png'))
                 click(window, c('homeWorkflowStep3'))
                 assert window.property('page') == 'voice' and c('navigationvoice').property('selected')
                 assert not bridge.narrationBusy, 'Opening the voice workspace must not start synthesis'

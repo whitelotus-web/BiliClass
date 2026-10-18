@@ -1,5 +1,15 @@
 # Trạng thái BiliClass
 
+Ngày 18/10/2026 — RC76 tiếp tục rà soát hệ thống: chặn lệnh/ack audio từ
+slide cũ, fallback cache khi Office thiếu player, giữ trạng thái đọc qua
+hiệu ứng, đóng helper khi parent thoát đột ngột và xử lý lỗi lưu phím.
+898 core + 104 Browser AI + 14 Browser Translation đạt. Phiên Qt/catalog
+60 phút và 50 client loopback đã kiểm riêng, có phạm vi giới hạn. Nền kiểm
+UI Windows được chuẩn hóa để không đo nhầm font/layout offscreen.
+Chi tiết bằng chứng, trạng thái gói cài và phần còn cần thiết bị tại
+[AUDIT_RC76](AUDIT_RC76.md). Không coi kết quả kỹ thuật là duyệt nghĩa,
+phát âm hay nghiệm thu Wi-Fi/máy chiếu trong lớp.
+
 Ngày 18/10/2026 — RC75 ghép nhãn ngôn ngữ vào góc nút loa và badge tạm
 dừng. Bản thật đã xuất đủ 86 slide/258 loa, giữ nguyên source/bài lưu.
 Chưa thay bộ cài đang dùng; chi tiết mốc kiểm chứng tại

@@ -84,9 +84,7 @@ class SlideshowKeys:
 
     def __init__(self, bindings=None):
         self.policy = KeyPolicy(bindings)
-        self.context = (0, 0)
-        self.regions = ()
-        self.focus_windows = frozenset()
+        self._binding = (0, 0, (), frozenset())
         self.actions = queue.SimpleQueue()
         self.stopping = threading.Event()
         self.ready = threading.Event()
@@ -97,9 +95,10 @@ class SlideshowKeys:
         self.policy.bindings = validate(bindings)
 
     def bind(self, hwnd=0, slide_id=0, regions=(), presenter=0):
-        self.context = (hwnd, slide_id)
-        self.regions = tuple(regions)
-        self.focus_windows = frozenset(handle for handle in (hwnd, presenter) if handle)
+        # Publish one immutable snapshot: callbacks cannot see a new slide ID
+        # paired with a previous slide's click regions or presenter window.
+        self._binding = (hwnd, slide_id, tuple(regions),
+                         frozenset(handle for handle in (hwnd, presenter) if handle))
 
     def start(self):
         if sys.platform != 'win32':
@@ -149,14 +148,16 @@ class SlideshowKeys:
         user.GetAncestor.restype = wintypes.HWND
         user.GetAsyncKeyState.argtypes = [ctypes.c_int]
         user.GetAsyncKeyState.restype = ctypes.c_short
+        user.MsgWaitForMultipleObjects.argtypes = [wintypes.DWORD, ctypes.c_void_p, wintypes.BOOL, wintypes.DWORD, wintypes.DWORD]
+        user.MsgWaitForMultipleObjects.restype = wintypes.DWORD
         kernel.GetModuleHandleW.argtypes = [wintypes.LPCWSTR]
         kernel.GetModuleHandleW.restype = wintypes.HMODULE
 
         def handle(code, message, data):
             if code >= 0 and message in {0x100, 0x101, 0x104, 0x105}:
                 key = ctypes.cast(data, ctypes.POINTER(Keyboard)).contents
-                hwnd, slide_id = self.context
-                focused = user.GetForegroundWindow() in self.focus_windows
+                hwnd, slide_id, _, focus_windows = self._binding
+                focused = user.GetForegroundWindow() in focus_windows
                 modifiers = sum(mask for vk, mask in ((0x11, 1), (0x12, 2), (0x10, 4))
                                 if user.GetAsyncKeyState(vk) & 0x8000)
                 # Win+key belongs to Windows, even if the base key is configured.
@@ -182,7 +183,7 @@ class SlideshowKeys:
             nonlocal mouse_held
             if code >= 0 and message in {0x201, 0x202}:  # Only left-button down/up.
                 point = ctypes.cast(data, ctypes.POINTER(Mouse)).contents.point
-                hwnd, slide_id = self.context
+                hwnd, slide_id, regions, _ = self._binding
                 focused = bool(hwnd and user.GetForegroundWindow() == hwnd and
                                user.GetAncestor(user.WindowFromPoint(point), 2) == hwnd)
                 if message == 0x202:
@@ -190,7 +191,7 @@ class SlideshowKeys:
                     if held:
                         return 1
                 elif focused:
-                    for language, left, top, right, bottom in self.regions:
+                    for language, left, top, right, bottom in regions:
                         if left <= point.x < right and top <= point.y < bottom:
                             mouse_held = True
                             self.actions.put((language, slide_id))
@@ -213,7 +214,9 @@ class SlideshowKeys:
                 while user.PeekMessageW(ctypes.byref(message), None, 0, 0, 1):
                     user.TranslateMessage(ctypes.byref(message))
                     user.DispatchMessageW(ctypes.byref(message))
-                self.stopping.wait(.008)
+                # Wake immediately for input, rather than polling at 125 Hz
+                # while idle. The timeout bounds shutdown without GUI input.
+                user.MsgWaitForMultipleObjects(0, None, False, 50, 0x04FF)  # QS_ALLINPUT
         finally:
             if hook:
                 user.UnhookWindowsHookEx(hook)

@@ -2623,7 +2623,8 @@ class Bridge(QObject):
             previous = self._powerpoint_state
             self._powerpoint_state = state
             if (not state.get("active") or index != previous.get("slide")
-                    or state.get("click_index") != previous.get("click_index")):
+                    or (self.teaching_session.reading_scope == 'visible'
+                        and state.get("click_index") != previous.get("click_index"))):
                 self.stopSpeech()
                 self.teaching_session.reset_reading()
             if state.get("active") and (not previous.get("active") or index != previous.get("slide")):

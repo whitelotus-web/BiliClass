@@ -182,6 +182,15 @@ class TeachingSession(QObject):
 
     def event(self, state):
         event = state['event']
+        if event == 'media_rejected':
+            if state.get('token') == self.token:
+                self.reset_reading()
+            return
+        if event.startswith('media_'):
+            if ('slide_id' in state and state['slide_id'] != self.bridge._powerpoint_state.get('slide_id')):
+                return
+            if state.get('token') is not None and state['token'] != self.token:
+                return
         if event == 'read_requested':
             if state.get('slide_id') == self.bridge._powerpoint_state.get('slide_id') and self.bound:
                 if state.get('language') in {'volume_up', 'volume_down'}:
@@ -191,25 +200,49 @@ class TeachingSession(QObject):
         elif event == 'input_warning':
             self.bridge.inform(state['message'], True, refresh=False)
         elif event == 'media_stopped' and self.pending_read:
-            token, number, texts, voice, rate = self.pending_read
+            token, number, slide_id, texts, voice, rate = self.pending_read
             self.pending_read = None
-            if token == state.get('token') == self.token and number == self.bridge._powerpoint_state.get('slide'):
+            self.native_state = 'stopped'
+            if (token == state.get('token') == self.token and number == self.bridge._powerpoint_state.get('slide')
+                    and slide_id == self.bridge._powerpoint_state.get('slide_id')):
                 self.bridge.english_reader.start(texts, voice, rate, cache_only=True)
+                if self.pause_on_start:
+                    self.pause_on_start = False
+                    self.bridge.pauseEnglish()
         elif event == 'media_started':
-            self.token += 1
             self.pending_read = None
             self.bridge.stopSpeech()
             self.native_state = 'reading'
             self.language = state.get('language', self.language)
             if self.pause_on_start and self.bridge.powerpoint_worker:
                 self.pause_on_start = False
-                self.bridge.powerpoint_worker.navigate('pause_media')
+                self.bridge.powerpoint_worker.navigate('pause_media', self._media_request())
         elif event in {'media_paused', 'media_resumed', 'media_finished'}:
             self.native_state = {'media_paused': 'paused', 'media_resumed': 'reading', 'media_finished': 'stopped'}[event]
         elif event == 'media_error':
             self.native_state = 'stopped'
-            self.bridge.inform(state['message'], True, refresh=False)
+            if state.get('operation') != 'play_media' or not self._read_cached(state.get('language', '')):
+                self.pause_on_start = False
+                self.bridge.inform(state['message'], True, refresh=False)
         self.changed.emit()
+
+    def _media_request(self):
+        return {'language': self.language, 'slide_id': self.bridge._powerpoint_state.get('slide_id'), 'token': self.token}
+
+    def _read_cached(self, language):
+        from .lesson_narration import valid_key
+
+        record = self.bound.get('lesson', {}).get('narration') or {}
+        texts = self.texts(language) if language in {'vi', 'en', 'both'} else []
+        keys = record.get('keys', {}).get(language, [])
+        wanted = [speech.audio_key(text, record.get('voice', ''), record.get('rate', 0)) for text in texts]
+        if not texts or not all(key in keys and valid_key(self.bridge.library.directory, key) for key in wanted):
+            return False
+        self.pending_read = (self.token, self.bridge._powerpoint_state['slide'],
+                             self.bridge._powerpoint_state.get('slide_id'), texts, record['voice'], record['rate'])
+        self.native_state = 'preparing'
+        self.bridge.powerpoint_worker.navigate('stop_media', self._media_request())
+        return True
 
     @Slot(str)
     def read(self, language):
@@ -235,13 +268,9 @@ class TeachingSession(QObject):
         worker = self.bridge.powerpoint_worker
         if self.reading_scope == 'full_slide' and language in self.bound.get('media', {}).get(self.bridge._powerpoint_state.get('slide'), []):
             self.native_state = 'preparing'
-            worker.navigate('play_media', language)
+            worker.navigate('play_media', self._media_request())
         else:
-            record = self.bound['lesson'].get('narration') or {}
-            self.token += 1
-            self.pending_read = (self.token, self.bridge._powerpoint_state['slide'], self.texts(language),
-                                 record['voice'], record['rate'])
-            worker.navigate('stop_media', self.token)
+            self._read_cached(language)
         self.changed.emit()
 
     @staticmethod
@@ -294,7 +323,7 @@ class TeachingSession(QObject):
     @Slot()
     def pauseResume(self):
         if self.native_state != 'stopped' and self.bridge.powerpoint_worker:
-            self.bridge.powerpoint_worker.navigate('resume_media' if self.native_state == 'paused' else 'pause_media')
+            self.bridge.powerpoint_worker.navigate('resume_media' if self.native_state == 'paused' else 'pause_media', self._media_request())
         elif self.bridge.english_reader.state == 'paused':
             self.bridge.resumeEnglish()
         else:

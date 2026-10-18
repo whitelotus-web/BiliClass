@@ -114,13 +114,16 @@ class FakeBridge(QObject):
     def __init__(self, directory):
         super().__init__()
         self.library = SimpleNamespace(directory=directory)
-        self._powerpoint_state = {'active': True, 'slide': 1}
+        self._powerpoint_state = {'active': True, 'slide': 1, 'slide_id': 256}
         self.calls = []
         self.powerpoint_worker = SimpleNamespace(navigate=lambda *args: self.calls.append(args))
         self.english_reader = SimpleNamespace(start=lambda *args, **kwargs: self.calls.append((args, kwargs)))
 
     def stopSpeech(self):
         self.calls.append('stop')
+
+    def pauseEnglish(self):
+        self.calls.append('pause_cached')
 
     def inform(self, *args, **kwargs):
         self.calls.append(('message', args))
@@ -162,10 +165,10 @@ def test_cached_fallback_waits_for_powerpoint_stop_and_rejects_late_slide(tmp_pa
     session.bind(prepared)
     session.read('vi')
     token = session.token
-    assert bridge.calls[-1] == ('stop_media', token)
+    assert bridge.calls[-1] == ('stop_media', {'token': token, 'slide_id': 256, 'language': 'vi'})
     bridge._powerpoint_state['slide'] = 2
     session.event({'event': 'media_stopped', 'token': token})
-    assert not any(isinstance(call, tuple) and isinstance(call[-1], dict) for call in bridge.calls)
+    assert not any(isinstance(call, tuple) and call[-1] == {'cache_only': True} for call in bridge.calls)
     bridge._powerpoint_state['slide'] = 1
     session.read('vi')
     session.event({'event': 'media_stopped', 'token': session.token})
@@ -205,16 +208,16 @@ def test_key_and_mouse_toggle_pause_resume_switch_and_missing_language(tmp_path)
     session.bind(prepare_teaching(lesson, preview, directory))
     bridge._powerpoint_state['slide_id'] = 256
     session.event({'event': 'read_requested', 'slide_id': 256, 'language': 'en'})
-    assert bridge.calls[-1] == ('play_media', 'en')
+    assert bridge.calls[-1] == ('play_media', session._media_request())
     session.event({'event': 'media_started', 'language': 'en'})
     session.toggleRead('en')
-    assert bridge.calls[-1] == ('pause_media',)
+    assert bridge.calls[-1] == ('pause_media', session._media_request())
     session.event({'event': 'media_paused'})
     session.toggleRead('en')
-    assert bridge.calls[-1] == ('resume_media',)
+    assert bridge.calls[-1] == ('resume_media', session._media_request())
     session.event({'event': 'media_resumed'})
     session.toggleRead('vi')
-    assert bridge.calls[-1] == ('play_media', 'vi')
+    assert bridge.calls[-1] == ('play_media', session._media_request())
     assert session.language == 'vi'
     before = list(bridge.calls)
     session.event({'event': 'read_requested', 'slide_id': 999, 'language': 'en'})
@@ -222,7 +225,7 @@ def test_key_and_mouse_toggle_pause_resume_switch_and_missing_language(tmp_path)
     bridge._powerpoint_state['slide'] = 3
     session.toggleRead('en')
     assert bridge.calls[-1][0] == 'message'
-    assert not any(call == ('play_media', 'en') for call in bridge.calls[len(before):])
+    assert not any(call[0] == 'play_media' for call in bridge.calls[len(before):] if isinstance(call, tuple))
 
 
 def test_repeated_press_while_native_player_prepares_queues_pause_without_restarting(tmp_path):
@@ -236,8 +239,8 @@ def test_repeated_press_while_native_player_prepares_queues_pause_without_restar
     session.toggleRead('en')
     assert bridge.calls == before
     session.event({'event': 'media_started', 'language': 'en'})
-    assert bridge.calls[-1] == ('pause_media',)
-    assert bridge.calls.count(('play_media', 'en')) == 1
+    assert bridge.calls[-1] == ('pause_media', session._media_request())
+    assert sum(call[0] == 'play_media' for call in bridge.calls if isinstance(call, tuple)) == 1
 
 
 def test_build_aware_reading_bypasses_whole_slide_media_and_only_uses_visible_cached_words(tmp_path):
@@ -258,6 +261,91 @@ def test_build_aware_reading_bypasses_whole_slide_media_and_only_uses_visible_ca
     bridge._powerpoint_state['click_index'] = 1
     assert session.audio['en']
     session.read('en')
-    assert bridge.calls[-1] == ('stop_media', session.token), 'Wait for native stop before cached playback'
+    assert bridge.calls[-1] == ('stop_media', session._media_request()), 'Wait for native stop before cached playback'
     session.event({'event': 'media_stopped', 'token': session.token})
     assert bridge.calls[-1][1] == {'cache_only': True}
+
+
+def test_player_failure_reuses_verified_cache_and_preserves_pause_intent(tmp_path, monkeypatch):
+    lesson, preview, directory, _ = prepared_lesson(tmp_path)
+    bridge = FakeBridge(directory)
+    session = TeachingSession(bridge)
+    session.bind(prepare_teaching(lesson, preview, directory))
+    monkeypatch.setattr(speech, 'synthesize', lambda *a: pytest.fail('Never synthesize during teaching'))
+    session.toggleRead('en')
+    request = session._media_request()
+    session.toggleRead('en')  # Pause while native Office prepares.
+    session.event(dict(request, event='media_error', operation='play_media', message='Native player unavailable'))
+    assert session.pending_read and bridge.calls[-1][0] == 'stop_media'
+    session.event(dict(request, event='media_stopped'))
+    assert bridge.calls[-2][1] == {'cache_only': True} and bridge.calls[-1] == 'pause_cached'
+    assert not session.pending_read and session.native_state == 'stopped'
+
+
+def test_late_playback_events_cannot_revive_stopped_or_new_slide_audio(tmp_path):
+    lesson, preview, directory, _ = prepared_lesson(tmp_path)
+    bridge = FakeBridge(directory)
+    session = TeachingSession(bridge)
+    session.bind(prepare_teaching(lesson, preview, directory))
+    session.read('en')
+    request = session._media_request()
+    session.stop()
+    calls = list(bridge.calls)
+    session.event(dict(request, event='media_started'))
+    assert session.native_state == 'stopped' and bridge.calls == calls
+    session.read('en')
+    request = session._media_request()
+    bridge._powerpoint_state.update(slide=3, slide_id=258)
+    session.reset_reading()
+    calls = list(bridge.calls)
+    session.event(dict(request, event='media_error', operation='play_media', message='Old slide'))
+    assert not session.pending_read and bridge.calls == calls
+
+
+def test_missing_native_player_and_missing_cache_finishes_with_clear_error(tmp_path):
+    lesson, preview, directory, _ = prepared_lesson(tmp_path)
+    bridge = FakeBridge(directory)
+    session = TeachingSession(bridge)
+    session.bind(prepare_teaching(lesson, preview, directory))
+    session.read('en')
+    for key in lesson['narration']['keys']['en']:
+        (directory / 'audio' / (key + '.wav')).unlink(missing_ok=True)
+    session.event(dict(session._media_request(), event='media_error', operation='play_media', message='Native player unavailable'))
+    assert session.native_state == 'stopped' and not session.pending_read
+    assert bridge.calls[-1] == ('message', ('Native player unavailable', True))
+
+
+def test_office_rejecting_queued_request_releases_preparing_without_playing_cache(tmp_path):
+    lesson, preview, directory, _ = prepared_lesson(tmp_path)
+    bridge = FakeBridge(directory)
+    session = TeachingSession(bridge)
+    session.bind(prepare_teaching(lesson, preview, directory))
+    session.read('en')
+    request = session._media_request()
+    session.event(dict(request, slide_id=258, event='media_rejected'))
+    assert session.native_state == 'stopped' and not session.pending_read
+    assert bridge.calls[-1][0] == 'play_media'
+
+
+@pytest.mark.parametrize('scope,expected', [('full_slide', 'reading'), ('visible', 'stopped')])
+def test_animation_build_keeps_full_slide_audio_but_invalidates_visible_scope(tmp_path, scope, expected):
+    from PySide6.QtCore import QCoreApplication
+
+    from app.ui import Bridge
+
+    app = QCoreApplication.instance() or QCoreApplication([])
+    library = Library(tmp_path / 'library')
+    bridge = Bridge(library)
+    try:
+        bridge.teaching_session.bound = {'lesson': {'id': 'bound'}}
+        bridge.teaching_session.reading_scope = scope
+        bridge.teaching_session.native_state = 'reading'
+        bridge._powerpoint_state = {'active': True, 'slide': 1, 'slide_id': 256, 'click_index': 0}
+        bridge._powerpoint_changed({'active': True, 'slide': 1, 'slide_id': 256, 'click_index': 1})
+        assert bridge.teaching_session.native_state == expected
+        app.processEvents()
+    finally:
+        for worker in (bridge._catalog, bridge.browserAI, bridge.slidePreview, bridge.libraryThumbnails,
+                       bridge.narrationPreferences, bridge.narration_preparation, bridge.english_reader):
+            worker.shutdown()
+        library.close()

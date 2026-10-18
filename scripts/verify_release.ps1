@@ -13,7 +13,7 @@ if (-not $installRoot.StartsWith($runtimeRoot, [StringComparison]::OrdinalIgnore
 $reportRoot = Join-Path $projectRoot ('reports\release\' + $runId)
 New-Item -ItemType Directory -Path $reportRoot -Force | Out-Null
 $savedEnvironment = @{}
-foreach ($name in @('BILICLASS_DATA','BILICLASS_MODEL_DIR','BILICLASS_KOKORO_DIR','BILICLASS_VIENEU_DIR','PYTHONPATH','PYTHONHOME')) {
+foreach ($name in @('BILICLASS_DATA','BILICLASS_MODEL_DIR','BILICLASS_KOKORO_DIR','BILICLASS_VIENEU_DIR','PYTHONPATH','PYTHONHOME','QT_QPA_PLATFORM')) {
     $savedEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
     [Environment]::SetEnvironmentVariable($name, $null, 'Process')
 }
@@ -27,6 +27,7 @@ function Invoke-InstalledCheck([string[]]$Arguments, [int]$TimeoutSeconds = 300)
     if ($probe.ExitCode -ne 0) { throw ('Installed check failed: ' + ($Arguments -join ' ')) }
 }
 try {
+    if ($env:OS -eq 'Windows_NT') { $env:QT_QPA_PLATFORM = 'windows' }
     Write-Output ('Verifying ' + $manifest.version + ': installing into an isolated Unicode path...')
     & (Join-Path $distPath 'Install-BiliClass.ps1') -InstallRoot $installRoot -NoShortcuts
     $env:BILICLASS_DATA = $dataRoot
