@@ -57,3 +57,29 @@ file đang mở của giáo viên. Bài đã tạo giọng dùng lại cache khi
 Các kiểm chứng hệ thống của RC76 được ghi ở [AUDIT_RC76](AUDIT_RC76.md).
 Phần Wi-Fi trường, máy chiếu, Windows sạch và chất lượng nội dung vẫn
 cần nghiệm thu thực tế; không tự duyệt hay bỏ cảnh báo bài cũ.
+
+## Gói cài và phát hành
+
+- Build một lần từ source `5acaea39e9353e53cd723ea8a8080eb779256842`,
+  toàn bộ module ứng dụng được biên dịch lại, runtime/model RC76 kiểm
+  manifest trước khi tái dùng. GitHub CI của source đạt:
+  [run 39139774371](https://github.com/whitelotus-web/BiliClass/actions/runs/39139774371).
+- ZIP `BiliClass-RC77-Windows.zip`, 871.069.229 byte; SHA-256
+  `79ec4ab2b2e98cc947997a942b2d63f9c78b14593692b7fe45e6a04bad7974e1`.
+  GitHub asset đã upload đủ và digest server trùng với hash gói local.
+- Cài/gỡ vào vùng Unicode riêng, Qt Windows, VieNeu Anh/Việt ngoại tuyến,
+  template, lớp học và backup đạt; gỡ giữ dữ liệu thử. Kết quả:
+  `reports/release/1.0.0rc77-ff847d24/installer.json`.
+- Đã cài chính tại `F:/Applications/BiliClass/1.0.0rc77`, đổi shortcut,
+  kiểm thêm trang Voice EXE ở 1366×850: ảnh lưu được, không cảnh báo QML.
+  Đã mở app cửa sổ bình thường, title RC77 và trạng thái Responding.
+  Bản RC73 đang ẩn được giữ, không force-kill Office hoặc ứng dụng cũ.
+- So snapshot sau mở: 20 bài giữ nguyên revision/nội dung, 1.449 WAV giữ
+  nguyên tên và kích thước. Không chạy tổng hợp mới trên thư viện chính.
+- [GitHub Release RC77](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc77)
+  có ZIP và SHA-256. Updater kiểm từ RC73 đã nhận đúng RC77 và digest trên.
+
+Lượt cài chính đầu có harness đọc nhầm `$LASTEXITCODE` rỗng là thất bại
+sau một script PowerShell thuần đã thành công. Không cài đè lần nữa:
+kiểm marker/BUILD_INFO, chạy smoke EXE rồi mở app. Đây là lỗi harness
+gọi cài cục bộ; bộ cài và verification có báo cáo riêng đều đạt.

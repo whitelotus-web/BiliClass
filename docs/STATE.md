@@ -9,6 +9,9 @@ trên nút RC77 còn cần giáo viên test; xem [BUILD_RC77](BUILD_RC77.md).
 899 core, 47 ca liên quan lượt cuối, 11 luồng Qt Windows, export native,
 8 corpus và parent-exit đạt. Đã xuất bản riêng bài thật 86 slide/258 loa
 để thử, dùng lại WAV, giữ nguyên bài trong thư viện.
+Đã phát hành [RC77](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc77),
+cài và mở EXE RC77 tại máy này; shortcut đã cập nhật. Gói cài cô lập,
+model ngoại tuyến và smoke trang Voice EXE đạt; 20 bài/1.449 WAV giữ nguyên.
 
 Ngày 18/10/2026 — RC76 tiếp tục rà soát hệ thống: chặn lệnh/ack audio từ
 slide cũ, fallback cache khi Office thiếu player, giữ trạng thái đọc qua
