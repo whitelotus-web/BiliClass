@@ -42,6 +42,14 @@ def main():
         try:
             pump(300)
             assert window.property('page') == 'home'
+            assert c('homeHeroTitle').property('text') == 'Chào Thầy cô!'
+            bridge.saveTeacherProfile('Cô Nguyễn Diệu Linh', 'Trường thử', 'Vật lý', True)
+            pump(100)
+            assert c('homeHeroTitle').property('text') == 'Chào Cô Nguyễn Diệu Linh!'
+            bridge.saveTeacherProfile('  ', 'Trường thử', 'Vật lý', True)
+            pump(100)
+            assert c('homeHeroTitle').property('text') == 'Chào Thầy cô!'
+            bridge.saveTeacherProfile('Cô Nguyễn Diệu Linh', 'Trường thử', 'Vật lý', True)
             assert window.findChild(QObject, 'newLibraryLesson') is None
             assert 'NÂNG TẦM BÀI GIẢNG' in c('brandSlogan').property('text')
             assert window.findChild(QObject, 'homeTranslationUsage') is None

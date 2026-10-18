@@ -2,6 +2,7 @@
 import importlib.util
 import json
 import os
+import sys
 from pathlib import Path
 
 from PyInstaller.archive.readers import CArchiveReader
@@ -9,6 +10,10 @@ from PyInstaller.config import CONF
 
 config = json.loads(Path(os.environ['BILICLASS_BUILD_CONFIG']).read_text(encoding='utf-8'))
 root = Path(config['root'])
+sys.path.insert(0, str(root))
+from scripts.windows_version_info import version_info
+import tomllib
+release_version = tomllib.loads((root / 'pyproject.toml').read_text(encoding='utf-8'))['project']['version']
 archive = CArchiveReader(config['baseline_exe'])
 reader = archive.open_embedded_archive('PYZ.pyz')
 pure, codes = [], {}
@@ -38,4 +43,5 @@ CONF.setdefault('code_cache', {})[id(pure)] = codes
 pyz = PYZ(pure)
 exe = EXE(pyz, hooks, [], exclude_binaries=True, name='BiliClass',
           icon=str(root / 'app/assets/brand/biliclass.ico'), console=False, upx=False,
+          version=version_info(release_version),
           disable_windowed_traceback=False)

@@ -57,6 +57,9 @@ def test_ready_voice_opens_powerpoint_without_approving_or_blocking_on_layout_wa
     original, opened = source.read_bytes(), []
     bridge = Bridge(library)
     bridge._lesson, bridge._quick_result = lesson, preview
+    completions = []
+    monkeypatch.setattr('app.lesson_completion.complete_existing',
+                        lambda library, item, cancel=None: completions.append(item['id']) or item)
     monkeypatch.setattr(bridge, '_activate_teaching', opened.append)
     monkeypatch.setattr(speech, 'synthesize', lambda *a, **k: pytest.fail('Opening must reuse existing WAVs'))
     try:
@@ -71,6 +74,7 @@ def test_ready_voice_opens_powerpoint_without_approving_or_blocking_on_layout_wa
         assert saved['revision'] == lesson['revision']
         assert not any(row['approved'] for row in saved['segments'])
         assert saved['slide_quality']['counts']['FAIL'] == 1
+        assert completions == [lesson['id']]
         assert source.read_bytes() == original
     finally:
         for worker in (bridge._catalog, bridge.browserAI, bridge.slidePreview, bridge.libraryThumbnails,
@@ -280,6 +284,37 @@ def test_player_failure_reuses_verified_cache_and_preserves_pause_intent(tmp_pat
     session.event(dict(request, event='media_stopped'))
     assert bridge.calls[-2][1] == {'cache_only': True} and bridge.calls[-1] == 'pause_cached'
     assert not session.pending_read and session.native_state == 'stopped'
+
+
+def test_two_separate_slide_speakers_can_read_both_with_existing_cache_only(tmp_path):
+    lesson, preview, directory, _ = prepared_lesson(tmp_path)
+    bridge = FakeBridge(directory)
+    session = TeachingSession(bridge)
+    prepared = prepare_teaching(lesson, preview, directory)
+    prepared['media'][1] = ['vi', 'en']  # Older bilingual export has no combined native player.
+    session.bind(prepared)
+    assert session.audio['both']
+    session.read('both')
+    assert session.pending_read and session.language == 'both'
+    session.event(dict(session._media_request(), event='media_stopped'))
+    assert bridge.calls[-1][1] == {'cache_only': True}
+
+
+def test_switching_language_while_cache_fallback_waits_keeps_only_latest_intent(tmp_path):
+    lesson, preview, directory, _ = prepared_lesson(tmp_path)
+    bridge = FakeBridge(directory)
+    session = TeachingSession(bridge)
+    session.bind(prepare_teaching(lesson, preview, directory))
+    session.read('en')
+    session.event(dict(session._media_request(), event='media_error', operation='play_media', message='Unavailable'))
+    assert session.pending_read
+    old_request = session._media_request()
+    session.toggleRead('vi')
+    assert session.language == 'vi' and session.native_state == 'preparing' and not session.pending_read
+    assert session.token != old_request['token'] and bridge.calls[-1][0] == 'play_media'
+    calls = list(bridge.calls)
+    session.event(dict(old_request, event='media_stopped'))
+    assert bridge.calls == calls and session.language == 'vi'
 
 
 def test_late_playback_events_cannot_revive_stopped_or_new_slide_audio(tmp_path):

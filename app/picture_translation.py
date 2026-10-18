@@ -1,5 +1,6 @@
 """Editable overlays on the original picture; never alter raster evidence."""
 
+import json
 import math
 import zipfile
 from pathlib import Path
@@ -193,7 +194,11 @@ def apply_picture_translations(path, manifest, rows, translations, mode, cancel=
                 identity += 1
                 rgb = [int(fill[i : i + 2], 16) for i in (0, 2, 4)]
                 color = "FFFFFF" if sum(rgb) < 300 else "112650"
-                shape_tree.append(text_shape(identity, text, box, size, fill=fill, color=color))
+                overlay = text_shape(identity, text, box, size, fill=fill, color=color)
+                from .picture_narration import PREFIX
+                overlay.find('p:nvSpPr/p:cNvPr', NS).set('descr', PREFIX + json.dumps(
+                    {'vi': row['text'], 'en': text}, ensure_ascii=False))
+                shape_tree.append(overlay)
                 placed.append(box)
                 applied.append(
                     {

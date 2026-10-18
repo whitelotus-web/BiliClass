@@ -1,3 +1,3 @@
 """BiliClass desktop application."""
 
-__version__ = "1.0.0rc79"
+__version__ = "1.0.0rc80"

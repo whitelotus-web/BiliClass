@@ -97,6 +97,12 @@ def main():
                     item = c(name)
                     assert item.isVisible() and item.isEnabled(), name
                     assert 0 <= item.mapToScene(QPointF()).y() < window.height() - 25, name
+                language = c('narrationEnglish')
+                placement = c('narrationSpeakerPosition')
+                assert abs(language.mapToScene(QPointF(0, language.height()/2)).y()
+                           - placement.mapToScene(QPointF(0, placement.height()/2)).y()) < 2
+                assert placement.mapToScene(QPointF()).x() > c('narrationBoth').mapToScene(
+                    QPointF(c('narrationBoth').width(), 0)).x()
                 assert not c('createLessonNarrationButton').isEnabled()
                 assert window.grabWindow().save(str(out / f'configure-before-file-{width}.png'))
             voice_choice = c('lessonNarrationVoiceChoice')

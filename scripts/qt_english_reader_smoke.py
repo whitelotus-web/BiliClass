@@ -97,9 +97,9 @@ def main():
                               "powerpoint": bridge.powerpointState}), flush=True)
             wait(lambda: bridge.englishReaderState["state"] == "reading")
             assert bridge.mascotState == "speaking"
-            assert QMetaObject.invokeMethod(window.findChild(QObject, "companionPauseEnglish"), "clicked", Qt.DirectConnection)
+            bridge.pauseEnglish()
             assert bridge.englishReaderState["state"] == "paused" and bridge.mascotState != "speaking"
-            assert QMetaObject.invokeMethod(window.findChild(QObject, "companionPauseEnglish"), "clicked", Qt.DirectConnection)
+            bridge.resumeEnglish()
             assert bridge.englishReaderState["state"] == "reading"
             wait(lambda: len(plays) == 2)
             report["checks"].append("One mascot click reads title and full native English body; real shared VieNeu WAV and MCI pause/resume")

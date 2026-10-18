@@ -35,8 +35,12 @@ def export(directory, identities, destination, with_voice=True, cancel=None):
             if cancel and cancel.is_set():
                 raise InterruptedError('Đã dừng tải. Tệp đích cũ được giữ nguyên.')
             if lesson.get('external_deck'):
-                from .chatgpt_handoff import external_preview
-                preview = external_preview(lesson, directory)
+                from .lesson_completion import layout_notice
+                from .voice_import import prepare_library_lesson
+
+                lesson, preview = prepare_library_lesson(directory, lesson['id'], complete=True, cancel=cancel)
+                if notice := layout_notice(lesson):
+                    warnings.append(notice)
             else:
                 from .quick_conversion import build_preview
                 preview = build_preview(lesson, directory, terms=[r for r in terms if r['subject'] == lesson['subject']])

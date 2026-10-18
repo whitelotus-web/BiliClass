@@ -19,6 +19,7 @@ from app.branding import configure_application
 from app.library import Library
 from app.paths import RESOURCE_ROOT
 from app.ui import Bridge
+from scripts.qt_result_preview_mascot_smoke import control
 
 
 def pump():
@@ -57,13 +58,12 @@ def main():
         root.setProperty("preferredCreationDesign", 1)
         until(lambda: root.findChild(QObject, "creationPreset") is not None)
         combo = root.findChild(QObject, "creationPreset")
-        preview = root.findChild(QObject, "creationTemplatesButton")
         bookends = root.findChild(QObject, "templateBookends")
-        assert combo.property("count") == 3 and bookends is not None
+        assert combo.property("count") == 3 and bookends is None
         assert not bridge.templateBookends
         bridge.setTemplateBookends(True)
         pump()
-        assert library.setting("template_bookends", False) and bookends.property("checked")
+        assert library.setting("template_bookends", False)
         bridge.setTemplateBookends(False)
         opened = []
         original = QDesktopServices.openUrl
@@ -97,7 +97,7 @@ def main():
             cached = Path(opened[4])
             stamp = cached.stat().st_mtime_ns
             old = len(opened)
-            assert QMetaObject.invokeMethod(preview, "clicked")
+            assert QMetaObject.invokeMethod(control(root, "creationPresetView_practice"), "clicked")
             until(lambda: len(opened) > old)
             assert Path(opened[-1]) == cached and cached.stat().st_mtime_ns == stamp
         finally:

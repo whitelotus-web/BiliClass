@@ -20,7 +20,7 @@ from PySide6.QtCore import QCoreApplication, QEvent, QObject
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
-from qt_result_preview_mascot_smoke import control, pump, until
+from qt_result_preview_mascot_smoke import click, control, pump, until
 from test_teaching_session import prepared_lesson
 
 from app.library import Library
@@ -78,8 +78,14 @@ def main():
                 assert window.grabWindow().save(str(out / f'voice-{size[0]}.png'))
             # Ready voice opens a managed PowerPoint copy directly. No automatic approval/playback.
             before_revision = library.get(lesson['id'])['revision']
-            bridge.openNarratedPowerPoint(bridge.selectedNarrationVariant)
+            window.setProperty('page', 'library')
+            until(lambda: bridge._catalog.worker is None)
+            pump(150)
+            button = c('lessonOpen_' + lesson['id'])
+            assert button.property('text') == 'Mở PowerPoint'
+            click(window, button)
             until(lambda: bool(bridge.powerpointState.get('opened')), timeout=50)
+            assert not c('wholeLessonReview').property('visible')
             assert not bridge.powerpointState.get('active')
             assert library.get(lesson['id'])['revision'] == before_revision
             assert bridge.teachingSession.state['lesson_id'] == lesson['id']
@@ -92,7 +98,8 @@ def main():
             assert bridge.teachingSession.audio == {'vi': True, 'en': True, 'both': True}
             assert bridge.powerpointState.get('hwnd'), 'Mascot must resolve this slideshow window when Office omits HWND'
             assert cc('companionReadingScope').isVisible()
-            assert cc('companionStopSpeech').property('danger') and cc('companionStopSpeech').property('symbol') == '■'
+            assert companion.findChild(QObject, 'companionStopSpeech') is None
+            assert companion.findChild(QObject, 'companionPauseEnglish') is None
             assert cc('companionReadEnglish').isVisible() and cc('companionReadVietnamese').isVisible()
             # Existing slide speakers and Mascot use PowerPoint's same native player.
             tap('companionReadEnglish')
@@ -100,10 +107,16 @@ def main():
             assert cc('mascotCompanion').property('expression') == 'speaking', 'Native media updates the mascot state'
             assert bridge.english_reader.worker is None
             assert not bridge.english_reader.queue
-            bridge.teachingSession.pauseResume()
+            assert cc('companionReadEnglish').property('iconName') == 'pause'
+            tap('companionReadEnglish')
             until(lambda: bridge.teachingSession.native_state == 'paused')
-            bridge.teachingSession.pauseResume()
+            assert cc('companionReadEnglish').property('iconName') == 'speaker-en'
+            tap('companionReadEnglish')
             until(lambda: bridge.teachingSession.native_state == 'reading')
+            tap('companionReadVietnamese')
+            tap('companionReadEnglish')
+            until(lambda: bridge.teachingSession.native_state == 'reading' and bridge.teachingSession.language == 'en')
+            assert not bridge.english_reader.queue, 'Mouse controls must share native playback, not create a second voice queue'
             bridge.teachingSession.stop()
             pump(300)
             stale = {'language': 'en', 'slide_id': bridge.powerpointState['slide_id'],
@@ -138,30 +151,21 @@ def main():
             tap('companionEndShow')
             until(lambda: not bridge.powerpointState.get('active') and bridge.powerpointState.get('opened'))
             assert bridge.teachingSession.state['lesson_id'] == lesson['id']
-            # Choosing from floating Mascot opens review; cancel must retain old binding.
+            # Floating Mascot and library share one direct open/bind route.
             tap('companionChooseLesson')
             assert cc('companionLibraryPicker').isVisible() and cc('companionSelectFile').isVisible()
             index = next(i for i, row in enumerate(bridge.lessons) if row['id'] == other['id'])
             cc('companionLibraryPicker').setProperty('currentIndex', index)
             tap('companionSelectLibrary')
-            until(lambda: c('wholeLessonReview').property('visible') and not bridge.busy)
-            assert bridge.teachingSession.state['lesson_id'] == lesson['id']
-            c('wholeLessonReview').setProperty('visible', False)
-            assert bridge.teachingSession.state['lesson_id'] == lesson['id']
-            # Confirm the new lesson; the old helper closes before binding the new deck.
-            bridge.useConvertedLesson()
             until(lambda: bridge.teachingSession.state.get('lesson_id') == other['id'] and bridge.powerpointState.get('opened'), timeout=50)
+            assert not c('wholeLessonReview').property('visible')
             assert not bridge.powerpointState.get('active')
             tap('companionStartShow')
             until(lambda: bridge.powerpointState.get('active'))
             assert bridge.teachingSession.audio == {'vi': False, 'en': False, 'both': False}
             bridge.openTeachingPresentation(independent.as_uri())
-            until(lambda: c('wholeLessonReview').property('visible') and not bridge.busy)
-            assert bridge.teachingSession.state['lesson_id'] == other['id']
-            c('wholeLessonReview').setProperty('visible', False)
-            selected = bridge.lesson['id']
-            bridge.useConvertedLesson()
-            until(lambda: bridge.error or (bridge.teachingSession.state.get('lesson_id') == selected and bridge.powerpointState.get('opened')), timeout=50)
+            until(lambda: not bridge.busy and bridge.teachingSession.state.get('lesson_id') not in ('', other['id'])
+                  and bridge.powerpointState.get('opened'), timeout=50)
             assert not bridge.error, bridge.message
             tap('companionStartShow')
             until(lambda: bridge.powerpointState.get('active'))
@@ -178,7 +182,7 @@ def main():
                       'checks': ['conversion destination opens configured voice page', 'no new sidebar tab',
                                  'no-voice download retained', 'ready and explicit F5', 'native silent embedded audio',
                                  'per-slide language buttons', 'browsing does not rebind', 'minimized app keeps Mascot',
-                                 'floating library and file choices', 'cancel retains old binding', 'confirmed switch',
+                                 'floating library and file choices', 'direct switch without approval popup',
                                  'no-voice teaching', 'external PPTX with embedded voices', 'native pause/resume',
                                  'delayed playback rejected after native slide change',
                                  'source unchanged'],

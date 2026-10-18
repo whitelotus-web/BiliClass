@@ -15,6 +15,8 @@ Rectangle {
     ColumnLayout {
         id: content
         anchors.fill: parent; anchors.margins: 12; spacing: 5
+        RowLayout {
+        Layout.fillWidth: true
         Label {
             objectName: "narrationConfigurationTitle"
             text: (card.voiceName || "Chọn người đọc") + " · " + (100 + card.rate * 6) + "% · " +
@@ -22,21 +24,27 @@ Rectangle {
             color: "#112650"; font.pixelSize: 13; font.weight: Font.DemiBold
             Layout.fillWidth: true; wrapMode: Text.WordWrap
         }
-        Label {
-            objectName: "narrationConfigurationExplanation"
-            text: card.mode === "both" ? "Tạo lời đọc cho cả hai ngôn ngữ. PowerPoint có nút loa Việt, loa Anh và đọc Việt–Anh chung để thầy cô chọn khi dạy."
-                : card.mode === "vi" ? "Tạo lời đọc tiếng Việt và nút loa Việt trên slide. Phù hợp khi cần giải thích nội dung bằng tiếng Việt."
-                : "Tạo lời đọc tiếng Anh và nút loa Anh trên slide. Phù hợp khi luyện nghe hoặc dạy bằng tiếng Anh."
-            color: "#667997"; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap
+        ToolButton {
+            id: configurationInfo; text: "ⓘ"; font.pixelSize: 19; implicitWidth: 30; implicitHeight: 28
+            Accessible.name: "Giải thích cấu hình giọng đọc"
+            ToolTip {
+                id: configurationTip; visible: configurationInfo.hovered || configurationInfo.activeFocus; delay: 350
+                width: Math.min(420, card.width - 24)
+                text: "Loa đọc lời đã lưu của slide khi bấm, kể cả phần xuất hiện sau. Chữ OCR được dịch trên ảnh không tự đưa vào lời đọc. Đọc theo từng hiệu ứng có thể chọn riêng trong Mascot."
+                contentItem: Label { text: configurationTip.text; wrapMode: Text.WordWrap; color: "#112650"; font.pixelSize: 12 }
+            }
+        }
         }
         Label {
-            text: "Loa đọc toàn bộ lời đã lưu của slide khi bấm, kể cả phần xuất hiện sau. Đọc theo từng hiệu ứng được chọn riêng trong Mascot."
+            objectName: "narrationConfigurationExplanation"
+            text: card.mode === "both" ? "Loa hai ngôn ngữ: Việt · Anh · Việt–Anh."
+                : card.mode === "vi" ? "Tạo loa tiếng Việt trên slide." : "Tạo loa tiếng Anh trên slide."
             color: "#667997"; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap
         }
         Label {
             objectName: "narrationConfigurationCoverage"
-            text: card.hasLesson ? card.readable + "/" + card.total + " slide có lời phù hợp. Có thể kiểm tra lời đọc hoặc nghe thử trước khi tạo."
-                                  : "Chọn bài giảng để kiểm tra lời đọc cho cấu hình này."
+            text: card.hasLesson ? card.readable + "/" + card.total + " slide có lời đọc · Bỏ qua chữ OCR trên ảnh."
+                                  : "Chọn bài giảng để kiểm tra lời đọc."
             color: "#667997"; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap
         }
     }

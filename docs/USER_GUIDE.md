@@ -1,21 +1,21 @@
 # BiliClass — Trợ lý dạy học song ngữ
 
-Hướng dẫn luồng RC79, ngày 19/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
+Hướng dẫn luồng RC80, ngày 19/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
 trên máy. Chuyển đổi hiện dùng Google Cloud Translation cho phần chữ và dựng
 PowerPoint tại máy; Browser ChatGPT/Gemini tạm ẩn.
 
 ## Cài và cập nhật
 
-1. Tải **BiliClass-RC79-Windows.zip** tại
-   [Release RC79](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc79).
+1. Tải **BiliClass-RC80-Windows.zip** tại
+   [Release RC80](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc80).
 2. Giải nén toàn bộ; không chạy trong cửa sổ ZIP. Chạy **Setup.cmd**.
 3. Bộ cài kiểm tra checksum và cài vào
-   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc79`, không cần quyền quản trị.
+   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc80`, không cần quyền quản trị.
 4. Mở BiliClass từ Desktop hoặc Start menu. Bản cài có model giọng, OCR và
    template; không cần thư mục runtime của máy phát triển.
 
 Máy đang dùng bản cũ: vào **Cài đặt → Thông tin BiliClass → Kiểm tra cập nhật**,
-chọn Cập nhật khi thấy RC79. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
+chọn Cập nhật khi thấy RC80. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
 Setup.cmd như trên. Các bản cài nằm cạnh nhau; thư viện ở
 `%LOCALAPPDATA%/BiliClass` được giữ nguyên. Không xóa thư mục dữ liệu này.
 Thư viện cá nhân và API key không đưa lên GitHub. Key chỉ lưu mã hóa trên máy.
@@ -28,12 +28,13 @@ Thư viện cá nhân và API key không đưa lên GitHub. Key chỉ lưu mã h
    Môn mặc định lấy từ **Cài đặt → Chung → Bộ môn giảng dạy**, vẫn đổi được
    riêng cho bài đang làm. Cấp học và Khối lớp nhớ lần chọn gần nhất, kể cả
    sau khi đóng rồi mở lại BiliClass.
-3. Chọn giữ thiết kế PowerPoint gốc, hoặc tạo theo mẫu BiliClass/PowerPoint
-   riêng. Mẫu Universal 2026 có ba phong cách; chọn xem mẫu để kiểm tra trước.
+3. Chọn giữ thiết kế PowerPoint gốc hoặc tạo theo mẫu BiliClass.
+   Ba thẻ mẫu có ảnh xem trước, bấm chọn và **Xem mẫu** để mở mẫu PowerPoint.
+   Chỉ dùng bộ mẫu đã tích hợp; không còn nhập mẫu ngoài hoặc tùy chọn vai trò trang.
    Khung tải tệp dùng cùng bố cục với Tạo giọng đọc: ảnh PowerPoint bên trái,
    hướng dẫn và nút chọn tệp bên phải. Cấu hình vẫn thu gọn trên cửa sổ thấp;
-   có thể cuộn khi hiện nhiều trường. Chọn **Tùy chọn mẫu…** để mở mẫu riêng
-   và vai trò trang; các lựa chọn này vẫn được giữ.
+   có thể cuộn khi hiện nhiều trường. Thông tin cấu hình đã chọn nằm trong
+   cùng khung trắng với các lựa chọn.
 4. Cấu hình key ở **Cài đặt → Google Dịch**, lưu rồi chuyển đổi.
    Dịch chỉ gửi phần chữ; nội dung trong ảnh được OCR nếu nhận diện được.
 5. Xem lại bài đã lưu. Công thức, chữ trong ảnh, hiệu ứng phức tạp và slide
@@ -91,9 +92,10 @@ Việt–Anh · Mai Anh · 100%)**. Đồng bộ ở tab Giọng, bài đã chuy
 viện/ZIP. Thông báo xuất nêu số slide có loa và trang còn thiếu lời/chỗ đặt;
 slide chủ ý không đọc không được tính là đã có audio.
 
-Chọn **Dạy** ở hàng bài giảng hoặc **Mở bài giảng để dạy** trong menu thẻ.
+Chọn **Mở PowerPoint** ở hàng hoặc thẻ bài giảng.
 Trên Mascot nổi, **Chọn / đổi bài giảng** nhận bài thư viện hoặc file `.pptx`.
-Chọn bài mở bước xác nhận; chỉ xác nhận mở mới thay bài đang gắn. **Kết
+Chọn bài sẽ mở PowerPoint và chuyển liên kết Mascot sang đúng bài đó;
+không cần popup duyệt nội dung để mở. Bấm F5 khi sẵn sàng. **Kết
 thúc trình chiếu** trả về trạng thái chờ, **Ngắt gắn bài** kết thúc phiên
 điều khiển. Tệp PowerPoint nguồn không bị ghi đè.
 
@@ -134,6 +136,12 @@ Giọng là bước tùy chọn sau khi bài đã lưu. Chọn một trong sáu 
 thử, chọn tốc độ và tiếng Anh / tiếng Việt / Việt + Anh. Chọn ở đây không
 thay cấu hình mặc định trong Cài đặt. Giọng chạy ngoại tuyến trên máy.
 
+Vị trí loa nằm cùng hàng ngôn ngữ, có hình mô phỏng chân slide. Giải thích
+chi tiết nằm trong tooltip của cấu hình. Chữ OCR được dịch trên ảnh vẫn
+hiển thị nhưng không tự đưa vào voice. Bản có khung dịch ảnh cũ được nhận
+diện theo dấu nguồn; bản ghi chứa phần OCR sẽ cần cập nhật giọng. Lời do
+giáo viên tự nhập vẫn được giữ. PPTX đã tải trước đó cần xuất lại để đổi voice.
+
 - Lần đầu mặc định **Tiếng Anh**; lần sau nhớ lựa chọn ngôn ngữ gần nhất.
 - Mỗi bản được phân biệt bằng nội dung, ngôn ngữ, giọng và tốc độ. Tạo đúng
   bản đã có mở popup **Dùng bản có sẵn / Tạo lại**. Dừng/lỗi tạo lại giữ WAV cũ.
@@ -144,8 +152,8 @@ thay cấu hình mặc định trong Cài đặt. Giọng chạy ngoại tuyến
 
 ## Dạy và mascot
 
-Chọn **Dùng để dạy** hoặc **Mở bài giảng để dạy**, kiểm tra bản giọng,
-xác nhận nội dung rồi Bắt đầu dạy. Trình chiếu dùng Microsoft PowerPoint
+Chọn **Mở PowerPoint** trong Thư viện hoặc sau khi tạo giọng. Mascot tự
+gắn với bài được mở; bấm F5 khi sẵn sàng. Trình chiếu dùng Microsoft PowerPoint
 cài trên máy. Giọng chỉ phát khi bấm đọc; đóng/đổi slide sẽ dừng hàng đợi.
 
 Bấm **Mở trợ giảng nổi** để hiện mascot; bấm lại **Ẩn trợ giảng nổi** để ẩn.
@@ -154,6 +162,19 @@ Thu nhỏ BiliClass vẫn giữ Mascot nổi độc lập. **Cài đặt → Mas
 trên cùng** mặc định bật, giữ Mascot phía trên cửa sổ khác và trình chiếu.
 Tắt lựa chọn này cho phép cửa sổ khác che Mascot; bấm **Lưu cài đặt Mascot**
 để áp dụng. Bấm Escape chỉ thu gọn công cụ Mascot, không ẩn.
+
+Bánh răng ở góc bảng mở thẳng **Cài đặt → Mascot**. Bảng có cỡ **Gọn /
+Vừa / Lớn**, độc lập với kích thước nhân vật. **Độ trong suốt của nền
+bảng** từ 0–70%, mặc định nền đặc; chữ, nút và vùng bấm giữ nguyên.
+Cỡ bảng và độ trong tự lưu. Tên môn không còn treo dưới chân nhân vật;
+phụ kiện vẫn theo môn, thông tin môn hiện trong bảng.
+
+Chọn bài → **Trình chiếu · F5**, rồi dùng **Trước / Sau** để lùi/tiến
+hiệu ứng và slide. Chỉ hiện nút **Anh / Việt / Việt–Anh** có giọng của
+slide hiện tại. Bấm để đọc, bấm lại tạm dừng, bấm tiếp đọc tiếp; đổi loa
+dừng giọng trước. Mascot và nút loa trên slide dùng cùng player khi bài
+được gắn; không có bộ nút Dừng/Tạm dừng/Đọc lại riêng. Dấu **?** nhỏ mở
+hướng dẫn phím. Giải thích, ví dụ, câu hỏi và gợi ý Việt nằm dưới loa.
 
 Mascot có nút mở bài và đọc Việt/Anh/chung. Các nút đọc trên mascot chỉ bật
 khi có phiên trình chiếu đúng bài. Phụ kiện Mascot tự theo môn của bài
@@ -191,8 +212,8 @@ gắn file qua Mascot. Các phím này không được nhúng thành macro trong
 
 ## Mascot đi theo bài nào?
 
-Mở bài trong Thư viện → **Dùng để dạy** → hoàn tất chuẩn bị để mở
-trình chiếu. Mascot liên kết với phiên PowerPoint đó; chọn đọc Anh, Việt
+Trong Thư viện, bấm **Mở PowerPoint**. Mascot liên kết với phiên PowerPoint
+đó; chọn đọc Anh, Việt
 hoặc Việt–Anh để đọc phần lời đang chọn trên slide hiện tại. Dùng **Theo slide**
 để đưa lựa chọn về slide đang chiếu. Chưa mở trình chiếu thì các nút đọc
 bị khóa. Đóng trình chiếu sẽ ngừng đọc. Phụ kiện tự đổi theo môn của bài
@@ -202,18 +223,20 @@ bị khóa. Đóng trình chiếu sẽ ngừng đọc. Phụ kiện tự đổi 
 
 Nhãn trạng thái bài có thể bấm để xem lý do và cách xử lý:
 
-- **N slide cần sửa**: kiểm tra kỹ thuật còn lỗi trên các slide đó. Chọn
-  **Kiểm tra lại** hoặc **Tự sửa và kiểm tra**; chi tiết nêu số slide/lỗi.
-- **Chờ xác nhận**: đã có nội dung song ngữ nhưng thầy cô chưa xác nhận
-  cả bài. Xem bản trình chiếu, rồi **Xem và xác nhận để dạy**. Không cần
-  duyệt từng đoạn nếu đã xem cả bài.
+- **Cần xem lại bố cục**: tool thử tự căn khi chuyển đổi và khi mở/tải bài
+  cũ. Nếu còn điểm chưa xử lý được, tooltip và báo cáo chỉ rõ slide;
+  có thể mở PowerPoint để đối chiếu. Bản trước được giữ, không sửa file gốc.
+- **Đã lưu bài**: có thể mở PowerPoint cùng Mascot ngay. Duyệt nội dung
+  riêng khi muốn dùng câu hỏi và lớp học; không bắt buộc để mở bài.
 - **Chưa dịch đủ**: còn thiếu cặp Việt–Anh; mở **Xem/sửa nội dung** hoặc
   tiếp tục chuyển đổi. **Đã duyệt nội dung** và **Sẵn sàng dạy** phân biệt
   nội dung đã duyệt với bản hiện tại đã chốt.
 
 Tự sửa xử lý lỗi kỹ thuật có thể sửa; không xác nhận thay giáo viên về ý
-nghĩa, thuật ngữ hoặc độ đúng của bản dịch. Khi vẫn còn lỗi kỹ thuật, nút
-xác nhận bị khóa. Bước xác nhận cuối dùng cơ chế duyệt/chốt đã có trước đây.
+nghĩa, thuật ngữ hoặc độ đúng của bản dịch. Không cần xác nhận để mở
+PowerPoint cùng Mascot; duyệt nội dung vẫn dùng riêng cho câu hỏi/lớp học.
+Menu **⋯ → Đổi tên / thông tin bài** chỉ sửa thông tin quản lý,
+không phải trình sửa slide. **Xem trước / tạo giọng đọc** mở không gian giọng.
 
 Trang chủ hiển thị việc đang làm và ba bài vừa cập nhật. **Bài giảng** là
 thư viện đầy đủ: tìm không dấu, lọc môn/khối/trạng thái/giọng, sắp xếp và
@@ -247,7 +270,7 @@ Mở bài để chọn người đọc, tốc độ và bản giọng cần dùn
 
 Ô chọn luôn hiển thị trong Thư viện. Có thể tích ô hoặc bấm nền, tên, thông
 tin, ảnh bìa của bài để chọn/bỏ chọn ở cả danh sách và thẻ; viền xanh báo
-bài đã chọn. Các nút **Mở bài**, **Tải**, **Sửa**, **Xóa** và menu vẫn thực
+bài đã chọn. Các nút **Mở PowerPoint**, **Tải**, **Xóa** và menu vẫn thực
 hiện chức năng riêng. Kéo chuột trên bài không tính là bấm chọn. Thao tác
 chọn này chỉ áp dụng trong Thư viện; Trang chủ giữ cách dùng trước đó.
 
@@ -389,7 +412,7 @@ thao tác không còn lặp lối tắt trạng thái hạn mức.
 
 Nút nghe thử lời đọc phát tối đa 250 ký tự đầu của slide với giọng/tốc độ
 đang chọn. Tạo xong không tự phát tiếng, tự duyệt hay tự mở trình chiếu.
-**Mở bài giảng để dạy** mở bước xác nhận riêng trước khi dùng Mascot.
+**Mở PowerPoint** mở bài và gắn Mascot trực tiếp, không tự bật F5.
 **Nghe thử** đổi thành **Dừng nghe** trong lúc phát. Khi giọng sẵn sàng,
 chỉ một khu vực tải/mở dạy được hiển thị; muốn lấy bản không giọng, mở
 **Thao tác khác → Bài giảng → Tải PowerPoint không giọng…**. Các thao tác

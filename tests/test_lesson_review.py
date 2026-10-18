@@ -21,7 +21,7 @@ def test_technical_failure_blocks_confirmation_even_for_previously_prepared_less
     item.update(prepared={'revision': 1, 'source_sha256': ''},
                 external_deck={'total': 2}, slide_quality={'counts': {'FAIL': 2}})
     state = summarize(item)
-    assert state['label'] == '2 slide cần sửa'
+    assert state['label'] == 'Cần xem lại bố cục' and '2 slide' in state['detail']
     assert state['canRepair'] and not state['canConfirm']
 
 

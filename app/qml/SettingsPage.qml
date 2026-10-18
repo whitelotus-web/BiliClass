@@ -430,6 +430,21 @@ Item {
                             }
                         }
                     }
+                    RowLayout { Layout.fillWidth: true; spacing: 14
+                        ColumnLayout { Layout.fillWidth: true; spacing: 5
+                            Label { text: "Cỡ bảng điều khiển"; color: page.ink; font.bold: true }
+                            Hint { text: "Độc lập với nhân vật; tự lưu và vừa màn hình."; Layout.fillWidth: true }
+                        }
+                        Choice { objectName: "companionPanelSize"; model: ["Gọn", "Vừa", "Lớn · dễ đọc"]; currentIndex: ["small", "standard", "large"].indexOf(bridge.companionPanelSize); Layout.preferredWidth: 210; onActivated: bridge.setCompanionPanelSize(["small", "standard", "large"][currentIndex]) }
+                    }
+                    ColumnLayout { Layout.fillWidth: true; spacing: 5
+                        RowLayout { Layout.fillWidth: true
+                            Label { text: "Độ trong suốt của nền bảng"; color: page.ink; font.bold: true; Layout.fillWidth: true }
+                            Hint { text: bridge.companionPanelOpacity === 100 ? "0% · Nền đặc" : (100 - bridge.companionPanelOpacity) + "%" }
+                        }
+                        Slider { objectName: "companionPanelTransparency"; from: 0; to: 70; stepSize: 5; value: 100 - bridge.companionPanelOpacity; Layout.fillWidth: true; onMoved: bridge.setCompanionPanelOpacity(100 - Math.round(value)) }
+                        Hint { text: "Chỉ làm trong nền, chữ và nút vẫn rõ và bấm như cũ. Thay đổi tự lưu."; Layout.fillWidth: true }
+                    }
                     RowLayout { Layout.fillWidth: true; Hint { text: "Thu nhỏ BiliClass vẫn giữ Mascot trên màn hình. Kéo để đặt vị trí; bấm Mascot để mở công cụ hoặc chọn Ẩn khi cần."; Layout.fillWidth: true } SaveButton { objectName: "saveMascot"; text: "Lưu cài đặt Mascot"; onClicked: bridge.saveMascotPreferences(page.selectedMascot, mascotVisible.checked, Math.round(mascotSize.value), mascotPosition.currentIndex ? "left" : "right", reducedMotion.checked, mascotAccessories.checked, mascotExplanation.checked, mascotQuiz.checked, "auto", "", mascotOnTop.checked) } }
                 }
             }

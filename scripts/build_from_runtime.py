@@ -81,6 +81,15 @@ def main():
         except OSError:
             shutil.copy2(source, target)
     shutil.copy2(work / 'build_runtime/BiliClass.exe', bundle / 'BiliClass.exe')
+    if os.name == 'nt':
+        import win32api
+
+        resource = '\\StringFileInfo\\042a04b0\\'
+        if (win32api.GetFileVersionInfo(str(bundle / 'BiliClass.exe'), resource + 'ProductVersion') != version
+                or win32api.GetFileVersionInfo(str(bundle / 'BiliClass.exe'), resource + 'ProductName') != 'BiliClass'
+                or 'Nguyễn Diệu Linh' not in win32api.GetFileVersionInfo(
+                    str(bundle / 'BiliClass.exe'), resource + 'LegalCopyright')):
+            raise ValueError('Executable Windows Details resource does not match this release.')
     for folder in ('qml', 'assets', 'student_web'):
         shutil.copytree(root / 'app' / folder, bundle / '_internal/app' / folder)
     commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip()

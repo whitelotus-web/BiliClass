@@ -721,7 +721,7 @@ class Library:
         self._write(lesson)
         return lesson
 
-    def replace_external_presentation(self, lesson_id, expected_revision, source, inspection):
+    def replace_external_presentation(self, lesson_id, expected_revision, source, inspection, *, retain_audio=False):
         """Save a verified correction as a revision, retaining the teacher's lesson ID."""
         from .chatgpt_handoff import text_signature
 
@@ -752,6 +752,10 @@ class Library:
                                        text_signature=text_signature(lesson), review_notes=inspection.get("review_notes", []))
         for question in lesson.get("questions", []):
             question["approved"] = False
+        if retain_audio:
+            from .lesson_completion import _retain_unchanged_audio
+
+            _retain_unchanged_audio(self.get(lesson_id), lesson)
         self._write(lesson)
         return lesson
 

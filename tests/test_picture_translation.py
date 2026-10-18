@@ -169,3 +169,83 @@ def test_google_pipeline_sends_image_text_once_and_saves_editable_overlay(tmp_pa
         "The velocity" in s.text for s in Presentation(preview["path"]).slides[0].shapes if s.has_text_frame
     )
     assert any("Vận tốc" in unit["vi"] for unit in lesson["segments"])
+    from app.lesson_narration import make_plan
+    plan, _ = make_plan(lesson, 'both', {'voice': 'vieneu:Mai Anh', 'rate': 0})
+    assert plan['total'] == 0, 'A slide containing only OCR labels must not synthesize those labels'
+
+
+def test_image_labels_are_silent_without_losing_identical_body_text_or_manual_script(tmp_path):
+    import copy
+    from contextlib import closing
+
+    from app.chatgpt_handoff import inspect_returned_deck
+    from app.conversion_input import creation_config
+    from app.lesson_narration import signature
+    from app.library import Library
+    from app.narration_script import prepare, refresh_speech, segments
+
+    _, target, _ = output(tmp_path, 'english_only')
+    deck = Presentation(target)
+    slide = deck.slides[0]
+    body = slide.shapes.add_textbox(Inches(.5), Inches(6.8), Inches(12), Inches(.4))
+    body.text = 'The velocity of the object'
+    notes = slide.notes_slide.notes_text_frame
+    notes.text = ('BILICLASS_NOTES:\nVI: Vận tốc của vật\nEN: The velocity of the object\n'
+                  'VI: Vận tốc của vật\nEN: The velocity of the object')
+    # Legacy files lack the explicit description added by the new exporter.
+    overlay = next(shape for shape in slide.shapes if shape.name == 'BCL_EN image translation')
+    overlay._element.xpath('./p:nvSpPr/p:cNvPr')[0].attrib.pop('descr', None)
+    overlay_id = overlay.shape_id
+    deck.save(target)
+    original = target.read_bytes()
+    inspection = inspect_returned_deck(target)
+    page = inspection['slide_speech']['slides'][0]
+    assert [s['english_text'] for s in page['englishSpeechSegments'] if s['status'] == 'ready'] == [body.text]
+    with closing(Library(tmp_path / 'library')) as library:
+        stored = library.store_source(target)
+        lesson = library.create_external_lesson(creation_config('Fixture', 'Vật lý', 'THPT', '11',
+                                                                'english_only', 'standard', 'source'), stored, inspection)
+        assert segments(lesson)[0]['vi'] == 'Vận tốc của vật'
+        assert segments(lesson)[0]['en'] == 'The velocity of the object'
+        assert lesson['segments'][0]['vi'].count('Vận tốc') == 2, 'Lesson content must stay intact'
+        # Recover old persisted speech even when classification had already run.
+        lesson.pop('narration_image_policy')
+        lesson.pop('narration_image_text')
+        page = lesson['slide_speech']['slides'][0]
+        page.pop('imageText')
+        page['englishSpeechSegments'].append({'id': 'old-ocr', 'english_text': body.text, 'status': 'ready',
+                                              'source': {'shape_id': overlay_id}, 'visibility': {'kind': 'always'}})
+        lesson['source_slide_speech'] = copy.deepcopy(lesson['slide_speech'])
+        old_signature = signature(lesson)
+        recovered = prepare(library, lesson)
+        assert signature(recovered) != old_signature, 'Old recordings containing OCR must become stale'
+        assert not any(s['id'] == 'old-ocr' for s in recovered['slide_speech']['slides'][0]['englishSpeechSegments'])
+        assert segments(recovered)[0]['vi'] == 'Vận tốc của vật'
+        identity = recovered['segments'][0]['id']
+        recovered['narration_script'] = {identity: {'vi': 'Lời giáo viên nhập.', 'en': body.text, 'manual': True}}
+        refresh_speech(recovered)
+        assert segments(recovered)[0]['en'] == body.text
+        assert segments(recovered)[0]['vi'] == 'Lời giáo viên nhập.'
+    from app.voice_import import import_presentation
+    imported, _ = import_presentation(tmp_path / 'voice-import', target)
+    assert segments(imported)[0]['vi'] == 'Vận tốc của vật'
+    assert segments(imported)[0]['en'] == 'The velocity of the object'
+    assert target.read_bytes() == original
+
+
+def test_builtin_template_keeps_ocr_text_visible_but_excludes_it_from_voice(tmp_path):
+    from app.chatgpt_handoff import inspect_returned_deck
+    from app.universal_templates import asset, build
+
+    target = tmp_path / 'template.pptx'
+    build(target, asset('standard'), {'title': 'Bài học', 'english_title': 'Lesson',
+          'subject': 'Vật lý', 'grade': '11', 'conversion_format': 'parallel_columns', 'preset': 'standard'},
+          [('Slide 1', 'Bài học', 'Lesson'), ('Slide 1', 'Năng lượng được bảo toàn.', 'Energy is conserved.'),
+           ('Slide 1 · chữ trong ảnh', 'Nhãn nằm trong hình', 'Label inside the picture')], Event())
+    deck = Presentation(target)
+    assert any('Label inside the picture' in s.text for page in deck.slides for s in page.shapes if s.has_text_frame)
+    inspection = inspect_returned_deck(target)
+    spoken = '\n'.join(s['english_text'] for page in inspection['slide_speech']['slides']
+                       for s in page['englishSpeechSegments'] if s['status'] == 'ready')
+    assert 'Energy is conserved.' in spoken and 'Label inside the picture' not in spoken
+    assert all('Nhãn nằm trong hình' not in u['vi'] for u in inspection['profile']['units'])

@@ -5,9 +5,14 @@ $distPath = if ($DistRoot) { [IO.Path]::GetFullPath($DistRoot) } else { Join-Pat
 if (-not $distPath.StartsWith(([IO.Path]::GetFullPath($projectRoot).TrimEnd('\') + '\'), [StringComparison]::OrdinalIgnoreCase)) { throw 'Build output must stay inside the project.' }
 Push-Location -LiteralPath $projectRoot
 try {
+    $taskVersionInfo = Join-Path $projectRoot '.runtime/windows-version-info.txt'
+    New-Item -ItemType Directory -Path (Split-Path -Parent $taskVersionInfo) -Force | Out-Null
+    & .\.venv\Scripts\python.exe scripts/windows_version_info.py $taskVersionInfo
+    if ($LASTEXITCODE -ne 0) { throw 'Windows version info failed.' }
     & .\.venv\Scripts\python.exe -m PyInstaller --noconfirm --windowed --onedir `
       --name BiliClass --distpath $distPath --paths . `
       --icon 'app/assets/brand/biliclass.ico' `
+      --version-file $taskVersionInfo `
       --add-data 'app/qml;app/qml' `
       --add-data 'app/assets;app/assets' `
       --add-data 'app/student_web;app/student_web' `

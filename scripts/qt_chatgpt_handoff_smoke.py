@@ -374,7 +374,7 @@ def formats():
     assert window.findChild(QObject, "conversionProvider") is None
     assert window.findChild(QObject, "creationManualChatGPT") is None
     assert window.findChild(QObject, "creationAudio") is None
-    assert not window.findChild(QObject, "creationTemplatesButton").property("visible")
+    assert not window.findChild(QObject, "creationPreset").property("visible")
     assert QQuickWindow.grabWindow(window).save(str(reports / "new-native.png"))
     mouse_click("formatChoice_english_onlyPreview")
     QTimer.singleShot(200, safe(example))
@@ -405,9 +405,9 @@ def example(index=3):
 
 
 def gallery():
-    assert window.findChild(QObject, "creationTemplatesButton").property("visible")
+    assert window.findChild(QObject, "creationPreset").property("visible")
     assert QQuickWindow.grabWindow(window).save(str(reports / "new-template.png"))
-    click("creationTemplatesButton")
+    click("creationPresetView_standard")
     QTimer.singleShot(300, safe(gallery_visible))
 
 

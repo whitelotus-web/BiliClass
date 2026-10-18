@@ -92,8 +92,8 @@ def main():
             window.setProperty('page', 'library')
             until(lambda: len(bridge.lessons) == 2 and bridge._catalog.worker is None)
             pump(150)
-            assert c('lessonStatus_' + pending['id']).property('text') == 'Chờ xác nhận'
-            assert c('lessonStatus_' + failed['id']).property('text') == '2 slide cần sửa'
+            assert c('lessonStatus_' + pending['id']).property('text') == 'Đã lưu bài'
+            assert c('lessonStatus_' + failed['id']).property('text') == 'Cần xem lại bố cục'
             click(window, c('lessonStatus_' + pending['id']))
             until(lambda: c('lessonReviewHelpDialog').property('visible'))
             assert not c('reviewConfirmLesson').isEnabled(), 'Create/view presentation before teaching'

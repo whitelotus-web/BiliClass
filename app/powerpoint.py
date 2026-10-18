@@ -115,6 +115,15 @@ def _control_media(command, target, slide_id, players, languages, playing):
         return dict(event, event='media_error', message='PowerPoint chưa điều khiển được loa này. Kiểm tra thiết bị âm thanh hoặc dùng giọng đã lưu.'), playing
 
 
+def _native_pause_event(playing, audible, paused, previous_paused):
+    """Observe native toolbar/slide actions as well as commands from Mascot."""
+    if playing.intersection(paused) and not audible and not previous_paused:
+        return 'media_paused'
+    if previous_paused.intersection(audible):
+        return 'media_resumed'
+    return ''
+
+
 def _office_session(path, initial_slide, commands, events, autostart=True, shortcuts=None):
     import psutil
     import pythoncom
@@ -134,6 +143,7 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
     players = {}
     player_languages = {}
     playing = set()
+    previous_paused = set()
     badges = {}
     badge_state = set()
     volume = 80
@@ -265,6 +275,7 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
                     players = {}
                     player_languages = {}
                     playing = set()
+                    previous_paused = set()
                     media_token = None
                     boxes = speaker_boxes(slide)
                     for shape in slide.Shapes:
@@ -316,7 +327,7 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
                 media_starting = 0
             if newly_playing:
                 newest = max(newly_playing)
-                for identity in now_playing - {newest}:
+                for identity in (now_playing | paused) - {newest}:
                     try:
                         players[identity].Stop()
                     except Exception:
@@ -328,6 +339,12 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
                 # A paused player stays selected so Resume can address it.
                 if not playing.intersection(paused) and time.monotonic() >= media_starting:
                     events.put({"event": "media_finished", 'slide_id': current[1], 'token': media_token})
+            if not newly_playing:
+                observed = _native_pause_event(playing, now_playing, paused, previous_paused)
+                acknowledged = 'media_paused' if command == 'pause_media' else 'media_resumed' if command == 'resume_media' else ''
+                if observed and observed != acknowledged:
+                    events.put({'event': observed, 'slide_id': current[1], 'token': media_token})
+            previous_paused = playing.intersection(paused) if not newly_playing else set()
             if command == "pause_media" or (playing and not now_playing and playing.intersection(paused)):
                 now_playing = playing
             elif playing and not now_playing and time.monotonic() < media_starting:

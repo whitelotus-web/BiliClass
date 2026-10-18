@@ -75,8 +75,7 @@ def main():
         assert not companion.property("hasResponse"), "The menu should open without an empty response panel"
         assert companion.grabWindow().save(str(reports / "mascot-menu.png"))
         explain = window.findChild(QObject, "companionExplain")
-        explain_center = explain.mapToScene(QPointF(explain.width() / 2, explain.height() / 2)).toPoint()
-        QTest.mouseClick(companion, Qt.LeftButton, pos=explain_center)
+        assert not explain.isVisible(), 'No assistant controls before a deck is bound'
         pump(200)
         assert not explain.isEnabled() and not companion.property("hasResponse"), "Teaching controls require the matching slideshow"
         assert companion.grabWindow().save(str(reports / "mascot-menu-response.png"))

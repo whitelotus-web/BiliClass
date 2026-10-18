@@ -54,9 +54,12 @@ ColumnLayout {
                 Layout.fillWidth: true; spacing: 14
                 Label {
                     objectName: "homeHeroTitle"
-                    text: "Chào Thầy cô!"; color: "#102c56"
+                    text: "Chào " + ((home.bridge.settings.teacher || "").trim() || "Thầy cô") + "!"; color: "#102c56"
                     font.pixelSize: home.wide ? 43 : 35; font.weight: Font.Bold
                     font.letterSpacing: -1; Layout.fillWidth: true
+                    textFormat: Text.PlainText; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
+                    HoverHandler { id: greetingHover }
+                    ToolTip.visible: greetingHover.hovered; ToolTip.text: text
                 }
                 Rectangle { width: 46; height: 4; radius: 2; color: "#ff891c" }
                 Copy {

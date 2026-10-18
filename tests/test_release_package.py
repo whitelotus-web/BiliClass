@@ -24,6 +24,22 @@ def test_source_and_package_versions_match():
     assert tomllib.loads((root/'pyproject.toml').read_text(encoding='utf-8'))['project']['version'] == __version__
 
 
+def test_windows_details_resource_contains_version_and_author():
+    import os
+
+    import pytest
+    if os.name != 'nt':
+        pytest.skip('Windows executable resource')
+    from scripts.windows_version_info import version_info
+
+    resource = version_info('1.0.0rc80')
+    encoded = resource.toRaw()
+    for value in ('BiliClass', '1.0.0rc80', 'Nguyễn Diệu Linh', 'Copyright © 2026'):
+        assert value.encode('utf-16le') in encoded
+    assert resource.ffi.fileVersionMS == 65536
+    assert resource.ffi.fileVersionLS == 80
+
+
 def test_native_ocr_package_models_are_not_mistaken_for_optional_downloads():
     assert package.distributable(Path('_internal/rapidocr/models/recognizer.onnx'))
     assert package.distributable(Path('models/ocr-vi-en-v2/recognizer.onnx'))

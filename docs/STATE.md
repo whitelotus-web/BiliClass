@@ -1,5 +1,21 @@
 # Trạng thái BiliClass
 
+Ngày 19/10/2026 — RC80 gộp RC78/79 và thêm ba thẻ mẫu trực quan, bỏ
+luồng nhập mẫu ngoài cho bài mới; cấu hình tóm tắt cùng khung trắng.
+Ngôn ngữ/vị trí loa cùng hàng, tooltip ngắn; lời chào theo tên hồ sơ.
+Tách OCR ảnh khỏi lời đọc, giữ chữ dịch trên slide và lời nhập thủ công;
+nhận khung ảnh cũ và làm cũ giọng không còn khớp. EXE được nhúng thông
+tin Properties từ phiên bản/tác giả cố định. Gói RC78/79 chưa phát hành;
+gói cuối và kết quả kiểm chứng tại [BUILD_RC80](BUILD_RC80.md).
+Thư viện có một nút Mở PowerPoint gắn Mascot trực tiếp, bộ chọn Mascot
+dùng cùng luồng; đổi tên vào menu phụ. Bài cũ thử tự hoàn thiện bố cục
+trước mở/tải, giữ lịch sử và chỉ nhận bản kiểm chứng cải thiện. Cảnh báo
+chưa xử lý được vẫn hiện, không tự duyệt nghĩa hay coi là hết lỗi.
+Bảng Mascot ưu tiên nút điều khiển chuột; bánh răng vào tab Mascot,
+trợ giúp phím nhỏ, ba cỡ bảng và nền trong 0–70% không giảm opacity
+chữ/nút. Không còn nhãn môn dưới nhân vật nổi hay bộ Dừng/Tạm dừng/
+Đọc lại riêng; loa đổi trạng thái cùng native player và dùng lại WAV.
+
 Ngày 19/10/2026 — RC79 gộp toàn bộ RC78, bỏ bộ chọn tự theo bài/môn cố
 định và ô môn phụ kiện trong Mascot. Tự dùng môn thực tế của bài đang
 gắn hoặc bài được chọn, dự phòng môn hồ sơ; vẫn bật/tắt phụ kiện. Không

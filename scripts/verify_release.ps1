@@ -33,6 +33,9 @@ try {
     $env:BILICLASS_DATA = $dataRoot
     $versionPath = Join-Path $installRoot $manifest.version
     $executable = Join-Path $versionPath 'BiliClass.exe'
+    $taskDetails = [Diagnostics.FileVersionInfo]::GetVersionInfo($executable)
+    if ($taskDetails.ProductName -ne 'BiliClass' -or $taskDetails.ProductVersion -ne $manifest.version -or $taskDetails.LegalCopyright -notlike '*Nguyễn Diệu Linh*') { throw 'Installed Windows Details resource failed validation.' }
+    Write-Output 'Passed Windows Properties product, version and copyright.'
     foreach ($page in @('new','browser-ai')) {
         $shot = Join-Path $reportRoot ($page + '.png')
         Invoke-InstalledCheck -Arguments @('--smoke','--page',$page,'--size','1366x850','--screenshot',('"' + $shot + '"'))

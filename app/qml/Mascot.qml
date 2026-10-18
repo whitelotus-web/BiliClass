@@ -9,6 +9,7 @@ Item {
     property string expression: "idle"
     property string subject: ""
     property bool accessories: true
+    property bool showSubjectBadge: true
     property bool reducedMotion: false
     property bool inViewport: true
     property real blinkProgress: 0
@@ -47,7 +48,7 @@ Item {
     Timer { id: waveRest; interval: 850; onTriggered: mascot.gestureFrame = 0 }
     Item {
         id: art; objectName: "mascotArt"
-        width: Math.min(mascot.width, mascot.height - (mascot.themed ? 25 : 0)); height: width
+        width: Math.min(mascot.width, mascot.height - (mascot.themed && mascot.showSubjectBadge ? 25 : 0)); height: width
         anchors.horizontalCenter: parent.horizontalCenter; anchors.top: parent.top
         transformOrigin: Item.Bottom
         SequentialAnimation on rotation {
@@ -107,7 +108,7 @@ Item {
         }
     }
     Rectangle {
-        objectName: "mascotSubjectBadge"; visible: mascot.themed
+        objectName: "mascotSubjectBadge"; visible: mascot.themed && mascot.showSubjectBadge
         anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.bottom
         width: Math.min(parent.width, badge.implicitWidth + 16); height: Math.max(22, badge.implicitHeight + 7)
         radius: 10; color: mascot.theme.paper; border.color: mascot.theme.color

@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from pptx import Presentation
 from PySide6.QtCore import Q_ARG, QCoreApplication, QEvent, QMetaObject, QPointF, Qt
 from PySide6.QtGui import QGuiApplication
-from PySide6.QtQml import QQmlApplicationEngine
+from PySide6.QtQml import QQmlApplicationEngine, QQmlExpression
 from PySide6.QtQuickControls2 import QQuickStyle
 from qt_result_preview_mascot_smoke import click, control, pump
 
@@ -63,6 +63,11 @@ def main():
             assert bottom <= viewport_bottom + 1, entry
             summary = c('conversionConfigurationSummary')
             assert summary.isVisible()
+            container = c('creationConfiguration')
+            local = summary.mapToItem(container, QPointF())
+            assert local.x() >= 10 and local.y() > 0
+            assert local.x() + summary.width() <= container.width() - 10
+            assert local.y() + summary.height() <= container.height() - 10
             assert summary.mapToScene(QPointF(0, summary.height())).y() <= viewport_bottom + 1, entry
 
         def choice_geometry():
@@ -133,6 +138,13 @@ def main():
                             "config": c("creationConfiguration").height(),
                         }
                         verify_layout(entry, scroll)
+                        if template:
+                            assert c('creationPreset').property('count') == 3
+                            for preset in ('standard', 'visual', 'practice'):
+                                preview = c('creationPresetPreview_' + preset)
+                                assert QQmlExpression(engine.rootContext(), preview, 'status === 1').evaluate()[0]
+                                assert preview.property('paintedWidth') > 100
+                            assert window.findChild(type(c('creationPreset')), 'creationTemplateOptionsButton') is None
                         flick.setProperty('contentY', 0)
                         pump(50)
                         measurements.append(entry)

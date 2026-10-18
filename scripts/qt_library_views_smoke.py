@@ -92,6 +92,9 @@ def main():
             click(window, c("lessonDownload_" + identity))
             assert c("libraryDownloadDialog").property("visible") and not selected()
             QMetaObject.invokeMethod(c("libraryDownloadDialog"), "close", Qt.DirectConnection)
+            assert c("lessonOpen_" + identity).property("text") == "Mở PowerPoint"
+            assert window.findChild(QObject, "lessonTeach_" + identity) is None
+            click(window, c("lessonMore_" + identity))
             click(window, c("lessonEdit_" + identity))
             assert c("lessonMetadataDialog").property("visible") and not selected()
             QMetaObject.invokeMethod(c("lessonMetadataDialog"), "reject", Qt.DirectConnection)
@@ -238,8 +241,10 @@ def main():
             before_open = list(window.property("selectedLessons").toVariant())
             open_id = next(row["id"] for row in bridge.lessons if row["subject"] == "Tin học")
             click(window, c("lessonOpen_" + open_id))
-            until(lambda: bool(bridge.lesson.get("id")))
+            until(lambda: bridge.teachingSession.state.get('lesson_id') == open_id
+                  and bridge.powerpointState.get('opened'), timeout=50)
             assert bridge.lesson["id"] == open_id
+            assert not bridge.powerpointState.get('active')
             assert list(window.property("selectedLessons").toVariant()) == before_open
             assert not warnings, warnings
             result = {
@@ -267,7 +272,12 @@ def main():
             )
             print(json.dumps(result, ensure_ascii=False), flush=True)
         finally:
-            window.close()
+            if bridge.powerpoint_worker is not None:
+                bridge.stopPowerPoint()
+                until(lambda: bridge.powerpoint_worker is None, timeout=20)
+            c("companionWindow").setProperty("disposing", True)
+            c("companionWindow").hide()
+            window.hide()
             bridge.libraryThumbnails.shutdown()
             bridge.slidePreview.shutdown()
             bridge._catalog.shutdown()

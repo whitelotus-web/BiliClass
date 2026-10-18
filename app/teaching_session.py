@@ -235,6 +235,8 @@ class TeachingSession(QObject):
         record = self.bound.get('lesson', {}).get('narration') or {}
         texts = self.texts(language) if language in {'vi', 'en', 'both'} else []
         keys = record.get('keys', {}).get(language, [])
+        if language == 'both' and record.get('mode') == 'both':
+            keys = [key for lang in ('vi', 'en') for key in record.get('keys', {}).get(lang, [])]
         wanted = [speech.audio_key(text, record.get('voice', ''), record.get('rate', 0)) for text in texts]
         if not texts or not all(key in keys and valid_key(self.bridge.library.directory, key) for key in wanted):
             return False
@@ -293,7 +295,7 @@ class TeachingSession(QObject):
             self.pause_on_start = not self.pause_on_start
         elif self.language == language and state in {'reading', 'paused'}:
             self.pauseResume()
-        elif not self.pending_read:
+        else:
             self.read(language)
 
     @Slot(int)

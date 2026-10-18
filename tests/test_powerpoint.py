@@ -10,6 +10,20 @@ def test_slide_locator_survives_split():
     assert slide_for_locator("Slide 3") == 3
 
 
+@pytest.mark.parametrize('playing,audible,paused,previous,event', [
+    ({1}, set(), {1}, set(), 'media_paused'),
+    ({1}, {1}, set(), {1}, 'media_resumed'),
+    ({1}, set(), {1}, {1}, ''),
+    ({1}, {1}, set(), set(), ''),
+    ({2}, {2}, set(), {1}, ''),
+    ({1}, set(), set(), set(), ''),
+])
+def test_native_slide_pause_and_resume_update_the_same_mascot_player(playing, audible, paused, previous, event):
+    from app.powerpoint import _native_pause_event
+
+    assert _native_pause_event(playing, audible, paused, previous) == event
+
+
 def test_displayed_slide_resolves_all_source_sections_and_reordered_output():
     lesson = {"segments": [
         {"id": "a", "locator": "Slide 1 · ý 1"},

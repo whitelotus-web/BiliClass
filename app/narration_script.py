@@ -7,6 +7,9 @@ from .input_analysis import language_of, split_existing_pair
 
 
 def segments(lesson):
+    from .picture_narration import without_image_suffix
+    from .powerpoint import slide_for_locator
+
     saved = lesson.get('narration_script', {})
     saved = saved if isinstance(saved, dict) else {}
     result = []
@@ -15,6 +18,9 @@ def segments(lesson):
         override = override if isinstance(override, dict) else {}
         text = {lang: override[lang] if isinstance(override.get(lang), str) else row.get(lang, '')
                 for lang in ('vi', 'en')}
+        if not override.get('manual'):
+            captions = lesson.get('narration_image_text', {}).get(str(slide_for_locator(row['locator'])), [])
+            text = {lang: without_image_suffix(value, captions, lang) for lang, value in text.items()}
         silent = row['id'] in lesson.get('narration_silent', [])
         result.append({**row, **{lang: '' if silent else text[lang] for lang in ('vi', 'en')},
                        'original_vi': text['vi'], 'original_en': text['en'], 'silent': silent,
@@ -84,7 +90,12 @@ def refresh_speech(lesson, *, edited=()):
 
 def prepare(library, lesson, *, new=False):
     """Repair once; new records are normalized before their first database write."""
+    from .picture_narration import prepare as prepare_images
+
+    image_changed = prepare_images(lesson, library)
     if lesson.get('narration_classification_version') == 1:
+        if image_changed and not new:
+            library._write(lesson)
         return lesson
     changed = 0
     for row in segments(lesson):

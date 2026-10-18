@@ -603,6 +603,8 @@ def build(target, template, config, pairs, cancel, source=None):
         return True
 
     def finish(slide, layout, title, assigned, native, source_number, *, answer='', extra=()):
+        from .picture_narration import mark_template_text
+
         accents = [obj for obj in native if obj.get('accent')]
         native = [obj for obj in native if not obj.get('accent')]
         fields = _fields(slide)
@@ -613,6 +615,8 @@ def build(target, template, config, pairs, cancel, source=None):
                 english = key.endswith('_EN')
                 value = title[2] if english else ('' if mode == 'english_only' else title[1])
                 fill(shape, value, english, True)
+                if english:
+                    mark_template_text(shape, [title])
             elif key in {'SUBJECT', 'GRADE', 'TEACHER'}:
                 # Personal names/subject translation are not guessed for English-only.
                 fill(shape, str(config.get({'SUBJECT':'subject','GRADE':'grade','TEACHER':'teacher'}[key], ''))
@@ -628,6 +632,7 @@ def build(target, template, config, pairs, cancel, source=None):
                 fill(pair['vi'], '\n'.join(p[1] for p in values) if mode != 'english_only' else '')
             if pair.get('en') is not None:
                 fill(pair['en'], '\n'.join(p[2] for p in values), True)
+                mark_template_text(pair['en'], values)
         _clean(slide, mode, len(plan)+1)
         from .universal_layout import finish as arrange_media
 
@@ -663,8 +668,9 @@ def build(target, template, config, pairs, cancel, source=None):
         spoken = [p for _, values in assigned for p in values] + list(extra)
         if answer:
             spoken.insert(0,('', 'Đáp án: '+answer, 'Answer: '+answer))
-        vi = '\n'.join(p[1] for p in [title]+spoken if p[1])
-        en = '\n'.join(p[2] for p in [title]+spoken if p[2])
+        narrated = [p for p in [title]+spoken if ' · chữ trong ảnh' not in p[0]]
+        vi = '\n'.join(p[1] for p in narrated if p[1])
+        en = '\n'.join(p[2] for p in narrated if p[2])
         slide.notes_slide.notes_text_frame.text = f'BILICLASS_NOTES:\nVI: {vi}\nEN: {en}'
         plan.append({'slide':len(plan)+1, 'source_slide':source_number, 'layout':layout})
 

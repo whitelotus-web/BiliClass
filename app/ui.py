@@ -850,8 +850,6 @@ class Bridge(QObject):
         try:
             config = validate_config(creation_config(title, subject, education, grade, mode, preset, style))
             config['template_bookends'] = self.library.setting('template_bookends', False)
-            if style == 'template' and self.customTemplate:
-                config['custom_template'] = dict(self.customTemplate)
             self._google_settings.refresh()
             if not self._google_settings.state.get('configured'):
                 self.navigate.emit('browser-settings')
@@ -1471,7 +1469,7 @@ class Bridge(QObject):
         if self._busy or preset not in {'standard','visual','practice'} or mode not in {'parallel_columns','sentence_pairs','english_only'}:
             return
         # Read settings on the GUI thread, never access its SQLite connection in a Job.
-        metadata = dict(self.customTemplate)
+        metadata = {}  # Creation now uses only the tested BiliClass templates.
         def work():
             from threading import Event
 
@@ -1749,6 +1747,30 @@ class Bridge(QObject):
         }
         saved = self.library.setting("mascot_options", {})
         return {**defaults, **saved} if isinstance(saved, dict) else defaults
+
+    @Property(str, notify=changed)
+    def companionPanelSize(self):
+        value = self.library.setting('companion_panel_size', 'standard')
+        return value if value in {'small', 'standard', 'large'} else 'standard'
+
+    @Slot(str)
+    def setCompanionPanelSize(self, value):
+        if value in {'small', 'standard', 'large'} and value != self.companionPanelSize:
+            self.library.set_setting('companion_panel_size', value)
+            self.changed.emit()
+
+    @Property(int, notify=changed)
+    def companionPanelOpacity(self):
+        value = self.library.setting('companion_panel_opacity', 100)
+        return max(30, min(100, value)) if type(value) is int else 100
+
+    @Slot(int)
+    def setCompanionPanelOpacity(self, value):
+        value = max(30, min(100, value))
+        if value == self.companionPanelOpacity:
+            return
+        self.library.set_setting('companion_panel_opacity', value)
+        self.changed.emit()
 
     @Property(str, notify=changed)
     def mascotSubject(self):
@@ -2570,7 +2592,7 @@ class Bridge(QObject):
         except Exception as exc:
             self.inform(str(exc), True)
 
-    def _show_lesson(self, lesson, preview=None, *, auto_repair=True, destination='result'):
+    def _show_lesson(self, lesson, preview=None, *, auto_repair=True, destination='result', load_preview=True):
         """Apply prepared UI data; file integrity checks belong to the worker."""
         if not self.teaching_session.bound:
             self.stopSpeech()
@@ -2596,7 +2618,7 @@ class Bridge(QObject):
                 self._auto_reviewed=set()
             self._auto_reviewed.add(lesson['id'])
             QTimer.singleShot(0,self.repairConvertedLesson)
-        elif lesson.get('external_deck') and not self.quickResult.get('image'):
+        elif load_preview and lesson.get('external_deck') and not self.quickResult.get('image'):
             self.previewConvertedSlide(1)
 
     @Slot(str)
@@ -2924,7 +2946,7 @@ class Bridge(QObject):
         """Open the chosen audio product without approving translation or layout."""
         import copy
 
-        from .teaching_session import prepare_teaching
+        from .lesson_completion import prepare_library_teaching
 
         if self._busy or self.narrationBusy or self.powerpoint_worker or self.classroom.running:
             self.inform('Hoàn tất tác vụ hoặc đóng trình chiếu hiện tại trước khi mở PowerPoint.', True, refresh=False)
@@ -2934,23 +2956,37 @@ class Bridge(QObject):
         if not identity or identity != self.selectedNarrationVariant or not self.lessonNarration.get('ready'):
             self.inform('Bản giọng đã chọn chưa hoàn tất. Tạo tiếp phần còn thiếu trước khi mở.', True, refresh=False)
             return
-        lesson, preview, directory = copy.deepcopy(self._lesson), dict(self.quickResult), self.library.directory
-        self.launch(lambda: prepare_teaching(lesson, preview, directory), self._activate_teaching)
+        lesson, directory, profile = copy.deepcopy(self._lesson), self.library.directory, dict(self.settings)
+        self.launch(lambda: prepare_library_teaching(directory, lesson['id'], profile, self.cancel_event,
+                                                       narration=lesson['narration']), self._open_library_teaching)
         self.inform('Đang chuẩn bị bản có giọng và mở PowerPoint…', refresh=False)
 
     @Slot(str)
     def openTeachingLibraryLesson(self, identity):
-        from .voice_import import prepare_library_lesson
+        from .lesson_completion import prepare_library_teaching
 
         if self._busy or self.narrationBusy or self.classroom.running:
             self.inform('Hoàn tất tác vụ hoặc tiết học trước khi chọn bài dạy.', True, refresh=False)
             return
         directory, profile = self.library.directory, dict(self.settings)
-        self.launch(lambda: prepare_library_lesson(directory, identity, profile), self._teaching_lesson_ready)
+        self.launch(lambda: prepare_library_teaching(directory, identity, profile, self.cancel_event),
+                    self._open_library_teaching)
+        self.inform('Đang hoàn thiện bài và chuẩn bị mở PowerPoint cùng Mascot…', refresh=False)
+
+    def _open_library_teaching(self, prepared):
+        lesson, preview = prepared['lesson'], prepared['preview']
+        self._show_lesson(lesson, preview, auto_repair=False, destination='voice', load_preview=False)
+        if self.powerpoint_worker is not None:
+            self._pending_teaching = prepared
+            self.stopPowerPoint()
+        else:
+            self._activate_teaching(prepared)
 
     def _teaching_lesson_ready(self, result):
-        self._show_lesson(*result, auto_repair=False)
-        self.teachingLessonReady.emit()
+        from .teaching_session import prepare_teaching
+
+        lesson, preview = result
+        self.launch(lambda: prepare_teaching(lesson, preview, self.library.directory), self._open_library_teaching)
 
     @Slot(str)
     def openTeachingPresentation(self, url):
@@ -3398,17 +3434,45 @@ class Bridge(QObject):
             return
         report = {}
 
-        def completed(path):
+        def completed(result):
             from .presentation_audio import coverage_message
 
+            current, current_preview, path = result
+            if self._lesson.get('id') == lesson['id'] and self._lesson.get('revision') == lesson['revision']:
+                self._lesson, self._quick_result = current, current_preview
+                self.changed.emit()
+                self.selectionChanged.emit()
+                self.quickResultChanged.emit()
             message = ("Đã tải PowerPoint kèm giọng đọc nhúng: " if with_voice else
                        "Đã tải đúng bản PowerPoint đang xem: ") + str(path)
             if with_voice:
                 message += '\n' + coverage_message(report)
+            if report.get('layout_notice'):
+                message += '\n' + report['layout_notice']
             self.inform(message)
 
-        self.launch(lambda: save_presentation(lesson, preview, directory, QUrl(url).toLocalFile(),
-                                            with_voice=with_voice, report=report), completed)
+        def work():
+            current, current_preview = lesson, preview
+            if lesson.get('external_deck'):
+                from .voice_import import prepare_library_lesson
+
+                current, current_preview = prepare_library_lesson(directory, lesson['id'], complete=True,
+                                                                  cancel=self.cancel_event)
+                from .lesson_completion import layout_notice
+
+                report['layout_notice'] = layout_notice(current)
+                # Keep the explicitly selected voice, including “no voice”.
+                if selected := lesson.get('narration'):
+                    from .lesson_narration import records
+
+                    current['narration'] = next((record for record in records(current).values()
+                                                 if all(record.get(key) == selected.get(key)
+                                                        for key in ('mode', 'voice', 'rate', 'playback'))), selected)
+            path = save_presentation(current, current_preview, directory, QUrl(url).toLocalFile(),
+                                     with_voice=with_voice, report=report)
+            return current, current_preview, path
+
+        self.launch(work, completed)
 
     @Slot('QVariantList', str, bool)
     def downloadLibraryPresentations(self, identities, url, with_voice):

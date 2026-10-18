@@ -454,6 +454,10 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
                               layout_plan=manifest.get('layout_plan') if use_native else None)
     target=Path(checked['path'])
     inspection=checked['inspection']
+    from .lesson_completion import VERSION
+
+    inspection['slide_quality'].update(completion_version=VERSION,
+                                       completion_sha256=inspection['slide_speech']['sha256'])
     (folder/'automatic-layout-check.json').write_text(json.dumps({
         'changes':checked['changes'],'counts':inspection['slide_quality']['counts']}),encoding='utf-8')
     inspection['review_notes'] = list(dict.fromkeys(inspection['review_notes'] + warnings))

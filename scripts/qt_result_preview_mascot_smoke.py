@@ -289,15 +289,21 @@ def main():
             "Completion must not open a dialog automatically"
         )
         bridge._lesson["slide_quality"]["counts"]["FAIL"] = 1
+        library._write(bridge._lesson)
         bridge.changed.emit()
         pump(50)
         opened = []
-        with patch.object(bridge, "_activate_teaching", side_effect=opened.append):
+        with (patch.object(bridge, "_activate_teaching", side_effect=opened.append),
+              patch('app.lesson_completion.complete_existing', side_effect=lambda library, item, cancel=None: item)):
             click(window, c("continueAfterNarrationButton"))
             until(lambda: not bridge.busy)
         assert len(opened) == 1 and not c("wholeLessonReview").property("visible")
         assert not any(row["approved"] for row in library.get(lesson["id"])["segments"])
         assert bridge.lesson["slide_quality"]["counts"]["FAIL"] == 1, "Opening never certifies layout"
+        assert window.property('page') == 'voice'
+        assert not c('embedPresentationVoice').isVisible()
+        window.setProperty('page', 'result')  # Continue checking the legacy result export checkbox.
+        pump(100)
         assert window.grabWindow().save(str(reports / "teaching-preparation.png"))
         bridge._lesson["slide_quality"]["counts"]["FAIL"] = 0
         bridge.changed.emit()
@@ -412,11 +418,12 @@ def main():
         window.setProperty("page", "new")
         pump(100)
         click(window, c("creationUseTemplate"))
-        click(window, c("creationTemplateOptionsButton"))
-        assert c("chooseCustomTemplateButton").isVisible()
-        assert c("templateContentPage").property("value") == 3
+        assert window.findChild(QObject, 'creationTemplateOptionsButton') is None
+        assert window.findChild(QObject, 'chooseCustomTemplateButton') is None
+        click(window, c('creationPresetSelect_visual'))
+        assert c('creationPreset').property('currentIndex') == 1
+        assert c('creationPreset').property('currentText') == 'Trực quan'
         bridge.clearCustomTemplate()
-        c("creationTemplateOptionsDialog").setProperty("visible", False)
         assert not bridge.customTemplate
 
         window.setProperty("page", "settings")

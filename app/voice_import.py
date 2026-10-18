@@ -80,7 +80,7 @@ def save_script(library, lesson_id, segment_id, revision, vi, en, *, silent=None
     return lesson
 
 
-def prepare_library_lesson(directory, identity, profile=None):
+def prepare_library_lesson(directory, identity, profile=None, *, complete=False, cancel=None):
     from .quick_conversion import build_preview
 
     with closing(Library(directory)) as library:
@@ -91,6 +91,10 @@ def prepare_library_lesson(directory, identity, profile=None):
         from .narration_script import prepare
 
         lesson = prepare(library, lesson)
+        if complete:
+            from .lesson_completion import complete_existing
+
+            lesson = prepare(library, complete_existing(library, lesson, cancel))
         if lesson.get('external_deck'):
             return lesson, external_preview(lesson, directory)
         if all(s['vi'].strip() and s['en'].strip() for s in lesson['segments']):

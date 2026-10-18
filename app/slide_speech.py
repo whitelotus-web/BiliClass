@@ -279,9 +279,13 @@ def _notes_metadata(notes):
 
 
 def inspect_slide(slide, number, mode="", notes_en="", bounds=None):
+    from .picture_narration import image_text, without_image_suffix
+
     notes = slide.notes_slide.notes_text_frame.text if slide.has_notes_slide else ""
     metadata, malformed = _notes_metadata(notes)
     items = objects(slide)
+    captions = image_text(items, notes)
+    notes_en = without_image_suffix(notes_en, captions, 'en')
     if bounds:
         animated = set(slide._element.xpath('.//p:spTgt/@spid'))
         width,height = bounds
@@ -297,7 +301,8 @@ def inspect_slide(slide, number, mode="", notes_en="", bounds=None):
     if malformed:
         issues.append("speech_metadata_invalid")
     for item in items:
-        if item['name'].startswith('BCL_DECORATION '):
+        if (item['name'].startswith('BCL_DECORATION ') or item['name'] == 'BCL_EN image translation'
+                or any(row['shape_id'] == item['shape_id'] and row.get('paragraph') == item['paragraph'] for row in captions)):
             continue  # Our page counter/branding is visible layout, not lecture speech.
         if item["source_type"] in {"image", "object", "chart", "formula"}:
             if item["source_type"] in {"image", "chart", "formula"} or item["shape"]._element.xpath('.//*[local-name()="m"]'):
@@ -375,7 +380,8 @@ def inspect_slide(slide, number, mode="", notes_en="", bounds=None):
                    and normalized(s["english_text"]) == normalized(str(declaration.get("text", ""))) for s in segments):
             issues.append("speech_metadata_mismatch")
     return {"slide": number, "slide_id": slide.slide_id, "englishSpeechSegments": segments,
-            "issues": sorted(set(issues)), "speech_status": "CHECK" if issues else "PASS"}
+            "issues": sorted(set(issues)), "speech_status": "CHECK" if issues else "PASS",
+            **({'imageText': captions} if captions else {})}
 
 
 def deck_speech(path, deck, mode="", pairs=()):
