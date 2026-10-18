@@ -1752,9 +1752,6 @@ class Bridge(QObject):
 
     @Property(str, notify=changed)
     def mascotSubject(self):
-        settings = self.mascotSettings
-        if settings.get('subject_mode') == 'fixed' and settings.get('subject'):
-            return settings['subject']
         lesson = self.teaching_session.bound.get('lesson', self._lesson)
         return lesson.get('subject') or next(iter(self.settings['subjects']), '')
 
@@ -3287,7 +3284,7 @@ class Bridge(QObject):
             "position": position if position in ("left", "right") else "right",
             "reduced_motion": reduced_motion, "accessories": accessories,
             "show_explanation": show_explanation, "show_quiz": show_quiz,
-            'subject_mode': subject_mode, 'subject': subject.strip(),
+            'subject_mode': 'auto', 'subject': '',
             'always_on_top': self.mascotSettings['always_on_top'] if always_on_top is None else always_on_top,
         })
         self.mascotPreferencesSaved.emit(visible)

@@ -1,5 +1,12 @@
 # Trạng thái BiliClass
 
+Ngày 19/10/2026 — RC79 gộp toàn bộ RC78, bỏ bộ chọn tự theo bài/môn cố
+định và ô môn phụ kiện trong Mascot. Tự dùng môn thực tế của bài đang
+gắn hoặc bài được chọn, dự phòng môn hồ sơ; vẫn bật/tắt phụ kiện. Không
+sửa môn trong bài, giọng hoặc liên kết PowerPoint. 53 ca liên quan và
+Qt Mascot/phím tắt đạt. RC78 đã kiểm gói nội bộ, không phát hành riêng;
+gói cuối và kiểm cài đặt được ghi sau. Xem [BUILD_RC79](BUILD_RC79.md).
+
 Ngày 19/10/2026 — mã nguồn RC78 sửa trạng thái hoàn tất/đồng hồ và đường
 về Tạo giọng đọc sau chuyển đổi. Thêm xác nhận Hủy và xóa lượt đang tạo,
 chặn hủy nhầm lượt mới và xử lý trường hợp vừa lưu xong; file gốc/key và

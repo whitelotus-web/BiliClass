@@ -1,21 +1,21 @@
 # BiliClass — Trợ lý dạy học song ngữ
 
-Hướng dẫn luồng RC78, ngày 18/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
+Hướng dẫn luồng RC79, ngày 19/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
 trên máy. Chuyển đổi hiện dùng Google Cloud Translation cho phần chữ và dựng
 PowerPoint tại máy; Browser ChatGPT/Gemini tạm ẩn.
 
 ## Cài và cập nhật
 
-1. Tải **BiliClass-RC78-Windows.zip** tại
-   [Release RC78](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc78).
+1. Tải **BiliClass-RC79-Windows.zip** tại
+   [Release RC79](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc79).
 2. Giải nén toàn bộ; không chạy trong cửa sổ ZIP. Chạy **Setup.cmd**.
 3. Bộ cài kiểm tra checksum và cài vào
-   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc78`, không cần quyền quản trị.
+   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc79`, không cần quyền quản trị.
 4. Mở BiliClass từ Desktop hoặc Start menu. Bản cài có model giọng, OCR và
    template; không cần thư mục runtime của máy phát triển.
 
 Máy đang dùng bản cũ: vào **Cài đặt → Thông tin BiliClass → Kiểm tra cập nhật**,
-chọn Cập nhật khi thấy RC78. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
+chọn Cập nhật khi thấy RC79. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
 Setup.cmd như trên. Các bản cài nằm cạnh nhau; thư viện ở
 `%LOCALAPPDATA%/BiliClass` được giữ nguyên. Không xóa thư mục dữ liệu này.
 Thư viện cá nhân và API key không đưa lên GitHub. Key chỉ lưu mã hóa trên máy.
@@ -156,8 +156,9 @@ Tắt lựa chọn này cho phép cửa sổ khác che Mascot; bấm **Lưu cài
 để áp dụng. Bấm Escape chỉ thu gọn công cụ Mascot, không ẩn.
 
 Mascot có nút mở bài và đọc Việt/Anh/chung. Các nút đọc trên mascot chỉ bật
-khi có phiên trình chiếu đúng bài. Trong Cài đặt Mascot, chọn tự theo môn của
-bài hoặc môn cố định rồi Lưu để áp dụng cho mascot nổi.
+khi có phiên trình chiếu đúng bài. Phụ kiện Mascot tự theo môn của bài
+đang dạy; chưa mở bài thì lấy môn trong hồ sơ thầy cô. Có thể tắt **Phụ
+kiện theo môn học**; không cần chọn chế độ hay gán môn riêng cho Mascot.
 
 Khi cửa sổ trình chiếu hoặc Presenter View của bài đang gắn được chọn:
 
@@ -194,8 +195,8 @@ Mở bài trong Thư viện → **Dùng để dạy** → hoàn tất chuẩn b�
 trình chiếu. Mascot liên kết với phiên PowerPoint đó; chọn đọc Anh, Việt
 hoặc Việt–Anh để đọc phần lời đang chọn trên slide hiện tại. Dùng **Theo slide**
 để đưa lựa chọn về slide đang chiếu. Chưa mở trình chiếu thì các nút đọc
-bị khóa. Đóng trình chiếu sẽ ngừng đọc. Chọn môn trong Cài đặt Mascot đổi
-phụ kiện theo cấu hình đã lưu, không chọn bài giảng hay khóa bài vĩnh viễn.
+bị khóa. Đóng trình chiếu sẽ ngừng đọc. Phụ kiện tự đổi theo môn của bài
+đang gắn; xem một bài khác trong tool không đổi liên kết với PowerPoint.
 
 ## Thư viện, lớp học và báo cáo
 

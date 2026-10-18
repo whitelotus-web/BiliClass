@@ -21,8 +21,7 @@ Item {
     onActiveTabChanged: { if (contentScroll.contentItem && contentScroll.contentItem.contentY !== undefined) contentScroll.contentItem.contentY = 0 }
     property string selectedMascot: bridge.settings.mascot
     property int mascotPreviewMode: 0
-    readonly property string initialPreviewSubject: bridge.mascotSettings.subject || bridge.mascotSubject || "Vật lý"
-    readonly property string previewSubject: mascotSubjectMode.currentIndex === 0 ? bridge.mascotSubject || mascotSubject.currentText : mascotSubject.currentText === "Khác" ? mascotOtherSubject.text.trim() : mascotSubject.currentText
+    readonly property string previewSubject: bridge.mascotSubject
     readonly property bool wideMascotLayout: contentScroll.availableWidth >= 1020
     readonly property bool mascotPreviewVisible: mascotVisible.checked &&
         (mascotPreviewMode === 1 ? mascotExplanation.checked : mascotPreviewMode === 2 ? mascotQuiz.checked : true)
@@ -415,11 +414,8 @@ Item {
                             Choice { id: mascotPosition; objectName: "mascotPosition"; model: ["Góc phải dưới", "Góc trái dưới"]; currentIndex: bridge.mascotSettings.position === "left" ? 1 : 0; Layout.fillWidth: true }
                         }
                         ColumnLayout { Layout.fillWidth: true; spacing: 5
-                            Label { text: "Môn học và phụ kiện"; color: page.ink; font.bold: true }
-                            Choice { id: mascotSubjectMode; objectName: "mascotSubjectMode"; model: ["Tự theo bài đang dạy", "Dùng môn đã chọn"]; currentIndex: bridge.mascotSettings.subject_mode === "fixed" ? 1 : 0; Layout.fillWidth: true }
-                            Choice { id: mascotSubject; objectName: "mascotSubject"; model: bridge.conversionSubjects; currentIndex: { const found = model.indexOf(page.initialPreviewSubject); return found >= 0 ? found : model.length - 1 } Layout.fillWidth: true; onActivated: mascotSubjectMode.currentIndex = 1 }
-                            Field { id: mascotOtherSubject; objectName: "mascotOtherSubject"; visible: mascotSubject.currentText === "Khác"; text: page.initialPreviewSubject; placeholderText: "Nhập tên môn khác"; maximumLength: 60; Layout.fillWidth: true }
-                            Hint { objectName: "mascotThemeDescription"; text: mascotAccessories.checked ? "Phụ kiện: " + mascotPreview.theme.label : "Phụ kiện theo môn đang tắt"; Layout.fillWidth: true }
+                            Label { text: "Phụ kiện theo bài đang dạy"; color: page.ink; font.bold: true }
+                            Hint { objectName: "mascotThemeDescription"; text: mascotAccessories.checked ? (page.previewSubject ? page.previewSubject + " · " : "") + mascotPreview.theme.label : "Phụ kiện theo môn đang tắt"; Layout.fillWidth: true }
                         }
                     }
                     ColumnLayout { Layout.fillWidth: true; spacing: 5
@@ -434,8 +430,7 @@ Item {
                             }
                         }
                     }
-                    Hint { text: "Chọn môn sẽ chuyển sang dùng môn đã chọn; bấm Lưu để áp dụng ngay cho mascot nổi. Chọn Tự theo bài đang dạy nếu muốn phụ kiện tự đổi theo bài."; Layout.fillWidth: true; font.pixelSize: 11 }
-                    RowLayout { Layout.fillWidth: true; Hint { text: "Thu nhỏ BiliClass vẫn giữ Mascot trên màn hình. Kéo để đặt vị trí; bấm Mascot để mở công cụ hoặc chọn Ẩn khi cần."; Layout.fillWidth: true } SaveButton { objectName: "saveMascot"; text: "Lưu cài đặt Mascot"; onClicked: bridge.saveMascotPreferences(page.selectedMascot, mascotVisible.checked, Math.round(mascotSize.value), mascotPosition.currentIndex ? "left" : "right", reducedMotion.checked, mascotAccessories.checked, mascotExplanation.checked, mascotQuiz.checked, mascotSubjectMode.currentIndex === 1 ? "fixed" : "auto", page.previewSubject, mascotOnTop.checked) } }
+                    RowLayout { Layout.fillWidth: true; Hint { text: "Thu nhỏ BiliClass vẫn giữ Mascot trên màn hình. Kéo để đặt vị trí; bấm Mascot để mở công cụ hoặc chọn Ẩn khi cần."; Layout.fillWidth: true } SaveButton { objectName: "saveMascot"; text: "Lưu cài đặt Mascot"; onClicked: bridge.saveMascotPreferences(page.selectedMascot, mascotVisible.checked, Math.round(mascotSize.value), mascotPosition.currentIndex ? "left" : "right", reducedMotion.checked, mascotAccessories.checked, mascotExplanation.checked, mascotQuiz.checked, "auto", "", mascotOnTop.checked) } }
                 }
             }
             Card { Layout.fillWidth: true

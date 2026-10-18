@@ -429,14 +429,14 @@ def main():
         click(window, c("settingsTab3"))
         click(window, c("mascotLumi"))
         assert c("mascotPreview").property("character") == "Lumi"
-        subject = c("mascotSubject")
-        idx = bridge.conversionSubjects.index("Mĩ thuật")
-        subject.setProperty("currentIndex", idx)
-        QMetaObject.invokeMethod(subject, "activated", Qt.DirectConnection, Q_ARG(int, idx))
-        assert c("mascotSubjectMode").property("currentIndex") == 1
+        for removed in ('mascotSubject', 'mascotSubjectMode', 'mascotOtherSubject'):
+            assert window.findChild(QObject, removed) is None
+        bridge._lesson['subject'] = 'Mĩ thuật'
+        bridge.changed.emit()
         click(window, c("saveMascot"))
         pump(100)
         assert bridge.mascotSubject == "Mĩ thuật"
+        assert bridge.mascotSettings['subject_mode'] == 'auto'
         assert c("mascotCompanion").property("subject") == "Mĩ thuật"
         assert not bridge.companionCanRead
         assert not c("companionReadEnglish").isEnabled() and not c("companionReadBoth").isEnabled()

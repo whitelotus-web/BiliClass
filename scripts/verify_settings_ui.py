@@ -199,9 +199,10 @@ def main():
         assert control("mascotPreview").property("expression") == "thinking"
         click("mascotPreviewMode2")
         assert control("mascotPreview").property("expression") == "celebrate"
-        control("mascotSubject").setProperty("currentIndex", bridge.conversionSubjects.index('Khác'))
-        control('mascotSubjectMode').setProperty('currentIndex', 1)
-        control("mascotOtherSubject").setProperty("text", "Môn tự chọn")
+        preview_lesson = library.create('Mascot preview fixture', 'Vật lý', 'THPT', '11', [('Thử phụ kiện', 'Fixture')])
+        bridge._lesson = {**preview_lesson, 'subject': 'Môn tự chọn'}
+        bridge.changed.emit()
+        pump(50)
         assert control("mascotPreview").property("subject") == "Môn tự chọn"
         control("mascotSize").setProperty("value", 140)
         control("mascotPosition").setProperty("currentIndex", 1)
@@ -218,7 +219,7 @@ def main():
         control("mascotVisible").setProperty("checked", False)
         click("saveMascot")
         assert bridge.settings["mascot"] == "Lumi"
-        assert bridge.mascotSettings == {"visible": False, "size": 140, "position": "left", "reduced_motion": False, "accessories": False, "show_explanation": False, "show_quiz": False, 'subject_mode': 'fixed', 'subject': 'Môn tự chọn', 'always_on_top': True}
+        assert bridge.mascotSettings == {"visible": False, "size": 140, "position": "left", "reduced_motion": False, "accessories": False, "show_explanation": False, "show_quiz": False, 'subject_mode': 'auto', 'subject': '', 'always_on_top': True}
         assert not control("companionWindow").isVisible()
         assert not control("mascotProjectorLeft").property("visible")
         assert not control("mascotProjectorRight").property("visible")

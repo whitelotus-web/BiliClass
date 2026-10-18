@@ -146,7 +146,7 @@ def run(output):
         settings.setProperty('activeTab', 3)
         window.resize(1366, 900)
         pump(100)
-        target = control('mascotSubject')
+        target = control('mascotThemeDescription')
         ancestor = target.parentItem()
         while ancestor is not None:
             if ancestor.metaObject().indexOfProperty('contentY') >= 0:
@@ -155,10 +155,14 @@ def run(output):
             ancestor = ancestor.parentItem()
         pump(100)
         choices = bridge.conversionSubjects
-        control('mascotSubjectMode').setProperty('currentIndex', 1)
+        preview_lesson = library.create('Mascot preview fixture', 'Vật lý', 'THPT', '11', [('Thử phụ kiện', 'Fixture')])
+        for removed in ('mascotSubject', 'mascotSubjectMode', 'mascotOtherSubject'):
+            assert window.findChild(QObject, removed) is None
         themes = {}
         for subject in choices[:-1]:
-            control('mascotSubject').setProperty('currentIndex', choices.index(subject))
+            bridge._lesson = {**preview_lesson, 'subject': subject}
+            bridge.changed.emit()
+            pump(20)
             theme = control('mascotPreview').property('theme')
             theme = theme.toVariant() if hasattr(theme, 'toVariant') else theme
             assert theme['id'] != 'general', subject
@@ -166,15 +170,17 @@ def run(output):
         assert themes['Khoa học'] == themes['Khoa học tự nhiên'] == 'science'
         assert themes['Hóa học'] == 'chemistry'
         for subject in ('Vật lý', 'Hóa học', 'Tin học', 'Địa lí'):
-            control('mascotSubject').setProperty('currentIndex', choices.index(subject))
+            bridge._lesson = {**preview_lesson, 'subject': subject}
+            bridge.changed.emit()
             pump(80)
             assert window.grabWindow().save(str(output.with_name('mascot-' + themes[subject] + '.png')))
-        control('mascotSubject').setProperty('currentIndex', choices.index('Khác'))
-        control('mascotOtherSubject').setProperty('text', 'Môn riêng')
+        bridge._lesson = {**preview_lesson, 'subject': 'Môn riêng'}
+        bridge.changed.emit()
+        pump(20)
         assert control('mascotPreview').property('subject') == 'Môn riêng'
         control('mascotAccessories').setProperty('checked', False)
         assert not control('mascotPreview').property('themed')
-        assert not bridge.lesson.get('subject'), 'Preview changed the lesson subject'
+        assert library.get(preview_lesson['id'])['subject'] == 'Vật lý', 'Preview must not edit the saved lesson'
         assert not warnings, warnings
         result.update(status='passed', preset_playback_seconds=latencies,
                       save_during_preview_seconds=saved_seconds,
