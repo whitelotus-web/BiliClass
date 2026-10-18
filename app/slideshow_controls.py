@@ -7,10 +7,13 @@ def add_pause_badges(presentation):
     """The session discards these overlays on close; the user's file is untouched."""
     badges = {}
     other_media = False
-    icon = str(RESOURCE_ROOT / 'assets/actions/speaker-pause.png')
     for slide in presentation.Slides:
         for shape in list(slide.Shapes):
             if str(shape.Name).startswith('BiliClass audio '):
+                language = str(shape.Name).split()[-1].lower()
+                mini = float(shape.Width) > float(shape.Height) * 1.8
+                filename = 'speaker-pause-' + language + ('-mini' if mini else '') + '.png' if language in {'vi', 'en', 'both'} else 'speaker-pause.png'
+                icon = str(RESOURCE_ROOT / 'assets/actions' / filename)
                 badge = slide.Shapes.AddPicture(icon, False, True, shape.Left, shape.Top, shape.Width, shape.Height)
                 badge.Name = 'BiliClass pause ' + str(shape.Id)
                 badge.Visible = False

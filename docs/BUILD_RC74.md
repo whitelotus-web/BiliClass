@@ -53,4 +53,12 @@ Muốn có điều khiển đồng bộ khi mở file đã tải, chọn file qu
 
 ## Gói cài
 
-Sẽ ghi commit, hash và kiểm tra gói sau khi dựng từ mốc source đã kiểm.
+- Đã dựng một lần từ commit `9c62e7564d74979a229ab9b8c8edc75b2027ed26`,
+  dùng runtime RC73 đã xác minh. CI source commit này đạt.
+- Gói `dist/rc74-slideshow-controls/BiliClass-RC74-Windows.zip`: 871.024.546
+  byte, 4.197 entry; đã đối chiếu SHA từng file trong ZIP.
+- EXE SHA256: `61864ca659586ed1694550bff0ee8e7f3f7b946cd2157a1cdf731707317a1268`.
+- ZIP SHA256: `8e5fbeefe99c7f9e56e420aa0ec1009700ee15a535ae490ed40abbf6bb456722`.
+- Đã gọi mở EXE với thư viện fixture riêng. Người dùng bấm Escape dừng
+  Computer Use trước bước chọn cửa sổ; chưa nghiệm thu UI EXE hoặc cài
+  RC74 thay RC73. Không tiếp tục thao tác giao diện trong lượt đó.

@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import time
 from datetime import date
 from pathlib import Path
 from threading import RLock
@@ -57,7 +58,14 @@ def _render_preview_pages(path,pages,directory,sha256):
                 raise ValueError('Slide xem trước không hợp lệ.')
             image=folder/f'slide-{page}.png'
             pending=image.with_suffix('.pending.png')
-            deck.Slides(page).Export(str(pending),'PNG',1600,round(1600*deck.PageSetup.SlideHeight/deck.PageSetup.SlideWidth))
+            slide = deck.Slides(page)
+            height = round(1600*deck.PageSetup.SlideHeight/deck.PageSetup.SlideWidth)
+            # Office can return an incomplete first bitmap while loading the
+            # slide master/media posters. Prime it before publishing the cache.
+            slide.Export(str(pending), 'PNG', 1600, height)
+            time.sleep(.12)
+            pythoncom.PumpWaitingMessages()
+            slide.Export(str(pending), 'PNG', 1600, height)
             pending.replace(image)
             try:
                 sensitive = bool(deck.Slides(page).HeadersFooters.DateAndTime.Visible)

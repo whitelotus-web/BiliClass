@@ -2,7 +2,9 @@
 
 Ứng dụng Windows chuyển tài liệu của giáo viên thành bài giảng Anh–Việt, rồi trình chiếu bằng PowerPoint với giọng đọc và mascot trợ giảng. Hỗ trợ cấu hình từ lớp 1 đến lớp 12 và môn tự nhập.
 
-## Luồng hiện tại — RC74
+## Luồng hiện tại — RC75
+
+RC75 ghép nhãn VI/EN/VI+EN vào góc nút loa; nhãn được giữ khi chuyển sang biểu tượng tạm dừng. Vùng hẹp dùng nút ngang, giữ giới hạn cao 20 pt để không mất loa ở mép slide. [Kiểm chứng kiểu loa](docs/BUILD_RC75.md).
 
 RC74 thêm phím đọc và nút phát/tạm dừng trong phiên PowerPoint gắn với Mascot: Cách = Anh, Enter = Việt, Ctrl+Cách = hai ngôn ngữ; ←/→ điều hướng, ↑/↓ âm lượng lời đọc. Gán phím tại Cài đặt → Mascot; xem bảng phím ngay trên Mascot. [Kiểm chứng và phạm vi](docs/BUILD_RC74.md).
 

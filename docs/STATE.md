@@ -1,5 +1,11 @@
 # Trạng thái BiliClass
 
+Ngày 18/10/2026 — RC75 ghép nhãn ngôn ngữ vào góc nút loa và badge tạm
+dừng. Bản thật đã xuất đủ 86 slide/258 loa, giữ nguyên source/bài lưu.
+Chưa thay bộ cài đang dùng; chi tiết mốc kiểm chứng tại
+[BUILD_RC75](BUILD_RC75.md). RC74 đã có ZIP xác minh SHA/CI đạt nhưng chưa
+nghiệm thu GUI EXE/cài chính do giáo viên dừng Computer Use bằng Escape.
+
 Ngày 18/10/2026 — Source RC74 thêm phím đọc có gán lại trong Mascot,
 phát/tạm dừng/tiếp tục bằng cùng phím hoặc loa, badge Ⅱ trên slideshow,
 bảng hướng dẫn phím và âm lượng lời đọc. 882 core tests, 49 ca liên quan

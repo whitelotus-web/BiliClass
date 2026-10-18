@@ -21,7 +21,7 @@ def test_crowded_slide_can_place_controls_in_separate_clear_gaps():
     occupied = [(0, 50, 300, 100), (70, 0, 32, 50), (166, 0, 32, 50), (262, 0, 38, 50)]
     slots = control_slots(['vi', 'en', 'both'], (300, 150), occupied, lambda _: True)
     assert slots and len(slots) == 3
-    boxes = [(x, y, 40 if compact else 62, 48 if compact else 42) for x, y, compact in slots.values()]
+    boxes = [(x, y, 40 if compact else 44, 48 if compact else 42) for x, y, compact in slots.values()]
     assert all(not intersection(box, obstacle) for box in boxes for obstacle in occupied)
     assert not any(intersection(boxes[i], boxes[j]) for i in range(3) for j in range(i))
 

@@ -1,6 +1,6 @@
 # BiliClass — Trợ lý dạy học song ngữ
 
-Hướng dẫn luồng RC74, ngày 18/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
+Hướng dẫn luồng RC75, ngày 18/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
 trên máy. Chuyển đổi hiện dùng Google Cloud Translation cho phần chữ và dựng
 PowerPoint tại máy; Browser ChatGPT/Gemini tạm ẩn.
 
@@ -168,6 +168,9 @@ từ chỗ dừng. Loa đang phát hiện hình Ⅱ; chỉ hiện ngôn ngữ th
 slide. **Dừng đọc ■** dừng hẳn; **Đọc lại** phát lại từ đầu. Chọn ngôn ngữ
 khác sẽ dừng giọng trước. Phím của giọng chưa có chỉ báo nhắc, không
 chuyển slide hoặc tự tạo giọng.
+
+Nhãn VI/EN/VI+EN nằm ở góc nút loa, giữ nguyên khi chuyển sang Ⅱ.
+Bấm cả phần nhãn cũng được. Mép slide hẹp dùng dạng nút ngang nhỏ.
 
 Đổi phím tại **Cài đặt → Mascot → Phím đọc khi trình chiếu** rồi Lưu.
 Anh/Việt dùng một phím; hai ngôn ngữ dùng Ctrl, Alt hoặc Shift cùng một

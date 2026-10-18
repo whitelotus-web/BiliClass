@@ -120,7 +120,7 @@ def joined_wav(directory, keys):
 def control_slots(languages, bounds, occupied, clear):
     """Try rows, columns and separate safe gaps before rejecting a crowded page."""
     languages = list(languages)
-    for cell_w, cell_h, columns in ((62, 42, len(languages)), (62, 42, 1), (40, 48, len(languages))):
+    for cell_w, cell_h, columns in ((44, 42, len(languages)), (44, 42, 1), (40, 48, len(languages))):
         width = cell_w * columns
         height = cell_h * ((len(languages) + columns - 1) // columns)
         slot = empty_region((bounds[0] - width - 12, bounds[1] - height - 12, width, height),
@@ -129,7 +129,7 @@ def control_slots(languages, bounds, occupied, clear):
             return {lang: (slot[0] + index % columns * cell_w,
                            slot[1] + index // columns * cell_h, cell_w == 40)
                     for index, lang in enumerate(languages)}
-    for width, height in ((62, 42), (40, 48)):
+    for width, height in ((44, 42), (40, 48)):
         used, result = list(occupied), {}
         for lang in languages:
             slot = empty_region((bounds[0] - width - 12, bounds[1] - height - 12, width, height),
@@ -279,7 +279,7 @@ def embed_audio(source, destination, lesson, directory, *, scope='full_slide'):
     from PIL import Image
     from pptx import Presentation
 
-    from .picture_translation import background, text_shape
+    from .picture_translation import background
     from .slide_speech import objects
 
     pages = slide_audio(lesson, directory, scope=scope)
@@ -292,9 +292,6 @@ def embed_audio(source, destination, lesson, directory, *, scope='full_slide'):
     for extension, kind in [("wav", "audio/wav"), ("png", "image/png")]:
         if not any(n.get("Extension") == extension for n in types):
             etree.SubElement(types, f"{{{NS['ct']}}}Default", Extension=extension, ContentType=kind)
-    icon = (RESOURCE_ROOT / "assets/navigation/voice-active.png").read_bytes()
-    icon_name = "ppt/media/biliclass-" + hashlib.sha256(icon).hexdigest() + ".png"
-    entries[icon_name] = icon
     count, embedded_pages, unplaced_pages = 0, [], []
     missing_pages = sorted(set(range(1, len(parts) + 1)) - set(pages))
     restricted_pages = list(missing_pages) if scope == 'visible' else []
@@ -353,23 +350,16 @@ def embed_audio(source, destination, lesson, directory, *, scope='full_slide'):
                 "http://schemas.microsoft.com/office/2007/relationships/media",
                 "../media/" + Path(audio_name).name,
             )
-            icon_id = relation(NS["r"] + "/image", "../media/" + Path(icon_name).name)
             identity += 1
             left, top, compact = slots[language]
             mini = compact == 'mini'
-            box = (left + (6 if compact is True else 0), top, 20 if mini else 28, 20 if mini else 28)
+            icon = (RESOURCE_ROOT / 'assets/actions' / ('speaker-' + language + ('-mini' if mini else '') + '.png')).read_bytes()
+            icon_name = 'ppt/media/biliclass-' + hashlib.sha256(icon).hexdigest() + '.png'
+            entries[icon_name] = icon
+            icon_id = relation(NS['r'] + '/image', '../media/' + Path(icon_name).name)
+            box = (left, top, 50, 20) if mini else (left + (2 if compact else 4), top + 2, 36, 36)
             shape_tree.append(media_shape(identity, language, box, audio_id, media_id, icon_id))
             add_playback(tree, identity, duration)
-            identity += 1
-            label = text_shape(
-                identity,
-                {'vi': 'VI', 'en': 'EN', 'both': 'VI+EN'}[language],
-                (left + 20, top, 30, 20) if mini else (left, top + 29, 40, 16) if compact else (box[0] + 29, box[1] + 5, 33, 24),
-                8 if mini else 9 if language == 'both' else 12,
-                english=False,
-            )
-            label.find("p:nvSpPr/p:cNvPr", NS).set("name", "BCL_DECORATION audio label")
-            shape_tree.append(label)
             count += 1
         entries[part] = _bytes(tree)
         entries[_rels_path(part)] = _bytes(relationships)

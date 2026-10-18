@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.0rc75 — 18/10/2026 — Loa có nhãn ngôn ngữ ở góc
+
+- Ghép icon và nhãn VI/EN/VI+EN thành một nút; bấm cả nhãn cũng phát được. Khi tạm dừng/tiếp tục, nhãn vẫn giữ đúng ngôn ngữ.
+- Nút vuông gọn cho vùng rộng; bản ngang cao 20 pt cho mép slide hẹp. Giảm khoảng đặt loa theo hàng, giữ kiểm tra vùng trống và thứ tự VI, EN, chung.
+- Giữ WAV, hành vi media và toàn bộ nội dung nguồn; chi tiết [BUILD_RC75](docs/BUILD_RC75.md).
+
 ## 1.0.0rc74 — 18/10/2026 — Phím đọc và loa trong trình chiếu
 
 - Cách/Enter/Ctrl+Cách phát, tạm dừng và đọc tiếp Anh/Việt/hai ngôn ngữ trong bài gắn với Mascot; giữ ←/→ để điều hướng, dùng ↑/↓ cho âm lượng lời đọc.
