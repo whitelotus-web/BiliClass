@@ -1,6 +1,7 @@
 """Local narration overrides; slide text and its integrity signature stay intact."""
 
 import copy
+import re
 
 from .input_analysis import language_of, split_existing_pair
 
@@ -12,9 +13,28 @@ def segments(lesson):
     for row in lesson.get('segments', []):
         override = saved.get(row['id'], {})
         override = override if isinstance(override, dict) else {}
-        result.append({**row, **{lang: override[lang] if isinstance(override.get(lang), str) else row.get(lang, '')
-                                 for lang in ('vi', 'en')}})
+        text = {lang: override[lang] if isinstance(override.get(lang), str) else row.get(lang, '')
+                for lang in ('vi', 'en')}
+        silent = row['id'] in lesson.get('narration_silent', [])
+        result.append({**row, **{lang: '' if silent else text[lang] for lang in ('vi', 'en')},
+                       'original_vi': text['vi'], 'original_en': text['en'], 'silent': silent,
+                       'classification': classification(text['vi'], text['en'], manual=bool(override.get('manual')),
+                                                        silent=silent)})
     return result
+
+
+def classification(vi, en, *, manual=False, silent=False):
+    if silent:
+        return dict(confidence=1.0, reason='Giáo viên chọn slide không cần lời đọc', needs_review=False)
+    if manual:
+        return dict(confidence=1.0, reason='Lời đọc do giáo viên chỉnh', needs_review=False)
+    if re.search(r'(?im)^\s*(?:VI|EN|Tiếng Việt|Tiếng Anh|Vietnamese|English)\s*[:：]', vi + '\n' + en):
+        return dict(confidence=1.0, reason='Có nhãn ngôn ngữ rõ ràng', needs_review=False)
+    evidence = [language_of(text) == lang for text, lang in ((vi, 'vi'), (en, 'en')) if text.strip()]
+    if evidence and all(evidence):
+        return dict(confidence=.9, reason='Nhận diện theo nội dung ngôn ngữ', needs_review=False)
+    return dict(confidence=.4, reason='Chưa chắc ngôn ngữ; cần kiểm tra từ ngắn, công thức hoặc chữ trong ảnh',
+                needs_review=True)
 
 
 def classified(vi, en):

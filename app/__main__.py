@@ -23,6 +23,7 @@ def main():
     parser.add_argument('--check-universal-templates', metavar='REPORT_JSON', help=argparse.SUPPRESS)
     parser.add_argument("--screenshot")
     parser.add_argument("--lesson-id", help="Open a saved lesson in the guarded desktop entry point")
+    parser.add_argument('--office-task', help=argparse.SUPPRESS)
     parser.add_argument("--size", default="1366x850")
     parser.add_argument(
         "--page",
@@ -44,6 +45,10 @@ def main():
         default="home",
     )
     args = parser.parse_args()
+    if args.office_task:
+        from .office_tasks import worker_main
+
+        return worker_main(args.office_task)
     if args.check_universal_templates:
         from .universal_templates import diagnose
 

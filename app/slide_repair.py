@@ -223,8 +223,12 @@ def _office_fit(path, target, targets, cancel):
     office = deck = None
     try:
         office = win32com.client.DispatchEx("PowerPoint.Application")
+        from .office_tasks import native_progress, register_office
+
+        register_office(office)
         deck = office.Presentations.Open(str(path.resolve()), ReadOnly=False, Untitled=False, WithWindow=False)
         for number, ids in targets.items():
+            native_progress(f'Đang căn chữ slide {number}…')
             if cancel and cancel.is_set():
                 raise ValueError("Đã dừng sửa bài giảng; bản trước vẫn được giữ.")
             for shape in office_text_shapes(deck.Slides(number).Shapes):
@@ -311,7 +315,9 @@ def repair_layout(path, directory, report, cancel=None, progress=None):
     trimmed, fitted, candidate = folder / "trimmed.pptx", folder / "office-fit.pptx", folder / "repaired.pptx"
     _write_copy(path, trimmed, replacements)
     try:
-        _office_fit(trimmed, fitted, targets, cancel)
+        from .office_tasks import fit_text
+
+        fit_text(trimmed, fitted, targets, cancel)
     except Exception as exc:
         if cancel and cancel.is_set():
             raise ValueError("Đã dừng sửa bài giảng; bản trước vẫn được giữ.")
@@ -347,7 +353,7 @@ def repair_and_inspect(path, directory, *, source=None, mode="", style="source",
                        reuse_directory=None, layout_plan=None):
     """At most three local passes; keep the best verified copy and stop on no progress."""
     from .chatgpt_handoff import inspect_returned_deck
-    from .slide_quality import render_quality
+    from .office_tasks import render_quality
 
     current = Path(path)
     inspection = inspect_returned_deck(current, source, mode, style, layout_plan=layout_plan)

@@ -334,6 +334,7 @@ def render_quality(path, directory, report, cancel=None, progress=None, *, reuse
     from .conversion_progress import emit_progress
     from .slide_render_cache import RENDER_CODES, RenderCache
 
+    report.pop('native_error', None)
     cache = RenderCache(path, directory, report, reuse_directory)
     folder = cache.folder
     remaining, complete, reused = [], 0, 0
@@ -361,6 +362,9 @@ def render_quality(path, directory, report, cancel=None, progress=None, *, reuse
             pythoncom.CoInitialize()
             com = pythoncom
             office = win32com.client.DispatchEx("PowerPoint.Application")
+            from .office_tasks import register_office
+
+            register_office(office)
             deck = office.Presentations.Open(str(Path(path).resolve()), ReadOnly=True, Untitled=False, WithWindow=False)
             height = round(1600*deck.PageSetup.SlideHeight/deck.PageSetup.SlideWidth)
         for row in remaining:
@@ -369,6 +373,10 @@ def render_quality(path, directory, report, cancel=None, progress=None, *, reuse
             emit_progress(progress, "quality", f"Kiểm tra ảnh và lời đọc slide {row['slide']}/{total}…", complete, total)
             image = cache.image(row["slide"])
             slide = deck.Slides(row["slide"])
+            try:
+                row['date_sensitive'] = bool(slide.HeadersFooters.DateAndTime.Visible)
+            except Exception:
+                row['date_sensitive'] = True
             temporary = image.with_name(image.stem + "-pending.png")
             slide.Export(str(temporary.resolve()), "PNG", 1600, height)
             temporary.replace(image)
@@ -395,9 +403,9 @@ def render_quality(path, directory, report, cancel=None, progress=None, *, reuse
             cache.save_row(row)
             complete += 1
             emit_progress(progress, "quality", f"Đã kiểm tra {complete}/{total} slide…", complete, total)
-    except Exception:
+    except Exception as exc:
         # Missing Office must not discard a returned deck or imply a successful visual check.
-        pass
+        report['native_error'] = f'PowerPoint: {type(exc).__name__}: {exc}'
     finally:
         if deck is not None:
             try:

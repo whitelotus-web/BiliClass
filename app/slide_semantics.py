@@ -35,6 +35,14 @@ def equation_only(paragraph):
     return native_math or bool(re.search(r"[=≤≥]", prose))
 
 
+def quantity_only(text):
+    """An isolated SI quantity has no second language to duplicate in a cell."""
+    number = r'[+−-]?(?:\d+(?:[.,]\d+)?|[.,]\d+)(?:[eE][+−-]?\d+)?'
+    unit = r'(?:kg|mg|g|km|cm|mm|nm|m|ms|s|min|h|kHz|MHz|Hz|N|MPa|kPa|Pa|kJ|J|MW|kW|W|mV|V|mA|A|Ω|mol|K|°C|°F|rad|mL|ml|L|%)'
+    power = r'(?:[²³]|\^[+−-]?\d+)?'
+    return bool(re.fullmatch(number + r'\s*' + unit + power + r'(?:\s*/\s*' + unit + power + r')?', text.strip()))
+
+
 def heading_frame(shape, units, box, slide_height):
     if not shape.has_text_frame:
         return False

@@ -93,7 +93,7 @@ def extract(source, mode, *, preserve_design=False, same_slide=False):
 
     from .importers import inspect_zip
     from .input_analysis import language_of
-    from .slide_semantics import equation_only, roman_label
+    from .slide_semantics import equation_only, quantity_only, roman_label
 
     preserve_design = preserve_design or same_slide
     inspect_zip(source)
@@ -202,7 +202,7 @@ def extract(source, mode, *, preserve_design=False, same_slide=False):
                     if len(text)>14000:
                         unsupported.append(f'Slide {index}: vùng nội dung cần xử lý trực quan')
                     language = language_of(raw)
-                    if roman_label(raw) or equation_only(paragraph):
+                    if roman_label(raw) or equation_only(paragraph) or quantity_only(raw):
                         language='neutral'
                     if same_slide and language != 'vi' and not TOKEN.sub('',text).strip():
                         language='neutral'

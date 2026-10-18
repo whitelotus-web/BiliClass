@@ -182,6 +182,9 @@ class Library:
                                    "label": "Đang kiểm tra giọng đọc"}),
                 }
             )
+            from .lesson_state import summarize_state
+
+            result[-1]['workflow'] = summarize_state(lesson, result[-1]['narration'])
         if order not in {"created_desc", "created_asc", "updated_desc"}:
             raise ValueError("Kiểu sắp xếp không hợp lệ.")
         key = "updated_at" if order == "updated_desc" else "created_at"

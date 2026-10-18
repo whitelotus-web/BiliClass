@@ -123,7 +123,7 @@ def test_repair_handles_source_and_office_using_different_slide_part_names(tmp_p
     original = reordered.read_bytes()
     report = {'sha256': hashlib.sha256(original).hexdigest(), 'slides': [
         {'slide': 1, 'issues': [{'code': 'text_overflow', 'shape_id': shape_id}]}]}
-    monkeypatch.setattr('app.slide_repair._office_fit',
+    monkeypatch.setattr('app.office_tasks.fit_text',
                         lambda before, after, *_: rename_slide(before, after, 'slide37.xml', 'slide1.xml', True))
     repaired = repair_layout(reordered, tmp_path, report)
     assert repaired['changes'] and reordered.read_bytes() == original

@@ -35,10 +35,11 @@ def fixture(tmp_path, monkeypatch):
         Image.new("RGB", (128, 72), "blue" if n == 1 else "green").save(image)
         index[str(n)] = {
             "environment": "fixture",
+            "date_sensitive": False,
             "image_sha256": hashlib.sha256(image.read_bytes()).hexdigest(),
         }
     (folder / "render-cache.json").write_text(
-        json.dumps({"version": 2, "sha256": sha, "slides": index}), encoding="utf-8"
+        json.dumps({"version": 3, "sha256": sha, "slides": index}), encoding="utf-8"
     )
     return deck, lesson, result, calls, folder
 

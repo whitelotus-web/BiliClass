@@ -8,6 +8,9 @@ Rectangle {
     property string errorText: ""
     property bool busy: false
     property bool working: false
+    property string workingTitle: "Bài giảng đang được chuẩn bị"
+    property string workingDetail: "Theo dõi tiến độ; các phần đã xong được lưu lại."
+    property string progressLabel: "Xem tiến độ"
     property bool illustrated: false
     property bool compact: false
     property bool condensed: false
@@ -48,19 +51,19 @@ Rectangle {
             Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: upload.compact ? 7 : 10
             Label {
                 objectName: upload.condensed ? "" : "powerpointUploadHeading"
-                text: upload.working ? "Bài giảng đang được chuẩn bị" : "Tải lên bài giảng PowerPoint (.pptx)"
+                text: upload.working ? upload.workingTitle : "Tải lên bài giảng PowerPoint (.pptx)"
                 color: "#0869f9"; font.pixelSize: upload.compact ? 19 : 22; font.weight: Font.Bold
                 Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
             }
             Label {
-                text: upload.working ? "Theo dõi tiến độ; các phần đã xong được lưu lại." : "Kéo thả tệp vào đây hoặc bấm nút bên dưới để chọn file"
+                text: upload.working ? upload.workingDetail : "Kéo thả tệp vào đây hoặc bấm nút bên dưới để chọn file"
                 color: "#687e9b"; font.pixelSize: 13; Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
             }
             ActionButton {
                 id: choose
                 objectName: upload.condensed ? "" : upload.chooseObjectName
-                text: upload.working ? "Xem tiến độ" : upload.fileName ? "Đổi file PowerPoint" : "Chọn file PowerPoint"
+                text: upload.working ? upload.progressLabel : upload.fileName ? "Đổi file PowerPoint" : "Chọn file PowerPoint"
                 primary: true; font.pixelSize: 14; implicitHeight: 44
                 Layout.alignment: Qt.AlignHCenter; Layout.preferredWidth: 258
                 enabled: upload.working || !upload.busy
@@ -71,15 +74,24 @@ Rectangle {
                     Canvas {
                         Layout.preferredWidth: 20; Layout.preferredHeight: 20
                         property bool active: choose.enabled
+                        property bool progress: upload.working
                         onActiveChanged: requestPaint()
+                        onProgressChanged: requestPaint()
                         onPaint: {
                             var ctx = getContext("2d")
                             ctx.clearRect(0, 0, width, height)
                             ctx.strokeStyle = active ? "white" : "#96a6bc"
                             ctx.lineWidth = 1.7; ctx.lineJoin = "round"; ctx.lineCap = "round"
-                            ctx.beginPath(); ctx.moveTo(10, 13); ctx.lineTo(10, 3)
-                            ctx.moveTo(6, 7); ctx.lineTo(10, 3); ctx.lineTo(14, 7)
-                            ctx.moveTo(4, 12); ctx.lineTo(4, 17); ctx.lineTo(16, 17); ctx.lineTo(16, 12); ctx.stroke()
+                            ctx.beginPath()
+                            if (progress) {
+                                ctx.arc(10, 10, 7, 0, 2 * Math.PI)
+                                ctx.moveTo(10, 5); ctx.lineTo(10, 10); ctx.lineTo(14, 12)
+                            } else {
+                                ctx.moveTo(10, 13); ctx.lineTo(10, 3)
+                                ctx.moveTo(6, 7); ctx.lineTo(10, 3); ctx.lineTo(14, 7)
+                                ctx.moveTo(4, 12); ctx.lineTo(4, 17); ctx.lineTo(16, 17); ctx.lineTo(16, 12)
+                            }
+                            ctx.stroke()
                         }
                     }
                     Label { text: choose.text; font: choose.font; color: choose.enabled ? "white" : "#96a6bc" }
@@ -132,13 +144,13 @@ Rectangle {
             Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 4
             Label {
                 objectName: upload.condensed ? "powerpointUploadHeading" : ""
-                text: upload.working ? "Bài giảng đang được chuẩn bị" : "Tải lên bài giảng PowerPoint (.pptx)"
+                text: upload.working ? upload.workingTitle : "Tải lên bài giảng PowerPoint (.pptx)"
                 color: "#0869f9"; font.pixelSize: 17; font.weight: Font.Bold
                 Layout.fillWidth: true; wrapMode: Text.WordWrap
             }
             Label {
                 visible: !upload.fileName && !upload.errorText
-                text: upload.working ? "Theo dõi tiến độ; các phần đã xong được lưu lại." : "Kéo thả tệp .pptx vào đây · Tối đa 200 MB"
+                text: upload.working ? upload.workingDetail : "Kéo thả tệp .pptx vào đây · Tối đa 200 MB"
                 color: "#687e9b"; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap
             }
             RowLayout {
@@ -150,7 +162,7 @@ Rectangle {
         }
         ActionButton {
             objectName: upload.condensed ? upload.chooseObjectName : ""
-            text: upload.working ? "Xem tiến độ" : upload.fileName ? "Đổi file PowerPoint" : "Chọn file PowerPoint"
+            text: upload.working ? upload.progressLabel : upload.fileName ? "Đổi file PowerPoint" : "Chọn file PowerPoint"
             primary: true; implicitHeight: 38; font.pixelSize: 13
             Layout.preferredWidth: 220; enabled: upload.working || !upload.busy
             onClicked: upload.working ? upload.showProgress() : upload.chooseFile()

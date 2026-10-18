@@ -92,3 +92,51 @@ def test_reused_external_images_are_available_to_the_next_local_repair(tmp_path,
     repaired = render_quality(new, library, report(new))
     assert repaired['render_cache'] == {'reused': 1, 'rendered': 1, 'total': 2}
     assert len(calls) == 3
+
+
+def test_static_slide_cache_survives_midnight(tmp_path, monkeypatch):
+    from datetime import date
+
+    from app import slide_fingerprint as fingerprints
+
+    path = source(tmp_path / 'source.pptx')
+    first_environment = fingerprints.environment_key()
+    first_keys = fingerprints.SlideFingerprints(path).keys()
+    import app.slide_render_cache as cache_module
+    monkeypatch.setattr(cache_module, 'date', type('NextDay', (), {'today': staticmethod(lambda: date(2026, 10, 19))}))
+    assert fingerprints.environment_key() == first_environment
+    assert fingerprints.SlideFingerprints(path).keys() == first_keys
+
+
+def test_non_placeholder_dynamic_field_is_never_cached(tmp_path):
+    from lxml import etree
+
+    from app import slide_fingerprint as fingerprints
+
+    path = source(tmp_path / 'source.pptx')
+    def add_date(data):
+        tree = etree.fromstring(data)
+        ns = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+        paragraph = tree.find('.//{' + ns + '}p')
+        field = etree.SubElement(paragraph, '{' + ns + '}fld',
+                                 id='{11111111-1111-1111-1111-111111111111}', type='datetime1')
+        etree.SubElement(field, '{' + ns + '}t').text = '18/10/2026'
+        return etree.tostring(tree)
+    dynamic = changed(path, tmp_path / 'date.pptx', 'ppt/slideMasters/slideMaster1.xml',
+                      add_date)
+    before = fingerprints.SlideFingerprints(dynamic).keys()
+    assert before and all(value is None for value in before.values())
+
+
+def test_only_visible_date_footer_renders_again_after_midnight(tmp_path, monkeypatch):
+    from datetime import date
+    import app.slide_render_cache as cache_module
+
+    path = source(tmp_path / 'source.pptx')
+    calls = office_fixture(monkeypatch, date_slides=(2,))
+    monkeypatch.setattr(cache_module, 'date', type('DayOne', (), {'today': staticmethod(lambda: date(2026, 10, 18))}))
+    render_quality(path, tmp_path, report(path))
+    monkeypatch.setattr(cache_module, 'date', type('DayTwo', (), {'today': staticmethod(lambda: date(2026, 10, 19))}))
+    result = render_quality(path, tmp_path, report(path))
+    assert result['render_cache'] == {'reused': 1, 'rendered': 1, 'total': 2}
+    assert len(calls) == 3

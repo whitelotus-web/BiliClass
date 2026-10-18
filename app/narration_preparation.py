@@ -1,11 +1,13 @@
 """Prepare narration after saving the lesson, outside the conversion worker."""
 
 import json
+import shutil
 from collections import deque
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from pathlib import Path
 from threading import Event
 from time import monotonic
+from uuid import uuid4
 
 from PySide6.QtCore import Property, QObject, QThread, QTimer, Signal, Slot
 
@@ -25,6 +27,7 @@ class NarrationJob(QThread):
         self.parallelism = 1
         self.cancel, self.paused = Event(), Event()
         self.result = {}
+        self.publish_directory = None
 
     def prepare(self):
         self.tasks, self.skipped, self.duplicates = narration_tasks(self.inspection, self.voices)
@@ -112,6 +115,22 @@ class NarrationJob(QThread):
                         break
         finally:
             speech._secondary_vieneu_engine.cache_clear()
+            if self.publish_directory and not failed and not self.cancel.is_set() and complete == self.total:
+                try:
+                    for path in Path(self.directory).glob('*.wav'):
+                        if not speech.valid_audio(path):
+                            raise ValueError('Bản giọng tạo lại chưa hợp lệ; bản cũ vẫn được giữ.')
+                    self.publish_directory.mkdir(parents=True, exist_ok=True)
+                    for path in Path(self.directory).glob('*.wav'):
+                        pending = self.publish_directory / (path.stem + '.' + uuid4().hex + '.pending')
+                        try:
+                            shutil.copyfile(path, pending)
+                            pending.replace(self.publish_directory / path.name)
+                        finally:
+                            pending.unlink(missing_ok=True)
+                except (OSError, ValueError) as exc:
+                    failed += 1
+                    last_error = str(exc)
             self.result = {"complete": complete, "cached": cached, "failed": failed,
                            "total": self.total, "skipped": self.skipped,
                            "duplicates": self.duplicates, "cancelled": self.cancel.is_set(),
@@ -141,8 +160,8 @@ class NarrationPreparation(QObject):
     def elapsedSeconds(self):
         return self._elapsed + (int(monotonic() - self._started_at) if self._started_at is not None else 0)
 
-    def start(self, lesson_id, inspection, voices, folder, metadata=None):
-        request = lesson_id, inspection, dict(voices), folder, metadata
+    def start(self, lesson_id, inspection, voices, folder, metadata=None, regenerate=False):
+        request = lesson_id, inspection, dict(voices), folder, metadata, regenerate
         if self.worker is not None:
             self.pending = request
             self.worker.cancel.set()
@@ -150,7 +169,11 @@ class NarrationPreparation(QObject):
         self.path = Path(folder) / "narration-progress.json"
         self._elapsed = 0
         self._started_at = monotonic()
-        self.worker = NarrationJob(inspection, voices, self.directory, self)
+        working_directory = Path(folder) / ('regenerate-' + uuid4().hex) if regenerate else self.directory
+        if regenerate:
+            working_directory.mkdir(parents=True)
+        self.worker = NarrationJob(inspection, voices, working_directory, self)
+        self.worker.publish_directory = Path(self.directory) if regenerate else None
         self.worker.paused.set() if self.paused else self.worker.paused.clear()
         self.state = {**(metadata or {}), "lesson_id": lesson_id, "running": True,
                       "complete": self.worker.initial_cached, "cached": self.worker.initial_cached, "failed": 0,

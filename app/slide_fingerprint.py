@@ -5,7 +5,6 @@ import json
 import os
 import platform
 import zipfile
-from datetime import date
 from pathlib import Path
 
 from .source_deck import NS, _part_relative, _rels_path, _xml
@@ -33,7 +32,7 @@ def environment_key():
                     office.append((str(executable),state.st_size,state.st_mtime_ns))
             except OSError:
                 continue
-    return hashlib.sha256(json.dumps({'engine':3,'machine':platform.node(),'date':date.today().isoformat(),
+    return hashlib.sha256(json.dumps({'engine':5,'machine':platform.node(),
                                      'fonts':sorted(fonts),'office':office},
                                     sort_keys=True).encode()).hexdigest()
 
@@ -73,6 +72,16 @@ class SlideFingerprints:
                             if dynamic and (part.startswith('ppt/slides/') or any(':' in ''.join(node.itertext()) for node in dynamic)):
                                 self.unsafe.add(part)
                                 return False
+                            for field in dynamic:
+                                shape = next((node for node in field.iterancestors()
+                                              if node.tag == '{' + NS['p'] + '}sp'), None)
+                                placeholder = shape.find('p:nvSpPr/p:nvPr/p:ph', NS) if shape is not None else None
+                                if placeholder is None or placeholder.get('type') != 'dt':
+                                    self.unsafe.add(part)
+                                    return False
+                            # Footer date placeholders may be hidden on this slide.
+                            # Native rendering records whether the date is actually
+                            # visible; RenderCache expires only those pages daily.
                     relationships=_rels_path(part)
                     if relationships not in names:
                         return True

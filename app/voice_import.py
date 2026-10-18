@@ -34,10 +34,12 @@ def prepare_script(library, lesson):
     return lesson
 
 
-def save_script(library, lesson_id, segment_id, revision, vi, en):
+def save_script(library, lesson_id, segment_id, revision, vi, en, *, silent=None):
     """Edit narration metadata; never modify the source PowerPoint or approve it."""
     from .chatgpt_handoff import text_signature
 
+    if silent is not None and type(silent) is not bool:
+        raise ValueError('Lựa chọn slide không đọc chưa hợp lệ.')
     lesson = library.get(lesson_id)
     if lesson['revision'] != revision:
         raise RevisionConflict('Bài vừa thay đổi. Đóng và mở lại lời đọc trước khi lưu.')
@@ -52,10 +54,17 @@ def save_script(library, lesson_id, segment_id, revision, vi, en):
     if sum(len(s['vi']) + len(s['en']) for s in narration_segments(lesson) if s['id'] != segment_id) + len(vi) + len(en) > 1_000_000:
         raise ValueError('Tổng lời đọc của bài tối đa 1.000.000 ký tự.')
     effective = next(s for s in narration_segments(lesson) if s['id'] == segment_id)
-    if (effective['vi'], effective['en']) == (vi, en):
+    was_silent = effective.get('silent', False)
+    if (effective.get('original_vi', effective['vi']), effective.get('original_en', effective['en'])) == (vi, en) and (
+            silent is None or silent == was_silent):
         return lesson
+    if silent is not None:
+        identities = set(lesson.get('narration_silent', []))
+        identities.add(segment_id) if silent else identities.discard(segment_id)
+        lesson['narration_silent'] = sorted(identities)
     if lesson.get('voice_only'):
         segment.update(vi=vi, en=en, approved=False)
+        lesson.setdefault('narration_script', {}).setdefault(segment_id, {})['manual'] = True
     else:
         lesson.setdefault('narration_script', {})[segment_id] = {'vi': vi, 'en': en, 'manual': True}
     lesson.update(revision=lesson['revision'] + 1, updated_at=now(), narration_script_version=2)

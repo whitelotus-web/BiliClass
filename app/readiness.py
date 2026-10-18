@@ -17,7 +17,10 @@ def text_readiness(lesson, directory):
     source = lesson.get("source")
     if source:
         path = Path(directory) / "sources" / source["file"]
-        source_ok = path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest() == source["sha256"]
+        source_ok = False
+        if path.is_file():
+            with path.open('rb') as stream:
+                source_ok = hashlib.file_digest(stream, 'sha256').hexdigest() == source['sha256']
     else:
         source_ok = bool(segments) and all(
             bool(s.get("source_text", s.get("vi", "")).strip()) for s in segments

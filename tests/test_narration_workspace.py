@@ -27,6 +27,41 @@ def source(path, text='', notes=''):
     return path
 
 
+def test_intentionally_silent_slide_preserves_text_and_can_be_restored(tmp_path):
+    path = source(tmp_path / 'Original.pptx', 'VI: Năng lượng\nEN: Energy')
+    original = path.read_bytes()
+    lesson, _ = import_presentation(tmp_path / 'library', path)
+    library = Library(tmp_path / 'library')
+    try:
+        row = lesson['segments'][0]
+        original_plan, _ = make_plan(lesson, 'both', {'voice': 'vieneu:Mai Anh', 'rate': 0})
+        assert original_plan['total']
+        quiet = save_script(library, lesson['id'], row['id'], lesson['revision'],
+                             row['vi'], row['en'], silent=True)
+        assert quiet['segments'][0]['vi'] == row['vi'] and quiet['segments'][0]['en'] == row['en']
+        assert narration_segments(quiet)[0]['silent']
+        assert not narration_segments(quiet)[0]['vi'] and not narration_segments(quiet)[0]['en']
+        plan, _ = make_plan(quiet, 'both', {'voice': 'vieneu:Mai Anh', 'rate': 0})
+        assert plan['total'] == 0
+        restored = save_script(library, quiet['id'], row['id'], quiet['revision'],
+                                row['vi'], row['en'], silent=False)
+        assert not narration_segments(restored)[0]['silent']
+        restored_plan, _ = make_plan(restored, 'both', {'voice': 'vieneu:Mai Anh', 'rate': 0})
+        assert restored_plan['keys'] == original_plan['keys']
+        assert not restored['segments'][0]['approved']
+        assert path.read_bytes() == original
+    finally:
+        library.close()
+
+
+def test_uncertain_language_is_explained_and_manual_narration_wins():
+    from app.narration_script import classification
+
+    assert classification('VI: Năng lượng', 'EN: Energy')['confidence'] == 1
+    assert classification('x² = y²', '')['needs_review']
+    assert not classification('x² = y²', '', manual=True)['needs_review']
+
+
 def complete(library, lesson, mode='both'):
     plan, _ = make_plan(lesson, mode, {'voice': 'vieneu:Mai Anh', 'rate': 0}, playback='both_controls' if mode == 'both' else 'separate')
     for keys in plan['keys'].values():

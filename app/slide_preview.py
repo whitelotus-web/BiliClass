@@ -4,6 +4,7 @@ import copy
 import hashlib
 import json
 import os
+from datetime import date
 from functools import lru_cache
 from pathlib import Path
 
@@ -100,7 +101,7 @@ class PreviewSession:
                 directory = self.directory / "temp" / folder / digest[:24]
                 try:
                     index = json.loads((directory / name).read_text(encoding="utf-8"))
-                    if index.get("sha256") == digest and index.get("version") == 2:
+                    if index.get("sha256") == digest and index.get("version") == 3:
                         self.indexes.append((directory, index["slides"]))
                 except (OSError, ValueError, KeyError, TypeError):
                     pass
@@ -109,6 +110,8 @@ class PreviewSession:
             image = directory / f"slide-{number}.png"
             try:
                 if item.get("environment") != self.environment:
+                    continue
+                if item.get('date_sensitive', True) and item.get('rendered_date') != date.today().isoformat():
                     continue
                 image_stamp = stamp(image)
                 known = self.verified_images.get(str(image))

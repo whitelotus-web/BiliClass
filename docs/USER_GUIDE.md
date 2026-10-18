@@ -304,8 +304,22 @@ nguyên PowerPoint và nhận diện lời đọc từ chữ
 trên slide/ghi chú có nhãn Việt–Anh. Không tự dịch hoặc OCR ảnh trong bước
 này. Chọn giọng, tốc độ và Anh/Việt/Song ngữ, nghe thử rồi tạo; dùng cùng bộ
 xử lý với bước tạo giọng sau chuyển đổi. Bài một ngôn ngữ chỉ có lời đọc
-ngôn ngữ đó. Bản giọng đủ được khóa tạo trùng, vẫn chọn để tải/dạy. Nhận lại
+ngôn ngữ đó. Lần đầu mặc định **Tiếng Anh**; lần sau nhớ
+ngôn ngữ chọn gần nhất. Ô **Cấu hình đã chọn** diễn giải ngôn ngữ/giọng/tốc
+độ và các nút loa sẽ có trong PowerPoint. Khi bấm **Tạo giọng đọc** mà đúng
+cấu hình đã đủ âm thanh, chọn **Dùng bản có sẵn** hoặc xác nhận **Tạo lại**.
+Tạo lại thất bại hoặc dừng vẫn giữ âm thanh cũ. Nhận lại
 cùng file sẽ dùng bài đã nhập trước đó và giữ các bản giọng đã tạo.
+
+**Tạo giọng đọc** nằm ở thanh cuối trang, cùng vị trí với **Chuyển đổi bài
+giảng**. **Dừng ■** và **Hủy bài đang chọn ×** có màu đỏ; dừng giữ phần đã
+tạo, hủy chọn giữ bài trong thư viện. Trong lúc tạo giọng, không bắt đầu
+chuyển đổi bài mới. Tab Chuyển đổi ghi rõ tác vụ đang chạy; **Xem tiến độ
+tạo giọng** quay lại tab giọng mà không đổi bài hay dừng tác vụ.
+
+Tab Chuyển đổi có ô diễn giải cập nhật theo kiểu ngôn ngữ, giữ thiết kế/mẫu
+mới và môn/lớp. Thiết lập Google Dịch và hạn mức nằm trong Cài đặt; thanh
+thao tác không còn lặp lối tắt trạng thái hạn mức.
 
 1. Chọn file hoặc **Dùng bài trong thư viện**. Số slide có lời Việt/Anh
    hiện ngay sau khi nhận bài.

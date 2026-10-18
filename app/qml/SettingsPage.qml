@@ -10,6 +10,7 @@ Item {
     signal requestLibrary()
     signal requestRelocation()
     signal requestBackupSave()
+    signal requestSupportReport()
     signal requestLogo()
     signal requestReference()
     property int activeTab: 0
@@ -452,17 +453,32 @@ Item {
 
         ColumnLayout {
             visible: page.activeTab === 5; Layout.fillWidth: true; spacing: 14
+            onVisibleChanged: if (visible) bridge.storageControls.refresh()
             Card { Layout.fillWidth: true
                 ColumnLayout { width: parent.width; spacing: 14
                     Title { text: "Nơi lưu bài giảng và giọng đọc" }
                     Hint { text: "Ứng dụng và thư viện lưu riêng. Chọn ổ D, E hoặc thư mục khác để tránh đầy ổ C."; Layout.fillWidth: true }
                     Hint { text: bridge.dataPath; Layout.fillWidth: true; wrapMode: Text.WrapAnywhere; color: page.ink }
+                    Hint { objectName: "storageFreeSpace"; text: bridge.storageControls.state.free_bytes >= 0 ? "Ổ lưu còn " + (bridge.storageControls.state.free_bytes / 1073741824).toFixed(1) + " GiB trống" : "Chưa đọc được dung lượng ổ lưu"; Layout.fillWidth: true }
+                    Hint {
+                        objectName: "storageBackupStatus"
+                        readonly property var backup: bridge.storageControls.state
+                        text: backup.running ? "Đang sao lưu" + (backup.total ? " · " + backup.done + "/" + backup.total + " tệp" : "…")
+                            : backup.status === "failed" ? "Sao lưu chưa thành công: " + backup.last_error
+                            : backup.last_success ? "Sao lưu thành công gần nhất: " + new Date(backup.last_success).toLocaleString()
+                            : "Chưa có bản sao lưu được xác nhận"
+                        color: backup.status === "failed" && !backup.running ? "#a63d2f" : page.ink
+                        Layout.fillWidth: true
+                    }
+                    Hint { visible: !!bridge.storageControls.state.last_path; text: bridge.storageControls.state.last_path || ""; Layout.fillWidth: true; wrapMode: Text.WrapAnywhere }
+                    Hint { text: bridge.storageControls.state.scope || ""; Layout.fillWidth: true }
                     Flow { Layout.fillWidth: true; spacing: 8
                         SaveButton { objectName: "relocateLibraryButton"; text: "Chuyển thư viện sang nơi khác"; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: page.requestRelocation() }
                         SoftButton { text: "Mở thư mục"; onClicked: bridge.openData() }
-                        SoftButton { objectName: "settingsBackup"; text: "Sao lưu thư viện"; enabled: !bridge.busy; onClicked: page.requestBackupSave() }
-                        SoftButton { text: "Khôi phục bản sao"; enabled: !bridge.busy; onClicked: page.requestBackup() }
+                        SoftButton { objectName: "settingsBackup"; text: "Sao lưu thư viện"; enabled: !bridge.busy && !bridge.storageControls.state.running; onClicked: page.requestBackupSave() }
+                        SoftButton { text: "Khôi phục bản sao"; enabled: !bridge.busy && !bridge.storageControls.state.running; onClicked: page.requestBackup() }
                         SoftButton { text: "Mở thư viện khác"; enabled: !bridge.busy; onClicked: page.requestLibrary() }
+                        SoftButton { text: "Xuất chẩn đoán kỹ thuật"; enabled: !bridge.busy; onClicked: page.requestSupportReport() }
                     }
                     Hint { text: "Chuyển cả bài giảng, giọng, thuật ngữ và cấu hình; BiliClass kiểm tra rồi mở lại với thư viện mới. Bản cũ chỉ được dọn sau khi mở thành công."; Layout.fillWidth: true }
                     Hint { text: "Tải file: tên được gợi ý tự động; bạn chọn nơi lưu và BiliClass nhớ thư mục đã chọn."; Layout.fillWidth: true }

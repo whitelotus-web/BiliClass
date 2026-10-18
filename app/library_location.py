@@ -5,13 +5,15 @@ import json
 import os
 import shutil
 import sqlite3
+import time
 from contextlib import closing
 from pathlib import Path
 from uuid import uuid4
 
 CONTROL_FILE = 'data-location.json'
 TRANSFER_FILE = 'library-transfer.json'
-EXCLUDED = {'dev-runtime', 'updates', 'diagnostics', 'logs', CONTROL_FILE, TRANSFER_FILE}
+COPY_FILE = '.biliclass-copy.json'
+EXCLUDED = {'dev-runtime', 'updates', 'diagnostics', 'logs', CONTROL_FILE, TRANSFER_FILE, COPY_FILE}
 
 
 def default_root():
@@ -52,7 +54,14 @@ def write_record(path, record):
     pending = path.with_name(path.name + '.' + uuid4().hex + '.tmp')
     try:
         pending.write_text(json.dumps(record, ensure_ascii=False), encoding='utf-8')
-        pending.replace(path)
+        for attempt in range(10):
+            try:
+                pending.replace(path)
+                break
+            except PermissionError:
+                if os.name != 'nt' or attempt == 9:
+                    raise
+                time.sleep(.02)
     finally:
         pending.unlink(missing_ok=True)
 
@@ -80,7 +89,12 @@ def validate_destination(source, target):
     if target == source or target.is_relative_to(source) or source.is_relative_to(target):
         raise ValueError('Chọn thư mục riêng, không nằm trong hoặc bao ngoài thư viện hiện tại.')
     if target.exists():
-        raise ValueError('Thư mục BiliClass-Data đã tồn tại. Chọn nơi khác để không ghi đè dữ liệu.')
+        try:
+            record = json.loads((target / COPY_FILE).read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            record = {}
+        if record.get('source') != str(source) or record.get('target') != str(target):
+            raise ValueError('Thư mục BiliClass-Data đã tồn tại. Chọn nơi khác để không ghi đè dữ liệu.')
     if not target.parent.is_dir() or target.parent.is_symlink() or target.parent.is_junction():
         raise ValueError('Chọn thư mục có thật trên ổ lưu dữ liệu.')
     return source, target
@@ -104,24 +118,46 @@ def transfer(source, target, progress=None):
     source, target = validate_destination(source, target)
     names = inventory(source)
     total = sum((source / name).stat().st_size for name in names)
-    if shutil.disk_usage(target.parent).free < total + max(64 * 1024**2, total // 20):
-        raise ValueError('Ổ đích chưa đủ chỗ cho cả thư viện và vùng làm việc.')
-    staging = target.parent / ('.biliclass-transfer-' + uuid4().hex)
-    staging.mkdir()
-    try:
-        for index, name in enumerate(names, 1):
-            copy_file(source / name, staging / name)
-            if progress:
-                progress(index, len(names))
-        # Publish only a complete destination. Never merge into an existing folder.
+    key = hashlib.sha256((str(source) + '\0' + str(target)).encode()).hexdigest()[:24]
+    staging = target if target.exists() else target.parent / ('.biliclass-transfer-' + key)
+    if staging.is_symlink() or staging.is_junction():
+        raise ValueError('Nơi chuyển dữ liệu không được là liên kết.')
+    checkpoint = staging / COPY_FILE
+    if staging.exists():
+        record = json.loads(checkpoint.read_text(encoding='utf-8'))
+        if record.get('source') != str(source) or record.get('target') != str(target):
+            raise ValueError('Bản chuyển dở không khớp thư viện này.')
+    else:
+        staging.mkdir()
+        record = dict(source=str(source), target=str(target), files={}, bytes=total)
+        write_record(checkpoint, record)
+    valid = {}
+    for name in names:
+        original, copied = source / name, staging / name
+        state = record['files'].get(name, {})
+        if (original.suffix not in {'.db', '.sqlite', '.sqlite3'} and copied.is_file()
+                and not copied.is_symlink() and not copied.is_junction()
+                and state.get('sha256') == digest(original) == digest(copied)):
+            valid[name] = state
+    remaining = sum((source / name).stat().st_size for name in names if name not in valid)
+    if shutil.disk_usage(target.parent).free < remaining + max(64 * 1024**2, remaining // 20):
+        raise ValueError('Ổ đích chưa đủ chỗ cho dữ liệu còn lại và vùng làm việc. Bản chuyển dở được giữ.')
+    for index, name in enumerate(names, 1):
+        if name not in valid:
+            destination = (staging / name).resolve()
+            if not destination.is_relative_to(staging.resolve()):
+                raise ValueError('Bản chuyển dở có đường dẫn liên kết không hợp lệ.')
+            copy_file(source / name, destination)
+            record['files'][name] = dict(sha256=digest(source / name))
+            write_record(checkpoint, record)
+        if progress:
+            progress(index, len(names))
+    # Publish only the destination owned by this transfer. Keep the checkpoint
+    # until finalize so a crash between copy and selection can be resumed.
+    if staging != target:
         if target.exists():
             raise ValueError('Thư mục đích vừa được tạo bởi tác vụ khác; chưa chuyển thư viện.')
         staging.rename(target)
-    except BaseException:
-        # This folder was created by this transfer, beneath the checked parent.
-        if staging.parent == target.parent and staging.name.startswith('.biliclass-transfer-'):
-            shutil.rmtree(staging, ignore_errors=True)
-        raise
     return {'source': str(source), 'target': str(target), 'files': names, 'bytes': total}
 
 
@@ -181,10 +217,11 @@ def finalize_transfer(record, progress=None):
     manifest = {**record, 'files': verified, 'activated': False}
     write_record(target / TRANSFER_FILE, manifest)
     select_directory(target)
+    (target / COPY_FILE).unlink(missing_ok=True)
     return target
 
 
-def verify_transfer_start(directory):
+def verify_transfer_start(directory, progress=None):
     """Run before opening the destination database, so corruption fails closed."""
     root = Path(directory).resolve()
     marker = root / TRANSFER_FILE
@@ -195,10 +232,12 @@ def verify_transfer_start(directory):
         raise ValueError('Bản chuyển không thuộc thư mục đang mở.')
     if record.get('activated'):
         return
-    for name, hashes in record['files'].items():
+    for index, (name, hashes) in enumerate(record['files'].items(), 1):
         path = (root / name).resolve()
         if not path.is_relative_to(root) or digest(path) != hashes['target']:
             raise ValueError('Bản chuyển thư viện chưa khớp. Bản gốc vẫn được giữ: ' + record['source'])
+        if progress:
+            progress(index, len(record['files']))
 
 
 def cleanup_previous(directory):

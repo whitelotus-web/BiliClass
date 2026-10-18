@@ -1,0 +1,41 @@
+"""Recompile every app module while reusing a hash-verified dependency runtime."""
+import importlib.util
+import json
+import os
+from pathlib import Path
+
+from PyInstaller.archive.readers import CArchiveReader
+from PyInstaller.config import CONF
+
+config = json.loads(Path(os.environ['BILICLASS_BUILD_CONFIG']).read_text(encoding='utf-8'))
+root = Path(config['root'])
+archive = CArchiveReader(config['baseline_exe'])
+reader = archive.open_embedded_archive('PYZ.pyz')
+pure, codes = [], {}
+for name, item in reader.toc.items():
+    if name == 'app' or name.startswith('app.'):
+        continue
+    kind = item[0]
+    filename = ('-' if kind == 3 else str(Path('baseline') / name.replace('.', '/') /
+                '__init__.py') if kind == 1 else str(Path('baseline') / (name.replace('.', '/') + '.py')))
+    pure.append((name, filename, 'PYMODULE'))
+    if kind != 3:
+        codes[name] = reader.extract(name)
+for path in sorted((root / 'app').glob('*.py')):
+    name = 'app' if path.stem == '__init__' else 'app.' + path.stem
+    pure.append((name, str(path), 'PYMODULE'))
+    codes[name] = compile(path.read_bytes(), str(path), 'exec')
+hooks = []
+hook_folder = Path(config['work']) / 'runtime-hooks'
+hook_folder.mkdir(parents=True, exist_ok=True)
+for name, item in archive.toc.items():
+    if name.startswith('pyi_rth_'):
+        path = hook_folder / (name + '.pyc')
+        path.write_bytes(importlib.util.MAGIC_NUMBER + bytes(12) + archive.extract(name))
+        hooks.append((name, str(path), 'PYSOURCE'))
+hooks.append(('app_entry', str(root / 'scripts/app_entry.py'), 'PYSOURCE'))
+CONF.setdefault('code_cache', {})[id(pure)] = codes
+pyz = PYZ(pure)
+exe = EXE(pyz, hooks, [], exclude_binaries=True, name='BiliClass',
+          icon=str(root / 'app/assets/brand/biliclass.ico'), console=False, upx=False,
+          disable_windowed_traceback=False)

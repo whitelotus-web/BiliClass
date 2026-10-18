@@ -32,6 +32,8 @@ Dialog {
             onActivated: { dialog.workspace.selectSlide(currentIndex); dialog.loadSlide() }
         }
         Label { visible: dialog.dirty; text: "Có thay đổi chưa lưu. Lưu hoặc bấm Bỏ thay đổi trước khi đổi slide."; color: "#a66318"; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+        Label { objectName: "narrationClassificationReason"; text: dialog.currentSlide.classification ? dialog.currentSlide.classification.reason : ""; color: dialog.currentSlide.classification && dialog.currentSlide.classification.needs_review ? "#a66318" : "#667997"; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+        CheckBox { objectName: "narrationSilentSlide"; text: "Slide này không cần lời đọc"; checked: !!dialog.currentSlide.silent; enabled: dialog.editable && !dialog.working && !dialog.dirty; onClicked: { if (dialog.workspace.setSilent(dialog.currentSlide.id, checked, dialog.currentSlide.revision)) dialog.loadSlide() } }
         GridLayout {
             columns: 2; columnSpacing: 14; Layout.fillWidth: true; Layout.fillHeight: true
             Label { text: "Lời tiếng Việt"; color: "#112650"; font.bold: true }

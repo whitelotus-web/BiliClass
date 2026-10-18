@@ -14,6 +14,34 @@ def write_wave(path):
         writer.writeframes(b"\x01\x00" * 100)
 
 
+def test_regeneration_publishes_valid_audio_only_after_success_and_cancel_preserves_old(monkeypatch, tmp_path):
+    staging, published = tmp_path / 'staging', tmp_path / 'audio'
+    staging.mkdir()
+    published.mkdir()
+    key = speech.audio_key('Hello.', VOICE, 0)
+    old = published / (key + '.wav')
+    with wave.open(str(old), 'wb') as writer:
+        writer.setparams((1, 2, 48000, 0, 'NONE', 'not compressed'))
+        writer.writeframes(b'\2\0' * 100)
+    before = old.read_bytes()
+    def synthesize(text, voice, rate, directory, cancel):
+        write_wave(directory / (speech.audio_key(text, voice, rate) + '.wav'))
+        return dict(cached=False)
+    monkeypatch.setattr(speech, 'synthesize_background', synthesize)
+    job = NarrationJob({'profile': {'units': [{'vi': '', 'en': 'Hello.'}]}},
+                        {'en': VOICE, 'rate': 0}, staging, None)
+    job.publish_directory = published
+    job.run()
+    assert not job.result['failed'] and old.read_bytes() != before
+    successful = old.read_bytes()
+    cancel_job = NarrationJob({'profile': {'units': [{'vi': '', 'en': 'Hello.'}]}},
+                               {'en': VOICE, 'rate': 0}, tmp_path / 'another-stage', None)
+    cancel_job.publish_directory = published
+    cancel_job.cancel.set()
+    cancel_job.run()
+    assert cancel_job.result['cancelled'] and old.read_bytes() == successful
+
+
 def test_background_prefetch_cancel_keeps_completed_cache_and_does_not_play(monkeypatch, tmp_path):
     calls = []
     job = NarrationJob({"profile": {"units": [{"vi": "Xin chào.", "en": "Hello."}]}},

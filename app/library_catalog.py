@@ -6,6 +6,7 @@ from threading import Event
 from PySide6.QtCore import QObject, QThread, QTimer, Signal, Slot
 
 from .lesson_narration import library_audio_status as audio_status
+from .lesson_state import summarize_state
 from .library import Library, timestamp
 from .speech import voice_settings
 
@@ -32,8 +33,9 @@ class CatalogJob(QThread):
                 for row in active:
                     if self.cancel.is_set():
                         return
-                    status = audio_status(library.get(row['id']), library.directory, voices, cancel=self.cancel)
-                    verified.append({**row, 'narration': status})
+                    lesson = library.get(row['id'])
+                    status = audio_status(lesson, library.directory, voices, cancel=self.cancel)
+                    verified.append({**row, 'narration': status, 'workflow': summarize_state(lesson, status)})
                 self.result = verified, trash
         except InterruptedError:
             pass
@@ -42,7 +44,9 @@ class CatalogJob(QThread):
             if 'active' in locals() and 'trash' in locals():
                 unknown = {'status': 'unknown', 'mode': 'none', 'ready': False,
                            'label': 'Chưa kiểm tra được giọng đọc'}
-                self.result = [{**row, 'narration': dict(unknown)} for row in active], trash
+                self.result = [{**row, 'narration': dict(unknown), 'workflow': {
+                    **row.get('workflow', {}), 'audio_ready': False,
+                    'audio_label': unknown['label'], 'audio_complete': 0, 'audio_total': 0}} for row in active], trash
 
 
 class LibraryCatalog(QObject):

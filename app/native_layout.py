@@ -142,9 +142,13 @@ def _office_overflows(path, pages, cancel):
     office = deck = None
     try:
         office = win32com.client.DispatchEx('PowerPoint.Application')
+        from .office_tasks import native_progress, register_office
+
+        register_office(office)
         deck = office.Presentations.Open(str(path.resolve()), ReadOnly=True, Untitled=False, WithWindow=False)
         result = []
         for page in pages:
+            native_progress(f'Đang đo hộp chữ slide {page}…')
             if cancel and cancel.is_set():
                 raise InterruptedError('Đã dừng căn chỉnh bài giảng.')
             for shape in office_text_shapes(deck.Slides(page).Shapes):
@@ -180,7 +184,10 @@ def fit_preserved_frames(path, manifest, cancel=None, *, measure=None):
         return {'available':None,'changes':[]}
     parts = source_slide_parts(path)
     changed = []
-    measure = measure or _office_overflows
+    if measure is None:
+        from .office_tasks import measure_overflows
+
+        measure = measure_overflows
     for attempt in range(2):
         try:
             overflows = measure(path,pages,cancel)

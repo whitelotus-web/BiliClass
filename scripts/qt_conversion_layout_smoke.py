@@ -62,6 +62,9 @@ def main():
             bottom = c('creationConfiguration').mapToScene(QPointF(0, c('creationConfiguration').height())).y()
             viewport_bottom = scroll.mapToScene(QPointF(0, scroll.property('availableHeight'))).y()
             assert bottom <= viewport_bottom + 1, entry
+            summary = c('conversionConfigurationSummary')
+            assert summary.isVisible()
+            assert summary.mapToScene(QPointF(0, summary.height())).y() <= viewport_bottom + 1, entry
         try:
             window.setProperty("page", "new")
             path = temp / "Bài giảng PowerPoint có tên dài để kiểm tra bố cục.pptx"

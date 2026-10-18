@@ -63,15 +63,41 @@ def test_destination_failure_does_not_change_or_delete_source(tmp_path, monkeypa
         location.transfer(library.directory, library.directory / 'nested')
 
 
-def test_partial_copy_failure_keeps_source_and_never_publishes_target(tmp_path, monkeypatch):
+def test_partial_copy_failure_keeps_source_and_resumes_without_publishing_partial_target(tmp_path, monkeypatch):
     library, _, target = fixture_library(tmp_path, monkeypatch)
     library.close()
-    monkeypatch.setattr(location, 'copy_file', lambda *args: (_ for _ in ()).throw(OSError('disk full')))
+    original = location.copy_file
+    calls = []
+    def interrupted(source, destination):
+        calls.append(source.name)
+        if len(calls) == 2:
+            raise OSError('disk full')
+        return original(source, destination)
+    monkeypatch.setattr(location, 'copy_file', interrupted)
     with pytest.raises(OSError):
         location.transfer(library.directory, target)
     assert not target.exists()
-    assert not list(target.parent.glob('.biliclass-transfer-*'))
+    assert len(list(target.parent.glob('.biliclass-transfer-*'))) == 1
     assert (library.directory / 'audio/voice.wav').exists()
+    monkeypatch.setattr(location, 'copy_file', original)
+    record = location.transfer(library.directory, target)
+    location.finalize_transfer(record)
+    location.verify_transfer_start(target)
+    assert (target / 'audio/voice.wav').read_bytes() == b'WAV fixture'
+    assert not (target / location.COPY_FILE).exists()
+
+
+def test_resume_after_copy_completed_and_before_final_selection(tmp_path, monkeypatch):
+    library, _, target = fixture_library(tmp_path, monkeypatch)
+    source = library.directory
+    library.close()
+    location.transfer(source, target)
+    assert (target / location.COPY_FILE).exists()
+    (source / 'audio/voice.wav').write_bytes(b'Changed before restart')
+    record = location.transfer(source, target)
+    location.finalize_transfer(record)
+    location.verify_transfer_start(target)
+    assert (target / 'audio/voice.wav').read_bytes() == b'Changed before restart'
 
 
 def test_corrupt_destination_fails_before_source_cleanup(tmp_path, monkeypatch):

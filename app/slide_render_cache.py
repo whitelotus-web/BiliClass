@@ -4,9 +4,10 @@ import hashlib
 import json
 import os
 import shutil
+from datetime import date
 from pathlib import Path
 
-VERSION = 2
+VERSION = 3
 NATIVE_CODES = {"text_overflow", "low_contrast"}
 RENDER_CODES = NATIVE_CODES | {"visual_review", "render_unavailable"}
 
@@ -69,6 +70,7 @@ class RenderCache:
             try:
                 issues = item["issues"]
                 if (item.get('environment')!=self.environment or (key and item.get('slide_key')!=key)
+                        or item.get('date_sensitive', True) and item.get('rendered_date') != date.today().isoformat()
                         or not isinstance(issues, list) or any(issue.get("code") not in NATIVE_CODES
                         or issue.get("severity") not in {"FAIL", "CHECK"} for issue in issues)
                         or digest(image) != item["image_sha256"]):
@@ -101,6 +103,7 @@ class RenderCache:
             "image_sha256": digest(self.image(row["slide"])),
             "issues": [dict(issue,severity='FAIL' if issue['code']=='text_overflow' else issue['severity'])
                        for issue in row["issues"] if issue["code"] in NATIVE_CODES],
+            'date_sensitive': row.get('date_sensitive', True), 'rendered_date': date.today().isoformat(),
             'environment':self.environment,
             'slide_key':self.slide_keys.get(str(row['slide'])) if self.slide_keys is not None else None,
         }

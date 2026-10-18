@@ -84,7 +84,7 @@ def main():
             with patch('app.speech.synthesize_background', side_effect=fake_synthesis), patch('app.speech.narration_workers', return_value=1):
                 click(window, c('createLessonNarrationButton'))
                 until(lambda: not bridge.narrationBusy and bridge.lessonNarration.get('ready'), 30)
-            assert not c('createLessonNarrationButton').isEnabled(), 'Finished voice variant must not be generated twice'
+            assert c('createLessonNarrationButton').isEnabled(), 'A complete variant opens an explicit reuse/regenerate dialog'
             assert not any(segment['approved'] for segment in bridge.lesson['segments'])
             assert not bridge.powerpointState.get('active')
             for width, height in ((1080, 700), (1366, 850)):

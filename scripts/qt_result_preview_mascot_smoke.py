@@ -255,7 +255,7 @@ def main():
         bridge.narrationChanged.emit()
         pump(120)
         assert bridge.lessonNarration['ready']
-        assert not c('createLessonNarrationButton').isEnabled()
+        assert c('createLessonNarrationButton').isEnabled()
         assert 'Đã tạo' in c('narrationEnglish').property('text')
         assert c('narrationEnglish').isEnabled()
         assert c('narrationReadyNextStep').isVisible()
@@ -313,18 +313,18 @@ def main():
         QMetaObject.invokeMethod(choice,'activated',Qt.DirectConnection,Q_ARG(int,index))
         assert bridge._lesson_voice_settings()['vi'] == 'vieneu:Hải Đăng'
         assert not bridge._lesson_voice_settings()['en']
-        assert not c('createLessonNarrationButton').isEnabled() and c('narrationVietnamese').isEnabled()
+        assert c('createLessonNarrationButton').isEnabled() and c('narrationVietnamese').isEnabled()
         click(window,c('narrationEnglish'))
         assert c('createLessonNarrationButton').isEnabled(), 'English has not been made with this voice'
         assert not c('narrationReadyNextStep').isVisible()
         click(window,c('narrationVietnamese'))
-        assert not c('createLessonNarrationButton').isEnabled()
+        assert c('createLessonNarrationButton').isEnabled()
         rate=c('lessonNarrationRateChoice');rate.setProperty('currentIndex',4)
         QMetaObject.invokeMethod(rate,'activated',Qt.DirectConnection,Q_ARG(int,4));pump(100)
         assert c('createLessonNarrationButton').isEnabled(), 'New speed is a separate product'
         rate.setProperty('currentIndex',3)
         QMetaObject.invokeMethod(rate,'activated',Qt.DirectConnection,Q_ARG(int,3));pump(100)
-        assert not c('createLessonNarrationButton').isEnabled()
+        assert c('createLessonNarrationButton').isEnabled()
         assert 'Tiếng Việt' in c('presentationSaveDialog').property('title')
         assert 'Hải Đăng' in QUrl(bridge.presentationDownloadSuggestion(True)).toLocalFile()
         for width in (1080,1366):

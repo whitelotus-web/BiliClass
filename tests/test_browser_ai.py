@@ -705,7 +705,7 @@ def test_free_quality_correction_reuses_chat_files_and_happens_once(browser_fixt
         report["slides"][0]["issues"].append({"code": "text_overflow", "severity": "FAIL", "shape_id": 2})
         return report
 
-    monkeypatch.setattr(slide_quality, "render_quality", measured_overflow)
+    monkeypatch.setattr('app.office_tasks.render_quality', measured_overflow)
     content = FIXTURE.replace("document.querySelector('#messages').innerHTML =",
                               "document.querySelector('#messages').innerHTML +=")
     content = content.replace("history.pushState({},'', '/c/fixture-123');result();", """

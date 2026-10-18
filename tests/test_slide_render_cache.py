@@ -16,7 +16,7 @@ def report(path, count=2):
         {"code": "formula_needs_review", "severity": "CHECK"}]} for i in range(1, count+1)]}
 
 
-def office_fixture(monkeypatch, cancel=None):
+def office_fixture(monkeypatch, cancel=None, *, date_slides=()):
     calls = []
 
     class Slide:
@@ -24,13 +24,16 @@ def office_fixture(monkeypatch, cancel=None):
             TextRange=SimpleNamespace(BoundHeight=50, BoundWidth=50)), Height=20, Width=20,
             Fill=SimpleNamespace(Visible=False), Id=7)]
 
+        def __init__(self, index):
+            self.HeadersFooters = SimpleNamespace(DateAndTime=SimpleNamespace(Visible=index in date_slides))
+
         def Export(self, path, kind, width, height):
             calls.append(Path(path).name)
             Image.new("RGB", (16, 9), "white").save(path)
             if cancel:
                 cancel.set()
 
-    deck = SimpleNamespace(Slides=lambda index: Slide(), Close=lambda: None,
+    deck = SimpleNamespace(Slides=lambda index: Slide(index), Close=lambda: None,
                            PageSetup=SimpleNamespace(SlideHeight=9, SlideWidth=16))
     office = SimpleNamespace(Presentations=SimpleNamespace(Open=lambda *a, **kw: deck, Count=0), Quit=lambda: None)
     monkeypatch.setattr("win32com.client.DispatchEx", lambda name: office)

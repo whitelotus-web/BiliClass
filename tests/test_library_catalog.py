@@ -82,6 +82,8 @@ def test_audio_scan_is_background_cached_and_refreshes_latest_edit(tmp_path, mon
         release.set()
         pump_until(app, lambda: catalog.worker is None and catalog.rows()[0]['title'] == 'Bài đã sửa')
         assert catalog.rows()[0]['narration']['ready']
+        assert catalog.rows()[0]['workflow']['audio_ready']
+        assert not catalog.rows()[0]['workflow']['content_ready']
         assert discarded['id'] not in calls, 'Trash must not scan WAVs'
         count = len(calls)
         for _ in range(20):

@@ -60,7 +60,7 @@ def test_refinement_uses_same_conversation_once_and_keeps_original_draft(tmp_pat
     request = {"config": {"source_file": "source.pptx", "style": "source", "conversion_format": "parallel_columns"}}
     (tmp_path / "source.pptx").write_bytes(b"source")
     monkeypatch.setattr(web, "inspect_returned_deck", lambda *args: {"slide_quality": quality(Path(args[0]).read_bytes() == b"original")})
-    monkeypatch.setattr("app.slide_quality.render_quality", lambda p, d, q, *a: q)
+    monkeypatch.setattr("app.office_tasks.render_quality", lambda p, d, q, *a: q)
     recorded, sends = [], []
     monkeypatch.setattr(web, "write_record", lambda folder, rec: recorded.append(dict(rec)))
     monkeypatch.setattr(web, "submit", lambda page, folder, rec, prompt, cancel, **kw: sends.append((page, prompt, kw["files"])))
@@ -94,7 +94,7 @@ def test_ambiguous_submit_is_never_sent_again_automatically(tmp_path, monkeypatc
     pending.write_bytes(b"original")
     request = {"config": {"source_file": "source.pptx", "style": "source"}}
     monkeypatch.setattr(web, "inspect_returned_deck", lambda *a: {"slide_quality": quality()})
-    monkeypatch.setattr("app.slide_quality.render_quality", lambda p, d, q, *a: q)
+    monkeypatch.setattr("app.office_tasks.render_quality", lambda p, d, q, *a: q)
     monkeypatch.setattr(web, "write_record", lambda *a: None)
     sends = []
 

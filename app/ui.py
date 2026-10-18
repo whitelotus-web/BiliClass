@@ -8,35 +8,30 @@ from threading import Event
 
 from PySide6.QtCore import (
     Property,
-    QCoreApplication,
-    QEvent,
     QObject,
     QPoint,
     QStandardPaths,
-    QThread,
     QTimer,
     QUrl,
     Signal,
     Slot,
 )
-from PySide6.QtGui import QDesktopServices, QFont, QFontDatabase, QGuiApplication
-from PySide6.QtQml import QQmlApplicationEngine
-from PySide6.QtQuick import QQuickWindow
-from PySide6.QtQuickControls2 import QQuickStyle
+from PySide6.QtGui import QDesktopServices, QGuiApplication
 
 from . import speech
 from .browser_web_ui import WebBrowserAI
 from .classroom_ui import ClassroomBridge
+from .jobs import Job
 from .knowledge import ensure_builtin_foundation, load_pack
 from .legacy_policy import LevelPolicy
 from .lesson_templates import block_type, catalog, example_plan, slide_pages, slide_plan, source_image
 from .library import Library, lesson_status
 from .pack import export_pack, import_pack
-from .paths import RESOURCE_ROOT, user_data
+from .paths import RESOURCE_ROOT
 from .portable_audio import available_audio
 from .powerpoint import PowerPointSession, slide_for_locator, slide_segment_indexes, verified_presentation
 from .readiness import assess
-from .storage import backup_library, configure_logging, restore_backup
+from .storage import configure_logging, restore_backup
 from .teaching import TeachingBridge
 from .text_quality import review_warnings
 from .updater import check_for_update, download_and_stage, launch_install
@@ -44,22 +39,6 @@ from .updater import check_for_update, download_and_stage, launch_install
 RESOURCES = RESOURCE_ROOT  # Retained for source smoke scripts; no M0 runtime dependency.
 
 
-class Job(QThread):
-    completed = Signal(object, str)
-
-    def __init__(self, action, parent):
-        super().__init__(parent)
-        self.action = action
-        self.error_code = None
-
-    def run(self):
-        try:
-            self.completed.emit(self.action(), "")
-        except Exception as exc:
-            from .storage_space import FULL_DISK_MESSAGE, full_disk_error
-
-            self.error_code = "storage" if full_disk_error(exc) else getattr(exc, "code", None)
-            self.completed.emit(None, FULL_DISK_MESSAGE if full_disk_error(exc) else str(exc))
 
 
 class Bridge(QObject):
@@ -94,6 +73,8 @@ class Bridge(QObject):
     voiceSettingsChanged = Signal()
     voiceUiChanged = Signal()
     speechStateChanged = Signal()
+    workflowChanged = Signal()
+    narrationAlreadyCreated = Signal('QVariantMap')
 
     @Property(bool, constant=True)
     def developmentMode(self):
@@ -120,6 +101,10 @@ class Bridge(QObject):
         from .storage_controls import StorageControls
 
         self.storage = StorageControls(self)
+        from .narration_preferences import NarrationPreferences
+
+        self._narration_preferences = NarrationPreferences(library, self)
+        self._narration_preferences.failed.connect(lambda message: self.inform(message, True, refresh=False))
         self.logger = configure_logging(library.directory)
         try:
             ensure_builtin_foundation(self.library)
@@ -157,6 +142,8 @@ class Bridge(QObject):
         self._catalog = LibraryCatalog(library, self)
         self._catalog.changed.connect(self.lessonsChanged)
         self._catalog.changed.connect(self.narrationChanged)
+        self.changed.connect(self.workflowChanged)
+        self.narrationChanged.connect(self.workflowChanged)
         self.changed.connect(self._catalog.refresh)
         self.changed.connect(self.statusChanged)
         self.changed.connect(self.browserStateChanged)
@@ -378,6 +365,10 @@ class Bridge(QObject):
     @Property(QObject, constant=True)
     def storageControls(self):
         return self.storage
+
+    @Property(QObject, constant=True)
+    def narrationPreferences(self):
+        return self._narration_preferences
 
     @Property(str, notify=changed)
     def downloadsDirectory(self):
@@ -666,6 +657,9 @@ class Bridge(QObject):
 
         if self._busy:
             return
+        if self.narrationBusy:
+            self.inform('Chờ tạo giọng đọc xong hoặc dừng tạo giọng trước khi chuyển đổi bài mới.', True, refresh=False)
+            return
         if self.googleTranslation:
             self._prepare_google(title, subject, education, grade, text, file_url,
                                  conversion_format, preset, style)
@@ -857,6 +851,9 @@ class Bridge(QObject):
 
         if self._busy or not self._chatgpt_request.get('folder'):
             return
+        if self.narrationBusy:
+            self.inform('Chờ tạo giọng đọc xong hoặc dừng tạo giọng trước khi tiếp tục chuyển đổi.', True, refresh=False)
+            return
         try:
             job = load(self.library.directory, self._chatgpt_request['folder'], verify_source=False)
         except (ValueError, OSError, KeyError) as exc:
@@ -995,7 +992,8 @@ class Bridge(QObject):
                     inspection = inspect_returned_deck(self.library.directory / "sources" / source["file"],
                                                        Path(folder) / config["source_file"] if config.get("conversion_format") else None,
                                                        config.get("conversion_format", ""), config.get("style", "source"))
-            from .slide_quality import quality_messages, render_quality
+            from .office_tasks import render_quality
+            from .slide_quality import quality_messages
 
             with measured(progress, "local.render"):
                 render_quality(self.library.directory / "sources" / source["file"], self.library.directory,
@@ -1106,6 +1104,9 @@ class Bridge(QObject):
         try:
             self.stopSpeech()
             self._lesson = self.library.select_narration_variant(self._lesson['id'], identity)
+            mode = self._lesson.get('narration', {}).get('mode')
+            if mode in {'vi', 'en', 'both'}:
+                self._narration_preferences.select(mode)
             self.narrationChanged.emit()
             self.selectionChanged.emit()
             self._catalog.refresh()
@@ -1140,6 +1141,27 @@ class Bridge(QObject):
 
     @Slot(str, str, int)
     def createLessonNarrationWithVoice(self, mode, voice, rate):
+        self._create_narration(mode, voice, rate)
+
+    @Slot(str, int, str, str, int, bool)
+    def confirmExistingNarration(self, lesson_id, revision, mode, voice, rate, regenerate):
+        request = getattr(self, '_narration_confirmation', None)
+        if request != (lesson_id, revision, mode, voice, rate) or (
+                self._lesson.get('id'), self._lesson.get('revision')) != (lesson_id, revision):
+            self.inform('Bài hoặc cấu hình đã thay đổi. Bấm Tạo giọng đọc để kiểm tra lại.', True, refresh=False)
+            return
+        self._narration_confirmation = None
+        if regenerate:
+            self._create_narration(mode, voice, rate, regenerate=True)
+        else:
+            from .lesson_narration import make_plan, variant_id
+
+            plan, _ = make_plan(self._lesson, mode, {'voice': voice, 'rate': rate},
+                                playback='both_controls' if mode == 'both' else 'separate')
+            self.selectNarrationVariant(variant_id(plan))
+            self.inform('Đã chọn bản giọng có sẵn để tải hoặc dạy.', refresh=False)
+
+    def _create_narration(self, mode, voice, rate, *, regenerate=False):
         from .lesson_narration import audio_status, inspection_for, make_plan, records
 
         if self._busy or not self._lesson or self.narrationBusy or self.powerpoint_worker is not None:
@@ -1156,18 +1178,21 @@ class Bridge(QObject):
             plan, selected = make_plan(self._lesson, mode, voices, playback='both_controls' if mode == 'both' else 'separate')
             if not plan["total"]:
                 raise ValueError("Chưa có nội dung đọc phù hợp cho ngôn ngữ đã chọn.")
+            self._narration_preferences.select(mode)
             identity = variant_id(plan)
             existing = records(self._lesson).get(identity)
-            if existing and audio_status({**self._lesson, 'narration': existing}, self.library.directory).get('ready'):
-                if identity != self.selectedNarrationVariant:
-                    self.selectNarrationVariant(identity)
-                self.inform('Bản giọng này đã sẵn sàng. Chọn Chuẩn bị dạy hoặc Tải PowerPoint.', refresh=False)
+            if not regenerate and existing and audio_status({**self._lesson, 'narration': existing}, self.library.directory).get('ready'):
+                self._narration_confirmation = (self._lesson['id'], self._lesson['revision'], mode, voice, rate)
+                self.narrationAlreadyCreated.emit(dict(lesson_id=self._lesson['id'], revision=self._lesson['revision'],
+                    mode=mode, voice=voice, rate=rate, title=next((v.get('name', voice) for v in self._voices if v['id'] == voice), voice)))
+                self.inform('Cấu hình giọng này đã sẵn sàng. Chọn dùng bản có sẵn hoặc xác nhận tạo lại.', refresh=False)
                 return
             self.stopSpeech()
             self._lesson = self.library.update_narration(self._lesson["id"], plan)
             folder = self.library.directory / "temp" / "narration" / variant_id(plan)
             folder.mkdir(parents=True, exist_ok=True)
-            self.narration_preparation.start(self._lesson["id"], inspection_for(self._lesson), selected, folder, plan)
+            self.narration_preparation.start(self._lesson["id"], inspection_for(self._lesson), selected, folder, plan,
+                                             regenerate=regenerate)
             self.inform("Đang tạo giọng đọc trên máy. PowerPoint đã được lưu."
                         if self.narrationPreparation.get("running") else self.narrationPreparation.get("message", "Giọng đọc sẵn sàng."))
         except (ValueError, OSError) as exc:
@@ -2255,7 +2280,7 @@ class Bridge(QObject):
 
     def _refresh_slide_speech(self, read_after=False):
         from .chatgpt_handoff import inspect_returned_deck
-        from .slide_quality import render_quality
+        from .office_tasks import render_quality
 
         if self._busy or not self._lesson:
             return
@@ -2314,6 +2339,14 @@ class Bridge(QObject):
         from .lesson_review import summarize
 
         return summarize(self._lesson)
+
+    @Property('QVariantMap', notify=workflowChanged)
+    def workflowState(self):
+        from .lesson_state import summarize_state
+
+        row = next((r for r in self._catalog.rows() if r['id'] == self._lesson.get('id')
+                    and r.get('updated_at') == self._lesson.get('updated_at')), {})
+        return summarize_state(self._lesson, row.get('narration', {'status': 'checking'}))
 
     @Slot()
     def repairConvertedLesson(self):
@@ -3147,6 +3180,9 @@ class Bridge(QObject):
     @Slot()
     @Slot(str)
     def backupLibrary(self, url=""):
+        if not self.storage.available():
+            self.inform('Hoàn tất tác vụ hiện tại trước khi sao lưu.', True, refresh=False)
+            return
         destination = QUrl(url).toLocalFile() if url else None
         if url:
             target = Path(destination).resolve()
@@ -3154,8 +3190,11 @@ class Bridge(QObject):
                 self.inform('Lưu bản sao .bcbackup ở ngoài thư viện đang dùng.', True)
                 return
             self.rememberExportDirectory(url)
-        self.launch(lambda: backup_library(self.library.directory, destination),
-                    lambda path: self.inform("Đã sao lưu thư viện: " + str(path)))
+        self.storage.begin_backup()
+        def completed(path):
+            self.storage.finish_backup(path)
+            self.inform("Đã sao lưu thư viện: " + str(path), refresh=False)
+        self.launch(lambda: self.storage.backup(destination), completed)
 
     @Slot(str)
     def restoreLibrary(self, file_url):
@@ -3167,9 +3206,34 @@ class Bridge(QObject):
                         "Đã khôi phục vào " + str(output) + ". Chọn thư mục này qua nút Mở thư viện."
                     ))
 
+    @Slot(str, str)
+    def restoreLibraryTo(self, file_url, folder_url):
+        from datetime import datetime
+
+        if not self.storage.available():
+            self.inform('Hoàn tất tác vụ hiện tại trước khi khôi phục.', True, refresh=False)
+            return
+        parent = Path(QUrl(folder_url).toLocalFile())
+        if not parent.is_dir():
+            self.inform('Chọn thư mục có thật để lưu thư viện khôi phục.', True, refresh=False)
+            return
+        destination = parent / ('BiliClass-Restored-' + datetime.now().strftime('%Y%m%d-%H%M%S-%f'))
+        self.launch(lambda: restore_backup(QUrl(file_url).toLocalFile(), destination),
+                    lambda output: self.inform('Đã khôi phục vào ' + str(output) +
+                                              '. Chọn Mở thư viện khác để dùng bản này.', refresh=False))
+
     @Slot(str)
     def openLibrary(self, folder_url):
         self.storage.openExisting(folder_url)
+
+    @Slot(str)
+    def exportSupportReport(self, url):
+        from .support_report import create_report
+
+        destination = QUrl(url).toLocalFile()
+        if destination:
+            self.launch(lambda: create_report(self.library.directory, destination),
+                        lambda path: self.inform('Đã lưu chẩn đoán kỹ thuật: ' + str(path), refresh=False))
 
     @Slot(str)
     def exportPowerPoint(self, url):
@@ -3273,149 +3337,6 @@ class Bridge(QObject):
 
 
 def run(args):
-    from .branding import configure_application
+    from .desktop import run as run_desktop
 
-    app = QGuiApplication([])
-    configure_application(app)
-    QQuickStyle.setStyle("Basic")
-    for font in (RESOURCE_ROOT / "assets").glob("*.ttf"):
-        QFontDatabase.addApplicationFont(str(font))
-    app.setFont(QFont("Be Vietnam Pro", 10))
-    from .library_location import verify_transfer_start
-
-    try:
-        directory = user_data()
-        verify_transfer_start(directory)
-    except Exception as exc:
-        if os.name == 'nt' and not args.smoke:
-            import ctypes
-
-            ctypes.windll.user32.MessageBoxW(None, str(exc), 'BiliClass · Nơi lưu thư viện', 0x10)
-        return 1
-    library = Library(directory)
-    if args.seed_demo and not library.list_lessons():
-        lesson = library.create(
-            "Thảo luận và lập luận",
-            "Liên môn",
-            "THPT",
-            "10",
-            [
-                ("Hoạt động mở đầu", "Hãy thảo luận theo nhóm và trình bày ý kiến của em."),
-                ("Gợi ý thảo luận", "Em có thể đưa ra một ví dụ để giải thích ý kiến này không?"),
-                ("Tổng kết", "So sánh các cách giải thích và nêu lý do cho lựa chọn của em."),
-            ],
-        )
-        library.edit_segment(
-            lesson["id"],
-            lesson["segments"][0]["id"],
-            lesson["segments"][0]["vi"],
-            "Discuss in groups and share your ideas.",
-            True,
-        )
-        library.save_term("Liên môn", "lập luận", "reasoning")
-    bridge = Bridge(library)
-    engine = QQmlApplicationEngine()
-    engine.rootContext().setContextProperty("bridge", bridge)
-    warnings = []
-    engine.warnings.connect(lambda values: warnings.extend(str(v) for v in values))
-    engine.load(QUrl.fromLocalFile(str(RESOURCE_ROOT / "qml" / "Main.qml")))
-    if not engine.rootObjects():
-        print("\n".join(warnings))
-        library.close()
-        return 1
-    window = engine.rootObjects()[0]
-    width, height = (int(n) for n in args.size.split("x"))
-    window.resize(width, height)
-    lesson_id = getattr(args, "lesson_id", None)
-    if lesson_id:
-        bridge.openLesson(lesson_id)
-    elif args.page in {"editor", "result"} and library.list_lessons():
-        bridge.openLesson(library.list_lessons()[0]["id"])
-    window.setProperty("page", "result" if lesson_id and args.page == "home" else
-                       "settings" if args.page == "browser-ai" else args.page)
-    if args.page == "browser-ai":
-        window.findChild(QObject, "settingsPage").setProperty("activeTab", 6)
-
-    def capture():
-        path = Path(args.screenshot or user_data() / "screenshot.png")
-        path.parent.mkdir(parents=True, exist_ok=True)
-        saved = QQuickWindow.grabWindow(window).save(str(path))
-        path.with_suffix(".json").write_text(
-            json.dumps(
-                {
-                    "screenshot": str(path),
-                    "saved": saved,
-                    "warnings": warnings,
-                    "size": [width, height],
-                    "page": args.page,
-                },
-                ensure_ascii=False,
-                indent=2,
-            ),
-            encoding="utf-8",
-        )
-        app.exit(0 if saved and not warnings else 1)
-
-    if args.smoke:
-        QTimer.singleShot(2000, capture)
-    bridge._automatic_backup = backup_job = Job(lambda: backup_library(library.directory, daily=True), bridge)
-    backup_job.completed.connect(lambda path, error: bridge.logger.warning("Automatic backup failed") if error else bridge.logger.info("Automatic backup finished"))
-    if not args.smoke:
-        QTimer.singleShot(1000, lambda: backup_job.start() if not bridge.storage.moving else None)
-        QTimer.singleShot(4000, lambda: bridge.checkForUpdates(True))
-    from .library_location import cleanup_previous
-
-    bridge._storage_cleanup = cleanup_job = Job(lambda: cleanup_previous(library.directory), bridge)
-    cleanup_job.completed.connect(lambda count, error: bridge.inform(
-        'Đã mở thư viện mới; một số tệp cũ chưa dọn được: ' + error, True) if error else None)
-    if not args.smoke:
-        QTimer.singleShot(1500, cleanup_job.start)
-    result = app.exec()
-    if cleanup_job.isRunning():
-        cleanup_job.wait()
-    bridge.browserAI.shutdown()
-    if backup_job.isRunning():
-        backup_job.wait()
-    if bridge.update_worker and bridge.update_worker.isRunning():
-        bridge._update_cancel.set()
-        bridge.update_worker.wait()
-    bridge.classroom.shutdown()
-    bridge.voice_controls.shutdown()
-    if bridge.powerpoint_worker:
-        bridge.stopPowerPoint()
-        bridge.powerpoint_worker.wait()  # Helper supervisor has its own bounded shutdown.
-    bridge.teaching_session.clear()
-    if bridge.worker:
-        bridge.worker.wait()  # closing is disabled while jobs run; also safe on OS shutdown
-    bridge.english_reader.shutdown()
-    bridge._catalog.shutdown()
-    bridge.narration_preparation.shutdown()
-    bridge.slidePreview.shutdown()
-    bridge.libraryThumbnails.shutdown()
-    speech.stop()
-    # QML bindings may still read the library while their objects are destroyed.
-    engine.deleteLater()
-    QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
-    bridge.library.close()
-    del engine
-    if bridge.storage.next_directory:
-        from PySide6.QtCore import QProcess, QProcessEnvironment
-
-        from .library_location import finalize_transfer, select_directory
-
-        try:
-            destination = (finalize_transfer(bridge.storage.transfer_record) if bridge.storage.transfer_record
-                           else Path(bridge.storage.next_directory))
-            select_directory(destination)
-            process = QProcess()
-            environment = QProcessEnvironment.systemEnvironment()
-            environment.insert('BILICLASS_DATA', str(destination))
-            process.setProcessEnvironment(environment)
-            process.setProgram(sys.executable)
-            process.setArguments(([] if getattr(sys, 'frozen', False) else ['-m', 'app']) + ['--page', 'settings'])
-            if not process.startDetached()[0]:
-                raise ValueError('Chưa mở lại được ứng dụng. Mở BiliClass để tiếp tục với thư viện mới.')
-        except Exception as exc:
-            (library.directory / 'transfer-error.txt').write_text(str(exc), encoding='utf-8')
-            return 1
-    return result
+    return run_desktop(args)

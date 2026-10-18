@@ -60,6 +60,13 @@ def main():
             window.resize(1366, 850)
             window.setProperty('page', 'voice')
             pump(150)
+            assert window.property('narrationMode') == 'en'
+            assert c('narrationEnglish').property('checked')
+            assert c('narrationBoth').property('text') == 'Việt + Anh'
+            click(window, c('narrationVietnamese'))
+            until(lambda: library.setting('narration_last_mode', '') == 'vi')
+            click(window, c('narrationBoth'))
+            until(lambda: library.setting('narration_last_mode', '') == 'both')
             icon = c('narrationNavigationIcon')
             assert icon.width() == icon.height() == 29
 
@@ -138,6 +145,8 @@ def main():
             with patch('app.speech.narration_workers', return_value=1), patch('app.speech.synthesize_background', side_effect=slow):
                 click(window, c('createLessonNarrationButton'))
                 until(started.is_set)
+                assert c('cancelLessonNarrationButton').property('danger')
+                assert c('cancelLessonNarrationButton').property('symbol') == '■'
                 assert bridge.narrationBusy
                 assert not c('changeVoiceSource').isEnabled() and not c('downloadPresentationButton').isEnabled()
                 previous = bridge.lesson['id']
@@ -146,13 +155,24 @@ def main():
                 click(window, c('cancelLessonNarrationButton'))
                 until(lambda: not bridge.narrationBusy)
             assert bridge.lessonNarration['complete'] == 1 and not bridge.lessonNarration['ready']
-            assert c('createLessonNarrationButton').property('text') == 'Tiếp tục tạo giọng'
+            assert c('createLessonNarrationButton').property('text') == 'Tạo giọng đọc'
 
             with patch('app.speech.narration_workers', return_value=1), patch('app.speech.synthesize_background', side_effect=render):
                 click(window, c('createLessonNarrationButton'))
                 until(lambda: not bridge.narrationBusy and bridge.lessonNarration.get('ready'))
             assert bridge.narrationPreparation['cached'] == 1
-            assert not c('createLessonNarrationButton').isEnabled()
+            assert c('createLessonNarrationButton').isEnabled()
+            assert not window.findChild(type(c('createLessonNarrationButton')), 'voiceNarrationVariantChoice')
+            assert 'hai ngôn ngữ' in c('narrationConfigurationExplanation').property('text')
+            click(window, c('createLessonNarrationButton'))
+            assert c('existingNarrationDialog').property('visible') and not bridge.narrationBusy
+            click(window, c('useExistingNarration'))
+            assert not c('existingNarrationDialog').property('visible') and not bridge.narrationBusy
+            with patch('app.speech.narration_workers', return_value=1), patch('app.speech.synthesize_background', side_effect=render):
+                click(window, c('createLessonNarrationButton'))
+                click(window, c('regenerateExistingNarration'))
+                until(lambda: not bridge.narrationBusy and bridge.lessonNarration.get('ready'))
+                assert bridge.narrationPreparation['cached'] == 0
             assert c('downloadNarrationAudioButton').isVisible()
             assert not c('voiceDownloadWithoutNarration').isVisible()
             assert not c('voiceTeachWithoutNarration').isVisible()
@@ -171,7 +191,13 @@ def main():
                 c('resultScroll').property('contentItem').setProperty('contentY', 0)
                 pump(150)
                 action = c('downloadAfterNarrationButton')
-                bottom = action.mapToScene(QPointF(0, action.height())).y()
+                viewport = c('resultScroll').property('contentItem')
+                overflow = action.mapToScene(QPointF(0, action.height())).y() - c('creationFooter').y() + 16
+                if overflow > 0:
+                    viewport.setProperty('contentY', overflow)
+                    pump(100)
+                create = c('createLessonNarrationButton')
+                bottom = create.mapToScene(QPointF(0, create.height())).y()
                 assert bottom <= window.height() - 30, (width, height, bottom)
                 assert window.grabWindow().save(str(out / f'ready-{width}.png'))
             window.setProperty('includeDownloadVoice', False)
@@ -211,21 +237,50 @@ def main():
             assert window.property('narrationMode') == 'vi'
             assert window.property('narrationVoice') == selected_voice and window.property('narrationRate') == 1
             assert not c('narrationBoth').isEnabled()
-            assert c('lessonNarrationState').property('text') == 'Chưa tạo'
-            assert 'Chưa có lời đọc' in c('narrationEnglish').property('text')
+            assert not c('lessonNarrationState').isVisible()
+            assert c('narrationEnglish').property('text') == 'Tiếng Anh'
             saved_id = bridge.lesson['id']
             with patch('app.speech.narration_workers', return_value=1), patch('app.speech.synthesize_background', side_effect=slow):
                 started.clear()
                 click(window, c('createLessonNarrationButton'))
                 until(started.is_set)
+                assert c('dismissVoiceLesson').property('danger')
+                assert c('dismissVoiceLesson').property('symbol') == '×'
+                window.setProperty('page', 'new')
+                pump(100)
+                assert c('creationSourceArea').property('workingTitle') == 'Đang tạo giọng đọc'
+                assert c('chooseInputDocumentButton').property('text') == 'Xem tiến độ tạo giọng'
+                assert not c('createLessonButton').isEnabled()
+                assert not c('resumeCreationTask').isVisible()
+                assert c('conversionConfigurationSummary').isVisible()
+                c('lessonTitle').setProperty('text', 'Bài mới trong khi tạo giọng')
+                c('lessonSubject').setProperty('currentIndex', bridge.conversionSubjects.index('Tin học'))
+                window.setProperty('selectedFile', mono.as_uri())
+                window.setProperty('selectedFileName', mono.name)
+                pump(30)
+                preview = window.property('creationPrompt')
+                assert (preview.toVariant() if hasattr(preview, 'toVariant') else preview)['ready']
+                assert not c('createLessonButton').isEnabled()
+                bridge.convertDocument('Bài mới', 'Tin học', 'THPT', '11', '', mono.as_uri(),
+                                       'parallel_columns', 'standard', 'source')
+                assert bridge.narrationBusy and bridge.lesson['id'] == saved_id
+                assert 'Chờ tạo giọng' in bridge.message
+                assert 'Giữ thiết kế gốc' in c('conversionConfigurationTitle').property('text')
+                c('creationFormat').setProperty('currentIndex', 1)
+                pump(30)
+                assert 'tiếng Anh' in c('conversionConfigurationExplanation').property('text')
+                click(window, c('chooseInputDocumentButton'))
+                assert window.property('page') == 'voice'
+                assert bridge.narrationBusy
                 click(window, c('dismissVoiceLesson'))
                 until(lambda: not bridge.narrationBusy and not bridge.quickResult.get('path'))
             assert library.get(saved_id)['narration_variants'], 'Cancel selection retains voice progress'
             assert window.property('page') == 'voice'
             assert not c('dismissVoiceLesson').isVisible()
             assert c('voiceSourceArea').isVisible()
-            for name in ('narrationEnglish', 'narrationVietnamese', 'narrationBoth'):
-                assert 'Chưa chọn bài' in c(name).property('text')
+            for name, label in (('narrationEnglish', 'Tiếng Anh'), ('narrationVietnamese', 'Tiếng Việt'),
+                                ('narrationBoth', 'Việt + Anh')):
+                assert c(name).property('text') == label
             bridge.narrationWorkspace.selectLibrary(saved_id)
             until(lambda: not bridge.busy and bool(bridge.quickResult.get('path')))
             converted = library.get(saved_id)
@@ -251,7 +306,7 @@ def main():
                                  'voice/rate/three modes visible and selectable before file at two sizes', 'configuration survives file/library choices and mono-language adjustment',
                                  'blank/image slide script editing without source changes', 'dirty script blocks slide switch',
                                  'language availability', 'cancel and resume reuse cached WAV', 'busy source/download guards',
-                                 'ready duplicate lock', 'ZIP WAV and embedded PowerPoint export',
+                                 'duplicate configuration offers reuse or explicit regeneration', 'ZIP WAV and embedded PowerPoint export',
                                  'regular library lesson prepares matching preview', 'no auto review or playback'],
                       'new_checks': ['consistent unselected and missing-language status', 'cancel selected lesson while idle or synthesizing preserves library and WAVs', 'edit converted lesson narration directly without changing slide text'],
                       'scope': 'Real Qt and PowerPoint export; synthesized audio uses WAV fixtures'}
