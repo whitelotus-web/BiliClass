@@ -926,14 +926,14 @@ ApplicationWindow {
                 Rectangle {
                     id: creationFooter; objectName: "creationFooter"
                     visible: root.page === "new" || root.page === "voice" || root.page === "result"; anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-                    height: root.compactCreation ? 72 : 85; color: "#f3f7fc"
+                    height: root.page === "new" ? 60 : root.compactCreation ? 72 : 85; color: "#f3f7fc"
                     Rectangle { anchors.top: parent.top; height: 1; width: parent.width; color: root.line }
                     RowLayout {
                         anchors.fill: parent; anchors.leftMargin: 28; anchors.rightMargin: 28; spacing: 16
                         ColumnLayout {
                             Layout.fillWidth: true; spacing: 3
-                            Copy { text: root.page !== "new" ? "Chọn cấu hình → kiểm tra lời đọc → tạo giọng đọc" : bridge.narrationBusy ? "Đang tạo giọng đọc · Chờ hoàn tất hoặc dừng trước khi chuyển đổi bài mới." : "Nhận bài giảng song ngữ trước · tạo giọng đọc sau nếu cần."; Layout.fillWidth: true; font.pixelSize: 12 }
-                            RowLayout { visible: root.page === "new"; Layout.fillWidth: true; spacing: 6
+                            Copy { visible: root.page !== "new" || bridge.narrationBusy; text: root.page === "new" ? "Đang tạo giọng đọc · Chờ hoàn tất hoặc dừng trước khi chuyển đổi bài mới." : "Chọn cấu hình → kiểm tra lời đọc → tạo giọng đọc"; Layout.fillWidth: true; font.pixelSize: 12 }
+                            RowLayout { visible: root.page === "new" && !!bridge.chatgptRequest.folder && !bridge.narrationBusy; Layout.fillWidth: true; spacing: 6
                                 Action { objectName: "resumeCreationTask"; text: "Tiếp tục bài đang chuẩn bị"; visible: !!bridge.chatgptRequest.folder && !bridge.narrationBusy; subtle: true; implicitHeight: 28; font.pixelSize: 11; onClicked: root.go("chatgpt") }
                             }
                         }

@@ -1,5 +1,10 @@
 # Trạng thái BiliClass
 
+Sau RC77 — mã nguồn đã bỏ dòng hướng dẫn lặp ở chân trang Chuyển đổi,
+thu footer còn 60 px. Giữ cảnh báo khi đang tạo giọng và nút tiếp tục
+công việc chưa xong. Qt layout ở 4 kích thước và responsiveness đạt,
+không cảnh báo QML. Chưa đóng gói lại; thay đổi chờ bản cập nhật kế tiếp.
+
 Ngày 18/10/2026 — RC77 thêm vị trí loa cố định trên toàn bài, mặc định
 Phải dưới; đổi vị trí dùng lại WAV. PPTX xuất mới có nút ảnh nền trong,
 interactive sequence cho đọc/tạm dừng/đọc tiếp/đổi ngôn ngữ, tách khỏi
