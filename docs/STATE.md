@@ -15,6 +15,11 @@ Bảng Mascot ưu tiên nút điều khiển chuột; bánh răng vào tab Masco
 trợ giúp phím nhỏ, ba cỡ bảng và nền trong 0–70% không giảm opacity
 chữ/nút. Không còn nhãn môn dưới nhân vật nổi hay bộ Dừng/Tạm dừng/
 Đọc lại riêng; loa đổi trạng thái cùng native player và dùng lại WAV.
+Đã phát hành [RC80](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc80),
+cài và mở EXE chính. Nguồn `694c653`, CI đạt; ZIP/checksum trên GitHub
+đã xác minh. Cài/gỡ cô lập, VieNeu Việt/Anh, lớp học, backup, Windows
+Properties và GUI Settings EXE 30 môn đạt. Chi tiết và giới hạn kiểm
+thử tại BUILD_RC80; giữ nguyên dữ liệu trừ bản căn khung đã kiểm chứng.
 
 Ngày 19/10/2026 — RC79 gộp toàn bộ RC78, bỏ bộ chọn tự theo bài/môn cố
 định và ô môn phụ kiện trong Mascot. Tự dùng môn thực tế của bài đang

@@ -74,7 +74,25 @@ Một bài thật 51 slide đã được nhận bản căn khung công thức đ
 
 Nhóm Browser
 AI/Translation giữ kết quả RC78 (104/14, một fixture điều hướng phải
-chạy lại); không tính là lượt mới cho RC80. Commit/gói/cài đặt được bổ
-sung sau kiểm chứng. RC78/RC79
+chạy lại); không tính là lượt mới cho RC80. RC78/RC79
 được tạo như các mốc nội bộ trong khi nhận thêm góp ý, không phát hành
 riêng. Giới hạn field test/chuột loa độc lập vẫn như BUILD_RC77.
+
+## Gói đã phát hành
+
+- Nguồn: `694c653a1d638682f6b12e562b4f235ac6357a03`, phiên bản `1.0.0rc80`.
+- [GitHub RC80](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc80).
+- SHA-256 ZIP: `95ca6a036af14bd5da5eb94e8587feb7b1ad714a2ae85a370df8adb1d0af711a`.
+- ZIP 871.211.666 byte, 4.214 mục; kiểm toàn bộ checksum và digest tài sản
+  trên GitHub đạt. Không gồm thư viện/key cá nhân.
+- Build đúng một lần từ runtime RC79 đã kiểm checksum; toàn bộ mã ứng dụng
+  dựng lại từ nguồn RC80. Không tái dùng mã `app.*` của bản nền.
+- Cài/gỡ cô lập trong đường dẫn Unicode đạt: Properties, hai trang Qt,
+  mẫu, VieNeu Việt/Anh thật, lớp học, backup và giữ dữ liệu sau gỡ.
+- Cài chính tại `F:/Applications/BiliClass/1.0.0rc80`; GUI Settings EXE
+  với 30 môn/phụ kiện đạt, không cảnh báo QML hay đường dẫn phát triển.
+  Đã mở bản chính tại trang Thư viện và kiểm tiến trình còn phản hồi.
+- [CI nguồn](https://github.com/whitelotus-web/BiliClass/actions/runs/39153989495)
+  đạt. Dữ liệu/WAV/key đối chiếu sau cài và mở khớp, ngoài đúng bản căn
+  khung đã nhận ở trên. Các PPTX đã tải trước đó cần tải lại để nhận các
+  thay đổi nút loa; không tự sửa file bên ngoài thư viện.
