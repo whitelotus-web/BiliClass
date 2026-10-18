@@ -27,7 +27,7 @@ ApplicationWindow {
     property bool loadingFields: false
     property var pendingAction: null
     property bool voiceSourceExpanded: false
-    readonly property bool compactCreation: height < 980 || !creationKeepSource || subjectInput.currentText === "Khác"
+    readonly property bool compactCreation: height < 980
     readonly property bool tightCreation: height < 800
     readonly property bool compactVoice: page === "voice" && !!bridge.quickResult.path && height < 850
     property bool voicePreviewExpanded: false

@@ -51,9 +51,8 @@ def main():
             assert button.mapToScene(QPointF(0, 0)).x() > icon.mapToScene(QPointF(icon.width(), 0)).x()
             entry['requires_scroll'] = entry['content'] > entry['viewport'] + 1
             if entry['requires_scroll']:
-                assert entry['height'] < 980, entry
                 # The restored panel retains its original size. Extra fields
-                # must remain reachable when a short window needs scrolling.
+                # remain reachable by scrolling, without restyling other choices.
                 flick = scroll.property('contentItem')
                 flick.setProperty('contentY', entry['content'] - entry['viewport'])
                 pump(80)
@@ -65,6 +64,30 @@ def main():
             summary = c('conversionConfigurationSummary')
             assert summary.isVisible()
             assert summary.mapToScene(QPointF(0, summary.height())).y() <= viewport_bottom + 1, entry
+
+        def choice_geometry():
+            # Switching design/subject may add fields below the cards, but must
+            # not change card sizing, outer margins or the preview's placement.
+            window.grabWindow()
+            pump(30)
+            names = ['formatChoice_' + row['id'] for row in bridge.conversionFormats]
+            names += ['creationKeepOriginal', 'creationUseTemplate']
+            dimensions = []
+            previews = []
+            for name in names:
+                card = c(name + 'Card')
+                dimensions.extend((card.width(), card.height()))
+                if name.startswith('formatChoice_'):
+                    preview = c(name + 'Preview')
+                    local = preview.mapToItem(card, QPointF())
+                    dimensions.extend((local.x(), local.y(), preview.width(), preview.height()))
+                    previews.append(preview.property('text'))
+            return dimensions, previews
+
+        def verify_same_choices(expected):
+            actual = choice_geometry()
+            assert actual[1] == expected[1], (expected, actual)
+            assert all(abs(a - b) <= 1 for a, b in zip(actual[0], expected[0], strict=True)), (expected, actual)
         try:
             window.setProperty("page", "new")
             path = temp / "Bài giảng PowerPoint có tên dài để kiểm tra bố cục.pptx"
@@ -87,13 +110,18 @@ def main():
                         )
                     else:
                         QMetaObject.invokeMethod(window, "removeInputDocument", Qt.DirectConnection)
-                    for template in (False, True):
+                    geometry = None
+                    for template in (False, True, False):
                         click(window, c("creationUseTemplate" if template else "creationKeepOriginal"))
                         pump(130)
                         scroll = c("creationScroll")
                         flick = scroll.property("contentItem")
                         flick.setProperty("contentY", 0)
                         pump(50)
+                        if geometry is None:
+                            geometry = choice_geometry()
+                        else:
+                            verify_same_choices(geometry)
                         entry = {
                             "width": width,
                             "height": height,
@@ -117,6 +145,7 @@ def main():
                         custom = {**entry, 'other_subject': True,
                                   'content': scroll.property('contentHeight'), 'viewport': scroll.property('availableHeight')}
                         verify_layout(custom, scroll)
+                        verify_same_choices(geometry)
                         measurements.append(custom)
                         c('lessonSubject').setProperty('currentIndex', bridge.conversionSubjects.index('Tin học'))
                         pump(50)

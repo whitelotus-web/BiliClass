@@ -4,6 +4,12 @@ Sau RC77 — mã nguồn đã bỏ dòng hướng dẫn lặp ở chân trang Ch
 thu footer còn 60 px. Giữ cảnh báo khi đang tạo giọng và nút tiếp tục
 công việc chưa xong. Qt layout ở 4 kích thước và responsiveness đạt,
 không cảnh báo QML. Chưa đóng gói lại; thay đổi chờ bản cập nhật kế tiếp.
+Đã sửa thêm bố cục tự thu gọn khi đổi sang mẫu mới hoặc chọn môn Khác:
+chế độ thu gọn chỉ phụ thuộc kích thước cửa sổ. Thẻ lựa chọn và nút xem
+mẫu giữ kích thước/vị trí tương ứng khi đổi thiết kế; trường bổ sung dùng
+cuộn nếu thiếu chỗ. Smoke Qt Windows mặc định kiểm đổi qua lại ở 4 cỡ,
+có/không file và môn Khác đạt; smoke lưu cấu hình cũng đạt, không warning
+QML. Gộp cùng thay đổi chân trang trong bản đóng gói kế tiếp.
 
 Ngày 18/10/2026 — RC77 thêm vị trí loa cố định trên toàn bài, mặc định
 Phải dưới; đổi vị trí dùng lại WAV. PPTX xuất mới có nút ảnh nền trong,

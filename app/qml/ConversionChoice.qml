@@ -11,6 +11,7 @@ Rectangle {
     property bool compact: false
     property bool tight: false
     property string choiceName: ""
+    objectName: choiceName + "Card"
     property var choiceGroup: null
     signal chosen()
     signal previewRequested()
