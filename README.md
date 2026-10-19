@@ -2,7 +2,20 @@
 
 Ứng dụng Windows chuyển tài liệu của giáo viên thành bài giảng Anh–Việt, rồi trình chiếu bằng PowerPoint với giọng đọc và mascot trợ giảng. Hỗ trợ cấu hình từ lớp 1 đến lớp 12 và môn tự nhập.
 
-## Luồng hiện tại — RC83
+## Luồng hiện tại — RC101
+
+RC101 thu gọn giao diện bản nộp: chuyển đổi PowerPoint, thư viện, giọng Việt–Mỹ
+và Mascot điều khiển trình chiếu. Lớp học, kết quả và các công cụ trợ giảng thử
+nghiệm được ẩn trong bản đóng gói, kể cả Cài đặt; mã và dữ liệu vẫn giữ để phát
+triển sau. [Phạm vi RC101](docs/BUILD_RC101.md) · [Hướng dẫn hiện tại](docs/USER_GUIDE.md).
+
+RC100 làm gọn thư viện, cố định tìm kiếm/tác vụ, kéo/Shift chọn nhiều bài,
+xem trước sau chuyển đổi và tải theo tên bài. Cặp giọng gần nhất được nhớ;
+nghe thử và tạo dùng đúng giọng Việt/Mỹ theo ngôn ngữ. Cài đặt dữ liệu có ba
+tác vụ chính; chuột phải Mascot có bánh răng và mắt gạch chéo.
+[Kiểm chứng RC100](docs/BUILD_RC100.md).
+
+### Các mốc trình chiếu trước
 
 RC83 trả bàn phím về PowerPoint đang gắn khi bấm Mascot/điều khiển. Nút Trước/Sau chuyển ngay slide, bộ đếm theo Office; phím ←/→ vẫn chạy từng hiệu ứng. Chỉ hiện nút đọc theo giọng trên slide. Rê dấu ? xem bảng phím với Space ␣, Enter ↵ và Ctrl + Space ␣. Lệnh chuyển slide đi thẳng tới helper; trạng thái Office không làm mới toàn giao diện, lưu Mascot chạy nền. [Kiểm chứng RC83](docs/BUILD_RC83.md).
 
@@ -14,13 +27,13 @@ Mascot mặc định phải dưới, kéo để di chuyển. Nhỏ/Vừa/Lớn �
 
 Loa VI/EN/VI+EN chỉ hiện theo âm thanh thực có, nhãn ghép ở góc biểu tượng. Bấm phát/tạm dừng/đọc tiếp; đổi ngôn ngữ dừng giọng trước. [Kiểm chứng kiểu loa](docs/BUILD_RC75.md). Bản dựng tại máy và bản trên GitHub Releases có vòng phát hành riêng; xem version trong ứng dụng/gói đang dùng.
 
-BiliClass dùng **Google Cloud Translation** dịch phần chữ và sắp xếp PowerPoint tại máy. Browser ChatGPT/Gemini tạm ẩn. Giọng VieNeu chạy ngoại tuyến, là bước tùy chọn sau khi đã có bài song ngữ.
+BiliClass dùng **Google Cloud Translation** dịch phần chữ và sắp xếp PowerPoint tại máy. Browser ChatGPT/Gemini tạm ẩn. Giọng Việt VieNeu và giọng Mỹ Kokoro chạy ngoại tuyến, là bước tùy chọn sau khi đã có bài song ngữ.
 
 1. Cài đặt → Google Dịch: thêm key, mỗi dòng một key, rồi lưu. Key chỉ lưu mã hóa trên máy, không đồng bộ hay tải lên GitHub.
 2. Chọn PowerPoint `.pptx` tối đa 200 MB, chọn **Song ngữ Việt–Anh** hoặc **Tiếng Anh 100%**; giữ thiết kế gốc hoặc chọn một trong các mẫu BiliClass có sẵn.
 3. Chuyển đổi và xem lại bài. Song ngữ cùng slide tự chọn cách xếp theo vùng; vùng quá kín có thể dùng trang tiếp nối song ngữ. Hình, công thức, nội dung OCR và hiệu ứng phức tạp vẫn cần đối chiếu.
 4. Tải PowerPoint ngay hoặc chọn người đọc/tốc độ để tạo giọng Anh, Việt hay Việt–Anh. Lần đầu mặc định Tiếng Anh, lần sau nhớ lựa chọn gần nhất. Tạo trùng có popup dùng lại/tạo lại. Tên tải có sẵn tên bài và ngôn ngữ/bản giọng trong ngoặc.
-5. Bấm **Mở PowerPoint** để mở/gắn Mascot dù có hoặc chưa có giọng; F5 bắt đầu trình chiếu. Khi đủ giọng, có thêm **Kiểm tra slide và giọng**, tải PPTX/audio hoặc xem trong Bài giảng. Loa đọc trọn lời đã lưu của slide khi bấm, kể cả phần xuất hiện sau. Mascot có lựa chọn đọc theo phần đang hiện. Việc mở không tự duyệt nội dung/bố cục. Muốn học sinh trả lời câu hỏi, dùng Lớp học; kết quả nằm trong **Lớp học → Kết quả lớp học**.
+5. Bấm **Mở PowerPoint** để mở/gắn Mascot dù có hoặc chưa có giọng; F5 bắt đầu trình chiếu. Khi đủ giọng, có thêm **Kiểm tra slide và giọng**, tải PPTX/audio hoặc xem trong Bài giảng. Loa đọc trọn lời đã lưu của slide khi bấm, kể cả phần xuất hiện sau. Mascot có lựa chọn đọc theo phần đang hiện. Việc mở không tự duyệt nội dung/bố cục.
 
 Thư viện có tìm/lọc, một nút biểu tượng đổi Danh sách/Thẻ lớn với trang đầu 16:9 và chọn nhiều bài để tải ZIP hoặc đưa vào thùng rác. Thuật ngữ & kiến thức dùng để tra cứu và quản lý cách dùng từ riêng. [Thay đổi thư viện và dạy học](docs/WORKFLOW_RC51.md). [Rà soát và tối ưu RC58](docs/AUDIT_RC58.md). [Trang chủ RC60](docs/HOME_RC60.md).
 

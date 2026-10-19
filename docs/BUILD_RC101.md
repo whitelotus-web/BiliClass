@@ -13,6 +13,8 @@ giọng Việt–Mỹ và Mascot từ RC100.
   trong xem trước; hướng dẫn và ví dụ Cài đặt chỉ mô tả phạm vi được giữ.
 - Không có nhãn “đang phát triển” trên giao diện bản nộp.
 - Không xóa mã, dữ liệu lớp cũ, câu hỏi, thiết lập hoặc âm thanh.
+- Rút gọn hướng dẫn đi kèm bộ cài theo giao diện RC101, bỏ chỉ dẫn tới
+  các chức năng đang ẩn và phiên bản cài lỗi thời. Bốn kiểm thử gói qua.
 
 Đây là lựa chọn phạm vi sản phẩm, không phải cơ chế bảo mật. Mã nguồn
 chạy phát triển vẫn bật các phần thử nghiệm. Khi cần phát triển lại,
