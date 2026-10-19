@@ -61,7 +61,7 @@ Dialog {
                     objectName: "templateThumbnail_" + modelData.id
                     Layout.fillWidth: true; Layout.preferredHeight: 115
                     onClicked: gallery.selectedRole = modelData.id
-                    background: Rectangle { color: "white"; radius: 6; border.width: 2; border.color: gallery.selectedRole === thumbnail.modelData.id ? "#0869f9" : "#e0e8f3" }
+                    background: Rectangle { color: gallery.selectedRole === thumbnail.modelData.id ? "#f2f7ff" : "white"; radius: 6; border.width: 1; border.color: gallery.selectedRole === thumbnail.modelData.id ? "#dce8f8" : "#e0e8f3" }
                     contentItem: ColumnLayout {
                         spacing: 3
                         Image {

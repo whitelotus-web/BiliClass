@@ -24,8 +24,9 @@ GridLayout {
             objectName: "creationPresetCard_" + modelData.id
             Layout.fillWidth: true; Layout.preferredWidth: 1
             implicitHeight: contents.implicitHeight + 20; radius: 10
-            color: "transparent"
-            border.width: 0
+            color: picker.currentIndex === card.index ? "#f2f7ff" : "transparent"
+            border.width: 1
+            border.color: picker.currentIndex === card.index ? "#dce8f8" : "transparent"
             ColumnLayout {
                 id: contents; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 10; spacing: 6
                 Image {

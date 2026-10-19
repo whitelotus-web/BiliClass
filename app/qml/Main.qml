@@ -451,8 +451,8 @@ ApplicationWindow {
         property var selectionExclusions: []
         readonly property bool selectable: root.page === "library"
         readonly property bool selected: selectable && root.selectedLessons.indexOf(lessonId) >= 0
-        border.color: selected ? root.blue : root.line
-        color: selected ? "#f6faff" : selectionArea.containsMouse ? "#fafcff" : "white"
+        border.color: selected ? "#dce8f8" : root.line
+        color: selected ? "#f2f7ff" : selectionArea.containsMouse ? "#fafcff" : "white"
         MouseArea {
             id: selectionArea; objectName: "lessonSelectionArea_" + lessonSurface.lessonId
             anchors.fill: parent; enabled: lessonSurface.selectable
@@ -1268,9 +1268,9 @@ ApplicationWindow {
                                 GridLayout { objectName: "narrationLanguagePositionRow"; Layout.fillWidth: true; columns: width >= 700 ? 2 : 1; columnSpacing: 24; rowSpacing: 8
                                 Flow { objectName: "narrationLanguageChoices"; Layout.fillWidth: true; spacing: 10
                                     ButtonGroup { id: narrationLanguages }
-                                    RadioButton { objectName: "narrationEnglish"; text: "Tiếng Anh"; ButtonGroup.group: narrationLanguages; checked: root.narrationMode === "en"; enabled: !bridge.busy && !bridge.narrationBusy && (!bridge.quickResult.path || bridge.narrationInputLanguages.en); onClicked: root.chooseNarrationMode("en") }
-                                    RadioButton { objectName: "narrationVietnamese"; text: "Tiếng Việt"; ButtonGroup.group: narrationLanguages; checked: root.narrationMode === "vi"; enabled: !bridge.busy && !bridge.narrationBusy && (!bridge.quickResult.path || bridge.narrationInputLanguages.vi); onClicked: root.chooseNarrationMode("vi") }
-                                    RadioButton { objectName: "narrationBoth"; text: "Cả Anh và Việt · 2 loa riêng"; ButtonGroup.group: narrationLanguages; checked: root.narrationMode === "both"; enabled: !bridge.busy && !bridge.narrationBusy && (!bridge.quickResult.path || bridge.narrationInputLanguages.vi && bridge.narrationInputLanguages.en); onClicked: root.chooseNarrationMode("both") }
+                                    ChoiceRadioButton { highlightSelection: true; objectName: "narrationEnglish"; text: "Tiếng Anh"; ButtonGroup.group: narrationLanguages; checked: root.narrationMode === "en"; enabled: !bridge.busy && !bridge.narrationBusy && (!bridge.quickResult.path || bridge.narrationInputLanguages.en); onClicked: root.chooseNarrationMode("en") }
+                                    ChoiceRadioButton { highlightSelection: true; objectName: "narrationVietnamese"; text: "Tiếng Việt"; ButtonGroup.group: narrationLanguages; checked: root.narrationMode === "vi"; enabled: !bridge.busy && !bridge.narrationBusy && (!bridge.quickResult.path || bridge.narrationInputLanguages.vi); onClicked: root.chooseNarrationMode("vi") }
+                                    ChoiceRadioButton { highlightSelection: true; objectName: "narrationBoth"; text: "Cả Anh và Việt · 2 loa riêng"; ButtonGroup.group: narrationLanguages; checked: root.narrationMode === "both"; enabled: !bridge.busy && !bridge.narrationBusy && (!bridge.quickResult.path || bridge.narrationInputLanguages.vi && bridge.narrationInputLanguages.en); onClicked: root.chooseNarrationMode("both") }
                                 }
                                 RowLayout { Layout.alignment: Qt.AlignRight; spacing: 10
                                     Caption { text: "Vị trí loa" }

@@ -17,8 +17,9 @@ Rectangle {
     signal previewRequested()
     implicitHeight: compact ? (tight ? 64 : 78) : showPreview ? 138 : 90
     radius: 10
-    color: "transparent"
-    border.width: 0
+    color: selected ? "#f2f7ff" : "transparent"
+    border.width: 1
+    border.color: selected ? "#dce8f8" : "transparent"
     opacity: enabled ? 1 : .5
     HoverHandler { id: cardHover }
     ToolTip.visible: card.compact && cardHover.hovered

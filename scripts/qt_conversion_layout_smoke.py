@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 import sys
 import tempfile
 from pathlib import Path
@@ -23,7 +24,7 @@ from app.ui import Bridge
 def main():
     app = QGuiApplication([])
     QQuickStyle.setStyle("Basic")
-    out = Path("reports/rc70/conversion")
+    out = Path(os.environ.get('BILICLASS_CONVERSION_REPORT', 'reports/rc96/conversion'))
     out.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="bcl-compact-conversion-", ignore_cleanup_errors=True) as temp:
         temp = Path(temp)
@@ -49,7 +50,7 @@ def main():
             button = c('chooseInputDocumentButton')
             assert icon.width() >= 139 and icon.height() >= 109
             assert button.mapToScene(QPointF(0, 0)).x() > icon.mapToScene(QPointF(icon.width(), 0)).x()
-            entry['requires_scroll'] = entry['content'] > entry['viewport'] + 1
+            entry['requires_scroll'] = entry['content'] > entry['viewport'] + .5
             if entry['requires_scroll']:
                 # The restored panel retains its original size. Extra fields
                 # remain reachable by scrolling, without restyling other choices.

@@ -52,4 +52,4 @@ RC92 đã kiểm checksum. RC93 là bản nháp trung gian khi yêu cầu đư�
 .venv/Scripts/python.exe -m scripts.build_from_runtime --baseline dist/rc92-voice-pairs --output dist/rc95-ui-voice
 ```
 
-Kết quả bản cài và phát hành được ghi sau khi xác minh.
+Bản dựng cục bộ từ commit `63d0a4e8e6e3dffcf8c0b0013e0a18d83d0e7c4e` đã xác minh ZIP, SHA256 `5e6b992c9824d35cdb9cbfd536d5ced7a2ca6a260c97b318fc4722a3e1c559e0`. Chưa công bố/cài vào thư viện cá nhân. Trong lúc dựng, người dùng bổ sung nền/viền chọn nhạt và nút chọn xanh nhỏ; mốc tích hợp tiếp theo là RC96.
