@@ -14,6 +14,7 @@ ApplicationWindow {
     color: "#f3f7fc"
     property string page: "home"
     onPageChanged: {
+        if (page === "chatgpt" && bridge.browserState.phase === "completed") bridge.restoreConversionResult()
         if (page === "glossary" || page === "knowledge") {
             referenceTab = page === "knowledge" ? 1 : 0
             page = "reference"
@@ -964,10 +965,10 @@ ApplicationWindow {
                     RowLayout {
                         anchors.fill: parent; anchors.leftMargin: 28; anchors.rightMargin: 28; spacing: 16
                         ColumnLayout {
-                            Layout.fillWidth: true; spacing: 3
+                            Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.maximumWidth: Infinity; spacing: 3
                             Copy { visible: root.page !== "new" || bridge.narrationBusy; text: root.page === "new" ? "Đang tạo giọng đọc · Chờ hoàn tất hoặc dừng trước khi chuyển đổi bài mới." : "Chọn cấu hình → kiểm tra lời đọc → tạo giọng đọc"; Layout.fillWidth: true; font.pixelSize: 12 }
                             RowLayout { visible: root.page === "new" && !!bridge.chatgptRequest.folder && !bridge.narrationBusy; Layout.fillWidth: true; spacing: 6
-                                Action { objectName: "resumeCreationTask"; text: bridge.browserState.phase === "completed" ? "Mở bài vừa chuyển đổi" : "Tiếp tục bài đang chuẩn bị"; visible: !!bridge.chatgptRequest.folder && !bridge.narrationBusy; subtle: true; implicitHeight: 28; font.pixelSize: 11; onClicked: { if (bridge.browserState.phase === "completed") bridge.openConvertedLesson(); else root.go("chatgpt") } }
+                                Action { objectName: "resumeCreationTask"; text: bridge.browserState.phase === "completed" ? "Mở bài vừa chuyển đổi" : "Tiếp tục bài đang chuẩn bị"; visible: !!bridge.chatgptRequest.folder && !bridge.narrationBusy; subtle: true; implicitHeight: 28; font.pixelSize: 11; onClicked: root.go("chatgpt") }
                             }
                         }
                         Action { objectName: "createLessonButton"; visible: root.page === "new"; text: bridge.busy ? "Đang chuẩn bị…" : "Chuyển đổi bài giảng"; primary: true; enabled: !bridge.busy && !bridge.inputDocuments.busy && !bridge.narrationBusy && !root.inputDocumentError && root.creationPrompt.ready; onClicked: bridge.convertDocument(titleInput.text, root.creationSubject, educationInput.currentText, gradeInput.currentText, pasteInput.text, root.selectedFile, root.selectedConversionFormat.id, ["standard", "visual", "practice"][creationPreset.currentIndex], root.creationKeepSource ? "source" : "template", teacherNotesInput.text) }
@@ -983,7 +984,7 @@ ApplicationWindow {
                         RowLayout { Heading { text: "Tạo bài giảng song ngữ"; font.pixelSize: 28 } Item { Layout.fillWidth: true } Action { text: "Đổi cấu hình"; subtle: true; enabled: !bridge.browserState.running; onClicked: root.go("new") } }
                         Copy { Layout.fillWidth: true; text: (bridge.chatgptRequest.config || {}).title || "Chuẩn bị tài liệu trước khi gửi"; color: root.ink; font.pixelSize: 17 }
                         Surface {
-                            visible: bridge.googleTranslation || bridge.browserAI.automatic && bridge.browserState.phase !== "manual"
+                            visible: bridge.browserState.phase !== "completed" && (bridge.googleTranslation || bridge.browserAI.automatic && bridge.browserState.phase !== "manual")
                             Layout.fillWidth: true; implicitHeight: autoBrowserSteps.height + 42
                             ColumnLayout {
                                 id: autoBrowserSteps; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 21; spacing: 14
@@ -1024,7 +1025,6 @@ ApplicationWindow {
                                 }
                                 Copy { objectName: "browserConversionLongWait"; Layout.fillWidth: true; visible: !!bridge.conversionClock.longWait && !bridge.browserState.stopping; text: "Bài đang mất nhiều thời gian hơn thường lệ. BiliClass vẫn theo dõi kết quả và sẽ báo ngay nếu cần bạn xử lý."; color: "#a66318"; font.pixelSize: 12 }
                                 RowLayout { Layout.fillWidth: true
-                                    Action { objectName: "openConvertedVoiceButton"; text: "Tiếp tục tạo giọng đọc"; primary: true; visible: bridge.browserState.phase === "completed"; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: bridge.openConvertedLesson() }
                                     Action { objectName: "browserConversionResume"; text: !bridge.googleTranslation && bridge.browserAI.webMode && bridge.browserState.needsLogin ? "Kết nối và tiếp tục" : bridge.browserState.errorCode === "submission" ? "Kiểm tra và tiếp tục" : "Tiếp tục chuyển đổi"; primary: true; visible: !bridge.browserState.running && bridge.browserState.phase !== "completed" && !!bridge.chatgptRequest.folder; enabled: !bridge.busy && (bridge.googleTranslation || !bridge.browserAI.loginBusy); onClicked: { if (!bridge.googleTranslation && bridge.browserAI.webMode && (bridge.browserState.needsLogin || bridge.browserState.errorCode === "submission")) bridge.reconnectBrowserAI(); else bridge.runBrowserAI() } }
                                     Action { id: conversionCancel; objectName: "browserConversionCancel"; danger: true; symbol: "×"; text: bridge.browserState.stopping ? "Đang hủy…" : "Hủy chuyển đổi"; visible: !!bridge.browserState.running; enabled: !bridge.browserState.stopping; onClicked: { if (bridge.googleTranslation) { cancelConversionDialog.conversionId = bridge.browserState.conversionId || ""; cancelConversionDialog.open() } else bridge.cancelJob() } }
                                     Action { objectName: "browserConversionSettings"; text: bridge.googleTranslation ? "Kiểm tra Google Dịch" : "Đăng nhập / Browser AI"; visible: !bridge.browserState.running && bridge.browserState.phase === "error" && (bridge.googleTranslation ? ["api_settings", "api_key", "api_budget", "api_quota", "api_request"].indexOf(bridge.browserState.errorCode) >= 0 : !!bridge.browserState.needsLogin); enabled: !bridge.busy; onClicked: { root.go("settings"); settingsPanel.activeTab = 6 } }
@@ -1032,7 +1032,40 @@ ApplicationWindow {
                             }
                         }
                         Surface {
-                            visible: !bridge.googleTranslation && (!bridge.browserAI.automatic || bridge.browserState.phase === "manual")
+                            objectName: "conversionCompletion"
+                            visible: bridge.browserState.phase === "completed" && !bridge.browserState.running
+                            Layout.fillWidth: true; implicitHeight: completedConversionBody.implicitHeight + 44
+                            ColumnLayout {
+                                id: completedConversionBody
+                                anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 22; spacing: 20
+                                RowLayout {
+                                    Layout.fillWidth: true; spacing: 14
+                                    Rectangle {
+                                        Layout.preferredWidth: 46; Layout.preferredHeight: 46; radius: 23; color: "#e8f6f0"
+                                        Label { anchors.centerIn: parent; text: "✓"; color: "#168567"; font.pixelSize: 26; font.bold: true }
+                                    }
+                                    ColumnLayout {
+                                        Layout.fillWidth: true; spacing: 5
+                                        Heading { text: "Đã tạo bài giảng"; font.pixelSize: 22; Layout.fillWidth: true }
+                                        Copy { objectName: "conversionCompletionSummary"; text: bridge.lesson.id === bridge.browserState.lessonId ? (bridge.quickResult.total || 0) + " slide · Đã lưu trong Bài giảng" : "Đã lưu trong Bài giảng"; Layout.fillWidth: true }
+                                    }
+                                }
+                                Copy {
+                                    objectName: "conversionCompletionNotice"; visible: bridge.lesson.id === bridge.browserState.lessonId && root.lessonLayoutFailures > 0
+                                    text: "Có " + root.lessonLayoutFailures + " slide cần xem lại bố cục trong PowerPoint."
+                                    color: "#a66318"; Layout.fillWidth: true; font.pixelSize: 12
+                                }
+                                Flow {
+                                    Layout.fillWidth: true; spacing: 10
+                                    Action { objectName: "openConvertedVoiceButton"; text: "Tạo giọng đọc"; primary: true; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: bridge.openConvertedLesson() }
+                                    Action { objectName: "downloadCompletedConversion"; text: "Tải bài giảng"; iconName: "download"; enabled: bridge.lesson.id === bridge.browserState.lessonId && !!bridge.quickResult.path && !bridge.busy && !bridge.narrationBusy; onClicked: presentationNoVoiceSave.openSuggested() }
+                                    Action { objectName: "teachCompletedConversion"; text: "Mở PowerPoint"; enabled: !!bridge.quickResult.path && !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.starting; ToolTip.visible: hovered; ToolTip.text: "Mở bài và gắn với Mascot để dạy."; onClicked: bridge.openTeachingLibraryLesson(bridge.browserState.lessonId) }
+                                    Action { objectName: "libraryAfterConversion"; text: "Về Bài giảng"; subtle: true; enabled: !bridge.busy && !bridge.narrationBusy && bridge.lesson.id === bridge.browserState.lessonId; onClicked: root.showNarratedLessonInLibrary() }
+                                }
+                            }
+                        }
+                        Surface {
+                            visible: bridge.browserState.phase !== "completed" && !bridge.googleTranslation && (!bridge.browserAI.automatic || bridge.browserState.phase === "manual")
                             Layout.fillWidth: true; implicitHeight: chatgptSteps.height + 42
                             ColumnLayout {
                                 id: chatgptSteps; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 21; spacing: 18

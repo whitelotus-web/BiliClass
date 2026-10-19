@@ -69,6 +69,11 @@ def main():
             assert local.x() + summary.width() <= container.width() - 10
             assert local.y() + summary.height() <= container.height() - 10
             assert summary.mapToScene(QPointF(0, summary.height())).y() <= viewport_bottom + 1, entry
+            footer = c('creationFooter')
+            convert = c('createLessonButton')
+            right = convert.mapToItem(footer, QPointF(convert.width(), 0)).x()
+            entry['footer_right_gap'] = footer.width() - right
+            assert abs(entry['footer_right_gap'] - 28) <= 1, entry
 
         def choice_geometry():
             # Switching design/subject may add fields below the cards, but must
@@ -116,6 +121,10 @@ def main():
                         )
                     else:
                         QMetaObject.invokeMethod(window, "removeInputDocument", Qt.DirectConnection)
+                    # A restored task exposes the left-hand resume action. It
+                    # must not shift the primary conversion action inward.
+                    bridge._chatgpt_request = {'folder': str(temp / 'disposable-request')} if selected else {}
+                    bridge.changed.emit()
                     geometry = None
                     for template in (False, True, False):
                         click(window, c("creationUseTemplate" if template else "creationKeepOriginal"))
@@ -171,6 +180,10 @@ def main():
                 voice = c('voiceSourceArea')
                 assert abs(voice.height() - creation_height) <= 1, (voice.height(), creation_height)
                 assert voice.property('compact') and not voice.property('condensed')
+                footer = c('creationFooter')
+                generate = c('createLessonNarrationButton')
+                right = generate.mapToItem(footer, QPointF(generate.width(), 0)).x()
+                assert abs(footer.width() - right - 28) <= 1
                 window.grabWindow().save(str(out / f'voice-{width}-{height}.png'))
                 window.setProperty('page', 'new')
             assert not warnings, warnings

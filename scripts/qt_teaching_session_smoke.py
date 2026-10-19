@@ -181,13 +181,14 @@ def main():
 
             window.showNormal()
             converted = prepare_library_lesson(directory, other['id'])
-            bridge._show_lesson(*converted, destination='result', auto_repair=False, load_preview=False)
+            bridge._browser_state.update(phase='completed', lessonId=other['id'], running=False)
+            bridge._show_lesson(*converted, destination='chatgpt', auto_repair=False, load_preview=False)
             pump(150)
-            assert c('useConvertedLessonButton').property('text') == 'Mở PowerPoint'
-            click(window, c('useConvertedLessonButton'))
+            assert c('teachCompletedConversion').property('text') == 'Mở PowerPoint'
+            click(window, c('teachCompletedConversion'))
             until(lambda: not bridge.busy and bridge.teachingSession.state.get('lesson_id') == other['id']
                   and bridge.powerpointState.get('opened'), timeout=50)
-            assert window.property('page') == 'result' and not c('wholeLessonReview').property('visible')
+            assert window.property('page') == 'chatgpt' and not c('wholeLessonReview').property('visible')
             assert not bridge.powerpointState.get('active')
             print('Converted result opened and bound', flush=True)
             # Before voice creation, opening is still available and never synthesizes.

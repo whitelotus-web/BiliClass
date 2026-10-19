@@ -380,3 +380,27 @@ def test_dense_frames_continue_with_whole_bilingual_pairs(tmp_path, mode):
         for row in report["slide_quality"]["slides"]
         for i in row["issues"]
     )
+
+
+def test_one_long_paragraph_must_not_disable_pagination_of_its_whole_frame(tmp_path):
+    source = fixture(tmp_path / 'source.pptx')
+    deck = Presentation(source)
+    body = deck.slides[0].shapes[1]
+    body.height = Inches(1.3)
+    body.text = '\n'.join('Năng lượng của vật được bảo toàn khi không có lực ma sát.' for _ in range(3))
+    for paragraph in body.text_frame.paragraphs:
+        paragraph.font.size = Pt(26)
+    deck.save(source)
+    manifest = extract(source, 'parallel_columns', same_slide=True)
+    body_units = [u for u in manifest['units'] if not u['title']]
+    values = {u['id']: {'en': 'Mechanical energy' if u['title'] else 'A short translated paragraph.'}
+              for u in manifest['units']}
+    values[body_units[0]['id']]['en'] = 'The object moves under gravity and keeps its mechanical energy. ' * 4
+    output = assemble(source, tmp_path / 'result.pptx', manifest, values, 'parallel_columns')
+    plan = manifest['layout_plan']
+    assert len(plan) > 1
+    scheduled = [pair['unit'] for row in plan for pair in row['pairs'] if not pair['title']]
+    assert sorted(scheduled) == sorted(u['id'] for u in body_units)
+    english = '\n'.join(s.text for slide in Presentation(output).slides for s in slide.shapes
+                        if s.has_text_frame and s.name.endswith('English'))
+    assert english.count('The object moves under gravity') == 4

@@ -368,8 +368,11 @@ def paginate(tree, pairs):
                     text_height(text_of(paragraph), width, size) * (1.3 if fraction else 1)
                 )
             costs.append(sum(costs_by_language) if pair["inline"] else max(costs_by_language))
-        if sum(costs) <= height * 0.93 or max(costs) > height * 0.93:
+        if sum(costs) <= height * 0.93:
             continue
+        # Keep an oversized paragraph on its own continuation. Skipping the
+        # whole group repeated all its paragraphs on continuations created for
+        # another frame, leaving too much text even for the native fitter.
         blocks = []
         for pair, cost in zip(group, costs, strict=True):
             if pair.get("neutral") and blocks:

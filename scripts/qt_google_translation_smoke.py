@@ -170,10 +170,26 @@ with tempfile.TemporaryDirectory(prefix='biliclass-google-ui-', ignore_cleanup_e
     assert lesson['narration']['mode'] == 'none'
     assert bridge.browserState['phase'] == 'completed'
     pump(200)
-    assert window.property('page') == 'voice', 'Completion must use the real QML navigation handler'
+    assert window.property('page') == 'chatgpt', 'Completion must wait for the teacher to choose the next step'
+    assert control('conversionCompletion').isVisible()
+    for name in ['openConvertedVoiceButton', 'downloadCompletedConversion', 'teachCompletedConversion', 'libraryAfterConversion']:
+        assert control(name).isVisible() and control(name).isEnabled(), name
+    assert not control('browserConversionCancel').isVisible()
+    assert window.grabWindow().save(str(reports / 'completed.png'))
+    # Both navigation choices stay explicit; merely finishing must not start
+    # narration, preview rendering or a second conversion.
+    click('libraryAfterConversion')
+    assert window.property('page') == 'library'
+    window.setProperty('page', 'chatgpt')
+    pump(100)
     assert not bridge.browserState['running'] and bridge.conversionClock['status'] == 'Đã hoàn tất'
     assert control('browserConversionClockState').property('text') == 'Đã hoàn tất'
     completed_id = bridge.lesson['id']
+    other = library.create('Another lesson', 'Tin học', 'THPT', '10', [('Slide 1', 'Máy tính.')])
+    bridge._show_lesson(other, destination='editor', auto_repair=False, load_preview=False)
+    window.setProperty('page', 'chatgpt')
+    until(lambda: not bridge.busy and bridge.lesson['id'] == completed_id)
+    assert bridge.quickResult['lesson_id'] == completed_id, 'Completion actions must never target a different browsed lesson'
     bridge.browserConversionProgress.emit({'stage': 'quality', 'percent': 72, 'message': 'late', 'runId': 'older-run'})
     pump(100)
     assert bridge.browserState['phase'] == 'completed' and bridge.browserState['percent'] == 100
@@ -185,7 +201,7 @@ with tempfile.TemporaryDirectory(prefix='biliclass-google-ui-', ignore_cleanup_e
     pump(100)
     assert control('resumeCreationTask').property('text') == 'Mở bài vừa chuyển đổi'
     click('resumeCreationTask')
-    assert window.property('page') == 'voice' and calls == [2], 'Reopening must never translate again'
+    assert window.property('page') == 'chatgpt' and calls == [2], 'Reopening must never translate again or start the voice step'
     until(lambda: not bridge._busy)
     output = directory / 'download.pptx'
     bridge.exportPowerPoint(QUrl.fromLocalFile(str(output)).toString())
@@ -217,7 +233,7 @@ with tempfile.TemporaryDirectory(prefix='biliclass-google-ui-', ignore_cleanup_e
     until(lambda: not bridge._busy)
     assert bridge.browserState['phase'] == 'discarded' and not bridge.chatgptRequest
     assert not library.setting('google_request_folder', '')
-    assert len(library.list_lessons(verify_audio=False)) == 1
+    assert {row['id'] for row in library.list_lessons(verify_audio=False)} == {completed_id, other['id']}
     assert library.get(completed_id)['id'] == completed_id
     google_conversion.prepare = original_prepare
     timer.stop()

@@ -70,7 +70,9 @@ nhận/gửi key qua GitHub; nâng cấp giữ nguyên key, hạn mức và lị
 **Bài giảng** là thư viện: tìm, lọc, mở, tải và quản lý bài đã lưu. Đổi qua lại
 giữa các mục vẫn giữ tài liệu/cấu hình đang nhập ở mục Chuyển đổi bài giảng.
 Trang chủ có mascot lớn, hướng dẫn bốn bước và tổng hợp bài giảng. Chuyển đổi
-xong tự mở **Tạo giọng đọc bài giảng** với bài vừa tạo, khung chọn nguồn thu gọn.
+xong dừng ở **Đã tạo bài giảng**. Chọn **Tạo giọng đọc** để sang bước giọng;
+hoặc **Tải bài giảng**, **Mở PowerPoint** để dạy cùng Mascot, **Về Bài giảng**
+để xem trong thư viện. Tool không tự chạy sang bước tiếp theo.
 Có thể **Tải PowerPoint không giọng** ngay, hoặc tạo giọng rồi tải bản có loa.
 
 Sau khi tạo đủ giọng, bấm **Mở PowerPoint** để mở trực tiếp cùng Mascot,

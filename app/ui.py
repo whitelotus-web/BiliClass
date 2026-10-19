@@ -928,11 +928,11 @@ class Bridge(QObject):
                                        lessonId=lesson['id'])
             self.browserStateChanged.emit()
             self.conversionClockChanged.emit()
-            self._show_lesson(lesson, preview, destination='voice')
+            self._show_lesson(lesson, preview, destination='chatgpt', auto_repair=False, load_preview=False)
             self._google_settings.refresh()
             failures = lesson.get('slide_quality', {}).get('counts', {}).get('FAIL', 0)
-            self.inform(f'Đã lưu bài giảng. Còn {failures} slide cần sửa.' if failures else
-                        'Đã lưu bài giảng song ngữ. Có thể tải về hoặc tạo giọng đọc nếu cần.', bool(failures))
+            self.inform(f'Đã lưu bài giảng. Có {failures} slide cần xem lại bố cục.' if failures else
+                        'Đã lưu bài giảng song ngữ. Chọn bước tiếp theo khi sẵn sàng.', refresh=False)
 
         self.launch(lambda: convert(self.library.directory, job, self.cancel_event, progress, budget=budget), completed)
 
@@ -1073,17 +1073,24 @@ class Bridge(QObject):
                                        lessonId=lesson['id'], message="Đã nhận bài giảng song ngữ.")
             self.browserStateChanged.emit()
             self.conversionClockChanged.emit()
-            self._show_lesson(lesson, preview, destination='voice')
+            self._show_lesson(lesson, preview, destination='chatgpt', auto_repair=False, load_preview=False)
             failures = lesson.get("slide_quality", {}).get("counts", {}).get("FAIL", 0)
-            message = (f"Bài giảng đã lưu. Cần sửa {failures} slide trước khi dùng để dạy." if failures
-                       else "Bài giảng đã lưu. Xem lại nội dung trước khi dùng để dạy.")
-            self.inform(message, bool(failures))
+            message = (f"Bài giảng đã lưu. Có {failures} slide cần xem lại bố cục." if failures
+                       else "Đã lưu bài giảng. Chọn bước tiếp theo khi sẵn sàng.")
+            self.inform(message, refresh=False)
 
         self.launch(work, completed)
 
     @Slot()
     def openConvertedLesson(self):
         """Return to the saved conversion without submitting another request."""
+        self._open_converted_result('voice')
+
+    @Slot()
+    def restoreConversionResult(self):
+        self._open_converted_result('chatgpt')
+
+    def _open_converted_result(self, destination):
         from .voice_import import prepare_library_lesson
 
         if self._busy or self.narrationBusy:
@@ -1093,11 +1100,11 @@ class Bridge(QObject):
             self.inform('Chọn bài đã lưu trong Bài giảng để tiếp tục tạo giọng đọc.', True, refresh=False)
             return
         if self._lesson.get('id') == identity and self.quickResult.get('lesson_id') == identity:
-            self.navigate.emit('voice')
+            self.navigate.emit(destination)
             return
         directory = self.library.directory
         self.launch(lambda: prepare_library_lesson(directory, identity),
-                    lambda result: self._show_lesson(*result, destination='voice'))
+                    lambda result: self._show_lesson(*result, destination=destination, auto_repair=False, load_preview=False))
 
     @Property("QVariantMap", notify=narrationChanged)
     def narrationPreparation(self):
