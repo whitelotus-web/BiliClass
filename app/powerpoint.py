@@ -180,7 +180,7 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
     import win32com.client
     import win32process
 
-    from .slideshow_controls import add_pause_badges, speaker_boxes, speaker_regions
+    from .slideshow_controls import prepare_controls, speaker_regions
     from .slideshow_shortcuts import SlideshowKeys
 
     keys = SlideshowKeys(shortcuts)
@@ -202,6 +202,10 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
     media_starting = 0
     media_token = None
     presenter = 0
+    hwnd = 0
+    handles_refreshed = 0
+    slide_media = {}
+    current_audio = []
     focus_after_start = False
 
     def stop_media():
@@ -223,6 +227,9 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
     def progress(message):
         events.put({"active": False, "starting": True, "slide": 0, "total": 0, "message": message})
 
+    def controls_warning():
+        events.put({'event': 'input_warning', 'message': 'Chưa đổi được biểu tượng loa. Vẫn có thể phát/tạm dừng bằng Mascot.'})
+
     try:
         progress("Đang kết nối PowerPoint…")
         application = win32com.client.DispatchEx("PowerPoint.Application")
@@ -230,12 +237,12 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
         presentation = application.Presentations.Open(path, ReadOnly=True, Untitled=False, WithWindow=not autostart)
         presentation.SlideShowSettings.ShowType = 1  # ppShowTypeSpeaker: native full-screen slideshow.
         try:
-            if shortcuts is not None:
-                badges, other_media = add_pause_badges(presentation)
-                if badges and not other_media:
-                    presentation.SlideShowSettings.ShowMediaControls = False
+            slide_media, badges, other_media = prepare_controls(presentation, path, add_badges=shortcuts is not None,
+                                                                 on_warning=controls_warning)
+            if badges and not other_media:
+                presentation.SlideShowSettings.ShowMediaControls = False
         except Exception:
-            events.put({'event': 'input_warning', 'message': 'Chưa đổi được biểu tượng loa. Vẫn có thể phát/tạm dừng bằng Mascot.'})
+            controls_warning()
         total = presentation.Slides.Count
         slide_width, slide_height = float(presentation.PageSetup.SlideWidth), float(presentation.PageSetup.SlideHeight)
         if shortcuts is not None:
@@ -262,9 +269,8 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
             if command == 'set_volume' and type(target) is int and 0 <= target <= 100:
                 volume = target
                 try:
-                    for shape in view.Slide.Shapes if view else []:
-                        if str(shape.Name).startswith('BiliClass audio '):
-                            shape.MediaFormat.Volume = volume / 100
+                    for _, _, shape in current_audio if view else []:
+                        shape.MediaFormat.Volume = volume / 100
                     events.put({'event': 'volume_changed', 'volume': volume})
                 except Exception:
                     events.put({'event': 'input_warning', 'message': 'PowerPoint chưa áp dụng được âm lượng. Dùng thanh âm lượng Windows để kiểm tra.'})
@@ -335,19 +341,17 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
                     playing = set()
                     previous_paused = set()
                     media_token = None
-                    boxes = speaker_boxes(slide)
-                    for shape in slide.Shapes:
-                        if str(shape.Name).startswith("BiliClass audio "):
-                            try:
-                                players[int(shape.Id)] = view.Player(shape.Id)
-                                player_languages[int(shape.Id)] = str(shape.Name).split()[-1].lower()
-                                shape.MediaFormat.Volume = volume / 100
-                            except Exception:
-                                pass
-                try:
-                    hwnd = int(window.HWND)
-                except Exception:
+                    current_audio, boxes = slide_media.get(current[1], ([], []))
+                    for identity, language, shape in current_audio:
+                        try:
+                            players[identity] = view.Player(identity)
+                            player_languages[identity] = language
+                            shape.MediaFormat.Volume = volume / 100
+                        except Exception:
+                            pass
+                if not hwnd or focus_after_start or not isinstance(last, tuple) or last[0] == 'ready':
                     hwnd = slideshow_handle(path)
+                    handles_refreshed = 0
                 events.put({"active": True, "opened": True, "starting": False,
                             "slide": current[0], "slide_id": current[1], "total": total,
                             "hwnd": hwnd, "click_index": click_index, "build_started": build_started,
@@ -363,7 +367,10 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
                 if media_event['event'] == 'media_started':
                     media_starting = time.monotonic() + 2
                     media_token = media_event['token']
-            presenter = presenter_handle(path)
+            if time.monotonic() - handles_refreshed >= 1:
+                hwnd = slideshow_handle(path)
+                presenter = presenter_handle(path)
+                handles_refreshed = time.monotonic()
             # Refresh screen geometry as the teacher can change monitor/DPI
             # without changing slides. Hit-testing never covers source content.
             keys.bind(hwnd, current[1], speaker_regions(boxes, hwnd, slide_width, slide_height), presenter)

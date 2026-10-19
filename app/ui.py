@@ -187,6 +187,9 @@ class Bridge(QObject):
         self._memory_request = None
         self._input_result = None
         self._input_path = ""
+        from .input_documents import InputDocuments
+
+        self._input_documents = InputDocuments(self)
         self._conversion_report = []
         self._comparison = {}
         self._quick_result = {}
@@ -670,11 +673,15 @@ class Bridge(QObject):
 
         try:
             selection = document_selection(urls)
-            self.inform("Đã chọn tài liệu: " + selection["name"])
+            self.inform("Đã chọn tài liệu: " + selection["name"], refresh=False)
             return selection
         except (ValueError, OSError) as exc:
-            self.inform(str(exc), True)
+            self.inform(str(exc), True, refresh=False)
             return {"valid": False}
+
+    @Property(QObject, constant=True)
+    def inputDocuments(self):
+        return self._input_documents
 
     @Slot(str, result="QVariantList")
     def educationGrades(self, education):
@@ -2833,7 +2840,6 @@ class Bridge(QObject):
         if not self.powerpoint_worker or not self._powerpoint_state["active"]:
             self.inform("Chưa có trình chiếu PowerPoint đang hoạt động.", True)
             return
-        self.focusTeachingPresentation()
         self.stopSpeech()
         if command == "goto":
             slide = slide_for_locator(self.segment.get("locator", ""))
@@ -2845,6 +2851,7 @@ class Bridge(QObject):
             self.powerpoint_worker.navigate("goto", slide)
         elif command in ("next", "previous", "next_slide", "previous_slide", "end_show"):
             self.powerpoint_worker.navigate(command)
+        self.focusTeachingPresentation()
 
     @Slot()
     def startTeachingShow(self):

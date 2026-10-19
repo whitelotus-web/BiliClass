@@ -13,7 +13,7 @@ from PySide6.QtCore import Q_ARG, QCoreApplication, QEvent, QMetaObject, QPointF
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine, QQmlExpression
 from PySide6.QtQuickControls2 import QQuickStyle
-from qt_result_preview_mascot_smoke import click, control, pump
+from qt_result_preview_mascot_smoke import click, control, pump, until
 
 from app.library import Library
 from app.paths import RESOURCE_ROOT
@@ -110,6 +110,7 @@ def main():
                             Qt.DirectConnection,
                             Q_ARG("QVariant", [path.as_uri()]),
                         )
+                        until(lambda: not bridge.inputDocuments.busy)
                         c("lessonSubject").setProperty(
                             "currentIndex", bridge.conversionSubjects.index("Tin học")
                         )
@@ -179,6 +180,7 @@ def main():
         finally:
             window.hide()
             for worker in (
+                bridge.inputDocuments,
                 bridge.libraryThumbnails,
                 bridge.slidePreview,
                 bridge._catalog,

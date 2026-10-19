@@ -55,6 +55,7 @@ ApplicationWindow {
     property string selectedFile: ""
     property string selectedFileName: ""
     property string inputDocumentError: ""
+    property string previousInputTitle: ""
     property bool pasteMode: false
     property bool creationPromptVisible: false
     property bool includeDownloadVoice: true
@@ -182,27 +183,41 @@ ApplicationWindow {
     function refreshTemplate() { templatePages = bridge.templatePages(rescue); templatePageIndex = 0 }
     function acceptInputDocuments(urls) {
         if (urls.length === 1 && !String(urls[0]).toLowerCase().endsWith(".pptx")) {
+            bridge.inputDocuments.clear()
             inputDocumentError = "Chỉ nhận tệp PowerPoint (.pptx), tối đa 200 MB."
             return false
         }
-        let selection = bridge.selectInputDocument(urls)
-        if (!selection.valid) { inputDocumentError = bridge.message; return false }
+        if (selectedFileName) previousInputTitle = selectedFileName.replace(/\.[^.]+$/, "")
+        selectedFile = ""
+        selectedFileName = ""
+        inputDocumentError = ""
+        bridge.inputDocuments.select(urls)
+        return true
+    }
+    Connections {
+        target: bridge.inputDocuments
+        function onSelected(selection, error) { root.applyInputSelection(selection, error) }
+    }
+    function applyInputSelection(selection, error) {
+        if (!selection.valid) { inputDocumentError = error; return }
         if (!selection.name.toLowerCase().endsWith(".pptx")) {
             inputDocumentError = "Chỉ nhận tệp PowerPoint (.pptx), tối đa 200 MB."
             return false
         }
         inputDocumentError = ""
-        let previousTitle = selectedFileName.replace(/\.[^.]+$/, "")
         selectedFile = selection.url
         selectedFileName = selection.name
         pasteInput.text = ""
         pasteMode = false
-        if (!titleInput.text.trim() || titleInput.text === previousTitle) titleInput.text = selection.name.replace(/\.[^.]+$/, "")
+        if (!titleInput.text.trim() || titleInput.text === previousInputTitle) titleInput.text = selection.name.replace(/\.[^.]+$/, "")
+        previousInputTitle = selection.name.replace(/\.[^.]+$/, "")
         bridge.clearInputAssessment()
         return true
     }
     function removeInputDocument() {
-        if (titleInput.text === selectedFileName.replace(/\.[^.]+$/, "")) titleInput.text = ""
+        bridge.inputDocuments.clear()
+        if (titleInput.text === (selectedFileName ? selectedFileName.replace(/\.[^.]+$/, "") : previousInputTitle)) titleInput.text = ""
+        previousInputTitle = ""
         selectedFile = ""
         selectedFileName = ""
         inputDocumentError = ""
@@ -766,8 +781,8 @@ ApplicationWindow {
                             filenameObjectName: "creationSelectedFilename"
                             errorObjectName: "creationDocumentError"
                             removeObjectName: "removeInputDocumentButton"
-                            fileName: root.selectedFileName; errorText: root.inputDocumentError
-                            busy: bridge.busy; working: bridge.narrationBusy || !!bridge.browserState.running
+                            fileName: bridge.inputDocuments.busy ? "Đang kiểm tra tệp…" : root.selectedFileName; errorText: root.inputDocumentError
+                            busy: bridge.busy || bridge.inputDocuments.busy; working: bridge.narrationBusy || !!bridge.browserState.running
                             workingTitle: bridge.narrationBusy ? "Đang tạo giọng đọc" : "Bài giảng đang được chuyển đổi"
                             workingDetail: bridge.narrationBusy ? "Chờ tạo giọng xong hoặc dừng tạo giọng trước khi chuyển đổi bài mới. Các đoạn đã tạo được giữ lại." : "Theo dõi tiến độ; các phần đã xong được lưu lại."
                             progressLabel: bridge.narrationBusy ? "Xem tiến độ tạo giọng" : "Xem tiến độ chuyển đổi"
@@ -955,7 +970,7 @@ ApplicationWindow {
                                 Action { objectName: "resumeCreationTask"; text: bridge.browserState.phase === "completed" ? "Mở bài vừa chuyển đổi" : "Tiếp tục bài đang chuẩn bị"; visible: !!bridge.chatgptRequest.folder && !bridge.narrationBusy; subtle: true; implicitHeight: 28; font.pixelSize: 11; onClicked: { if (bridge.browserState.phase === "completed") bridge.openConvertedLesson(); else root.go("chatgpt") } }
                             }
                         }
-                        Action { objectName: "createLessonButton"; visible: root.page === "new"; text: bridge.busy ? "Đang chuẩn bị…" : "Chuyển đổi bài giảng"; primary: true; enabled: !bridge.busy && !bridge.narrationBusy && !root.inputDocumentError && root.creationPrompt.ready; onClicked: bridge.convertDocument(titleInput.text, root.creationSubject, educationInput.currentText, gradeInput.currentText, pasteInput.text, root.selectedFile, root.selectedConversionFormat.id, ["standard", "visual", "practice"][creationPreset.currentIndex], root.creationKeepSource ? "source" : "template", teacherNotesInput.text) }
+                        Action { objectName: "createLessonButton"; visible: root.page === "new"; text: bridge.busy ? "Đang chuẩn bị…" : "Chuyển đổi bài giảng"; primary: true; enabled: !bridge.busy && !bridge.inputDocuments.busy && !bridge.narrationBusy && !root.inputDocumentError && root.creationPrompt.ready; onClicked: bridge.convertDocument(titleInput.text, root.creationSubject, educationInput.currentText, gradeInput.currentText, pasteInput.text, root.selectedFile, root.selectedConversionFormat.id, ["standard", "visual", "practice"][creationPreset.currentIndex], root.creationKeepSource ? "source" : "template", teacherNotesInput.text) }
                         Action { objectName: "createLessonNarrationButton"; visible: root.page === "voice" || root.page === "result"; primary: !root.narrationComplete; text: bridge.narrationBusy ? "Đang tạo giọng…" : root.narrationComplete ? "Tạo lại giọng đọc" : "Tạo giọng đọc"; enabled: !!bridge.quickResult.path && !!root.narrationDraft.total && !!root.narrationVoice && !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !bridge.powerpointState.starting; onClicked: bridge.createLessonNarrationWithVoice(root.narrationMode, root.narrationVoice, root.narrationRate) }
                         Action { objectName: "cancelLessonNarrationButton"; danger: true; symbol: "■"; text: bridge.lessonNarration.stopping ? "Đang dừng…" : "Dừng"; enabled: !bridge.lessonNarration.stopping; visible: (root.page === "voice" || root.page === "result") && !!bridge.lessonNarration.running; onClicked: bridge.cancelLessonNarration() }
                     }

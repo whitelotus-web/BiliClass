@@ -169,6 +169,7 @@ def run(args):
     bridge._companion_preferences.shutdown()
     bridge.slidePreview.shutdown()
     bridge.libraryThumbnails.shutdown()
+    bridge.inputDocuments.shutdown()
     speech.stop()
     # QML bindings may still read the library while their objects are destroyed.
     engine.deleteLater()

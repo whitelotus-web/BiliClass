@@ -81,7 +81,7 @@ def main():
     app = QGuiApplication([])
     app.setApplicationName('BiliClass companion input verification')
     QQuickStyle.setStyle('Basic')
-    report = Path('reports/rc83/native-input')
+    report = Path(os.environ.get('BILICLASS_INPUT_REPORT', 'reports/rc83/native-input'))
     report.mkdir(parents=True, exist_ok=True)
     cursor = win32api.GetCursorPos()
     with tempfile.TemporaryDirectory(prefix='bcl-input-', ignore_cleanup_errors=True) as folder:
