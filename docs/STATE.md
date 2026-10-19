@@ -1,5 +1,14 @@
 # Trạng thái BiliClass
 
+Ngày 19/10/2026 — đã rà soát RC80 và lập
+[kế hoạch tối ưu theo ưu tiên](AUDIT_AND_PLAN_RC80.md), chưa sửa chức năng.
+915 kiểm thử lõi và 8 luồng Qt bổ sung đạt; chụp 50 trạng thái UI, không
+warning QML. Đã xác nhận bộ nút đọc cũ trong tool chưa dùng cùng đường
+điều khiển native/Mascot, lối mở bài và trạng thái sẵn sàng chưa thống nhất;
+probe tỷ lệ logic 150% cho thấy khung tối thiểu vượt vùng làm việc. Kế
+hoạch gồm đồng bộ luồng dạy, sửa bố cục/DPI, nghiệm thu giọng/đầu ra và
+vận hành một phiên ứng dụng. Bằng chứng thử nằm riêng ở reports/audit-rc80.
+
 Ngày 19/10/2026 — RC80 gộp RC78/79 và thêm ba thẻ mẫu trực quan, bỏ
 luồng nhập mẫu ngoài cho bài mới; cấu hình tóm tắt cùng khung trắng.
 Ngôn ngữ/vị trí loa cùng hàng, tooltip ngắn; lời chào theo tên hồ sơ.
