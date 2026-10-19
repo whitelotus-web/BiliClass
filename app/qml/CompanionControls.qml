@@ -91,9 +91,8 @@ ColumnLayout {
         PanelAction { objectName: "companionReadBoth"; visible: !!companion.availableAudio.both; enabled: bridge.companionCanRead && !!companion.availableAudio.both; text: "Việt–Anh"; iconName: companion.readIcon("both") === "pause" ? "pause" : "speaker-both"; ToolTip.visible: pointerHovered; ToolTip.text: companion.readText("both", "Việt–Anh"); Accessible.name: companion.readText("both", "Việt–Anh"); onClicked: bridge.companionRead("both") }
     }
     Label {
-        objectName: "companionAudioHint"; visible: !bridge.companionCanRead || companion.audioCount < 3
-        text: !companion.session.bound && !bridge.companionCanRead ? "Chọn bài giảng, rồi bấm Trình chiếu để đọc."
-            : !bridge.companionCanRead ? "Bấm Trình chiếu để đọc giọng đã tạo."
+        objectName: "companionAudioHint"; visible: !!companion.session.bound && (!bridge.companionCanRead || companion.audioCount < 3)
+        text: !bridge.companionCanRead ? "Bấm Trình chiếu để đọc giọng đã tạo."
             : companion.audioCount === 0 ? "Slide này chưa có giọng đọc. Tạo giọng trong BiliClass nếu cần."
             : "Nút sáng là giọng có trên slide này."
         color: "#667997"; font.pixelSize: 11; wrapMode: Text.WordWrap; Layout.fillWidth: true
