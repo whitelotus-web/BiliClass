@@ -65,3 +65,21 @@ Gói RC89 từ `35a99fc` đã build cục bộ đúng manifest/hash ZIP làm bas
 Chỉ công bố/cài RC90 sau kiểm gói độc lập, model thật và luồng Qt từ hoàn
 tất bài sang tạo giọng. Dữ liệu giáo viên, khóa, báo cáo/ảnh thử, WAV,
 model và executable ở ngoài Git.
+
+## Gói phát hành đã kiểm chứng
+
+- Nguồn build: `0a3645696cebb5fdd6ad00ad0c438eb636f36b70`.
+- CI [Source checks](https://github.com/whitelotus-web/BiliClass/actions/runs/39235831288): success.
+- 4.215 file ứng dụng; ZIP 871.266.004 byte, đã đọc lại từng entry và
+  đối chiếu manifest. SHA-256:
+  `e51045b3ecf8773ba61e2f3e87f06104c064331fbe5bff252a102e3a04d84aee`.
+- Cài/gỡ trong đường dẫn Unicode tách biệt: đạt; Windows Properties,
+  hai màn Qt, template, bộ giọng VieNeu Việt/Anh, lớp học và backup đạt.
+- Qt từ hoàn tất bài sang tạo giọng thật: đủ 2/2 đoạn Việt–Anh, 9,66 giây,
+  469 nhịp giao diện, khoảng cách lớn nhất 94 ms, không cảnh báo QML,
+  bộ ghi kẹt giao diện bật và nguồn giữ nguyên.
+- [Phát hành RC90](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc90): ZIP và checksum đã tải lên, digest GitHub khớp.
+- Đã cài tại `F:/Applications/BiliClass/1.0.0rc90` và mở qua Explorer,
+  parent `explorer.exe`; main và Mascot đều hiện và trả WM_NULL trong 1 giây.
+  RC86 đóng bằng WM_CLOSE thông thường, không cưỡng bức. Kiểm tra sau mở
+  xác nhận khóa API, môn đã lưu và nguồn bài đang kiểm tra được giữ nguyên.
