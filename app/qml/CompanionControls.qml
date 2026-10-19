@@ -52,7 +52,7 @@ ColumnLayout {
             }
         }
         HeaderAction { objectName: "companionSettings"; imageSource: "../assets/navigation/settings-active.png"; hint: "Cài đặt Mascot"; onClicked: companion.requestSettings() }
-        HeaderAction { objectName: "hideCompanion"; glyph: "−"; hint: "Ẩn trợ giảng nổi"; onClicked: companion.hide() }
+        HeaderAction { objectName: "hideCompanion"; imageSource: "../assets/actions/eye-off.svg"; hint: "Ẩn trợ giảng nổi"; onClicked: companion.hide() }
     }
     Label {
         objectName: "companionBoundLesson"

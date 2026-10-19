@@ -120,6 +120,7 @@ Window {
     Component.onDestruction: disposing = true
     onWidthChanged: reposition()
     onHeightChanged: reposition()
+    onVisibleChanged: if (!visible) mascotContextMenu.close()
     Shortcut { sequence: "Escape"; onActivated: companion.collapsed = true }
 
     Shortcut { sequence: "F5"; onActivated: bridge.startTeachingShow() }
@@ -178,6 +179,17 @@ Window {
             toggleOnClick: true
             Accessible.role: Accessible.Button
             Accessible.name: companion.collapsed ? "Mở công cụ trợ giảng" : "Thu gọn công cụ trợ giảng"
+        }
+        MouseArea {
+            objectName: "mascotContextArea"
+            anchors.fill: parent; acceptedButtons: Qt.RightButton
+            onClicked: function(mouse) { mascotContextMenu.popup(mouse.x, mouse.y) }
+        }
+        Menu {
+            id: mascotContextMenu; objectName: "mascotContextMenu"
+            popupType: Popup.Window
+            MenuItem { objectName: "mascotContextSettings"; text: "Cài đặt"; icon.source: "../assets/navigation/settings-active.png"; icon.color: "transparent"; onTriggered: companion.requestSettings() }
+            MenuItem { objectName: "mascotContextHide"; text: "Ẩn mini"; icon.source: "../assets/actions/eye-off.svg"; icon.color: "transparent"; onTriggered: companion.hide() }
         }
     }
 }

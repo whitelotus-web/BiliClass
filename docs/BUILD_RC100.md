@@ -22,6 +22,10 @@
   BiliClass. Tab Dữ liệu chỉ hiện ba tác vụ chính; mục hỗ trợ và quản
   lý nâng cao nằm trong Tùy chọn khác. Khôi phục thành công mở lại
   với dữ liệu vừa khôi phục, giữ nguyên thư viện trước đó.
+- Chuột phải lên người Mascot mở Cài đặt (bánh răng) và Ẩn mini
+  (mắt gạch chéo). Nút ẩn trên bảng dùng cùng icon mắt gạch chéo.
+  Menu riêng vẫn hiện đủ sát mép màn hình, không làm mở bảng/di
+  chuyển Mascot; chuột trái và mở lại từ thanh bên giữ nguyên.
 - Hiện slide ngay trong bước chuyển đổi hoàn tất, có Trước/Sau và
   bốn nút cân đối. Xem trước ở Tạo giọng không bị worker Office đã
   ngừng trình chiếu chặn. Không tự xác nhận nội dung hay tạo giọng.
@@ -65,9 +69,12 @@ Bằng chứng chi tiết trong `reports/rc100` không đưa vào Git:
   và cặp giọng qua. Qt xác minh mặc định qua khởi động lại, đúng mẫu
   dài/người đọc/tốc độ cho ba ngôn ngữ và WAV cũ còn nguyên. Qt cặp
   giọng/Cài đặt chạy lại qua; không có cảnh báo QML.
+- Qt menu Mascot: chuột phải thật trong cửa sổ thử, hai hành động,
+  icon, mở đúng tab Cài đặt, ẩn và mở lại, menu trong màn hình,
+  nút ẩn trên bảng và click trái qua; không có cảnh báo QML.
 
 Kết quả đóng gói/cài đặt được ghi sau khi hoàn tất.
 
 ```powershell
-.venv/Scripts/python.exe -m scripts.build_from_runtime --baseline dist/rc99-voice-speed-ui --output dist/rc100-voice-defaults
+.venv/Scripts/python.exe -m scripts.build_from_runtime --baseline dist/rc99-voice-speed-ui --output dist/rc100-mascot-menu
 ```
