@@ -40,3 +40,36 @@ Phiên bản `1.0.0rc97`, dựng một lần từ nguồn đã kiểm thử:
 ```powershell
 .venv/Scripts/python.exe -m scripts.build_from_runtime --baseline dist/rc96-selection-ui --output dist/rc97-extra-voices
 ```
+
+- Commit ứng dụng: `7a56fc732954dcad82d037d248f2bffdd0ee09e5`.
+- ZIP `BiliClass-RC97-Windows.zip`: 1.246.809.377 byte, 4.631 tệp ứng
+  dụng (4.635 mục ZIP). Đối chiếu toàn bộ nội dung ZIP với manifest đạt.
+- SHA256: `c0915721e1158c2d5288f5019074e53b99863d794128211bf35f8943ef126022`.
+- Runtime và mô hình RC96 được kiểm đủ checksum trước khi dùng lại;
+  toàn bộ module ứng dụng được dựng lại. Không thêm model vào Git.
+
+Kiểm tra bản cài độc lập đạt tại
+`reports/release/1.0.0rc97-b7909efb/installer.json`: đường dẫn Unicode,
+Windows Details, shortcut tạm, trang Qt, template, hai engine thật,
+tiến trình lớp học, sao lưu và gỡ bản thử vẫn giữ thư viện riêng.
+Qt chuyển từ kết quả sang tạo hai giọng thật hoàn tất trong 17,47 giây,
+giữ nguồn và không cảnh báo QML; không dùng API hoặc cache phát triển.
+
+Kiểm tra mẫu trong bản đóng gói đạt: chín cặp bắt đầu trong 24–168 ms,
+lưu lúc đang chuẩn bị trong 23 ms; khoảng ngắt giao diện lớn nhất 130 ms.
+Không nạp mô hình, không phát muộn sau khi hủy, không cảnh báo QML.
+Bằng chứng `reports/rc97/frozen-voice-ui.json`.
+
+Đã công bố tại https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc97 .
+Digest asset GitHub khớp SHA256 ở trên.
+
+Đã cài tại `F:/Applications/BiliClass/1.0.0rc97`, đóng RC96 bình thường
+và mở RC97 qua Explorer vào Cài đặt. Cửa sổ chính và Mascot đáp ứng,
+không thu nhỏ; tiến trình chạy độc lập với Codex. Icon nhỏ/lớn,
+AppUserModelID và shortcut Desktop/Start menu đều đúng.
+Nguồn, revision, môn đã chọn, cấu hình giọng, khóa API và toàn bộ 134
+WAV tham chiếu của bài đang dùng giữ nguyên. Bằng chứng
+`reports/rc97/installed-verification.json`.
+
+Kế hoạch đọc liên tục có khoảng nghỉ và đọc từng nhóm nội dung nằm tại
+`docs/PLAN_SEGMENT_PLAYBACK.md`; chưa thay đổi cơ chế trình chiếu trong RC97.
