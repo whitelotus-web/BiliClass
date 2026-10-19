@@ -51,3 +51,25 @@ dữ liệu, key, log, dump, WAV hay executable vào commit.
 Lệnh kiểm tra bản đóng gói mới `--check-narration-ui <report.json>` dùng
 bài và thư viện tạm, GUI Qt thật, model VieNeu thật và watchdog bật. Quy
 trình release bắt buộc chạy phép thử này trước khi công bố gói.
+
+## Gói đã xác minh
+
+- Source `509555ea1bf6e31b71113fa7c8bc976ad3e4ea09`;
+  [CI đạt](https://github.com/whitelotus-web/BiliClass/actions/runs/39209352689).
+- [Release RC86](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc86),
+  ZIP 871.243.640 byte, 4.215 mục; SHA-256 GitHub khớp
+  `02bb8e4d054c2325d993edce47047b671e615617e494541eb090f555b2642adc`.
+- Chỉ build một lần từ source đã commit; runtime/model RC85 được kiểm hash
+  trước khi tái dùng. Toàn bộ module ứng dụng, QML và assets lấy từ RC86.
+- Cài vào đường dẫn Unicode riêng: Properties, Qt chuyển đổi/cài đặt,
+  model Việt–Anh, classroom process, backup và gỡ cài giữ thư viện test đạt.
+- Chính executable đã cài chạy Qt hoàn tất → tạo giọng song ngữ thật:
+  2 đoạn trong 9,27 giây, 450 heartbeat, khoảng ngắt lớn nhất 0,078 giây;
+  watchdog bật, không warning QML, tệp PowerPoint giữ nguyên.
+- Đây là kiểm tra trên Windows/Office hiện tại, không phải chứng nhận
+  Windows sạch hoặc đo thời gian trên mọi máy. Không tự tạo lại bài hay
+  giọng trong thư viện cá nhân khi cài/công bố bản này.
+- Đã cài RC86 tại `F:/Applications/BiliClass`, đối chiếu hash executable,
+  mở bằng Explorer với bài vừa tạo ở màn giọng đọc. Main window đúng
+  phiên bản và Mascot đều hiện, có phản hồi; process cha là Explorer,
+  chạy độc lập Codex. Key đã lưu không đổi; PowerPoint 30 slide vẫn khớp hash.
