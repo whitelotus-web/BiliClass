@@ -10,7 +10,7 @@ def available_modes(rows):
             continue
         for language in MODES[row['mode']]:
             result[language] = True
-        if row['mode'] == 'both' and row.get('playback') == 'both_controls':
+        if row['mode'] == 'both':
             result['both'] = True
     return result
 

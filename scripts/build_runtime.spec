@@ -30,6 +30,17 @@ for path in sorted((root / 'app').glob('*.py')):
     name = 'app' if path.stem == '__init__' else 'app.' + path.stem
     pure.append((name, str(path), 'PYMODULE'))
     codes[name] = compile(path.read_bytes(), str(path), 'exec')
+if config.get('english_runtime'):
+    # Explicit addition to the verified baseline: the pinned local English
+    # dependency is included as source plus its own native runtime folder.
+    source = Path(config['english_runtime'])
+    for path in sorted(source.rglob('*.py')):
+        relative = path.relative_to(source).with_suffix('')
+        parts = relative.parts[:-1] if relative.name == '__init__' else relative.parts
+        name = '.'.join(('sherpa_onnx', *parts))
+        pure.append((name, str(path), 'PYMODULE'))
+        codes[name] = compile(path.read_bytes(), str(path), 'exec')
+    pure.append(('sherpa_onnx.lib', '-', 'PYMODULE'))
 hooks = []
 hook_folder = Path(config['work']) / 'runtime-hooks'
 hook_folder.mkdir(parents=True, exist_ok=True)

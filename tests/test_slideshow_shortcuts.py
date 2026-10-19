@@ -1,6 +1,27 @@
 import pytest
 
-from app.slideshow_shortcuts import DEFAULTS, KeyPolicy, saved_bindings, validate
+from app.slideshow_shortcuts import (
+    DEFAULTS,
+    KeyPolicy,
+    SlideshowKeys,
+    saved_bindings,
+    validate,
+    window_identity,
+)
+
+
+@pytest.mark.parametrize('handle', [-559282502, 3735684794, (-559282502) & 0xffffffffffffffff])
+def test_signed_office_handles_match_ctypes_input_windows(handle):
+    expected = window_identity(-559282502)
+    # The exact HWND that failed on the classroom's second monitor.
+    keys = SlideshowKeys()
+    keys.bind(handle, 1289, [('en', 3267, 807, 3342, 837)], presenter=handle)
+    hwnd, slide, regions, focused = keys._binding
+    assert hwnd == expected and slide == 1289 and regions
+    assert window_identity(3735684794) in focused
+    assert window_identity(3735684795) not in focused
+    keys.bind()
+    assert keys._binding == (0, 0, (), frozenset())
 
 
 def test_defaults_migrate_invalid_settings_and_do_not_share_mutable_values():
@@ -25,15 +46,15 @@ def test_valid_reassignment_keeps_exact_modifiers():
     policy = KeyPolicy({'en': 'A', 'vi': 'F6', 'both': 'Shift+A'})
     assert policy.key(65, 0, True, True) == (True, 'en')
     assert policy.key(65, 0, False, True) == (True, None)
-    assert policy.key(65, 4, True, True) == (True, 'both')
-    assert policy.key(65, 4, False, True) == (True, None)
+    assert policy.key(65, 4, True, True) == (False, None)
+    assert policy.key(65, 4, False, True) == (False, None)
     assert policy.key(65, 5, True, True) == (False, None)
 
 
 def test_repeat_release_modifiers_focus_and_unrelated_keys():
     policy = KeyPolicy()
-    assert policy.key(32, 1, True, True) == (True, 'both')
-    assert policy.key(32, 0, True, True) == (True, None), 'Modifier release must not start the other language'
+    assert policy.key(32, 1, True, True) == (False, None)
+    assert policy.key(32, 0, True, True) == (True, 'en')
     assert policy.key(32, 0, False, True) == (True, None)
     assert policy.key(32, 0, True, True) == (True, 'en')
     assert policy.key(32, 0, True, False) == (False, None)
@@ -66,7 +87,7 @@ def test_volume_and_navigation_keys_are_scoped_and_do_not_repeat():
 
 def test_saved_three_reading_keys_migrate_without_losing_teacher_choices():
     chosen = {'en': 'A', 'vi': 'F6', 'both': 'Shift+A'}
-    assert saved_bindings(chosen) == DEFAULTS | chosen
+    assert saved_bindings(chosen) == DEFAULTS | {k: v for k, v in chosen.items() if k != 'both'}
 
 
 def test_wasd_replaces_arrows_and_keeps_function_keys_and_other_apps_free():

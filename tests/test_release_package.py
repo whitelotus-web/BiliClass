@@ -44,4 +44,5 @@ def test_native_ocr_package_models_are_not_mistaken_for_optional_downloads():
     assert package.distributable(Path('_internal/rapidocr/models/recognizer.onnx'))
     assert package.distributable(Path('models/ocr-vi-en-v2/recognizer.onnx'))
     assert package.distributable(Path('models/vieneu-hf/model.gguf'))
+    assert package.distributable(Path('models/kokoro-multi-lang-v1_0/model.onnx'))
     assert not package.distributable(Path('models/unused-legacy-model/model.bin'))

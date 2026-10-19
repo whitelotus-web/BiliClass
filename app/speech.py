@@ -12,6 +12,9 @@ from threading import Condition, Lock, local
 from uuid import uuid4
 from weakref import WeakValueDictionary
 
+from .voice_pairs import BY_ID as PAIRS_BY_ID
+from .voice_pairs import ENGLISH_VERSION, ENGLISH_VOICES, PAIRS, selection_for, voice_for
+
 VIENEU_VERSION = "vieneu-v3-turbo-onnx-fp32-61b85e3-3.8.3-multilingual-wsola1"
 VIENEU_VOICES = (
     {"id": "vieneu:Mai Anh", "name": "Mai Anh · Nữ Bắc", "detail": "Rõ ràng, nhẹ nhàng"},
@@ -63,30 +66,32 @@ def vieneu_ready():
 
 
 def list_voices():
-    return [dict(voice, language="multilingual", languages=["vi", "en"], provider="vieneu")
-            for voice in VIENEU_VOICES] if vieneu_ready() else []
+    from .english_speech import ready
+
+    return [dict(voice) for voice in PAIRS] if vieneu_ready() and ready() else []
 
 
 def voice_settings(library, voices=None):
     """Resolve one speaker; migrate legacy preferences without changing stored lessons."""
     voices = list_voices() if voices is None else voices
-    ids = [v["id"] for v in voices if v.get("provider") == "vieneu"]
+    ids = [v["id"] for v in voices if v.get("provider") in {"vieneu", "local_pair"}]
     saved = library.setting("voice_options", None)
     if isinstance(saved, dict):
         selected, rate = saved.get("voice", ""), saved.get("rate", 0)
     else:
         selected, rate = library.setting("voice_vi", ""), library.setting("voice_rate", 0)
+    selected = selection_for(selected) if any(identity in PAIRS_BY_ID for identity in ids) else selected
     voice = selected if selected in ids else ids[0] if ids else ""
     rate = rate if type(rate) is int and -3 <= rate <= 3 else 0
     # Language keys are routing aliases for existing narration/readiness consumers,
     # never independent saved voices or settings controls.
-    return {"voice": voice, "vi": voice, "en": voice, "rate": rate,
+    return {"voice": voice, "vi": voice_for(voice, 'vi'), "en": voice_for(voice, 'en'), "rate": rate,
             "index": ids.index(voice) if voice else -1, "speed": _SPEEDS[rate + 3]}
 
 
 def audio_key(text, voice_id, rate):
     # Preserve identity of old portable WAVs; their engines are no longer offered.
-    provider = (VIENEU_VERSION if voice_id in _VIENEU_BY_ID else
+    provider = (ENGLISH_VERSION if voice_id in ENGLISH_VOICES else VIENEU_VERSION if voice_id in _VIENEU_BY_ID else
                 "kokoro-v1_0-sherpa-1.13.8" if voice_id.startswith("kokoro:") else "sapi-v1")
     payload = json.dumps({"text": text, "voice": voice_id, "rate": rate, "provider": provider}, sort_keys=True)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
@@ -158,6 +163,10 @@ def _synthesize_vieneu(text, voice_id, rate, temporary):
 
 
 def _synthesize_vieneu_local(text, voice_id, rate, temporary):
+    if voice_id in ENGLISH_VOICES:
+        from .english_speech import render
+
+        return render(text, voice_id, rate, temporary)
     import numpy as np
 
     from .voice_threads import blas_budget
@@ -257,8 +266,8 @@ def synthesize(text, voice_id, rate, directory):
         raise ValueError("Giọng đọc nhận từ 1 đến 5.000 ký tự mỗi đoạn.")
     if type(rate) is not int or not -3 <= rate <= 3:
         raise ValueError("Tốc độ giọng đọc không hợp lệ.")
-    if voice_id not in _VIENEU_BY_ID:
-        raise ValueError("Chọn giọng đa ngôn ngữ VieNeu trong Cài đặt → Giọng đọc.")
+    if voice_id not in _VIENEU_BY_ID and voice_id not in ENGLISH_VOICES:
+        raise ValueError("Chọn cặp giọng Việt–Mỹ trong Cài đặt → Giọng đọc (giọng Việt dùng VieNeu).")
     root = Path(directory)
     root.mkdir(parents=True, exist_ok=True)
     destination = root / (audio_key(text, voice_id, rate) + ".wav")

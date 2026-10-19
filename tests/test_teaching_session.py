@@ -70,7 +70,7 @@ def test_ready_voice_opens_powerpoint_without_approving_or_blocking_on_layout_wa
             app.processEvents()
             time.sleep(.01)
         assert not bridge.busy and len(opened) == 1, bridge.message
-        assert set(opened[0]['media'][1]) == {'vi', 'en', 'both'}
+        assert set(opened[0]['media'][1]) == {'vi', 'en'}
         saved = library.get(lesson['id'])
         assert saved['revision'] == lesson['revision']
         assert not any(row['approved'] for row in saved['segments'])
@@ -191,7 +191,7 @@ def test_bound_snapshot_follows_slide_not_browsed_lesson(tmp_path, monkeypatch):
     bridge = FakeBridge(directory)
     session = TeachingSession(bridge)
     session.bind(prepared)
-    assert session.audio == {'vi': True, 'en': True, 'both': True}
+    assert session.audio == {'vi': True, 'en': True, 'both': False}
     bridge._lesson = {'id': 'another-lesson', 'segments': []}
     lesson['segments'][0]['vi'] = 'Changed after binding'
     assert session.texts('vi') == ['Xin chào.']
@@ -253,7 +253,7 @@ def test_explicit_no_voice_and_independent_embedded_powerpoint_are_teachable(tmp
     bridge = FakeBridge(directory)
     session = TeachingSession(bridge)
     session.bind(independent)
-    assert session.audio == {'vi': True, 'en': True, 'both': True}
+    assert session.audio == {'vi': True, 'en': True, 'both': False}
 
 
 def test_key_and_mouse_toggle_pause_resume_switch_and_missing_language(tmp_path):
@@ -327,6 +327,54 @@ def test_build_aware_reading_bypasses_whole_slide_media_and_only_uses_visible_ca
     assert bridge.calls[-1][1] == {'cache_only': True}
 
 
+@pytest.mark.parametrize('action', ['read', 'cancel', 'next_build', 'new_slide', 'stop', 'language'])
+def test_speakers_stay_available_during_entrance_and_queue_only_the_current_build(tmp_path, action):
+    import time
+
+    from PySide6.QtCore import QCoreApplication
+
+    app = QCoreApplication.instance() or QCoreApplication([])
+    lesson, preview, directory, _ = prepared_lesson(tmp_path)
+    prepared = prepare_teaching(lesson, preview, directory)
+    for row in prepared['speech']['slides'][0]['englishSpeechSegments']:
+        row['visibility'] = {'kind': 'click', 'show_after': 1, 'hide_after': None, 'settle_seconds': .12}
+    bridge = FakeBridge(directory)
+    bridge._powerpoint_state.update(click_index=1, build_started=time.monotonic())
+    session = TeachingSession(bridge)
+    session.bind(prepared)
+    try:
+        assert session.state['settling'] and session.audio['en'] and session.audio['vi']
+        assert session.texts('en') == [], 'Unfinished entrances cannot be read early'
+        session.toggleRead('en')
+        assert session._deferred_read and not session.pending_read
+        if action == 'cancel':
+            session.toggleRead('en')
+        elif action == 'language':
+            session.toggleRead('vi')
+        elif action in {'next_build', 'new_slide'}:
+            bridge._powerpoint_state.update(click_index=2, build_started=time.monotonic())
+            if action == 'new_slide':
+                bridge._powerpoint_state.update(slide=3, slide_id=258)
+            session.reset_reading()
+            session._watch_build()
+        elif action == 'stop':
+            session.stop()
+        deadline = time.monotonic() + .6
+        while time.monotonic() < deadline:
+            app.processEvents()
+            time.sleep(.005)
+        if action in {'read', 'language'}:
+            expected = 'vi' if action == 'language' else 'en'
+            assert session.language == expected and session.pending_read
+            assert session.pending_read[3] == (['Xin chào.'] if expected == 'vi' else ['Hello.'])
+            assert bridge.calls[-1][0] == 'stop_media'
+        else:
+            assert not session.pending_read and not session._deferred_read
+            assert not any(isinstance(call, tuple) and call[0] == 'play_media' for call in bridge.calls)
+    finally:
+        session.clear()
+
+
 def test_player_failure_reuses_verified_cache_and_preserves_pause_intent(tmp_path, monkeypatch):
     lesson, preview, directory, _ = prepared_lesson(tmp_path)
     bridge = FakeBridge(directory)
@@ -343,18 +391,20 @@ def test_player_failure_reuses_verified_cache_and_preserves_pause_intent(tmp_pat
     assert not session.pending_read and session.native_state == 'stopped'
 
 
-def test_two_separate_slide_speakers_can_read_both_with_existing_cache_only(tmp_path):
+def test_only_separate_languages_can_play_even_with_a_legacy_combined_recording(tmp_path):
     lesson, preview, directory, _ = prepared_lesson(tmp_path)
     bridge = FakeBridge(directory)
     session = TeachingSession(bridge)
     prepared = prepare_teaching(lesson, preview, directory)
-    prepared['media'][1] = ['vi', 'en']  # Older bilingual export has no combined native player.
     session.bind(prepared)
-    assert session.audio['both']
+    assert not session.audio['both']
+    before = list(bridge.calls)
     session.read('both')
-    assert session.pending_read and session.language == 'both'
-    session.office_event(dict(session._media_request(), event='media_stopped'))
-    assert bridge.calls[-1][1] == {'cache_only': True}
+    session.toggleRead('both')
+    assert bridge.calls == before and not session.pending_read
+    for language in ('en', 'vi'):
+        session.read(language)
+        assert session.language == language and bridge.calls[-1][0] == 'play_media'
 
 
 def test_switching_language_while_cache_fallback_waits_keeps_only_latest_intent(tmp_path):

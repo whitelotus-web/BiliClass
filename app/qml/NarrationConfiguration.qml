@@ -37,7 +37,7 @@ Rectangle {
         }
         Label {
             objectName: "narrationConfigurationExplanation"
-            text: card.mode === "both" ? "Loa hai ngôn ngữ: Việt · Anh · Việt–Anh."
+            text: card.mode === "both" ? "Tạo hai loa riêng trên slide: Anh và Việt. Mỗi loa đọc một ngôn ngữ."
                 : card.mode === "vi" ? "Tạo loa tiếng Việt trên slide." : "Tạo loa tiếng Anh trên slide."
             color: "#667997"; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap
         }

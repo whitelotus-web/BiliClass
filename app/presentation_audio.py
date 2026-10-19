@@ -47,42 +47,18 @@ def slide_audio(lesson, directory, *, scope='full_slide'):
                 for part in speech_chunks(unit["vi"])
             ]
         for language, texts in languages.items():
-            keys = [speech.audio_key(text, record["voice"], record["rate"]) for text in texts]
+            keys = [speech.audio_key(text, speech.voice_for(record["voice"], language), record["rate"]) for text in texts]
             if not keys:
                 continue
             if any(key not in record["keys"][language] or not valid_key(directory, key) for key in keys):
                 raise ValueError("Giọng đọc không khớp bài đang xem. Tạo lại giọng trước khi tải.")
             pages.setdefault(page["slide"], {})[language] = keys
-        if record.get('playback') == 'both_controls' and set(pages.get(page['slide'], {})) == {'vi', 'en'}:
-            pages[page['slide']]['both'] = paired_keys(lesson, page['slide'], pages[page['slide']], record)
     if not pages:
         raise ValueError(
             "Chưa có lời đọc tĩnh phù hợp để nhúng; phần theo hiệu ứng vẫn dùng trong BiliClass."
         )
-    return {number: {lang: languages[lang] for lang in ('vi', 'en', 'both') if lang in languages}
+    return {number: {lang: languages[lang] for lang in ('vi', 'en') if lang in languages}
             for number, languages in pages.items()}
-
-
-def paired_keys(lesson, number, languages, record):
-    """Pair verified unit chunks, then retain any remaining visible text."""
-    from . import speech
-    from .slide_speech import speech_chunks
-
-    allowed = {lang: set(keys) for lang, keys in languages.items()}
-    used = {'vi': set(), 'en': set()}
-    result = []
-    for unit in narration_segments(lesson):
-        if slide_for_locator(unit.get('locator', '')) != number:
-            continue
-        pair = {lang: [speech.audio_key(text, record['voice'], record['rate']) for text in speech_chunks(unit[lang])]
-                for lang in ('vi', 'en')}
-        if all(pair[lang] and set(pair[lang]) <= allowed[lang] for lang in ('vi', 'en')):
-            for lang in ('vi', 'en'):
-                result.extend(pair[lang])
-                used[lang].update(pair[lang])
-    for lang in ('vi', 'en'):
-        result.extend(key for key in languages[lang] if key not in used[lang])
-    return result
 
 
 def static_vietnamese(slide, lesson, number):

@@ -275,9 +275,9 @@ Item {
             Card {
                 objectName: "multilingualVoiceCard"; Layout.fillWidth: true; padding: 18
                 ColumnLayout { width: parent.width; spacing: 10
-                    Title { text: "Một giọng cho tiếng Việt và tiếng Anh" }
-                    Hint { text: "Giọng VieNeu đọc Việt, Anh và câu xen hai ngôn ngữ. Bài giảng và mascot dùng chung giọng đã lưu, chạy ngoại tuyến."; Layout.fillWidth: true }
-                    Hint { visible: !bridge.vieneuReady; color: "#ba581a"; text: "Chưa tìm thấy bộ giọng VieNeu. Hãy cài bản BiliClass đầy đủ để sử dụng giọng đa ngôn ngữ."; Layout.fillWidth: true }
+                    Title { text: "Cặp giọng Việt–Mỹ" }
+                    Hint { text: "6 cặp giọng: nam và nữ miền Bắc, Trung, Nam. Phần Việt dùng VieNeu; phần Anh dùng giọng Mỹ riêng. Hai ngôn ngữ phát bằng hai loa độc lập, hoàn toàn ngoại tuyến."; Layout.fillWidth: true }
+                    Hint { visible: !bridge.vieneuReady; color: "#ba581a"; text: "Chưa tìm thấy đủ bộ giọng Việt–Mỹ. Hãy cài bản BiliClass đầy đủ."; Layout.fillWidth: true }
                     GridLayout {
                         objectName: "multilingualVoiceGrid"; Layout.fillWidth: true
                         columns: width >= 900 ? 3 : width >= 600 ? 2 : 1; rowSpacing: 10; columnSpacing: 12
@@ -297,7 +297,7 @@ Item {
                                         checked: page.draftVoice === voiceOption.modelData.id
                                         onClicked: page.draftVoice = voiceOption.modelData.id
                                     }
-                                    Hint { text: voiceOption.modelData.detail + " · Việt + Anh"; leftPadding: 12; font.pixelSize: 12; Layout.fillWidth: true }
+                                    Hint { text: voiceOption.modelData.detail; leftPadding: 12; font.pixelSize: 12; Layout.fillWidth: true }
                                 }
                             }
                         }
@@ -318,15 +318,15 @@ Item {
                         Hint { text: "Nhanh" }
                         SoftButton { objectName: "resetVoiceSpeed"; text: "100%"; onClicked: page.draftRate = 0 }
                     }
-                    Label { text: "Câu nghe thử Việt–Anh"; color: page.ink }
+                    Label { text: "Nghe thử cặp giọng Việt–Mỹ"; color: page.ink }
                     Field { id: voiceSample; objectName: "settingsVoiceSample"; text: "Xin chào các em. Let's learn together."; maximumLength: 250; Layout.fillWidth: true }
                     RowLayout { Layout.fillWidth: true; spacing: 10
                         SoftButton { objectName: "previewMultilingualVoice"; text: bridge.voiceUiState.phase === "preparing" ? "Đang chuẩn bị…" : "Nghe thử"; iconName: "play"; enabled: !!page.draftVoice; onClicked: bridge.previewMultilingualVoice(page.draftVoice, page.draftRate, voiceSample.text) }
                         SoftButton { objectName: "stopVoicePreview"; text: "Dừng đọc"; onClicked: bridge.stopSpeech() }
                         Item { Layout.fillWidth: true }
-                        SaveButton { objectName: "saveMultilingualVoice"; text: bridge.voiceUiState.saving ? "Đang lưu…" : "Lưu giọng và tốc độ"; enabled: !bridge.voiceUiState.saving && !!page.draftVoice; onClicked: bridge.saveMultilingualVoice(page.draftVoice, page.draftRate) }
+                        SaveButton { objectName: "saveMultilingualVoice"; text: bridge.voiceUiState.saving ? "Đang lưu…" : "Lưu cặp giọng và tốc độ"; enabled: !bridge.voiceUiState.saving && !!page.draftVoice; onClicked: bridge.saveMultilingualVoice(page.draftVoice, page.draftRate) }
                     }
-                    Hint { objectName: "voiceSaveStatus"; text: bridge.voiceUiState.saving || bridge.voiceUiState.saveError ? bridge.voiceUiState.saveMessage : page.voiceDirty ? "Chưa lưu thay đổi. Nghe thử để kiểm tra giọng và tốc độ trước khi lưu." : bridge.voiceUiState.saveMessage || "Bài giảng và mascot đang dùng giọng cùng tốc độ đã lưu."; color: bridge.voiceUiState.saveError ? "#ba581a" : page.voiceDirty ? page.muted : "#168567"; Layout.fillWidth: true }
+                    Hint { objectName: "voiceSaveStatus"; text: bridge.voiceUiState.saving || bridge.voiceUiState.saveError ? bridge.voiceUiState.saveMessage : page.voiceDirty ? "Chưa lưu thay đổi. Nghe thử để kiểm tra giọng và tốc độ trước khi lưu." : bridge.voiceUiState.saveMessage || "Lần tạo giọng mới dùng cặp giọng đã lưu. Bài đã tạo giữ nguyên âm thanh."; color: bridge.voiceUiState.saveError ? "#ba581a" : page.voiceDirty ? page.muted : "#168567"; Layout.fillWidth: true }
                     Hint { objectName: "voicePreviewStatus"; visible: !!bridge.voiceUiState.message; text: bridge.voiceUiState.message; Layout.fillWidth: true }
                     Hint { text: "Câu mẫu có sẵn để nghe nhanh. Khi nhập câu riêng, lần đầu cần chuẩn bị giọng; các lần nghe lại được lưu để phát nhanh hơn. Đổi tốc độ vẫn giữ cao độ giọng."; Layout.fillWidth: true }
                 }

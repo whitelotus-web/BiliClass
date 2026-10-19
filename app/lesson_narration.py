@@ -36,10 +36,8 @@ def records(lesson):
 
 
 def variant_title(record):
-    voice = next((v['name'] for v in speech.VIENEU_VOICES if v['id'] == record.get('voice')), record.get('voice', ''))
-    mode = 'Việt–Anh · loa riêng và chung' if record.get('mode') == 'both' and record.get('playback') == 'both_controls' else LABELS.get(record.get('mode'), '')
-    if record.get('mode') == 'both' and record.get('playback', 'separate') == 'separate':
-        mode = 'Việt + Anh · hai loa'
+    voice = next((v['name'] for v in (*speech.VIENEU_VOICES, *speech.PAIRS) if v['id'] == record.get('voice')), record.get('voice', ''))
+    mode = 'Việt + Anh · hai loa riêng' if record.get('mode') == 'both' else LABELS.get(record.get('mode'), '')
     rate = record.get('rate', 0)
     speed = round(speech._SPEEDS[rate + 3] * 100) if type(rate) is int and -3 <= rate <= 3 else 100
     return f'{mode} · {voice} · {speed}%'
@@ -69,7 +67,7 @@ def library_audio_status(lesson, directory, fallback_voices=None, *, cancel=None
 
 def creation_choices(lesson, voice, rate, verified=(), live=None):
     """Describe the three exact products using published audio checks, no I/O."""
-    if not lesson or voice not in {v['id'] for v in speech.VIENEU_VOICES} or type(rate) is not int or not -3 <= rate <= 3:
+    if not lesson or voice not in {v['id'] for v in (*speech.VIENEU_VOICES, *speech.PAIRS)} or type(rate) is not int or not -3 <= rate <= 3:
         return {}
     saved = records(lesson)
     checked = {row['id']: row for row in verified if row.get('id')}
@@ -78,8 +76,7 @@ def creation_choices(lesson, voice, rate, verified=(), live=None):
     result = {}
     context = {}
     for mode in MODES:
-        plan, _ = make_plan(lesson, mode, {'voice': voice, 'rate': rate},
-                            playback='both_controls' if mode == 'both' else 'separate', _context=context)
+        plan, _ = make_plan(lesson, mode, {'voice': voice, 'rate': rate}, _context=context)
         identity = variant_id(plan)
         stored, state = saved.get(identity), checked.get(identity)
         if not plan['total']:
@@ -125,7 +122,7 @@ def _plan_signature(lesson, context):
 def make_plan(lesson, mode, voices, *, playback='separate', _context=None):
     if mode not in MODES:
         raise ValueError("Chọn tiếng Anh, tiếng Việt hoặc Việt + Anh.")
-    selected = {**voices, **{lang: voices.get("voice", "") if lang in MODES[mode] else ""
+    selected = {**voices, **{lang: speech.voice_for(voices.get("voice", ""), lang) if lang in MODES[mode] else ""
                             for lang in ("vi", "en")}}
     keys = {}
     skipped = 0

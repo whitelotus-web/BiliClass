@@ -31,7 +31,7 @@ from app.ui import Bridge
 def main():
     app = QGuiApplication([])
     QQuickStyle.setStyle('Basic')
-    out = Path('reports/rc90/teaching')
+    out = Path('reports/rc92/teaching')
     out.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='bcl-teaching-', ignore_cleanup_errors=True) as folder:
         folder = Path(folder)
@@ -96,7 +96,7 @@ def main():
             assert companion.grabWindow().save(str(out / 'mascot-ready.png'))
             tap('companionStartShow')
             until(lambda: bridge.powerpointState.get('active'), timeout=50)
-            assert bridge.teachingSession.audio == {'vi': True, 'en': True, 'both': True}
+            assert bridge.teachingSession.audio == {'vi': True, 'en': True, 'both': False}
             assert bridge.powerpointState.get('hwnd'), 'Mascot must resolve this slideshow window when Office omits HWND'
             assert cc('companionReadingOptions').isVisible()
             assert companion.findChild(QObject, 'companionStopSpeech') is None
@@ -111,7 +111,7 @@ def main():
             assert cc('companionReadEnglish').property('iconName') == 'pause'
             tap('companionReadEnglish')
             until(lambda: bridge.teachingSession.native_state == 'paused')
-            assert cc('companionReadEnglish').property('iconName') == 'speaker-en'
+            assert cc('companionReadEnglish').property('iconName') == 'speaker'
             tap('companionReadEnglish')
             until(lambda: bridge.teachingSession.native_state == 'reading')
             tap('companionReadVietnamese')
@@ -131,11 +131,11 @@ def main():
             until(lambda: bridge.powerpointState.get('slide') == 1)
             tap('companionNext')
             until(lambda: bridge.powerpointState.get('slide') == 2)
-            assert not cc('companionReadEnglish').isVisible() and not cc('companionReadVietnamese').isVisible()
+            assert all(cc('companionRead' + name).isVisible() and not cc('companionRead' + name).isEnabled() for name in ('English', 'Vietnamese'))
             tap('companionNext')
             until(lambda: bridge.powerpointState.get('slide') == 3)
-            assert cc('companionReadVietnamese').isVisible() and not cc('companionReadEnglish').isVisible()
-            assert not cc('companionReadBoth').isVisible()
+            assert cc('companionReadVietnamese').isEnabled() and not cc('companionReadEnglish').isEnabled()
+            assert companion.findChild(QObject, 'companionReadBoth') is None
             bridge.openLesson(other['id'])
             until(lambda: not bridge.busy and bridge.lesson.get('id') == other['id'])
             assert bridge.teachingSession.state['lesson_id'] == lesson['id']
@@ -170,7 +170,7 @@ def main():
             assert not bridge.error, bridge.message
             tap('companionStartShow')
             until(lambda: bridge.powerpointState.get('active'))
-            assert bridge.teachingSession.audio == {'vi': True, 'en': True, 'both': True}
+            assert bridge.teachingSession.audio == {'vi': True, 'en': True, 'both': False}
             tap('companionReadVietnamese')
             until(lambda: bridge.teachingSession.native_state == 'reading')
             bridge.teachingSession.stop()

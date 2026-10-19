@@ -55,8 +55,8 @@ ColumnLayout {
         if (modifiers & Qt.ControlModifier) mods.push("Ctrl")
         if (modifiers & Qt.AltModifier) mods.push("Alt")
         if (modifiers & Qt.ShiftModifier) mods.push("Shift")
-        if (!base || modifiers & Qt.MetaModifier || mods.length !== (capturing === "both" ? 1 : 0)) {
-            feedback = capturing === "both" ? "Nhấn Ctrl/Alt/Shift cùng một phím; F5 và Esc được giữ cho PowerPoint." : "Nhấn một phím chữ, số, mũi tên, Space, Enter hoặc F1–F12 (trừ F5)."
+        if (!base || modifiers & Qt.MetaModifier || mods.length !== 0) {
+            feedback = "Nhấn một phím chữ, số, mũi tên, Space, Enter hoặc F1–F12 (trừ F5)."
             invalid = true; return
         }
         let value = mods.concat([base]).join("+")
@@ -77,7 +77,7 @@ ColumnLayout {
         ColumnLayout {
         objectName: "shortcutBindings"; Layout.fillWidth: true; Layout.maximumWidth: panel.wideGuide ? 500 : Infinity; spacing: 12
         Repeater {
-        model: [{language: "en", label: "Đọc tiếng Anh", detail: "Một phím"}, {language: "vi", label: "Đọc tiếng Việt", detail: "Một phím"}, {language: "both", label: "Đọc hai ngôn ngữ", detail: "Hai phím cùng lúc"}]
+        model: [{language: "en", label: "Đọc tiếng Anh", detail: "Một phím"}, {language: "vi", label: "Đọc tiếng Việt", detail: "Một phím"}]
         RowLayout {
             required property var modelData
             Layout.fillWidth: true; spacing: 12

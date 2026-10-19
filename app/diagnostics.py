@@ -72,26 +72,26 @@ def run(output):
                 report["checks"].append("SQLite, history and draft pack roundtrip")
                 voices = list_voices()
                 if getattr(sys, "frozen", False):
-                    assert len(voices) == 6 and all(v.get("provider") == "vieneu" for v in voices), "Missing multilingual voices"
+                    assert len(voices) == 6 and all(v.get("provider") in {"vieneu", "local_pair"} for v in voices), "Missing multilingual voices"
                 report["voices"] = [{"name": v["name"], "language": v["language"]} for v in voices]
                 english = next((v for v in voices if "en" in v.get("languages", [])), None)
                 if english:
-                    first = synthesize("Please explain your answer.", english["id"], 0, directory / "audio")
-                    second = synthesize("Please explain your answer.", english["id"], 0, directory / "audio")
+                    first = synthesize("Please explain your answer.", english.get("en", english["id"]), 0, directory / "audio")
+                    second = synthesize("Please explain your answer.", english.get("en", english["id"]), 0, directory / "audio")
                     assert valid_audio(first["path"]) and second["cached"]
-                    report["tts"] = {"voice": english["id"], "provider": english.get("provider", "sapi")}
+                    report["tts"] = {"voice": english.get("en", english["id"]), "provider": "kokoro"}
                     report["checks"].append("offline English WAV synthesized and cache reused; no playback")
-                vietnamese = next((v for v in voices if v.get("provider") == "vieneu"), None)
+                vietnamese = next((v for v in voices if v.get("provider") in {"vieneu", "local_pair"}), None)
                 if vietnamese:
-                    first = synthesize("Chúng ta cùng tìm hiểu một ý tưởng mới.", vietnamese["id"], 0, directory / "audio")
-                    second = synthesize("Chúng ta cùng tìm hiểu một ý tưởng mới.", vietnamese["id"], 0, directory / "audio")
-                    adjusted = synthesize("Chào cả lớp.", vietnamese["id"], 1, directory / "audio")
+                    first = synthesize("Chúng ta cùng tìm hiểu một ý tưởng mới.", vietnamese.get("vi", vietnamese["id"]), 0, directory / "audio")
+                    second = synthesize("Chúng ta cùng tìm hiểu một ý tưởng mới.", vietnamese.get("vi", vietnamese["id"]), 0, directory / "audio")
+                    adjusted = synthesize("Chào cả lớp.", vietnamese.get("vi", vietnamese["id"]), 1, directory / "audio")
                     assert valid_audio(first["path"]) and second["cached"] and valid_audio(adjusted["path"])
-                    report["tts_vi"] = {"voice": vietnamese["id"], "provider": "vieneu", "cached": True}
-                    assert english and english["id"] == vietnamese["id"], "Both languages must use one speaker"
-                    mixed = synthesize("Động năng là kinetic energy. Energy is measured in joules.", vietnamese["id"], -1, directory / "audio")
+                    report["tts_vi"] = {"voice": vietnamese.get("vi", vietnamese["id"]), "provider": "vieneu", "cached": True}
+                    assert english and english["en"] != vietnamese["vi"], "Language routes must use separate speakers"
+                    mixed = synthesize("Động năng là kinetic energy. Energy is measured in joules.", vietnamese.get("vi", vietnamese["id"]), -1, directory / "audio")
                     assert valid_audio(mixed["path"])
-                    report["checks"].append("one offline VieNeu speaker: VI, EN, mixed text, speed and cache; no playback")
+                    report["checks"].append("offline Vietnamese-US pair: independent VI/EN, speed and cache; no playback")
                 library.edit_segment(lesson["id"], lesson["segments"][0]["id"], "Thảo luận theo nhóm.", en, True)
                 prepared = library.save_question(lesson["id"], {"kind": "single", "vi": "Chọn bằng chứng", "en": "Choose evidence", "approved": True,
                     "concept_id": lesson["segments"][0]["id"], "concept_label": "Lập luận", "correct": "A",

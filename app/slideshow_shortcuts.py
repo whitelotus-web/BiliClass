@@ -10,14 +10,20 @@ import sys
 import threading
 from ctypes import wintypes
 
-READ_ACTIONS = {'en', 'vi', 'both'}
-DEFAULTS = {'en': 'Space', 'vi': 'Enter', 'both': 'Ctrl+Space',
+READ_ACTIONS = {'en', 'vi'}
+DEFAULTS = {'en': 'Space', 'vi': 'Enter',
             'previous': 'Left', 'next': 'Right', 'volume_up': 'Up', 'volume_down': 'Down'}
 KEYS = {'Space': 0x20, 'Enter': 0x0D, 'Left': 0x25, 'Up': 0x26, 'Right': 0x27, 'Down': 0x28}
 KEYS.update({chr(key): key for key in range(65, 91)})
 KEYS.update({str(key): 48 + key for key in range(10)})
 KEYS.update({f'F{number}': 0x6F + number for number in range(1, 13) if number != 5})
 MODIFIERS = {'Ctrl': 1, 'Alt': 2, 'Shift': 4}
+
+
+def window_identity(hwnd):
+    # USER handles have 32 significant bits. PyWin32 can return a signed LONG,
+    # while ctypes HWND returns a pointer-sized unsigned value for the same HWND.
+    return int(hwnd or 0) & 0xffffffff
 
 
 def validate(bindings):
@@ -29,9 +35,9 @@ def validate(bindings):
         if not isinstance(sequence, str):
             raise ValueError('Phím đọc không hợp lệ.')
         parts = sequence.split('+')
-        count = 2 if language == 'both' else 1
+        count = 1
         if len(parts) != count or parts[-1] not in KEYS or (count == 2 and parts[0] not in MODIFIERS):
-            raise ValueError('Mỗi thao tác dùng một phím; đọc hai ngôn ngữ dùng Ctrl/Alt/Shift cùng một phím. Esc và F5 được giữ cho PowerPoint.')
+            raise ValueError('Mỗi thao tác dùng một phím. Esc và F5 được giữ cho PowerPoint.')
         if sequence in {'Alt+F4', 'Alt+Space', 'Ctrl+Esc', 'Ctrl+F4'}:
             raise ValueError('Tổ hợp này dành cho cửa sổ Windows. Hãy chọn phím khác.')
         result[language] = sequence
@@ -41,6 +47,8 @@ def validate(bindings):
 
 
 def saved_bindings(value):
+    if isinstance(value, dict):
+        value = {key: item for key, item in value.items() if key != 'both'}
     if isinstance(value, dict) and set(value) == READ_ACTIONS:
         value = DEFAULTS | value  # Preserve existing reading keys when upgrading.
     try:
@@ -99,6 +107,7 @@ class SlideshowKeys:
     def bind(self, hwnd=0, slide_id=0, regions=(), presenter=0):
         # Publish one immutable snapshot: callbacks cannot see a new slide ID
         # paired with a previous slide's click regions or presenter window.
+        hwnd, presenter = window_identity(hwnd), window_identity(presenter)
         self._binding = (hwnd, slide_id, tuple(regions),
                          frozenset(handle for handle in (hwnd, presenter) if handle))
 
@@ -159,7 +168,7 @@ class SlideshowKeys:
             if code >= 0 and message in {0x100, 0x101, 0x104, 0x105}:
                 key = ctypes.cast(data, ctypes.POINTER(Keyboard)).contents
                 hwnd, slide_id, _, focus_windows = self._binding
-                focused = user.GetForegroundWindow() in focus_windows
+                focused = window_identity(user.GetForegroundWindow()) in focus_windows
                 modifiers = sum(mask for vk, mask in ((0x11, 1), (0x12, 2), (0x10, 4))
                                 if user.GetAsyncKeyState(vk) & 0x8000)
                 # Win+key belongs to Windows, even if the base key is configured.
@@ -189,7 +198,7 @@ class SlideshowKeys:
                 # The low-level down event arrives BEFORE Windows activates a
                 # slide clicked from Mascot. The exact hit window is the target;
                 # requiring foreground here lets that first click run natively.
-                focused = bool(hwnd and user.GetAncestor(user.WindowFromPoint(point), 2) == hwnd)
+                focused = bool(hwnd and window_identity(user.GetAncestor(user.WindowFromPoint(point), 2)) == hwnd)
                 if message == 0x202:
                     held, mouse_held = mouse_held, False
                     if held:

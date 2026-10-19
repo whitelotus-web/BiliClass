@@ -91,6 +91,15 @@ def add_controls(tree, controls, *, managed=False):
         if managed:
             # The bound Mascot session owns click/pause state. Native picture
             # animations must not hide its pause badge or start a second voice.
+            # A neutral trigger gives PowerPoint its normal hand cursor. If a
+            # hook is unavailable, clicking neither advances a build nor plays
+            # audio: the only effect targets the already transparent media host.
+            for trigger in (ready_id, pause_id):
+                sequence = clock(_node(children, 'seq', concurrent='1'), restart='always', fill='hold',
+                                 evtFilter='cancelBubble', nodeType='interactiveSeq')
+                condition = _node(_node(sequence, 'stCondLst'), 'cond', evt='onClick', delay='0')
+                target(condition, trigger)
+                visibility(effects(_node(sequence, 'childTnLst')), media_id, True)
             continue
         for trigger, pause in ((ready_id, False), (pause_id, True)):
             sequence = clock(_node(children, 'seq', concurrent='1'), restart='always', fill='hold',

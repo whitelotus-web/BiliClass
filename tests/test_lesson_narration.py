@@ -265,13 +265,13 @@ def test_different_voice_generation_and_teaching_use_selected_variant_not_global
         queues = []
         bridge.english_reader.start = lambda texts, voice, rate: queues.append((texts, voice, rate))
         bridge.speakSegment("both")
-        assert queues[-1] == ([lesson["segments"][0]["vi"], lesson["segments"][0]["en"]], VOICE, 0)
+        assert queues == [] and "loa Anh hoặc loa Việt" in bridge.message
         vi, _ = make_plan(lesson, "vi", {"voice": other, "rate": 0})
         bridge.selectNarrationVariant(variant_id(vi))
         settle_narration(app, bridge)
         assert bridge._lesson_voice_settings()["vi"] == other and not bridge._lesson_voice_settings()["en"]
         bridge.speakSegment("both")
-        assert len(queues) == 1 and "cả giọng Việt và Anh" in bridge.message
+        assert queues == [] and "loa Anh hoặc loa Việt" in bridge.message
     finally:
         bridge.narration_preparation.shutdown()
         bridge.english_reader.shutdown()
@@ -350,12 +350,12 @@ def test_companion_cannot_read_without_live_matching_presentation_and_stops_on_c
         bridge._powerpoint_lesson_id = lesson["id"]
         bridge._powerpoint_state = {"active": True, "slide": 1, "total": 1}
         assert bridge.companionCanRead
-        bridge.companionRead("both")
+        bridge.companionRead("en")
         bridge.replayCompanion()
-        assert calls == ["both", "both"]
+        assert calls == ["en", "en"]
         bridge._powerpoint_changed({"active": False, "slide": 1, "total": 1})
         bridge.companionRead("vi")
-        assert calls == ["both", "both"] and stopped and not bridge.companionCanRead
+        assert calls == ["en", "en"] and stopped and not bridge.companionCanRead
     finally:
         bridge.powerpoint_worker = None
         bridge.narration_preparation.shutdown()

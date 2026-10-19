@@ -12,12 +12,13 @@ from app.voice_speed import time_stretch_audio
 
 def test_legacy_vietnamese_choice_becomes_shared_without_mutating_library(tmp_path, monkeypatch):
     monkeypatch.setattr(speech, "vieneu_ready", lambda: True)
+    monkeypatch.setattr("app.english_speech.ready", lambda: True)
     with closing(Library(tmp_path)) as library:
         library.set_setting("voice_vi", "vieneu:Hải Đăng")
         library.set_setting("voice_en", "kokoro:af_bella")
         library.set_setting("voice_rate", -2)
         settings = speech.voice_settings(library)
-        assert settings["voice"] == settings["vi"] == settings["en"] == "vieneu:Hải Đăng"
+        assert settings["voice"] == "pair:north-male" and settings["vi"] == "vieneu:Hải Đăng" and settings["en"] == "kokoro-us:am_michael"
         assert settings["rate"] == -2
         assert library.setting("voice_options", None) is None
         assert library.setting("voice_en", "") == "kokoro:af_bella"
@@ -25,23 +26,25 @@ def test_legacy_vietnamese_choice_becomes_shared_without_mutating_library(tmp_pa
 
 def test_atomic_shared_preferences_win_and_survive_reopen(tmp_path, monkeypatch):
     monkeypatch.setattr(speech, "vieneu_ready", lambda: True)
+    monkeypatch.setattr("app.english_speech.ready", lambda: True)
     with closing(Library(tmp_path)) as library:
         library.set_setting("voice_vi", "vieneu:Hải Đăng")
         library.set_setting("voice_rate", -3)
         library.set_setting("voice_options", {"voice": "vieneu:Ngọc Trân", "rate": 2})
     with closing(Library(tmp_path)) as library:
         settings = speech.voice_settings(library)
-        assert settings["en"] == settings["vi"] == "vieneu:Ngọc Trân"
+        assert settings["voice"] == "pair:central-female" and settings["vi"] == "vieneu:Ngọc Trân" and settings["en"] == "kokoro-us:af_heart"
         assert settings["rate"] == 2
         assert settings["speed"] == 1.12
 
 
 def test_missing_model_and_bad_saved_rate_fail_honestly(tmp_path, monkeypatch):
     monkeypatch.setattr(speech, "vieneu_ready", lambda: True)
+    monkeypatch.setattr("app.english_speech.ready", lambda: True)
     with closing(Library(tmp_path)) as library:
         library.set_setting("voice_options", {"voice": "removed-speaker", "rate": True})
         settings = speech.voice_settings(library)
-        assert settings["voice"] == "vieneu:Mai Anh" and settings["rate"] == 0
+        assert settings["voice"] == "pair:north-female" and settings["rate"] == 0
         monkeypatch.setattr(speech, "vieneu_ready", lambda: False)
         settings = speech.voice_settings(library)
         assert settings["en"] == settings["vi"] == "" and settings["index"] == -1

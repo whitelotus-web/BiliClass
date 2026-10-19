@@ -129,7 +129,7 @@ def test_open_library_reuses_ready_voice_when_active_variant_is_incomplete(tmp_p
     monkeypatch.setattr('app.speech.synthesize', lambda *a, **k: pytest.fail('Opening must not generate voice'))
     result = prepare_library_teaching(directory, lesson['id'])
     assert result['lesson']['narration']['keys'] == old['narration']['keys']
-    assert result['media'][1] == ['vi', 'en', 'both']
+    assert result['media'][1] == ['vi', 'en']
     assert not any(segment['approved'] for segment in result['lesson']['segments'])
 
 

@@ -26,7 +26,7 @@ try {
       --exclude-module ctranslate2 --exclude-module sentencepiece --exclude-module rapidocr --exclude-module winrt `
       --exclude-module app.translation --exclude-module app.bulk_translation --exclude-module app.ocr `
       --exclude-module app.local_ocr --exclude-module app.model_packs --exclude-module biliclass_m0 `
-      --exclude-module sherpa_onnx `
+      --collect-all sherpa_onnx --copy-metadata sherpa-onnx --copy-metadata sherpa-onnx-core `
       --collect-data vieneu --collect-data sea_g2p --copy-metadata vieneu --copy-metadata sea-g2p `
       --hidden-import vieneu.v3turbo --hidden-import vieneu._v3_turbo_engine.onnx_runtime_lite `
       scripts/app_entry.py

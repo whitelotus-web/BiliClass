@@ -125,3 +125,20 @@ README package ghi cùng attribution OPUS-MT và CC BY 4.0 như phía trên; gi�
 - SQLite được dùng qua Python; thư viện và runtime không chỉnh sửa.
 
 `dist/BiliClass/licenses/` chứa METADATA gốc, bản giấy phép/NOTICE/COPYING tìm thấy trong các distribution đã cài và `DEPENDENCIES.json`. Phiên bản chính xác còn được ghi trong `requirements-lock.txt`. Qt/PySide6 được liên kết động: không khóa việc thay thư viện tương thích; nguồn tương ứng của upstream Qt 6.11 và PySide6 có tại https://download.qt.io/official_releases/qt/6.11/ và https://download.qt.io/official_releases/QtForPython/. Thư mục model giữ nguyên attribution và provenance OPUS/Argos. Bản RC thử tại máy chưa ký số, chưa phải chứng nhận phân phối thương mại.
+
+
+## Cặp giọng Việt–Mỹ trong RC92
+
+Sáu cặp giữ sáu giọng Việt VieNeu nêu trên; phần Anh dùng Kokoro 82M v1.0:
+`af_heart` (nữ Mỹ) và `am_michael` (nam Mỹ), qua sherpa-onnx 1.13.8.
+Hai người đọc phát độc lập. Các giấy phép Kokoro, ONNX Runtime và eSpeak NG
+ở mục Kokoro phía trên tiếp tục áp dụng; giữ các thông báo trong bản cài.
+Mô hình và giọng mẫu không được thay đổi; chỉ tạo từ điển phát âm riêng trong
+cache để đọc mạo từ `a` ở dạng yếu. Các mẫu nghe thử Việt–Mỹ tích hợp dùng câu
+mẫu công khai của ứng dụng, tổng hợp local; không dùng bài hoặc thu âm cá nhân.
+`app/assets/voice-previews/manifest.json` lưu SHA-256 và phiên bản hai engine.
+Mô hình Kokoro `model.onnx` SHA-256:
+`b40f62b166ac8164b0627ef48a0b358eda0985e272fb03ef5252e7206305da11`.
+Giọng `voices.bin` SHA-256:
+`1c5a5b983d3d50d8586d437a51f3faa2da7919ce76a013c081e65671a3447c29`.
+Không có dịch vụ TTS qua mạng trong luồng tạo/phát giọng.

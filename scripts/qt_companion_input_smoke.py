@@ -22,6 +22,7 @@ from PySide6.QtQuickControls2 import QQuickStyle
 
 from app.library import Library
 from app.paths import RESOURCE_ROOT
+from app.slideshow_shortcuts import window_identity
 from app.teaching_session import prepare_teaching
 from app.ui import Bridge
 from scripts.qt_result_preview_mascot_smoke import control, pump, until
@@ -60,10 +61,10 @@ def native_click(window, point):
     win32api.SetCursorPos(target)
     pump(180)  # Let an old hover tooltip close before checking the hit window.
     actual = win32gui.GetAncestor(win32gui.WindowFromPoint(target), 2)
-    if actual != int(window.winId()):
+    if window_identity(actual) != window_identity(int(window.winId())):
         window.grabWindow().save('reports/rc90/occluded-input.png')
         print('Occluded ' + str((target, win32gui.GetClassName(actual), win32gui.GetWindowRect(int(window.winId())), window.size().toTuple())), flush=True)
-    assert actual == int(window.winId()), target
+    assert window_identity(actual) == window_identity(int(window.winId())), target
     win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
     pump(35)
     win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
@@ -156,10 +157,10 @@ def main():
             pump(250)
             for _ in range(3):
                 native_click(other, QPoint(120, 70))
-                if win32gui.GetForegroundWindow() == int(other.winId()):
+                if window_identity(win32gui.GetForegroundWindow()) == window_identity(int(other.winId())):
                     break
                 pump(250)  # Allow the one queued F5 activation to finish.
-            assert win32gui.GetForegroundWindow() == int(other.winId())
+            assert window_identity(win32gui.GetForegroundWindow()) == window_identity(int(other.winId()))
 
         def mascot():
             item = c('mascotToggle')
@@ -174,7 +175,7 @@ def main():
             bridge.showCompanion(companion)
             background()
             mascot()
-            assert win32gui.GetForegroundWindow() == int(other.winId()), 'An unbound Mascot must not steal another app'
+            assert window_identity(win32gui.GetForegroundWindow()) == window_identity(int(other.winId())), 'An unbound Mascot must not steal another app'
             bridge._lesson = lesson
             bridge._activate_teaching(prepared)
             until(lambda: bridge.powerpointState.get('opened'), timeout=50)
@@ -194,7 +195,11 @@ def main():
             assert c('companionPrevious').isEnabled()
             background()
             tap('companionReadEnglish')
-            until(lambda: bridge.teachingSession.native_state == 'reading')
+            try:
+                until(lambda: bridge.teachingSession.native_state == 'reading')
+            except AssertionError:
+                print('READ FAILURE: '+str((bridge.teachingSession.reader,bridge.message,bridge.powerpointState)),flush=True)
+                raise
             assert win32gui.GetForegroundWindow() == hwnd
             # Ignore other decks (including protected windows) completely.
             owned = None
@@ -217,6 +222,8 @@ def main():
                 target = (round((region[1]+region[3])/2), round((region[2]+region[4])/2))
                 assert win32gui.GetAncestor(win32gui.WindowFromPoint(target), 2) == hwnd
                 win32api.SetCursorPos(target)
+                pump(160)
+                assert window_identity(win32gui.GetCursorInfo()[1]) == window_identity(win32gui.LoadCursor(0, win32con.IDC_HAND)), 'Ready/pause speakers must show a hand cursor'
                 win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
                 pump(35)
                 win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
@@ -244,7 +251,7 @@ def main():
             native_key(win32con.VK_RETURN, hwnd)
             until(lambda: bridge.teachingSession.language == 'vi')
             native_key(win32con.VK_SPACE, hwnd, ctrl=True)
-            until(lambda: bridge.teachingSession.language == 'both')
+            assert bridge.teachingSession.language == 'vi', 'The removed combined shortcut must pass through'
             native_key(win32con.VK_UP, hwnd)
             until(lambda: bridge.teachingSession.volume == 85)
             native_key(win32con.VK_DOWN, hwnd)
@@ -281,8 +288,8 @@ def main():
             tap('companionNext')
             until(lambda: bridge.powerpointState.get('slide') == 2)
             assert c('companionSlidePosition').property('text') == 'Slide 2 / 3'
-            assert all(not c('companionRead' + language).isVisible()
-                       for language in ('English', 'Vietnamese', 'Both'))
+            assert all(c('companionRead' + language).isVisible() and not c('companionRead' + language).isEnabled()
+                       for language in ('English', 'Vietnamese'))
             assert c('companionAudioHint').isVisible()
             tap('companionPrevious')
             until(lambda: bridge.powerpointState.get('slide') == 1)
@@ -324,7 +331,7 @@ def main():
                 left, top, _, _ = win32gui.GetWindowRect(int(companion.winId()))
                 scale = companion.devicePixelRatio()
                 start = (left + round(40 * scale), top + round(25 * scale))
-                assert win32gui.GetAncestor(win32gui.WindowFromPoint(start), 2) == int(companion.winId())
+                assert window_identity(win32gui.GetAncestor(win32gui.WindowFromPoint(start), 2)) == window_identity(int(companion.winId()))
                 origin = (companion.x(), companion.y())
                 win32api.SetCursorPos(start)
                 win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)

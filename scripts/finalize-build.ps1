@@ -6,6 +6,10 @@ if (-not $distPath.StartsWith(([IO.Path]::GetFullPath($projectRoot).TrimEnd('\')
 $bundlePath = Join-Path $distPath 'BiliClass'
 $runtimeDest = Join-Path $bundlePath '_internal'
 if (-not (Test-Path -LiteralPath (Join-Path $runtimeDest 'python312.dll'))) { throw 'Build the application first.' }
+$taskEnglishSource = Join-Path $projectRoot '.runtime\kokoro\kokoro-multi-lang-v1_0'
+if (-not (Test-Path -LiteralPath (Join-Path $taskEnglishSource 'model.onnx'))) { throw 'Missing offline US English model.' }
+New-Item -ItemType Directory -Path (Join-Path $bundlePath 'models') -Force | Out-Null
+Copy-Item -LiteralPath $taskEnglishSource -Destination (Join-Path $bundlePath 'models') -Recurse -Force
 $vieneuSource = Join-Path $projectRoot '.runtime\vieneu-hf\hub'
 $vieneuDest = Join-Path $bundlePath 'models\vieneu-hf\hub'
 if (-not (Test-Path -LiteralPath (Join-Path $vieneuSource 'models--pnnbao-ump--VieNeu-TTS-v3-Turbo\refs\main'))) { throw 'Missing VieNeu model cache.' }

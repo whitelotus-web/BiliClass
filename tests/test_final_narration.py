@@ -12,7 +12,7 @@ def test_ready_bilingual_has_all_three_controls_but_unverified_never_hides_creat
         'vi': True, 'en': True, 'both': True}
     assert available_modes([{'mode': 'en', 'ready': False, 'status': 'checking'}]) == dict.fromkeys(('vi', 'en', 'both'), False)
     assert available_modes([{'mode': 'vi', 'ready': True}]) == {'vi': True, 'en': False, 'both': False}
-    assert not available_modes([{'mode': 'both', 'ready': True, 'playback': 'separate'}])['both']
+    assert available_modes([{'mode': 'both', 'ready': True, 'playback': 'separate'}])['both']
 
 
 def test_final_download_uses_saved_ready_audio_even_if_active_choice_has_no_voice(tmp_path):

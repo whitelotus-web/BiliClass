@@ -23,7 +23,7 @@ jobs:
           "PySide6-Essentials>=6.8,<7" "pydantic>=2.10,<3" "fastapi>=0.115,<1"
           "websockets>=14,<17" "httpx>=0.28,<1" "cryptography>=50,<51"
           "psutil>=6,<8" "python-pptx>=1,<2" "python-docx>=1.1,<2"
-          "pypdf>=6,<7" "qrcode[pil]>=8,<9" "pywin32>=308,<400" "numpy>=1.26,<3"
+          "pypdf>=6,<7" "qrcode[pil]>=8,<9" "pywin32>=308,<400" "numpy>=1.26,<3" "scipy>=1.13,<2"
       - run: python -m ruff check app scripts tests
       - run: python -m compileall -q app scripts
       - name: Portable storage, cache and narration contracts
@@ -36,5 +36,6 @@ jobs:
           tests/test_download_names.py tests/test_presentation_audio.py
           tests/test_slideshow_shortcuts.py tests/test_teaching_session.py tests/test_english_reader.py
           tests/test_ui_watchdog.py tests/test_narration_status.py tests/test_speech_process.py
+          tests/test_voice_pairs.py
       - name: Fixture corpus (structural; no Office)
         run: python -m scripts.verify_quality_corpus

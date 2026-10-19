@@ -142,7 +142,7 @@ def test_audio_zip_contains_selected_slide_languages_and_matching_audio_without_
         lesson = complete(library, lesson)
         target = export_audio(lesson, library.directory, tmp_path / 'Audio.zip')
         with zipfile.ZipFile(target) as archive:
-            assert set(archive.namelist()) == {'Slide-001-vi.wav', 'Slide-001-en.wav', 'Slide-001-both.wav', 'loi-doc.txt', 'manifest.json'}
+            assert set(archive.namelist()) == {'Slide-001-vi.wav', 'Slide-001-en.wav', 'loi-doc.txt', 'manifest.json'}
             assert json.loads(archive.read('manifest.json'))['mode'] == 'both'
             assert 'Năng lượng' in archive.read('loi-doc.txt').decode('utf-8')
         assert path.read_bytes() == before

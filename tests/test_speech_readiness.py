@@ -28,9 +28,10 @@ def test_audio_identity_includes_text_voice_and_rate(tmp_path):
 
 def test_only_multilingual_voices_available_when_model_installed(monkeypatch):
     monkeypatch.setattr(speech, "vieneu_ready", lambda: True)
+    monkeypatch.setattr("app.english_speech.ready", lambda: True)
     voices = speech.list_voices()
     assert len(voices) == 6
-    assert all(v["provider"] == "vieneu" and v["languages"] == ["vi", "en"] for v in voices)
+    assert all(v["provider"] == "local_pair" and v["languages"] == ["vi", "en"] for v in voices)
     assert len({v["id"] for v in voices}) == 6
     monkeypatch.setattr(speech, "vieneu_ready", lambda: False)
     assert speech.list_voices() == []  # Do not pretend a single-language fallback is bilingual.

@@ -1,6 +1,6 @@
 # BiliClass — Trợ lý dạy học song ngữ
 
-Hướng dẫn luồng RC83, ngày 19/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
+Hướng dẫn luồng RC92, ngày 19/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
 trên máy. Chuyển đổi hiện dùng Google Cloud Translation cho phần chữ và dựng
 PowerPoint tại máy; Browser ChatGPT/Gemini tạm ẩn.
 
@@ -81,13 +81,24 @@ không cần qua popup duyệt. Bấm **Trình chiếu (F5)** trên Mascot khi s
 Có thể tải PPTX/audio hoặc về đúng bài trong thư viện; không tự chuyển tab
 hoặc tự phát khi hoàn tất. Nội dung/bố cục chưa rà soát vẫn giữ cảnh báo.
 
-Loa trong PowerPoint đọc toàn bộ lời đã lưu của slide khi bấm, **kể cả phần
-xuất hiện sau theo hiệu ứng**. Bản Việt–Anh có ba loa VI, EN, VI+EN. Âm thanh
-nhúng trong file, dùng được độc lập. Mascot mặc định cùng cách đọc; chọn
-**Đọc phần đang hiện theo hiệu ứng** nếu chỉ muốn đọc phần đã xác định hiện.
-Phần chưa xác định không được đọc trong chế độ này. Đổi ngôn ngữ hoặc slide
-dừng giọng cũ, gồm âm thanh nhúng và cache. Không sinh giọng trong
-phiên dạy. Mascot gắn cố định với bài đang mở, xem bài khác không đổi liên kết.
+Chọn một trong **6 cặp Việt–Mỹ**: nữ/nam miền Bắc, Trung hoặc Nam.
+Vùng miền là của giọng Việt; tiếng Anh dùng giọng Mỹ riêng (Heart cho nữ,
+Michael cho nam). Toàn bộ tạo và phát giọng chạy trên máy, không cần API.
+
+**Tạo giọng** có 3 lựa chọn: chỉ Anh, chỉ Việt hoặc cả Anh và Việt.
+Chỉ Anh/Việt tạo một loa; chọn cả hai tạo **hai loa độc lập**, không có loa
+đọc nối hai ngôn ngữ. Mascot cũng chỉ có nút Anh và Việt, ở vị trí cố định;
+nút chưa có lời đọc sẽ xám. Bấm loa đang đọc để tạm dừng, bấm lại để đọc tiếp.
+
+Khi dạy cùng Mascot, chế độ tự động đọc những phần đã hiện nhưng chưa đọc.
+Nếu đã đọc hết phần đang hiện thì bấm loa để đọc lại phần đó. Mở nhiều hiệu
+ứng trước khi bấm loa sẽ đọc đủ những phần đã hiện; không đọc chữ còn ẩn.
+Nếu bấm trong lúc hiệu ứng đang hiện, chờ hiệu ứng hoàn tất rồi mới đọc.
+Chuyển ngôn ngữ hoặc bước/slide sẽ dừng giọng trước, tránh phát chồng.
+
+PPTX tải xuống có âm thanh nhúng, dùng độc lập được. Ngoài BiliClass, mỗi
+loa đọc toàn bộ lời đã lưu của ngôn ngữ đó trong slide. Đổi cặp giọng chỉ
+áp dụng khi tạo mới; các bản WAV và bản giọng cũ không bị đổi hoặc xóa.
 
 Tên tải đã có sẵn: **Tên bài (Song ngữ Việt–Anh)** hoặc **Tên bài (Có giọng
 Việt–Anh · Mai Anh · 100%)**. Đồng bộ ở tab Giọng, bài đã chuyển đổi và thư
@@ -138,8 +149,8 @@ OCR chỉ xác nhận đã phát hiện thành phần, không thay cho kiểm tr
 
 ## Tạo giọng và bước tiếp theo
 
-Giọng là bước tùy chọn sau khi bài đã lưu. Chọn một trong sáu giọng, nghe
-thử, chọn tốc độ và tiếng Anh / tiếng Việt / Việt + Anh. Chọn ở đây không
+Giọng là bước tùy chọn sau khi bài đã lưu. Chọn một trong sáu cặp giọng Việt–Mỹ, nghe
+thử, chọn tốc độ và tiếng Anh / tiếng Việt / cả hai (hai loa riêng). Chọn ở đây không
 thay cấu hình mặc định trong Cài đặt. Giọng chạy ngoại tuyến trên máy.
 
 Vị trí loa nằm cùng hàng ngôn ngữ, có hình mô phỏng chân slide. Giải thích
@@ -208,7 +219,6 @@ gắn. Khi đang ở cửa sổ soạn bài, F5 bắt đầu trình chiếu. Tro
 | --- | --- |
 | Space ␣ | Đọc tiếng Anh |
 | Enter ↵ | Đọc tiếng Việt |
-| Ctrl + Space ␣ | Đọc hai ngôn ngữ |
 | ← / → | Lùi / tiến hiệu ứng, hết hiệu ứng thì chuyển slide |
 | ↑ / ↓ | Tăng / giảm âm lượng lời đọc 5% |
 | Esc | Thoát trình chiếu |

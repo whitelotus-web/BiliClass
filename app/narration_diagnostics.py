@@ -26,7 +26,7 @@ def run(output):
     QQuickStyle.setStyle('Basic')
     output = Path(output).resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
-    result = dict(status='failed', scope='Disposable Qt conversion-result to real VieNeu bilingual narration; no API/playback')
+    result = dict(status='failed', scope='Disposable Qt conversion-result to real local Vietnamese-US pair narration; no API/playback')
     with tempfile.TemporaryDirectory(prefix='bcl-real-narration-', ignore_cleanup_errors=True) as temporary:
         root = Path(temporary)
         library = Library(root / 'data')
@@ -74,7 +74,7 @@ def run(output):
             assert window.property('page') == 'voice'
             timer.start()
             started = time.monotonic()
-            bridge.createLessonNarrationWithVoice('both', 'vieneu:Mai Anh', 0)
+            bridge.createLessonNarrationWithVoice('both', 'pair:north-female', 0)
             until(lambda: not bridge.busy and not bridge.narrationBusy)
             until(lambda: bridge.lessonNarration.get('status') != 'checking')
             status = bridge.lessonNarration

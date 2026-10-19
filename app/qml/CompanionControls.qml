@@ -85,18 +85,17 @@ ColumnLayout {
         PanelAction { objectName: "companionNext"; text: "Sau"; iconName: "next"; enabled: bridge.companionCanRead; onClicked: bridge.navigatePowerPoint("next") }
     }
     GridLayout {
-        objectName: "companionAudioControls"; visible: bridge.companionCanRead && companion.audioCount > 0
-        Layout.fillWidth: true; columns: Math.max(1, companion.audioCount); columnSpacing: 6; uniformCellWidths: true
-        PanelAction { objectName: "companionReadEnglish"; visible: !!companion.availableAudio.en; enabled: bridge.companionCanRead && !!companion.availableAudio.en; text: "Anh"; iconName: companion.readIcon("en") === "pause" ? "pause" : "speaker-en"; ToolTip.visible: pointerHovered; ToolTip.text: companion.readText("en", "tiếng Anh"); Accessible.name: companion.readText("en", "tiếng Anh"); onClicked: bridge.companionRead("en") }
-        PanelAction { objectName: "companionReadVietnamese"; visible: !!companion.availableAudio.vi; enabled: bridge.companionCanRead && !!companion.availableAudio.vi; text: "Việt"; iconName: companion.readIcon("vi") === "pause" ? "pause" : "speaker-vi"; ToolTip.visible: pointerHovered; ToolTip.text: companion.readText("vi", "tiếng Việt"); Accessible.name: companion.readText("vi", "tiếng Việt"); onClicked: bridge.companionRead("vi") }
-        PanelAction { objectName: "companionReadBoth"; visible: !!companion.availableAudio.both; enabled: bridge.companionCanRead && !!companion.availableAudio.both; text: "Việt–Anh"; iconName: companion.readIcon("both") === "pause" ? "pause" : "speaker-both"; ToolTip.visible: pointerHovered; ToolTip.text: companion.readText("both", "Việt–Anh"); Accessible.name: companion.readText("both", "Việt–Anh"); onClicked: bridge.companionRead("both") }
+        objectName: "companionAudioControls"; visible: !!companion.session.bound || bridge.companionCanRead
+        Layout.fillWidth: true; columns: 2; columnSpacing: 6; uniformCellWidths: true
+        PanelAction { objectName: "companionReadEnglish"; enabled: bridge.companionCanRead && !!companion.availableAudio.en; text: "Anh"; iconName: companion.readIcon("en") === "pause" ? "pause" : "speaker"; ToolTip.visible: pointerHovered; ToolTip.text: companion.readText("en", "tiếng Anh"); Accessible.name: companion.readText("en", "tiếng Anh"); onClicked: bridge.companionRead("en") }
+        PanelAction { objectName: "companionReadVietnamese"; enabled: bridge.companionCanRead && !!companion.availableAudio.vi; text: "Việt"; iconName: companion.readIcon("vi") === "pause" ? "pause" : "speaker"; ToolTip.visible: pointerHovered; ToolTip.text: companion.readText("vi", "tiếng Việt"); Accessible.name: companion.readText("vi", "tiếng Việt"); onClicked: bridge.companionRead("vi") }
     }
     Label {
-        objectName: "companionAudioHint"; visible: !!companion.session.bound && text.length > 0 && (!bridge.companionCanRead || companion.audioCount < 3)
+        objectName: "companionAudioHint"; visible: !!companion.session.bound
+        Layout.preferredHeight: 16
         text: !bridge.companionCanRead ? "Bấm Trình chiếu để đọc giọng đã tạo."
-            : companion.session.settling ? "Đang hiện nội dung…"
             : companion.audioCount === 0 ? (companion.session.reading_mode === "auto" && companion.session.reading_scope === "visible" ? "Bước này chưa có lời đọc mới." : "Slide này chưa có giọng đọc.")
-            : ""
+            : "Nút sáng là giọng có trên phần đang hiện."
         color: "#667997"; font.pixelSize: 11; wrapMode: Text.WordWrap; Layout.fillWidth: true
     }
     ToolButton {

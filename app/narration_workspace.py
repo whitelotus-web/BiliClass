@@ -173,7 +173,7 @@ class NarrationWorkspace(QObject):
     def preview(self, language, voice, rate):
         text = self.slide.get(language, '').strip()
         if text:
-            self.bridge.previewMultilingualVoice(voice, rate, text[:250])
+            self.bridge.previewNarrationLanguage(language, voice, rate, text[:250])
         else:
             self.bridge.inform('Slide này chưa có lời đọc cho ngôn ngữ đã chọn.', True, refresh=False)
 
@@ -189,7 +189,7 @@ class NarrationWorkspace(QObject):
 
         bridge = self.bridge
         record = records(bridge._lesson).get(identity, {})
-        wanted = MODES.get(language, ())
+        wanted = MODES.get(language, ()) if language in {'vi', 'en'} else ()
         if (not wanted or not set(wanted) <= set(MODES.get(record.get('mode'), ()))
                 or record.get('signature') != signature(bridge._lesson)):
             bridge.inform('Chọn bản giọng phù hợp với ngôn ngữ và nội dung hiện tại.', True, refresh=False)
@@ -206,12 +206,12 @@ class NarrationWorkspace(QObject):
         if not queue:
             bridge.inform('Slide này không có lời đọc đã lưu cho ngôn ngữ đang chọn.', refresh=False)
             return
-        if any(speech.audio_key(part, record['voice'], record['rate']) not in record['keys'].get(lang, [])
+        if any(speech.audio_key(part, speech.voice_for(record['voice'], lang), record['rate']) not in record['keys'].get(lang, [])
                for lang in wanted for part in texts[lang]):
             bridge.inform('Lời đọc đã thay đổi. Tạo lại phần còn thiếu trước khi nghe bản đã lưu.', True, refresh=False)
             return
         bridge.stopSpeech()
-        bridge.english_reader.start(queue, record['voice'], record['rate'], cache_only=True)
+        bridge.english_reader.start(queue, speech.voice_for(record['voice'], language), record['rate'], cache_only=True)
 
     @Slot(str)
     def exportAudio(self, url):

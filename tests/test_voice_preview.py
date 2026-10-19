@@ -9,7 +9,7 @@ from app import speech, voice_preview
 def test_all_bundled_voices_play_without_loading_or_waiting_for_engine(tmp_path, monkeypatch):
     monkeypatch.setattr(speech, '_vieneu_engine', lambda *_: pytest.fail('No engine for preset playback'))
     monkeypatch.setattr(speech, 'synthesis_turn', lambda *_: pytest.fail('Do not queue behind lesson inference'))
-    for voice in speech.VIENEU_VOICES:
+    for voice in (*speech.VIENEU_VOICES, *speech.PAIRS):
         for rate in (0, -3, 3):
             result = voice_preview.preview(voice_preview.SAMPLE_TEXT, voice['id'], rate, tmp_path)
             assert speech.valid_audio(result['path'])

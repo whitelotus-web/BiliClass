@@ -27,7 +27,7 @@ def presentation_suffix(lesson, with_voice=False):
         from . import speech
 
         language = {'en': 'Anh', 'vi': 'Việt', 'both': 'Việt–Anh'}.get(record.get('mode'), '')
-        voice = next((v.get('name', '').split(' · ')[0] for v in speech.VIENEU_VOICES
+        voice = next((v.get('name', '').split(' · ')[0] for v in (*speech.VIENEU_VOICES, *speech.PAIRS)
                       if v['id'] == record.get('voice')), record.get('voice', '').split(':')[-1])
         rate = record.get('rate', 0)
         speed = round(speech._SPEEDS[rate + 3] * 100) if type(rate) is int and -3 <= rate <= 3 else 100

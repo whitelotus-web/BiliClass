@@ -5,7 +5,7 @@ import json
 import wave
 from pathlib import Path
 
-from .speech import audio_key, valid_audio
+from .speech import audio_key, valid_audio, voice_for
 
 
 def text_hash(text):
@@ -14,6 +14,7 @@ def text_hash(text):
 
 def available_audio(directory, text, language, voice="", rate=0):
     root = Path(directory) / "audio"
+    voice = voice_for(voice, language)
     exact = root / (audio_key(text, voice, rate) + ".wav")
     if valid_audio(exact):
         return exact
@@ -59,6 +60,7 @@ def collect_audio(library, lesson):
             for voice, rate in candidates:
                 if not isinstance(voice, str) or not voice or type(rate) is not int or not -3 <= rate <= 3:
                     continue
+                voice = voice_for(voice, language)
                 path = available_audio(library.directory, segment[language], language, voice, rate)
                 if path is not None:
                     break

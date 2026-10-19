@@ -46,7 +46,7 @@ def main():
 
 def distributable(relative):
     return (relative.parts[0] == '_internal' or 'models' not in relative.parts
-            or relative.parts[:2] in {('models', 'vieneu-hf'), ('models', 'ocr-vi-en-v1'), ('models', 'ocr-vi-en-v2')})
+            or relative.parts[:2] in {('models', 'vieneu-hf'), ('models', 'kokoro-multi-lang-v1_0'), ('models', 'ocr-vi-en-v1'), ('models', 'ocr-vi-en-v2')})
 
 
 def bundle_files(bundle):

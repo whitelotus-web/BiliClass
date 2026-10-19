@@ -79,7 +79,7 @@ class VoiceControls(QObject):
         self.save_seconds = time.monotonic() - task.started_at
         self.save_error = bool(task.error)
         self.save_message = ('Chưa lưu được giọng. Thư viện đang bận hoặc không ghi được; thử lưu lại.'
-                             if task.error else 'Đã lưu giọng và tốc độ cho tiếng Việt, tiếng Anh và mascot.')
+                             if task.error else 'Đã lưu cặp giọng Việt–Mỹ cho lần tạo mới. Bài đã tạo giữ nguyên.')
         self.changed.emit()
         if task.error:
             self.failed.emit(self.save_message)

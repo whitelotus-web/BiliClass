@@ -54,6 +54,7 @@ def assess(lesson, directory, voices, selections, rate):
         },
     ]
     voice_ids = {v["id"] for v in voices}
+    voice_ids.update(v[lang] for v in voices for lang in ('vi', 'en') if v.get(lang))
     for language, label in (("en", "tiếng Anh"), ("vi", "tiếng Việt")):
         selected = selections.get(language, "")
         cached = sum(

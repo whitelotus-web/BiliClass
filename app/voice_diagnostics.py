@@ -134,7 +134,7 @@ def run(output):
         until(lambda: not bridge.voiceUiState['saving'])
         saved_seconds = time.perf_counter() - mark
         assert not bridge.voiceUiState['saveError']
-        assert library.setting('voice_options', {}) == {'voice': 'vieneu:Quang Sơn', 'rate': 2}
+        assert library.setting('voice_options', {}) == {'voice': 'pair:south-male', 'rate': 2}
         assert 'Đã lưu' in control('voiceSaveStatus').property('text')
         count = len(played)
         click('stopVoicePreview')

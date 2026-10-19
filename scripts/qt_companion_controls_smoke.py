@@ -36,7 +36,7 @@ class ControlBridge(Bridge):
 def main():
     app = QGuiApplication([])
     QQuickStyle.setStyle('Basic')
-    report = Path('reports/rc91/companion-controls')
+    report = Path('reports/rc92/companion-controls')
     report.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='bcl-controls-', ignore_cleanup_errors=True) as folder:
         library = Library(Path(folder))
@@ -89,13 +89,33 @@ def main():
             native_commands = []
             lesson['narration'] = {'keys': {'en': []}}
             bridge.powerpoint_worker = SimpleNamespace(navigate=lambda *args: native_commands.append(args))
-            bridge.teachingSession.bind({'lesson': lesson, 'path': '', 'preview': {}, 'media': {2: ['en', 'vi', 'both']}})
+            bridge.teachingSession.bind({'lesson': lesson, 'path': '', 'preview': {}, 'media': {2: ['en', 'vi']}})
             bridge.changed.emit()
             pump(150)
-            audio = [c('companionRead' + language) for language in ('English', 'Vietnamese', 'Both')]
+            audio = [c('companionRead' + language) for language in ('English', 'Vietnamese')]
             assert all(item.isVisible() for item in audio)
             assert max(item.width() for item in audio) - min(item.width() for item in audio) <= 1, [item.width() for item in audio]
             assert max(item.mapToScene(QPointF()).y() for item in audio) - min(item.mapToScene(QPointF()).y() for item in audio) < 1
+            # Every availability transition retains two readable buttons and
+            # identical geometry, including an empty slide and all panel sizes.
+            for pixels in (80, 110, 150):
+                bridge.saveMascotPreferences('Milo', True, pixels, 'right', False, True, True, True)
+                until(lambda: not bridge.mascotSaving)
+                pump(100)
+                before = [(item.x(), item.y(), item.width(), item.height()) for item in audio]
+                height = companion.height()
+                for languages in (['en'], [], ['vi'], ['en', 'vi']):
+                    bridge.teachingSession.bound['media'][2] = languages
+                    bridge.teachingSession.changed.emit()
+                    pump(60)
+                    assert all(item.isVisible() for item in audio)
+                    assert [item.isEnabled() for item in audio] == [lang in languages for lang in ('en', 'vi')]
+                    assert before == [(item.x(), item.y(), item.width(), item.height()) for item in audio]
+                    assert companion.height() == height
+                    assert all(item.property('iconName') == 'speaker' for item in audio)
+                assert companion.grabWindow().save(str(report / f'stable-speakers-{pixels}.png'))
+            bridge.saveMascotPreferences('Milo', True, 110, 'right', False, True, True, True)
+            until(lambda: not bridge.mascotSaving)
             assert c('companionEndShow').property('danger')
             assert c('companionStartShow').property('iconName') == 'presentation'
             assert c('companionReadingOptions').isVisible()
@@ -112,9 +132,9 @@ def main():
                 pump(100)
                 assert abs(c('companionMenu').property('color').alphaF() - opacity / 100) < .01
                 assert companion.opacity() == 1 and all(item.opacity() == 1 for item in audio)
-                for name in ('companionPrevious', 'companionNext', 'companionReadEnglish', 'companionReadVietnamese', 'companionReadBoth'):
+                for name in ('companionPrevious', 'companionNext', 'companionReadEnglish', 'companionReadVietnamese'):
                     click(companion, c(name))
-                assert bridge.commands[-5:] == [('navigate', 'previous'), ('navigate', 'next'), ('read', 'en'), ('read', 'vi'), ('read', 'both')], (bridge.commands, c('companionPanelMoveArea').property('overControl'))
+                assert bridge.commands[-4:] == [('navigate', 'previous'), ('navigate', 'next'), ('read', 'en'), ('read', 'vi')], (bridge.commands, c('companionPanelMoveArea').property('overControl'))
                 # Real mouse input on the panel moves the complete window,
                 # persists the mascot anchor, and never activates a control.
                 area = app.primaryScreen().availableGeometry()
@@ -212,7 +232,7 @@ def main():
             until(lambda: not c('companionShortcutTooltip').property('visible'))
             assert bridge.mascotShortcuts.state['labels']['en'] == 'Space ␣'
             assert bridge.mascotShortcuts.state['labels']['vi'] == 'Enter ↵'
-            assert bridge.mascotShortcuts.state['labels']['both'] == 'Ctrl + Space ␣'
+            assert 'both' not in bridge.mascotShortcuts.state['labels']
             bridge.teachingSession.response = {'untouched': False, 'text': '\n'.join(['Selectable response text.'] * 30)}
             bridge.teachingSession.changed.emit()
             pump(150)
@@ -305,7 +325,7 @@ def main():
             assert not bridge.mascotSaving and library.setting('mascot', '') == 'Milo'
             assert not warnings, warnings
             result = dict(status='passed', sizes=3, opacity_clicks=2, settings_preserves_binding=True,
-                          subject_badge_hidden=True, qml_warnings=warnings,
+                          subject_badge_hidden=True, fixed_two_speakers=True, availability_geometry_stable=True, plain_speaker_icons=True, qml_warnings=warnings,
                           panel_drag_and_down_arrow=True,
                           wheel_volume_5_percent=True, system_volume_two_way=True, navigation_tooltips_removed=True,
                           transparency_max_ui_gap_seconds=round(max_gap, 3), transparency_broad_refreshes=len(broad_refreshes),

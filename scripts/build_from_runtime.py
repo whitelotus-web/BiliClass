@@ -1,7 +1,7 @@
 """Build/package against an explicitly selected, verified previous release folder.
 
-Run with the project virtual environment. Native dependency or model changes
-require scripts/build.ps1 instead; this path rebuilds all application code.
+Run with the project virtual environment. The optional --english-model flag adds the pinned, verified Kokoro runtime.
+Other native dependency/model changes require scripts/build.ps1. All app code is rebuilt.
 """
 
 import argparse
@@ -42,6 +42,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--baseline', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--english-model', type=Path, help='Explicitly add the pinned Kokoro v1.0 CPU runtime/model')
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     output, baseline = args.output.resolve(), args.baseline.resolve(strict=True)
@@ -62,6 +63,13 @@ def main():
     work.mkdir()
     config = dict(root=str(root), baseline_exe=str(baseline / 'BiliClass/BiliClass.exe'),
                   work=str(work))
+    if args.english_model:
+        import importlib.metadata
+        import importlib.util
+
+        if importlib.metadata.version('sherpa-onnx') != '1.13.8':
+            raise ValueError('This milestone requires the tested sherpa-onnx 1.13.8 runtime.')
+        config['english_runtime'] = str(Path(importlib.util.find_spec('sherpa_onnx').origin).parent)
     config_path = work / 'build-config.json'
     config_path.write_text(json.dumps(config), encoding='utf-8')
     environment = dict(os.environ, BILICLASS_BUILD_CONFIG=str(config_path))
@@ -92,12 +100,35 @@ def main():
             raise ValueError('Executable Windows Details resource does not match this release.')
     for folder in ('qml', 'assets', 'student_web'):
         shutil.copytree(root / 'app' / folder, bundle / '_internal/app' / folder)
+    added = {}
+    if args.english_model:
+        model = args.english_model.resolve(strict=True)
+        expected = {'model.onnx': 'b40f62b166ac8164b0627ef48a0b358eda0985e272fb03ef5252e7206305da11',
+                    'voices.bin': '1c5a5b983d3d50d8586d437a51f3faa2da7919ce76a013c081e65671a3447c29'}
+        if any(digest(model/name) != checksum for name, checksum in expected.items()):
+            raise ValueError('The English model does not match the verified Kokoro v1.0 artifacts.')
+        runtime = Path(config['english_runtime'])
+        for source, target in ((model, bundle/'models/kokoro-multi-lang-v1_0'),
+                               (runtime, bundle/'_internal/sherpa_onnx')):
+            for file in sorted(source.rglob('*')):
+                if not file.is_file() or '__pycache__' in file.parts or file.suffix in {'.pyc', '.lib'}:
+                    continue
+                destination = target/file.relative_to(source)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(file, destination)
+                added[destination.relative_to(bundle).as_posix()] = digest(destination)
+        for package in ('sherpa-onnx', 'sherpa-onnx-core'):
+            distribution = importlib.metadata.distribution(package)
+            target = bundle/'licenses'/(package+'-'+distribution.version)
+            target.mkdir(parents=True, exist_ok=True)
+            (target/'METADATA.txt').write_text(distribution.read_text('METADATA'), encoding='utf-8')
+        shutil.copy2(root/'docs/THIRD_PARTY.md', bundle/'THIRD_PARTY.md')
     commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip()
     info = dict(product='BiliClass', version=version, source_commit=commit,
                 exe_sha256=digest(bundle / 'BiliClass.exe'),
                 runtime_baseline_version=manifest['version'], runtime_manifest_sha256=manifest_sha,
                 build_mode='all app modules rebuilt; verified dependency/model runtime reused',
-                python=sys.version, pyinstaller=subprocess.check_output(
+                added_english_runtime=added, python=sys.version, pyinstaller=subprocess.check_output(
                     [sys.executable, '-m', 'PyInstaller', '--version'], text=True).strip())
     (bundle / 'BUILD_INFO.json').write_text(json.dumps(info, indent=2), encoding='utf-8')
     if (baseline / 'BiliClass/OCR_BUILD_INFO.json').exists():

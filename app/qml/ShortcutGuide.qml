@@ -9,7 +9,6 @@ ColumnLayout {
     Repeater {
         model: [{key: settings.state.labels.en, action: "Đọc / tạm dừng tiếng Anh"},
                 {key: settings.state.labels.vi, action: "Đọc / tạm dừng tiếng Việt"},
-                {key: settings.state.labels.both, action: "Đọc / tạm dừng Việt–Anh"},
                 {key: settings.state.labels.previous + " / " + settings.state.labels.next, action: "Lùi / tiến hiệu ứng, slide"},
                 {key: settings.state.labels.volume_up + " / " + settings.state.labels.volume_down, action: "Âm lượng lời đọc ±5%"},
                 {key: "F5", action: "Bắt đầu trình chiếu"},

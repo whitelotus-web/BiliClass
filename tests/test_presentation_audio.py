@@ -61,7 +61,13 @@ def test_managed_teaching_buttons_have_one_state_owner_and_no_native_click_comma
         with zipfile.ZipFile(target) as archive:
             tree = etree.fromstring(archive.read(source_slide_parts(target)[0]))
         assert len(tree.findall('.//p:audio', NS)) == 2
-        assert not tree.xpath('.//p:cTn[@nodeType="interactiveSeq"]|.//p:cmd|.//p:set', namespaces=NS)
+        assert not tree.xpath('.//p:cmd', namespaces=NS), 'Only the shared session may start/pause audio'
+        triggers = tree.xpath('.//p:cTn[@nodeType="interactiveSeq"]', namespaces=NS)
+        assert len(triggers) == 4, 'Both ready and pause pictures retain a native hand cursor'
+        hosts = set(tree.xpath('.//p:pic[p:nvPicPr/p:nvPr/a:audioFile]/p:nvPicPr/p:cNvPr/@id', namespaces=NS))
+        for trigger in triggers:
+            assert trigger.xpath('.//p:set/p:cBhvr/p:tgtEl/p:spTgt/@spid', namespaces=NS)[0] in hosts
+            assert trigger.xpath('.//p:set/p:to/p:strVal/@val', namespaces=NS) == ['visible']
         buttons = tree.xpath('.//p:pic[not(p:nvPicPr/p:nvPr/a:audioFile)]', namespaces=NS)
         assert len(buttons) == 4
         assert all(int(p.find('p:spPr/a:xfrm/a:ext', NS).get('cx')) > 12700 for p in buttons)
@@ -205,35 +211,23 @@ def test_slide_recording_excludes_answers_hidden_behind_click(tmp_path):
         library.close()
 
 
-def test_bilingual_product_has_individual_and_combined_speakers_with_no_new_inference(tmp_path, monkeypatch):
-    import io
-
-    from app.presentation_audio import joined_wav
-
+def test_legacy_bilingual_product_exports_only_two_independent_speakers_without_inference(tmp_path, monkeypatch):
     library, lesson, source = fixture(tmp_path)
     try:
         plan, _ = make_plan(lesson, 'both', {'voice': 'vieneu:Mai Anh', 'rate': 0}, playback='both_controls')
         lesson = library.update_narration(lesson['id'], plan)
         pages = slide_audio(lesson, library.directory)
-        assert set(pages[1]) == {'vi', 'en', 'both'}
-        assert pages[1]['both'] == pages[1]['vi'] + pages[1]['en']
-        audio, _ = joined_wav(library.directory, pages[1]['both'])
-        with wave.open(io.BytesIO(audio)) as reader:
-            samples = reader.readframes(reader.getnframes())
-        assert samples[:2] == bytes([int(plan['keys']['vi'][0][:2], 16), 0])
-        assert samples[2*(2400+4320):][:2] == bytes([int(plan['keys']['en'][0][:2], 16), 0])
+        assert set(pages[1]) == {'vi', 'en'}
         monkeypatch.setattr(speech, 'synthesize', lambda *_: pytest.fail('Reuse prepared chunks'))
-        target = tmp_path / 'three-speakers.pptx'
+        target = tmp_path / 'two-speakers.pptx'
         save_presentation(lesson, external_preview(lesson, library.directory), library.directory, target, with_voice=True)
         with zipfile.ZipFile(target) as archive:
             tree = etree.fromstring(archive.read(source_slide_parts(target)[0]))
-            assert len(tree.findall('.//p:audio', NS)) == 3
-            assert set(tree.xpath('.//p:cNvPr/@name', namespaces=NS)) >= {'BiliClass audio VI', 'BiliClass audio EN', 'BiliClass audio BOTH'}
-        en, _ = make_plan(lesson, 'en', {'voice': 'vieneu:Mai Anh', 'rate': 0})
-        library.update_narration(lesson['id'], en)
-        from app.lesson_narration import variant_id
-        lesson = library.select_narration_variant(lesson['id'], variant_id(en))
-        assert set(slide_audio(lesson, library.directory)[1]) == {'en'}
+            assert len(tree.findall('.//p:audio', NS)) == 2
+            names = set(tree.xpath('.//p:cNvPr/@name', namespaces=NS))
+            assert names >= {'BiliClass audio VI', 'BiliClass audio EN'}
+            assert 'BiliClass audio BOTH' not in names
+        assert library.get(lesson['id'])['narration']['playback'] == 'both_controls', 'Legacy metadata is preserved'
     finally:
         library.close()
 

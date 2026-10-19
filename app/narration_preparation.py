@@ -29,8 +29,7 @@ def prepare_request(directory, identity, revision, mode, voice, rate, regenerate
             raise RevisionConflict('Bài đã thay đổi. Chọn lại bài trước khi tạo giọng đọc.')
         if mode == 'both' and not all(any(s.get(lang, '').strip() for s in segments(lesson)) for lang in ('vi', 'en')):
             raise ValueError('Bản Song ngữ cần có cả lời Việt và Anh. Bài một ngôn ngữ hãy chọn đúng ngôn ngữ đang có.')
-        plan, selected = make_plan(lesson, mode, {'voice': voice, 'rate': rate},
-                                   playback='both_controls' if mode == 'both' else 'separate')
+        plan, selected = make_plan(lesson, mode, {'voice': voice, 'rate': rate})
         if not plan['total']:
             raise ValueError('Chưa có nội dung đọc phù hợp cho ngôn ngữ đã chọn.')
         existing = records(lesson).get(variant_id(plan))

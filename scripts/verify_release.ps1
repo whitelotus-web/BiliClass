@@ -63,8 +63,8 @@ try {
     $report = Join-Path $reportRoot 'pipeline.json'
     Invoke-InstalledCheck -Arguments @('--self-test',('"' + $report + '"')) -TimeoutSeconds 900
     $pipeline = Get-Content -LiteralPath $report -Raw | ConvertFrom-Json
-    if ($pipeline.status -ne 'passed' -or $pipeline.tts.provider -ne 'vieneu' -or $pipeline.tts_vi.provider -ne 'vieneu' -or $pipeline.tts.voice -ne $pipeline.tts_vi.voice) { throw ('Incomplete installed pipeline: ' + $report) }
-    Write-Output 'Passed bundled templates, one bilingual VieNeu speaker, classroom process and lesson backup.'
+    if ($pipeline.status -ne 'passed' -or $pipeline.tts.provider -ne 'kokoro' -or $pipeline.tts_vi.provider -ne 'vieneu' -or $pipeline.tts.voice -eq $pipeline.tts_vi.voice) { throw ('Incomplete installed pipeline: ' + $report) }
+    Write-Output 'Passed bundled templates, independent Vietnamese-US speakers, classroom process and lesson backup.'
     $taskNarration = Join-Path $reportRoot 'narration-ui.json'
     Invoke-InstalledCheck -Arguments @('--check-narration-ui',('"' + $taskNarration + '"')) -TimeoutSeconds 360
     $taskVoiceResult = Get-Content -LiteralPath $taskNarration -Raw | ConvertFrom-Json
@@ -78,7 +78,7 @@ try {
     if ((Test-Path -LiteralPath $installRoot) -or -not (Test-Path -LiteralPath (Join-Path $dataRoot 'library.db'))) { throw 'Uninstall did not preserve the separate test library.' }
     @{status='passed';version=$manifest.version;source_commit=$buildInfo.source_commit;
       checks=@('manifest verified install in Unicode workspace','installed Qt conversion and Browser AI pages',
-               'all templates/previews and bilingual VieNeu without development cache',
+               'all templates/previews and independent Vietnamese-US voices without development cache',
                'spawned classroom process and library backup','installed Qt completion to real bilingual narration with watchdog',
                'uninstall preserves separate lesson library');
       scope='current Windows machine; isolated install/data; no shortcuts; not a clean-Windows certification'} |

@@ -96,9 +96,10 @@ class TeachingSession(QObject):
         self._player_volume = None
         self._build_key = None
         self._cache_badge = None
+        self._deferred_read = None
         self._settled = QTimer(self)
         self._settled.setSingleShot(True)
-        self._settled.timeout.connect(self.changed)
+        self._settled.timeout.connect(self._finish_build)
         getattr(bridge, 'powerpointStateChanged', bridge.changed).connect(self._watch_build)
         getattr(bridge, 'powerpointStateChanged', bridge.changed).connect(self.changed)
         bridge.speechStateChanged.connect(self.changed)
@@ -141,6 +142,7 @@ class TeachingSession(QObject):
         key = (state.get('slide_id'), state.get('click_index'), state.get('build_started'))
         if key != self._build_key:
             self._build_key = key
+            self._deferred_read = None
             self._settled.stop()
             page = next((p for p in self.bound.get('speech', {}).get('slides', []) if p['slide'] == state.get('slide')), {})
             if self.reading_mode == 'auto':
@@ -154,6 +156,12 @@ class TeachingSession(QObject):
                 remaining = delay - max(0, time.monotonic() - state.get('build_started', time.monotonic()))
                 if remaining > 0:
                     self._settled.start(round(remaining*1000)+50)
+
+    def _finish_build(self):
+        intent, self._deferred_read = self._deferred_read, None
+        if intent and intent[1] == self._build_key and self.bridge._powerpoint_state.get('active'):
+            self.read(intent[0])
+        self.changed.emit()
 
     @Slot(str)
     def setReadingScope(self, scope):
@@ -171,6 +179,7 @@ class TeachingSession(QObject):
         self._cache_generation = None
         self.token += 1
         self.pending_read = None
+        self._deferred_read = None
         self.native_state = 'stopped'
         self.language = ''
         self.pause_on_start = False
@@ -206,7 +215,7 @@ class TeachingSession(QObject):
                 'can_choose_scope': bool(lesson.get('narration', {}).get('keys')),
                 'voice': (lesson.get('narration') or {}).get('voice', '')}
 
-    def _speech_items(self, language):
+    def _speech_items(self, language, *, settled_seconds=None):
         lesson = self.bound.get('lesson', {})
         state = self.bridge._powerpoint_state
         preview = self.bound.get('preview', {})
@@ -219,7 +228,7 @@ class TeachingSession(QObject):
         page = next((row for row in self.bound.get('speech', {}).get('slides', []) if row['slide'] == number), {})
         visible = ([row for row in page.get('englishSpeechSegments', []) if row['status'] == 'ready']
                    if self.reading_scope == 'full_slide' else visible_segments(page, state.get('click_index'),
-                   time.monotonic() - state.get('build_started', time.monotonic())))
+                   time.monotonic() - state.get('build_started', time.monotonic()) if settled_seconds is None else settled_seconds))
         def chunks(kind, identity, text):
             return [((kind, identity, index), part) for index, part in enumerate(speech_chunks(text))]
         english_items = [part for row in visible for part in chunks('en', row['id'], row['english_text'])]
@@ -268,11 +277,18 @@ class TeachingSession(QObject):
             keys = record.get('keys', {}).get(language, [])
             if not keys:
                 return False
-            texts = self.texts(language)
-            wanted = [speech.audio_key(text, record.get('voice', ''), record.get('rate', 0)) for text in texts]
+            # Availability describes this build's verified audio, even during
+            # its entrance animation. A click is deferred until the words are
+            # visible; it must not make the buttons blink off and on.
+            items = self._speech_items(language, settled_seconds=float('inf'))
+            if self.reading_mode == 'auto':
+                items = self._progress.choose(language, items)
+            texts = [item[1] for item in items]
+            voice = speech.voice_for(record.get('voice', ''), language)
+            wanted = [speech.audio_key(text, voice, record.get('rate', 0)) for text in texts]
             return bool(texts) and all(key in keys and valid_key(self.bridge.library.directory, key) for key in wanted)
         vi, en = available('vi'), available('en')
-        return {'vi': vi, 'en': en, 'both': 'both' in embedded or (vi and en and record.get('mode') == 'both')}
+        return {'vi': vi, 'en': en, 'both': False}
 
     @Property('QVariantMap', notify=changed)
     def reader(self):
@@ -344,25 +360,27 @@ class TeachingSession(QObject):
         from .lesson_narration import valid_key
 
         record = self.bound.get('lesson', {}).get('narration') or {}
-        texts = self.texts(language) if language in {'vi', 'en', 'both'} else []
+        texts = self.texts(language) if language in {'vi', 'en'} else []
         keys = record.get('keys', {}).get(language, [])
-        if language == 'both' and record.get('mode') == 'both':
-            keys = [key for lang in ('vi', 'en') for key in record.get('keys', {}).get(lang, [])]
-        wanted = [speech.audio_key(text, record.get('voice', ''), record.get('rate', 0)) for text in texts]
+        voice = speech.voice_for(record.get('voice', ''), language)
+        wanted = [speech.audio_key(text, voice, record.get('rate', 0)) for text in texts]
         if not texts or not all(key in keys and valid_key(self.bridge.library.directory, key) for key in wanted):
             return False
         self._read_batch = self._selected_items(language)
         self._batch_language = language
         self._batch_slide = self.bridge._powerpoint_state.get('slide_id')
         self.pending_read = (self.token, self.bridge._powerpoint_state['slide'],
-                             self.bridge._powerpoint_state.get('slide_id'), texts, record['voice'], record['rate'])
+                             self.bridge._powerpoint_state.get('slide_id'), texts, voice, record['rate'])
         self.native_state = 'preparing'
         self.bridge.powerpoint_worker.navigate('stop_media', self._media_request())
         return True
 
     @Slot(str)
     def read(self, language):
-        if language not in {'vi', 'en', 'both'} or not self.audio.get(language):
+        if language not in {'vi', 'en'} or not self.audio.get(language):
+            return
+        if self._settled.isActive() and self.reading_scope == 'visible':
+            self._deferred_read = (language, self._build_key)
             return
         path = Path(self.bound['path'])
         stamp = self._file_stamp(path)
@@ -403,10 +421,14 @@ class TeachingSession(QObject):
 
     @Slot(str)
     def toggleRead(self, language):
-        if language not in {'vi', 'en', 'both'} or not self.bound or not self.bridge._powerpoint_state.get('active'):
+        if language not in {'vi', 'en'} or not self.bound or not self.bridge._powerpoint_state.get('active'):
             return
         if not self.audio.get(language):
             self.bridge.inform('Slide này chưa có giọng ' + {'vi': 'tiếng Việt', 'en': 'tiếng Anh', 'both': 'hai ngôn ngữ'}[language] + '. Chọn loa đang có giọng.', refresh=False)
+            return
+        if self._deferred_read:
+            # A second press cancels a queued start just as it pauses playback.
+            self._deferred_read = None if self._deferred_read[0] == language else (language, self._build_key)
             return
         state = self.native_state if self.native_state != 'stopped' else getattr(self.bridge.english_reader, 'state', 'stopped')
         if self.language == language and state == 'preparing':

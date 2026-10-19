@@ -10,7 +10,7 @@ from . import speech
 from .lesson_narration import MODES, audio_status, valid_key
 from .narration_script import segments as narration_segments
 from .powerpoint import slide_for_locator
-from .presentation_audio import joined_wav, paired_keys
+from .presentation_audio import joined_wav
 from .slide_speech import speech_chunks
 
 
@@ -46,13 +46,11 @@ def export_audio(lesson, directory, destination):
         exported = []
         with zipfile.ZipFile(pending, 'w', zipfile.ZIP_DEFLATED, compresslevel=1) as archive:
             for number, languages in sorted(pages.items()):
-                keys = {language: [speech.audio_key(text, record['voice'], record['rate']) for text in texts]
+                keys = {language: [speech.audio_key(text, speech.voice_for(record['voice'], language), record['rate']) for text in texts]
                         for language, texts in languages.items() if texts}
                 for language, values in keys.items():
                     if any(key not in record['keys'].get(language, []) or not valid_key(directory, key) for key in values):
                         raise ValueError('Lời đọc đã đổi hoặc audio bị thiếu. Tạo lại bản giọng trước khi tải.')
-                if record.get('playback') == 'both_controls' and set(keys) == {'vi', 'en'}:
-                    keys['both'] = paired_keys(lesson, number, keys, record)
                 for language, values in keys.items():
                     name = f'Slide-{number:03d}-{language}.wav'
                     audio, duration = joined_wav(directory, values)

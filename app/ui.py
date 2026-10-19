@@ -1266,8 +1266,7 @@ class Bridge(QObject):
         else:
             from .lesson_narration import make_plan, variant_id
 
-            plan, _ = make_plan(self._lesson, mode, {'voice': voice, 'rate': rate},
-                                playback='both_controls' if mode == 'both' else 'separate')
+            plan, _ = make_plan(self._lesson, mode, {'voice': voice, 'rate': rate})
             self.selectNarrationVariant(variant_id(plan))
             self.inform('Đã chọn bản giọng có sẵn để tải hoặc dạy.', refresh=False)
 
@@ -1358,7 +1357,7 @@ class Bridge(QObject):
             return dict(self.voiceSettings)
         status = self.lessonNarration
         return {"voice": status.get("voice", ""), "rate": status.get("rate", 0),
-                **{lang: status.get("voice", "") if lang in status.get("languages", []) else "" for lang in ("vi", "en")}}
+                **{lang: speech.voice_for(status.get("voice", ""), lang) if lang in status.get("languages", []) else "" for lang in ("vi", "en")}}
 
 
     @Slot()
@@ -1856,7 +1855,7 @@ class Bridge(QObject):
         if not self.companionCanRead:
             self.inform('Mở bài và chọn Dùng để dạy trước khi đọc từ mascot.', refresh=False)
             return
-        if language not in ('en', 'vi', 'both'):
+        if language not in ('en', 'vi'):
             return
         self.focusTeachingPresentation()
         self._companion_language = language
@@ -2267,6 +2266,15 @@ class Bridge(QObject):
         self.stopSpeech()
         self.voice_controls.preview(sample, voice, rate)
 
+    @Slot(str, str, int, str)
+    def previewNarrationLanguage(self, language, voice, rate, sample):
+        if language not in {'vi', 'en'} or voice not in {v['id'] for v in self._voices}:
+            return
+        if type(rate) is not int or not -3 <= rate <= 3 or not 1 <= len(sample.strip()) <= 250:
+            return
+        self.stopSpeech()
+        self.voice_controls.preview(sample, speech.voice_for(voice, language), rate)
+
     @Slot(str, str, result="QVariantList")
     def inspectPair(self, vi, en):
         return review_warnings(vi, en)
@@ -2279,7 +2287,7 @@ class Bridge(QObject):
         legacy = not self._lesson.get("external_deck") and "narration" not in self._lesson
         result = {lang: bool(voices[lang] or (legacy and available_audio(self.library.directory, self._reading_text(lang), lang)))
                   and bool(self._reading_text(lang)) for lang in ("vi", "en")}
-        return {**result, 'both': bool(result['vi'] and result['en'])}
+        return {**result, 'both': False}
 
     def _reading_text(self, language):
         if not self.segment or not self._lesson:
@@ -2358,54 +2366,12 @@ class Bridge(QObject):
 
     @Slot()
     def readBothLanguages(self):
-        if self.teaching_session.bound and self._powerpoint_state.get('active'):
-            self.teaching_session.read('both')
-            return
-        import time
-
-        from .slide_speech import speech_chunks, visible_segments
-
-        if self._busy or not self._lesson:
-            return
-        voices = self._lesson_voice_settings()
-        if not voices.get('vi') or not voices.get('en'):
-            self.inform('Chọn bản có cả giọng Việt và Anh trước khi đọc chung.', True, refresh=False)
-            return
-        texts = []
-        if self._powerpoint_state.get('active') and self.powerpoint_worker:
-            path = Path(self.powerpoint_worker.path)
-            if getattr(self, '_presentation_stamp', None) != (path.stat().st_size, path.stat().st_mtime_ns):
-                self.inform('PowerPoint đã thay đổi. Mở lại bài để cập nhật lời đọc.', True, refresh=False)
-                return
-            number = self._powerpoint_state['slide']
-            source = self.library.directory / 'sources' / self._lesson.get('source', {}).get('file', '')
-            data = self._lesson.get('slide_speech', {}) if path.resolve() == source.resolve() else self._session_speech
-            page = next((s for s in data.get('slides', []) if s['slide'] == number), {})
-            elapsed = time.monotonic() - self._powerpoint_state.get('build_started', time.monotonic())
-            english = [part for s in visible_segments(page, self._powerpoint_state.get('click_index'), elapsed)
-                       for part in speech_chunks(s['english_text'])]
-            used = set()
-            indexes = slide_segment_indexes(self._lesson, number, self._powerpoint_source_map, self._powerpoint_segment_map)
-            for index in indexes:
-                unit = self._lesson['segments'][index]
-                en = speech_chunks(unit['en'])
-                # A note is read only when its English partner is visible.
-                if en and set(en) <= set(english):
-                    texts.extend(speech_chunks(unit['vi']))
-                    texts.extend(en)
-                    used.update(en)
-            texts.extend(text for text in english if text not in used)
-        elif self.segment:
-            texts = [self._reading_text('vi'), self._reading_text('en')]
-        if not any(text.strip() for text in texts):
-            self.inform('Chưa có nội dung hiện rõ phù hợp để đọc chung.', refresh=False)
-            return
-        self.stopSpeech()
-        self.english_reader.start(texts, voices['voice'], voices['rate'])
+        self.inform('Chọn loa Anh hoặc loa Việt để đọc riêng từng ngôn ngữ.', refresh=False)
 
     def _play_audio(self, path):
         import wave
-        with wave.open(str(path), "rb") as audio:
+
+        with wave.open(str(path), 'rb') as audio:
             duration = audio.getnframes() / audio.getframerate()
         speech.play(path)
         self._speaking = True
