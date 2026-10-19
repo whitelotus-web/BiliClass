@@ -1883,7 +1883,6 @@ ApplicationWindow {
     CompanionWindow {
         id: companion; objectName: "companionWindow"; bridge: root.bridgeRef
         onRequestSettings: { root.showNormal(); root.raise(); root.requestActivate(); root.requestAction(function() { root.page = "settings"; settingsPanel.activeTab = 3; companion.collapsed = true }) }
-        onRequestOpenLesson: { root.showNormal(); root.raise(); root.requestActivate(); const identity = bridge.teachingSession.state.lesson_id; if (identity) bridge.openLesson(identity); else root.go(bridge.lesson.id ? "result" : "library") }
     }
     TeachingDialog { id: teachingDialog; objectName: "teachingDialog"; teaching: root.teaching; bridge: root.bridgeRef; onClosed: bridge.refreshReadiness() }
     ProjectorWindow { id: projector; objectName: "projectorWindow"; bridge: root.bridgeRef }

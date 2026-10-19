@@ -8,7 +8,6 @@ import QtQuick.Templates as T
 Window {
     id: companion
     required property var bridge
-    signal requestOpenLesson()
     signal requestSettings()
     property bool collapsed: true
     property bool choosingLesson: false

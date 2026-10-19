@@ -100,8 +100,8 @@ PowerPoint, tạo âm thanh hoặc đổi liên kết Mascot đang dùng.
 Trên Mascot nổi, **Chọn / đổi bài giảng** nhận bài thư viện hoặc file `.pptx`.
 Chọn bài sẽ mở PowerPoint và chuyển liên kết Mascot sang đúng bài đó;
 không cần popup duyệt nội dung để mở. Bấm F5 khi sẵn sàng. **Kết
-thúc trình chiếu** trả về trạng thái chờ, **Ngắt gắn bài** kết thúc phiên
-điều khiển. Tệp PowerPoint nguồn không bị ghi đè.
+thúc trình chiếu** trả về trạng thái chờ; dùng **Đổi bài giảng** để chuyển
+sang bài khác. Tệp PowerPoint nguồn không bị ghi đè.
 
 Trong **Cài đặt → Dữ liệu → Quản lý thuật ngữ & kiến thức**, thuật ngữ đã khóa của đúng môn được ưu tiên
 khi dịch Google. Đổi thuật ngữ làm mới riêng cache của câu có dùng từ đó;

@@ -131,9 +131,4 @@ ColumnLayout {
     }
     Label { visible: !!companion.session.warning; text: companion.session.warning || ""; color: "#a66318"; wrapMode: Text.WordWrap; Layout.fillWidth: true; font.pixelSize: 11 }
     Label { objectName: "companionReaderStatus"; visible: !!companion.reader.message && companion.reader.state !== "stopped"; text: companion.reader.message; color: companion.reader.state === "error" ? "#b14828" : "#667997"; wrapMode: Text.WordWrap; Layout.fillWidth: true; font.pixelSize: 11 }
-    RowLayout {
-        visible: !!companion.session.bound; Layout.fillWidth: true; spacing: 6
-        PanelAction { objectName: "companionOpenLesson"; text: "Xem bài đang gắn"; implicitHeight: 30; font.pixelSize: 11; onClicked: companion.requestOpenLesson() }
-        PanelAction { objectName: "companionUnbind"; text: "Ngắt gắn bài"; implicitHeight: 30; font.pixelSize: 11; onClicked: bridge.stopPowerPoint() }
-    }
 }
