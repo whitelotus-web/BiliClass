@@ -381,7 +381,6 @@ Item {
                             Accessible.name: "Tốc độ đọc từ 82 đến 118 phần trăm"
                         }
                         Label { objectName: "settingsVoiceSpeedLabel"; text: Math.round([.82, .88, .94, 1, 1.06, 1.12, 1.18][page.draftRate + 3] * 100) + "%"; color: page.blue; font.weight: Font.Bold; font.pixelSize: 16 }
-                        SoftButton { objectName: "resetVoiceSpeed"; text: "100%"; implicitHeight: 36; onClicked: page.draftRate = 0 }
                     }
                 }
             }
