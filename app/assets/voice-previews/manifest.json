@@ -8,15 +8,21 @@
     "d99333b56f4a745df3ecf13407769096db8997e7b5aadf658c8b9d07577c386b.wav": "fafdb22882a780dc143f885b7e8f4d1b5fd6e4f0535e884109e38f74834d844e",
     "1e01c72b7bf7708c6c6d3f75cf6f72584253b3b7a48d8f5c42e7498952f4e87b.wav": "7233f04a49602e8b3a186f82e2d69683db147a057b77c3735cf79dac6502a35b",
     "ea20d656558c3caabdfbf9cb618503a72da057581bab51245ad8253426a0b184.wav": "585fc0a8b185abec8cae22665df5a4a88c6e1d8cc400acad1abdb4250c9c83ed",
-    "a40439e62c4f3be321a80f5e56d1f3242651ddfe7e8112c2f288b185fba779bf.wav": "cde8fec57869f9ee2036b27d02705657a03e10e2c3f16580795336e97fa390fa"
+    "a40439e62c4f3be321a80f5e56d1f3242651ddfe7e8112c2f288b185fba779bf.wav": "cde8fec57869f9ee2036b27d02705657a03e10e2c3f16580795336e97fa390fa",
+    "b5b906becc89e98109a2c12656ec62bf009732746742765615a3c44067f63b27.wav": "293c8e298c0b1fca0c3835d0bcbb9e896a663a3aca069df20409b75e4282ba4a",
+    "d7175172e77563fe02f47964efe7d8478965ab9d5dab329d98f1944f3658eae7.wav": "e47102ef35383bfedc8216bf9ba8f1e26fd182a2d267210e1d4ef868775413d4",
+    "808c9f69d7df658777683c25f3d9618d09c9cc146a1012608dfb121aacde6cf8.wav": "8bc0281325b4ec4bf001b92c2714502427b697444bc6da67bb3ab79c35c32320"
   },
   "pair_files": {
     "40671822c53dc9e0eea878e6f54dd45b5f47fe49597cd19bf3342b0aaca1af53.wav": "cb2b4aa376d537143c0d215dc28428d644caf3d6bbf5f630adbb094313f029c1",
-    "2ea1bb7deb53d5051cd69da8437e76271d274ce3bc1c57c70186c24696378d41.wav": "87be8f52c6bc91b16c56dfcb24856e0540658da2213eb56439fea070c4a1804d",
     "4b17717b883d04b66414b1c94886af96752539a4554f519f3fbd7366097407e6.wav": "7976ba2cc71ecfe2d6cbb6efd597daffee769772b499686d697fe989457f7677",
-    "8cee14933d4bd0f1020694928bde3276603d5348df5aa35ce23626006b58bee3.wav": "ed3d1ffb3aab5305e6633a490960ecdb5d8cfd7956b023d35fa47c2b4fe1aa6f",
     "ac696c95a826f2bf0e77245e8d05f8a9ec8371d32bcbfc68578c76e638d48770.wav": "fca7d983aeee14f92fae80165ef2fb2cb366ae19822f3d97d92a2c63b30bc513",
-    "75d33cd441effc0b8cf82bdcceb371267fae2d44a159d402e80342ae40b0bf73.wav": "80d0cc93e22b1feb07dff9421348ef7b265a1f33e7021571bacde7151093394e"
+    "2ea1bb7deb53d5051cd69da8437e76271d274ce3bc1c57c70186c24696378d41.wav": "87be8f52c6bc91b16c56dfcb24856e0540658da2213eb56439fea070c4a1804d",
+    "8cee14933d4bd0f1020694928bde3276603d5348df5aa35ce23626006b58bee3.wav": "ed3d1ffb3aab5305e6633a490960ecdb5d8cfd7956b023d35fa47c2b4fe1aa6f",
+    "75d33cd441effc0b8cf82bdcceb371267fae2d44a159d402e80342ae40b0bf73.wav": "80d0cc93e22b1feb07dff9421348ef7b265a1f33e7021571bacde7151093394e",
+    "e149ebce65d6121af4eb76a71b1d5b5613ca2afd58e84fa4b2da5b89a9466619.wav": "8ee2877d0ee21d7fca68297e14a4359ba715f2b0018deffc8366ba8d61ccd3a9",
+    "61d236f53a44bc838d28ad543edf61b91c4747d62f951f90576d039b060a9a44.wav": "52c0e7ea3a849d4288da08636ef301e2201ff2b8f96801ddfaacf715f587c370",
+    "0d6ece167c95c62233b6bdac78283a398894bbba89fb775d12f44c9d3bd509a4.wav": "9e94ea2280c4fd5dd61b1f9e49a38d1fdf882ad6c4b67ea4eea84c4360b87b65"
   },
   "english_engine": "kokoro-v1_0-sherpa-1.13.8-us-weak-article-v1",
   "language_files": {
@@ -56,11 +62,35 @@
       "engine": "vieneu-v3-turbo-onnx-fp32-61b85e3-3.8.3-multilingual-wsola1",
       "sha256": "1a6363d3d7cb8cf7458d44d58284ef52f5d8b399fdc4150a8de7ea2f21a11569"
     },
+    "762af60155727945c46398548e2095c4ac0119a7bb5e20828368760c65e4ed00.wav": {
+      "voice": "vieneu:Trúc Ly",
+      "text": "Chào các em, hôm nay chúng ta sẽ cùng tìm hiểu một bài học mới. Trước hết, hãy quan sát ví dụ, suy nghĩ về điều em đã biết và thử giải thích bằng lời của mình. Nếu chưa tìm ra câu trả lời, các em cứ bình tĩnh, chúng ta sẽ khám phá từng bước.",
+      "engine": "vieneu-v3-turbo-onnx-fp32-61b85e3-3.8.3-multilingual-wsola1",
+      "sha256": "8f9d1297ab11f9ac5150b5d538266dabdd1fbccc325d8fd0d837fa3cc1de9ca3"
+    },
+    "70a3c375658627ceed45938725d8db3540b9a90f32f958f3568f1572d728501d.wav": {
+      "voice": "vieneu:Đoan Trang",
+      "text": "Chào các em, hôm nay chúng ta sẽ cùng tìm hiểu một bài học mới. Trước hết, hãy quan sát ví dụ, suy nghĩ về điều em đã biết và thử giải thích bằng lời của mình. Nếu chưa tìm ra câu trả lời, các em cứ bình tĩnh, chúng ta sẽ khám phá từng bước.",
+      "engine": "vieneu-v3-turbo-onnx-fp32-61b85e3-3.8.3-multilingual-wsola1",
+      "sha256": "6067a04c57356d7f49f83402e9a96dc2f6e00c09e4f5d08a4410e340c3d35e6f"
+    },
+    "818e1f04cc2ed500e80d84ee13437dafa607bc600294c16c3364166c0c4ec618.wav": {
+      "voice": "vieneu:Phạm Tuyên",
+      "text": "Chào các em, hôm nay chúng ta sẽ cùng tìm hiểu một bài học mới. Trước hết, hãy quan sát ví dụ, suy nghĩ về điều em đã biết và thử giải thích bằng lời của mình. Nếu chưa tìm ra câu trả lời, các em cứ bình tĩnh, chúng ta sẽ khám phá từng bước.",
+      "engine": "vieneu-v3-turbo-onnx-fp32-61b85e3-3.8.3-multilingual-wsola1",
+      "sha256": "758007c9b0d32aa5340923e41fed898b47a4bba33a3c0617533ab267f8a5bf7b"
+    },
     "6afdc41649cdbc9cb80face955636b6a8da8a986d424476bbb7ec4c48be0ad60.wav": {
       "voice": "kokoro-us:af_heart",
       "text": "Hello everyone. Today, we are going to explore a new lesson together. First, look carefully at the example and think about what you already know. Take your time, explain your ideas in your own words, and remember that asking a good question is an important part of learning.",
       "engine": "kokoro-v1_0-sherpa-1.13.8-us-weak-article-v1",
       "sha256": "53560c553071487bea890df33512c2b6e184d8d64508f2e466049cc886a9b86b"
+    },
+    "9aee5d609fe07fc8fea16452f8385dba707323d4cf02b0ff4958cce3d2b20199.wav": {
+      "voice": "kokoro-us:af_bella",
+      "text": "Hello everyone. Today, we are going to explore a new lesson together. First, look carefully at the example and think about what you already know. Take your time, explain your ideas in your own words, and remember that asking a good question is an important part of learning.",
+      "engine": "kokoro-v1_0-sherpa-1.13.8-us-weak-article-v1",
+      "sha256": "1092e81b56bd6f4f7b288f7bccfda627201ac132bfc0cc6819cf67897573b724"
     },
     "f9655d0270f861fdba91d0e078e49b02364de19be21221f45f6ddf6291472547.wav": {
       "voice": "kokoro-us:am_michael",

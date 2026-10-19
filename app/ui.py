@@ -1767,7 +1767,7 @@ class Bridge(QObject):
 
     @Property('QVariantList', notify=changed)
     def englishVoices(self):
-        return [{'id': identity, 'name': name + (' · Nữ Mỹ' if identity.endswith('af_heart') else ' · Nam Mỹ')}
+        return [{'id': identity, 'name': name + (' · Nữ Mỹ' if ':af_' in identity else ' · Nam Mỹ')}
                 for identity, (name, _) in speech.ENGLISH_VOICES.items()] if self._voices else []
 
     @Property('QVariantMap', constant=True)

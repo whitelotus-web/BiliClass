@@ -19,7 +19,7 @@ def main():
         "formula": "Động năng bằng một phần hai khối lượng nhân bình phương vận tốc. A force of twenty newtons acts on the object.",
     }
     voices = speech.list_voices()
-    assert len(voices) == 6
+    assert len(voices) == 9
     rows = []
     for voice in voices:
         for language, text in samples.items():

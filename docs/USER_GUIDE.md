@@ -81,9 +81,11 @@ không cần qua popup duyệt. Bấm **Trình chiếu (F5)** trên Mascot khi s
 Có thể tải PPTX/audio hoặc về đúng bài trong thư viện; không tự chuyển tab
 hoặc tự phát khi hoàn tất. Nội dung/bố cục chưa rà soát vẫn giữ cảnh báo.
 
-Chọn một trong **6 cặp Việt–Mỹ**: nữ/nam miền Bắc, Trung hoặc Nam.
-Vùng miền là của giọng Việt; tiếng Anh dùng giọng Mỹ riêng (Heart cho nữ,
-Michael cho nam). Toàn bộ tạo và phát giọng chạy trên máy, không cần API.
+Chọn một trong **9 cặp Việt–Mỹ**. Sáu cặp đầu giữ thứ tự nữ Bắc–Trung–Nam,
+nam Bắc–Trung–Nam; ba cặp bổ sung là **Trúc Ly + Bella**, **Đoan Trang + Heart**
+và **Phạm Tuyên + Michael**. Vùng miền là của giọng Việt. Có thể tự ghép
+9 giọng Việt với 3 giọng Mỹ (Heart, Bella, Michael). Toàn bộ tạo và phát
+giọng chạy trên máy, không cần API.
 
 **Tạo giọng** có 3 lựa chọn: chỉ Anh, chỉ Việt hoặc cả Anh và Việt.
 Chỉ Anh/Việt tạo một loa; chọn cả hai tạo **hai loa độc lập**, không có loa
@@ -150,10 +152,11 @@ OCR chỉ xác nhận đã phát hiện thành phần, không thay cho kiểm tr
 ## Tạo giọng và bước tiếp theo
 
 Giọng là bước tùy chọn sau khi bài đã lưu. Trong **Cài đặt → Giọng đọc**, có thể
-chọn một trong sáu cặp gợi ý (hàng nữ ở trên, hàng nam ở dưới; Bắc–Trung–Nam)
+chọn một trong chín cặp gợi ý (hai hàng đầu: nữ rồi nam, Bắc–Trung–Nam;
+hàng ba: Trúc Ly, Đoan Trang, Phạm Tuyên)
 hoặc tự ghép bằng hai cột **Giọng tiếng Việt** và **Giọng tiếng Anh · Mỹ**.
 Chọn cặp gợi ý cập nhật cả hai cột; đổi một bên giữ nguyên bên còn lại.
-Mỗi bên có đoạn mẫu dài khoảng 12–16 giây, sửa được nội dung và nghe riêng;
+Mỗi bên có đoạn mẫu dài, sửa được nội dung và bấm **Nghe thử** cạnh bộ chọn;
 **Nghe cả cặp** lần lượt phát hai đoạn để so sánh. Mẫu mặc định phát ngay từ
 tệp có sẵn, không phải chờ mô hình. Chọn tốc độ rồi **Lưu cặp giọng và tốc độ**.
 

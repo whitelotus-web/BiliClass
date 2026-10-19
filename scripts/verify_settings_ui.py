@@ -165,7 +165,7 @@ def main():
 
         click("settingsTab2")
         assert control("multilingualVoiceCard").isVisible()
-        assert len(bridge.multilingualVoices) == 6
+        assert len(bridge.multilingualVoices) == 9
         assert not window.findChild(QObject, "voiceEnglishCard")
         assert not window.findChild(QObject, "voiceVietnameseCard")
         original = dict(bridge.voiceSettings)

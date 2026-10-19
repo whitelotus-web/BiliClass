@@ -276,8 +276,8 @@ Item {
         ColumnLayout {
             visible: page.activeTab === 2; Layout.fillWidth: true; spacing: 14
             Card {
-                objectName: "multilingualVoiceCard"; Layout.fillWidth: true; padding: 16
-                ColumnLayout { width: parent.width; spacing: 8
+                objectName: "multilingualVoiceCard"; Layout.fillWidth: true; padding: 15
+                ColumnLayout { width: parent.width; spacing: 7
                     RowLayout { Layout.fillWidth: true
                         Title { text: "Cặp giọng gợi ý"; Layout.fillWidth: true }
                         Hint { text: "Hoàn toàn ngoại tuyến"; color: "#168567"; font.pixelSize: 12 }
@@ -311,8 +311,8 @@ Item {
                                     onClicked: { bridge.stopSpeech(); page.draftVoice = voiceOption.modelData.id }
                                     contentItem: Column {
                                         spacing: 3
-                                        Label { text: voiceOption.modelData.gender + " " + voiceOption.modelData.region; color: page.ink; font.pixelSize: 13; font.weight: Font.DemiBold }
-                                        Label { text: voiceOption.modelData.vi.split(":")[1] + " + " + voiceOption.modelData.en.split(":")[1].replace("af_heart", "Heart").replace("am_michael", "Michael"); color: page.muted; font.pixelSize: 12 }
+                                        Label { text: voiceOption.modelData.label || (voiceOption.modelData.gender + " " + voiceOption.modelData.region); color: page.ink; font.pixelSize: 13; font.weight: Font.DemiBold }
+                                        Label { text: voiceOption.modelData.subtitle || (voiceOption.modelData.vi.split(":")[1] + " + " + voiceOption.modelData.en.split(":")[1].replace("af_heart", "Heart").replace("af_bella", "Bella").replace("am_michael", "Michael")); color: page.muted; font.pixelSize: 12 }
                                     }
                                 }
                             }
@@ -325,13 +325,19 @@ Item {
                         ColumnLayout {
                             objectName: "vietnameseVoiceColumn"; Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; spacing: 8
                             Label { text: "Giọng tiếng Việt"; color: page.ink; font.pixelSize: 15; font.weight: Font.DemiBold }
-                            Choice {
-                                objectName: "settingsVietnameseVoice"; Layout.fillWidth: true
-                                model: bridge.vietnameseVoices; textRole: "name"; valueRole: "id"
-                                currentIndex: model.map(function(row) { return row.id }).indexOf(page.selectedVoicePair.vi)
-                                enabled: model.length > 0
-                                onActivated: page.chooseVoicePair(currentValue, page.selectedVoicePair.en || bridge.englishVoices[0].id)
-                                Accessible.name: "Chọn giọng tiếng Việt để tự ghép cặp"
+                            RowLayout { Layout.fillWidth: true; spacing: 8
+                                Choice {
+                                    objectName: "settingsVietnameseVoice"; Layout.fillWidth: true; Layout.minimumWidth: 0
+                                    model: bridge.vietnameseVoices; textRole: "name"; valueRole: "id"
+                                    currentIndex: model.map(function(row) { return row.id }).indexOf(page.selectedVoicePair.vi)
+                                    enabled: model.length > 0
+                                    onActivated: page.chooseVoicePair(currentValue, page.selectedVoicePair.en || bridge.englishVoices[0].id)
+                                    Accessible.name: "Chọn giọng tiếng Việt để tự ghép cặp"
+                                }
+                                SoftButton { objectName: "previewVietnameseVoice"; text: "Nghe thử"; iconName: "play"; implicitHeight: 44
+                                    enabled: !!page.selectedVoicePair.vi && !!vietnameseSample.text.trim()
+                                    onClicked: bridge.previewNarrationLanguage("vi", page.draftVoice, page.draftRate, vietnameseSample.text)
+                                }
                             }
                             TextArea {
                                 id: vietnameseSample; objectName: "settingsVoiceSample"; Layout.fillWidth: true
@@ -339,31 +345,29 @@ Item {
                                 text: bridge.voicePreviewSamples.vi; Accessible.name: "Nội dung nghe thử tiếng Việt"
                                 background: Rectangle { radius: 9; color: "#fbfdff"; border.color: vietnameseSample.activeFocus ? page.blue : page.line }
                             }
-                            SoftButton { objectName: "previewVietnameseVoice"; text: "Nghe tiếng Việt"; iconName: "play"; implicitHeight: 36
-                                enabled: !!page.selectedVoicePair.vi && !!vietnameseSample.text.trim()
-                                onClicked: bridge.previewNarrationLanguage("vi", page.draftVoice, page.draftRate, vietnameseSample.text)
-                            }
                         }
                         ColumnLayout {
                             objectName: "englishVoiceColumn"; Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; spacing: 8
                             Label { text: "Giọng tiếng Anh · Mỹ"; color: page.ink; font.pixelSize: 15; font.weight: Font.DemiBold }
-                            Choice {
-                                objectName: "settingsEnglishVoice"; Layout.fillWidth: true
-                                model: bridge.englishVoices; textRole: "name"; valueRole: "id"
-                                currentIndex: model.map(function(row) { return row.id }).indexOf(page.selectedVoicePair.en)
-                                enabled: model.length > 0
-                                onActivated: page.chooseVoicePair(page.selectedVoicePair.vi || bridge.vietnameseVoices[0].id, currentValue)
-                                Accessible.name: "Chọn giọng tiếng Anh để tự ghép cặp"
+                            RowLayout { Layout.fillWidth: true; spacing: 8
+                                Choice {
+                                    objectName: "settingsEnglishVoice"; Layout.fillWidth: true; Layout.minimumWidth: 0
+                                    model: bridge.englishVoices; textRole: "name"; valueRole: "id"
+                                    currentIndex: model.map(function(row) { return row.id }).indexOf(page.selectedVoicePair.en)
+                                    enabled: model.length > 0
+                                    onActivated: page.chooseVoicePair(page.selectedVoicePair.vi || bridge.vietnameseVoices[0].id, currentValue)
+                                    Accessible.name: "Chọn giọng tiếng Anh để tự ghép cặp"
+                                }
+                                SoftButton { objectName: "previewEnglishVoice"; text: "Nghe thử"; iconName: "play"; implicitHeight: 44
+                                    enabled: !!page.selectedVoicePair.en && !!englishSample.text.trim()
+                                    onClicked: bridge.previewNarrationLanguage("en", page.draftVoice, page.draftRate, englishSample.text)
+                                }
                             }
                             TextArea {
                                 id: englishSample; objectName: "settingsEnglishVoiceSample"; Layout.fillWidth: true
                                 implicitHeight: 88; padding: 10; font.pixelSize: 13; color: page.ink; wrapMode: TextEdit.Wrap; selectByMouse: true
                                 text: bridge.voicePreviewSamples.en; Accessible.name: "Nội dung nghe thử tiếng Anh"
                                 background: Rectangle { radius: 9; color: "#fbfdff"; border.color: englishSample.activeFocus ? page.blue : page.line }
-                            }
-                            SoftButton { objectName: "previewEnglishVoice"; text: "Nghe tiếng Anh"; iconName: "play"; implicitHeight: 36
-                                enabled: !!page.selectedVoicePair.en && !!englishSample.text.trim()
-                                onClicked: bridge.previewNarrationLanguage("en", page.draftVoice, page.draftRate, englishSample.text)
                             }
                         }
                     }

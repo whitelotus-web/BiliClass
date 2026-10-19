@@ -55,7 +55,7 @@ def run(output):
     try:
         library = Library(workspace.name)
         bridge = Bridge(library)
-        assert len(bridge.multilingualVoices) == 6, 'Missing offline voice pack'
+        assert len(bridge.multilingualVoices) == len(speech.PAIRS), 'Missing offline voice pack'
         engine = QQmlApplicationEngine()
         warnings = []
         engine.warnings.connect(lambda rows: warnings.extend(map(str, rows)))
@@ -101,7 +101,7 @@ def run(output):
         timer.timeout.connect(lambda: beats.append(time.perf_counter()))
         timer.start()
         latencies = []
-        for index in range(6):
+        for index in range(len(speech.PAIRS)):
             click('selectMultilingualVoice' + str(index))
             settings.setProperty('draftRate', 0)
             mark, count = time.perf_counter(), len(played)
@@ -135,7 +135,7 @@ def run(output):
         until(lambda: not bridge.voiceUiState['saving'])
         saved_seconds = time.perf_counter() - mark
         assert not bridge.voiceUiState['saveError']
-        assert library.setting('voice_options', {}) == {'voice': 'pair:south-male', 'rate': 2}
+        assert library.setting('voice_options', {}) == {'voice': speech.PAIRS[-1]['id'], 'rate': 2}
         assert 'Đã lưu' in control('voiceSaveStatus').property('text')
         count = len(played)
         click('stopVoicePreview')

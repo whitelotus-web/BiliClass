@@ -9,7 +9,7 @@ from pathlib import Path
 from .importers import parse_document
 from .library import Library
 from .pack import export_pack, import_pack
-from .speech import list_voices, synthesize, valid_audio
+from .speech import PAIRS, list_voices, synthesize, valid_audio
 
 
 def run(output):
@@ -72,7 +72,7 @@ def run(output):
                 report["checks"].append("SQLite, history and draft pack roundtrip")
                 voices = list_voices()
                 if getattr(sys, "frozen", False):
-                    assert len(voices) == 6 and all(v.get("provider") in {"vieneu", "local_pair"} for v in voices), "Missing multilingual voices"
+                    assert len(voices) == len(PAIRS) and all(v.get("provider") in {"vieneu", "local_pair"} for v in voices), "Missing multilingual voices"
                 report["voices"] = [{"name": v["name"], "language": v["language"]} for v in voices]
                 english = next((v for v in voices if "en" in v.get("languages", [])), None)
                 if english:

@@ -23,6 +23,9 @@ VIENEU_VOICES = (
     {"id": "vieneu:Thái Sơn", "name": "Thái Sơn · Nam Nam", "detail": "Ấm áp, gần gũi"},
     {"id": "vieneu:Ngọc Trân", "name": "Ngọc Trân · Nữ Trung", "detail": "Tự nhiên, nhẹ nhàng"},
     {"id": "vieneu:Quang Sơn", "name": "Quang Sơn · Nam Trung", "detail": "Tự nhiên, mạch lạc"},
+    {"id": "vieneu:Trúc Ly", "name": "Trúc Ly · Nữ Bắc", "detail": "Tự nhiên, nhẹ nhàng"},
+    {"id": "vieneu:Đoan Trang", "name": "Đoan Trang · Nữ Bắc", "detail": "Tự nhiên, rõ ràng"},
+    {"id": "vieneu:Phạm Tuyên", "name": "Phạm Tuyên · Nam Bắc", "detail": "Tự nhiên, mạch lạc"},
 )
 _VIENEU_BY_ID = {voice["id"]: voice for voice in VIENEU_VOICES}
 _ENGINE_TURN = Condition()

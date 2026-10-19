@@ -1,4 +1,4 @@
-"""Two independent language routes, six local pairs and legacy-cache safety."""
+"""Independent language routes, suggested/custom pairs and legacy-cache safety."""
 
 import copy
 import wave
@@ -26,14 +26,21 @@ def wav(path):
         writer.writeframes(b'\x01\0'*2400)
 
 
-def test_six_pairs_cover_each_region_and_gender_with_separate_us_speakers():
-    assert len(PAIRS) == 6 and len({v['id'] for v in PAIRS}) == 6
-    assert len(ALL_PAIRS) == 12 and {row['en'] for row in ALL_PAIRS} <= set(speech.ENGLISH_VOICES)
+def test_suggested_pairs_preserve_regional_order_and_include_extra_speakers():
+    assert len(PAIRS) == 9 and len({v['id'] for v in PAIRS}) == 9
+    assert len(ALL_PAIRS) == 27 and {row['en'] for row in ALL_PAIRS} == set(speech.ENGLISH_VOICES)
+    assert [(v['gender'], v['region']) for v in PAIRS[:6]] == [
+        (gender, region) for gender in ('Nữ', 'Nam') for region in ('Bắc', 'Trung', 'Nam')]
     assert {(v['region'], v['gender']) for v in PAIRS} == {
         (region, gender) for region in ('Bắc', 'Trung', 'Nam') for gender in ('Nam', 'Nữ')}
     assert {v['vi'] for v in PAIRS} == {v['id'] for v in speech.VIENEU_VOICES}
-    for pair in PAIRS:
+    for pair in PAIRS[:6]:
         assert pair['en'] == ('kokoro-us:af_heart' if pair['gender'] == 'Nữ' else 'kokoro-us:am_michael')
+    assert [(v['vi'], v['en']) for v in PAIRS[6:]] == [
+        ('vieneu:Trúc Ly', 'kokoro-us:af_bella'),
+        ('vieneu:Đoan Trang', 'kokoro-us:af_heart'),
+        ('vieneu:Phạm Tuyên', 'kokoro-us:am_michael')]
+    assert len({(v['vi'], v['en']) for v in ALL_PAIRS}) == 27
 
 
 @pytest.mark.parametrize('pair', ALL_PAIRS, ids=lambda row: row['id'])
@@ -98,7 +105,9 @@ def test_cached_teaching_uses_saved_pair_not_new_global_choice_and_refuses_combi
         library.close()
 
 
-def test_english_render_keeps_question_and_words_and_outputs_common_pcm_format(tmp_path, monkeypatch):
+@pytest.mark.parametrize('voice,sid', [('kokoro-us:af_heart', 3), ('kokoro-us:af_bella', 2),
+                                    ('kokoro-us:am_michael', 16)])
+def test_english_render_keeps_question_and_words_and_outputs_common_pcm_format(tmp_path, monkeypatch, voice, sid):
     from types import SimpleNamespace
 
     requests = []
@@ -108,8 +117,8 @@ def test_english_render_keeps_question_and_words_and_outputs_common_pcm_format(t
     monkeypatch.setattr(english_speech, 'engine', lambda *a: SimpleNamespace(generate=generate))
     path = tmp_path/'new.wav'
     text = 'Do you know? A car is considered a point mass.'
-    english_speech.render(text, 'kokoro-us:af_heart', 0, path)
-    assert requests == [{'text': text, 'sid': 3, 'speed': 1.0}]
+    english_speech.render(text, voice, 0, path)
+    assert requests == [{'text': text, 'sid': sid, 'speed': 1.0}]
     with wave.open(str(path)) as reader:
         assert (reader.getnchannels(), reader.getsampwidth(), reader.getframerate(), reader.getnframes()) == (1, 2, 48000, 4800)
     assert speech.audio_key(text, 'kokoro-us:af_heart', 0) != speech.audio_key(text, 'kokoro:af_heart', 0)

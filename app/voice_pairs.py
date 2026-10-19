@@ -1,7 +1,8 @@
 """Stable local voice pairs. Region describes the Vietnamese speaker only."""
 
 ENGLISH_VERSION = 'kokoro-v1_0-sherpa-1.13.8-us-weak-article-v1'
-ENGLISH_VOICES = {'kokoro-us:af_heart': ('Heart', 3), 'kokoro-us:am_michael': ('Michael', 16)}
+ENGLISH_VOICES = {'kokoro-us:af_heart': ('Heart', 3), 'kokoro-us:af_bella': ('Bella', 2),
+                  'kokoro-us:am_michael': ('Michael', 16)}
 PAIRS = tuple(
     {'id': 'pair:' + identity, 'name': f'{vi} + {en} · {gender} {region}–Mỹ',
      'detail': f'Việt: {vi} · Anh–Mỹ: {en}', 'provider': 'local_pair',
@@ -14,8 +15,14 @@ PAIRS = tuple(
         ('north-male', 'Hải Đăng', 'Nam', 'Bắc', 'Michael', 'am_michael'),
         ('central-male', 'Quang Sơn', 'Nam', 'Trung', 'Michael', 'am_michael'),
         ('south-male', 'Thái Sơn', 'Nam', 'Nam', 'Michael', 'am_michael'),
+        ('truc-ly', 'Trúc Ly', 'Nữ', 'Bắc', 'Bella', 'af_bella'),
+        ('doan-trang', 'Đoan Trang', 'Nữ', 'Bắc', 'Heart', 'af_heart'),
+        ('pham-tuyen', 'Phạm Tuyên', 'Nam', 'Bắc', 'Michael', 'am_michael'),
     )
 )
+for row in PAIRS[6:]:
+    row['label'] = row['vi'].split(':', 1)[1]
+    row['subtitle'] = f"{row['gender']} {row['region']} · {ENGLISH_VOICES[row['en']][0]} (Mỹ)"
 CUSTOM_PAIRS = tuple(
     {**row, 'id': row['id'] + ':' + en_id.rsplit(':', 1)[1],
      'name': f"{row['vi'].split(':', 1)[1]} + {en} · Tự ghép",
