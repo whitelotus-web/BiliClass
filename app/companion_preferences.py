@@ -13,6 +13,7 @@ def panel_size(mascot_size):
 class CompanionPreferences(QObject):
     changed = Signal()
     failed = Signal(str)
+    persisted = Signal(object)
 
     def __init__(self, library, parent=None):
         super().__init__(parent)
@@ -40,6 +41,14 @@ class CompanionPreferences(QObject):
         self.changed.emit()
         self.timer.start(350)
 
+    def save_settings(self, choices):
+        if self._closed:
+            return
+        self.pending.update(choices)
+        self._attempts = 0
+        self.flush()
+        self.changed.emit()
+
     @Slot()
     def flush(self):
         self.timer.stop()
@@ -49,6 +58,7 @@ class CompanionPreferences(QObject):
         task = VoiceTask(lambda _: store_choices(self.directory, choices), self)
         task.choices = choices
         self.worker = task
+        self.changed.emit()
         task.finished.connect(self._finished)
         task.start()
 
@@ -64,13 +74,15 @@ class CompanionPreferences(QObject):
             self.pending = {**task.choices, **self.pending}
             self._attempts += 1
             if self._attempts >= 3:
-                self.failed.emit('Chưa lưu được độ trong suốt. Thư viện đang bận hoặc không ghi được; thử chỉnh lại.')
+                self.failed.emit('Chưa lưu được cài đặt Mascot. Thư viện đang bận hoặc không ghi được; thử bấm Lưu lại.')
             elif not self._closed:
                 self.timer.start(1000)
         else:
             self._attempts = 0
+            self.persisted.emit(task.choices)
             if self.pending and not self._closed:
                 self.timer.start(350)
+        self.changed.emit()
         task.deleteLater()
 
     @Slot()

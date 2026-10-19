@@ -1,5 +1,11 @@
 # Trạng thái BiliClass
 
+Ngày 19/10/2026 — RC83 sửa trả focus về PowerPoint, nút Trước/Sau chuyển
+slide ngay và bộ đếm theo Office. Loa Mascot theo giọng trên slide; dấu ?
+hiện tooltip phím có ký hiệu. Lệnh không qua vòng chờ GUI/helper trung gian,
+Office cập nhật bằng tín hiệu riêng; lưu ngoại hình Mascot chạy nền.
+Gồm RC82 nội bộ chưa phát hành. Xem [BUILD_RC83](BUILD_RC83.md).
+
 Ngày 19/10/2026 — RC82 thêm kéo bảng trợ giảng, nhấp đúp tiêu đề/vùng
 trống để thu về Mascot, giữ tọa độ; giữ nút, slider, chọn chữ và cuộn riêng.
 Đóng chính thoát cả app/Mascot; thu nhỏ giữ nổi, “−” chỉ ẩn. Khởi động hiện

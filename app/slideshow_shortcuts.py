@@ -46,7 +46,7 @@ def saved_bindings(value):
 
 
 def display(sequence):
-    return sequence.replace('Space', 'Cách').replace('Enter', 'Enter')
+    return sequence.replace('Space', 'Space ␣').replace('Enter', 'Enter ↵').replace('+', ' + ')
 
 
 class KeyPolicy:

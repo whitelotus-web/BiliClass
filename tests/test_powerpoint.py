@@ -79,6 +79,54 @@ def test_window_binding_requires_exact_filename_and_rejects_ambiguity(monkeypatc
     assert slideshow_handle(path) == 0, 'Same-named decks must not bind arbitrarily'
 
 
+@pytest.mark.parametrize('failure', ['missing', 'hidden', 'pid', 'title', 'class', 'hung', 'denied', 'none'])
+def test_focus_rejects_stale_unrelated_or_hung_office_windows(monkeypatch, failure):
+    import win32gui
+    import win32process
+
+    from app.powerpoint import focus_presentation
+
+    calls = []
+    monkeypatch.setattr(win32gui, 'IsWindow', lambda _: failure != 'missing')
+    monkeypatch.setattr(win32gui, 'IsWindowVisible', lambda _: failure != 'hidden')
+    monkeypatch.setattr(win32process, 'GetWindowThreadProcessId', lambda _: (1, 7 if failure != 'pid' else 8))
+    monkeypatch.setattr(win32gui, 'GetClassName', lambda _: 'PPTFrameClass' if failure != 'class' else 'OtherClass')
+    monkeypatch.setattr(win32gui, 'GetWindowText', lambda _: 'Lesson.pptx - PowerPoint' if failure != 'title' else 'Lesson extra.pptx - PowerPoint')
+    monkeypatch.setattr(win32gui, 'GetForegroundWindow', lambda: 1)
+    monkeypatch.setattr(win32gui, 'IsIconic', lambda _: False)
+    def probe(*args):
+        if failure == 'hung':
+            raise TimeoutError()
+    def foreground(hwnd):
+        calls.append(hwnd)
+        if failure == 'denied':
+            raise RuntimeError('Windows denied foreground activation')
+    monkeypatch.setattr(win32gui, 'SendMessageTimeout', probe)
+    monkeypatch.setattr(win32gui, 'SetForegroundWindow', foreground)
+    assert not focus_presentation('Lesson.pptx', 2 if failure != 'none' else 0, 7)
+    assert calls == ([2] if failure == 'denied' else [])
+
+
+@pytest.mark.parametrize('class_name', ['PPTFrameClass', 'screenClass', 'PPTPresenterView'])
+def test_focus_activates_only_verified_bound_deck(monkeypatch, class_name):
+    import win32gui
+    import win32process
+
+    from app.powerpoint import focus_presentation
+
+    foreground = [1]
+    monkeypatch.setattr(win32gui, 'IsWindow', lambda _: True)
+    monkeypatch.setattr(win32gui, 'IsWindowVisible', lambda _: True)
+    monkeypatch.setattr(win32gui, 'GetClassName', lambda _: class_name)
+    monkeypatch.setattr(win32gui, 'GetWindowText', lambda _: 'Lesson.pptx [Read-Only] - PowerPoint')
+    monkeypatch.setattr(win32process, 'GetWindowThreadProcessId', lambda _: (1, 7))
+    monkeypatch.setattr(win32gui, 'GetForegroundWindow', lambda: foreground[0])
+    monkeypatch.setattr(win32gui, 'IsIconic', lambda _: False)
+    monkeypatch.setattr(win32gui, 'SendMessageTimeout', lambda *args: None)
+    monkeypatch.setattr(win32gui, 'SetForegroundWindow', lambda hwnd: foreground.__setitem__(0, hwnd))
+    assert focus_presentation('Lesson.pptx', 2, 7) and foreground[0] == 2
+
+
 @pytest.mark.parametrize('operation', ['play_media', 'pause_media', 'resume_media', 'stop_media'])
 def test_delayed_media_commands_do_not_touch_players_of_a_different_slide(operation):
     from app.powerpoint import _control_media

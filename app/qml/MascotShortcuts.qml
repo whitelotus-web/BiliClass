@@ -68,7 +68,7 @@ ColumnLayout {
             Button {
                 id: bindingButton
                 objectName: "shortcutBind" + modelData.language
-                text: panel.capturing === modelData.language ? "Nhấn phím… (Esc hủy)" : panel.draft[modelData.language].replace("Space", "Cách") + "   ·   Đổi phím"
+                text: panel.capturing === modelData.language ? "Nhấn phím… (Esc hủy)" : panel.draft[modelData.language].replace("Space", "Space ␣").replace("Enter", "Enter ↵").replace("+", " + ") + "   ·   Đổi phím"
                 Layout.preferredWidth: 220; implicitHeight: 46
                 background: Rectangle { radius: 8; color: panel.capturing === modelData.language ? "#eaf3ff" : bindingButton.hovered ? "#f4f8ff" : "white"; border.color: bindingButton.activeFocus || panel.capturing === modelData.language ? "#0869f9" : "#cbdcf4"; border.width: bindingButton.visualFocus ? 2 : 1 }
                 contentItem: Label { text: bindingButton.text; color: "#0869f9"; font.pixelSize: 13; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }

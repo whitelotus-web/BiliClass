@@ -443,6 +443,7 @@ def main():
         bridge.changed.emit()
         c('settingsPage').setProperty('selectedAccessorySubject', 'Mĩ thuật')
         click(window, c("saveMascot"))
+        until(lambda: not bridge.mascotSaving)
         pump(100)
         assert bridge.mascotSubject == "Mĩ thuật"
         assert bridge.mascotSettings['subject_mode'] == 'fixed'

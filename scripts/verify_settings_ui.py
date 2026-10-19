@@ -223,6 +223,7 @@ def main():
         click("mascotPreviewMode0")
         assert control("mascotPreview").property("visible")
         click("saveMascot")
+        until(lambda: not bridge.mascotSaving)
         assert bridge.settings["mascot"] == "Lumi"
         assert bridge.mascotSettings == {"visible": True, "size": 140, "position": "right", "reduced_motion": False, "accessories": False, "show_explanation": True, "show_quiz": True, 'subject_mode': 'fixed', 'subject': 'Hóa học', 'always_on_top': True}
         assert bridge.mascotSubject == 'Môn tự chọn' and bridge.mascotAccessorySubject == 'Hóa học'

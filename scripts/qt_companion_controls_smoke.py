@@ -36,7 +36,7 @@ class ControlBridge(Bridge):
 def main():
     app = QGuiApplication([])
     QQuickStyle.setStyle('Basic')
-    report = Path('reports/rc82/companion-controls')
+    report = Path('reports/rc83/companion-controls')
     report.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='bcl-controls-', ignore_cleanup_errors=True) as folder:
         library = Library(Path(folder))
@@ -64,6 +64,7 @@ def main():
             assert companion.grabWindow().save(str(report / 'unbound.png'))
             for size, pixels, width in [('small', 80, 344), ('standard', 110, 384), ('large', 150, 432)]:
                 bridge.saveMascotPreferences('Milo', True, pixels, 'right', False, True, True, True)
+                until(lambda: not bridge.mascotSaving)
                 pump(100)
                 assert companion.width() == min(width, app.primaryScreen().availableGeometry().width() - 16)
                 menu = c('companionMenu')
@@ -76,6 +77,7 @@ def main():
                 assert point.x() > 0 and point.x() + gear.width() < menu.width()
                 assert companion.grabWindow().save(str(report / (size + '.png')))
             bridge.saveMascotPreferences('Milo', True, 110, 'right', False, True, True, True)
+            until(lambda: not bridge.mascotSaving)
             bridge._powerpoint_state = {'active': True, 'opened': True, 'slide': 2, 'total': 7, 'message': ''}
             native_commands = []
             bridge.powerpoint_worker = SimpleNamespace(navigate=lambda *args: native_commands.append(args))
@@ -93,7 +95,7 @@ def main():
                 assert companion.opacity() == 1 and all(item.opacity() == 1 for item in audio)
                 for name in ('companionPrevious', 'companionNext', 'companionReadEnglish', 'companionReadVietnamese', 'companionReadBoth'):
                     click(companion, c(name))
-                assert bridge.commands[-5:] == [('navigate', 'previous'), ('navigate', 'next'), ('read', 'en'), ('read', 'vi'), ('read', 'both')], (bridge.commands, c('companionPanelMoveArea').property('overControl'))
+                assert bridge.commands[-5:] == [('navigate', 'previous_slide'), ('navigate', 'next_slide'), ('read', 'en'), ('read', 'vi'), ('read', 'both')], (bridge.commands, c('companionPanelMoveArea').property('overControl'))
                 # Real mouse input on the panel moves the complete window,
                 # persists the mascot anchor, and never activates a control.
                 area = app.primaryScreen().availableGeometry()
@@ -151,7 +153,18 @@ def main():
             QTest.mouseRelease(companion, Qt.LeftButton, pos=center - QPoint(45, 0))
             assert QPoint(companion.x(), companion.y()) == origin
             assert native_commands and native_commands[-1][0] == 'set_volume'
-            companion.setProperty('showShortcutGuide', True)
+            help_button = c('companionShortcutGuideToggle')
+            height_without_guide = companion.height()
+            QTest.mouseMove(companion, help_button.mapToScene(QPointF(15, 15)).toPoint())
+            pump(300)
+            until(lambda: c('companionShortcutTooltip').property('visible'))
+            assert companion.height() == height_without_guide, 'Hover help must not resize the panel'
+            assert companion.grabWindow().save(str(report / 'shortcut-tooltip.png'))
+            QTest.mouseMove(companion, QPoint(10, 10))
+            until(lambda: not c('companionShortcutTooltip').property('visible'))
+            assert bridge.mascotShortcuts.state['labels']['en'] == 'Space ␣'
+            assert bridge.mascotShortcuts.state['labels']['vi'] == 'Enter ↵'
+            assert bridge.mascotShortcuts.state['labels']['both'] == 'Ctrl + Space ␣'
             bridge.teachingSession.response = {'untouched': False, 'text': '\n'.join(['Selectable response text.'] * 30)}
             bridge.teachingSession.changed.emit()
             pump(150)
@@ -164,6 +177,9 @@ def main():
             QTest.mouseRelease(companion, Qt.LeftButton, pos=center + QPoint(60, 0))
             assert QPoint(companion.x(), companion.y()) == origin
             viewport = c('companionControlsScroll').property('contentItem')
+            original_height = companion.height()
+            companion.setHeight(430)
+            pump(150)
             viewport.setProperty('contentY', 0)
             center = c('companionPanelMoveArea').mapToScene(QPointF(35, 65))
             event = QWheelEvent(center, QPointF(companion.mapToGlobal(center.toPoint())), QPoint(), QPoint(0, -120),
@@ -171,9 +187,9 @@ def main():
             QGuiApplication.sendEvent(companion, event)
             pump(150)
             assert viewport.property('contentY') > 0, 'Panel movement must not swallow wheel scrolling'
+            companion.setHeight(original_height)
             bridge.teachingSession.response = {'untouched': True}
             bridge.teachingSession.changed.emit()
-            companion.setProperty('showShortcutGuide', False)
             viewport.setProperty('contentY', 0)
             pump(100)
             click(companion, c('companionSettings'))
@@ -224,7 +240,9 @@ def main():
                     transparency.moved.emit()
                     pump(4)
                 bridge.flushCompanionAppearance()
+                bridge.saveMascotPreferences('Milo', True, 110, 'right', False, True, True, True)
                 pump(150)
+                assert bridge.mascotSaving and not c('saveMascot').isEnabled(), 'Mascot settings save must wait off the GUI thread'
                 assert bridge.companionPanelOpacity == 30 and not broad_refreshes
                 assert bridge._companion_preferences.worker is not None, 'Save is waiting off the UI thread'
                 assert len(ticks) > 10
@@ -236,6 +254,7 @@ def main():
                 beat.stop()
             until(lambda: bridge._companion_preferences.worker is None and not bridge._companion_preferences.pending)
             assert library.setting('companion_panel_opacity', 100) == 30
+            assert not bridge.mascotSaving and library.setting('mascot', '') == 'Milo'
             assert not warnings, warnings
             result = dict(status='passed', sizes=3, opacity_clicks=2, settings_preserves_binding=True,
                           subject_badge_hidden=True, qml_warnings=warnings,

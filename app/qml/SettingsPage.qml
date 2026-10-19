@@ -438,7 +438,7 @@ Item {
                         Slider { objectName: "companionPanelTransparency"; from: 0; to: 70; stepSize: 1; value: 100 - bridge.companionPanelOpacity; Layout.fillWidth: true; onMoved: bridge.setCompanionPanelOpacity(100 - Math.round(value)); onPressedChanged: if (!pressed) bridge.flushCompanionAppearance() }
                         Hint { text: "Chỉ làm trong nền, chữ và nút vẫn rõ và bấm như cũ. Thay đổi tự lưu."; Layout.fillWidth: true }
                     }
-                    RowLayout { Layout.fillWidth: true; Hint { text: "Kéo Mascot hoặc bảng để di chuyển; nhấp đúp bảng để thu gọn. Đóng BiliClass sẽ tắt Mascot."; Layout.fillWidth: true } SaveButton { objectName: "saveMascot"; text: "Lưu cài đặt Mascot"; onClicked: bridge.saveMascotPreferences(page.selectedMascot, true, Math.round(mascotSize.value), "right", reducedMotion.checked, mascotAccessories.checked, true, true, "fixed", accessorySubjectChoice.currentText, mascotOnTop.checked) } }
+                    RowLayout { Layout.fillWidth: true; Hint { text: "Kéo Mascot hoặc bảng để di chuyển; nhấp đúp bảng để thu gọn. Đóng BiliClass sẽ tắt Mascot."; Layout.fillWidth: true } SaveButton { objectName: "saveMascot"; text: bridge.mascotSaving ? "Đang lưu…" : "Lưu cài đặt Mascot"; enabled: !bridge.mascotSaving; onClicked: bridge.saveMascotPreferences(page.selectedMascot, true, Math.round(mascotSize.value), "right", reducedMotion.checked, mascotAccessories.checked, true, true, "fixed", accessorySubjectChoice.currentText, mascotOnTop.checked) } }
                 }
             }
             Card { Layout.fillWidth: true

@@ -4,6 +4,7 @@ import hashlib
 import multiprocessing
 import queue
 import re
+import threading
 import time
 from pathlib import Path
 
@@ -76,6 +77,55 @@ def presenter_handle(path):
     return matches[0] if len(matches) == 1 else 0
 
 
+def editor_handle(path):
+    """Only the bound presentation's editor; Office may omit DocumentWindow.HWND."""
+    import win32gui
+
+    matches = []
+    def collect(hwnd, _):
+        if (win32gui.IsWindowVisible(hwnd) and win32gui.GetClassName(hwnd) == 'PPTFrameClass'
+                and _deck_window_title(win32gui.GetWindowText(hwnd), path)):
+            matches.append(hwnd)
+    win32gui.EnumWindows(collect, None)
+    return matches[0] if len(matches) == 1 else 0
+
+
+def focus_presentation(path, hwnd, pid):
+    """Return keyboard input to an explicitly clicked, exact bound Office window.
+
+    A recycled HWND or another deck in the same PowerPoint process is not a
+    valid target. No COM call or foreground-input attachment runs on the GUI.
+    """
+    import win32con
+    import win32gui
+    import win32process
+
+    if type(hwnd) is not int or not hwnd or type(pid) is not int or not pid:
+        return False
+    try:
+        if (not win32gui.IsWindow(hwnd) or not win32gui.IsWindowVisible(hwnd)
+                or win32process.GetWindowThreadProcessId(hwnd)[1] != pid
+                or win32gui.GetClassName(hwnd) not in {'PPTFrameClass', 'screenClass', 'PPTPresenterView', 'PodiumParent'}
+                or not _deck_window_title(win32gui.GetWindowText(hwnd), path)):
+            return False
+        if win32gui.GetForegroundWindow() == hwnd:
+            return True
+        # A hung Office window must not hang Mascot as well.
+        win32gui.SendMessageTimeout(hwnd, win32con.WM_NULL, 0, 0, win32con.SMTO_ABORTIFHUNG, 80)
+        if win32gui.IsIconic(hwnd):
+            import ctypes
+            from ctypes import wintypes
+
+            restore = ctypes.windll.user32.ShowWindowAsync
+            restore.argtypes = [wintypes.HWND, ctypes.c_int]
+            restore.restype = wintypes.BOOL
+            restore(hwnd, win32con.SW_RESTORE)
+        win32gui.SetForegroundWindow(hwnd)
+        return win32gui.GetForegroundWindow() == hwnd
+    except Exception:
+        return False
+
+
 def _control_media(command, target, slide_id, players, languages, playing):
     """Apply queued input only after resolving the real Office slide/players."""
     if command not in {'stop_media', 'play_media', 'pause_media', 'resume_media'}:
@@ -128,6 +178,7 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
     import psutil
     import pythoncom
     import win32com.client
+    import win32process
 
     from .slideshow_controls import add_pause_badges, speaker_boxes, speaker_regions
     from .slideshow_shortcuts import SlideshowKeys
@@ -151,13 +202,16 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
     media_starting = 0
     media_token = None
     presenter = 0
+    focus_after_start = False
 
     def stop_media():
-        for player in players.values():
+        nonlocal playing
+        for identity in playing:
             try:
-                player.Stop()
+                players[identity].Stop()
             except Exception:
                 pass
+        playing = set()
 
     def start_show():
         nonlocal window, view, players, playing
@@ -225,6 +279,7 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
                         break  # Teacher closed the deck while it was ready.
             if command == "start" and view is None:
                 start_show()
+                focus_after_start = True
             if command == "end_show" and view is not None:
                 stop_media()
                 view.Exit()
@@ -235,10 +290,13 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
                 media_event, playing = _control_media(command, target, None, {}, {}, set())
                 if media_event:
                     events.put(media_event)
-                state = ("ready",)
+                editor = editor_handle(path)
+                state = ("ready", editor)
                 if state != last:
                     events.put({"active": False, "opened": True, "starting": False,
                                 "slide": initial_slide, "total": total,
+                                "focus_hwnd": editor,
+                                "focus_pid": win32process.GetWindowThreadProcessId(editor)[1] if editor else 0,
                                 "message": "Đã gắn bài với Mascot · Bấm Trình chiếu (F5)."})
                     last = state
                 continue
@@ -293,7 +351,11 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
                 events.put({"active": True, "opened": True, "starting": False,
                             "slide": current[0], "slide_id": current[1], "total": total,
                             "hwnd": hwnd, "click_index": click_index, "build_started": build_started,
+                            "focus_hwnd": hwnd,
+                            "focus_pid": win32process.GetWindowThreadProcessId(hwnd)[1] if hwnd else 0,
+                            "focus_requested": focus_after_start,
                             "message": f"PowerPoint · slide {current[0]}/{total}"})
+                focus_after_start = False
                 last = current
             media_event, playing = _control_media(command, target, current[1], players, player_languages, playing)
             if media_event:
@@ -399,13 +461,22 @@ class PowerPointSession(QThread):
         self.autostart = autostart
         self.shortcuts = shortcuts
         self.commands = queue.Queue()
+        self._command_lock = threading.Lock()
+        self._native_commands = None
+        self._stop_requested_at = None
+        self._closed = False
 
     def navigate(self, command, slide=None):
         if command not in {"next", "previous", "goto", "stop", "start", "end_show",
                            "next_slide", "previous_slide", "stop_media", "play_media",
                            "pause_media", "resume_media", "set_shortcuts", "set_volume"}:
             raise ValueError("Lệnh PowerPoint không hợp lệ.")
-        self.commands.put((command, slide))
+        with self._command_lock:
+            if self._closed:
+                return
+            if command == 'stop' and self._stop_requested_at is None:
+                self._stop_requested_at = time.monotonic()
+            (self._native_commands if self._native_commands is not None else self.commands).put((command, slide))
 
     def stop(self):
         self.navigate("stop")
@@ -420,14 +491,13 @@ class PowerPointSession(QThread):
         ready = False
         try:
             process.start()
+            with self._command_lock:
+                self._native_commands = commands
+                while not self.commands.empty():
+                    commands.put(self.commands.get_nowait())
             while process.is_alive():
-                try:
-                    command = self.commands.get_nowait()
-                    commands.put(command)
-                    if command[0] == "stop" and stopping is None:
-                        stopping = time.monotonic()
-                except queue.Empty:
-                    pass
+                if stopping is None:
+                    stopping = self._stop_requested_at
                 try:
                     state = events.get(timeout=0.1)
                     if "error" in state:
@@ -455,6 +525,9 @@ class PowerPointSession(QThread):
         except Exception:
             self.failed.emit("Chưa khởi động được trình chiếu. Hãy đóng BiliClass và mở lại bằng lối khởi động chính thức.")
         finally:
+            with self._command_lock:
+                self._native_commands = None
+                self._closed = True
             if process.is_alive():
                 process.terminate()
                 process.join(timeout=2)

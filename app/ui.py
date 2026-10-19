@@ -50,6 +50,7 @@ class Bridge(QObject):
     projectClassroomRequested = Signal()
     powerpointSlideChanged = Signal(int)
     powerpointStarted = Signal()
+    powerpointStateChanged = Signal()
     teachingLessonReady = Signal()
     mascotStateChanged = Signal()
     mascotPreferencesSaved = Signal(bool)
@@ -97,6 +98,7 @@ class Bridge(QObject):
 
     def __init__(self, library, browser_ai_factory=WebBrowserAI, *, translation_engine='google_translate'):
         super().__init__()
+        self.changed.connect(self.powerpointStateChanged)
         self._translation_engine = translation_engine
         self.library = library
         from .storage_controls import StorageControls
@@ -110,6 +112,7 @@ class Bridge(QObject):
 
         self._companion_preferences = CompanionPreferences(library, self)
         self._companion_preferences.changed.connect(self.companionAppearanceChanged)
+        self._companion_preferences.persisted.connect(self._companion_settings_saved)
         self._companion_preferences.failed.connect(lambda message: self.inform(message, True, refresh=False))
         self._mascot_location = {}
         self.logger = configure_logging(library.directory)
@@ -1672,7 +1675,7 @@ class Bridge(QObject):
         source = self._lesson.get("source") or {}
         return bool(source.get("file", "").lower().endswith(".pptx"))
 
-    @Property("QVariantMap", notify=changed)
+    @Property("QVariantMap", notify=powerpointStateChanged)
     def powerpointState(self):
         return self._powerpoint_state
 
@@ -1767,6 +1770,18 @@ class Bridge(QObject):
     def companionPanelOpacity(self):
         return self._companion_preferences.opacity
 
+    @Property(bool, notify=companionAppearanceChanged)
+    def mascotSaving(self):
+        preferences = self._companion_preferences
+        return ('mascot' in preferences.pending or
+                bool(preferences.worker and 'mascot' in preferences.worker.choices)) and preferences._attempts < 3
+
+    @Slot(object)
+    def _companion_settings_saved(self, choices):
+        if 'mascot' in choices and 'mascot' not in self._companion_preferences.pending:
+            self.mascotPreferencesSaved.emit(True)
+            self.inform('Đã lưu mascot và cách hiển thị.')
+
     @Slot(int)
     def setCompanionPanelOpacity(self, value):
         self._companion_preferences.select_opacity(value)
@@ -1785,11 +1800,19 @@ class Bridge(QObject):
         options = self.mascotSettings
         return options.get('subject', '').strip() if options.get('subject_mode') == 'fixed' and options.get('subject', '').strip() else self.mascotSubject
 
-    @Property(bool, notify=changed)
+    @Property(bool, notify=powerpointStateChanged)
     def companionCanRead(self):
         return bool(self._powerpoint_state.get('active') and self.powerpoint_worker is not None
-                    and (self.teaching_session.bound or self._powerpoint_lesson_id == self._lesson.get('id'))
-                    and not self._busy)
+                    and (self.teaching_session.bound or self._powerpoint_lesson_id == self._lesson.get('id')))
+
+    @Slot(result=bool)
+    def focusTeachingPresentation(self):
+        from .powerpoint import focus_presentation
+
+        if not self.powerpoint_worker or not self._powerpoint_state.get('opened'):
+            return False
+        return focus_presentation(getattr(self.powerpoint_worker, 'path', ''), self._powerpoint_state.get('focus_hwnd'),
+                                  self._powerpoint_state.get('focus_pid'))
 
     @Slot(str)
     def companionRead(self, language):
@@ -1798,6 +1821,7 @@ class Bridge(QObject):
             return
         if language not in ('en', 'vi', 'both'):
             return
+        self.focusTeachingPresentation()
         self._companion_language = language
         if self.teaching_session.bound:
             self.teaching_session.toggleRead(language)
@@ -1809,6 +1833,7 @@ class Bridge(QObject):
 
     @Slot(str, str)
     def companionAsk(self, action, language):
+        self.focusTeachingPresentation()
         if self.teaching_session.bound:
             self.teaching_session.ask(action, language)
             return
@@ -2745,6 +2770,8 @@ class Bridge(QObject):
 
     @Slot(object)
     def _powerpoint_changed(self, state):
+        if self._powerpoint_state.get('closing'):
+            return  # Already-queued Office events must not reopen a retiring binding.
         if state.get('event'):
             self.teaching_session.event(state)
             self.mascotStateChanged.emit()
@@ -2762,7 +2789,9 @@ class Bridge(QObject):
                 self.teaching_session.reset_reading()
             if state.get("active") and (not previous.get("active") or index != previous.get("slide")):
                 self.powerpointSlideChanged.emit(source_slide)
-            self.changed.emit()
+            self.powerpointStateChanged.emit()
+            if state.get('focus_requested'):
+                self.focusTeachingPresentation()
             if state.get("opened") and not previous.get("opened"):
                 self.powerpointStarted.emit()
 
@@ -2804,6 +2833,7 @@ class Bridge(QObject):
         if not self.powerpoint_worker or not self._powerpoint_state["active"]:
             self.inform("Chưa có trình chiếu PowerPoint đang hoạt động.", True)
             return
+        self.focusTeachingPresentation()
         self.stopSpeech()
         if command == "goto":
             slide = slide_for_locator(self.segment.get("locator", ""))
@@ -2819,6 +2849,7 @@ class Bridge(QObject):
     @Slot()
     def startTeachingShow(self):
         if self.powerpoint_worker and self._powerpoint_state.get('opened'):
+            self.focusTeachingPresentation()
             self.powerpoint_worker.navigate('start')
 
     @Slot()
@@ -2827,8 +2858,9 @@ class Bridge(QObject):
         self.teaching_session.reset_reading()
         if self.powerpoint_worker:
             self.powerpoint_worker.stop()
-            self._powerpoint_state = {**self._powerpoint_state, "message": "Đang đóng PowerPoint…"}
-            self.changed.emit()
+            self._powerpoint_state = {**self._powerpoint_state, 'active': False, 'opened': False,
+                                     'closing': True, "message": "Đang đóng PowerPoint…"}
+            self.powerpointStateChanged.emit()
 
 
     def _conversion_terms(self):
@@ -3002,7 +3034,7 @@ class Bridge(QObject):
                     self._open_library_teaching)
         self.inform('Đang mở PowerPoint và gắn Mascot…', refresh=False)
 
-    @Property(str, notify=changed)
+    @Property(str, notify=powerpointStateChanged)
     def openingTeachingLesson(self):
         if self._busy:
             return self._opening_teaching_id
@@ -3349,17 +3381,14 @@ class Bridge(QObject):
         if subject_mode not in ('auto', 'fixed') or not isinstance(subject, str) or len(subject) > 60 or subject_mode == 'fixed' and not subject.strip():
             self.inform('Chọn môn hợp lệ cho phụ kiện mascot.', True)
             return
-        self.library.set_setting("mascot", mascot)
-        self.library.set_setting("mascot_options", {
+        self._companion_preferences.save_settings({'mascot': mascot, 'mascot_options': {
             "visible": True, "size": max(60, min(160, size)),
             "position": "right",
             "reduced_motion": reduced_motion, "accessories": accessories,
             "show_explanation": True, "show_quiz": True,
             'subject_mode': subject_mode, 'subject': subject.strip() if subject_mode == 'fixed' else '',
             'always_on_top': self.mascotSettings['always_on_top'] if always_on_top is None else always_on_top,
-        })
-        self.mascotPreferencesSaved.emit(True)
-        self.inform("Đã lưu mascot và cách hiển thị.")
+        }})
 
     @Slot(str, int, int, str)
     def saveClassroomSettings(self, mode, capacity, duration, language):

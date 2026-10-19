@@ -134,6 +134,35 @@ class FakeBridge(QObject):
         self.calls.append(('message', args))
 
 
+def test_unbinding_disables_controls_and_drops_old_office_updates(tmp_path):
+    from PySide6.QtCore import QCoreApplication
+
+    from app.ui import Bridge
+
+    app = QCoreApplication.instance() or QCoreApplication([])
+    library = Library(tmp_path / 'library')
+    bridge = Bridge(library)
+    stopped = []
+    try:
+        bridge.powerpoint_worker = SimpleNamespace(stop=lambda: stopped.append(True))
+        previous = {'active': True, 'opened': True, 'slide': 2, 'total': 3}
+        bridge._powerpoint_state = previous
+        bridge.stopPowerPoint()
+        assert stopped == [True] and not bridge.companionCanRead
+        assert not bridge.powerpointState['opened'] and bridge.powerpointState['closing']
+        bridge._powerpoint_changed(previous)
+        assert bridge.powerpointState['closing'] and not bridge.powerpointState['active']
+        app.processEvents()
+    finally:
+        bridge.powerpoint_worker = None
+        for worker in (bridge._catalog, bridge.browserAI, bridge.slidePreview, bridge.libraryThumbnails,
+                       bridge.narrationPreferences, bridge.narration_preparation, bridge.english_reader,
+                       bridge.voice_controls, bridge._companion_preferences):
+            worker.shutdown()
+        bridge.classroom.shutdown()
+        library.close()
+
+
 def test_no_voice_bindings_use_separate_session_copies_and_cleanup_preserves_source(tmp_path):
     lesson, preview, directory, source = prepared_lesson(tmp_path)
     lesson['narration'] = {'version': 2, 'mode': 'none'}

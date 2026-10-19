@@ -262,7 +262,7 @@ ApplicationWindow {
         function onBrowserStateChanged() { if (!bridge.browserState.running) cancelConversionDialog.close() }
         function onNarrationAlreadyCreated(config) { existingNarration.selection = config; existingNarration.open() }
         function onUpdateAvailable() { updateDialog.open() }
-        function onPowerpointSlideChanged(slide) { if (!root.dirty) bridge.followPowerPoint() }
+        function onPowerpointSlideChanged(slide) { if (!root.dirty && !bridge.teachingSession.state.bound) bridge.followPowerPoint() }
         function onPowerpointStarted() {
             if (bridge.mascotSettings.visible || bridge.teachingSession.state.bound) {
                 companion.collapsed = !bridge.teachingSession.state.bound

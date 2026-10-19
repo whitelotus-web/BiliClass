@@ -35,5 +35,9 @@ gửi Close cho cửa sổ chính thì ẩn Mascot và tiến trình kết thúc
 Office dùng WAV im lặng để kiểm lệnh/đổi bài, không chứng nhận phát âm
 hoặc máy chiếu thực tế. Kết quả core không gồm nhóm Browser giữ từ mốc cũ.
 
-Gói cài, phiên bản và checksum được ghi sau kiểm chứng. Thử bằng thư viện
-riêng; không đưa thư viện/key cá nhân vào Git/bộ cài.
+RC82 là mốc dựng nội bộ, chưa phát hành; các thay đổi được đưa tiếp vào
+RC83 để sửa thêm bàn phím, điều khiển slide và hiệu năng Mascot. Gói nguồn
+`9c09611`, SHA256 ZIP `e5c90cf3249a9b27e3990b6a2049874335d5b8cd907c8bcd42b8fd94a1adcb65`.
+Kiểm bộ cài/gỡ cô lập, VieNeu Việt/Anh, GUI 30 môn và probe đóng EXE đạt;
+đóng ẩn Mascot/thoát trong 0,468 s. Thử bằng thư viện riêng; không đưa thư
+viện/key cá nhân vào Git/bộ cài.

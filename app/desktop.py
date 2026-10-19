@@ -45,6 +45,11 @@ def run(args):
             ctypes.windll.user32.MessageBoxW(None, str(exc), 'BiliClass · Nơi lưu thư viện', 0x10)
         return 1
     library = Library(directory)
+    watchdog = None
+    if not args.smoke:
+        from .ui_watchdog import UiWatchdog
+
+        watchdog = UiWatchdog(app, directory)
     if args.seed_demo and not library.list_lessons():
         lesson = library.create(
             "Thảo luận và lập luận",
@@ -73,6 +78,8 @@ def run(args):
     engine.load(QUrl.fromLocalFile(str(RESOURCE_ROOT / "qml" / "Main.qml")))
     if not engine.rootObjects():
         print("\n".join(warnings))
+        if watchdog is not None:
+            watchdog.stop()
         library.close()
         return 1
     window = engine.rootObjects()[0]
@@ -137,6 +144,8 @@ def run(args):
     if not args.smoke:
         QTimer.singleShot(1500, cleanup_job.start)
     result = app.exec()
+    if watchdog is not None:
+        watchdog.stop()
     if cleanup_job.isRunning():
         cleanup_job.wait()
     bridge.browserAI.shutdown()

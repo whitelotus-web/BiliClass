@@ -31,7 +31,7 @@ from app.ui import Bridge
 def main():
     app = QGuiApplication([])
     QQuickStyle.setStyle('Basic')
-    out = Path('reports/rc81/teaching')
+    out = Path('reports/rc83/teaching')
     out.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='bcl-teaching-', ignore_cleanup_errors=True) as folder:
         folder = Path(folder)
@@ -198,7 +198,8 @@ def main():
             print('Before-voice open requested: ' + json.dumps({'busy': bridge.busy, 'message': bridge.message,
                   'token': bridge.teachingSession.token, 'previous_token': token}), flush=True)
             until(lambda: not bridge.busy and bridge.teachingSession.token != token
-                  and bridge.powerpointState.get('opened'), timeout=50)
+                  and bridge.powerpointState.get('opened') and not bridge.powerpointState.get('starting')
+                  and not bridge._pending_teaching, timeout=50)
             assert window.property('page') == 'voice' and bridge.teachingSession.state['lesson_id'] == other['id']
             assert not bridge.narrationBusy and not c('wholeLessonReview').property('visible')
             # After voice creation, the selected ready variant replaces the old binding.

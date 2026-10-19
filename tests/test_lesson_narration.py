@@ -287,9 +287,17 @@ def test_incomplete_variant_cannot_silently_start_teaching(saved):
 
 
 def test_accessory_subject_is_independent_of_the_lesson_and_visibility_is_always_enabled(saved):
+    import time
+
     _app = QCoreApplication.instance() or QCoreApplication([])
     library, lesson, _ = saved
     bridge = Bridge(library)
+    def saved_preferences():
+        deadline = time.monotonic() + 5
+        while bridge.mascotSaving and time.monotonic() < deadline:
+            _app.processEvents()
+            time.sleep(.01)
+        assert not bridge.mascotSaving
     try:
         bridge._lesson = lesson
         library.set_setting('mascot_options', {'subject_mode': 'fixed', 'subject': 'Mĩ thuật',
@@ -298,6 +306,7 @@ def test_accessory_subject_is_independent_of_the_lesson_and_visibility_is_always
         assert bridge.mascotAccessorySubject == 'Mĩ thuật'
         assert all(bridge.mascotSettings[name] for name in ('visible', 'show_explanation', 'show_quiz'))
         bridge.saveMascotPreferences("Lumi", False, 110, "right", False, True, False, False, "fixed", "Mĩ thuật")
+        saved_preferences()
         assert bridge.mascotSubject == "Vật lý"
         assert bridge.mascotAccessorySubject == 'Mĩ thuật'
         assert all(library.setting('mascot_options', {})[name] for name in ('visible', 'show_explanation', 'show_quiz'))
@@ -305,11 +314,13 @@ def test_accessory_subject_is_independent_of_the_lesson_and_visibility_is_always
         assert bridge.mascotSubject == "Tin học"
         assert bridge.mascotAccessorySubject == 'Mĩ thuật'
         bridge.saveMascotPreferences("Lumi", True, 110, "right", False, True, True, True, "auto", "Mĩ thuật")
+        saved_preferences()
         assert bridge.mascotSubject == "Tin học"
         assert bridge.mascotSettings['subject_mode'] == 'auto'
         assert bridge.mascotAccessorySubject == 'Tin học'
         assert library.get(lesson["id"])["subject"] == "Vật lý"
     finally:
+        bridge._companion_preferences.shutdown()
         bridge.narration_preparation.shutdown()
         bridge.english_reader.shutdown()
         bridge.browserAI.shutdown()

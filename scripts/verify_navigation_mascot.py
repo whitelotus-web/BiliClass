@@ -44,7 +44,8 @@ def main():
         assert launcher.isVisible() and not companion.isVisible()
 
         bridge.saveMascotPreferences("Lumi", True, 110, "right", False, True, True, True)
-        pump()
+        while bridge.mascotSaving:
+            pump()
         assert companion.isVisible(), "Mascot should appear as soon as visible settings are saved"
         assert bridge.settings["mascot"] == "Lumi"
         assert companion.property("collapsed") and companion.width() <= 130
@@ -97,6 +98,8 @@ def main():
         pump(150)
         assert abs(companion.x() - dragged_x) <= 1 and abs(companion.y() - dragged_y) <= 1
         bridge.saveMascotPreferences("Milo", False, 110, "left", True, True, True, True)
+        while bridge.mascotSaving:
+            pump()
         pump()
         assert companion.isVisible() and launcher.isVisible()
         companion.hide()
@@ -104,6 +107,8 @@ def main():
         assert not companion.isVisible(), 'Manual hide remains available without a saved visibility switch'
         assert bridge.mascotSettings['position'] == 'right', "The old corner setting must not override the new default"
         bridge.saveMascotPreferences("Milo", True, 110, "right", False, True, True, True)
+        while bridge.mascotSaving:
+            pump()
         pump()
         assert companion.isVisible() and launcher.isVisible()
         area = QGuiApplication.primaryScreen().availableGeometry()

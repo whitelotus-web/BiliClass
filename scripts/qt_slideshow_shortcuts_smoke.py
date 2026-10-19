@@ -152,7 +152,7 @@ def main():
                         elif command.get('action') == 'guide':
                             companion = control(window, 'companionWindow')
                             companion.setProperty('collapsed', False)
-                            companion.setProperty('showShortcutGuide', True)
+                            control(window, 'companionShortcutTooltip').setProperty('visible', True)
                             pump(100)
                             assert companion.grabWindow().save(str(out / 'mascot-key-guide.png'))
                     state = {'powerpoint': bridge.powerpointState, 'reader': bridge.teachingSession.reader,

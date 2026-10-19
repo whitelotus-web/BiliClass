@@ -1,21 +1,21 @@
 # BiliClass — Trợ lý dạy học song ngữ
 
-Hướng dẫn luồng RC82, ngày 19/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
+Hướng dẫn luồng RC83, ngày 19/10/2026. Bài giảng, giọng đọc và thư viện cá nhân lưu
 trên máy. Chuyển đổi hiện dùng Google Cloud Translation cho phần chữ và dựng
 PowerPoint tại máy; Browser ChatGPT/Gemini tạm ẩn.
 
 ## Cài và cập nhật
 
-1. Tải **BiliClass-RC82-Windows.zip** tại
-   [Release RC82](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc82).
+1. Tải **BiliClass-RC83-Windows.zip** tại
+   [Release RC83](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc83).
 2. Giải nén toàn bộ; không chạy trong cửa sổ ZIP. Chạy **Setup.cmd**.
 3. Bộ cài kiểm tra checksum và cài vào
-   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc82`, không cần quyền quản trị.
+   `%LOCALAPPDATA%/Programs/BiliClass/1.0.0rc83`, không cần quyền quản trị.
 4. Mở BiliClass từ Desktop hoặc Start menu. Bản cài có model giọng, OCR và
    template; không cần thư mục runtime của máy phát triển.
 
 Máy đang dùng bản cũ: vào **Cài đặt → Thông tin BiliClass → Kiểm tra cập nhật**,
-chọn Cập nhật khi thấy RC82. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
+chọn Cập nhật khi thấy RC83. Nếu chưa kiểm tra được mạng, tải ZIP và chạy
 Setup.cmd như trên. Các bản cài nằm cạnh nhau; thư viện ở
 `%LOCALAPPDATA%/BiliClass` được giữ nguyên. Không xóa thư mục dữ liệu này.
 Thư viện cá nhân và API key không đưa lên GitHub. Key chỉ lưu mã hóa trên máy.
@@ -184,12 +184,14 @@ vùng bấm giữ nguyên. Nền đổi ngay khi kéo, cấu hình tự lưu ở
 khi thả chuột. Tên môn không còn treo dưới chân nhân vật;
 phụ kiện vẫn theo môn, thông tin môn hiện trong bảng.
 
-Chọn bài → **Trình chiếu · F5**, rồi dùng **Trước / Sau** để lùi/tiến
-hiệu ứng và slide. Chỉ hiện nút **Anh / Việt / Việt–Anh** có giọng của
+Chọn bài → **Trình chiếu · F5**, rồi dùng **Trước / Sau** để về slide
+trước/sau ngay, kể cả khi còn hiệu ứng. Bộ đếm hiện slide thực tế của
+PowerPoint; phím ←/→ vẫn lùi/tiến từng hiệu ứng. Chỉ hiện nút **Anh / Việt / Việt–Anh** có giọng của
 slide hiện tại. Bấm để đọc, bấm lại tạm dừng, bấm tiếp đọc tiếp; đổi loa
 dừng giọng trước. Mascot và nút loa trên slide dùng cùng player khi bài
-được gắn; không có bộ nút Dừng/Tạm dừng/Đọc lại riêng. Dấu **?** nhỏ mở
-hướng dẫn phím. Giải thích, ví dụ, câu hỏi và gợi ý Việt nằm dưới loa.
+được gắn; không có bộ nút Dừng/Tạm dừng/Đọc lại riêng. Rê chuột vào dấu
+**?** để xem tooltip hướng dẫn phím, đưa chuột ra thì ẩn, không đổi cỡ bảng.
+Giải thích, ví dụ, câu hỏi và gợi ý Việt nằm dưới loa.
 
 Mascot có nút mở bài và đọc Việt/Anh/chung. Các nút đọc trên mascot chỉ bật
 khi có phiên trình chiếu đúng bài. Trong **Cài đặt → Mascot → Chọn phụ
@@ -197,13 +199,14 @@ kiện theo môn**, chọn môn từ danh sách, xem trước và bấm **Lưu c
 Mascot** để áp dụng. **Hiện phụ kiện** bật/tắt phần phụ kiện. Môn này chỉ
 đổi ngoại hình Mascot, không đổi môn bài giảng/hồ sơ hay giọng đọc.
 
-Khi cửa sổ trình chiếu hoặc Presenter View của bài đang gắn được chọn:
+Bấm Mascot hoặc nút điều khiển để đưa bàn phím về bài PowerPoint đang
+gắn. Khi đang ở cửa sổ soạn bài, F5 bắt đầu trình chiếu. Trong trình chiếu:
 
 | Phím mặc định | Chức năng |
 | --- | --- |
-| Cách | Đọc tiếng Anh |
-| Enter | Đọc tiếng Việt |
-| Ctrl+Cách | Đọc hai ngôn ngữ |
+| Space ␣ | Đọc tiếng Anh |
+| Enter ↵ | Đọc tiếng Việt |
+| Ctrl + Space ␣ | Đọc hai ngôn ngữ |
 | ← / → | Lùi / tiến hiệu ứng, hết hiệu ứng thì chuyển slide |
 | ↑ / ↓ | Tăng / giảm âm lượng lời đọc 5% |
 | Esc | Thoát trình chiếu |
@@ -220,7 +223,7 @@ Bấm cả phần nhãn cũng được. Mép slide hẹp dùng dạng nút ngang
 Đổi phím tại **Cài đặt → Mascot → Phím đọc khi trình chiếu** rồi Lưu.
 Anh/Việt dùng một phím; hai ngôn ngữ dùng Ctrl, Alt hoặc Shift cùng một
 phím. Không dùng trùng phím, Esc, F5 hoặc mũi tên. Có nút khôi phục mặc
-định. **Hướng dẫn phím** trên Mascot luôn hiển thị phím đã lưu.
+định. Tooltip **Hướng dẫn phím** trên Mascot dùng đúng phím đã lưu.
 
 Ngoài cửa sổ bài đang gắn, phím giữ chức năng gốc. PPTX mở riêng vẫn
 dùng loa/điều khiển native của PowerPoint; muốn dùng phím và badge động,

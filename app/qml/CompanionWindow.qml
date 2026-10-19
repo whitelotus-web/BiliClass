@@ -13,12 +13,14 @@ Window {
     property bool collapsed: true
     property bool choosingLesson: false
     property bool showAssistant: true
-    property bool showShortcutGuide: false
     property bool disposing: false
     readonly property var session: bridge.teachingSession.state
     readonly property var availableAudio: session.bound ? bridge.teachingSession.audio : bridge.audioAvailable
     readonly property var reader: session.bound ? bridge.teachingSession.reader : bridge.englishReaderState
     function readText(language, label) {
+        if (!session.bound && !bridge.companionCanRead) return "Chọn bài giảng để đọc"
+        if (!session.active && !bridge.companionCanRead) return "Bấm Trình chiếu để đọc"
+        if (!availableAudio[language]) return "Slide này chưa có giọng " + label
         const shortLabel = {en: "Anh", vi: "Việt", both: "Việt–Anh"}[language]
         return reader.language === language && reader.state === "reading" ? "Tạm dừng · " + shortLabel : reader.language === language && reader.state === "paused" ? "Đọc tiếp · " + shortLabel : "Đọc " + label
     }
@@ -35,6 +37,12 @@ Window {
     function saveLocation() {
         bridge.saveMascotLocation(companion.x + mascotButton.x, companion.y + mascotButton.y)
         bridge.showCompanion(companion)
+    }
+    function hoveringControl(item) {
+        const area = panelMoveArea
+        if (!area.containsMouse) return false
+        const point = area.mapToItem(item, Qt.point(area.mouseX, area.mouseY))
+        return point.x >= 0 && point.y >= 0 && point.x < item.width && point.y < item.height
     }
     component MoveArea: MouseArea {
         property bool dragged: false
@@ -86,9 +94,17 @@ Window {
             companion.x = Math.round(startWindowX + deltaX)
             companion.y = Math.round(startWindowY + deltaY)
         }
-        onReleased: if (dragged) companion.saveLocation()
+        onReleased: if (dragged) {
+            companion.saveLocation()
+            bridge.focusTeachingPresentation()
+        }
         onCanceled: if (dragged) companion.saveLocation()
-        onClicked: if (toggleOnClick && !dragged) companion.collapsed = !companion.collapsed
+        onClicked: {
+            if (!dragged) {
+                bridge.focusTeachingPresentation()
+                if (toggleOnClick) companion.collapsed = !companion.collapsed
+            }
+        }
         onDoubleClicked: function(mouse) {
             if (collapseOnDoubleClick && !dragged && !overControl) companion.collapsed = true
             else mouse.accepted = false
@@ -136,6 +152,7 @@ Window {
             CompanionControls { id: menuContent; width: controlScroll.availableWidth; bridge: companion.bridge; companion: companion }
         }
         MoveArea {
+            id: panelMoveArea
             objectName: "companionPanelMoveArea"
             exclusionRoot: menu
             collapseOnDoubleClick: true

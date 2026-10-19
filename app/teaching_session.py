@@ -82,7 +82,7 @@ class TeachingSession(QObject):
         self.pause_on_start = False
         self.reading_scope = 'full_slide'
         self.volume = 80
-        bridge.changed.connect(self.changed)
+        getattr(bridge, 'powerpointStateChanged', bridge.changed).connect(self.changed)
         bridge.speechStateChanged.connect(self.changed)
 
     def bind(self, prepared):
@@ -179,8 +179,10 @@ class TeachingSession(QObject):
         def available(language):
             if language in embedded:
                 return True
-            texts = self.texts(language)
             keys = record.get('keys', {}).get(language, [])
+            if not keys:
+                return False
+            texts = self.texts(language)
             wanted = [speech.audio_key(text, record.get('voice', ''), record.get('rate', 0)) for text in texts]
             return bool(texts) and all(key in keys and valid_key(self.bridge.library.directory, key) for key in wanted)
         vi, en = available('vi'), available('en')
