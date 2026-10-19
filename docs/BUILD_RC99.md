@@ -25,3 +25,23 @@ Bằng chứng ở `reports/rc99/voice-pairs-ui` và
 ```powershell
 .venv/Scripts/python.exe -m scripts.build_from_runtime --baseline dist/rc98-pair-labels --output dist/rc99-voice-speed-ui
 ```
+
+- Commit ứng dụng: `0f9430cd1d4f920776dd8dcdecc70c27f5668162`.
+- Dựng một lần từ nguồn đã kiểm thử; runtime/mô hình RC98 được kiểm
+  đầy đủ checksum. Toàn bộ module ứng dụng được dựng lại.
+- ZIP `BiliClass-RC99-Windows.zip`: 1.246.809.129 byte, 4.631 tệp ứng
+  dụng, 4.635 mục ZIP. Toàn bộ nội dung ZIP đối chiếu manifest đạt.
+- SHA256: `5515a3436bd437df54607fa44f2c6b98db0fb78ec95eadf49cb967476a01ec65`.
+- Qt trong bản đóng gói đạt: chín mẫu bắt đầu trong 22–32 ms, lưu tốc độ
+  trong 24 ms khi đang chuẩn bị; khoảng ngắt giao diện lớn nhất 104 ms.
+  Không nạp mô hình, gọi API, phát muộn sau khi hủy hoặc cảnh báo QML.
+  Bằng chứng `reports/rc99/frozen-voice-ui.json`.
+
+Đã cài và mở tại `F:/Applications/BiliClass/1.0.0rc99` qua Explorer,
+đóng RC98 bình thường. Cửa sổ chính và Mascot đáp ứng, không thu nhỏ;
+icon nhỏ/lớn, AppUserModelID và shortcut Desktop/Start menu đúng.
+Nguồn, revision, môn, cấu hình giọng, khóa API và 134 WAV tham chiếu
+giữ nguyên (`reports/rc99/installed-verification.json`).
+
+Đã công bố tại https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc99 .
+Digest asset GitHub khớp SHA256 ở trên.
