@@ -1,20 +1,64 @@
+import faulthandler
+import time
+from threading import Event, Thread
+
 from PySide6.QtCore import QCoreApplication
 
 from app.ui_watchdog import UiWatchdog
 
 
-def test_ui_watchdog_resets_deadline_and_closes_before_shutdown(tmp_path, monkeypatch):
-    calls = []
-    monkeypatch.setattr('app.ui_watchdog.faulthandler.dump_traceback_later',
-                        lambda delay, **kwargs: calls.append((delay, kwargs['file'])))
-    monkeypatch.setattr('app.ui_watchdog.faulthandler.cancel_dump_traceback_later', lambda: calls.append('cancel'))
+def until(condition):
+    deadline = time.monotonic() + 3
+    while not condition():
+        assert time.monotonic() < deadline
+        time.sleep(.005)
+
+
+def test_stall_logging_is_safe_during_code_churn_and_never_records_locals(tmp_path, monkeypatch):
+    def unsafe(*args, **kwargs):
+        raise AssertionError('Native frame walker must never be armed')
+
+    monkeypatch.setattr(faulthandler, 'dump_traceback_later', unsafe)
     app = QCoreApplication.instance() or QCoreApplication([])
-    watcher = UiWatchdog(app, tmp_path)
-    assert watcher.timer.isActive() and calls[0][0] == 5
+    stop = Event()
+
+    def churn():
+        while not stop.is_set():
+            exec(compile('sum(range(10))', '<temporary-code>', 'exec'), {})
+
+    worker = Thread(target=churn)
+    worker.start()
+    watcher = UiWatchdog(app, tmp_path, timeout=.05, interval=.01)
+    private_lesson_text = 'Private teacher narration must not appear'
+    try:
+        until(lambda: watcher.path.exists() and '(GUI)' in watcher.path.read_text(encoding='utf-8'))
+        first = watcher.path.read_text(encoding='utf-8')
+        assert __file__ in first and private_lesson_text not in first
+        assert 'line ' in first
+        time.sleep(.08)
+        assert watcher.path.read_text(encoding='utf-8') == first
+        watcher.beat()
+        until(lambda: watcher.path.read_text(encoding='utf-8').count('GUI heartbeat delayed:') == 2)
+    finally:
+        stop.set()
+        worker.join(2)
+        watcher.stop()
+        watcher.thread.join(2)
+    assert not watcher.thread.is_alive() and not watcher.timer.isActive()
+    before = watcher.path.read_bytes()
     watcher.beat()
-    assert len(calls) == 2 and calls[0][1] is calls[1][1]
-    watcher.stop()
-    assert watcher.output.closed and not watcher.timer.isActive() and calls[-1] == 'cancel'
-    before = len(calls)
-    watcher.beat()
-    assert len(calls) == before
+    time.sleep(.08)
+    assert watcher.path.read_bytes() == before
+
+
+def test_unwritable_log_cannot_crash_monitor_or_block_shutdown(tmp_path):
+    app = QCoreApplication.instance() or QCoreApplication([])
+    (tmp_path / 'logs').write_text('A file blocks the log directory')
+    watcher = UiWatchdog(app, tmp_path, timeout=.01, interval=.005)
+    try:
+        time.sleep(.08)
+        assert watcher.thread.is_alive()
+    finally:
+        watcher.stop()
+        watcher.thread.join(2)
+    assert not watcher.thread.is_alive()

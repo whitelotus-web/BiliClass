@@ -20,6 +20,7 @@ def main():
     )
     parser.add_argument('--check-native-preview', nargs=2, metavar=('INPUT_PPTX', 'REPORT_JSON'), help=argparse.SUPPRESS)
     parser.add_argument('--check-voice-ui', metavar='REPORT_JSON', help=argparse.SUPPRESS)
+    parser.add_argument('--check-narration-ui', metavar='REPORT_JSON', help=argparse.SUPPRESS)
     parser.add_argument('--check-universal-templates', metavar='REPORT_JSON', help=argparse.SUPPRESS)
     parser.add_argument("--screenshot")
     parser.add_argument("--lesson-id", help="Open a saved lesson in the guarded desktop entry point")
@@ -57,6 +58,10 @@ def main():
         from .voice_diagnostics import run
 
         return run(args.check_voice_ui)
+    if args.check_narration_ui:
+        from .narration_diagnostics import run
+
+        return run(args.check_narration_ui)
     if args.check_native_preview:
         import hashlib
         import json

@@ -3,6 +3,7 @@
 import re
 import unicodedata
 from collections import Counter
+from functools import lru_cache
 
 VI_WORDS = set("va la cua trong mot cac cho voi khi thi duoc hoc bai giang nghia vi du ham so gia tri lop em chung ta tinh dien tich chu ky phan tu te bao lich su dia ly cach doc viet hay nay neu bang tu nhung nguoi khong".split())
 EN_WORDS = set("the a an and is are was were of to in for with when if then this that these those we you your each from by value values function equation calculate find explain example lesson learning class student students cell energy history geography area time what why how does can will has have not into about means change increases decreases english chapter sequences arithmetic geometric progressions grade mathematics standard curriculum objective".split())
@@ -10,6 +11,7 @@ LABELS = {"vi": "Tiếng Việt", "en": "Tiếng Anh", "bilingual": "Có cặp V
           "mixed": "Hỗn hợp Việt/Anh", "unknown": "Chưa rõ ngôn ngữ", "neutral": "Số/ký hiệu"}
 
 
+@lru_cache(maxsize=4096)
 def language_of(text):
     words = re.findall(r"[^\W\d_]+", text.casefold(), re.UNICODE)
     if not words:

@@ -18,6 +18,15 @@ VOICE = "vieneu:Mai Anh"
 VOICES = {"voice": VOICE, "vi": VOICE, "en": VOICE, "rate": 0}
 
 
+def settle_narration(app, bridge):
+    deadline = time.monotonic() + 8
+    while bridge.busy or bridge.narrationBusy or bridge._catalog.selected_narration.worker is not None:
+        app.processEvents()
+        assert time.monotonic() < deadline, bridge.message
+        time.sleep(.005)
+    app.processEvents()
+
+
 def wav(path):
     path.parent.mkdir(parents=True, exist_ok=True)
     with wave.open(str(path), "wb") as writer:
@@ -248,10 +257,7 @@ def test_different_voice_generation_and_teaching_use_selected_variant_not_global
         bridge._lesson = lesson
         for mode, voice in [("en", VOICE), ("vi", other), ("both", VOICE)]:
             bridge.createLessonNarrationWithVoice(mode, voice, 0)
-            deadline = time.monotonic() + 5
-            while bridge.narrationBusy and time.monotonic() < deadline:
-                app.processEvents()
-                time.sleep(0.01)
+            settle_narration(app, bridge)
             assert not bridge.narrationBusy and bridge.lessonNarration["ready"]
         assert len(calls) == 3  # Both reuses the previously generated English.
         assert len(library.get(lesson["id"])["narration_variants"]) == 3
@@ -262,6 +268,7 @@ def test_different_voice_generation_and_teaching_use_selected_variant_not_global
         assert queues[-1] == ([lesson["segments"][0]["vi"], lesson["segments"][0]["en"]], VOICE, 0)
         vi, _ = make_plan(lesson, "vi", {"voice": other, "rate": 0})
         bridge.selectNarrationVariant(variant_id(vi))
+        settle_narration(app, bridge)
         assert bridge._lesson_voice_settings()["vi"] == other and not bridge._lesson_voice_settings()["en"]
         bridge.speakSegment("both")
         assert len(queues) == 1 and "cả giọng Việt và Anh" in bridge.message
@@ -462,6 +469,7 @@ def test_duplicate_creation_never_restarts_worker_rewrites_record_or_resets_cloc
             bridge.narration_preparation, "start", lambda *_: pytest.fail("Already completed")
         )
         bridge.createLessonNarrationWithVoice("en", VOICE, 0)
+        settle_narration(_app, bridge)
         assert library.get(lesson["id"]) == before and library.db.total_changes == changes
         assert bridge.narrationClock.elapsedSeconds == 123 and not bridge.narrationBusy
         assert "đã sẵn sàng" in bridge.message
@@ -493,13 +501,12 @@ def test_missing_wav_unlocks_existing_variant_and_only_missing_work_is_recreated
     bridge = Bridge(library)
     try:
         bridge._lesson = lesson
+        bridge.changed.emit()
+        settle_narration(app, bridge)
         choice = bridge.narrationCreationChoices(bridge.narrationVariants, VOICE, 0)["en"]
         assert choice["canCreate"] and not choice["ready"]
         bridge.createLessonNarrationWithVoice("en", VOICE, 0)
-        deadline = time.monotonic() + 5
-        while bridge.narrationBusy and time.monotonic() < deadline:
-            app.processEvents()
-            time.sleep(0.01)
+        settle_narration(app, bridge)
         assert not bridge.narrationBusy and bridge.lessonNarration["ready"]
         assert calls == ["Energy is conserved."]
         choice = bridge.narrationCreationChoices(bridge.narrationVariants, VOICE, 0)["en"]
@@ -532,16 +539,16 @@ def test_explicit_local_generation_cache_reuse_and_reopen_do_not_send_web_reques
     bridge = Bridge(library)
     try:
         bridge._lesson = lesson
+        bridge.changed.emit()
+        settle_narration(app, bridge)
         assert bridge.lessonNarration["status"] == "none" and not calls
         bridge.createLessonNarration("en")
-        deadline = time.monotonic() + 5
-        while bridge.narrationBusy and time.monotonic() < deadline:
-            app.processEvents()
-            time.sleep(0.01)
+        settle_narration(app, bridge)
         assert not bridge.narrationBusy and bridge.lessonNarration["ready"]
         assert calls == ["Energy is conserved."]
         assert bridge._lesson_voice_settings()["vi"] == ""
         bridge.createLessonNarration("en")
+        settle_narration(app, bridge)
         assert not bridge.narrationBusy and len(calls) == 1
         assert library.get(lesson["id"])["revision"] == lesson["revision"]
         assert path.read_bytes() == (library.directory / "sources" / lesson["source"]["file"]).read_bytes()

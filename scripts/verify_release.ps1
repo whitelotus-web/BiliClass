@@ -47,6 +47,11 @@ try {
     $pipeline = Get-Content -LiteralPath $report -Raw | ConvertFrom-Json
     if ($pipeline.status -ne 'passed' -or $pipeline.tts.provider -ne 'vieneu' -or $pipeline.tts_vi.provider -ne 'vieneu' -or $pipeline.tts.voice -ne $pipeline.tts_vi.voice) { throw ('Incomplete installed pipeline: ' + $report) }
     Write-Output 'Passed bundled templates, one bilingual VieNeu speaker, classroom process and lesson backup.'
+    $taskNarration = Join-Path $reportRoot 'narration-ui.json'
+    Invoke-InstalledCheck -Arguments @('--check-narration-ui',('"' + $taskNarration + '"')) -TimeoutSeconds 360
+    $taskVoiceResult = Get-Content -LiteralPath $taskNarration -Raw | ConvertFrom-Json
+    if ($taskVoiceResult.status -ne 'passed' -or -not $taskVoiceResult.watchdog_enabled -or $taskVoiceResult.complete -ne 2) { throw 'Installed Qt narration transition failed.' }
+    Write-Output 'Passed installed Qt completion to real bilingual voice, with safe stall logging enabled.'
     $marker = Get-Content -LiteralPath (Join-Path $installRoot '.biliclass-install.json') -Raw | ConvertFrom-Json
     if ($marker.root -ne $installRoot -or $marker.product -ne 'BiliClass' -or $marker.version -ne $manifest.version) { throw 'Installation marker failed validation.' }
     $buildInfo = Get-Content -LiteralPath (Join-Path $versionPath 'BUILD_INFO.json') -Raw | ConvertFrom-Json
@@ -56,7 +61,8 @@ try {
     @{status='passed';version=$manifest.version;source_commit=$buildInfo.source_commit;
       checks=@('manifest verified install in Unicode workspace','installed Qt conversion and Browser AI pages',
                'all templates/previews and bilingual VieNeu without development cache',
-               'spawned classroom process and library backup','uninstall preserves separate lesson library');
+               'spawned classroom process and library backup','installed Qt completion to real bilingual narration with watchdog',
+               'uninstall preserves separate lesson library');
       scope='current Windows machine; isolated install/data; no shortcuts; not a clean-Windows certification'} |
       ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $reportRoot 'installer.json') -Encoding UTF8
     Write-Output ('Release verification passed: ' + $reportRoot)

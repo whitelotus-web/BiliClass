@@ -15,6 +15,37 @@ from . import speech
 from .browser_audio import narration_tasks
 
 
+def prepare_request(directory, identity, revision, mode, voice, rate, regenerate, cancel):
+    """Plan, verify an existing voice and save metadata outside the GUI thread."""
+    from contextlib import closing
+
+    from .lesson_narration import audio_status, inspection_for, make_plan, records, variant_id
+    from .library import Library, RevisionConflict
+    from .narration_script import segments
+
+    with closing(Library(directory)) as library:
+        lesson = library.get(identity)
+        if lesson['revision'] != revision:
+            raise RevisionConflict('Bài đã thay đổi. Chọn lại bài trước khi tạo giọng đọc.')
+        if mode == 'both' and not all(any(s.get(lang, '').strip() for s in segments(lesson)) for lang in ('vi', 'en')):
+            raise ValueError('Bản Song ngữ cần có cả lời Việt và Anh. Bài một ngôn ngữ hãy chọn đúng ngôn ngữ đang có.')
+        plan, selected = make_plan(lesson, mode, {'voice': voice, 'rate': rate},
+                                   playback='both_controls' if mode == 'both' else 'separate')
+        if not plan['total']:
+            raise ValueError('Chưa có nội dung đọc phù hợp cho ngôn ngữ đã chọn.')
+        existing = records(lesson).get(variant_id(plan))
+        ready = not regenerate and existing and audio_status(
+            {**lesson, 'narration': existing}, directory, cancel=cancel).get('ready')
+        if cancel.is_set():
+            raise InterruptedError('Đã dừng chuẩn bị giọng đọc.')
+        if ready:
+            return {'already_created': True}
+        lesson = library.update_narration(identity, plan)
+        folder = directory / 'temp' / 'narration' / variant_id(plan)
+        folder.mkdir(parents=True, exist_ok=True)
+        return dict(lesson=lesson, inspection=inspection_for(lesson), selected=selected, folder=folder, plan=plan)
+
+
 class NarrationJob(QThread):
     progressed = Signal(object)
 
@@ -115,6 +146,10 @@ class NarrationJob(QThread):
                         break
         finally:
             speech._secondary_vieneu_engine.cache_clear()
+            if speech._ISOLATED_SYNTHESIS:
+                from .speech_process import release_secondary
+
+                release_secondary()
             if self.publish_directory and not failed and not self.cancel.is_set() and complete == self.total:
                 try:
                     for path in Path(self.directory).glob('*.wav'):

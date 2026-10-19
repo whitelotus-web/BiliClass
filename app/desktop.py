@@ -18,6 +18,7 @@ from .ui import Bridge
 
 
 def run(args):
+    speech._ISOLATED_SYNTHESIS = True
     from .branding import configure_application
 
     app = QGuiApplication([])
@@ -171,6 +172,9 @@ def run(args):
     bridge.libraryThumbnails.shutdown()
     bridge.inputDocuments.shutdown()
     speech.stop()
+    from .speech_process import shutdown
+
+    shutdown()
     # QML bindings may still read the library while their objects are destroyed.
     engine.deleteLater()
     QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)

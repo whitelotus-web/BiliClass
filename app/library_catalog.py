@@ -61,6 +61,9 @@ class LibraryCatalog(QObject):
         self._revision = None
         self._pending = False
         self._closed = False
+        from .narration_status import NarrationStatus
+
+        self.selected_narration = NarrationStatus(self)
         parent.destroyed.connect(self.shutdown)
         QTimer.singleShot(0, self.refresh)
 
@@ -121,6 +124,7 @@ class LibraryCatalog(QObject):
     def shutdown(self):
         self._closed = True
         self._pending = False
+        self.selected_narration.shutdown()
         if self.worker is not None:
             worker, self.worker = self.worker, None
             worker.cancel.set()

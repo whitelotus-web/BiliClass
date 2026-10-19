@@ -30,6 +30,7 @@ _ENGINE_LOAD_LOCK = Lock()
 _SECOND_ENGINE_LOCK = Lock()
 _AUDIO_LOCKS_LOCK = Lock()
 _AUDIO_LOCKS = WeakValueDictionary()
+_ISOLATED_SYNTHESIS = False
 # Keep adjustments modest: very slow inference can sound less natural.
 _SPEEDS = (0.82, 0.88, 0.94, 1.0, 1.06, 1.12, 1.18)
 
@@ -125,7 +126,8 @@ def _cached_vieneu_engine(root):
     constants.HUGGINGFACE_HUB_CACHE = constants.HF_HUB_CACHE
     from vieneu import Vieneu
 
-    return Vieneu(backend="onnx", device="cpu", precision="fp32", threads=4)
+    return Vieneu(backend="onnx", device="cpu", precision="fp32",
+                  threads=getattr(_SYNTHESIS_CONTEXT, 'worker_threads', 4))
 
 
 @lru_cache(maxsize=1)
@@ -147,6 +149,15 @@ def narration_workers(tasks):
 
 
 def _synthesize_vieneu(text, voice_id, rate, temporary):
+    if _ISOLATED_SYNTHESIS:
+        from .speech_process import render
+
+        return render(vieneu_root(), text, voice_id, rate, temporary,
+                      secondary=getattr(_SYNTHESIS_CONTEXT, 'secondary', False))
+    return _synthesize_vieneu_local(text, voice_id, rate, temporary)
+
+
+def _synthesize_vieneu_local(text, voice_id, rate, temporary):
     import numpy as np
 
     from .voice_threads import blas_budget

@@ -165,7 +165,7 @@ def main():
                 bridge.narrationWorkspace.selectLibrary('different-id')
                 assert bridge.lesson['id'] == previous and bridge.error
                 click(window, c('cancelLessonNarrationButton'))
-                until(lambda: not bridge.narrationBusy)
+                until(lambda: not bridge.narrationBusy and bridge.lessonNarration.get('status') != 'checking')
             assert bridge.lessonNarration['complete'] == 1 and not bridge.lessonNarration['ready']
             assert c('createLessonNarrationButton').property('text') == 'Tạo giọng đọc'
 
@@ -184,11 +184,13 @@ def main():
             assert not window.findChild(type(c('createLessonNarrationButton')), 'voiceNarrationVariantChoice')
             assert 'hai ngôn ngữ' in c('narrationConfigurationExplanation').property('text')
             click(window, c('createLessonNarrationButton'))
+            until(lambda: c('existingNarrationDialog').property('visible'))
             assert c('existingNarrationDialog').property('visible') and not bridge.narrationBusy
             click(window, c('useExistingNarration'))
             assert not c('existingNarrationDialog').property('visible') and not bridge.narrationBusy
             with patch('app.speech.narration_workers', return_value=1), patch('app.speech.synthesize_background', side_effect=render):
                 click(window, c('createLessonNarrationButton'))
+                until(lambda: c('existingNarrationDialog').property('visible'))
                 click(window, c('regenerateExistingNarration'))
                 until(lambda: not bridge.narrationBusy and bridge.lessonNarration.get('ready'))
                 assert bridge.narrationPreparation['cached'] == 0
