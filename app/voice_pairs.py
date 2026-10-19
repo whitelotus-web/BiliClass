@@ -9,10 +9,10 @@ PAIRS = tuple(
      'region': region, 'gender': gender, 'language': 'multilingual', 'languages': ['vi', 'en']}
     for identity, vi, gender, region, en, en_id in (
         ('north-female', 'Mai Anh', 'Nữ', 'Bắc', 'Heart', 'af_heart'),
-        ('north-male', 'Hải Đăng', 'Nam', 'Bắc', 'Michael', 'am_michael'),
         ('central-female', 'Ngọc Trân', 'Nữ', 'Trung', 'Heart', 'af_heart'),
-        ('central-male', 'Quang Sơn', 'Nam', 'Trung', 'Michael', 'am_michael'),
         ('south-female', 'Thùy Dung', 'Nữ', 'Nam', 'Heart', 'af_heart'),
+        ('north-male', 'Hải Đăng', 'Nam', 'Bắc', 'Michael', 'am_michael'),
+        ('central-male', 'Quang Sơn', 'Nam', 'Trung', 'Michael', 'am_michael'),
         ('south-male', 'Thái Sơn', 'Nam', 'Nam', 'Michael', 'am_michael'),
     )
 )
