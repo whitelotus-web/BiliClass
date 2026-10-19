@@ -129,6 +129,7 @@ def main():
             window.setProperty('page', 'settings')
             c('settingsPage').setProperty('activeTab', 5)
             pump(100)
+            click(window, c('toggleDataOptions'))
             click(window, c('settingsReferenceButton'))
             assert window.property('page') == 'reference'
             click(window, c('openCompanion'))

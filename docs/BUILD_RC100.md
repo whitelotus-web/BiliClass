@@ -1,7 +1,7 @@
 # RC100 — Thư viện gọn hơn, xem trước và tải bài đúng tên
 
 - Danh sách gọn hơn, nút 34px; giữ tên, môn/khối, số slide, ngày tạo
-  và giọng đọc. Xóa một bài ở menu như dạng thẻ; xóa nhiều bài trên
+  và giọng đọc. Nút thùng rác đỏ cho từng bài; xóa nhiều bài trên
   thanh cố định. Biểu tượng loa + VI/EN chỉ hiện cho bản giọng đã đủ.
 - Tiêu đề, tìm kiếm, bộ lọc và thao tác cố định khi cuộn; dấu × xóa
   nhanh từ khóa và giữ bộ lọc khác. Thẻ ít kết quả giữ kích thước và
@@ -14,6 +14,10 @@
   chỉ hiện trạng thái khi đang sửa, lưu hoặc có kết quả lưu.
 - Dọn các ghi chú hồ sơ được yêu cầu bỏ ở Cài đặt chung; rút gọn
   tiêu đề thành “Xem trước hồ sơ”, giữ các trường và thao tác lưu.
+- Căn giữa cụm thương hiệu, phiên bản và bản quyền trong Thông tin
+  BiliClass. Tab Dữ liệu chỉ hiện ba tác vụ chính; mục hỗ trợ và quản
+  lý nâng cao nằm trong Tùy chọn khác. Khôi phục thành công mở lại
+  với dữ liệu vừa khôi phục, giữ nguyên thư viện trước đó.
 - Hiện slide ngay trong bước chuyển đổi hoàn tất, có Trước/Sau và
   bốn nút cân đối. Xem trước ở Tạo giọng không bị worker Office đã
   ngừng trình chiếu chặn. Không tự xác nhận nội dung hay tạo giọng.
@@ -48,9 +52,14 @@ Bằng chứng chi tiết trong `reports/rc100` không đưa vào Git:
   Fixture âm thanh im lặng kiểm chứng vận hành; gói cài được kiểm
   tra thêm với engine local thật. Chưa chứng nhận click loa vật lý
   trên mọi máy hoặc màn chiếu thứ hai.
+- Đợt chỉnh Cài đặt/thùng rác bổ sung: 33 kiểm thử sao lưu, vị trí
+  thư viện, xem trước và voice controls qua; Qt thư viện và kéo chọn
+  chạy lại qua. Qt Cài đặt xác minh căn giữa ở ba kích thước, ẩn/hiện
+  tùy chọn nâng cao, sao lưu/khôi phục dữ liệu thật trong thư viện
+  dùng thử; bản hỏng không chuyển thư viện hay yêu cầu mở lại.
 
 Kết quả đóng gói/cài đặt được ghi sau khi hoàn tất.
 
 ```powershell
-.venv/Scripts/python.exe -m scripts.build_from_runtime --baseline dist/rc99-voice-speed-ui --output dist/rc100-library-preview
+.venv/Scripts/python.exe -m scripts.build_from_runtime --baseline dist/rc99-voice-speed-ui --output dist/rc100-settings-library
 ```

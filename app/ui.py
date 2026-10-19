@@ -3509,8 +3509,7 @@ class Bridge(QObject):
             return
         destination = parent / ('BiliClass-Restored-' + datetime.now().strftime('%Y%m%d-%H%M%S-%f'))
         self.launch(lambda: restore_backup(QUrl(file_url).toLocalFile(), destination),
-                    lambda output: self.inform('Đã khôi phục vào ' + str(output) +
-                                              '. Chọn Mở thư viện khác để dùng bản này.', refresh=False))
+                    lambda output: self.storage.openExisting(QUrl.fromLocalFile(str(output)).toString()))
 
     @Slot(str)
     def openLibrary(self, folder_url):

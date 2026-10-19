@@ -15,6 +15,7 @@ Item {
     signal requestReference()
     property int activeTab: 0
     property bool showGoogleKeyEntry: false
+    property bool showDataOptions: false
     property string draftVoice: bridge.voiceSettings.voice
     property int draftRate: bridge.voiceSettings.rate
     readonly property var selectedVoicePair: bridge.voicePairDetails(draftVoice)
@@ -241,30 +242,30 @@ Item {
             Card {
                 objectName: "aboutBiliClassCard"; Layout.fillWidth: true; padding: 22
                 ColumnLayout { width: parent.width; spacing: 17
-                    RowLayout { Layout.fillWidth: true; spacing: 22
+                    RowLayout { objectName: "aboutBiliClassBrand"; Layout.alignment: Qt.AlignHCenter; spacing: 22
                         Image { objectName: "aboutBiliClassLogo"; source: "../assets/brand/biliclass.svg"; sourceSize.width: 224; sourceSize.height: 224; Layout.preferredWidth: 88; Layout.preferredHeight: 88; fillMode: Image.PreserveAspectFit; Accessible.name: "Logo BiliClass" }
-                        ColumnLayout { Layout.fillWidth: true; spacing: 8
+                        ColumnLayout { spacing: 8
                             Label { text: "Bili<span style='color:#ff7d2b'>Class</span>"; textFormat: Text.RichText; color: page.ink; font.pixelSize: 34; font.bold: true }
                             Label { text: "CHUYỂN NGỮ THÔNG MINH\nNÂNG TẦM BÀI GIẢNG"; color: page.muted; font.pixelSize: 10; font.letterSpacing: 0.6 }
-                            Hint { text: bridge.appSubtitle; font.pixelSize: 16; Layout.fillWidth: true }
+                            Hint { text: bridge.appSubtitle; font.pixelSize: 16 }
                         }
                     }
                     Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: page.line }
-                    RowLayout { Layout.fillWidth: true; spacing: 20
-                        ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.alignment: Qt.AlignTop; spacing: 6
-                            Hint { text: "PHIÊN BẢN"; font.pixelSize: 10; font.letterSpacing: 1 }
-                            Title { objectName: "aboutBiliClassVersion"; text: bridge.appVersion }
-                            Hint { text: bridge.developmentMode ? "Đang chạy từ mã nguồn" : "Ứng dụng BiliClass cho Windows"; Layout.fillWidth: true }
-                            SoftButton { objectName: "aboutCheckUpdate"; text: bridge.updateState.checking ? "Đang kiểm tra…" : "Kiểm tra cập nhật"; iconName: "refresh"; enabled: !bridge.updateState.checking && !bridge.updateState.downloading; onClicked: bridge.checkForUpdates(false) }
+                    RowLayout { Layout.fillWidth: true; Layout.maximumWidth: 820; Layout.alignment: Qt.AlignHCenter; spacing: 32
+                        ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; Layout.alignment: Qt.AlignTop; spacing: 6
+                            Hint { text: "PHIÊN BẢN"; font.pixelSize: 10; font.letterSpacing: 1; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
+                            Title { objectName: "aboutBiliClassVersion"; text: bridge.appVersion; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
+                            Hint { text: bridge.developmentMode ? "Đang chạy từ mã nguồn" : "Ứng dụng BiliClass cho Windows"; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
+                            SoftButton { objectName: "aboutCheckUpdate"; Layout.alignment: Qt.AlignHCenter; text: bridge.updateState.checking ? "Đang kiểm tra…" : "Kiểm tra cập nhật"; iconName: "refresh"; enabled: !bridge.updateState.checking && !bridge.updateState.downloading; onClicked: bridge.checkForUpdates(false) }
                         }
-                        ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 2; Layout.alignment: Qt.AlignTop; spacing: 7
-                            Hint { text: "BẢN QUYỀN"; font.pixelSize: 10; font.letterSpacing: 1 }
-                            Title { objectName: "aboutBiliClassCopyright"; text: "Copyright © 2026 Nguyễn Diệu Linh"; font.pixelSize: 17; Layout.fillWidth: true }
-                            Hint { text: "Giáo viên Tin học · Trường THPT Vân\u00a0Cốc"; Layout.fillWidth: true }
-                            Hint { text: "All rights reserved."; font.pixelSize: 11; Layout.topMargin: 4 }
+                        ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; Layout.alignment: Qt.AlignTop; spacing: 7
+                            Hint { text: "BẢN QUYỀN"; font.pixelSize: 10; font.letterSpacing: 1; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
+                            Title { objectName: "aboutBiliClassCopyright"; text: "Copyright © 2026 Nguyễn Diệu Linh"; font.pixelSize: 17; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
+                            Hint { text: "Giáo viên Tin học · Trường THPT Vân\u00a0Cốc"; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
+                            Hint { text: "All rights reserved."; font.pixelSize: 11; Layout.topMargin: 4; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
                         }
                     }
-                    Hint { text: "Chuyển tài liệu thành bài giảng Việt–Anh, trình chiếu và đồng hành cùng thầy cô với giọng đọc, mascot trợ giảng. Thư viện bài giảng được lưu trên máy."; Layout.fillWidth: true }
+                    Hint { text: "Chuyển tài liệu thành bài giảng Việt–Anh, trình chiếu và đồng hành cùng thầy cô với giọng đọc, mascot trợ giảng. Thư viện bài giảng được lưu trên máy."; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
                 }
             }
         }
@@ -522,7 +523,7 @@ Item {
             Card { Layout.fillWidth: true
                 ColumnLayout { width: parent.width; spacing: 14
                     Title { text: "Nơi lưu bài giảng và giọng đọc" }
-                    Hint { text: "Ứng dụng và thư viện lưu riêng. Chọn ổ D, E hoặc thư mục khác để tránh đầy ổ C."; Layout.fillWidth: true }
+                    Hint { text: "Bài giảng và giọng đọc được lưu trên máy tại:"; Layout.fillWidth: true }
                     Hint { text: bridge.dataPath; Layout.fillWidth: true; wrapMode: Text.WrapAnywhere; color: page.ink }
                     Hint { objectName: "storageFreeSpace"; text: bridge.storageControls.state.free_bytes >= 0 ? "Ổ lưu còn " + (bridge.storageControls.state.free_bytes / 1073741824).toFixed(1) + " GiB trống" : "Chưa đọc được dung lượng ổ lưu"; Layout.fillWidth: true }
                     Hint {
@@ -530,30 +531,30 @@ Item {
                         readonly property var backup: bridge.storageControls.state
                         text: backup.running ? "Đang sao lưu" + (backup.total ? " · " + backup.done + "/" + backup.total + " tệp" : "…")
                             : backup.status === "failed" ? "Sao lưu chưa thành công: " + backup.last_error
-                            : backup.last_success ? "Sao lưu thành công gần nhất: " + new Date(backup.last_success).toLocaleString()
-                            : "Chưa có bản sao lưu được xác nhận"
+                            : backup.last_success ? "Đã sao lưu: " + Qt.formatDateTime(new Date(backup.last_success), "dd/MM/yyyy · HH:mm")
+                            : "Chưa có bản sao lưu. Bấm Sao lưu dữ liệu để tạo một bản."
                         color: backup.status === "failed" && !backup.running ? "#a63d2f" : page.ink
                         Layout.fillWidth: true
                     }
-                    Hint { visible: !!bridge.storageControls.state.last_path; text: bridge.storageControls.state.last_path || ""; Layout.fillWidth: true; wrapMode: Text.WrapAnywhere }
-                    Hint { text: bridge.storageControls.state.scope || ""; Layout.fillWidth: true }
                     Flow { Layout.fillWidth: true; spacing: 8
-                        SaveButton { objectName: "relocateLibraryButton"; text: "Chuyển thư viện sang nơi khác"; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: page.requestRelocation() }
-                        SoftButton { text: "Mở thư mục"; onClicked: bridge.openData() }
-                        SoftButton { objectName: "settingsBackup"; text: "Sao lưu thư viện"; enabled: !bridge.busy && !bridge.storageControls.state.running; onClicked: page.requestBackupSave() }
-                        SoftButton { text: "Khôi phục bản sao"; enabled: !bridge.busy && !bridge.storageControls.state.running; onClicked: page.requestBackup() }
-                        SoftButton { text: "Mở thư viện khác"; enabled: !bridge.busy; onClicked: page.requestLibrary() }
-                        SoftButton { text: "Xuất chẩn đoán kỹ thuật"; enabled: !bridge.busy; onClicked: page.requestSupportReport() }
+                        SaveButton { objectName: "settingsBackup"; text: "Sao lưu dữ liệu"; enabled: !bridge.busy && !bridge.storageControls.state.running; onClicked: page.requestBackupSave() }
+                        SoftButton { objectName: "settingsRestore"; text: "Khôi phục bản sao"; enabled: !bridge.busy && !bridge.storageControls.state.running; onClicked: page.requestBackup() }
+                        SoftButton { objectName: "relocateLibraryButton"; text: "Đổi nơi lưu"; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: page.requestRelocation() }
                     }
-                    Hint { text: "Chuyển cả bài giảng, giọng, thuật ngữ và cấu hình; BiliClass kiểm tra rồi mở lại với thư viện mới. Bản cũ chỉ được dọn sau khi mở thành công."; Layout.fillWidth: true }
-                    Hint { text: "Tải file: tên được gợi ý tự động; bạn chọn nơi lưu và BiliClass nhớ thư mục đã chọn."; Layout.fillWidth: true }
+                    SoftButton { objectName: "toggleDataOptions"; text: page.showDataOptions ? "Thu gọn tùy chọn" : "Tùy chọn khác"; implicitHeight: 34; onClicked: page.showDataOptions = !page.showDataOptions }
                 }
             }
-            Card { Layout.fillWidth: true
+            Card { visible: page.showDataOptions; Layout.fillWidth: true
                 ColumnLayout { width: parent.width; spacing: 12
-                    Title { text: "Thuật ngữ & kiến thức · nâng cao" }
-                    Hint { text: "Thuật ngữ đã khóa được dùng khi dịch đúng môn. Mở kho khi cần sửa cách dịch hoặc tra cứu; không cần thao tác ở đây mỗi lần tạo bài."; Layout.fillWidth: true }
-                    SoftButton { objectName: "settingsReferenceButton"; text: "Quản lý thuật ngữ & kiến thức"; onClicked: page.requestReference() }
+                    Title { text: "Tùy chọn khác" }
+                    Flow { Layout.fillWidth: true; spacing: 8
+                        SoftButton { objectName: "settingsOpenData"; text: "Mở thư mục dữ liệu"; onClicked: bridge.openData() }
+                        SoftButton { objectName: "settingsOpenLibrary"; text: "Mở thư viện khác"; enabled: !bridge.busy; onClicked: page.requestLibrary() }
+                        SoftButton { objectName: "settingsSupportReport"; text: "Xuất thông tin hỗ trợ"; enabled: !bridge.busy; onClicked: page.requestSupportReport() }
+                        SoftButton { objectName: "settingsReferenceButton"; text: "Thuật ngữ và kiến thức"; onClicked: page.requestReference() }
+                    }
+                    Hint { visible: !!bridge.storageControls.state.last_path; text: "Bản sao lưu gần nhất: " + (bridge.storageControls.state.last_path || ""); Layout.fillWidth: true; wrapMode: Text.WrapAnywhere }
+                    Hint { text: bridge.storageControls.state.scope || ""; Layout.fillWidth: true }
                 }
             }
         }

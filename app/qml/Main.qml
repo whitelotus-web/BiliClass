@@ -525,6 +525,14 @@ ApplicationWindow {
     component LibraryRowAction: Action {
         implicitHeight: 34; leftPadding: 12; rightPadding: 12; font.pixelSize: 12
     }
+    component LibraryTrashButton: Button {
+        id: trashButton
+        implicitWidth: 34; implicitHeight: 34; padding: 7
+        Accessible.name: "Xóa bài giảng"
+        ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Xóa bài giảng"
+        contentItem: Image { source: "../assets/actions/trash-red.svg"; sourceSize.width: 40; sourceSize.height: 40; fillMode: Image.PreserveAspectFit; opacity: trashButton.enabled ? 1 : .35; Accessible.ignored: true }
+        background: Rectangle { radius: 6; color: !trashButton.enabled ? "#edf1f7" : trashButton.down ? "#fee4e2" : trashButton.hovered ? "#fff0ee" : "#fffafa"; border.color: trashButton.visualFocus ? "#c63434" : "transparent" }
+    }
     component LibraryCheck: CheckBox {
         id: control
         property string lessonIdentity: ""
@@ -843,7 +851,7 @@ ApplicationWindow {
                                     required property var modelData
                                     required property int index
                                     lessonId: modelData.id
-                                    selectionExclusions: [rowCheck, rowStatus, rowOpen, rowVoice, rowDownload, rowMore]
+                                    selectionExclusions: [rowCheck, rowStatus, rowOpen, rowVoice, rowDownload, rowMore, rowDelete]
                                     objectName: "lessonCard_" + modelData.id
                                     Layout.fillWidth: true; implicitHeight: Math.max(92, lessonRow.implicitHeight + 24)
                                     GridLayout {
@@ -871,8 +879,8 @@ ApplicationWindow {
                                         Menu { id: rowMenu; parent: rowMore; x: parent.width - width; y: parent.height
                                             MenuItem { objectName: "lessonPreview_" + modelData.id; text: "Xem bài giảng"; enabled: !bridge.busy && !bridge.narrationBusy; onTriggered: bridge.openLesson(modelData.id) }
                                             MenuItem { objectName: "lessonEdit_" + modelData.id; text: "Đổi tên / thông tin bài"; enabled: !bridge.busy && !bridge.powerpointState.active; onTriggered: { metadataDialog.lessonData = modelData; metadataDialog.open() } }
-                                            MenuItem { objectName: "lessonDelete_" + modelData.id; text: "Chuyển vào thùng rác"; enabled: !bridge.busy && !bridge.powerpointState.active; onTriggered: { deleteLessonDialog.lessonId = modelData.id; deleteLessonDialog.lessonTitle = modelData.title; deleteLessonDialog.open() } }
                                         }
+                                        LibraryTrashButton { id: rowDelete; objectName: "lessonDelete_" + modelData.id; Accessible.name: "Xóa bài giảng " + modelData.title; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !root.classroom.running; onClicked: { deleteLessonDialog.lessonId = modelData.id; deleteLessonDialog.lessonTitle = modelData.title; deleteLessonDialog.open() } }
 
                                         }
                                     }
@@ -890,7 +898,7 @@ ApplicationWindow {
                                     id: largeCard
                                     required property var modelData
                                     lessonId: modelData.id
-                                    selectionExclusions: [cardCheck, cardStatus, cardOpen, cardVoice, cardDownload, largeCardMore]
+                                    selectionExclusions: [cardCheck, cardStatus, cardOpen, cardVoice, cardDownload, largeCardMore, largeCardDelete]
                                     readonly property var cover: bridge.libraryCovers.images[modelData.id] || ({loading:true,image:""})
                                     objectName: "lessonCard_" + modelData.id
                                     Layout.fillWidth: true; Layout.preferredWidth: 1
@@ -927,8 +935,8 @@ ApplicationWindow {
                                             Menu { id: largeCardMenu; parent: largeCardMore; x: parent.width - width; y: parent.height
                                                 MenuItem { objectName: "lessonPreview_" + modelData.id; text: "Xem bài giảng"; enabled: !bridge.busy && !bridge.narrationBusy; onTriggered: bridge.openLesson(modelData.id) }
                                                 MenuItem { objectName: "lessonEdit_" + modelData.id; text: "Đổi tên / thông tin bài"; enabled: !bridge.busy && !bridge.powerpointState.active; onTriggered: { metadataDialog.lessonData = modelData; metadataDialog.open() } }
-                                                MenuItem { objectName: "lessonDelete_" + modelData.id; text: "Chuyển vào thùng rác"; enabled: !bridge.busy && !bridge.powerpointState.active; onTriggered: { deleteLessonDialog.lessonId = modelData.id; deleteLessonDialog.lessonTitle = modelData.title; deleteLessonDialog.open() } }
                                             }
+                                            LibraryTrashButton { id: largeCardDelete; objectName: "lessonDelete_" + modelData.id; implicitHeight: 40; Accessible.name: "Xóa bài giảng " + modelData.title; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !root.classroom.running; onClicked: { deleteLessonDialog.lessonId = modelData.id; deleteLessonDialog.lessonTitle = modelData.title; deleteLessonDialog.open() } }
                                         }
                                     }
                                 }
@@ -1826,7 +1834,7 @@ ApplicationWindow {
     SuggestedSaveDialog { id: packSave; title: "Xuất gói bài BiliClass"; currentFolder: bridge.downloadsDirectory; suggestionProvider: function() { return bridge.exportSuggestion("biliclass") }; defaultSuffix: "biliclass"; nameFilters: ["BiliClass (*.biliclass)"]; onAccepted: bridge.exportPack(selectedFile.toString()) }
     FileDialog { id: knowledgeOpen; title: "Cài gói kiến thức có nguồn"; nameFilters: ["BiliClass Knowledge (*.biliknowledge)"]; onAccepted: bridge.installKnowledgePack(selectedFile.toString()) }
     FileDialog { id: backupOpen; title: "Chọn bản sao thư viện"; nameFilters: ["BiliClass Backup (*.bcbackup)"]; onAccepted: restoreDestination.open() }
-    FolderDialog { id: restoreDestination; objectName: "restoreDestinationDialog"; title: "Chọn nơi lưu thư viện khôi phục"; onAccepted: bridge.restoreLibraryTo(backupOpen.selectedFile.toString(), selectedFolder.toString()) }
+    FolderDialog { id: restoreDestination; objectName: "restoreDestinationDialog"; title: "Chọn nơi lưu dữ liệu khôi phục · BiliClass sẽ mở lại khi xong"; onAccepted: bridge.restoreLibraryTo(backupOpen.selectedFile.toString(), selectedFolder.toString()) }
     FolderDialog { id: libraryOpen; title: "Chọn thư viện và mở lại BiliClass"; onAccepted: root.requestAction(function() { bridge.openLibrary(libraryOpen.selectedFolder.toString()) }) }
     Dialog {
         id: existingNarration; objectName: "existingNarrationDialog"; anchors.centerIn: parent; modal: true

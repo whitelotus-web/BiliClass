@@ -100,7 +100,6 @@ def main():
             click(window, c("lessonEdit_" + identity))
             assert c("lessonMetadataDialog").property("visible") and not selected()
             QMetaObject.invokeMethod(c("lessonMetadataDialog"), "reject", Qt.DirectConnection)
-            click(window, c('lessonMore_' + identity))
             click(window, c("lessonDelete_" + identity))
             assert c("deleteLessonDialog").property("visible") and not selected()
             click(window, c("cancelDeleteLessonButton"))
@@ -151,6 +150,8 @@ def main():
             assert selected(), "Grid checkbox must toggle exactly once"
             click(window, c("lessonMore_" + identity))
             assert selected() and c("lessonEdit_" + identity).isVisible()
+            QTest.keyClick(window, Qt.Key_Escape)
+            pump(100)
             click(window, c("lessonDelete_" + identity))
             assert c("deleteLessonDialog").property("visible") and selected()
             click(window, c("cancelDeleteLessonButton"))

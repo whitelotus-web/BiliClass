@@ -74,6 +74,7 @@ def main():
         window.setProperty("page", "settings")
         control("settingsPage").setProperty("activeTab", 5)
         pump()
+        click("toggleDataOptions")
         click("settingsReferenceButton")
         assert window.property("page") == "reference"
         assert any(term["vi"] == "cấp số cộng" for term in bridge.terms)
