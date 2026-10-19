@@ -51,3 +51,25 @@ Dùng dữ liệu thử riêng, không đưa thư viện/key/WAV cá nhân vào 
 bộ cài. Nhóm Browser giữ bằng chứng cũ, không tính là lượt mới. Chưa coi
 phép đo này là cam kết tăng tốc mọi bài PowerPoint hoặc chứng nhận phần
 còn lại của kế hoạch audit. Gói cài/commit/checksum được ghi sau khi kiểm.
+
+## Gói đã phát hành
+
+- Nguồn: `c6d026527bff6908a8cc87cbd239405b977b248d`, phiên bản `1.0.0rc81`.
+- [GitHub RC81](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc81).
+- SHA-256 ZIP: `53867fbff41cfaad7ed79aefe8eaa997941d0abaf47131157eca9fd13038943c`.
+- ZIP 871.215.362 byte, 4.214 mục; đối chiếu từng file trong ZIP và digest
+  tài sản trên GitHub đạt. Dựng một lần, tái dùng runtime/model RC80 đã
+  kiểm hash; dựng lại toàn bộ mã ứng dụng từ nguồn RC81.
+- Cài/gỡ cô lập trong đường dẫn Unicode đạt: Windows Properties, hai
+  trang Qt, các mẫu, VieNeu Việt/Anh thật cùng người đọc, tiến trình lớp
+  học, backup và giữ dữ liệu sau gỡ. Phạm vi máy Windows hiện tại, không
+  phải chứng nhận máy Windows sạch hoặc máy chiếu thực tế.
+- [CI nguồn](https://github.com/whitelotus-web/BiliClass/actions/runs/39183015134)
+  đạt. GUI Settings EXE với 30 môn/phụ kiện đạt, không warning QML; phép
+  thử GUI dùng mẫu WAV có sẵn, tách với kiểm TTS thật của bộ cài.
+- Cài chính tại `F:/Applications/BiliClass/1.0.0rc81`; Desktop/Start menu
+  trỏ bản mới. Đã mở trang Thư viện bằng Explorer, kiểm parent là
+  `explorer.exe`, đúng tiêu đề RC81 và còn phản hồi. Chạy độc lập Codex.
+- Đối chiếu thư viện, WAV và key mã hóa trước cài/sau mở khớp; không đưa
+  dữ liệu cá nhân lên Git hay vào gói. Không sửa các PPTX đã tải bên ngoài
+  thư viện; muốn nhận thay đổi đầu ra cũ cần tải lại từ bản mới.

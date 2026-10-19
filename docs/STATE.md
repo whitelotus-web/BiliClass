@@ -9,6 +9,10 @@ bảng theo Mascot. Nền trong cập nhật bằng tín hiệu riêng và lưu 
 ghi DB/làm mới toàn Bridge trên mỗi nấc. Phụ kiện lên cạnh nhóm hiển thị;
 không nhãn môn dưới bản xem trước. 17 luồng Qt đạt, gồm Office thật và kéo
 71 mức khi SQLite khóa; chi tiết kiểm nguồn/gói tại [BUILD_RC81](BUILD_RC81.md).
+921 ca core đạt; nguồn `c6d0265`, CI đạt. Đã phát hành RC81 và xác minh
+digest ZIP trên GitHub; cài/gỡ cô lập, VieNeu Việt/Anh, lớp/backup và GUI
+EXE 30 môn đạt. Cài chính và mở Thư viện từ Explorer, đúng bản RC81,
+độc lập Codex; bài/WAV/key đối chiếu trước–sau khớp.
 Chưa đánh dấu hoàn tất các nhóm DPI, trạng thái và vận hành còn lại của
 kế hoạch audit. Thư viện/key cá nhân không thuộc thay đổi nguồn hay gói.
 
