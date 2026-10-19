@@ -53,9 +53,8 @@ không dấu. Managed PPTX dùng trigger trung tính để hiện con trỏ bấ
 - Office thật trên bản sao tạm và WAV im lặng: mở/F5, phát native,
   tạm dừng/đọc tiếp, điều khiển từng ngôn ngữ, đổi slide loại cập nhật cũ,
   xem bài khác không đổi liên kết, mở trước/sau tạo giọng đạt.
-- Bắt chuột/phím trên hai cửa sổ tạm với HWND bí danh có dấu đã đạt ở
-  đầu phiên. Kiểm tra lại bấm loa/hover trên PowerPoint đang chờ mở khóa
-  input desktop của Windows; không giả lập thành đã hoàn tất.
+- Bắt chuột/phím trên hai cửa sổ tạm với HWND bí danh có dấu đạt, gồm
+  giữ nguyên thao tác ở cửa sổ không thuộc phiên dạy.
 
 ## Đóng gói
 
@@ -101,7 +100,12 @@ hai shortcut đều đúng. Bằng chứng `reports/rc92/installed-verification.
 Nguồn, revision, môn đã chọn, khóa API và toàn bộ 134 WAV của bài đang
 thử giữ nguyên. Không tự đổi môn hoặc tạo lại giọng của bài cũ.
 
-Kiểm tra bấm/hover trực tiếp loa trên PowerPoint vẫn còn chờ Windows cho
-truy cập input desktop (`GetCursorPos: Access is denied`). Các kiểm tra
-Office COM, Qt và xử lý HWND ở trên đã đạt; chưa ghi nhận lượt kiểm tra
-chuột trực tiếp này là đạt.
+Lượt kiểm tra chuột/phím trực tiếp trong PowerPoint đã đạt sau khi Windows
+cho truy cập input desktop trở lại, bằng chứng
+`reports/rc92/native-input-final/result.json`. Dùng bản sao tạm và WAV im
+lặng; nguồn giữ nguyên. Loa trên slide có con trỏ bàn tay, đọc/tạm dừng/
+đọc tiếp đồng bộ với Mascot ở cả đường native và cache; đổi ngôn ngữ,
+F5 từ cửa sổ soạn thảo, tiến/lùi hiệu ứng rồi slide, phím WASD gán lại
+và 12 lần kéo bảng đều đạt. Không bắt phím ở cửa sổ khác, không đổi âm
+lượng máy thật. 16 lần điều hướng trung bình 24 ms, cao nhất 47 ms;
+khoảng ngắt giao diện lớn nhất 47 ms, không cảnh báo QML.
