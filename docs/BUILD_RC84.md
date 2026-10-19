@@ -48,4 +48,23 @@ Các bài thử dùng thư viện riêng và chỉ đóng bài Office do harness
 Không xác nhận hết mọi nguyên nhân Not Responding hoặc máy chiếu vật lý.
 940 test core đạt; sau khi chỉ mục đổi sang đọc XML, 7 kiểm tra chỉ mục/
 chọn file và các luồng Office liên quan được chạy lại, đều đạt. Có một warning Starlette/httpx đã tồn tại.
-Lint/compile đạt. Kết quả commit và bộ cài được bổ sung sau xác minh.
+Lint/compile đạt.
+
+## Bản phát hành đã kiểm chứng
+
+- Nguồn `cae909fd71fc90ceaf5ae8e7aec09049ab021a78`;
+  [CI đạt](https://github.com/whitelotus-web/BiliClass/actions/runs/39194912870).
+- [Release RC84](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc84):
+  ZIP 871.227.615 byte, 4.215 mục. GitHub xác nhận digest khớp
+  `37a9d6d54d1e1924974e8461f78fdb8a9a7eca999c461cda3d99bb432b4c9e5b`.
+  Dựng đúng một lần từ runtime RC83 đã đối chiếu, biên dịch lại mọi module
+  ứng dụng. Không đưa EXE/model hoặc dữ liệu cá nhân vào commit.
+- Bộ cài trong đường dẫn Unicode đạt: Properties sản phẩm/phiên bản/
+  copyright, trang chuyển đổi và Browser AI, template, VieNeu Việt/Anh
+  cùng người đọc, process lớp học và backup. Gỡ bản thử giữ thư viện riêng.
+  Báo cáo cục bộ: `reports/release/1.0.0rc84-15c4e457/installer.json`.
+- Probe desktop nguồn và EXE thực tế đều đạt: hiện Mascot khi mở, giữ khi
+  thu nhỏ, đóng ẩn Mascot và thoát mã 0 (lần lượt 0,313 và 0,359 s).
+- Cài tại `F:/Applications/BiliClass/1.0.0rc84`, mở trang Chuyển đổi từ
+  Explorer, parent `explorer.exe`; xác nhận main window đúng RC84 và có
+  phản hồi, độc lập Codex. Tệp key mã hóa đối chiếu không đổi.
