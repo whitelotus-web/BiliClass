@@ -2,6 +2,7 @@
 
 import copy
 import hashlib
+import shutil
 import time
 from pathlib import Path
 from uuid import uuid4
@@ -44,6 +45,18 @@ def prepare_teaching(lesson, preview, directory):
         except ValueError as exc:
             target.unlink(missing_ok=True)
             warning = str(exc) + ' Mascot vẫn dùng giọng đã lưu; bản gốc không thay đổi.'
+    if not owned_path:
+        # Office holds even a read-only deck open on Windows. Keep generated
+        # previews/source files free for re-export and give each binding its
+        # own presentation, including products without narration.
+        target = Path(directory) / 'temp/teaching' / (uuid4().hex + '.pptx')
+        target.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            shutil.copyfile(path, target)
+        except OSError:
+            target.unlink(missing_ok=True)
+            raise
+        path, owned_path = target, str(target)
     media = {}
     for index, slide in enumerate(Presentation(path).slides, 1):
         languages = [shape.name.rsplit(' ', 1)[-1].lower() for shape in slide.shapes

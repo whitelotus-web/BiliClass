@@ -293,6 +293,7 @@ def main():
         bridge.changed.emit()
         pump(50)
         opened = []
+        opening_page = window.property('page')
         with (patch.object(bridge, "_activate_teaching", side_effect=opened.append),
               patch('app.lesson_completion.complete_existing', side_effect=lambda library, item, cancel=None: item)):
             click(window, c("continueAfterNarrationButton"))
@@ -300,8 +301,8 @@ def main():
         assert len(opened) == 1 and not c("wholeLessonReview").property("visible")
         assert not any(row["approved"] for row in library.get(lesson["id"])["segments"])
         assert bridge.lesson["slide_quality"]["counts"]["FAIL"] == 1, "Opening never certifies layout"
-        assert window.property('page') == 'voice'
-        assert not c('embedPresentationVoice').isVisible()
+        assert window.property('page') == opening_page, 'Open must preserve the current workspace'
+        assert c('embedPresentationVoice').isVisible() == (opening_page == 'result')
         window.setProperty('page', 'result')  # Continue checking the legacy result export checkbox.
         pump(100)
         assert window.grabWindow().save(str(reports / "teaching-preparation.png"))

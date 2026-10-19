@@ -32,7 +32,7 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true; spacing: 3
         Label { text: "Trợ giảng"; color: "#112650"; font.pixelSize: 15; font.weight: Font.DemiBold; Layout.fillWidth: true }
-        HeaderAction { objectName: "resetCompanionPosition"; glyph: "↘"; hint: "Đưa Mascot về góc đã chọn"; onClicked: { bridge.resetMascotLocation(); bridge.showCompanion(companion) } }
+        HeaderAction { objectName: "resetCompanionPosition"; glyph: "↘"; hint: "Đưa Mascot về góc phải dưới"; onClicked: { bridge.resetMascotLocation(); bridge.showCompanion(companion) } }
         HeaderAction { objectName: "companionShortcutGuideToggle"; glyph: "?"; hint: "Hướng dẫn phím"; onClicked: companion.showShortcutGuide = !companion.showShortcutGuide }
         HeaderAction { objectName: "companionSettings"; imageSource: "../assets/navigation/settings-active.png"; hint: "Cài đặt Mascot"; onClicked: companion.requestSettings() }
         HeaderAction { objectName: "hideCompanion"; glyph: "−"; hint: "Ẩn trợ giảng nổi"; onClicked: companion.hide() }

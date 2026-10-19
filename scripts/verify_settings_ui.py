@@ -205,7 +205,8 @@ def main():
         pump(50)
         assert control("mascotPreview").property("subject") == "Môn tự chọn"
         control("mascotSize").setProperty("value", 140)
-        control("mascotPosition").setProperty("currentIndex", 1)
+        assert window.findChild(QObject, "mascotPosition") is None
+        assert window.findChild(QObject, "companionPanelSize") is None
         control("mascotAccessories").setProperty("checked", False)
         control("mascotReducedMotion").setProperty("checked", False)
         control("mascotExplanation").setProperty("checked", False)
@@ -219,7 +220,7 @@ def main():
         control("mascotVisible").setProperty("checked", False)
         click("saveMascot")
         assert bridge.settings["mascot"] == "Lumi"
-        assert bridge.mascotSettings == {"visible": False, "size": 140, "position": "left", "reduced_motion": False, "accessories": False, "show_explanation": False, "show_quiz": False, 'subject_mode': 'auto', 'subject': '', 'always_on_top': True}
+        assert bridge.mascotSettings == {"visible": False, "size": 140, "position": "right", "reduced_motion": False, "accessories": False, "show_explanation": False, "show_quiz": False, 'subject_mode': 'auto', 'subject': '', 'always_on_top': True}
         assert not control("companionWindow").isVisible()
         assert not control("mascotProjectorLeft").property("visible")
         assert not control("mascotProjectorRight").property("visible")
@@ -228,28 +229,28 @@ def main():
         assert control("companionWindow").isVisible(), "Saving an enabled mascot should show the floating assistant"
         assert control("openCompanion").isVisible(), "The main window should keep a mascot launcher available"
         control("companionWindow").hide()
-        assert control("mascotProjectorLeft").property("visible")
-        assert not control("mascotProjectorRight").property("visible")
+        assert not control("mascotProjectorLeft").property("visible")
+        assert control("mascotProjectorRight").property("visible")
         projector = control("projectorWindow")
         projector.setProperty("quiz", True)
         pump(80)
         assert not control("mascotProjectorLeft").property("visible")
         projector.setProperty("quiz", False)
         pump(80)
-        assert control("mascotProjectorLeft").property("visible")
-        bridge._lesson = library.edit_segment(lesson["id"], bridge.segment["id"], "Hãy thảo luận theo nhóm.", "Discuss in groups.", True)
+        assert control("mascotProjectorRight").property("visible")
+        bridge._lesson = library.edit_segment(lesson["id"], lesson['segments'][0]['id'], "Hãy thảo luận theo nhóm.", "Discuss in groups.", True)
         bridge.changed.emit()
         assert bridge.teaching.saveSupport("", "explanation", "Giải thích", "Explanation", True)
         bridge.teaching.ask("explanation", "en")
         pump(80)
         assert bridge.teaching.response["available"]
-        assert not control("mascotProjectorLeft").property("visible")
+        assert not control("mascotProjectorRight").property("visible")
         bridge.teaching.reset()
         pump(80)
-        assert control("mascotProjectorLeft").property("visible")
+        assert control("mascotProjectorRight").property("visible")
         bridge.showProjector(projector, 0)
         pump(250)
-        assert control("mascotProjectorLeft").isVisible()
+        assert control("mascotProjectorRight").isVisible()
         assert projector.grabWindow().save(str(reports / "settings-mascot-projector.png"))
         projector.hide()
         companion = control("companionWindow")
@@ -258,7 +259,8 @@ def main():
         pump(250)
         assert control("mascotCompanion").property("character") == "Lumi"
         assert control("mascotCompanion").width() >= 130
-        assert companion.x() <= 30
+        area = QGuiApplication.primaryScreen().availableGeometry()
+        assert companion.x() > area.center().x() and companion.x() + companion.width() <= area.right() + 1
         companion.hide()
         shot("mascot")
         window.resize(1080, 700)
@@ -273,7 +275,7 @@ def main():
         shot("mascot-compact-preview")
         window.resize(1366, 850)
         pump(160)
-        checks.append("mascot cards, context preview, subject label, visibility, explanation/quiz, size and position apply across teacher/projector/companion")
+        checks.append("mascot cards, context preview, accessory details, visibility, explanation/quiz, linked size and bottom-right default apply across teacher/projector/companion")
 
         click("settingsTab4")
         control("settingsClassMode").setProperty("currentIndex", 1)

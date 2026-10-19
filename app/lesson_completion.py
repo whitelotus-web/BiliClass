@@ -74,7 +74,7 @@ def _retain_unchanged_audio(before, after):
 def layout_notice(lesson):
     count = lesson.get('slide_quality', {}).get('counts', {}).get('FAIL', 0)
     if count and not lesson.get('voice_only'):
-        return f'Đã thử tự căn chỉnh; còn {count} slide cần xem lại bố cục trong PowerPoint. Bản gốc được giữ nguyên.'
+        return f'Có {count} slide cần xem lại bố cục trong PowerPoint. Bản gốc được giữ nguyên.'
     return ''
 
 
@@ -83,7 +83,9 @@ def prepare_library_teaching(directory, identity, profile=None, cancel=None, *, 
     from .teaching_session import prepare_teaching
     from .voice_import import prepare_library_lesson
 
-    lesson, preview = prepare_library_lesson(directory, identity, profile, complete=True, cancel=cancel)
+    # Opening a saved product must not run an unrequested full Office repair.
+    # Conversion and export retain their verified completion paths.
+    lesson, preview = prepare_library_lesson(directory, identity, profile, cancel=cancel)
     if narration is not None:
         def choice(record):
             return record.get('mode'), record.get('voice'), record.get('rate'), record.get('playback', 'separate')

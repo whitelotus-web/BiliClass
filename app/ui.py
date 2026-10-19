@@ -75,6 +75,7 @@ class Bridge(QObject):
     speechStateChanged = Signal()
     workflowChanged = Signal()
     narrationAlreadyCreated = Signal('QVariantMap')
+    companionAppearanceChanged = Signal()
 
     @Property(bool, constant=True)
     def developmentMode(self):
@@ -105,6 +106,12 @@ class Bridge(QObject):
 
         self._narration_preferences = NarrationPreferences(library, self)
         self._narration_preferences.failed.connect(lambda message: self.inform(message, True, refresh=False))
+        from .companion_preferences import CompanionPreferences
+
+        self._companion_preferences = CompanionPreferences(library, self)
+        self._companion_preferences.changed.connect(self.companionAppearanceChanged)
+        self._companion_preferences.failed.connect(lambda message: self.inform(message, True, refresh=False))
+        self._mascot_location = {}
         self.logger = configure_logging(library.directory)
         try:
             ensure_builtin_foundation(self.library)
@@ -113,6 +120,7 @@ class Bridge(QObject):
         self._lesson = {}
         self._segment_index = 0
         self._busy = False
+        self._opening_teaching_id = ''
         self._speaking = False
         self._speech_generation = 0
         self._companion_language = 'en'
@@ -1746,31 +1754,25 @@ class Bridge(QObject):
             'subject_mode': 'auto', 'subject': '',
         }
         saved = self.library.setting("mascot_options", {})
-        return {**defaults, **saved} if isinstance(saved, dict) else defaults
+        return {**defaults, **saved, 'position': 'right'} if isinstance(saved, dict) else defaults
 
     @Property(str, notify=changed)
     def companionPanelSize(self):
-        value = self.library.setting('companion_panel_size', 'standard')
-        return value if value in {'small', 'standard', 'large'} else 'standard'
+        from .companion_preferences import panel_size
 
-    @Slot(str)
-    def setCompanionPanelSize(self, value):
-        if value in {'small', 'standard', 'large'} and value != self.companionPanelSize:
-            self.library.set_setting('companion_panel_size', value)
-            self.changed.emit()
+        return panel_size(self.mascotSettings['size'])
 
-    @Property(int, notify=changed)
+    @Property(int, notify=companionAppearanceChanged)
     def companionPanelOpacity(self):
-        value = self.library.setting('companion_panel_opacity', 100)
-        return max(30, min(100, value)) if type(value) is int else 100
+        return self._companion_preferences.opacity
 
     @Slot(int)
     def setCompanionPanelOpacity(self, value):
-        value = max(30, min(100, value))
-        if value == self.companionPanelOpacity:
-            return
-        self.library.set_setting('companion_panel_opacity', value)
-        self.changed.emit()
+        self._companion_preferences.select_opacity(value)
+
+    @Slot()
+    def flushCompanionAppearance(self):
+        self._companion_preferences.flush()
 
     @Property(str, notify=changed)
     def mascotSubject(self):
@@ -1856,7 +1858,7 @@ class Bridge(QObject):
     @Slot(QObject, bool)
     def showCompanion(self, window, for_presentation=False):
         extent = int(window.property("mascotExtent"))
-        saved = self.library.setting("mascot_location", {})
+        saved = self._mascot_location
         screen = QGuiApplication.primaryScreen()
         if self._powerpoint_state.get("active") and self._powerpoint_state.get("hwnd"):
             try:
@@ -1877,14 +1879,14 @@ class Bridge(QObject):
             saved = {}
         area = screen.availableGeometry()
         if not saved:
-            anchor_x = area.left() + 20 if self.mascotSettings["position"] == "left" else area.right() - extent - 19
+            anchor_x = area.right() - extent - 19
             anchor_y = area.bottom() - extent - 19
             if for_presentation:
                 self.saveMascotLocation(anchor_x, anchor_y)
 
         right_edge = area.left() + area.width()
         bottom_edge = area.top() + area.height()
-        menu_on_left = self.mascotSettings["position"] == "right"
+        menu_on_left = True
         if anchor_x + window.width() > right_edge:
             menu_on_left = True
         elif anchor_x - (window.width() - extent) < area.left():
@@ -1902,11 +1904,11 @@ class Bridge(QObject):
 
     @Slot(int, int)
     def saveMascotLocation(self, x, y):
-        self.library.set_setting("mascot_location", {"x": x, "y": y})
+        self._mascot_location = {"x": x, "y": y}
 
     @Slot()
     def resetMascotLocation(self):
-        self.library.set_setting("mascot_location", {})
+        self._mascot_location = {}
 
     @Slot()
     def requestClassroomProjection(self):
@@ -2100,6 +2102,7 @@ class Bridge(QObject):
                 self._web_conversion_failure(str(exc))
             self.inform(str(exc), True)
         finally:
+            self._opening_teaching_id = ''
             self.storage.failed()
             worker.deleteLater()
             self.changed.emit()
@@ -2592,6 +2595,23 @@ class Bridge(QObject):
         except Exception as exc:
             self.inform(str(exc), True)
 
+    @Slot(str)
+    def openLessonNarration(self, lesson_id):
+        """Configure a saved lesson's voice without opening or rebinding Office."""
+        if self._busy or self.narrationBusy:
+            self.inform('Hoàn tất hoặc dừng tác vụ trước khi chọn bài tạo giọng.', True, refresh=False)
+            return
+        if self._lesson.get('id') == lesson_id and self.quickResult.get('path'):
+            self.navigate.emit('voice')
+            return
+        from .voice_import import prepare_library_lesson
+
+        directory, profile = self.library.directory, dict(self.settings)
+        self.launch(lambda: prepare_library_lesson(directory, lesson_id, profile),
+                    lambda result: self._show_lesson(*result, auto_repair=False,
+                                                     destination='voice', load_preview=False))
+        self.inform('Đang nạp bài để cấu hình giọng đọc…', refresh=False)
+
     def _show_lesson(self, lesson, preview=None, *, auto_repair=True, destination='result', load_preview=True):
         """Apply prepared UI data; file integrity checks belong to the worker."""
         if not self.teaching_session.bound:
@@ -2610,7 +2630,8 @@ class Bridge(QObject):
         self._segment_index = 0
         self.changed.emit()
         self.selectionChanged.emit()
-        self.navigate.emit(destination)
+        if destination is not None:
+            self.navigate.emit(destination)
         if (auto_repair and not lesson.get('voice_only') and lesson.get('external_deck') and lesson.get('slide_quality',{}).get('counts',{}).get('FAIL')
                 and 'local_repairs' not in lesson.get('slide_quality',{})
                 and lesson['id'] not in getattr(self,'_auto_reviewed',set())):
@@ -2948,8 +2969,8 @@ class Bridge(QObject):
 
         from .lesson_completion import prepare_library_teaching
 
-        if self._busy or self.narrationBusy or self.powerpoint_worker or self.classroom.running:
-            self.inform('Hoàn tất tác vụ hoặc đóng trình chiếu hiện tại trước khi mở PowerPoint.', True, refresh=False)
+        if self._busy or self.narrationBusy or self.classroom.running:
+            self.inform('Hoàn tất tác vụ hoặc tiết học trước khi mở PowerPoint.', True, refresh=False)
             return
         if identity != self.selectedNarrationVariant:
             self.selectNarrationVariant(identity)
@@ -2957,6 +2978,7 @@ class Bridge(QObject):
             self.inform('Bản giọng đã chọn chưa hoàn tất. Tạo tiếp phần còn thiếu trước khi mở.', True, refresh=False)
             return
         lesson, directory, profile = copy.deepcopy(self._lesson), self.library.directory, dict(self.settings)
+        self._opening_teaching_id = lesson['id']
         self.launch(lambda: prepare_library_teaching(directory, lesson['id'], profile, self.cancel_event,
                                                        narration=lesson['narration']), self._open_library_teaching)
         self.inform('Đang chuẩn bị bản có giọng và mở PowerPoint…', refresh=False)
@@ -2969,13 +2991,22 @@ class Bridge(QObject):
             self.inform('Hoàn tất tác vụ hoặc tiết học trước khi chọn bài dạy.', True, refresh=False)
             return
         directory, profile = self.library.directory, dict(self.settings)
+        self._opening_teaching_id = identity
         self.launch(lambda: prepare_library_teaching(directory, identity, profile, self.cancel_event),
                     self._open_library_teaching)
-        self.inform('Đang hoàn thiện bài và chuẩn bị mở PowerPoint cùng Mascot…', refresh=False)
+        self.inform('Đang mở PowerPoint và gắn Mascot…', refresh=False)
+
+    @Property(str, notify=changed)
+    def openingTeachingLesson(self):
+        if self._busy:
+            return self._opening_teaching_id
+        if self._powerpoint_state.get('starting'):
+            return self.teaching_session.bound.get('lesson', {}).get('id', '')
+        return ''
 
     def _open_library_teaching(self, prepared):
         lesson, preview = prepared['lesson'], prepared['preview']
-        self._show_lesson(lesson, preview, auto_repair=False, destination='voice', load_preview=False)
+        self._show_lesson(lesson, preview, auto_repair=False, destination=None, load_preview=False)
         if self.powerpoint_worker is not None:
             self._pending_teaching = prepared
             self.stopPowerPoint()
@@ -3312,12 +3343,10 @@ class Bridge(QObject):
         if subject_mode not in ('auto', 'fixed') or not isinstance(subject, str) or len(subject) > 60 or subject_mode == 'fixed' and not subject.strip():
             self.inform('Chọn môn hợp lệ cho phụ kiện mascot.', True)
             return
-        if position in ("left", "right") and position != self.mascotSettings["position"]:
-            self.resetMascotLocation()
         self.library.set_setting("mascot", mascot)
         self.library.set_setting("mascot_options", {
             "visible": visible, "size": max(60, min(160, size)),
-            "position": position if position in ("left", "right") else "right",
+            "position": "right",
             "reduced_motion": reduced_motion, "accessories": accessories,
             "show_explanation": show_explanation, "show_quiz": show_quiz,
             'subject_mode': 'auto', 'subject': '',

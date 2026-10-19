@@ -147,6 +147,7 @@ def run(args):
     bridge._catalog.shutdown()
     bridge.narration_preparation.shutdown()
     bridge._narration_preferences.shutdown()
+    bridge._companion_preferences.shutdown()
     bridge.slidePreview.shutdown()
     bridge.libraryThumbnails.shutdown()
     speech.stop()

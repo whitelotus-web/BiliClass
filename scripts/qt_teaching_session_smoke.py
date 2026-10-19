@@ -31,7 +31,7 @@ from app.ui import Bridge
 def main():
     app = QGuiApplication([])
     QQuickStyle.setStyle('Basic')
-    out = Path('reports/rc68/teaching')
+    out = Path('reports/rc81/teaching')
     out.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='bcl-teaching-', ignore_cleanup_errors=True) as folder:
         folder = Path(folder)
@@ -85,6 +85,7 @@ def main():
             assert button.property('text') == 'Mở PowerPoint'
             click(window, button)
             until(lambda: bool(bridge.powerpointState.get('opened')), timeout=50)
+            assert window.property('page') == 'library', 'Opening PowerPoint must not navigate to voice settings'
             assert not c('wholeLessonReview').property('visible')
             assert not bridge.powerpointState.get('active')
             assert library.get(lesson['id'])['revision'] == before_revision
@@ -174,6 +175,42 @@ def main():
             until(lambda: bridge.teachingSession.native_state == 'reading')
             bridge.teachingSession.stop()
             assert original.read_bytes() == original_bytes
+            # Each teacher-facing Open entry uses the same direct binding path.
+            # Keep a different managed presentation open to exercise replacement.
+            from app.voice_import import prepare_library_lesson
+
+            window.showNormal()
+            converted = prepare_library_lesson(directory, other['id'])
+            bridge._show_lesson(*converted, destination='result', auto_repair=False, load_preview=False)
+            pump(150)
+            assert c('useConvertedLessonButton').property('text') == 'Mở PowerPoint'
+            click(window, c('useConvertedLessonButton'))
+            until(lambda: not bridge.busy and bridge.teachingSession.state.get('lesson_id') == other['id']
+                  and bridge.powerpointState.get('opened'), timeout=50)
+            assert window.property('page') == 'result' and not c('wholeLessonReview').property('visible')
+            assert not bridge.powerpointState.get('active')
+            print('Converted result opened and bound', flush=True)
+            # Before voice creation, opening is still available and never synthesizes.
+            window.setProperty('page', 'voice')
+            pump(150)
+            token = bridge.teachingSession.token
+            click(window, c('voiceTeachWithoutNarration'))
+            print('Before-voice open requested: ' + json.dumps({'busy': bridge.busy, 'message': bridge.message,
+                  'token': bridge.teachingSession.token, 'previous_token': token}), flush=True)
+            until(lambda: not bridge.busy and bridge.teachingSession.token != token
+                  and bridge.powerpointState.get('opened'), timeout=50)
+            assert window.property('page') == 'voice' and bridge.teachingSession.state['lesson_id'] == other['id']
+            assert not bridge.narrationBusy and not c('wholeLessonReview').property('visible')
+            # After voice creation, the selected ready variant replaces the old binding.
+            bridge._show_lesson(library.get(lesson['id']), preview, destination='voice', auto_repair=False, load_preview=False)
+            pump(150)
+            assert c('continueAfterNarrationButton').isVisible()
+            click(window, c('continueAfterNarrationButton'))
+            until(lambda: not bridge.busy and bridge.teachingSession.state.get('lesson_id') == lesson['id']
+                  and bridge.powerpointState.get('opened'), timeout=50)
+            assert window.property('page') == 'voice' and not bridge.powerpointState.get('active')
+            assert not c('wholeLessonReview').property('visible')
+            assert not any(segment['approved'] for segment in library.get(lesson['id'])['segments'])
             bridge.stopPowerPoint()
             until(lambda: bridge.powerpoint_worker is None)
             assert not bridge.teachingSession.state['bound']
@@ -185,10 +222,17 @@ def main():
                                  'floating library and file choices', 'direct switch without approval popup',
                                  'no-voice teaching', 'external PPTX with embedded voices', 'native pause/resume',
                                  'delayed playback rejected after native slide change',
+                                 'direct Open and Mascot binding after conversion/before voice/after voice/in library',
                                  'source unchanged'],
                       'scope': 'Current Windows/Office, silent WAV fixtures; no physical projector or second monitor certification'}
             (out / 'result.json').write_text(json.dumps(result, indent=2), encoding='utf-8')
             print(json.dumps(result), flush=True)
+        except BaseException:
+            print('Failure state: ' + json.dumps({'busy': bridge.busy, 'error': bridge.error, 'message': bridge.message,
+                  'native': bridge.powerpointState, 'bound': bridge.teachingSession.state.get('lesson_id'),
+                  'pending': bool(bridge._pending_teaching), 'page': window.property('page')}), flush=True)
+            window.grabWindow().save(str(out / 'failure.png'))
+            raise
         finally:
             if bridge.powerpoint_worker:
                 bridge.stopPowerPoint()

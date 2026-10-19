@@ -675,24 +675,27 @@ def vietnamese_ready():
     assert window.findChild(QObject, "repairConvertedLessonButton").property("enabled")
     assert QQuickWindow.grabWindow(window).save(str(reports / "returned-pptx-details.png"))
     click("resultDetailsButton")
-    click("useConvertedLessonButton")
-    assert window.findChild(QObject, "wholeLessonReview").property("visible")
     sessions = []
-    bridge._start_powerpoint_session = lambda *args: sessions.append(args)
-    click("confirmWholeLessonButton")
-    assert len(sessions) == 1 and all(s["approved"] for s in bridge.lesson["segments"])
-    assert not bridge.quickResult["draft"]
+    bridge._start_powerpoint_session = lambda *args, **kwargs: sessions.append((args, kwargs))
+    click("useConvertedLessonButton")
+    opening_deadline = time.monotonic() + 30
+    while bridge.busy and time.monotonic() < opening_deadline:
+        QTest.qWait(10)
+    assert not bridge.busy and len(sessions) == 1, bridge.message
+    assert not window.findChild(QObject, "wholeLessonReview").property("visible")
+    assert not any(s["approved"] for s in bridge.lesson["segments"])
+    assert bridge.quickResult["draft"]
     assert not any(q["approved"] for q in bridge.lesson["questions"])
-    stages.append("Receive byte-identical PPTX -> real Office preview -> whole-deck confirmation -> mascot mapping")
+    stages.append("Receive byte-identical PPTX -> real Office preview -> direct open with mascot mapping; no automatic approval")
     lesson_id = bridge.lesson["id"]
     bridge.openLesson(lesson_id)
     reopen_deadline = time.monotonic() + 15
     while bridge.busy and time.monotonic() < reopen_deadline:
         QTest.qWait(10)
     assert not bridge.busy, "Saved presentation integrity check did not finish"
-    assert bridge.quickResult["external"] and not bridge.quickResult["draft"]
+    assert bridge.quickResult["external"] and bridge.quickResult["draft"]
     assert bridge.quickResult["segment_map"]
-    stages.append("Reopen saved presentation retains returned file, confirmation and slide mapping")
+    stages.append("Reopen saved presentation retains returned file, review state and slide mapping")
     assert not window.property("resultDetails")
     broad, audio_only = [], []
     bridge.changed.connect(lambda: broad.append(True))

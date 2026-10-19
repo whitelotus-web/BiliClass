@@ -1,10 +1,12 @@
 """Disposable Qt geometry, settings navigation and hit testing; no Office/model."""
 
 import json
+import sqlite3
 import tempfile
+import time
 from pathlib import Path
 
-from PySide6.QtCore import QCoreApplication, QEvent, QObject, QPointF, QUrl, Slot
+from PySide6.QtCore import QCoreApplication, QEvent, QObject, QPointF, QTimer, QUrl, Slot
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
@@ -32,7 +34,7 @@ class ControlBridge(Bridge):
 def main():
     app = QGuiApplication([])
     QQuickStyle.setStyle('Basic')
-    report = Path('reports/rc80/companion-controls')
+    report = Path('reports/rc81/companion-controls')
     report.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='bcl-controls-', ignore_cleanup_errors=True) as folder:
         library = Library(Path(folder))
@@ -58,8 +60,8 @@ def main():
             assert c('companionSettings').isVisible() and c('companionShortcutGuideToggle').width() == 30
             assert companion.opacity() == 1 and bridge.companionPanelOpacity == 100
             assert companion.grabWindow().save(str(report / 'unbound.png'))
-            for size, width in [('small', 344), ('standard', 384), ('large', 432)]:
-                bridge.setCompanionPanelSize(size)
+            for size, pixels, width in [('small', 80, 344), ('standard', 110, 384), ('large', 150, 432)]:
+                bridge.saveMascotPreferences('Milo', True, pixels, 'right', False, True, True, True)
                 pump(100)
                 assert companion.width() == min(width, app.primaryScreen().availableGeometry().width() - 16)
                 menu = c('companionMenu')
@@ -71,7 +73,7 @@ def main():
                 point = gear.mapToItem(menu, QPointF())
                 assert point.x() > 0 and point.x() + gear.width() < menu.width()
                 assert companion.grabWindow().save(str(report / (size + '.png')))
-            bridge.setCompanionPanelSize('standard')
+            bridge.saveMascotPreferences('Milo', True, 110, 'right', False, True, True, True)
             bridge._powerpoint_state = {'active': True, 'opened': True, 'slide': 2, 'total': 7, 'message': ''}
             bridge.powerpoint_worker = object()  # UI availability only; commands intercepted above.
             bridge.teachingSession.bind({'lesson': lesson, 'path': '', 'preview': {}, 'media': {2: ['en', 'vi', 'both']}})
@@ -98,14 +100,60 @@ def main():
             transparency.setProperty('value', 0)
             transparency.moved.emit()
             assert bridge.companionPanelOpacity == 100
-            assert library.setting('companion_panel_size', '') == 'standard'
+            assert c('settingsPage').findChild(QObject, 'companionPanelSize') is None
+            assert c('settingsPage').findChild(QObject, 'mascotPosition') is None
+            assert not c('mascotPreview').property('showSubjectBadge')
+            assert not c('mascotPreview').findChild(QObject, 'mascotSubjectBadge').isVisible()
+            for width, height in ((1366, 850), (1080, 700)):
+                root.resize(width, height)
+                pump(100)
+                summary, toggles = c('mascotAccessorySummary'), c('mascotAlwaysOnTop')
+                summary_left = summary.mapToScene(QPointF()).x()
+                toggles_right = toggles.mapToScene(QPointF(toggles.width(), 0)).x()
+                if c('settingsPage').property('wideMascotLayout'):
+                    assert summary_left > toggles_right, 'Accessory details belong beside display choices'
+                else:
+                    assert summary.mapToScene(QPointF()).y() > toggles.mapToScene(QPointF(0, toggles.height())).y()
+                viewport = c('settingsContentScroll').property('contentItem')
+                offset = summary.mapToItem(viewport, QPointF()).y()
+                viewport.setProperty('contentY', max(0, min(viewport.property('contentHeight') - viewport.height(),
+                                                           viewport.property('contentY') + offset - 120)))
+                pump(100)
+                assert root.grabWindow().save(str(report / f'settings-{width}.png'))
+            until(lambda: bridge._companion_preferences.worker is None and not bridge._companion_preferences.pending)
             assert library.setting('companion_panel_opacity', 0) == 100
-            bridge.setCompanionPanelSize('invalid')
             bridge.setCompanionPanelOpacity(-30)
             assert bridge.companionPanelSize == 'standard' and bridge.companionPanelOpacity == 30
+            broad_refreshes, ticks = [], []
+            bridge.changed.connect(lambda: broad_refreshes.append(1))
+            beat = QTimer()
+            beat.setInterval(10)
+            beat.timeout.connect(lambda: ticks.append(time.monotonic()))
+            lock = sqlite3.connect(library.directory / 'library.db')
+            lock.execute('BEGIN IMMEDIATE')
+            beat.start()
+            try:
+                for value in range(71):
+                    transparency.setProperty('value', value)
+                    transparency.moved.emit()
+                    pump(4)
+                bridge.flushCompanionAppearance()
+                pump(150)
+                assert bridge.companionPanelOpacity == 30 and not broad_refreshes
+                assert bridge._companion_preferences.worker is not None, 'Save is waiting off the UI thread'
+                assert len(ticks) > 10
+                max_gap = max(b - a for a, b in zip(ticks, ticks[1:]))
+                assert max_gap < .35, max_gap
+            finally:
+                lock.rollback()
+                lock.close()
+                beat.stop()
+            until(lambda: bridge._companion_preferences.worker is None and not bridge._companion_preferences.pending)
+            assert library.setting('companion_panel_opacity', 100) == 30
             assert not warnings, warnings
             result = dict(status='passed', sizes=3, opacity_clicks=2, settings_preserves_binding=True,
                           subject_badge_hidden=True, qml_warnings=warnings,
+                          transparency_max_ui_gap_seconds=round(max_gap, 3), transparency_broad_refreshes=len(broad_refreshes),
                           scope='Qt hit targets/geometry with intercepted commands; native Office verified separately')
             (report / 'result.json').write_text(json.dumps(result, indent=2), encoding='utf-8')
             print(json.dumps(result))
@@ -116,7 +164,8 @@ def main():
             companion.hide()
             root.hide()
             for worker in (bridge.libraryThumbnails, bridge.slidePreview, bridge._catalog, bridge.browserAI,
-                           bridge.english_reader, bridge.narration_preparation, bridge.classroom, bridge.voice_controls):
+                           bridge.english_reader, bridge.narration_preparation, bridge.classroom, bridge.voice_controls,
+                           bridge._companion_preferences):
                 worker.shutdown()
             engine.deleteLater()
             QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)

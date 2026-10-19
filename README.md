@@ -2,21 +2,21 @@
 
 Ứng dụng Windows chuyển tài liệu của giáo viên thành bài giảng Anh–Việt, rồi trình chiếu bằng PowerPoint với giọng đọc và mascot trợ giảng. Hỗ trợ cấu hình từ lớp 1 đến lớp 12 và môn tự nhập.
 
-## Luồng hiện tại — RC75
+## Luồng hiện tại — RC81
 
-RC75 ghép nhãn VI/EN/VI+EN vào góc nút loa; nhãn được giữ khi chuyển sang biểu tượng tạm dừng. Vùng hẹp dùng nút ngang, giữ giới hạn cao 20 pt để không mất loa ở mép slide. [Kiểm chứng kiểu loa](docs/BUILD_RC75.md).
+RC81 tách **Mở PowerPoint** và **Tạo giọng đọc** trong Thư viện. Các nút mở sau chuyển đổi, trước/sau tạo giọng và trong Thư viện đều mở bài và gắn Mascot trực tiếp, giữ nguyên trang; bấm F5 khi sẵn sàng. Mỗi phiên dùng bản sao riêng để tránh khóa nguồn/cache. [Kiểm chứng RC81](docs/BUILD_RC81.md) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md).
 
-RC74 thêm phím đọc và nút phát/tạm dừng trong phiên PowerPoint gắn với Mascot: Cách = Anh, Enter = Việt, Ctrl+Cách = hai ngôn ngữ; ←/→ điều hướng, ↑/↓ âm lượng lời đọc. Gán phím tại Cài đặt → Mascot; xem bảng phím ngay trên Mascot. [Kiểm chứng và phạm vi](docs/BUILD_RC74.md).
+Mascot mặc định phải dưới, kéo để di chuyển. Nhỏ/Vừa/Lớn điều chỉnh cả nhân vật và bảng trợ giảng; nền trong tự lưu ở nền, chữ/nút giữ rõ. Cách = Anh, Enter = Việt, Ctrl+Cách = hai ngôn ngữ; ←/→ điều hướng, ↑/↓ âm lượng. Gán phím tại Cài đặt → Mascot.
 
-RC73 hoàn thiện cấu hình giọng, màn hoàn tất, mở PowerPoint và tải bài có loa; thêm sao lưu ZIP64, khôi phục có checkpoint và Office worker riêng. [Phạm vi kiểm chứng và bộ cài](docs/BUILD_RC73.md) · [Tiến độ kế hoạch](docs/IMPLEMENTATION_RC73.md) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md). Bản dựng tại máy và bản trên GitHub Releases có vòng phát hành riêng; xem version trong ứng dụng/gói đang dùng.
+Loa VI/EN/VI+EN chỉ hiện theo âm thanh thực có, nhãn ghép ở góc biểu tượng. Bấm phát/tạm dừng/đọc tiếp; đổi ngôn ngữ dừng giọng trước. [Kiểm chứng kiểu loa](docs/BUILD_RC75.md). Bản dựng tại máy và bản trên GitHub Releases có vòng phát hành riêng; xem version trong ứng dụng/gói đang dùng.
 
 BiliClass dùng **Google Cloud Translation** dịch phần chữ và sắp xếp PowerPoint tại máy. Browser ChatGPT/Gemini tạm ẩn. Giọng VieNeu chạy ngoại tuyến, là bước tùy chọn sau khi đã có bài song ngữ.
 
-1. Cài đặt → Google Dịch: thêm key, mỗi dòng `Tên dự án | API_KEY`, rồi lưu. Có thể nhận key từ kho GitHub riêng tư nếu máy đã đăng nhập GitHub có quyền; không có mật khẩu BiliClass bổ sung.
-2. Chọn PowerPoint `.pptx` tối đa 200 MB, chọn **Song ngữ Việt–Anh** hoặc **Tiếng Anh 100%**; giữ thiết kế gốc hoặc dùng mẫu Universal 2026/mẫu PowerPoint riêng.
+1. Cài đặt → Google Dịch: thêm key, mỗi dòng một key, rồi lưu. Key chỉ lưu mã hóa trên máy, không đồng bộ hay tải lên GitHub.
+2. Chọn PowerPoint `.pptx` tối đa 200 MB, chọn **Song ngữ Việt–Anh** hoặc **Tiếng Anh 100%**; giữ thiết kế gốc hoặc chọn một trong các mẫu BiliClass có sẵn.
 3. Chuyển đổi và xem lại bài. Song ngữ cùng slide tự chọn cách xếp theo vùng; vùng quá kín có thể dùng trang tiếp nối song ngữ. Hình, công thức, nội dung OCR và hiệu ứng phức tạp vẫn cần đối chiếu.
 4. Tải PowerPoint ngay hoặc chọn người đọc/tốc độ để tạo giọng Anh, Việt hay Việt–Anh. Lần đầu mặc định Tiếng Anh, lần sau nhớ lựa chọn gần nhất. Tạo trùng có popup dùng lại/tạo lại. Tên tải có sẵn tên bài và ngôn ngữ/bản giọng trong ngoặc.
-5. Khi đủ giọng, chọn **Mở PowerPoint**, **Kiểm tra slide và giọng**, tải PPTX/audio hoặc xem trong Bài giảng. PowerPoint mở trực tiếp; bấm F5 rồi bấm loa. Loa đọc trọn lời đã lưu của slide khi bấm, kể cả phần xuất hiện sau. Mascot có lựa chọn đọc theo phần đang hiện. Việc mở không tự duyệt nội dung/bố cục. Muốn học sinh trả lời câu hỏi, dùng Lớp học; kết quả nằm trong **Lớp học → Kết quả lớp học**.
+5. Bấm **Mở PowerPoint** để mở/gắn Mascot dù có hoặc chưa có giọng; F5 bắt đầu trình chiếu. Khi đủ giọng, có thêm **Kiểm tra slide và giọng**, tải PPTX/audio hoặc xem trong Bài giảng. Loa đọc trọn lời đã lưu của slide khi bấm, kể cả phần xuất hiện sau. Mascot có lựa chọn đọc theo phần đang hiện. Việc mở không tự duyệt nội dung/bố cục. Muốn học sinh trả lời câu hỏi, dùng Lớp học; kết quả nằm trong **Lớp học → Kết quả lớp học**.
 
 Thư viện có tìm/lọc, một nút biểu tượng đổi Danh sách/Thẻ lớn với trang đầu 16:9 và chọn nhiều bài để tải ZIP hoặc đưa vào thùng rác. Thuật ngữ & kiến thức dùng để tra cứu và quản lý cách dùng từ riêng. [Thay đổi thư viện và dạy học](docs/WORKFLOW_RC51.md). [Rà soát và tối ưu RC58](docs/AUDIT_RC58.md). [Trang chủ RC60](docs/HOME_RC60.md).
 
@@ -24,7 +24,7 @@ RC61 đưa thanh cuộn Trang chủ/Thư viện ra lề riêng, thu gọn phần
 
 RC62 cho phép bấm nền, tên, thông tin hoặc ảnh bìa của bài trong Thư viện để chọn/bỏ chọn, ở cả danh sách và thẻ. Bài đã chọn có viền xanh; Mở bài/Tải/Sửa/Xóa vẫn là các thao tác riêng. Bấm ảnh bìa chọn bài; dùng **Mở bài** để xem bài.
 
-RC63 rút gọn Google Dịch, hiển thị rõ số key và số nhóm đếm; tổng giới hạn tại máy tính theo nhóm, không nhân theo số Gmail/key. Bấm trạng thái bài giảng để xem lý do, kiểm tra/tự sửa kỹ thuật hoặc mở bước xác nhận của giáo viên. Tự sửa không tự duyệt bản dịch.
+Google Dịch giữ các thao tác nhập/lưu key, hướng dẫn và bộ đếm cục bộ theo key. Bấm trạng thái bài giảng để xem lý do, kiểm tra/tự sửa kỹ thuật hoặc mở bước xác nhận của giáo viên. Tự sửa không tự duyệt bản dịch.
 
 RC64 đồng bộ thanh cuộn mảnh ở các trang và hộp nội dung dài. Thanh trang nằm ở lề phải; khung nhập/xem có khoảng chừa riêng, không che chữ hoặc nút. Khung tải lên ở trang Chuyển đổi có hình PowerPoint ở bên trái, tự cân với phần hướng dẫn và nút chọn file.
 
@@ -32,7 +32,7 @@ RC65 bỏ khung tải lên lặp ở Trang chủ, dùng bộ icon cung cấp cho
 
 **Cài đặt → Dữ liệu → Chuyển thư viện sang nơi khác** chuyển cả bài, giọng, thuật ngữ và cấu hình vào `BiliClass-Data` dưới thư mục đã chọn. Xác minh, đóng sạch và mở lại với nơi mới; chỉ dọn các tệp cũ đã đối chiếu sau khi thư viện mới mở thành công. Nơi chọn được nhớ qua lần khởi động/cập nhật. Không tự chuyển dữ liệu thật khi nâng cấp. Hộp tải/xuất/sao lưu gợi ý tên tự động và nhớ thư mục lưu gần nhất; thầy cô vẫn chọn đích trước khi lưu.
 
-500.000 ký tự không phải hạn mức riêng cho từng key. Bộ đếm BiliClass theo nhóm dự án chỉ phản ánh lượng dùng cục bộ; hãy đặt quota trong Google Cloud. Key mã hóa theo tài khoản Windows; không nằm trong bộ cài/repo công khai hoặc bản sao lưu thư viện. Chuyển key qua kho riêng tư là snapshot khi bấm, không đồng bộ quota trực tiếp giữa các máy.
+Bộ đếm BiliClass chỉ phản ánh lượng dùng cục bộ, không phải số dư Google Cloud. Key mã hóa theo tài khoản Windows; không nằm trong bộ cài, repo hoặc bản sao lưu thư viện, không có luồng chuyển key qua GitHub.
 
 ## Cài và cập nhật
 

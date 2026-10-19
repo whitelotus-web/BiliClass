@@ -122,7 +122,9 @@ def main():
             # mascot away from the actual slideshow when starting a new show.
             primary = QGuiApplication.primaryScreen().availableGeometry()
             bridge.saveMascotLocation(primary.left() + 40, primary.top() + 40)
-            click("useConvertedLessonButton")
+            # Retain coverage of the optional explicit review route. The main
+            # Open buttons use the direct route covered by qt_teaching_session_smoke.
+            QMetaObject.invokeMethod(window.findChild(QObject, "wholeLessonReview"), "open", Qt.DirectConnection)
             assert window.findChild(QObject, "wholeLessonReview").property("visible")
             click("confirmWholeLessonButton")
             assert bridge.powerpoint_worker is not None, (bridge.message, bridge.busy, bridge.error)
@@ -203,7 +205,7 @@ def main():
             wait(lambda: bridge.powerpoint_worker is None)
             assert bridge.mascotState == "idle"
             # The same button must work a second time after ending the show.
-            click("useConvertedLessonButton")
+            QMetaObject.invokeMethod(window.findChild(QObject, "wholeLessonReview"), "open", Qt.DirectConnection)
             assert window.findChild(QObject, 'wholeLessonReview').property('visible')
             click('confirmWholeLessonButton')
             bridge.powerpoint_worker.failed.connect(lambda message: print("Reopen error: " + message, flush=True))

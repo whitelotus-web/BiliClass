@@ -1,5 +1,6 @@
 import copy
 import wave
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -74,7 +75,7 @@ def test_ready_voice_opens_powerpoint_without_approving_or_blocking_on_layout_wa
         assert saved['revision'] == lesson['revision']
         assert not any(row['approved'] for row in saved['segments'])
         assert saved['slide_quality']['counts']['FAIL'] == 1
-        assert completions == [lesson['id']]
+        assert completions == [], 'Opening an existing voice must not run an Office repair'
         assert source.read_bytes() == original
     finally:
         for worker in (bridge._catalog, bridge.browserAI, bridge.slidePreview, bridge.libraryThumbnails,
@@ -131,6 +132,26 @@ class FakeBridge(QObject):
 
     def inform(self, *args, **kwargs):
         self.calls.append(('message', args))
+
+
+def test_no_voice_bindings_use_separate_session_copies_and_cleanup_preserves_source(tmp_path):
+    lesson, preview, directory, source = prepared_lesson(tmp_path)
+    lesson['narration'] = {'version': 2, 'mode': 'none'}
+    original, product = source.read_bytes(), Path(preview['path'])
+    product_bytes = product.read_bytes()
+    first = prepare_teaching(lesson, preview, directory)
+    second = prepare_teaching(lesson, preview, directory)
+    first_path, second_path = Path(first['path']), Path(second['path'])
+    assert first_path != second_path and first_path not in (source, product)
+    assert first_path.read_bytes() == second_path.read_bytes() == product_bytes
+    assert first['owned_path'] == str(first_path) and not any(first['media'].values())
+    bridge = FakeBridge(directory)
+    session = TeachingSession(bridge)
+    session.bind(first)
+    session.clear()
+    assert not first_path.exists() and second_path.is_file()
+    assert source.read_bytes() == original and product.read_bytes() == product_bytes
+    second_path.unlink()
 
 
 def test_bound_snapshot_follows_slide_not_browsed_lesson(tmp_path, monkeypatch):
@@ -195,7 +216,8 @@ def test_explicit_no_voice_and_independent_embedded_powerpoint_are_teachable(tmp
     with_voice = prepare_teaching(lesson, preview, directory)
     lesson['narration'] = {'version': 2, 'mode': 'none'}
     without = prepare_teaching(lesson, preview, directory)
-    assert without['path'] == preview['path'] and not any(without['media'].values())
+    assert without['path'] != preview['path'] and not any(without['media'].values())
+    assert Path(without['path']).read_bytes() == Path(preview['path']).read_bytes()
     imported, preview = import_presentation(directory, with_voice['path'])
     assert imported['narration']['mode'] == 'none'
     independent = prepare_teaching(imported, preview, directory)

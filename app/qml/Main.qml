@@ -103,7 +103,10 @@ ApplicationWindow {
             bridge.selectNarrationVariant(identity)
             if (bridge.selectedNarrationVariant !== identity) return
         }
-        wholeLessonReview.open()
+        if (bridge.selectedNarrationVariant && bridge.lessonNarration.ready)
+            bridge.openNarratedPowerPoint(bridge.selectedNarrationVariant)
+        else
+            bridge.openTeachingLibraryLesson(bridge.lesson.id)
     }
     property int libraryPage: 1
     readonly property bool libraryLarge: page === "library" && bridge.libraryView === "grid"
@@ -284,7 +287,7 @@ ApplicationWindow {
         function onCloseMemoryChoicesRequested() { memoryDialog.close() }
         function onMascotPreferencesSaved(visible) {
             if (visible) {
-                companion.collapsed = true
+                if (!companion.visible) companion.collapsed = true
                 Qt.callLater(function() { bridge.showCompanion(companion) })
             } else companion.hide()
         }
@@ -631,28 +634,35 @@ ApplicationWindow {
                                     required property var modelData
                                     required property int index
                                     lessonId: modelData.id
-                                    selectionExclusions: [rowCheck, rowStatus, rowOpen, rowDownload, rowMore, rowDelete]
+                                    selectionExclusions: [rowCheck, rowStatus, rowOpen, rowVoice, rowDownload, rowMore, rowDelete]
                                     objectName: "lessonCard_" + modelData.id
                                     Layout.fillWidth: true; implicitHeight: Math.max(root.page === "home" ? 96 : 120, lessonRow.implicitHeight + 32)
-                                    RowLayout {
-                                        id: lessonRow; anchors.fill: parent; anchors.margins: 16; spacing: 14
-                                        LibraryCheck { id: rowCheck; objectName: "lessonSelect_" + modelData.id; visible: root.page === "library"; Layout.preferredWidth: 28; checked: root.selectedLessons.indexOf(modelData.id) >= 0; Accessible.name: "Chọn " + modelData.title; onClicked: root.selectLibraryLesson(modelData.id, checked) }
-                                        Rectangle { width: 44; height: 48; radius: 10; color: "#edf4ff"; Label { anchors.centerIn: parent; text: "VI\nEN"; color: root.blue; font.pixelSize: 12; font.weight: Font.Bold; lineHeight: 1.1 } }
-                                        ColumnLayout { Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 5
+                                    GridLayout {
+                                        id: lessonRow; anchors.fill: parent; anchors.margins: 16
+                                        readonly property bool wideActions: width >= 1180
+                                        columns: wideActions ? 5 : 4; columnSpacing: 14; rowSpacing: 10
+                                        LibraryCheck { id: rowCheck; objectName: "lessonSelect_" + modelData.id; visible: root.page === "library"; Layout.column: 0; Layout.row: 0; Layout.rowSpan: lessonRow.wideActions ? 1 : 2; Layout.preferredWidth: 28; checked: root.selectedLessons.indexOf(modelData.id) >= 0; Accessible.name: "Chọn " + modelData.title; onClicked: root.selectLibraryLesson(modelData.id, checked) }
+                                        Rectangle { Layout.column: 1; Layout.row: 0; Layout.rowSpan: lessonRow.wideActions ? 1 : 2; width: 44; height: 48; radius: 10; color: "#edf4ff"; Label { anchors.centerIn: parent; text: "VI\nEN"; color: root.blue; font.pixelSize: 12; font.weight: Font.Bold; lineHeight: 1.1 } }
+                                        ColumnLayout { Layout.column: 2; Layout.row: 0; Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 5
                                             Label { objectName: "lessonTitle_" + modelData.id; text: modelData.title; color: root.ink; font.pixelSize: 15; font.weight: Font.DemiBold; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight; Layout.fillWidth: true; Layout.minimumWidth: 0 }
                                             Copy { Layout.fillWidth: true; text: modelData.subject + "  ·  " + modelData.education_level + " " + modelData.grade + "  ·  " + (modelData.slides_count ? modelData.slides_count + " slide" : modelData.segments_count + " phần"); font.pixelSize: 12 }
                                             Copy { objectName: "lessonCreated_" + modelData.id; Layout.fillWidth: true; visible: root.page === "library"; text: (modelData.created_at_estimated ? "Lưu sớm nhất còn lại: " : "Tạo: ") + bridge.lessonDateLabel(modelData.created_at); font.pixelSize: 11 }
                                             Copy { objectName: "lessonNarrationBadge_" + modelData.id; Layout.fillWidth: true; text: (modelData.narration || {}).label || "Chưa có giọng đọc"; font.pixelSize: 11; color: (modelData.narration || {}).ready ? "#168567" : root.muted }
                                         }
-                                        LessonStatus { id: rowStatus; lessonRow: modelData }
-                                        Action { id: rowOpen; objectName: "lessonOpen_" + modelData.id; text: "Mở PowerPoint"; primary: true; enabled: !bridge.busy && !bridge.narrationBusy; ToolTip.visible: hovered; ToolTip.text: "Mở bài và gắn Mascot với bài này. Bấm F5 khi sẵn sàng trình chiếu."; onClicked: bridge.openTeachingLibraryLesson(modelData.id) }
+                                        LessonStatus { id: rowStatus; lessonRow: modelData; Layout.column: 3; Layout.row: 0 }
+                                        RowLayout {
+                                        Layout.column: lessonRow.wideActions ? 4 : 2; Layout.row: lessonRow.wideActions ? 0 : 1; Layout.columnSpan: lessonRow.wideActions ? 1 : 2; Layout.fillWidth: !lessonRow.wideActions; spacing: 8
+                                        Action { id: rowOpen; objectName: "lessonOpen_" + modelData.id; text: bridge.openingTeachingLesson === modelData.id ? "Đang mở…" : "Mở PowerPoint"; primary: true; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.starting; ToolTip.visible: hovered; ToolTip.text: "Mở bài và gắn Mascot với bài này. Bấm F5 khi sẵn sàng trình chiếu."; onClicked: bridge.openTeachingLibraryLesson(modelData.id) }
+                                        Action { id: rowVoice; objectName: "lessonNarrate_" + modelData.id; text: "Tạo giọng đọc"; enabled: !bridge.busy && !bridge.narrationBusy; ToolTip.visible: hovered; ToolTip.text: "Chọn ngôn ngữ, giọng và vị trí loa; không mở PowerPoint."; onClicked: bridge.openLessonNarration(modelData.id) }
                                         Action { id: rowDownload; objectName: "lessonDownload_" + modelData.id; text: "Tải"; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: root.downloadLibraryLessons([modelData.id]) }
+                                        Item { visible: !lessonRow.wideActions; Layout.fillWidth: true }
                                         LibraryAction { id: rowMore; objectName: "lessonMore_" + modelData.id; text: "⋯"; font.pixelSize: 20; implicitHeight: 40; Accessible.name: "Thao tác với " + modelData.title; onClicked: rowMenu.popup() }
                                         Menu { id: rowMenu; parent: rowMore; x: parent.width - width; y: parent.height
-                                            MenuItem { objectName: "lessonPreview_" + modelData.id; text: "Xem trước / tạo giọng đọc"; enabled: !bridge.busy && !bridge.narrationBusy; onTriggered: bridge.openLesson(modelData.id) }
+                                            MenuItem { objectName: "lessonPreview_" + modelData.id; text: "Xem bài giảng"; enabled: !bridge.busy && !bridge.narrationBusy; onTriggered: bridge.openLesson(modelData.id) }
                                             MenuItem { objectName: "lessonEdit_" + modelData.id; text: "Đổi tên / thông tin bài"; enabled: !bridge.busy && !bridge.powerpointState.active; onTriggered: { metadataDialog.lessonData = modelData; metadataDialog.open() } }
                                         }
                                         Action { id: rowDelete; objectName: "lessonDelete_" + modelData.id; visible: root.page === "library"; text: "Xóa"; danger: true; subtle: true; enabled: !bridge.busy && !bridge.powerpointState.active; onClicked: { deleteLessonDialog.lessonId = modelData.id; deleteLessonDialog.lessonTitle = modelData.title; deleteLessonDialog.open() } }
+                                        }
                                     }
                                 }
                             }
@@ -668,7 +678,7 @@ ApplicationWindow {
                                     id: largeCard
                                     required property var modelData
                                     lessonId: modelData.id
-                                    selectionExclusions: [cardCheck, cardStatus, cardOpen, cardDownload, largeCardMore]
+                                    selectionExclusions: [cardCheck, cardStatus, cardOpen, cardVoice, cardDownload, largeCardMore]
                                     readonly property var cover: bridge.libraryCovers.images[modelData.id] || ({loading:true,image:""})
                                     objectName: "lessonCard_" + modelData.id
                                     Layout.fillWidth: true; Layout.preferredWidth: 1
@@ -697,12 +707,13 @@ ApplicationWindow {
                                             Copy { objectName: "lessonNarrationBadge_" + modelData.id; Layout.fillWidth: true; Layout.minimumWidth: 0; font.pixelSize: 11; elide: Text.ElideRight; text: (modelData.narration || {}).label || "Chưa có giọng đọc"; color: (modelData.narration || {}).ready ? "#168567" : root.muted }
                                             Copy { font.pixelSize: 10; text: bridge.lessonDateLabel(modelData.created_at).split(" · ").pop() }
                                         }
+                                        Action { id: cardOpen; objectName: "lessonOpen_" + modelData.id; text: bridge.openingTeachingLesson === modelData.id ? "Đang mở…" : "Mở PowerPoint"; primary: true; Layout.fillWidth: true; onClicked: bridge.openTeachingLibraryLesson(modelData.id); enabled: !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.starting }
                                         RowLayout { Layout.fillWidth: true; spacing: 6
-                                            Action { id: cardOpen; objectName: "lessonOpen_" + modelData.id; text: "Mở PowerPoint"; primary: true; Layout.fillWidth: true; onClicked: bridge.openTeachingLibraryLesson(modelData.id); enabled: !bridge.busy && !bridge.narrationBusy }
+                                            Action { id: cardVoice; objectName: "lessonNarrate_" + modelData.id; text: "Tạo giọng đọc"; Layout.fillWidth: true; onClicked: bridge.openLessonNarration(modelData.id); enabled: !bridge.busy && !bridge.narrationBusy }
                                             Action { id: cardDownload; objectName: "lessonDownload_" + modelData.id; text: "Tải"; onClicked: root.downloadLibraryLessons([modelData.id]); enabled: !bridge.busy && !bridge.narrationBusy }
                                             LibraryAction { id: largeCardMore; objectName: "lessonMore_" + modelData.id; text: "⋯"; font.pixelSize: 20; implicitHeight: 40; Accessible.name: "Thao tác với " + modelData.title; onClicked: largeCardMenu.popup() }
                                             Menu { id: largeCardMenu; parent: largeCardMore; x: parent.width - width; y: parent.height
-                                                MenuItem { objectName: "lessonPreview_" + modelData.id; text: "Xem trước / tạo giọng đọc"; enabled: !bridge.busy && !bridge.narrationBusy; onTriggered: bridge.openLesson(modelData.id) }
+                                                MenuItem { objectName: "lessonPreview_" + modelData.id; text: "Xem bài giảng"; enabled: !bridge.busy && !bridge.narrationBusy; onTriggered: bridge.openLesson(modelData.id) }
                                                 MenuItem { objectName: "lessonEdit_" + modelData.id; text: "Đổi tên / thông tin bài"; enabled: !bridge.busy && !bridge.powerpointState.active; onTriggered: { metadataDialog.lessonData = modelData; metadataDialog.open() } }
                                                 MenuItem { objectName: "lessonDelete_" + modelData.id; text: "Chuyển vào thùng rác"; enabled: !bridge.busy && !bridge.powerpointState.active; onTriggered: { deleteLessonDialog.lessonId = modelData.id; deleteLessonDialog.lessonTitle = modelData.title; deleteLessonDialog.open() } }
                                             }
@@ -1078,7 +1089,7 @@ ApplicationWindow {
                         }
                         Flow { visible: root.page === "voice" && !!bridge.quickResult.path && !root.narrationDraft.ready; Layout.fillWidth: true; spacing: 10
                             Action { objectName: "voiceDownloadWithoutNarration"; text: "Tải PowerPoint không giọng"; iconName: "download"; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: presentationNoVoiceSave.openSuggested() }
-                            Action { objectName: "voiceTeachWithoutNarration"; text: "Mở bài giảng để dạy"; enabled: !bridge.busy && !bridge.previewBusy && !bridge.narrationBusy; onClicked: root.prepareTeaching() }
+                            Action { objectName: "voiceTeachWithoutNarration"; text: "Mở PowerPoint"; enabled: !bridge.busy && !bridge.previewBusy && !bridge.narrationBusy; onClicked: root.prepareTeaching() }
                         }
                         RowLayout {
                             visible: root.page !== "voice"; Layout.fillWidth: true; spacing: 12
@@ -1103,7 +1114,7 @@ ApplicationWindow {
                             RowLayout { Layout.alignment: Qt.AlignRight | Qt.AlignVCenter; spacing: 10; layoutDirection: Qt.RightToLeft
                             Action { objectName: "convertCurrentLessonButton"; visible: !bridge.quickResult.path; text: "Xem trình chiếu"; primary: true; enabled: !bridge.busy; onClicked: bridge.convertCurrentLesson() }
                             Action { objectName: "downloadPresentationButton"; visible: !!bridge.quickResult.path; text: "Tải PowerPoint"; iconName: "download"; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: presentationSave.openSuggested() }
-                            Action { objectName: "useConvertedLessonButton"; visible: !!bridge.quickResult.path; text: "Mở bài giảng để dạy"; primary: true; enabled: !bridge.busy && !bridge.previewBusy && !bridge.narrationBusy; onClicked: root.prepareTeaching() }
+                            Action { objectName: "useConvertedLessonButton"; visible: !!bridge.quickResult.path; text: "Mở PowerPoint"; primary: true; enabled: !bridge.busy && !bridge.previewBusy && !bridge.narrationBusy; onClicked: root.prepareTeaching() }
                             }
                         }
                         RowLayout { Layout.fillWidth: true; visible: root.resultDetails
@@ -1621,7 +1632,7 @@ ApplicationWindow {
             RowLayout { Layout.fillWidth: true
                 Action { text: "Đóng"; onClicked: lessonReviewHelp.close() }
                 Item { Layout.fillWidth: true }
-                Action { objectName: "reviewConfirmLesson"; text: bridge.lessonReview.kind === "ready" ? "Tiếp tục dạy" : "Xem và xác nhận để dạy"; primary: true; enabled: bridge.lessonReview.canConfirm && !!bridge.quickResult.path && !bridge.busy && !bridge.previewBusy && !bridge.narrationBusy && !bridge.powerpointState.active && !bridge.powerpointState.starting; onClicked: { lessonReviewHelp.close(); root.prepareTeaching() } }
+                Action { objectName: "reviewConfirmLesson"; text: bridge.lessonReview.kind === "ready" ? "Tiếp tục dạy" : "Xem và xác nhận để dạy"; primary: true; enabled: bridge.lessonReview.canConfirm && !!bridge.quickResult.path && !bridge.busy && !bridge.previewBusy && !bridge.narrationBusy && !bridge.powerpointState.active && !bridge.powerpointState.starting; onClicked: { lessonReviewHelp.close(); wholeLessonReview.open() } }
             }
         }
     }

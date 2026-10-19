@@ -62,7 +62,7 @@ def main():
         pump(200)
         assert companion.property("collapsed"), "Dragging must not open the menu"
         assert companion.x() < start_x - 40 and companion.y() < start_y - 30, "Mascot should follow the pointer"
-        saved_location = library.setting("mascot_location", {})
+        saved_location = bridge._mascot_location
         assert saved_location == {"x": companion.x(), "y": companion.y()}, saved_location
         dragged_x, dragged_y = companion.x(), companion.y()
         QTest.mouseClick(companion, Qt.LeftButton, pos=QPoint(companion.width() // 2, companion.height() // 2))
@@ -87,7 +87,7 @@ def main():
         pump(150)
         assert not companion.property("collapsed"), "Dragging an open mascot must keep its controls open"
         dragged_x, dragged_y = companion.x() + mascot.x(), companion.y() + mascot.y()
-        assert library.setting("mascot_location", {}) == {"x": dragged_x, "y": dragged_y}
+        assert bridge._mascot_location == {"x": dragged_x, "y": dragged_y}
         QTest.mouseClick(companion, Qt.LeftButton, pos=QPoint(companion.width() - extent // 2, companion.height() - extent // 2))
         pump(200)
         assert companion.property("collapsed") and companion.width() <= 130
@@ -99,7 +99,7 @@ def main():
         bridge.saveMascotPreferences("Milo", False, 110, "left", True, True, True, True)
         pump()
         assert not companion.isVisible() and not launcher.isVisible()
-        assert library.setting("mascot_location", {}) == {}, "Changing the corner should clear the dragged position"
+        assert bridge.mascotSettings['position'] == 'right', "The old corner setting must not override the new default"
         bridge.saveMascotPreferences("Milo", True, 110, "right", False, True, True, True)
         pump()
         assert companion.isVisible() and launcher.isVisible()
@@ -116,14 +116,14 @@ def main():
         reset_center = reset.mapToScene(QPointF(reset.width() / 2, reset.height() / 2)).toPoint()
         QTest.mouseClick(companion, Qt.LeftButton, pos=reset_center)
         pump(150)
-        assert library.setting("mascot_location", {}) == {}, "Reset should restore the configured corner"
+        assert bridge._mascot_location == {}, "Reset should restore the bottom-right corner"
         companion.hide()
 
         screenshot = RESOURCE_ROOT.parent / "reports" / "app" / "navigation-mascot.png"
         screenshot.parent.mkdir(parents=True, exist_ok=True)
         assert window.grabWindow().save(str(screenshot))
         assert not warnings, warnings
-        print("Navigation icons, transparent mascot, free drag, saved position and menu placement passed")
+        print("Navigation icons, transparent mascot, session drag and bottom-right reset passed")
         window.close()
     app.quit()
 

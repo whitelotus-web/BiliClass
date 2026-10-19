@@ -104,7 +104,7 @@ ColumnLayout {
             Label { text: "Hết hiệu ứng mới chuyển slide. Esc: thoát trình chiếu."; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: "#667997"; font.pixelSize: 12 }
         }
     }
-    Label { text: "Áp dụng khi trình chiếu bài đang gắn với BiliClass. Bấm ■ Dừng đọc trên Mascot để dừng hẳn. Nếu chưa có giọng, tool báo nhắc và giữ slide hiện tại."; Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 12; color: "#667997" }
+    Label { text: "Áp dụng khi trình chiếu bài đang gắn với BiliClass. Đổi ngôn ngữ hoặc chuyển slide sẽ dừng giọng trước. Nếu chưa có giọng, tool báo nhắc và giữ slide hiện tại."; Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 12; color: "#667997" }
     Label {
         objectName: "shortcutFeedback"; visible: !!text
         text: panel.feedback || panel.settings.state.message

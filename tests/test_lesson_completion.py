@@ -133,6 +133,51 @@ def test_open_library_reuses_ready_voice_when_active_variant_is_incomplete(tmp_p
     assert not any(segment['approved'] for segment in result['lesson']['segments'])
 
 
+def test_open_saved_powerpoint_does_not_run_full_office_repair_or_change_the_saved_product(tmp_path, monkeypatch):
+    library, lesson, _ = converted(tmp_path)
+    before = library.get(lesson['id'])
+    monkeypatch.setattr('app.slide_repair.repair_and_inspect',
+                        lambda *args, **kwargs: pytest.fail('Open must not run a full Office repair'))
+    monkeypatch.setattr('app.speech.synthesize',
+                        lambda *args, **kwargs: pytest.fail('Open must not create narration'))
+    try:
+        result = prepare_library_teaching(library.directory, lesson['id'])
+        assert result['path'] and result['lesson']['id'] == lesson['id']
+        assert result['lesson']['slide_quality']['counts']['FAIL'] == 1
+        assert '1 slide' in result['warning']
+        assert library.get(lesson['id'])['source'] == before['source']
+        assert library.get(lesson['id'])['revision'] == before['revision']
+    finally:
+        library.close()
+
+
+def test_open_and_narration_are_separate_entry_points(tmp_path, monkeypatch):
+    from PySide6.QtCore import QCoreApplication
+
+    from app.ui import Bridge
+
+    app = QCoreApplication.instance() or QCoreApplication([])
+    library, lesson, _ = converted(tmp_path)
+    prepared = prepare_library_teaching(library.directory, lesson['id'])
+    bridge = Bridge(library)
+    destinations, opened = [], []
+    bridge.navigate.connect(destinations.append)
+    monkeypatch.setattr(bridge, '_activate_teaching', opened.append)
+    try:
+        bridge._open_library_teaching(prepared)
+        assert opened == [prepared] and destinations == []
+        assert not bridge.narrationBusy and bridge.powerpoint_worker is None
+        bridge.openLessonNarration(lesson['id'])
+        assert destinations == ['voice'] and opened == [prepared]
+        app.processEvents()
+    finally:
+        for worker in (bridge._catalog, bridge.browserAI, bridge.slidePreview, bridge.libraryThumbnails,
+                       bridge.narrationPreferences, bridge.narration_preparation, bridge.english_reader,
+                       bridge.voice_controls, bridge._companion_preferences, bridge.classroom):
+            worker.shutdown()
+        library.close()
+
+
 def test_new_spoken_tasks_never_reuse_old_voice_signature(tmp_path):
     from app.lesson_completion import _retain_unchanged_audio
 

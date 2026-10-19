@@ -1,5 +1,17 @@
 # Trạng thái BiliClass
 
+Ngày 19/10/2026 — RC81 triển khai nhóm sửa luồng mở bài và cấu hình Mascot
+trong kế hoạch RC80. Mở PowerPoint giữ trang hiện tại, gắn đúng bài/bản
+giọng từ sau chuyển đổi, trước/sau tạo giọng và Thư viện; tạo giọng là nút
+riêng. Bản không giọng cũng dùng bản sao phiên dạy, tránh Office khóa cache
+khi mở lại. Bỏ chọn góc/cỡ bảng độc lập; mặc định phải dưới, kéo được, cỡ
+bảng theo Mascot. Nền trong cập nhật bằng tín hiệu riêng và lưu nền, không
+ghi DB/làm mới toàn Bridge trên mỗi nấc. Phụ kiện lên cạnh nhóm hiển thị;
+không nhãn môn dưới bản xem trước. 17 luồng Qt đạt, gồm Office thật và kéo
+71 mức khi SQLite khóa; chi tiết kiểm nguồn/gói tại [BUILD_RC81](BUILD_RC81.md).
+Chưa đánh dấu hoàn tất các nhóm DPI, trạng thái và vận hành còn lại của
+kế hoạch audit. Thư viện/key cá nhân không thuộc thay đổi nguồn hay gói.
+
 Ngày 19/10/2026 — đã rà soát RC80 và lập
 [kế hoạch tối ưu theo ưu tiên](AUDIT_AND_PLAN_RC80.md), chưa sửa chức năng.
 915 kiểm thử lõi và 8 luồng Qt bổ sung đạt; chụp 50 trạng thái UI, không

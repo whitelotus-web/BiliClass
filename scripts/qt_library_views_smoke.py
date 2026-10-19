@@ -93,6 +93,7 @@ def main():
             assert c("libraryDownloadDialog").property("visible") and not selected()
             QMetaObject.invokeMethod(c("libraryDownloadDialog"), "close", Qt.DirectConnection)
             assert c("lessonOpen_" + identity).property("text") == "Mở PowerPoint"
+            assert c("lessonNarrate_" + identity).property("text") == "Tạo giọng đọc"
             assert window.findChild(QObject, "lessonTeach_" + identity) is None
             click(window, c("lessonMore_" + identity))
             click(window, c("lessonEdit_" + identity))
@@ -106,6 +107,11 @@ def main():
             point_click(download, download.width() / 2, download.height() / 2)
             assert not selected(), "Disabled actions must not select a card"
             download.setEnabled(True)
+            narration = c("lessonNarrate_" + identity)
+            narration.setEnabled(False)
+            point_click(narration, narration.width() / 2, narration.height() / 2)
+            assert not selected(), 'A disabled narration action must not select its card'
+            narration.setEnabled(True)
             start = card.mapToScene(QPointF(20, 8)).toPoint()
             end = card.mapToScene(QPointF(130, 8)).toPoint()
             QTest.mousePress(window, Qt.LeftButton, Qt.NoModifier, start)
@@ -245,7 +251,12 @@ def main():
                   and bridge.powerpointState.get('opened'), timeout=50)
             assert bridge.lesson["id"] == open_id
             assert not bridge.powerpointState.get('active')
+            assert window.property('page') == 'library'
             assert list(window.property("selectedLessons").toVariant()) == before_open
+            native_worker = bridge.powerpoint_worker
+            click(window, c("lessonNarrate_" + open_id))
+            until(lambda: window.property('page') == 'voice' and not bridge.busy)
+            assert bridge.powerpoint_worker is native_worker and not bridge.narrationBusy
             assert not warnings, warnings
             result = {
                 "status": "passed",
@@ -262,6 +273,7 @@ def main():
                     "cover cache retained across modes and tabs without restarting worker",
                     "home local-budget warning at 80%; rename dialog preserves usage",
                     "mascot sidebar toggle and menu Hide synchronize visibility and label",
+                    "Open stays in Library; separate narration button opens configuration without starting voice or rebinding Office",
                 ],
             }
             result["checks"].append(
