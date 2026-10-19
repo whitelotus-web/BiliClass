@@ -11,7 +11,7 @@ ApplicationWindow {
     visible: true
     width: 1366; height: 850
     minimumWidth: 1080; minimumHeight: 700
-    title: "BiliClass · " + bridge.appVersion + " · " + bridge.appSubtitle + (bridge.developmentMode ? " · Bản nguồn" : "")
+    title: "BiliClass · " + bridge.appVersion + " · ANH ↔ VIỆT · Lưu trên máy" + (bridge.developmentMode ? " · Bản nguồn" : "")
     color: "#f3f7fc"
     property string page: "home"
     onPageChanged: {
@@ -539,18 +539,8 @@ ApplicationWindow {
         }
         ColumnLayout {
             Layout.fillWidth: true; Layout.fillHeight: true; spacing: 0
-            Rectangle {
-                Layout.fillWidth: true; height: 70; color: "#ffffff"
-                Rectangle { anchors.bottom: parent.bottom; height: 1; width: parent.width; color: root.line }
-                RowLayout {
-                    anchors.fill: parent; anchors.leftMargin: 30; anchors.rightMargin: 30
-                    Copy { text: (root.page === "editor" || root.page === "result") ? "Bài học  /  " + (root.lessonData.title || "") : bridge.appSubtitle; color: root.ink; elide: Text.ElideRight; Layout.fillWidth: true; maximumLineCount: 1 }
-                    Action { objectName: "backToConvertedLessonButton"; visible: root.page === "editor"; text: "Bản trình chiếu"; iconName: "back"; subtle: true; implicitHeight: 32; onClicked: root.go("result") }
-                    Pill { text: "ANH  ⇄  VIỆT" }
-                    Pill { text: "Lưu trên máy"; tone: "#168567"; Layout.leftMargin: 10 }
-                }
-            }
             Item {
+                objectName: "mainPageArea"
                 Layout.fillWidth: true; Layout.fillHeight: true
                 ContentScrollView {
                     id: libraryHomeScroll; objectName: "libraryHomeScroll"; outerGutter: true; barObjectName: "libraryScrollBar"; anchors.fill: parent; anchors.margins: 30
@@ -1349,7 +1339,9 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         ColumnLayout { spacing: 5; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.maximumWidth: 310
                             Heading { text: root.lessonData.title || "Chọn một bài học"; font.pixelSize: 22; Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1 }
-                            Copy { text: (root.lessonData.subject || "") + " · " + (root.lessonData.education_level || "") + " " + (root.lessonData.grade || ""); font.pixelSize: 11 } }
+                            Copy { text: (root.lessonData.subject || "") + " · " + (root.lessonData.education_level || "") + " " + (root.lessonData.grade || ""); font.pixelSize: 11 }
+                            Action { objectName: "backToConvertedLessonButton"; text: "Bản trình chiếu"; iconName: "back"; subtle: true; implicitHeight: 28; onClicked: root.go("result") }
+                        }
                         Item { Layout.fillWidth: true }
                         Pill { text: root.dirty ? "Chưa lưu thay đổi" : "Đã lưu trên máy"; tone: root.dirty ? "#ad651d" : "#168567" }
                         Action { text: "Lịch sử"; enabled: !!root.lessonData.id; onClicked: root.requestAction(function() { historyDialog.open() }) }

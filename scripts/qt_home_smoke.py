@@ -43,6 +43,12 @@ def main():
         try:
             pump(300)
             assert window.property('page') == 'home'
+            assert 'ANH ↔ VIỆT · Lưu trên máy' in window.title()
+            for page in ('home', 'new', 'voice', 'library', 'classroom', 'settings'):
+                window.setProperty('page', page)
+                pump(30)
+                assert c('mainPageArea').mapToScene(QPointF()).y() == 0, page
+            window.setProperty('page', 'home')
             assert not c('applicationFooter').isVisible()
             release = Event()
             bridge.launch(lambda: release.wait(5), lambda _: None)
