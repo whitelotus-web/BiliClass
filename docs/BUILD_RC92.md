@@ -69,4 +69,39 @@ installer/ZIP. Các thay đổi native khác vẫn dùng build đầy đủ.
 .venv/Scripts/python.exe -m scripts.build_from_runtime --baseline dist/rc91-window-identity --output dist/rc92-voice-pairs --english-model .runtime/kokoro/kokoro-multi-lang-v1_0
 ```
 
-Kết quả commit, ZIP, bản cài và xác minh frozen được ghi sau khi dựng.
+## Kết quả đóng gói và bản cài
+
+- Commit ứng dụng: `05e21ffd063bea9629b7d9ebb2dedf82f8d4f44a`.
+- CI Source checks đạt:
+  https://github.com/whitelotus-web/BiliClass/actions/runs/39263362486
+- Dựng một lần; Python 3.12.7, PyInstaller 6.22.3, Qt/PySide6 6.11.2.
+- `BiliClass-RC92-Windows.zip`: 1.232.983.961 byte; 4.613 tệp ứng dụng.
+- SHA256: `39bcca1591586495a4fd1613de116a7574253a0fbedbb1f32ca7c178a994bba7`.
+- ZIP khớp manifest và checksum; digest asset trên GitHub khớp SHA256.
+- Phát hành: https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc92
+
+Bộ kiểm tra bản cài hoàn tất cả luồng, bằng chứng
+`reports/release/1.0.0rc92-5ce367a9/installer.json`: cài vào đường dẫn
+Unicode, Windows Details, CLI shortcut tạm, trang Qt, template, hai engine
+thật không dùng cache phát triển, tiến trình lớp học, sao lưu và gỡ bản cài
+tạm vẫn giữ thư viện riêng. Đây là kiểm tra trên máy hiện tại, chưa phải
+chứng nhận trên Windows mới hoàn toàn.
+
+Qt của bản đóng gói tạo hai đoạn bằng đúng VieNeu cho Việt và Kokoro cho
+Anh trong 18,42 giây; 803 nhịp giao diện, khoảng ngắt lớn nhất 703 ms.
+Không cảnh báo QML, watchdog bật, nguồn giữ nguyên. Sáu mẫu nghe thử
+trong bản đóng gói bắt đầu trong 12–27 ms mà không nạp mô hình; lưu cặp
+trong khi nghe thử đạt, hủy không phát muộn; khoảng ngắt giao diện lớn
+nhất 97,8 ms. Các phép thử dùng thư viện tạm.
+
+Đã cài tại `F:/Applications/BiliClass/1.0.0rc92`. Đóng RC91 bình thường,
+không buộc dừng. Explorer mở RC92 độc lập với Codex vào bài đang chọn;
+cửa sổ chính và Mascot hiện và đáp ứng. Icon native, AppUserModelID và
+hai shortcut đều đúng. Bằng chứng `reports/rc92/installed-verification.json`.
+Nguồn, revision, môn đã chọn, khóa API và toàn bộ 134 WAV của bài đang
+thử giữ nguyên. Không tự đổi môn hoặc tạo lại giọng của bài cũ.
+
+Kiểm tra bấm/hover trực tiếp loa trên PowerPoint vẫn còn chờ Windows cho
+truy cập input desktop (`GetCursorPos: Access is denied`). Các kiểm tra
+Office COM, Qt và xử lý HWND ở trên đã đạt; chưa ghi nhận lượt kiểm tra
+chuột trực tiếp này là đạt.
