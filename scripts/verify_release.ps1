@@ -36,15 +36,23 @@ try {
     $taskDetails = [Diagnostics.FileVersionInfo]::GetVersionInfo($executable)
     if ($taskDetails.ProductName -ne 'BiliClass' -or $taskDetails.ProductVersion -ne $manifest.version -or $taskDetails.LegalCopyright -notlike '*Nguyễn Diệu Linh*') { throw 'Installed Windows Details resource failed validation.' }
     Write-Output 'Passed Windows Properties product, version and copyright.'
-    $taskShortcut = Join-Path $reportRoot 'BiliClass.lnk'
+    # WScript.Shell uses the system ANSI code page for shortcuts on this machine.
+    # Keep only this throwaway fixture in the local runtime folder; the actual
+    # application, library and remaining verification still use the Unicode path.
+    $taskShortcutDirectory = Join-Path $env:LOCALAPPDATA ('BiliClass\release-shortcut-' + $runId)
+    New-Item -ItemType Directory -Path $taskShortcutDirectory -Force | Out-Null
+    $taskShortcut = Join-Path $taskShortcutDirectory 'BiliClass.lnk'
     $taskShortcutShell = New-Object -ComObject WScript.Shell
     $taskShortcutLink = $taskShortcutShell.CreateShortcut($taskShortcut)
-    $taskShortcutLink.TargetPath = $executable
-    $taskShortcutLink.IconLocation = $executable + ',0'
+    # WScript.Shell rejects non-ANSI TargetPath values on some Windows locales.
+    # This disposable link tests the installed registration CLI, never its target.
+    $taskShortcutLink.TargetPath = Join-Path $env:SystemRoot 'System32\notepad.exe'
     $taskShortcutLink.Save()
     Invoke-InstalledCheck -Arguments @('--register-shortcut',('"' + $taskShortcut + '"'))
-    $taskShellFolder = (New-Object -ComObject Shell.Application).Namespace($reportRoot)
+    $taskShellFolder = (New-Object -ComObject Shell.Application).Namespace($taskShortcutDirectory)
     if ($taskShellFolder.ParseName('BiliClass.lnk').ExtendedProperty('System.AppUserModel.ID') -ne 'BiliClass.Desktop') { throw 'Installed shortcut identity failed validation.' }
+    Remove-Item -LiteralPath $taskShortcut
+    Remove-Item -LiteralPath $taskShortcutDirectory
     Write-Output 'Passed installed shortcut taskbar identity without modifying user shortcuts.'
     foreach ($page in @('new','browser-ai')) {
         $shot = Join-Path $reportRoot ($page + '.png')
