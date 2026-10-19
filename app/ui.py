@@ -623,6 +623,18 @@ class Bridge(QObject):
     def defaultTeachingSubject(self):
         return next(iter(self.settings['subjects']), '')
 
+    @Property(str, notify=conversionDefaultsChanged)
+    def conversionSubjectSelection(self):
+        subject = self.library.setting('conversion_subject_selection', '')
+        return subject if isinstance(subject, str) and subject.strip() else self.defaultTeachingSubject
+
+    @Slot(str)
+    def rememberConversionSubject(self, subject):
+        subject = subject.strip()
+        if subject and subject != 'Khác' and len(subject) <= 100 and subject != self.library.setting('conversion_subject_selection', ''):
+            self.library.set_setting('conversion_subject_selection', subject)
+            self.conversionDefaultsChanged.emit()
+
     @Property('QVariantMap', notify=conversionDefaultsChanged)
     def conversionClassSelection(self):
         from .conversion_input import education_grades
@@ -705,6 +717,7 @@ class Bridge(QObject):
         if self.narrationBusy:
             self.inform('Chờ tạo giọng đọc xong hoặc dừng tạo giọng trước khi chuyển đổi bài mới.', True, refresh=False)
             return
+        self.rememberConversionSubject(subject)
         if self.googleTranslation:
             self._prepare_google(title, subject, education, grade, text, file_url,
                                  conversion_format, preset, style)
@@ -934,9 +947,7 @@ class Bridge(QObject):
             self.conversionClockChanged.emit()
             self._show_lesson(lesson, preview, destination='chatgpt', auto_repair=False, load_preview=False)
             self._google_settings.refresh()
-            failures = lesson.get('slide_quality', {}).get('counts', {}).get('FAIL', 0)
-            self.inform(f'Đã lưu bài giảng. Có {failures} slide cần xem lại bố cục.' if failures else
-                        'Đã lưu bài giảng song ngữ. Chọn bước tiếp theo khi sẵn sàng.', refresh=False)
+            self.inform('Đã lưu bài giảng song ngữ. Chọn bước tiếp theo khi sẵn sàng.', refresh=False)
 
         self.launch(lambda: convert(self.library.directory, job, self.cancel_event, progress, budget=budget), completed)
 
@@ -1078,9 +1089,7 @@ class Bridge(QObject):
             self.browserStateChanged.emit()
             self.conversionClockChanged.emit()
             self._show_lesson(lesson, preview, destination='chatgpt', auto_repair=False, load_preview=False)
-            failures = lesson.get("slide_quality", {}).get("counts", {}).get("FAIL", 0)
-            message = (f"Bài giảng đã lưu. Có {failures} slide cần xem lại bố cục." if failures
-                       else "Đã lưu bài giảng. Chọn bước tiếp theo khi sẵn sàng.")
+            message = "Đã lưu bài giảng. Chọn bước tiếp theo khi sẵn sàng."
             self.inform(message, refresh=False)
 
         self.launch(work, completed)
@@ -1826,7 +1835,7 @@ class Bridge(QObject):
     @Property(str, notify=changed)
     def mascotAccessorySubject(self):
         options = self.mascotSettings
-        return options.get('subject', '').strip() if options.get('subject_mode') == 'fixed' and options.get('subject', '').strip() else self.mascotSubject
+        return options.get('subject', '').strip() if options.get('subject_mode') == 'fixed' and options.get('subject', '').strip() else self.defaultTeachingSubject or self.mascotSubject
 
     @Property(bool, notify=powerpointStateChanged)
     def companionCanRead(self):
@@ -2804,7 +2813,7 @@ class Bridge(QObject):
         if self._powerpoint_state.get('closing'):
             return  # Already-queued Office events must not reopen a retiring binding.
         if state.get('event'):
-            self.teaching_session.event(state)
+            self.teaching_session.office_event(state)
             self.mascotStateChanged.emit()
             return
         if self.teaching_session.bound or self._powerpoint_lesson_id == self._lesson.get("id"):
@@ -3542,8 +3551,6 @@ class Bridge(QObject):
                        "Đã tải đúng bản PowerPoint đang xem: ") + str(path)
             if with_voice:
                 message += '\n' + coverage_message(report)
-            if report.get('layout_notice'):
-                message += '\n' + report['layout_notice']
             self.inform(message)
 
         def work():
@@ -3553,9 +3560,6 @@ class Bridge(QObject):
 
                 current, current_preview = prepare_library_lesson(directory, lesson['id'], complete=True,
                                                                   cancel=self.cancel_event)
-                from .lesson_completion import layout_notice
-
-                report['layout_notice'] = layout_notice(current)
                 # Keep the explicitly selected voice, including “no voice”.
                 if selected := lesson.get('narration'):
                     from .lesson_narration import records

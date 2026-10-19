@@ -38,7 +38,7 @@ class InputBridge(Bridge):
 
     @Slot(str)
     def navigatePowerPoint(self, command):
-        if command in {'next_slide', 'previous_slide'}:
+        if command in {'next', 'previous', 'next_slide', 'previous_slide'}:
             self.navigation_started = time.monotonic()
         super().navigatePowerPoint(command)
 
@@ -57,8 +57,13 @@ def native_click(window, point):
     left, top = win32gui.ClientToScreen(int(window.winId()), (0, 0))
     scale = window.devicePixelRatio()
     target = (left + round(point.x() * scale), top + round(point.y() * scale))
-    assert win32gui.GetAncestor(win32gui.WindowFromPoint(target), 2) == int(window.winId()), target
     win32api.SetCursorPos(target)
+    pump(180)  # Let an old hover tooltip close before checking the hit window.
+    actual = win32gui.GetAncestor(win32gui.WindowFromPoint(target), 2)
+    if actual != int(window.winId()):
+        window.grabWindow().save('reports/rc90/occluded-input.png')
+        print('Occluded ' + str((target, win32gui.GetClassName(actual), win32gui.GetWindowRect(int(window.winId())), window.size().toTuple())), flush=True)
+    assert actual == int(window.winId()), target
     win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
     pump(35)
     win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
@@ -81,7 +86,7 @@ def main():
     app = QGuiApplication([])
     app.setApplicationName('BiliClass companion input verification')
     QQuickStyle.setStyle('Basic')
-    report = Path(os.environ.get('BILICLASS_INPUT_REPORT', 'reports/rc83/native-input'))
+    report = Path(os.environ.get('BILICLASS_INPUT_REPORT', 'reports/rc90/native-input'))
     report.mkdir(parents=True, exist_ok=True)
     cursor = win32api.GetCursorPos()
     with tempfile.TemporaryDirectory(prefix='bcl-input-', ignore_cleanup_errors=True) as folder:
@@ -143,7 +148,11 @@ def main():
             win32gui.SetWindowPos(int(other.winId()), win32con.HWND_TOPMOST, 0, 0, 0, 0,
                                  win32con.SWP_NOMOVE | win32con.SWP_NOSIZE | win32con.SWP_NOACTIVATE)
             pump(250)
-            native_click(other, QPoint(120, 70))
+            for _ in range(3):
+                native_click(other, QPoint(120, 70))
+                if win32gui.GetForegroundWindow() == int(other.winId()):
+                    break
+                pump(250)  # Allow the one queued F5 activation to finish.
             assert win32gui.GetForegroundWindow() == int(other.winId())
 
         def mascot():
@@ -154,6 +163,8 @@ def main():
             root.setProperty('page', 'settings')
             c('settingsPage').setProperty('activeTab', 3)
             until(lambda: bridge._catalog.worker is None)
+            area = app.primaryScreen().availableGeometry()
+            bridge.saveMascotLocation(area.left() + area.width() // 3, area.bottom() - 170)
             bridge.showCompanion(companion)
             background()
             mascot()
@@ -174,11 +185,52 @@ def main():
             bridge.showCompanion(companion)
             pump(150)
             assert c('companionSlidePosition').property('text') == 'Slide 1 / 3'
-            assert not c('companionPrevious').isEnabled()
+            assert c('companionPrevious').isEnabled()
             background()
             tap('companionReadEnglish')
             until(lambda: bridge.teachingSession.native_state == 'reading')
             assert win32gui.GetForegroundWindow() == hwnd
+            # Ignore other decks (including protected windows) completely.
+            owned = None
+            for candidate in win32com.client.Dispatch('PowerPoint.Application').Presentations:
+                try:
+                    if Path(candidate.FullName).resolve() == Path(prepared['path']).resolve():
+                        owned = candidate
+                        break
+                except Exception:
+                    continue
+            assert owned is not None, 'The disposable presentation must be reachable through its exact path'
+            native_slide = owned.Slides(1)
+            ready = next(s for s in native_slide.Shapes if s.Name == 'BiliClass control EN')
+            badge = next(s for s in native_slide.Shapes if s.Name == 'BiliClass pause EN')
+            from app.slideshow_controls import speaker_regions
+
+            def click_slide_speaker():
+                region = speaker_regions([('en', ready.Left, ready.Top, ready.Width, ready.Height)],
+                                         hwnd, owned.PageSetup.SlideWidth, owned.PageSetup.SlideHeight)[0]
+                target = (round((region[1]+region[3])/2), round((region[2]+region[4])/2))
+                assert win32gui.GetAncestor(win32gui.WindowFromPoint(target), 2) == hwnd
+                win32api.SetCursorPos(target)
+                win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
+                pump(35)
+                win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
+                pump(120)
+
+            until(lambda: bool(badge.Visible) and not ready.Visible)
+            background()
+            pump(400)
+            # PowerPoint can itself pause media on focus loss; the shared
+            # state must reflect that before the first slide click toggles it.
+            expected = 'reading' if bridge.teachingSession.native_state == 'paused' else 'paused'
+            click_slide_speaker()
+            until(lambda: bridge.teachingSession.native_state == expected)
+            until(lambda: win32gui.GetForegroundWindow() == hwnd)
+            if expected == 'reading':
+                click_slide_speaker()
+                until(lambda: bridge.teachingSession.native_state == 'paused')
+            until(lambda: bool(ready.Visible) and not badge.Visible)
+            tap('companionReadEnglish')
+            until(lambda: bridge.teachingSession.native_state == 'reading')
             native_key(win32con.VK_SPACE, hwnd)
             until(lambda: bridge.teachingSession.native_state == 'paused')
             native_key(win32con.VK_SPACE, hwnd)
@@ -192,13 +244,34 @@ def main():
             native_key(win32con.VK_DOWN, hwnd)
             until(lambda: bridge.teachingSession.volume == 80)
             bridge.teachingSession.stop()
+            bridge.teachingSession.setReadingScope('visible')
+            tap('companionReadEnglish')
+            until(lambda: bridge.englishReaderState['state'] == 'reading')
+            until(lambda: bool(badge.Visible) and not ready.Visible)
+            native_players = [owned.SlideShowWindow.View.Player(s.Id) for s in native_slide.Shapes
+                              if s.Name.startswith('BiliClass audio ')]
+            assert all(p.State != 0 for p in native_players), 'Cached reading must stop every native player first'
+            background()
+            click_slide_speaker()
+            until(lambda: bridge.englishReaderState['state'] == 'paused')
+            until(lambda: bool(ready.Visible) and not badge.Visible)
+            assert all(p.State != 0 for p in native_players), 'Slide click must pause the cache, never start a second player'
+            bridge.teachingSession.setReadingScope('auto')
             background()
             token = bridge.teachingSession.token
             native_key(win32con.VK_SPACE, int(other.winId()))
             assert bridge.teachingSession.token == token, 'Keys in an unrelated foreground app must pass through'
             bridge.changed.connect(lambda: broad_refreshes.append(1))
             beat.start()
-            # Buttons change slides immediately even when an effect is pending.
+            # Buttons reveal/rewind builds before changing the slide.
+            tap('companionNext')
+            until(lambda: bridge.powerpointState.get('click_index') == 1)
+            assert bridge.powerpointState['slide'] == 1
+            tap('companionPrevious')
+            until(lambda: bridge.powerpointState.get('click_index') == 0)
+            assert bridge.powerpointState['slide'] == 1
+            tap('companionNext')
+            until(lambda: bridge.powerpointState.get('click_index') == 1)
             tap('companionNext')
             until(lambda: bridge.powerpointState.get('slide') == 2)
             assert c('companionSlidePosition').property('text') == 'Slide 2 / 3'
@@ -207,6 +280,9 @@ def main():
             assert c('companionAudioHint').isVisible()
             tap('companionPrevious')
             until(lambda: bridge.powerpointState.get('slide') == 1)
+            if bridge.powerpointState['click_index'] > 0:
+                tap('companionPrevious')
+                until(lambda: bridge.powerpointState.get('click_index') == 0)
             before = bridge.powerpointState['click_index']
             native_key(win32con.VK_RIGHT, hwnd)
             until(lambda: bridge.powerpointState.get('click_index') != before)
@@ -216,7 +292,7 @@ def main():
             until(lambda: bridge.powerpointState.get('slide') == 2)
             tap('companionNext')
             until(lambda: bridge.powerpointState.get('slide') == 3)
-            assert not c('companionNext').isEnabled()
+            assert c('companionNext').isEnabled()
             assert c('companionReadVietnamese').isEnabled() and not c('companionReadEnglish').isEnabled()
             # Repeated actual mouse actions while Settings remains open.
             for _ in range(5):
@@ -224,6 +300,19 @@ def main():
                 until(lambda: bridge.powerpointState.get('slide') == 2)
                 tap('companionNext')
                 until(lambda: bridge.powerpointState.get('slide') == 3)
+            from app.slideshow_shortcuts import DEFAULTS
+
+            assert bridge.mascotShortcuts.save(DEFAULTS | {'previous': 'A', 'next': 'D', 'volume_up': 'W', 'volume_down': 'S'})
+            pump(250)
+            bridge.focusTeachingPresentation()
+            native_key(ord('A'), hwnd)
+            until(lambda: bridge.powerpointState.get('slide') == 2)
+            native_key(ord('D'), hwnd)
+            until(lambda: bridge.powerpointState.get('slide') == 3)
+            native_key(ord('W'), hwnd)
+            until(lambda: bridge.teachingSession.volume == 85)
+            native_key(ord('S'), hwnd)
+            until(lambda: bridge.teachingSession.volume == 80)
             for dx, dy in [(-20, -12), (20, 12)] * 6:
                 pump(100)
                 left, top, _, _ = win32gui.GetWindowRect(int(companion.winId()))
@@ -248,10 +337,11 @@ def main():
             assert not warnings, warnings
             assert source.read_bytes() == original
             delays = bridge.navigation_latencies
-            assert len(delays) == 14 and max(delays) < 1, delays
+            assert len(delays) == 16 and max(delays) < 1, delays  # Includes two live A/D actions.
             result = dict(status='passed', native_mouse_and_keyboard=True, f5_from_editor=True,
                           mascot_restores_foreground=True, read_pause_resume_switch=True,
-                          no_capture_in_other_apps=True, mouse_changes_slide_keyboard_keeps_effects=True,
+                          no_capture_in_other_apps=True, mouse_and_keyboard_preserve_effects=True,
+                          cached_and_native_speakers_share_pause_badges=True, wasd_live_reassignment=True,
                           voice_buttons_match_slide=True, broad_refreshes=len(broad_refreshes),
                           native_panel_drags=12, navigation_count=len(delays),
                           navigation_max_seconds=round(max(delays), 3),

@@ -175,7 +175,7 @@ def media_shape(identity, language, box, audio_relation, media_relation, icon_re
     return picture
 
 
-def embed_audio(source, destination, lesson, directory, *, scope='full_slide'):
+def embed_audio(source, destination, lesson, directory, *, scope='full_slide', managed=False):
     from pptx import Presentation
 
     from .layout_regions import intersection
@@ -260,14 +260,17 @@ def embed_audio(source, destination, lesson, directory, *, scope='full_slide'):
             entries[pause_name] = pause_icon
             pause_id = relation(NS['r'] + '/image', '../media/' + Path(pause_name).name)
             shape_tree.append(picture(media, identity + 2, language, pause_id, paused=True))
-            # A selection-pane-hidden audio shape cannot reliably start in Office.
-            # Keep its native player enabled, outside the canvas; only ordinary
-            # picture controls occupy the footer, so hover has no media toolbar.
-            media.find('p:spPr/a:xfrm/a:off', NS).set('x', str(deck.slide_width + 12700 * 50))
+            # Keep the native player enabled, but make its backing poster
+            # transparent and tiny underneath the visible speaker control.
+            # Selection-pane hiding prevents reliable playback in Office.
+            _node(media.find('p:blipFill/a:blip', NS), 'a', 'alphaModFix', amt='0')
+            extent = media.find('p:spPr/a:xfrm/a:ext', NS)
+            extent.set('cx', '12700')
+            extent.set('cy', '12700')
             controls.append((identity, identity + 1, identity + 2, duration))
             identity += 2
             count += 1
-        add_controls(tree, controls)
+        add_controls(tree, controls, managed=managed)
         entries[part] = _bytes(tree)
         entries[_rels_path(part)] = _bytes(relationships)
     if not count:

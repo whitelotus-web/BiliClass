@@ -113,6 +113,25 @@ def test_unsupported_animation_is_not_assumed_visible(node, paragraph):
     assert "animation_needs_review" in result["issues"]
 
 
+def test_with_click_entrance_uses_same_click_without_exposing_later_object():
+    deck = Presentation()
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    first = textbox(slide, 'What is kinetic energy?')
+    second = textbox(slide, 'The answer is kinetic energy.', y=2)
+    third = textbox(slide, 'The energy depends on mass.', y=3)
+    for shape, kind in ((first, 'clickEffect'), (second, 'withEffect'), (third, 'clickEffect')):
+        animation(slide, shape, node_type=kind)
+    timings = slide._element.xpath('./p:timing')
+    main = timings[0].xpath('.//p:cTn[@nodeType="mainSeq"]')[0]
+    for timing in timings[1:]:
+        main.append(timing.xpath('.//p:cTn[@nodeType="mainSeq"]/*')[0])
+        slide._element.remove(timing)
+    result = inspect_slide(slide, 1)
+    assert not visible_segments(result, 0, 2)
+    assert [s['english_text'] for s in visible_segments(result, 1, 2)] == [first.text, second.text]
+    assert len(visible_segments(result, 2, 2)) == 3
+
+
 def test_repeated_text_is_kept_at_distinct_meaningful_sources_not_metadata_duplicates():
     deck = Presentation()
     slide = deck.slides.add_slide(deck.slide_layouts[6])

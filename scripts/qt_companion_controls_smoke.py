@@ -36,7 +36,7 @@ class ControlBridge(Bridge):
 def main():
     app = QGuiApplication([])
     QQuickStyle.setStyle('Basic')
-    report = Path('reports/rc83/companion-controls')
+    report = Path('reports/rc90/companion-controls')
     report.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='bcl-controls-', ignore_cleanup_errors=True) as folder:
         library = Library(Path(folder))
@@ -62,7 +62,7 @@ def main():
             assert c('companionSettings').isVisible() and c('companionShortcutGuideToggle').width() == 30
             assert companion.opacity() == 1 and bridge.companionPanelOpacity == 100
             assert companion.grabWindow().save(str(report / 'unbound.png'))
-            for size, pixels, width in [('small', 80, 344), ('standard', 110, 384), ('large', 150, 432)]:
+            for size, pixels, width in [('small', 80, 320), ('standard', 110, 356), ('large', 150, 400)]:
                 bridge.saveMascotPreferences('Milo', True, pixels, 'right', False, True, True, True)
                 until(lambda: not bridge.mascotSaving)
                 pump(100)
@@ -71,7 +71,7 @@ def main():
                 button = c('companionChooseLesson')
                 point = button.mapToItem(menu, QPointF())
                 assert abs(point.x() - (menu.width() - point.x() - button.width())) < 1
-                assert button.height() == {'small': 36, 'standard': 40, 'large': 46}[size]
+                assert button.height() == {'small': 34, 'standard': 38, 'large': 44}[size]
                 gear = c('companionSettings')
                 point = gear.mapToItem(menu, QPointF())
                 assert point.x() > 0 and point.x() + gear.width() < menu.width()
@@ -80,6 +80,7 @@ def main():
             until(lambda: not bridge.mascotSaving)
             bridge._powerpoint_state = {'active': True, 'opened': True, 'slide': 2, 'total': 7, 'message': ''}
             native_commands = []
+            lesson['narration'] = {'keys': {'en': []}}
             bridge.powerpoint_worker = SimpleNamespace(navigate=lambda *args: native_commands.append(args))
             bridge.teachingSession.bind({'lesson': lesson, 'path': '', 'preview': {}, 'media': {2: ['en', 'vi', 'both']}})
             bridge.changed.emit()
@@ -88,6 +89,17 @@ def main():
             assert all(item.isVisible() for item in audio)
             assert max(item.width() for item in audio) - min(item.width() for item in audio) <= 1, [item.width() for item in audio]
             assert max(item.mapToScene(QPointF()).y() for item in audio) - min(item.mapToScene(QPointF()).y() for item in audio) < 1
+            assert c('companionEndShow').property('danger')
+            assert c('companionStartShow').property('iconName') == 'presentation'
+            assert c('companionReadingOptions').isVisible()
+            click(companion, c('companionReadingOptions'))
+            until(lambda: c('companionReadingMenu').property('visible'))
+            c('companionReadingFull').triggered.emit()
+            assert bridge.teachingSession.state['reading_mode'] == 'full_slide'
+            c('companionReadingAuto').triggered.emit()
+            assert bridge.teachingSession.state['reading_mode'] == 'auto'
+            c('companionReadingMenu').close()
+            assert root.findChild(QObject, 'companionReadingScope') is None
             for opacity in (100, 30):
                 bridge.setCompanionPanelOpacity(opacity)
                 pump(100)
@@ -95,7 +107,7 @@ def main():
                 assert companion.opacity() == 1 and all(item.opacity() == 1 for item in audio)
                 for name in ('companionPrevious', 'companionNext', 'companionReadEnglish', 'companionReadVietnamese', 'companionReadBoth'):
                     click(companion, c(name))
-                assert bridge.commands[-5:] == [('navigate', 'previous_slide'), ('navigate', 'next_slide'), ('read', 'en'), ('read', 'vi'), ('read', 'both')], (bridge.commands, c('companionPanelMoveArea').property('overControl'))
+                assert bridge.commands[-5:] == [('navigate', 'previous'), ('navigate', 'next'), ('read', 'en'), ('read', 'vi'), ('read', 'both')], (bridge.commands, c('companionPanelMoveArea').property('overControl'))
                 # Real mouse input on the panel moves the complete window,
                 # persists the mascot anchor, and never activates a control.
                 area = app.primaryScreen().availableGeometry()
@@ -116,14 +128,17 @@ def main():
                 mascot = c('mascotToggle')
                 anchor = {'x': companion.x() + mascot.x(), 'y': companion.y() + mascot.y()}
                 assert bridge._mascot_location == anchor
-                # A regular panel click stays expanded; a double click folds
-                # it into the mascot without changing the dragged anchor.
+                # A double click no longer collapses the panel. Only the down
+                # arrow folds it, without changing the dragged anchor.
                 grab = panel.mapToScene(QPointF(28, 26)).toPoint()
                 QTest.mouseClick(companion, Qt.LeftButton, pos=grab)
                 pump(100)
                 assert not companion.property('collapsed')
                 QTest.mouseDClick(companion, Qt.LeftButton, pos=grab)
                 pump(150)
+                assert not companion.property('collapsed')
+                click(companion, c('collapseCompanionPanel'))
+                pump(100)
                 assert companion.property('collapsed') and not c('companionMenu').isVisible()
                 assert abs(companion.x() - anchor['x']) <= 1 and abs(companion.y() - anchor['y']) <= 1
                 click(companion, mascot)
@@ -154,6 +169,8 @@ def main():
             assert QPoint(companion.x(), companion.y()) == origin
             assert native_commands and native_commands[-1][0] == 'set_volume'
             help_button = c('companionShortcutGuideToggle')
+            QTest.mouseMove(companion, QPoint(12, 12))
+            pump(100)
             height_without_guide = companion.height()
             QTest.mouseMove(companion, help_button.mapToScene(QPointF(15, 15)).toPoint())
             pump(300)
@@ -258,7 +275,7 @@ def main():
             assert not warnings, warnings
             result = dict(status='passed', sizes=3, opacity_clicks=2, settings_preserves_binding=True,
                           subject_badge_hidden=True, qml_warnings=warnings,
-                          panel_drag_and_double_click=True,
+                          panel_drag_and_down_arrow=True,
                           transparency_max_ui_gap_seconds=round(max_gap, 3), transparency_broad_refreshes=len(broad_refreshes),
                           scope='Qt hit targets/geometry with intercepted commands; native Office verified separately')
             (report / 'result.json').write_text(json.dumps(result, indent=2), encoding='utf-8')

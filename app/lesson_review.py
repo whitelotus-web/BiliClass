@@ -17,9 +17,9 @@ def summarize(lesson):
               'canRepair': bool(lesson.get('external_deck') and failures and not lesson.get('voice_only')),
               'canConfirm': bool(segments) and not missing and not failures}
     if failures:
-        result.update(kind='repair', label='Cần xem lại bố cục',
-                      detail=f'{failures} slide có cảnh báo bố cục. Tool tự thử căn chỉnh khi chuyển đổi, mở hoặc tải; có thể xem chi tiết và đối chiếu trong PowerPoint.',
-                      action='Xem chi tiết bố cục')
+        result.update(kind='repair', label='Đã lưu bài',
+                      detail='BiliClass tự căn chỉnh và kiểm tra bố cục khi chuyển đổi, mở hoặc tải bài giảng.',
+                      action='Xem bài giảng')
     elif not segments or missing:
         result.update(kind='incomplete', label='Chưa có lời đọc' if lesson.get('voice_only') else 'Chưa dịch đủ',
                       detail='Bổ sung lời đọc trong Tạo giọng đọc bài giảng → Kiểm tra lời đọc.' if lesson.get('voice_only') else 'Bài còn thiếu nội dung Việt–Anh. Mở phần chỉnh sửa để bổ sung hoặc tiếp tục chuyển đổi.',

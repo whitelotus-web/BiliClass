@@ -8,6 +8,7 @@ Button {
     property bool danger: false
     property string symbol: ""
     property string iconName: ""
+    property int iconSize: 22
     property bool externalHovered: false
     readonly property bool pointerHovered: hovered || externalHovered
     implicitHeight: 38
@@ -16,7 +17,7 @@ Button {
     contentItem: RowLayout {
         spacing: 6
         Item { Layout.fillWidth: true }
-        Image { visible: !!control.iconName; source: control.iconName ? "../assets/actions/" + control.iconName + ".png" : ""; sourceSize.width: 64; sourceSize.height: 64; fillMode: Image.PreserveAspectFit; Layout.preferredWidth: 22; Layout.preferredHeight: 22; opacity: control.enabled ? 1 : .4 }
+        Image { visible: !!control.iconName; source: control.iconName ? "../assets/actions/" + control.iconName + (control.iconName === "presentation" ? (control.primary ? "-white.svg" : ".svg") : ".png") : ""; sourceSize.width: 64; sourceSize.height: 64; fillMode: Image.PreserveAspectFit; Layout.preferredWidth: control.iconSize; Layout.preferredHeight: control.iconSize; opacity: control.enabled ? 1 : .4 }
         Text { visible: !!control.symbol; text: control.symbol; font: control.font; color: control.enabled ? (control.danger ? "#c92d37" : "#0869f9") : "#96a6bc" }
         Text { text: control.text; font: control.font; color: !control.enabled ? "#96a6bc" : control.primary ? "white" : control.danger ? "#c92d37" : "#0869f9"; verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight }
         Item { Layout.fillWidth: true }

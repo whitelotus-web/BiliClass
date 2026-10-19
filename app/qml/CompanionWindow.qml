@@ -29,7 +29,7 @@ Window {
     property bool mascotAtBottom: true
     readonly property int mascotExtent: Math.max(90, Math.min(178, bridge.mascotSettings.size + 18))
     readonly property bool hasResponse: bridge.companionCanRead && !companion.response.untouched
-    readonly property int controlHeight: bridge.companionPanelSize === "large" ? 46 : bridge.companionPanelSize === "small" ? 36 : 40
+    readonly property int controlHeight: bridge.companionPanelSize === "large" ? 44 : bridge.companionPanelSize === "small" ? 34 : 38
     readonly property int controlFont: bridge.companionPanelSize === "large" ? 14 : bridge.companionPanelSize === "small" ? 12 : 13
     readonly property int audioCount: Number(!!availableAudio.en) + Number(!!availableAudio.vi) + Number(!!availableAudio.both)
 
@@ -46,7 +46,6 @@ Window {
     component MoveArea: MouseArea {
         property bool dragged: false
         property bool toggleOnClick: false
-        property bool collapseOnDoubleClick: false
         property var exclusionRoot: null
         property real pressGlobalX: 0
         property real pressGlobalY: 0
@@ -104,10 +103,6 @@ Window {
                 if (toggleOnClick) companion.collapsed = !companion.collapsed
             }
         }
-        onDoubleClicked: function(mouse) {
-            if (collapseOnDoubleClick && !dragged && !overControl) companion.collapsed = true
-            else mouse.accepted = false
-        }
         onWheel: function(wheel) { wheel.accepted = false }
     }
 
@@ -115,7 +110,7 @@ Window {
     transientParent: null
     flags: Qt.Tool | Qt.FramelessWindowHint | (bridge.mascotSettings.always_on_top ? Qt.WindowStaysOnTopHint : 0) | Qt.NoDropShadowWindowHint | Qt.WindowDoesNotAcceptFocus
     title: "BiliClass · Trợ giảng"
-    width: collapsed ? mascotExtent : Math.min(Screen.desktopAvailableWidth - 16, bridge.companionPanelSize === "large" ? 432 : bridge.companionPanelSize === "small" ? 344 : 384)
+    width: collapsed ? mascotExtent : Math.min(Screen.desktopAvailableWidth - 16, bridge.companionPanelSize === "large" ? 400 : bridge.companionPanelSize === "small" ? 320 : 356)
     height: collapsed ? mascotExtent : Math.min(Screen.desktopAvailableHeight - 16, mascotExtent + menuContent.implicitHeight + 32)
     color: "transparent"
 
@@ -154,7 +149,6 @@ Window {
             id: panelMoveArea
             objectName: "companionPanelMoveArea"
             exclusionRoot: menu
-            collapseOnDoubleClick: true
             Accessible.name: "Kéo bảng trợ giảng để di chuyển; nhấp đúp để thu về Mascot"
             ToolTip.visible: containsMouse && !overControl && mouseY < 48 && !pressed
             ToolTip.delay: 600

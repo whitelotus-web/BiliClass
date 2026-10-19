@@ -6,7 +6,6 @@ Rectangle {
     id: card
     property string summary: ""
     property int total: 0
-    property int layoutFailures: 0
     property var coverage: ({})
     property bool busy: false
     signal openPowerPoint()
@@ -14,7 +13,6 @@ Rectangle {
     signal downloadPresentation()
     signal downloadAudio()
     signal showInLibrary()
-    signal inspectLayout()
     radius: 10; color: "#eef8f4"; border.color: "#d2eade"
     implicitHeight: content.implicitHeight + 28
     ColumnLayout {
@@ -48,12 +46,6 @@ Rectangle {
         }
         RowLayout {
             Layout.fillWidth: true
-            Label {
-                visible: card.layoutFailures > 0
-                text: card.layoutFailures + " slide cần kiểm tra bố cục; giọng đọc đã được lưu."
-                color: "#a66318"; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap
-            }
-            ActionButton { objectName: "inspectCompletedNarrationLayout"; visible: card.layoutFailures > 0; text: "Xem cảnh báo"; enabled: !card.busy; onClicked: card.inspectLayout() }
             Item { Layout.fillWidth: true }
             ActionButton { objectName: "viewCompletedNarrationInLibrary"; text: "Xem trong Bài giảng"; enabled: !card.busy; onClicked: card.showInLibrary() }
         }

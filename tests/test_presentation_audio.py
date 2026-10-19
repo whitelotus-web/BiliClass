@@ -51,6 +51,24 @@ def fixture(tmp_path, mode="both", crowded=False):
     return library, lesson, path
 
 
+def test_managed_teaching_buttons_have_one_state_owner_and_no_native_click_commands(tmp_path):
+    from app.presentation_audio import embed_audio
+
+    library, lesson, source = fixture(tmp_path)
+    target = tmp_path / 'managed.pptx'
+    try:
+        embed_audio(source, target, lesson, library.directory, managed=True)
+        with zipfile.ZipFile(target) as archive:
+            tree = etree.fromstring(archive.read(source_slide_parts(target)[0]))
+        assert len(tree.findall('.//p:audio', NS)) == 2
+        assert not tree.xpath('.//p:cTn[@nodeType="interactiveSeq"]|.//p:cmd|.//p:set', namespaces=NS)
+        buttons = tree.xpath('.//p:pic[not(p:nvPicPr/p:nvPr/a:audioFile)]', namespaces=NS)
+        assert len(buttons) == 4
+        assert all(int(p.find('p:spPr/a:xfrm/a:ext', NS).get('cx')) > 12700 for p in buttons)
+    finally:
+        library.close()
+
+
 def test_fixed_footer_keeps_all_speakers_on_crowded_pages_and_reports_overlap(tmp_path):
     library, lesson, source = fixture(tmp_path, crowded=True)
     original = source.read_bytes()
@@ -93,7 +111,9 @@ def test_selected_speakers_are_embedded_internal_click_only_and_source_is_unchan
             assert len(tree.findall(".//p:audio", NS)) == count
             media = tree.xpath('.//p:pic[p:nvPicPr/p:nvPr/a:audioFile]', namespaces=NS)
             assert all(p.find('p:nvPicPr/p:cNvPr', NS).get('hidden') == '0' for p in media)
-            assert all(int(p.find('p:spPr/a:xfrm/a:off', NS).get('x')) > Presentation(target).slide_width for p in media)
+            assert all(0 <= int(p.find('p:spPr/a:xfrm/a:off', NS).get('x')) < Presentation(target).slide_width for p in media)
+            assert all(p.find('p:blipFill/a:blip/a:alphaModFix', NS).get('amt') == '0' for p in media)
+            assert all(p.find('p:spPr/a:xfrm/a:ext', NS).get('cx') == '12700' for p in media)
             buttons = tree.xpath('.//p:pic[not(p:nvPicPr/p:nvPr/a:audioFile)]', namespaces=NS)
             assert len(buttons) == count * 2
             assert all(p.find('p:nvPicPr/p:cNvPr', NS).get('hidden') == '0' for p in buttons)

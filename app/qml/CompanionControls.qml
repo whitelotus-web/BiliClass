@@ -6,7 +6,7 @@ ColumnLayout {
     id: controls
     required property var bridge
     required property var companion
-    spacing: 9
+    spacing: 8
 
     component PanelAction: ActionButton {
         id: panelAction
@@ -15,7 +15,8 @@ ColumnLayout {
         Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0
         implicitHeight: controls.companion.controlHeight
         font.pixelSize: controls.companion.controlFont
-        leftPadding: 9; rightPadding: 9
+        iconSize: controls.bridge.companionPanelSize === "small" ? 18 : controls.bridge.companionPanelSize === "large" ? 22 : 20
+        leftPadding: 7; rightPadding: 7
     }
     component HeaderAction: ToolButton {
         id: tool
@@ -37,7 +38,7 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true; spacing: 3
         Label { text: "Trợ giảng"; color: "#112650"; font.pixelSize: 15; font.weight: Font.DemiBold; Layout.fillWidth: true }
-        HeaderAction { objectName: "resetCompanionPosition"; glyph: "↘"; hint: "Đưa Mascot về góc phải dưới"; onClicked: { bridge.resetMascotLocation(); bridge.showCompanion(companion) } }
+        HeaderAction { objectName: "collapseCompanionPanel"; glyph: "↓"; hint: "Thu bảng về Mascot"; onClicked: companion.collapsed = true }
         HeaderAction {
             id: shortcutHelp; objectName: "companionShortcutGuideToggle"; glyph: "?"; hint: "Rê chuột để xem hướng dẫn phím"; standardHint: false
             ToolTip {
@@ -74,14 +75,14 @@ ColumnLayout {
     Label { visible: !companion.session.bound && !bridge.companionCanRead; text: "Chọn bài trong thư viện hoặc file PowerPoint để Mascot điều khiển."; color: "#667997"; wrapMode: Text.WordWrap; Layout.fillWidth: true; font.pixelSize: 12 }
     RowLayout {
         visible: !!bridge.powerpointState.opened; Layout.fillWidth: true; spacing: 6
-        PanelAction { objectName: "companionStartShow"; text: bridge.powerpointState.active ? "Đang trình chiếu" : "Trình chiếu · F5"; primary: !bridge.powerpointState.active; iconName: "fullscreen"; enabled: !bridge.powerpointState.active; onClicked: bridge.startTeachingShow() }
-        PanelAction { objectName: "companionEndShow"; text: "Kết thúc"; visible: !!bridge.powerpointState.active && !!companion.session.bound; onClicked: bridge.navigatePowerPoint("end_show") }
+        PanelAction { objectName: "companionStartShow"; text: bridge.powerpointState.active ? "Đang trình chiếu" : "Trình chiếu · F5"; primary: !bridge.powerpointState.active; iconName: "presentation"; enabled: !bridge.powerpointState.active; onClicked: bridge.startTeachingShow() }
+        PanelAction { objectName: "companionEndShow"; text: "Kết thúc"; danger: true; visible: !!bridge.powerpointState.active && !!companion.session.bound; onClicked: bridge.navigatePowerPoint("end_show") }
     }
     RowLayout {
         visible: !!companion.session.bound || bridge.companionCanRead; Layout.fillWidth: true; spacing: 8
-        PanelAction { objectName: "companionPrevious"; text: "Trước"; iconName: "previous"; enabled: bridge.companionCanRead && bridge.powerpointState.slide > 1; ToolTip.visible: pointerHovered; ToolTip.text: "Về slide trước · Phím ← để lùi từng hiệu ứng"; onClicked: bridge.navigatePowerPoint("previous_slide") }
+        PanelAction { objectName: "companionPrevious"; text: "Trước"; iconName: "previous"; enabled: bridge.companionCanRead; ToolTip.visible: pointerHovered; ToolTip.text: "Lùi một bước/hiệu ứng; hết bước thì về slide trước"; onClicked: bridge.navigatePowerPoint("previous") }
         Label { objectName: "companionSlidePosition"; text: bridge.powerpointState.active ? "Slide " + bridge.powerpointState.slide + " / " + bridge.powerpointState.total : "Sẵn sàng"; color: "#486385"; font.pixelSize: companion.controlFont; horizontalAlignment: Text.AlignHCenter; Layout.preferredWidth: 94 }
-        PanelAction { objectName: "companionNext"; text: "Sau"; iconName: "next"; enabled: bridge.companionCanRead && bridge.powerpointState.slide < bridge.powerpointState.total; ToolTip.visible: pointerHovered; ToolTip.text: "Sang slide tiếp · Phím → để tiến từng hiệu ứng"; onClicked: bridge.navigatePowerPoint("next_slide") }
+        PanelAction { objectName: "companionNext"; text: "Sau"; iconName: "next"; enabled: bridge.companionCanRead; ToolTip.visible: pointerHovered; ToolTip.text: "Tiến một bước/hiệu ứng; hết bước thì sang slide tiếp"; onClicked: bridge.navigatePowerPoint("next") }
     }
     GridLayout {
         objectName: "companionAudioControls"; visible: bridge.companionCanRead && companion.audioCount > 0
@@ -98,10 +99,20 @@ ColumnLayout {
         color: "#667997"; font.pixelSize: 11; wrapMode: Text.WordWrap; Layout.fillWidth: true
     }
     RowLayout {
-        visible: companion.session.bound && !!companion.session.active && companion.audioCount > 0; Layout.fillWidth: true; spacing: 6
+        visible: companion.session.bound && !!companion.session.active; Layout.fillWidth: true; spacing: 6
         Label { text: "Âm lượng"; font.pixelSize: 12; color: "#667997" }
         Slider { objectName: "companionVolume"; from: 0; to: 100; stepSize: 5; value: companion.reader.volume === undefined ? 80 : companion.reader.volume; Layout.fillWidth: true; onMoved: bridge.teachingSession.setVolume(Math.round(value)); onPressedChanged: if (!pressed) bridge.focusTeachingPresentation() }
         Label { text: (companion.reader.volume === undefined ? 80 : companion.reader.volume) + "%"; font.pixelSize: 12; color: "#102e54" }
+        HeaderAction {
+            id: readingOptions; objectName: "companionReadingOptions"; glyph: "⋯"; hint: "Cách đọc"; visible: !!companion.session.can_choose_scope
+            onClicked: readingMenu.popup()
+            Menu {
+                id: readingMenu; objectName: "companionReadingMenu"; y: readingOptions.height
+                MenuItem { objectName: "companionReadingAuto"; text: "Tự động theo slide"; checkable: true; checked: companion.session.reading_mode === "auto"; onTriggered: bridge.teachingSession.setReadingScope("auto") }
+                MenuItem { objectName: "companionReadingVisible"; text: "Đọc phần đang hiện"; checkable: true; checked: companion.session.reading_mode === "visible"; onTriggered: bridge.teachingSession.setReadingScope("visible") }
+                MenuItem { objectName: "companionReadingFull"; text: "Đọc toàn bộ slide"; checkable: true; checked: companion.session.reading_mode === "full_slide"; onTriggered: bridge.teachingSession.setReadingScope("full_slide") }
+            }
+        }
     }
     Rectangle { visible: !!companion.session.bound || bridge.companionCanRead; Layout.fillWidth: true; implicitHeight: 1; color: "#e0e8f4" }
     RowLayout {
@@ -121,13 +132,6 @@ ColumnLayout {
         objectName: "companionResponseScroll"
         visible: companion.hasResponse; Layout.fillWidth: true; Layout.preferredHeight: 150
         TextArea { objectName: "companionResponseText"; text: companion.response.text || ""; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; font.pixelSize: companion.controlFont; color: "#112650"; background: null; textFormat: TextEdit.PlainText }
-    }
-    ComboBox {
-        objectName: "companionReadingScope"; visible: !!companion.session.can_choose_scope && companion.showAssistant
-        Layout.fillWidth: true; model: ["Đọc toàn bộ slide", "Đọc theo hiệu ứng đang hiện"]
-        currentIndex: companion.session.reading_scope === "visible" ? 1 : 0
-        ToolTip.visible: hovered; ToolTip.text: "Đọc toàn bộ dùng lời đã lưu, kể cả phần xuất hiện sau. Đọc theo hiệu ứng chỉ đọc phần xác định đang hiện."
-        onActivated: bridge.teachingSession.setReadingScope(currentIndex === 1 ? "visible" : "full_slide")
     }
     Label { visible: !!companion.session.warning; text: companion.session.warning || ""; color: "#a66318"; wrapMode: Text.WordWrap; Layout.fillWidth: true; font.pixelSize: 11 }
     Label { objectName: "companionReaderStatus"; visible: !!companion.reader.message && companion.reader.state !== "stopped"; text: companion.reader.message; color: companion.reader.state === "error" ? "#b14828" : "#667997"; wrapMode: Text.WordWrap; Layout.fillWidth: true; font.pixelSize: 11 }

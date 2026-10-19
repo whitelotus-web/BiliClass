@@ -148,7 +148,7 @@ def test_open_saved_powerpoint_does_not_run_full_office_repair_or_change_the_sav
         result = prepare_library_teaching(library.directory, lesson['id'])
         assert result['path'] and result['lesson']['id'] == lesson['id']
         assert result['lesson']['slide_quality']['counts']['FAIL'] == 1
-        assert '1 slide' in result['warning']
+        assert not result['warning'], 'Layout findings stay internal while completion still runs'
         assert library.get(lesson['id'])['source'] == before['source']
         assert library.get(lesson['id'])['revision'] == before['revision']
     finally:

@@ -29,7 +29,7 @@ def picture(media, identity, language, icon_relation, *, paused=False):
     return result
 
 
-def add_controls(tree, controls):
+def add_controls(tree, controls, *, managed=False):
     """Each ready/pause click executes one short command sequence.
 
     The media node lives outside these sequences, so restarting a button's
@@ -79,14 +79,19 @@ def add_controls(tree, controls):
         _node(_node(effect, 'stCondLst'), 'cond', delay='0')
         return _node(effect, 'childTnLst')
 
-    initial = effects(children)
+    initial = effects(children) if not managed else None
     for media_id, ready_id, pause_id, _duration in controls:
-        visibility(initial, ready_id, True)
-        visibility(initial, pause_id, False)
+        if not managed:
+            visibility(initial, ready_id, True)
+            visibility(initial, pause_id, False)
         media = _node(_node(children, 'audio'), 'cMediaNode', vol='80000')
         media_clock = clock(media, fill='hold', display='0')
         _node(_node(media_clock, 'stCondLst'), 'cond', delay='indefinite')
         target(media, media_id)
+        if managed:
+            # The bound Mascot session owns click/pause state. Native picture
+            # animations must not hide its pause badge or start a second voice.
+            continue
         for trigger, pause in ((ready_id, False), (pause_id, True)):
             sequence = clock(_node(children, 'seq', concurrent='1'), restart='always', fill='hold',
                              evtFilter='cancelBubble', nodeType='interactiveSeq')

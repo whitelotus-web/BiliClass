@@ -10,8 +10,10 @@ import sys
 import threading
 from ctypes import wintypes
 
-DEFAULTS = {'en': 'Space', 'vi': 'Enter', 'both': 'Ctrl+Space'}
-KEYS = {'Space': 0x20, 'Enter': 0x0D}
+READ_ACTIONS = {'en', 'vi', 'both'}
+DEFAULTS = {'en': 'Space', 'vi': 'Enter', 'both': 'Ctrl+Space',
+            'previous': 'Left', 'next': 'Right', 'volume_up': 'Up', 'volume_down': 'Down'}
+KEYS = {'Space': 0x20, 'Enter': 0x0D, 'Left': 0x25, 'Up': 0x26, 'Right': 0x27, 'Down': 0x28}
 KEYS.update({chr(key): key for key in range(65, 91)})
 KEYS.update({str(key): 48 + key for key in range(10)})
 KEYS.update({f'F{number}': 0x6F + number for number in range(1, 13) if number != 5})
@@ -20,7 +22,7 @@ MODIFIERS = {'Ctrl': 1, 'Alt': 2, 'Shift': 4}
 
 def validate(bindings):
     if not isinstance(bindings, dict) or set(bindings) != set(DEFAULTS):
-        raise ValueError('Cần gán đủ ba phím đọc Anh, Việt và hai ngôn ngữ.')
+        raise ValueError('Cần gán đủ phím đọc, tiến/lùi và tăng/giảm âm lượng.')
     result = {}
     for language in DEFAULTS:
         sequence = bindings[language]
@@ -29,16 +31,18 @@ def validate(bindings):
         parts = sequence.split('+')
         count = 2 if language == 'both' else 1
         if len(parts) != count or parts[-1] not in KEYS or (count == 2 and parts[0] not in MODIFIERS):
-            raise ValueError('Anh và Việt dùng một phím; hai ngôn ngữ dùng Ctrl/Alt/Shift cùng một phím. Esc, F5 và các phím điều hướng được giữ cho PowerPoint.')
+            raise ValueError('Mỗi thao tác dùng một phím; đọc hai ngôn ngữ dùng Ctrl/Alt/Shift cùng một phím. Esc và F5 được giữ cho PowerPoint.')
         if sequence in {'Alt+F4', 'Alt+Space', 'Ctrl+Esc', 'Ctrl+F4'}:
             raise ValueError('Tổ hợp này dành cho cửa sổ Windows. Hãy chọn phím khác.')
         result[language] = sequence
     if len(set(result.values())) != len(result):
-        raise ValueError('Các chức năng đọc phải dùng phím khác nhau.')
+        raise ValueError('Các thao tác phải dùng phím khác nhau.')
     return result
 
 
 def saved_bindings(value):
+    if isinstance(value, dict) and set(value) == READ_ACTIONS:
+        value = DEFAULTS | value  # Preserve existing reading keys when upgrading.
     try:
         return validate(value)
     except ValueError:
@@ -46,7 +50,8 @@ def saved_bindings(value):
 
 
 def display(sequence):
-    return sequence.replace('Space', 'Space ␣').replace('Enter', 'Enter ↵').replace('+', ' + ')
+    names = {'Space': 'Space ␣', 'Enter': 'Enter ↵', 'Left': '←', 'Right': '→', 'Up': '↑', 'Down': '↓'}
+    return ' + '.join(names.get(part, part) for part in sequence.split('+'))
 
 
 class KeyPolicy:
@@ -73,9 +78,6 @@ class KeyPolicy:
             if vk == KEYS[parts[-1]] and modifiers == wanted:
                 self.held.add(vk)
                 return True, language
-        if modifiers == 0 and vk in {0x26, 0x28}:
-            self.held.add(vk)
-            return True, 'volume_up' if vk == 0x26 else 'volume_down'
         return False, None
 
 
@@ -184,8 +186,10 @@ class SlideshowKeys:
             if code >= 0 and message in {0x201, 0x202}:  # Only left-button down/up.
                 point = ctypes.cast(data, ctypes.POINTER(Mouse)).contents.point
                 hwnd, slide_id, regions, _ = self._binding
-                focused = bool(hwnd and user.GetForegroundWindow() == hwnd and
-                               user.GetAncestor(user.WindowFromPoint(point), 2) == hwnd)
+                # The low-level down event arrives BEFORE Windows activates a
+                # slide clicked from Mascot. The exact hit window is the target;
+                # requiring foreground here lets that first click run natively.
+                focused = bool(hwnd and user.GetAncestor(user.WindowFromPoint(point), 2) == hwnd)
                 if message == 0x202:
                     held, mouse_held = mouse_held, False
                     if held:

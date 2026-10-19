@@ -35,12 +35,9 @@ def export(directory, identities, destination, with_voice=True, cancel=None):
             if cancel and cancel.is_set():
                 raise InterruptedError('Đã dừng tải. Tệp đích cũ được giữ nguyên.')
             if lesson.get('external_deck'):
-                from .lesson_completion import layout_notice
                 from .voice_import import prepare_library_lesson
 
                 lesson, preview = prepare_library_lesson(directory, lesson['id'], complete=True, cancel=cancel)
-                if notice := layout_notice(lesson):
-                    warnings.append(notice)
             else:
                 from .quick_conversion import build_preview
                 preview = build_preview(lesson, directory, terms=[r for r in terms if r['subject'] == lesson['subject']])
@@ -55,7 +52,7 @@ def export(directory, identities, destination, with_voice=True, cancel=None):
             save_presentation(lesson, preview, directory, path, with_voice=voice, report=coverage)
             paths.append(path)
             voiced += int(voice)
-            notes.append(path.name + '\n  Giọng: ' + label + '\n  Cần kiểm tra nội dung và bố cục trước khi dạy.\n')
+            notes.append(path.name + '\n  Giọng: ' + label + '\n')
             if voice:
                 from .presentation_audio import coverage_message
                 notes.append(coverage_message(coverage) + '\n')

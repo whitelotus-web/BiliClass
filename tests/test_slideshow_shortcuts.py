@@ -13,6 +13,7 @@ def test_defaults_migrate_invalid_settings_and_do_not_share_mutable_values():
 @pytest.mark.parametrize('update', [
     {'en': 'Ctrl+A'}, {'both': 'A'}, {'both': 'Ctrl+Alt+A'}, {'vi': 'Space'},
     {'en': 'Left'}, {'vi': 'Up'}, {'en': 'Esc'}, {'vi': 'F5'},
+    {'previous': 'A', 'next': 'A'}, {'volume_up': 'Space'}, {'next': 'Ctrl+D'},
     {'both': 'Alt+F4'}, {'both': 'Alt+Space'}, {'both': 'Win+Space'}, {'en': 32},
 ])
 def test_validation_preserves_arity_navigation_and_system_keys(update):
@@ -37,7 +38,7 @@ def test_repeat_release_modifiers_focus_and_unrelated_keys():
     assert policy.key(32, 0, True, True) == (True, 'en')
     assert policy.key(32, 0, True, False) == (False, None)
     assert policy.key(32, 0, False, False) == (False, None)
-    for key in (0x25, 0x27, 0x1B, 0x74, 65):
+    for key in (0x1B, 0x74, 65):
         assert policy.key(key, 0, True, True) == (False, None)
 
 
@@ -48,7 +49,7 @@ def test_press_elsewhere_is_not_suppressed_and_does_not_queue_read():
         assert policy.key(key, mods, False, False) == (False, None)
 
 
-def test_volume_keys_are_scoped_and_reserved_without_stealing_horizontal_navigation():
+def test_volume_and_navigation_keys_are_scoped_and_do_not_repeat():
     policy = KeyPolicy()
     for key, action in [(0x26, 'volume_up'), (0x28, 'volume_down')]:
         assert policy.key(key, 0, True, True) == (True, action)
@@ -56,7 +57,25 @@ def test_volume_keys_are_scoped_and_reserved_without_stealing_horizontal_navigat
         assert policy.key(key, 0, False, True) == (True, None)
         assert policy.key(key, 0, True, False) == (False, None)
         assert policy.key(key, 1, True, True) == (False, None)
-    for key in (0x25, 0x27):
+    for key, action in ((0x25, 'previous'), (0x27, 'next')):
+        assert policy.key(key, 0, True, True) == (True, action)
+        assert policy.key(key, 0, True, True) == (True, None)
+        assert policy.key(key, 0, False, True) == (True, None)
+        assert policy.key(key, 0, True, False) == (False, None)
+
+
+def test_saved_three_reading_keys_migrate_without_losing_teacher_choices():
+    chosen = {'en': 'A', 'vi': 'F6', 'both': 'Shift+A'}
+    assert saved_bindings(chosen) == DEFAULTS | chosen
+
+
+def test_wasd_replaces_arrows_and_keeps_function_keys_and_other_apps_free():
+    policy = KeyPolicy(DEFAULTS | {'previous': 'A', 'next': 'D', 'volume_up': 'W', 'volume_down': 'S'})
+    for name, action in [('A', 'previous'), ('D', 'next'), ('W', 'volume_up'), ('S', 'volume_down')]:
+        assert policy.key(ord(name), 0, True, False) == (False, None)
+        assert policy.key(ord(name), 0, True, True) == (True, action)
+        assert policy.key(ord(name), 0, False, True) == (True, None)
+    for key in (0x25, 0x26, 0x27, 0x28, 0x1B, 0x74):
         assert policy.key(key, 0, True, True) == (False, None)
 
 

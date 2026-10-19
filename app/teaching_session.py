@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 from uuid import uuid4
 
-from PySide6.QtCore import Property, QObject, Signal, Slot
+from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
 
 from . import speech
 from .powerpoint import slide_segment_indexes
@@ -25,7 +25,7 @@ def prepare_teaching(lesson, preview, directory):
     lesson, preview = copy.deepcopy(lesson), dict(preview)
     path = verify_preview(lesson, preview, directory)
     data = lesson.get('slide_speech', {})
-    if not lesson.get('voice_only') and data.get('sha256') != preview['sha256']:
+    if not lesson.get('voice_only'):
         data = deck_speech(path, Presentation(path), lesson.get('conversion_format', ''))
     warning = ''
     owned_path = ''
@@ -37,7 +37,7 @@ def prepare_teaching(lesson, preview, directory):
         target = Path(directory) / 'temp/teaching' / (uuid4().hex + '.pptx')
         target.parent.mkdir(parents=True, exist_ok=True)
         try:
-            coverage = embed_audio(path, target, lesson, directory)
+            coverage = embed_audio(path, target, lesson, directory, managed=True)
             path = target
             owned_path = str(target)
             if coverage.get('unplaced_pages'):
@@ -81,21 +81,63 @@ class TeachingSession(QObject):
         self.language = ''
         self.pause_on_start = False
         self.reading_scope = 'full_slide'
+        self.reading_mode = 'auto'
         self.volume = 80
+        self._build_key = None
+        self._cache_badge = None
+        self._settled = QTimer(self)
+        self._settled.setSingleShot(True)
+        self._settled.timeout.connect(self.changed)
+        getattr(bridge, 'powerpointStateChanged', bridge.changed).connect(self._watch_build)
         getattr(bridge, 'powerpointStateChanged', bridge.changed).connect(self.changed)
         bridge.speechStateChanged.connect(self.changed)
+        bridge.speechStateChanged.connect(self._sync_cache_badge)
+
+    def _sync_cache_badge(self):
+        worker = self.bridge.powerpoint_worker
+        if not worker or not self.bound or not self.bridge._powerpoint_state.get('active'):
+            return
+        reading = self.native_state == 'stopped' and self.bridge.englishReaderState.get('state') == 'reading'
+        badge = (self.bridge._powerpoint_state.get('slide_id'), self.language if reading else '')
+        if badge != self._cache_badge:
+            self._cache_badge = badge
+            worker.navigate('set_reading_badge', {'slide_id': badge[0], 'language': badge[1]})
 
     def bind(self, prepared):
         self.bound = copy.deepcopy(prepared)
         self._verified_stamp = None
-        self.reading_scope = 'full_slide'
+        self.reading_mode = 'auto'
+        self._build_key = None
         self.reset_reading()
+        self._watch_build()
+        self.changed.emit()
+
+    def _watch_build(self):
+        state = self.bridge._powerpoint_state
+        key = (state.get('slide_id'), state.get('click_index'), state.get('build_started'))
+        if key != self._build_key:
+            self._build_key = key
+            self._settled.stop()
+            page = next((p for p in self.bound.get('speech', {}).get('slides', []) if p['slide'] == state.get('slide')), {})
+            if self.reading_mode == 'auto':
+                animated = any(row.get('visibility', {}).get('kind', 'always') not in {'always', 'hidden'}
+                               for row in page.get('englishSpeechSegments', []))
+                self.reading_scope = 'visible' if animated else 'full_slide'
+            if self.bound and state.get('active') and self.reading_scope == 'visible':
+                delay = max((r.get('visibility', {}).get('settle_seconds', 0)
+                             for r in page.get('englishSpeechSegments', [])), default=0)
+                if delay:
+                    self._settled.start(round(delay*1000)+50)
 
     @Slot(str)
     def setReadingScope(self, scope):
-        if scope in {'full_slide', 'visible'} and scope != self.reading_scope:
+        if scope in {'auto', 'full_slide', 'visible'} and scope != self.reading_mode:
             self.stop()
-            self.reading_scope = scope
+            self.reading_mode = scope
+            if scope != 'auto':
+                self.reading_scope = scope
+            self._build_key = None
+            self._watch_build()
             self.changed.emit()
 
     def reset_reading(self):
@@ -108,6 +150,7 @@ class TeachingSession(QObject):
         self.changed.emit()
 
     def clear(self):
+        self._settled.stop()
         owned = self.bound.get('owned_path')
         if owned:
             path = Path(owned).resolve()
@@ -128,6 +171,7 @@ class TeachingSession(QObject):
                 'title': lesson.get('title', ''), 'response': self.response,
                 'warning': self.bound.get('warning', ''),
                 'reading_scope': self.reading_scope,
+                'reading_mode': self.reading_mode,
                 'can_choose_scope': bool(lesson.get('narration', {}).get('keys')),
                 'voice': (lesson.get('narration') or {}).get('voice', '')}
 
@@ -195,7 +239,7 @@ class TeachingSession(QObject):
                     'message': 'PowerPoint · ' + {'paused': 'Tạm dừng', 'preparing': 'Đang chuẩn bị', 'reading': 'Đang đọc'}[self.native_state]}
         return {**self.bridge.englishReaderState, 'language': self.language, 'volume': self.volume}
 
-    def event(self, state):
+    def office_event(self, state):
         event = state['event']
         if event == 'media_rejected':
             if state.get('token') == self.token:
@@ -208,14 +252,21 @@ class TeachingSession(QObject):
                 return
         if event == 'read_requested':
             if state.get('slide_id') == self.bridge._powerpoint_state.get('slide_id') and self.bound:
+                # A mouse-hook click is consumed before Windows activates the
+                # slide. Restore its focus before toggling the shared reader.
+                getattr(self.bridge, 'focusTeachingPresentation', lambda: None)()
                 if state.get('language') in {'volume_up', 'volume_down'}:
                     self.setVolume(self.volume + (5 if state['language'] == 'volume_up' else -5))
+                elif state.get('language') in {'next', 'previous'}:
+                    self.bridge.navigatePowerPoint(state['language'])
                 else:
                     self.toggleRead(state.get('language', ''))
         elif event == 'input_warning':
             self.bridge.inform(state['message'], True, refresh=False)
         elif event == 'media_stopped' and self.pending_read:
             token, number, slide_id, texts, voice, rate = self.pending_read
+            if state.get('token') != token:
+                return  # An earlier untagged Stop must not discard a newer cached read.
             self.pending_read = None
             self.native_state = 'stopped'
             if (token == state.get('token') == self.token and number == self.bridge._powerpoint_state.get('slide')

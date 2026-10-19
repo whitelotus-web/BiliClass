@@ -31,7 +31,7 @@ def commands(path):
 
 def main():
     pythoncom.CoInitialize()
-    report = Path('reports/rc77/speaker-export.json')
+    report = Path('reports/rc90/speaker-export.json')
     report.parent.mkdir(parents=True, exist_ok=True)
     presentation = None
     try:
@@ -64,7 +64,7 @@ def main():
                     assert player.State != 0, 'Export must never autoplay'
                     player.Play()
                     time.sleep(.12)
-                    assert player.State == 0, 'Off-canvas media must still play on demand'
+                    assert player.State == 0, 'Transparent backing media must still play on demand'
                     player.Pause()
                     assert player.State == 1
                     player.Play()
@@ -74,7 +74,7 @@ def main():
                 view.Exit()
             assert hashlib.sha256(source.read_bytes()).hexdigest() == original
             result = {'status': 'passed', 'native_interactive_sequences': counts,
-                      'command_roundtrip_preserved': True, 'native_off_canvas_audio_play_pause_resume': True,
+                      'command_roundtrip_preserved': True, 'native_transparent_audio_play_pause_resume': True,
                       'no_autoplay': True, 'source_unchanged': True,
                       'scope': 'Office parser and media API on silent fixtures; physical click/icon-state test still required'}
             report.write_text(json.dumps(result, indent=2), encoding='utf-8')

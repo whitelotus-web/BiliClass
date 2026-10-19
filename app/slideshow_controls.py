@@ -68,12 +68,12 @@ def prepare_controls(presentation, path, *, add_badges=True, on_warning=None):
             if not add_badges:
                 continue
             try:
-                mini = float(shape.Width) > float(shape.Height) * 1.8
+                mini = float(ready.Width) > float(ready.Height) * 1.8
                 filename = 'speaker-pause-' + language + ('-mini' if mini else '') + '.png' if language in {'vi', 'en', 'both'} else 'speaker-pause.png'
                 badge = slide.Shapes.Item(pause_position) if pause_position else None
                 if badge is None:
                     icon = str(RESOURCE_ROOT / 'assets/actions' / filename)
-                    badge = slide.Shapes.AddPicture(icon, False, True, shape.Left, shape.Top, shape.Width, shape.Height)
+                    badge = slide.Shapes.AddPicture(icon, False, True, ready.Left, ready.Top, ready.Width, ready.Height)
                     badge.Name = 'BiliClass pause ' + str(shape_id)
                 badge.Visible = False
                 ready.Visible = True

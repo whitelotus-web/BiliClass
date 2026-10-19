@@ -39,7 +39,7 @@ def main():
     app = QGuiApplication([])
     app.setApplicationName('BiliClass shortcut acceptance')
     QQuickStyle.setStyle('Basic')
-    out = Path('reports/rc74/shortcuts')
+    out = Path('reports/rc90/shortcuts')
     out.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='bcl-keys-', ignore_cleanup_errors=True) as folder:
         lesson, preview, directory, _ = prepared_lesson(Path(folder))
@@ -87,6 +87,32 @@ def main():
             assert bridge.mascotShortcuts.state['bindings']['both'] == 'Ctrl+K'
             click(window, control(window, 'resetMascotShortcuts'))
             assert bridge.mascotShortcuts.state['bindings']['en'] == 'Space'
+            for direction, key in [('Left', Qt.Key_A), ('Right', Qt.Key_D), ('Up', Qt.Key_W), ('Down', Qt.Key_S)]:
+                click(window, control(window, 'shortcutGuide' + direction))
+                pump(80)
+                assert panel.property('capturing'), direction
+                QTest.keyClick(window, key)
+                pump()
+                assert not panel.property('capturing'), direction
+            click(window, control(window, 'saveMascotShortcuts'))
+            chosen = bridge.mascotShortcuts.state['bindings']
+            assert [chosen[k] for k in ('previous', 'next', 'volume_up', 'volume_down')] == ['A', 'D', 'W', 'S'], chosen
+            assert library.setting('mascot_shortcuts', {}) == chosen
+            tooltip = control(window, 'companionShortcutTooltip')
+            tooltip.setProperty('visible', True)
+            pump(100)
+            pending = [tooltip.property('contentItem')]
+            guide_keys = {}
+            while pending:
+                item = pending.pop()
+                if item.objectName().startswith('shortcutHelpKey'):
+                    guide_keys[item.objectName()] = item.property('text')
+                pending.extend(item.childItems())
+            assert guide_keys['shortcutHelpKey3'] == 'A / D'
+            assert guide_keys['shortcutHelpKey4'] == 'W / S'
+            assert guide_keys['shortcutHelpKey0'] == 'Space ␣'
+            tooltip.setProperty('visible', False)
+            click(window, control(window, 'resetMascotShortcuts'))
             assert not panel.property('dirty')
             for width, height in ((1920, 1080), (1366, 850), (1080, 700)):
                 window.resize(width, height)

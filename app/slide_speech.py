@@ -181,7 +181,7 @@ def native_shapes(shapes):
 
 
 def animation_rules(slide):
-    """Only simple, whole-object on-click entrance/exit is resolved locally.
+    """Resolve simple whole-object click/with-click entrance and exit.
 
     Paragraph builds, auto delays, triggers, motion and repeats remain uncertain.
     A click index does not prove an animation has finished: settle time is required.
@@ -199,7 +199,7 @@ def animation_rules(slide):
             delays = xpath(effect, './/p:cond[@delay != "0"]')
             duration = [float(n.get("dur")) / 1000 for n in xpath(effect, ".//p:cTn[@dur]")
                         if n.get("dur", "").isdigit()]
-            if (clicks < 1 or effect.get("nodeType") != "clickEffect" or len(ids) != 1
+            if (clicks < 1 or effect.get("nodeType") not in {"clickEffect", "withEffect"} or len(ids) != 1
                     or effect.get("presetClass") not in {"entr", "exit"} or delays
                     or any(xpath(node, "./p:txEl") for node in targets)
                     or xpath(effect, './/p:cTn[@repeatCount]')):

@@ -77,13 +77,6 @@ def _retain_unchanged_audio(before, after):
         after['narration_variants'] = saved
 
 
-def layout_notice(lesson):
-    count = lesson.get('slide_quality', {}).get('counts', {}).get('FAIL', 0)
-    if count and not lesson.get('voice_only'):
-        return f'Có {count} slide cần xem lại bố cục trong PowerPoint. Bản gốc được giữ nguyên.'
-    return ''
-
-
 def prepare_library_teaching(directory, identity, profile=None, cancel=None, *, narration=None):
     from .lesson_narration import audio_status, records
     from .teaching_session import prepare_teaching
@@ -107,5 +100,4 @@ def prepare_library_teaching(directory, identity, profile=None, cancel=None, *, 
 
         lesson = select_final(lesson, directory, cancel)
     prepared = prepare_teaching(lesson, preview, directory)
-    prepared['warning'] = ' '.join(filter(None, (layout_notice(lesson), prepared.get('warning'))))
     return prepared

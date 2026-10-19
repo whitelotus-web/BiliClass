@@ -174,6 +174,18 @@ def _native_pause_event(playing, audible, paused, previous_paused):
     return ''
 
 
+def previous_build(view):
+    """Previous() skips builds; GotoClick rewinds a click within this slide."""
+    try:
+        index = int(view.GetClickIndex())
+    except Exception:
+        index = 0
+    if index > 0:
+        view.GotoClick(index - 1)
+    else:
+        view.Previous()
+
+
 def _office_session(path, initial_slide, commands, events, autostart=True, shortcuts=None):
     import psutil
     import pythoncom
@@ -197,6 +209,7 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
     previous_paused = set()
     badges = {}
     badge_state = set()
+    cached_badge = None
     volume = 80
     boxes = []
     media_starting = 0
@@ -312,7 +325,7 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
             elif command == "next":
                 view.Next()  # Office handles animation builds before advancing the slide.
             elif command == "previous":
-                view.Previous()
+                previous_build(view)
             elif command in {"next_slide", "previous_slide"}:
                 number = view.Slide.SlideIndex + (1 if command == "next_slide" else -1)
                 if 1 <= number <= total:
@@ -335,6 +348,7 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
             if current != last:
                 build_started = time.monotonic()
                 if not isinstance(last, tuple) or current[0] != last[0]:
+                    cached_badge = None
                     stop_media()
                     players = {}
                     player_languages = {}
@@ -362,6 +376,10 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
                 focus_after_start = False
                 last = current
             media_event, playing = _control_media(command, target, current[1], players, player_languages, playing)
+            if command in {'stop_media', 'play_media'}:
+                cached_badge = None
+            elif command == 'set_reading_badge' and isinstance(target, dict) and target.get('slide_id') == current[1]:
+                cached_badge = target.get('language')
             if media_event:
                 events.put(media_event)
                 if media_event['event'] == 'media_started':
@@ -420,6 +438,8 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
                 now_playing = playing
             playing = now_playing
             visible_badges = {(current[1], identity) for identity in now_playing - paused}
+            visible_badges.update((current[1], identity) for identity, language in player_languages.items()
+                                  if cached_badge and language == cached_badge)
             for identity in badge_state ^ visible_badges:
                 pair = badges.get(identity)
                 if pair is not None:
@@ -476,7 +496,7 @@ class PowerPointSession(QThread):
     def navigate(self, command, slide=None):
         if command not in {"next", "previous", "goto", "stop", "start", "end_show",
                            "next_slide", "previous_slide", "stop_media", "play_media",
-                           "pause_media", "resume_media", "set_shortcuts", "set_volume"}:
+                           "pause_media", "resume_media", "set_shortcuts", "set_volume", "set_reading_badge"}:
             raise ValueError("Lệnh PowerPoint không hợp lệ.")
         with self._command_lock:
             if self._closed:

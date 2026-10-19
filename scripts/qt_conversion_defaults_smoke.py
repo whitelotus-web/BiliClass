@@ -8,11 +8,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from pptx import Presentation
+from pptx.util import Inches
 from PySide6.QtCore import Q_ARG, QCoreApplication, QEvent, QMetaObject, Qt
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
-from qt_result_preview_mascot_smoke import click, control, pump
+from qt_result_preview_mascot_smoke import click, control, pump, until
 
 from app.library import Library
 from app.paths import RESOURCE_ROOT
@@ -22,7 +24,7 @@ from app.ui import Bridge
 def main():
     app = QGuiApplication([])
     QQuickStyle.setStyle('Basic')
-    out = Path('reports/rc69/defaults')
+    out = Path('reports/rc90/defaults')
     out.mkdir(parents=True, exist_ok=True)
     warnings, checks = [], []
     with tempfile.TemporaryDirectory(prefix='bcl-conversion-defaults-', ignore_cleanup_errors=True) as temp:
@@ -49,8 +51,9 @@ def main():
                 pump(200)
                 if phase == 'reopened':
                     assert bridge.defaultTeachingSubject == 'STEM – dự án, thực hành'
-                    assert c('lessonSubject').property('currentText') == 'Khác'
-                    assert c('creationCustomSubject').property('text') == bridge.defaultTeachingSubject
+                    assert c('lessonSubject').property('currentText') == 'Vật lý'
+                    assert bridge.conversionSubjectSelection == 'Vật lý'
+                    assert bridge.mascotAccessorySubject == 'Toán'
                     assert c('creationEducation').property('currentText') == 'THCS'
                     assert c('creationGrade').property('currentText') == '8'
                     assert c('settingsSubjects').property('currentText') == 'Khác'
@@ -68,6 +71,8 @@ def main():
                 click(window, c('saveProfile'))
                 assert bridge.defaultTeachingSubject == 'Tin học'
                 assert c('lessonSubject').property('currentText') == 'Tin học'
+                assert bridge.mascotAccessorySubject == 'Tin học'
+                assert c('mascotAccessorySubject').property('currentText') == 'Tin học'
                 window.grabWindow().save(str(out / 'general-subject.png'))
                 checks.append('Settings dropdown shares conversion subjects; default changes only after Save')
 
@@ -75,6 +80,48 @@ def main():
                 choose('lessonSubject', bridge.conversionSubjects.index('Vật lý'))
                 choose('creationGrade', 1)
                 assert bridge.conversionClassSelection == {'education': 'THPT', 'grade': '11'}
+                # Exercise the actual QML submit button and Bridge dispatch,
+                # writing only disposable requests; no service/API is called.
+                from app.chatgpt_handoff import inspect_returned_deck
+                from app.conversion_input import creation_config
+                from app.google_conversion import prepare
+
+                source = Path(temp) / 'Bài thử môn Vật lý.pptx'
+                deck = Presentation()
+                slide = deck.slides.add_slide(deck.slide_layouts[6])
+                slide.shapes.add_textbox(Inches(1), Inches(1), Inches(6), Inches(2)).text = 'VI: Cơ năng\nEN: Mechanical energy'
+                deck.save(source)
+                QMetaObject.invokeMethod(window, 'acceptInputDocuments', Qt.DirectConnection,
+                                         Q_ARG('QVariant', [source.as_uri()]))
+                until(lambda: not bridge.inputDocuments.busy)
+                assert c('lessonSubject').property('currentText') == 'Vật lý'
+                sent = []
+                original_prepare = bridge._prepare_google
+
+                def capture(title, subject, education, grade, text, file_url, mode, preset, style):
+                    config = creation_config(title, subject, education, grade, mode, preset, style)
+                    job = prepare(library.directory, config, source)
+                    saved = library.create_external_lesson(config, library.store_source(source), inspect_returned_deck(source))
+                    assert job['config']['subject'] == saved['subject'] == 'Vật lý'
+                    assert job['config']['grade'] == saved['grade'] == '11'
+                    sent.append(config)
+
+                assert bridge.googleTranslation
+                bridge._prepare_google = capture
+                try:
+                    for style in ('source', 'template'):
+                        click(window, c('creationKeepOriginal' if style == 'source' else 'creationUseTemplate'))
+                        for mode in ('parallel_columns', 'english_only'):
+                            click(window, c('formatChoice_' + mode))
+                            assert c('lessonSubject').property('currentText') == 'Vật lý'
+                            prompt = window.property('creationPrompt')
+                            assert (prompt.toVariant() if hasattr(prompt, 'toVariant') else prompt)['ready']
+                            click(window, c('createLessonButton'))
+                            assert sent[-1]['style'] == style and sent[-1]['conversion_format'] == mode
+                    assert len(sent) == 4
+                finally:
+                    bridge._prepare_google = original_prepare
+                checks.append('Chosen subject/class survive file/design/mode choices and reach submit, saved request and lesson unchanged')
                 window.setProperty('page', 'settings')
                 full_name = 'Hoạt động trải nghiệm, hướng nghiệp'
                 choose('settingsSubjects', bridge.conversionSubjects.index(full_name))
@@ -83,11 +130,21 @@ def main():
                 window.setProperty('page', 'new')
                 assert c('lessonSubject').property('currentText') == 'Vật lý'
                 assert c('creationGrade').property('currentText') == '11'
+                assert bridge.mascotAccessorySubject == full_name
+                c('settingsPage').setProperty('activeTab', 3)
+                window.setProperty('page', 'settings')
+                choices = c('settingsPage').property('accessorySubjects')
+                choices = choices.toVariant() if hasattr(choices, 'toVariant') else choices
+                choose('mascotAccessorySubject', choices.index('Toán'))
+                click(window, c('saveMascot'))
+                until(lambda: not bridge.mascotSaving)
+                assert bridge.mascotAccessorySubject == 'Toán'
+                c('settingsPage').setProperty('activeTab', 0)
                 bridge.navigate.emit('voice')
                 pump(100)
-                assert c('lessonSubject').property('currentText') == full_name
+                assert c('lessonSubject').property('currentText') == 'Vật lý'
                 assert c('creationGrade').property('currentText') == '11'
-                checks.append('Per-lesson subject survives navigation/profile changes; new draft uses saved subject')
+                checks.append('Latest conversion subject survives new drafts; accessory starts from General and saves its own override')
 
                 window.setProperty('page', 'new')
                 for index, education, grade in ((2, 'Tiểu học', '4'), (0, 'THPT', '12'), (1, 'THCS', '8')):
@@ -107,12 +164,14 @@ def main():
                 c('settingsCustomSubject').setProperty('text', 'STEM – dự án, thực hành')
                 click(window, c('saveProfile'))
                 assert bridge.settings['subjects'] == ['STEM – dự án, thực hành']
-                assert c('creationCustomSubject').property('text') == bridge.defaultTeachingSubject
+                assert c('lessonSubject').property('currentText') == 'Vật lý'
+                assert bridge.mascotAccessorySubject == 'Toán'
                 checks.append('Custom subjects, including commas, remain intact; empty custom subject cannot be saved')
             finally:
                 window.hide()
-                for worker in (bridge.libraryThumbnails, bridge.slidePreview, bridge._catalog, bridge.browserAI,
-                               bridge.english_reader, bridge.narration_preparation, bridge.classroom, bridge.voice_controls):
+                for worker in (bridge.inputDocuments, bridge.libraryThumbnails, bridge.slidePreview, bridge._catalog, bridge.browserAI,
+                               bridge.english_reader, bridge.narration_preparation, bridge.classroom, bridge.voice_controls,
+                               bridge._companion_preferences):
                     worker.shutdown()
                 engine.deleteLater()
                 QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)

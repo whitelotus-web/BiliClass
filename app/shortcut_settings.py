@@ -32,14 +32,14 @@ class ShortcutSettings(QObject):
             self.changed.emit()
             return False
         except sqlite3.Error:
-            self.message, self.error = 'Chưa lưu được phím đọc. Thử lại khi thư viện sẵn sàng.', True
+            self.message, self.error = 'Chưa lưu được phím. Thử lại khi thư viện sẵn sàng.', True
             self.changed.emit()
             return False
         self.bindings = result
         worker = self.bridge.powerpoint_worker
         if worker:
             worker.navigate('set_shortcuts', result)
-        self.message, self.error = 'Đã lưu phím đọc. Áp dụng ngay cho bài đang gắn với Mascot.', False
+        self.message, self.error = 'Đã lưu phím. Áp dụng ngay cho bài đang gắn với Mascot.', False
         self.changed.emit()
         return True
 

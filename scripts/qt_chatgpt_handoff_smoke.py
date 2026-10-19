@@ -594,7 +594,7 @@ def received():
     assert not window.property("resultDetails")
     assert not window.findChild(QObject, "lessonDetailsPanel").property("visible")
     assert not window.findChild(QObject, "returnedDeckReviewNotes").property("visible")
-    assert not window.findChild(QObject, "currentSlideQuality").property("visible")
+    assert window.findChild(QObject, "currentSlideQuality") is None
     summary = window.findChild(QObject, "lessonReviewSummary").property("text")
     assert summary and "FAIL" not in summary and "CHECK" not in summary
     assert "/" not in window.findChild(QObject, "narrationPreparationStatus").property("text")

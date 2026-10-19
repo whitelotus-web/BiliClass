@@ -157,6 +157,7 @@ def main():
             with patch('app.speech.narration_workers', return_value=1), patch('app.speech.synthesize_background', side_effect=slow):
                 click(window, c('createLessonNarrationButton'))
                 until(started.is_set)
+                assert c('applicationStatusMessage').property('text').startswith('Đang tạo giọng đọc')
                 assert c('cancelLessonNarrationButton').property('danger')
                 assert c('cancelLessonNarrationButton').property('symbol') == '■'
                 assert bridge.narrationBusy
@@ -173,6 +174,7 @@ def main():
                 click(window, c('createLessonNarrationButton'))
                 until(lambda: not bridge.narrationBusy and bridge.lessonNarration.get('ready'))
             assert bridge.narrationPreparation['cached'] == 1
+            assert c('applicationStatusMessage').property('text') == 'BiliClass sẵn sàng'
             # Placement is presentation metadata: cached voice and revision stay valid.
             before_position = bridge.lesson['revision']
             before_voice = dict(bridge.lesson['narration'])

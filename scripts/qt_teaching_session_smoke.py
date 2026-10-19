@@ -31,7 +31,7 @@ from app.ui import Bridge
 def main():
     app = QGuiApplication([])
     QQuickStyle.setStyle('Basic')
-    out = Path('reports/rc83/teaching')
+    out = Path('reports/rc90/teaching')
     out.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='bcl-teaching-', ignore_cleanup_errors=True) as folder:
         folder = Path(folder)
@@ -98,7 +98,7 @@ def main():
             until(lambda: bridge.powerpointState.get('active'), timeout=50)
             assert bridge.teachingSession.audio == {'vi': True, 'en': True, 'both': True}
             assert bridge.powerpointState.get('hwnd'), 'Mascot must resolve this slideshow window when Office omits HWND'
-            assert cc('companionReadingScope').isVisible()
+            assert cc('companionReadingOptions').isVisible()
             assert companion.findChild(QObject, 'companionStopSpeech') is None
             assert companion.findChild(QObject, 'companionPauseEnglish') is None
             assert cc('companionReadEnglish').isVisible() and cc('companionReadVietnamese').isVisible()

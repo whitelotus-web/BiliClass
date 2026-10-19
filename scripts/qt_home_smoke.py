@@ -49,17 +49,23 @@ def main():
                 pump(30)
                 assert c('mainPageArea').mapToScene(QPointF()).y() == 0, page
             window.setProperty('page', 'home')
-            assert not c('applicationFooter').isVisible()
+            assert c('applicationFooter').isVisible() and c('applicationStatusMessage').property('text') == 'BiliClass sẵn sàng'
             release = Event()
             bridge.launch(lambda: release.wait(5), lambda _: None)
             pump(100)
             assert c('applicationFooter').isVisible() and c('applicationCancel').isVisible()
             release.set()
             until(lambda: not bridge.busy)
-            assert not c('applicationFooter').isVisible()
+            assert c('applicationStatusMessage').property('text') == 'BiliClass sẵn sàng'
+            bridge.inform('Đã lưu lựa chọn', refresh=False)
+            pump(30)
+            assert c('applicationStatusMessage').property('text') == 'BiliClass sẵn sàng'
             bridge.inform('Lỗi kiểm tra giao diện', True, refresh=False)
             pump(30)
-            assert c('applicationFooter').isVisible() and 'Lỗi kiểm tra' in c('applicationStatusMessage').property('text')
+            assert c('operationErrorNotice').property('visible') and 'Lỗi kiểm tra' in c('operationErrorText').property('text')
+            assert c('applicationStatusMessage').property('text') == 'BiliClass sẵn sàng'
+            click(window, c('dismissOperationError'))
+            assert not c('operationErrorNotice').property('visible')
             bridge.inform('', refresh=False)
             assert c('homeHeroTitle').property('text') == 'Chào Thầy cô!'
             bridge.saveTeacherProfile('Cô Nguyễn Diệu Linh', 'Trường thử', 'Vật lý', True)

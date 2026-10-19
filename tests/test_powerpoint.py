@@ -163,3 +163,16 @@ def test_failed_native_stop_does_not_acknowledge_permission_to_play_cached_audio
             raise RuntimeError('Office disconnected during stop')
     event, playing = _control_media('stop_media', {'slide_id': 256, 'token': 9}, 256, {1: Player()}, {1: 'en'}, {1})
     assert event['event'] == 'media_error' and event['operation'] == 'stop_media' and playing == {1}
+
+
+@pytest.mark.parametrize('index,expected', [(3, ('click', 2)), (1, ('click', 0)), (0, ('previous',)), (-1, ('previous',))])
+def test_previous_rewinds_builds_before_changing_slide(index, expected):
+    from types import SimpleNamespace
+
+    from app.powerpoint import previous_build
+
+    calls = []
+    view = SimpleNamespace(GetClickIndex=lambda: index, GotoClick=lambda i: calls.append(('click', i)),
+                           Previous=lambda: calls.append(('previous',)))
+    previous_build(view)
+    assert calls == [expected]
