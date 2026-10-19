@@ -5,6 +5,7 @@ ENGLISH_VOICES = {'kokoro-us:af_heart': ('Heart', 3), 'kokoro-us:af_bella': ('Be
                   'kokoro-us:am_michael': ('Michael', 16)}
 PAIRS = tuple(
     {'id': 'pair:' + identity, 'name': f'{vi} + {en} · {gender} {region}–Mỹ',
+     'label': f'{vi} – {en}', 'subtitle': f'{gender} {region} – Mỹ',
      'detail': f'Việt: {vi} · Anh–Mỹ: {en}', 'provider': 'local_pair',
      'vi': 'vieneu:' + vi, 'en': 'kokoro-us:' + en_id,
      'region': region, 'gender': gender, 'language': 'multilingual', 'languages': ['vi', 'en']}
@@ -20,12 +21,10 @@ PAIRS = tuple(
         ('pham-tuyen', 'Phạm Tuyên', 'Nam', 'Bắc', 'Michael', 'am_michael'),
     )
 )
-for row in PAIRS[6:]:
-    row['label'] = row['vi'].split(':', 1)[1]
-    row['subtitle'] = f"{row['gender']} {row['region']} · {ENGLISH_VOICES[row['en']][0]} (Mỹ)"
 CUSTOM_PAIRS = tuple(
     {**row, 'id': row['id'] + ':' + en_id.rsplit(':', 1)[1],
      'name': f"{row['vi'].split(':', 1)[1]} + {en} · Tự ghép",
+     'label': f"{row['vi'].split(':', 1)[1]} – {en}",
      'detail': f"Việt: {row['vi'].split(':', 1)[1]} · Anh–Mỹ: {en}",
      'en': en_id}
     for row in PAIRS for en_id, (en, _) in ENGLISH_VOICES.items()

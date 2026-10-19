@@ -311,8 +311,8 @@ Item {
                                     onClicked: { bridge.stopSpeech(); page.draftVoice = voiceOption.modelData.id }
                                     contentItem: Column {
                                         spacing: 3
-                                        Label { text: voiceOption.modelData.label || (voiceOption.modelData.gender + " " + voiceOption.modelData.region); color: page.ink; font.pixelSize: 13; font.weight: Font.DemiBold }
-                                        Label { text: voiceOption.modelData.subtitle || (voiceOption.modelData.vi.split(":")[1] + " + " + voiceOption.modelData.en.split(":")[1].replace("af_heart", "Heart").replace("af_bella", "Bella").replace("am_michael", "Michael")); color: page.muted; font.pixelSize: 12 }
+                                        Label { text: voiceOption.modelData.label; color: page.ink; font.pixelSize: 13; font.weight: Font.DemiBold }
+                                        Label { text: voiceOption.modelData.subtitle; color: page.muted; font.pixelSize: 12 }
                                     }
                                 }
                             }
