@@ -239,3 +239,39 @@ def test_native_reading_order_change_reuses_the_same_cached_utterances(tmp_path)
     assert updated['narration']['keys'] == expected['keys'] == {'en': list(reversed(plan['keys']['en']))}
     assert updated['narration']['signature'] == expected['signature'] != plan['signature']
     library.close()
+
+
+def test_dismiss_voice_selection_with_idle_powerpoint_keeps_mascot_binding_and_saved_voice(tmp_path):
+    from types import SimpleNamespace
+
+    from PySide6.QtCore import QCoreApplication
+    from test_teaching_session import prepared_lesson
+
+    from app.ui import Bridge
+
+    app = QCoreApplication.instance() or QCoreApplication([])
+    lesson, preview, directory, _ = prepared_lesson(tmp_path)
+    library = Library(directory)
+    bridge = Bridge(library)
+    binding = {'lesson': copy.deepcopy(lesson), 'preview': preview}
+    helper = SimpleNamespace()
+    try:
+        bridge._lesson, bridge._quick_result = lesson, preview
+        bridge.powerpoint_worker = helper
+        bridge._powerpoint_state = {'opened': True, 'active': False}
+        bridge.teaching_session.bound = binding
+        bridge.dismissNarrationLesson()
+        assert not bridge.lesson and not bridge.quickResult.get('path')
+        assert bridge.powerpoint_worker is helper and bridge.teaching_session.bound is binding
+        assert library.get(lesson['id'])['narration']['keys'] == lesson['narration']['keys']
+        assert audio_status(library.get(lesson['id']), directory)['ready']
+        assert not bridge.error
+        app.processEvents()
+    finally:
+        bridge.powerpoint_worker = None
+        bridge.teaching_session.bound = {}
+        for worker in (bridge._catalog, bridge.browserAI, bridge.slidePreview, bridge.libraryThumbnails,
+                       bridge.narrationPreferences, bridge.narration_preparation, bridge.english_reader,
+                       bridge.voice_controls, bridge._companion_preferences, bridge.classroom):
+            worker.shutdown()
+        library.close()

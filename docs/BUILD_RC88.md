@@ -57,3 +57,8 @@ chuyển đổi được thử bốn cỡ cửa sổ, đủ trạng thái có/ch
 Đã áp dụng bản sửa vào bài đang kiểm tra sau khi thử trước trên thư viện
 riêng: 30 slide, 0 FAIL, đủ 134/134 đoạn Anh; nguồn cũ và lịch sử còn nguyên,
 không gọi API hoặc tạo lại giọng.
+
+Nút Hủy bài đang chọn không còn coi helper PowerPoint đang mở nhưng chưa
+trình chiếu là một tác vụ bận. Bỏ lựa chọn giọng giữ nguyên bài/WAV trong
+thư viện và bài đang gắn Mascot; vẫn chặn khi thật sự đang chạy/mở/đóng
+trình chiếu hoặc có tác vụ/lớp học đang chạy.

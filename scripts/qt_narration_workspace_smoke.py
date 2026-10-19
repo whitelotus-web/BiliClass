@@ -333,6 +333,21 @@ def main():
             click(window, c('discardNarrationScript'))
             click(window, c('dismissVoiceLesson'))
             assert not bridge.lesson and library.get(saved_id)
+            from types import SimpleNamespace
+
+            bridge.openLessonNarration(saved_id)
+            until(lambda: not bridge.busy and bridge.lesson.get('id') == saved_id)
+            helper = SimpleNamespace()
+            bridge.powerpoint_worker = helper
+            bridge._powerpoint_state = {'opened': True, 'active': False}
+            bridge.powerpointStateChanged.emit()
+            binding = {'lesson': dict(bridge.lesson)}
+            bridge.teaching_session.bound = binding
+            click(window, c('dismissVoiceLesson'))
+            assert not bridge.lesson and bridge.teaching_session.bound is binding
+            assert bridge.powerpoint_worker is helper and library.get(saved_id)
+            bridge.powerpoint_worker = None
+            bridge.teaching_session.bound = {}
             assert not warnings, warnings
             result = {'status': 'passed', 'qml_warnings': warnings,
                       'checks': ['supplied narration icon is 29px with blue/gray selection states',

@@ -1300,7 +1300,8 @@ class Bridge(QObject):
 
     @Slot()
     def dismissNarrationLesson(self):
-        if self._busy or self.powerpoint_worker or self.classroom.running:
+        if (self._busy or self.classroom.running
+                or any(self._powerpoint_state.get(flag) for flag in ('active', 'starting', 'closing'))):
             self.inform('Hoàn tất tác vụ hoặc đóng trình chiếu trước khi hủy bài đang chọn.', True, refresh=False)
             return
         if self.narrationBusy:
