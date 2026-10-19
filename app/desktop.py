@@ -125,6 +125,8 @@ def run(args):
                     "warnings": warnings,
                     "size": [width, height],
                     "page": args.page,
+                    "current_page": window.property('page'),
+                    "experimental_teaching": bridge.experimentalTeaching,
                 },
                 ensure_ascii=False,
                 indent=2,

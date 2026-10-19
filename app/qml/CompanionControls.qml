@@ -142,14 +142,14 @@ ColumnLayout {
         }
         Label { text: (companion.reader.volume === undefined ? 80 : companion.reader.volume) + "%"; font.pixelSize: 12; color: "#102e54" }
     }
-    Rectangle { visible: !!companion.session.bound || bridge.companionCanRead; Layout.fillWidth: true; implicitHeight: 1; color: "#e0e8f4" }
+    Rectangle { visible: bridge.experimentalTeaching && (!!companion.session.bound || bridge.companionCanRead); Layout.fillWidth: true; implicitHeight: 1; color: "#e0e8f4" }
     RowLayout {
-        visible: !!companion.session.bound || bridge.companionCanRead; Layout.fillWidth: true
+        visible: bridge.experimentalTeaching && (!!companion.session.bound || bridge.companionCanRead); Layout.fillWidth: true
         Label { text: "Trợ giảng"; color: "#112650"; font.pixelSize: companion.controlFont; font.weight: Font.DemiBold; Layout.fillWidth: true }
         ToolButton { objectName: "companionAssistantToggle"; text: companion.showAssistant ? "Thu gọn" : "Mở công cụ"; font.pixelSize: 11; implicitHeight: 26; onClicked: companion.showAssistant = !companion.showAssistant }
     }
     GridLayout {
-        visible: companion.showAssistant && (!!companion.session.bound || bridge.companionCanRead); Layout.fillWidth: true
+        visible: bridge.experimentalTeaching && companion.showAssistant && (!!companion.session.bound || bridge.companionCanRead); Layout.fillWidth: true
         columns: 2; columnSpacing: 6; rowSpacing: 6
         PanelAction { objectName: "companionExplain"; text: "Giải thích Anh"; enabled: bridge.companionCanRead; onClicked: bridge.companionAsk("explanation", "en") }
         PanelAction { text: "Ví dụ"; enabled: bridge.companionCanRead; onClicked: bridge.companionAsk("example", "en") }
@@ -158,7 +158,7 @@ ColumnLayout {
     }
     ContentScrollView {
         objectName: "companionResponseScroll"
-        visible: companion.hasResponse; Layout.fillWidth: true; Layout.preferredHeight: 150
+        visible: bridge.experimentalTeaching && companion.hasResponse; Layout.fillWidth: true; Layout.preferredHeight: 150
         TextArea { objectName: "companionResponseText"; text: companion.response.text || ""; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; font.pixelSize: companion.controlFont; color: "#112650"; background: null; textFormat: TextEdit.PlainText }
     }
     Label { visible: !!companion.session.warning; text: companion.session.warning || ""; color: "#a66318"; wrapMode: Text.WordWrap; Layout.fillWidth: true; font.pixelSize: 11 }

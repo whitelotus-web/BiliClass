@@ -73,7 +73,22 @@ Bằng chứng chi tiết trong `reports/rc100` không đưa vào Git:
   icon, mở đúng tab Cài đặt, ẩn và mở lại, menu trong màn hình,
   nút ẩn trên bảng và click trái qua; không có cảnh báo QML.
 
-Kết quả đóng gói/cài đặt được ghi sau khi hoàn tất.
+## Gói đã phát hành
+
+- Nguồn: `17b67c98d68bc22b96ea495223a7c32556cbd762`, phiên bản `1.0.0rc100`.
+- Gói cuối: `dist/rc100-mascot-menu/BiliClass-RC100-Windows.zip`,
+  1.246.817.683 byte; SHA-256
+  `cc5047f60c68ef630afd5aaf60a50db7566f70d135bd8624f6ee8a044621d37a`.
+- [GitHub Release RC100](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc100).
+  Digest phía GitHub khớp tệp đã kiểm chứng.
+- Kiểm tra gói cài riêng trên Windows hiện tại qua: cài/gỡ ở đường dẫn
+  Unicode, manifest, Qt, engine VieNeu/Kokoro thật, hai ngôn ngữ độc lập,
+  chuyển bước tạo giọng và giữ thư viện thử sau gỡ. Không phải chứng nhận
+  trên Windows sạch hoặc mọi phiên bản Office.
+- Đã cài tại `F:/Applications/BiliClass/1.0.0rc100`; giữ làm bản lùi khi
+  chuyển sang RC101. Kiểm tra sau cài xác nhận toàn bộ bài, thiết lập
+  giọng, key và 940 tệp giọng được tham chiếu còn nguyên. Chưa mở giao diện
+  bản này vì tiếp tục yêu cầu thu gọn phạm vi bản nộp ở RC101.
 
 ```powershell
 .venv/Scripts/python.exe -m scripts.build_from_runtime --baseline dist/rc99-voice-speed-ui --output dist/rc100-mascot-menu

@@ -83,6 +83,10 @@ class Bridge(QObject):
     def developmentMode(self):
         return not getattr(sys, "frozen", False)
 
+    @Property(bool, constant=True)
+    def experimentalTeaching(self):
+        return self._experimental_teaching
+
     @Property(str, constant=True)
     def appVersion(self):
         from . import __version__
@@ -99,6 +103,9 @@ class Bridge(QObject):
 
     def __init__(self, library, browser_ai_factory=WebBrowserAI, *, translation_engine='google_translate'):
         super().__init__()
+        from .feature_policy import experimental_teaching_enabled
+
+        self._experimental_teaching = experimental_teaching_enabled()
         self.changed.connect(self.powerpointStateChanged)
         self._translation_engine = translation_engine
         self.library = library
@@ -1923,6 +1930,8 @@ class Bridge(QObject):
 
     @Slot(str, str)
     def companionAsk(self, action, language):
+        if not self.experimentalTeaching:
+            return
         self.focusTeachingPresentation()
         if self.teaching_session.bound:
             self.teaching_session.ask(action, language)

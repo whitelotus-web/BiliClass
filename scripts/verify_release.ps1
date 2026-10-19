@@ -13,7 +13,7 @@ if (-not $installRoot.StartsWith($runtimeRoot, [StringComparison]::OrdinalIgnore
 $reportRoot = Join-Path $projectRoot ('reports\release\' + $runId)
 New-Item -ItemType Directory -Path $reportRoot -Force | Out-Null
 $savedEnvironment = @{}
-foreach ($name in @('BILICLASS_DATA','BILICLASS_MODEL_DIR','BILICLASS_KOKORO_DIR','BILICLASS_VIENEU_DIR','PYTHONPATH','PYTHONHOME','QT_QPA_PLATFORM')) {
+foreach ($name in @('BILICLASS_DATA','BILICLASS_MODEL_DIR','BILICLASS_KOKORO_DIR','BILICLASS_VIENEU_DIR','BILICLASS_EXPERIMENTAL_TEACHING','PYTHONPATH','PYTHONHOME','QT_QPA_PLATFORM')) {
     $savedEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
     [Environment]::SetEnvironmentVariable($name, $null, 'Process')
 }
@@ -54,10 +54,13 @@ try {
     Remove-Item -LiteralPath $taskShortcut
     Remove-Item -LiteralPath $taskShortcutDirectory
     Write-Output 'Passed installed shortcut taskbar identity without modifying user shortcuts.'
-    foreach ($page in @('new','browser-ai')) {
+    foreach ($page in @('new','browser-ai','settings','classroom')) {
         $shot = Join-Path $reportRoot ($page + '.png')
         Invoke-InstalledCheck -Arguments @('--smoke','--page',$page,'--size','1366x850','--screenshot',('"' + $shot + '"'))
         if (-not (Test-Path -LiteralPath $shot)) { throw ('Missing screenshot: ' + $page) }
+        $taskPageState = Get-Content -LiteralPath ([IO.Path]::ChangeExtension($shot, '.json')) -Raw | ConvertFrom-Json
+        if ($taskPageState.experimental_teaching -ne $false) { throw 'Packaged UI must default to submission scope.' }
+        if ($page -eq 'classroom' -and $taskPageState.current_page -ne 'home') { throw 'Classroom startup route was not hidden.' }
         Write-Output ('Passed installed Qt page: ' + $page)
     }
     $report = Join-Path $reportRoot 'pipeline.json'

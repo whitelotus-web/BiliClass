@@ -193,7 +193,7 @@ ColumnLayout {
                 onClicked: { if (home.working) home.continueWork(); else home.bridge.openLesson(home.featured.id) }
             }
             ActionButton { objectName: "homeLibraryButton"; text: "Thư viện"; onClicked: home.openLibrary() }
-            ActionButton { objectName: "homeClassroomButton"; text: home.bridge.classroomContext.running ? "Lớp đang mở" : "Vào lớp"; onClicked: home.openClassroom() }
+            ActionButton { objectName: "homeClassroomButton"; visible: home.bridge.experimentalTeaching; text: home.bridge.classroomContext.running ? "Lớp đang mở" : "Vào lớp"; onClicked: home.openClassroom() }
         }
     }
     HomeLibraryOverview { objectName: "homeLibrarySummary"; bridge: home.bridge; onOpenLibrary: home.openLibrary(); onCreateLesson: home.continueWork() }

@@ -26,7 +26,7 @@ Item {
         target: page.bridge
         function onVoiceSettingsChanged() { page.draftVoice = page.bridge.voiceSettings.voice; page.draftRate = page.bridge.voiceSettings.rate }
     }
-    onActiveTabChanged: { if (contentScroll.contentItem && contentScroll.contentItem.contentY !== undefined) contentScroll.contentItem.contentY = 0 }
+    onActiveTabChanged: { if (!bridge.experimentalTeaching && activeTab === 4) { activeTab = 0; return } if (contentScroll.contentItem && contentScroll.contentItem.contentY !== undefined) contentScroll.contentItem.contentY = 0 }
     property string selectedMascot: bridge.settings.mascot
     property int mascotPreviewMode: 0
     property string selectedAccessorySubject: bridge.mascotAccessorySubject
@@ -130,7 +130,7 @@ Item {
                     {name: "Giọng đọc", icon: "voice", tabId: 2}, {name: "Mascot", icon: "mascot", tabId: 3},
                     {name: "Lớp học", icon: "classroom", tabId: 4}, {name: "Dữ liệu", icon: "data", tabId: 5},
                     {name: "Thông tin BiliClass", icon: "about", tabId: 1}
-                ]
+                ].filter(function(row) { return bridge.experimentalTeaching || row.tabId !== 4 })
                 Button {
                     id: tab
                     required property var modelData
@@ -392,8 +392,8 @@ Item {
             GridLayout {
                 Layout.fillWidth: true; columns: page.wideMascotLayout ? 3 : 2; columnSpacing: 12; rowSpacing: 12
                 Repeater { model: [
-                    {name: "Milo", image: "../assets/milo-welcome.png", mood: "Năng động · vui vẻ", detail: "Mang năng lượng tích cực vào lớp học.", strengths: ["Khởi động bài", "Hỏi lớp nhanh", "Khích lệ học sinh", "Hoạt động quiz"]},
-                    {name: "Lumi", image: "../assets/lumi-welcome.png", mood: "Bình tĩnh · thân thiện", detail: "Đồng hành nhẹ nhàng qua từng ý học.", strengths: ["Giải thích rõ", "Đọc từ vựng", "VI Rescue", "Củng cố cuối bài"]}
+                    {name: "Milo", image: "../assets/milo-welcome.png", mood: "Năng động · vui vẻ", detail: "Mang năng lượng tích cực vào lớp học.", strengths: bridge.experimentalTeaching ? ["Khởi động bài", "Hỏi lớp nhanh", "Khích lệ học sinh", "Hoạt động quiz"] : ["Trình chiếu bài", "Chuyển slide", "Đọc tiếng Anh", "Đọc tiếng Việt"]},
+                    {name: "Lumi", image: "../assets/lumi-welcome.png", mood: "Bình tĩnh · thân thiện", detail: "Đồng hành nhẹ nhàng qua từng ý học.", strengths: bridge.experimentalTeaching ? ["Giải thích rõ", "Đọc từ vựng", "VI Rescue", "Củng cố cuối bài"] : ["Trình chiếu bài", "Chuyển slide", "Đọc tiếng Anh", "Đọc tiếng Việt"]}
                 ]
                     Rectangle { id: mascotCard; required property var modelData; required property int index
                         readonly property bool chosen: page.selectedMascot === modelData.name
@@ -444,7 +444,7 @@ Item {
                             Mascot { id: mascotPreview; objectName: "mascotPreview"; visible: page.mascotPreviewVisible; character: page.selectedMascot; expression: page.mascotPreviewMode === 1 ? "thinking" : page.mascotPreviewMode === 2 ? "celebrate" : "speaking"; subject: page.previewSubject; showSubjectBadge: false; accessories: mascotAccessories.checked; reducedMotion: reducedMotion.checked; width: Math.max(85, Math.min(120, mascotSize.value * .82)); height: width + 25; anchors.bottom: parent.bottom; anchors.bottomMargin: 5; x: parent.width - width - 16 }
                         }
                         RowLayout { Layout.fillWidth: true; spacing: 5
-                            Repeater { model: ["Slide", "Giải thích", "Quiz"]
+                            Repeater { model: bridge.experimentalTeaching ? ["Slide", "Giải thích", "Quiz"] : ["Slide"]
                                 Button { id: contextButton; required property string modelData; required property int index; objectName: "mascotPreviewMode" + index; text: modelData; Layout.fillWidth: true; implicitHeight: 34; onClicked: page.mascotPreviewMode = index
                                     background: Rectangle { radius: 8; color: page.mascotPreviewMode === contextButton.index ? "#e8f2ff" : "white"; border.color: page.mascotPreviewMode === contextButton.index ? page.blue : page.line }
                                     contentItem: Label { text: contextButton.text; color: page.mascotPreviewMode === contextButton.index ? page.blue : page.muted; font.pixelSize: 11; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
@@ -502,7 +502,7 @@ Item {
         }
 
         ColumnLayout {
-            visible: page.activeTab === 4; Layout.fillWidth: true; spacing: 14
+            visible: bridge.experimentalTeaching && page.activeTab === 4; Layout.fillWidth: true; spacing: 14
             Card { Layout.fillWidth: true
                 ColumnLayout { width: parent.width; spacing: 16
                     Title { text: "Mặc định khi mở lớp học" }
@@ -558,7 +558,7 @@ Item {
                         SoftButton { objectName: "settingsReferenceButton"; text: "Thuật ngữ và kiến thức"; onClicked: page.requestReference() }
                     }
                     Hint { visible: !!bridge.storageControls.state.last_path; text: "Bản sao lưu gần nhất: " + (bridge.storageControls.state.last_path || ""); Layout.fillWidth: true; wrapMode: Text.WrapAnywhere }
-                    Hint { text: bridge.storageControls.state.scope || ""; Layout.fillWidth: true }
+                    Hint { text: bridge.experimentalTeaching ? bridge.storageControls.state.scope || "" : "Bản sao gồm bài giảng, giọng đọc, thiết lập và dữ liệu đã lưu; không gồm bộ giọng cài kèm, key hoặc phiên đăng nhập."; Layout.fillWidth: true }
                 }
             }
         }
