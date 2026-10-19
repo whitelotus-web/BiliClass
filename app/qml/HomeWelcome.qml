@@ -179,7 +179,7 @@ ColumnLayout {
                     color: "#16314f"; font.pixelSize: 17; font.weight: Font.DemiBold
                     Layout.fillWidth: true; elide: Text.ElideRight; textFormat: Text.PlainText
                 }
-                Copy { text: home.working ? "Các phần đã xong được lưu lại." : [home.featured.subject, home.featured.grade ? "Khối " + home.featured.grade : ""].filter(function(s) { return !!s }).join(" · "); font.pixelSize: 11 }
+                Copy { text: home.working ? "Các phần đã xong được lưu lại." : [home.featured.subject, home.featured.grade ? "Lớp " + home.featured.grade : ""].filter(function(s) { return !!s }).join(" · "); font.pixelSize: 11 }
             }
             ActionButton {
                 objectName: "homeContinueWork"; text: home.working ? "Xem tiến độ" : "Mở bài giảng"; primary: true

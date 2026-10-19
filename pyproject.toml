@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "biliclass"
-version = "1.0.0rc86"
+version = "1.0.0rc87"
 description = "BiliClass Google Translation lesson conversion and offline teaching assistant"
 requires-python = ">=3.12,<3.14"
 dependencies = [

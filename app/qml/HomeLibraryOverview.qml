@@ -67,7 +67,7 @@ ColumnLayout {
                         }
                         ColumnLayout { Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 5
                             Label { objectName: "homeRecentTitle" + recentButton.index; text: recentButton.modelData.title; color: "#16314f"; font.pixelSize: 14; font.weight: Font.DemiBold; textFormat: Text.PlainText; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight; Layout.fillWidth: true }
-                            Label { text: [recentButton.modelData.subject, recentButton.modelData.grade ? "Khối " + recentButton.modelData.grade : "", recentButton.modelData.slides_count ? recentButton.modelData.slides_count + " slide" : ""].filter(function(value) { return !!value }).join(" · "); color: "#687e9b"; font.pixelSize: 12; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                            Label { text: [recentButton.modelData.subject, recentButton.modelData.grade ? "Lớp " + recentButton.modelData.grade : "", recentButton.modelData.slides_count ? recentButton.modelData.slides_count + " slide" : ""].filter(function(value) { return !!value }).join(" · "); color: "#687e9b"; font.pixelSize: 12; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                         }
                         Label { visible: !!(recentButton.modelData.narration || {}).ready; text: "Có giọng đọc"; color: "#168567"; font.pixelSize: 11 }
                         Label { text: "Mở bài  →"; color: "#0869f9"; font.pixelSize: 12; font.weight: Font.DemiBold; Layout.leftMargin: 10 }

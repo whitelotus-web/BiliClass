@@ -4,6 +4,7 @@ import json
 import sys
 import tempfile
 from pathlib import Path
+from threading import Event
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -42,6 +43,18 @@ def main():
         try:
             pump(300)
             assert window.property('page') == 'home'
+            assert not c('applicationFooter').isVisible()
+            release = Event()
+            bridge.launch(lambda: release.wait(5), lambda _: None)
+            pump(100)
+            assert c('applicationFooter').isVisible() and c('applicationCancel').isVisible()
+            release.set()
+            until(lambda: not bridge.busy)
+            assert not c('applicationFooter').isVisible()
+            bridge.inform('Lỗi kiểm tra giao diện', True, refresh=False)
+            pump(30)
+            assert c('applicationFooter').isVisible() and 'Lỗi kiểm tra' in c('applicationStatusMessage').property('text')
+            bridge.inform('', refresh=False)
             assert c('homeHeroTitle').property('text') == 'Chào Thầy cô!'
             bridge.saveTeacherProfile('Cô Nguyễn Diệu Linh', 'Trường thử', 'Vật lý', True)
             pump(100)
@@ -129,10 +142,11 @@ def main():
                 stream.truncate(200 * 1024**2 + 1)
             QMetaObject.invokeMethod(c('homeWelcome'), 'documentDropped', Qt.DirectConnection,
                                      Q_ARG('QVariant', [oversized.as_uri()]))
-            assert '200 MB' in window.property('inputDocumentError')
-            assert window.property('selectedFile') == selected
+            until(lambda: '200 MB' in window.property('inputDocumentError'))
+            assert not window.property('selectedFile')
             QMetaObject.invokeMethod(c('homeWelcome'), 'documentDropped', Qt.DirectConnection,
                                      Q_ARG('QVariant', [fixture.as_uri()]))
+            until(lambda: not bridge.inputDocuments.busy and window.property('selectedFile') == selected)
             click(window, c('navigationlibrary'))
             click(window, c('navigationnew'))
             assert window.property('selectedFile') == selected, 'Navigation must retain conversion draft'

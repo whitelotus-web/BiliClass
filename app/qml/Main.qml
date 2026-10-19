@@ -1571,6 +1571,7 @@ ApplicationWindow {
             }
             Rectangle {
                 objectName: "applicationFooter"
+                visible: bridge.busy || bridge.error || !!statusMessage.text
                 Layout.fillWidth: true; implicitHeight: footerContent.implicitHeight + 16
                 color: bridge.error ? "#fff0eb" : bridge.busy ? "#eaf3ff" : "#ffffff"
                 RowLayout {
@@ -1579,7 +1580,7 @@ ApplicationWindow {
                     anchors.leftMargin: 25; anchors.rightMargin: 25; spacing: 18
                     RowLayout { Layout.fillWidth: true; spacing: 10
                         BusyIndicator { visible: bridge.busy; running: bridge.busy; Layout.preferredWidth: 23; Layout.preferredHeight: 23 }
-                        Label { id: statusMessage; objectName: "applicationStatusMessage"; text: (root.page === "chatgpt" || bridge.browserState.running || bridge.browserState.phase === "error" && bridge.message === bridge.browserState.message) && (bridge.googleTranslation || bridge.browserAI.automatic) ? bridge.browserState.displayMessage : bridge.message || "Sẵn sàng · Dữ liệu bài giảng được lưu tại máy"; color: bridge.error ? "#b14828" : root.muted; font.pixelSize: 11; wrapMode: Text.WordWrap; Layout.fillWidth: true; textFormat: Text.PlainText }
+                        Label { id: statusMessage; objectName: "applicationStatusMessage"; text: (root.page === "chatgpt" || bridge.browserState.running || bridge.browserState.phase === "error" && bridge.message === bridge.browserState.message) && (bridge.googleTranslation || bridge.browserAI.automatic) ? bridge.browserState.displayMessage : bridge.message; color: bridge.error ? "#b14828" : root.muted; font.pixelSize: 11; wrapMode: Text.WordWrap; Layout.fillWidth: true; textFormat: Text.PlainText }
                         Action { objectName: "applicationCancel"; visible: bridge.busy && !conversionCancel.visible; text: "Dừng tác vụ"; implicitHeight: 30; onClicked: bridge.cancelJob() }
                     }
                 }

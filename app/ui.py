@@ -2153,6 +2153,8 @@ class Bridge(QObject):
             self._opening_teaching_id = ''
             self.storage.failed()
             worker.deleteLater()
+            if not self._busy and self._message == 'Đang xử lý tại máy…':
+                self._message = ''
             self.changed.emit()
 
     @Slot(str)
