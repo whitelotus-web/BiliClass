@@ -4,7 +4,12 @@ Ngày 19/10/2026 — RC83 sửa trả focus về PowerPoint, nút Trước/Sau c
 slide ngay và bộ đếm theo Office. Loa Mascot theo giọng trên slide; dấu ?
 hiện tooltip phím có ký hiệu. Lệnh không qua vòng chờ GUI/helper trung gian,
 Office cập nhật bằng tín hiệu riêng; lưu ngoại hình Mascot chạy nền.
-Gồm RC82 nội bộ chưa phát hành. Xem [BUILD_RC83](BUILD_RC83.md).
+Gồm RC82 nội bộ chưa phát hành. 933 core và hồi quy ngắt phiên đạt;
+9 luồng Qt liên quan, Office thật, GUI 30 môn đạt. Nguồn `d2212fa`, CI
+đạt; đã phát hành RC83, digest ZIP GitHub khớp. Kiểm cài/gỡ, Properties,
+VieNeu Việt/Anh, lớp/backup và probe đóng EXE đạt (0,437 s). Đã cài chính
+và mở Thư viện RC83 từ Explorer, độc lập Codex; WAV/key không đổi.
+Xem giới hạn so sánh metadata và chi tiết tại [BUILD_RC83](BUILD_RC83.md).
 
 Ngày 19/10/2026 — RC82 thêm kéo bảng trợ giảng, nhấp đúp tiêu đề/vùng
 trống để thu về Mascot, giữ tọa độ; giữ nút, slider, chọn chữ và cuộn riêng.

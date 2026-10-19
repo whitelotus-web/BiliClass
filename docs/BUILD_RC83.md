@@ -42,5 +42,27 @@ thật. Helper thoát theo parent bị mất trong 0,266 s, nguồn không đổ
 GUI 30 môn đạt; desktop nguồn hiện Mascot, thu nhỏ giữ và đóng thoát cả
 hai trong 0,329 s. Lưu Mascot và kéo 71 mức nền trong khi SQLite đang
 khóa không chặn GUI; khoảng tick tối đa 0,031 s trong lượt này. Kết quả
-bộ cài sẽ được bổ sung sau xác minh gói mới. Kiểm phát âm và máy chiếu vật
+bộ cài được ghi dưới đây. Kiểm phát âm và máy chiếu vật
 lý không thuộc harness WAV im lặng.
+
+## Gói đã phát hành
+
+- Nguồn `d2212fa9fd1bcec5437bec74f71804fa9e0ce64f`; [CI đạt](https://github.com/whitelotus-web/BiliClass/actions/runs/39190833594).
+- [Release RC83](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc83),
+  ZIP 871.223.752 byte, 4.215 mục; digest GitHub khớp SHA256
+  `50f22ae73936a72eebe1a1860f2a47efd1abeeea80f15137a689de34e4f3217e`.
+- Dựng đúng một lần từ runtime RC82 đã đối chiếu, biên dịch lại mọi module
+  ứng dụng và sao chép QML/assets hiện tại. Không đưa model/EXE vào commit.
+- `verify_release.ps1` chạy bằng PowerShell 7: cài trong đường dẫn Unicode,
+  Properties đúng sản phẩm/phiên bản/copyright, hai trang Qt, template,
+  VieNeu Việt/Anh cùng người đọc, process lớp học và backup đạt; gỡ cài giữ
+  thư viện riêng. Đây là thử trên máy hiện tại, không phải Windows sạch.
+- GUI EXE 30 môn đạt, không warning QML. Probe EXE thực tế xác nhận mặc
+  định hiện Mascot, thu nhỏ giữ và đóng ẩn Mascot/thoát mã 0 trong 0,437 s.
+- Cài chính tại `F:/Applications/BiliClass/1.0.0rc83`; mở Thư viện từ
+  Explorer, parent `explorer.exe`, cửa sổ đúng RC83 và có phản hồi, độc lập
+  Codex. Đóng RC81 bằng lệnh đóng bình thường; không force-kill phiên cũ.
+- WAV và tệp key mã hóa đối chiếu không đổi. Một bản ghi bài giảng có
+  JSON khác trong khoảng chạy song song với phiên người dùng, cùng revision;
+  không coi toàn bộ metadata là bất biến và không ghi đè để khôi phục nó.
+  Dữ liệu/báo cáo chi tiết nằm cục bộ, không thuộc repo/gói phát hành.
