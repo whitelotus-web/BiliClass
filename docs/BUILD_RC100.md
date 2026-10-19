@@ -12,6 +12,10 @@
   bỏ dòng hướng dẫn tạo giọng lặp ở chân trang.
 - Bỏ dòng ghi chú mặc định dưới nút lưu trong Cài đặt giọng đọc;
   chỉ hiện trạng thái khi đang sửa, lưu hoặc có kết quả lưu.
+- Cặp/tốc độ chọn gần nhất ở Tạo giọng được lưu làm mặc định chung;
+  Cài đặt cập nhật cùng lựa chọn. Đổi nhanh liên tiếp và thoát ngay
+  vẫn giữ lựa chọn cuối. Nghe thử dùng mẫu dài cùng Cài đặt, theo
+  tiếng Anh/Việt/cả hai đang chọn; không thay giọng đã tạo của bài cũ.
 - Dọn các ghi chú hồ sơ được yêu cầu bỏ ở Cài đặt chung; rút gọn
   tiêu đề thành “Xem trước hồ sơ”, giữ các trường và thao tác lưu.
 - Căn giữa cụm thương hiệu, phiên bản và bản quyền trong Thông tin
@@ -57,9 +61,13 @@ Bằng chứng chi tiết trong `reports/rc100` không đưa vào Git:
   chạy lại qua. Qt Cài đặt xác minh căn giữa ở ba kích thước, ẩn/hiện
   tùy chọn nâng cao, sao lưu/khôi phục dữ liệu thật trong thư viện
   dùng thử; bản hỏng không chuyển thư viện hay yêu cầu mở lại.
+- Luồng nhớ cặp giọng bổ sung: 97 kiểm thử voice controls, mẫu nghe
+  và cặp giọng qua. Qt xác minh mặc định qua khởi động lại, đúng mẫu
+  dài/người đọc/tốc độ cho ba ngôn ngữ và WAV cũ còn nguyên. Qt cặp
+  giọng/Cài đặt chạy lại qua; không có cảnh báo QML.
 
 Kết quả đóng gói/cài đặt được ghi sau khi hoàn tất.
 
 ```powershell
-.venv/Scripts/python.exe -m scripts.build_from_runtime --baseline dist/rc99-voice-speed-ui --output dist/rc100-settings-library
+.venv/Scripts/python.exe -m scripts.build_from_runtime --baseline dist/rc99-voice-speed-ui --output dist/rc100-voice-defaults
 ```

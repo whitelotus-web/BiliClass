@@ -9,6 +9,8 @@ giá độ tự nhiên bằng nghe thực tế.
 | Chọn cặp gợi ý/tự ghép | 9 cặp gợi ý; 9 Việt × 3 Mỹ = 27 cặp. Thứ tự vùng/giới và cặp bổ sung giữ đúng. |
 | Nghe thử | Mẫu dài riêng Việt/Anh; nghe cặp theo hai người đọc. Nghe thử không tự lưu. Hủy không phát kết quả muộn. |
 | Lưu mặc định | Lưu giọng/tốc độ cho lần tạo mới; không thay WAV hay bản giọng của bài đã tạo. |
+| Nhớ lựa chọn gần nhất | Lưu trong Cài đặt hoặc đổi cặp/tốc độ ở Tạo giọng đều cập nhật mặc định chung. Bài mới dùng lựa chọn gần nhất; bài đã có giọng vẫn giữ bản đã tạo. |
+| Nghe thử ở Tạo giọng | Cùng mẫu dài và engine với Cài đặt; chọn Anh chỉ nghe giọng Mỹ, chọn Việt chỉ nghe giọng Việt, cả hai nghe lần lượt hai người. |
 | Ba lựa chọn tạo | Anh, Việt, cả hai. Cả hai tạo hai loa độc lập, không thêm nút phát cả hai. Kiểm thử đủ 27 × 3 lựa chọn. |
 | Phiên bản giọng | Cache gắn nội dung, người đọc, engine và tốc độ. Bản cũ còn dùng được; giọng thiếu/sai chữ không được báo hoàn tất. |
 | Mở/tải bài | Mở không tự tạo giọng. Chọn bản đã lưu, xác minh WAV khi xuất; nguồn không bị ghi đè. |

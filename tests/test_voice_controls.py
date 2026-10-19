@@ -82,6 +82,51 @@ def test_locked_database_does_not_block_qt_or_report_false_success(qt, tmp_path)
     library.close()
 
 
+def test_rapid_default_changes_persist_latest_and_emit_only_final_success(qt, tmp_path, monkeypatch):
+    from app import voice_controls
+
+    library = Library(tmp_path)
+    control = VoiceControls(tmp_path, qt)
+    entered, release = Event(), Event()
+    original = voice_controls.store_preference
+    writes, saved = [], []
+
+    def delayed(directory, values):
+        writes.append(dict(values))
+        if len(writes) == 1:
+            entered.set()
+            release.wait(3)
+        return original(directory, values)
+
+    monkeypatch.setattr(voice_controls, 'store_preference', delayed)
+    control.saved.connect(lambda: saved.append(library.setting('voice_options', {})))
+    control.save('pair:north-female', 0)
+    wait(qt, entered.is_set)
+    control.save('pair:truc-ly', 1)
+    control.save('pair:south-male', -2)
+    release.set()
+    wait(qt, lambda: control.save_worker is None and control.pending_save is None)
+    expected = {'voice': 'pair:south-male', 'rate': -2}
+    assert library.setting('voice_options', {}) == expected
+    assert saved == [expected] and writes[-1] == expected and len(writes) == 2
+    control.shutdown()
+    control.deleteLater()
+    QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+    library.close()
+
+
+def test_exit_flushes_pending_latest_voice_without_gui_callbacks(qt, tmp_path):
+    library = Library(tmp_path)
+    control = VoiceControls(tmp_path, qt)
+    control.save('pair:north-female', 0)
+    control.save('pair:truc-ly', 2)
+    control.shutdown()
+    assert library.setting('voice_options', {}) == {'voice': 'pair:truc-ly', 'rate': 2}
+    control.deleteLater()
+    QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+    library.close()
+
+
 def test_network_interfaces_are_a_snapshot_and_scan_once_off_gui(qt, tmp_path, monkeypatch):
     class Bridge(QObject):
         changed = Signal()

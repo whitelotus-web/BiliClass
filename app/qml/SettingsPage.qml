@@ -22,6 +22,10 @@ Item {
     function pairPreviewText() { return [vietnameseSample.text.trim(), englishSample.text.trim()].filter(function(value) { return !!value }).join("\n") }
     function chooseVoicePair(vi, en) { bridge.stopSpeech(); draftVoice = bridge.composeVoicePair(vi, en) }
     readonly property bool voiceDirty: draftVoice !== bridge.voiceSettings.voice || draftRate !== bridge.voiceSettings.rate
+    Connections {
+        target: page.bridge
+        function onVoiceSettingsChanged() { page.draftVoice = page.bridge.voiceSettings.voice; page.draftRate = page.bridge.voiceSettings.rate }
+    }
     onActiveTabChanged: { if (contentScroll.contentItem && contentScroll.contentItem.contentY !== undefined) contentScroll.contentItem.contentY = 0 }
     property string selectedMascot: bridge.settings.mascot
     property int mascotPreviewMode: 0

@@ -441,6 +441,12 @@ ApplicationWindow {
             if (showReview) Qt.callLater(function() { lessonReviewHelp.open() });
         }
         function onSelectionChanged() { root.loadFields(); root.syncNarrationSelection() }
+        function onVoiceSettingsChanged() {
+            if (!(root.lessonData.narration || {}).voice) {
+                root.narrationVoice = bridge.voiceSettings.voice || ""
+                root.narrationRate = bridge.voiceSettings.rate || 0
+            }
+        }
         function onTeacherProfileSaved() { if (!root.creationSubjectOverridden) root.applyDefaultTeachingSubject() }
         function onComparisonReady() { comparisonDialog.open() }
         function onChanged() { root.presentationContent = bridge.presentationContent(root.rescue); root.refreshTemplate(); root.showOperationError() }
@@ -1423,18 +1429,23 @@ ApplicationWindow {
                                         ToolTip.visible: hovered; ToolTip.text: "Chọn cặp giọng Việt–Mỹ. Mỗi ngôn ngữ có một người đọc riêng."
                                         model: bridge.multilingualVoices; textRole: "name"; valueRole: "id"
                                         currentIndex: Math.max(0, bridge.multilingualVoices.map(function(v) { return v.id }).indexOf(root.narrationVoice))
-                                        enabled: !bridge.busy && !bridge.narrationBusy; onActivated: { bridge.stopSpeech(); root.narrationVoice = currentValue; if (root.page === "voice") root.narrationOptionsPinned = true }
+                                        enabled: !bridge.busy && !bridge.narrationBusy; onActivated: { bridge.stopSpeech(); root.narrationVoice = currentValue; bridge.saveMultilingualVoice(root.narrationVoice, root.narrationRate); if (root.page === "voice") root.narrationOptionsPinned = true }
                                     }
                                     Choice { objectName: "lessonNarrationRateChoice"; Layout.preferredWidth: 100; model: ["82%", "88%", "94%", "100%", "106%", "112%", "118%"]
                                         Accessible.name: "Tốc độ đọc"; hoverEnabled: true
                                         ToolTip.visible: hovered; ToolTip.text: "Tốc độ đọc: 100% là bình thường; số nhỏ hơn đọc chậm hơn."
                                         currentIndex: root.narrationRate + 3; enabled: !bridge.busy && !bridge.narrationBusy
-                                        onActivated: { bridge.stopSpeech(); root.narrationRate = currentIndex - 3; if (root.page === "voice") root.narrationOptionsPinned = true }
+                                        onActivated: { bridge.stopSpeech(); root.narrationRate = currentIndex - 3; bridge.saveMultilingualVoice(root.narrationVoice, root.narrationRate); if (root.page === "voice") root.narrationOptionsPinned = true }
                                     }
                                     Action { objectName: "previewLessonNarrationVoice"; text: root.narrationPreviewActive ? (bridge.voiceUiState.phase === "preparing" ? "Dừng chuẩn bị" : "Dừng nghe") : "Nghe thử"; iconName: root.narrationPreviewActive ? "" : "play"; enabled: !!root.narrationVoice && !bridge.narrationBusy
                                         ToolTip.visible: hovered
-                                        ToolTip.text: "Nghe mẫu giọng Việt và giọng Anh–Mỹ trong cặp đã chọn."
-                                        onClicked: root.narrationPreviewActive ? bridge.stopSpeech() : bridge.previewMultilingualVoice(root.narrationVoice, root.narrationRate, "Xin chào các em. Let's learn together.")
+                                        ToolTip.text: root.narrationMode === "both" ? "Nghe mẫu dài giọng Việt, rồi giọng Anh–Mỹ trong cặp đã chọn." : "Nghe mẫu dài tiếng " + (root.narrationMode === "vi" ? "Việt" : "Anh–Mỹ") + " bằng giọng và tốc độ đã chọn."
+                                        onClicked: {
+                                            if (root.narrationPreviewActive) { bridge.stopSpeech(); return }
+                                            const samples = bridge.voicePreviewSamples
+                                            if (root.narrationMode === "both") bridge.previewMultilingualVoice(root.narrationVoice, root.narrationRate, samples.vi + "\n" + samples.en)
+                                            else bridge.previewNarrationLanguage(root.narrationMode, root.narrationVoice, root.narrationRate, samples[root.narrationMode])
+                                        }
                                     }
                                 }
                                 GridLayout { objectName: "narrationLanguagePositionRow"; Layout.fillWidth: true; columns: width >= 700 ? 2 : 1; columnSpacing: 24; rowSpacing: 8

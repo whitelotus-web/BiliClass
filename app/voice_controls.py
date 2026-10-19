@@ -46,6 +46,7 @@ class VoiceControls(QObject):
         super().__init__(parent)
         self.directory = Path(directory)
         self.save_worker = None
+        self.pending_save = None
         self.preview_workers = []
         self.generation = 0
         self.pending = None
@@ -62,9 +63,13 @@ class VoiceControls(QObject):
                 'previewSeconds': self.preview_seconds, 'saveSeconds': self.save_seconds}
 
     def save(self, voice, rate):
+        self.pending_save = {'voice': voice, 'rate': rate}
         if self.save_worker is not None:
             return
-        values = {'voice': voice, 'rate': rate}
+        self._start_save()
+
+    def _start_save(self):
+        values, self.pending_save = self.pending_save, None
         task = VoiceTask(lambda _: store_preference(self.directory, values), self)
         self.save_worker = task
         self.save_message, self.save_error = 'Đang lưu giọng và tốc độ…', False
@@ -76,6 +81,10 @@ class VoiceControls(QObject):
     def _saved(self):
         task, self.save_worker = self.save_worker, None
         task.wait()  # finished can precede the last native thread cleanup.
+        if self.pending_save is not None:
+            task.deleteLater()
+            self._start_save()
+            return
         self.save_seconds = time.monotonic() - task.started_at
         self.save_error = bool(task.error)
         self.save_message = ('Chưa lưu được giọng. Thư viện đang bận hoặc không ghi được; thử lưu lại.'
@@ -141,3 +150,9 @@ class VoiceControls(QObject):
             task.wait()
         if self.save_worker is not None:
             self.save_worker.wait()
+        if self.pending_save is not None:
+            values, self.pending_save = self.pending_save, None
+            try:
+                store_preference(self.directory, values)
+            except (sqlite3.Error, OSError) as exc:
+                self.failed.emit('Chưa lưu được cặp giọng gần nhất: ' + str(exc))

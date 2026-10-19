@@ -2303,7 +2303,7 @@ class Bridge(QObject):
     def _voice_preview_ready(self, result):
         try:
             self._play_audio(result['path'])
-            self.inform('Đang nghe thử giọng và tốc độ; chưa thay cấu hình đã lưu.', refresh=False)
+            self.inform('Đang nghe thử giọng và tốc độ đã chọn.', refresh=False)
         except Exception:
             self.voice_controls.stop()
             self.inform('Chưa phát được câu mẫu. Kiểm tra thiết bị loa của Windows.', True, refresh=False)
