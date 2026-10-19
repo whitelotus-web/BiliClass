@@ -115,7 +115,7 @@ class NarrationWorkspace(QObject):
         bridge = self.bridge
         directory, profile = bridge.library.directory, dict(bridge.settings)
         bridge.launch(lambda: prepare_library_lesson(directory, identity, profile),
-                      lambda result: bridge._show_lesson(*result, auto_repair=False))
+                      lambda result: bridge._show_lesson(*result, auto_repair=False, destination='voice'))
 
     @Slot(int)
     def selectSlide(self, index):
@@ -144,7 +144,7 @@ class NarrationWorkspace(QObject):
         try:
             lesson = save_script(bridge.library, bridge._lesson['id'], segment_id, revision,
                                  row['original_vi'], row['original_en'], silent=silent)
-            bridge._show_lesson(lesson, external_preview(lesson, bridge.library.directory))
+            bridge._show_lesson(lesson, external_preview(lesson, bridge.library.directory), destination=None)
             return True
         except (ValueError, OSError) as exc:
             bridge.inform(str(exc), True, refresh=False)
@@ -162,7 +162,7 @@ class NarrationWorkspace(QObject):
             bridge.stopSpeech()
             lesson = save_script(bridge.library, bridge._lesson['id'], segment_id, revision, vi, en)
             preview = external_preview(lesson, bridge.library.directory)
-            bridge._show_lesson(lesson, preview)
+            bridge._show_lesson(lesson, preview, destination=None)
             bridge.inform('Đã lưu lời đọc riêng. Slide gốc giữ nguyên; tạo lại bản giọng cho nội dung vừa sửa.')
             return True
         except (ValueError, OSError) as exc:

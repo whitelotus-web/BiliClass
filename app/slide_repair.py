@@ -350,6 +350,17 @@ def repair_layout(path, directory, report, cancel=None, progress=None):
         for number, part in parts.items():
             root = etree.fromstring(archive.read(part))
             roots[number] = root
+            if deck is None:
+                from pptx import Presentation
+
+                deck = Presentation(path)
+            from .caption_layout import reserve_band
+
+            band = reserve_band(root, deck.slide_width, deck.slide_height, deck.slides[number - 1])
+            math_changes.extend({'slide': number, **change} for change in band)
+            moved = {change['shape_id'] for change in band}
+            targets[number].update(change['shape_id'] for change in band
+                                    if change['operation'] in {'separate_text_rows', 'align_caption_band'})
             for shape_id in targets[number]:
                 shape = _shape(root, shape_id)
                 if shape is None:
@@ -364,6 +375,14 @@ def repair_layout(path, directory, report, cancel=None, progress=None):
                     if _grow_formula_frame(shape, deck.slides[number - 1], deck.slide_width, deck.slide_height):
                         math_changes.append({'slide': number, 'shape_id': shape_id, 'operation': 'grow_formula_frame'})
                     continue
+                if deck is None:
+                    from pptx import Presentation
+
+                    deck = Presentation(path)
+                from .text_frame_space import grow
+
+                if shape_id not in moved and grow(shape, deck.slides[number - 1], deck.slide_width, deck.slide_height):
+                    math_changes.append({'slide': number, 'shape_id': shape_id, 'operation': 'grow_text_frame'})
                 native_targets.setdefault(number, set()).add(shape_id)
                 _compact_fixed_spacing(body)
                 # Empty trailing paragraphs can double a bilingual box's height.
@@ -426,9 +445,28 @@ def repair_and_inspect(path, directory, *, source=None, mode="", style="source",
     from .office_tasks import render_quality
 
     current = Path(path)
+    from .slide_typography import protect_tree
+    from .source_deck import source_slide_parts
+
+    # Typography is applied before measurement. NBSP changes only a line-break
+    # opportunity; the same normalized VI/EN pair hashes remain valid.
+    replacements, typography = {}, []
+    with zipfile.ZipFile(current) as archive:
+        for number, part in enumerate(source_slide_parts(current), 1):
+            tree = etree.fromstring(archive.read(part))
+            protected = protect_tree(tree)
+            if protected:
+                replacements[part] = etree.tostring(tree, xml_declaration=True, encoding='UTF-8', standalone=True)
+            if protected:
+                typography.append({'slide': number, 'operation': 'keep_quantities_together'})
+    if replacements:
+        target = Path(directory) / 'temp' / 'slide-repair' / uuid4().hex / 'typography.pptx'
+        target.parent.mkdir(parents=True)
+        _write_copy(current, target, replacements)
+        current = target
     inspection = inspect_returned_deck(current, source, mode, style, layout_plan=layout_plan)
     render_quality(current, directory, inspection["slide_quality"], cancel, progress, reuse_directory=reuse_directory)
-    history = []
+    history = list(typography)
     if not layout_plan and not (cancel and cancel.is_set()):
         title_result = normalize_titles(current, directory, mode)
         if Path(title_result["path"]) != current:

@@ -409,6 +409,7 @@ def visible_segments(slide, click_index=None, settled_seconds=0):
 
 def speech_chunks(text, limit=1500):
     """Prefer sentence boundaries; refuse a giant token rather than truncate it."""
+    text = text.replace('\u00a0', ' ').replace('\u202f', ' ')
     chunks, current = [], ""
     for sentence in re.split(r"(?<=[.!?;])\s+|\n+", text.strip()):
         if len(sentence) > limit:

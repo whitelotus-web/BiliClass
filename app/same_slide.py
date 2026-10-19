@@ -48,8 +48,8 @@ def style_paragraph(paragraph, source_size, *, english=False, title=False, label
         if node.text:
             node.text = node.text.replace("\t", " ")
     visible = bool(text_of(paragraph).strip())
-    size = min(source_size / 100, 32 if title else 16 if label else 24)
-    target = size * (0.82 if english else 1)
+    size = min(max(source_size / 100, 18), 32 if title else 18 if label else 24)
+    target = max(18, size * (0.82 if english else 1))
     scale = target / max(1, source_size / 100)
     default = props.find("a:defRPr", NS)
     if default is None:

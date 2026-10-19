@@ -24,9 +24,8 @@ GridLayout {
             objectName: "creationPresetCard_" + modelData.id
             Layout.fillWidth: true; Layout.preferredWidth: 1
             implicitHeight: contents.implicitHeight + 20; radius: 10
-            color: picker.currentIndex === index ? "#edf5ff" : "white"
-            border.color: picker.currentIndex === index ? "#0869ff" : "#d6e2f3"
-            border.width: picker.currentIndex === index ? 2 : 1
+            color: "transparent"
+            border.width: 0
             ColumnLayout {
                 id: contents; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 10; spacing: 6
                 Image {
@@ -36,7 +35,7 @@ GridLayout {
                     fillMode: Image.PreserveAspectFit; asynchronous: true; smooth: true
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: picker.currentIndex = card.index }
                 }
-                RadioButton {
+                ChoiceRadioButton {
                     objectName: "creationPresetSelect_" + card.modelData.id
                     ButtonGroup.group: choices; checked: picker.currentIndex === card.index
                     text: card.modelData.name; font.pixelSize: 13; font.bold: true

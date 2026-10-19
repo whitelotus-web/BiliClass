@@ -147,16 +147,22 @@ ColumnLayout {
                         {title: "3 phong cách thiết kế", detail: "Chuẩn lớp học · Trực quan · Luyện tập", icon: "palette", box: Qt.rect(151,195,950,914)},
                         {title: "Giọng đọc & mascot", detail: "Đọc theo slide khi thầy cô yêu cầu", icon: "assistant", box: Qt.rect(189,241,876,807)}
                     ]
-                    RowLayout {
+                    Item {
+                        id: featureCell
                         required property var modelData
                         required property int index
-                        Layout.fillWidth: true; Layout.preferredWidth: 1; spacing: 12
-                        Rectangle { visible: index > 0; width: 1; Layout.fillHeight: true; color: "#e5edf7"; Layout.rightMargin: 4 }
+                        objectName: "homeFeatureCell" + index
+                        Layout.fillWidth: true; Layout.fillHeight: true; Layout.preferredWidth: 1
+                        Rectangle { visible: featureCell.index > 0; width: 1; height: parent.height; color: "#e5edf7"; anchors.left: parent.left }
+                        RowLayout {
+                        objectName: "homeFeatureContent" + featureCell.index
+                        anchors.centerIn: parent; width: Math.min(implicitWidth, parent.width - 24); spacing: 12
                         Image { source: "../assets/workflow/" + modelData.icon + ".png"; sourceClipRect: modelData.box; Layout.preferredWidth: 34; Layout.preferredHeight: 34; fillMode: Image.PreserveAspectFit; mipmap: true; Accessible.ignored: true }
                         ColumnLayout {
-                            Layout.fillWidth: true; spacing: 4
+                            Layout.fillWidth: true; Layout.maximumWidth: Math.max(80, featureCell.width - 70); spacing: 4
                             Label { text: modelData.title; color: "#16314f"; font.pixelSize: home.width > 1000 ? 14 : 12; font.weight: Font.DemiBold; Layout.fillWidth: true; wrapMode: Text.WordWrap }
                             Copy { text: modelData.detail; font.pixelSize: 11 }
+                        }
                         }
                     }
                 }

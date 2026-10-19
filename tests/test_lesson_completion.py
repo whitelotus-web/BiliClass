@@ -134,7 +134,11 @@ def test_open_library_reuses_ready_voice_when_active_variant_is_incomplete(tmp_p
 
 
 def test_open_saved_powerpoint_does_not_run_full_office_repair_or_change_the_saved_product(tmp_path, monkeypatch):
+    from app.lesson_completion import VERSION
+
     library, lesson, _ = converted(tmp_path)
+    lesson['slide_quality'].update(completion_version=VERSION, completion_sha256=lesson['source']['sha256'])
+    library._write(lesson)
     before = library.get(lesson['id'])
     monkeypatch.setattr('app.slide_repair.repair_and_inspect',
                         lambda *args, **kwargs: pytest.fail('Open must not run a full Office repair'))
@@ -158,6 +162,8 @@ def test_open_and_narration_are_separate_entry_points(tmp_path, monkeypatch):
 
     app = QCoreApplication.instance() or QCoreApplication([])
     library, lesson, _ = converted(tmp_path)
+    lesson['slide_quality']['counts']['FAIL'] = 0
+    library._write(lesson)
     prepared = prepare_library_teaching(library.directory, lesson['id'])
     bridge = Bridge(library)
     destinations, opened = [], []
@@ -192,4 +198,44 @@ def test_new_spoken_tasks_never_reuse_old_voice_signature(tmp_path):
     _retain_unchanged_audio(lesson, updated)
     assert updated['narration']['signature'] == plan['signature']
     assert not audio_status(updated, library.directory)['ready']
+    library.close()
+
+
+def test_typography_only_change_keeps_identical_audio_keys(tmp_path):
+    from app.lesson_completion import _retain_unchanged_audio
+
+    library, lesson, _ = converted(tmp_path)
+    identity = lesson['segments'][0]['id']
+    lesson['narration_script'] = {identity: {'vi': 'Đi 108 km.', 'en': 'Travel 108 km in 10 s.', 'manual': True}}
+    plan, _ = make_plan(lesson, 'both', {'voice': 'vieneu:Mai Anh', 'rate': 0})
+    lesson['narration'] = plan
+    updated = copy.deepcopy(lesson)
+    updated['source']['sha256'] = 'e'*64
+    updated['revision'] += 1
+    updated['narration_script'][identity].update(vi='Đi 108\u00a0km.', en='Travel 108\u00a0km in 10\u00a0s.')
+    _retain_unchanged_audio(lesson, updated)
+    assert updated['narration']['signature'] != plan['signature']
+    assert updated['narration']['keys'] == plan['keys']
+    library.close()
+
+
+def test_native_reading_order_change_reuses_the_same_cached_utterances(tmp_path):
+    from app.lesson_completion import _retain_unchanged_audio
+
+    library, lesson, _ = converted(tmp_path)
+    page = lesson['slide_speech']['slides'][0]
+    page['englishSpeechSegments'] = [
+        {'english_text': 'The first English sentence.', 'status': 'ready'},
+        {'english_text': 'The second English sentence.', 'status': 'ready'}]
+    plan, _ = make_plan(lesson, 'en', {'voice': 'vieneu:Mai Anh', 'rate': 0})
+    assert len(plan['keys']['en']) == 2
+    lesson['narration'] = plan
+    updated = copy.deepcopy(lesson)
+    updated['source']['sha256'] = 'd'*64
+    updated['revision'] += 1
+    updated['slide_speech']['slides'][0]['englishSpeechSegments'].reverse()
+    _retain_unchanged_audio(lesson, updated)
+    expected, _ = make_plan(updated, 'en', plan)
+    assert updated['narration']['keys'] == expected['keys'] == {'en': list(reversed(plan['keys']['en']))}
+    assert updated['narration']['signature'] == expected['signature'] != plan['signature']
     library.close()

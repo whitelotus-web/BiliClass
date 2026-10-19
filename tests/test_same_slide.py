@@ -166,7 +166,7 @@ def test_numeric_options_remain_single_native_objects(tmp_path):
     values = {u["id"]: {"en": "Mechanical energy" if u["title"] else u["text"]} for u in manifest["units"]}
     output = assemble(source, tmp_path / "result.pptx", manifest, values, "parallel_columns")
     assert (
-        sum(s.text.count("A. 2,5 m/s²") for s in Presentation(output).slides[0].shapes if s.has_text_frame)
+        sum(s.text.replace('\u00a0', ' ').count("A. 2,5 m/s²") for s in Presentation(output).slides[0].shapes if s.has_text_frame)
         == 1
     )
 

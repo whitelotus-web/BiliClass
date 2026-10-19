@@ -17,9 +17,8 @@ Rectangle {
     signal previewRequested()
     implicitHeight: compact ? (tight ? 64 : 78) : showPreview ? 138 : 90
     radius: 10
-    color: selected ? "#edf5ff" : "#ffffff"
-    border.width: selected ? 2 : 1
-    border.color: selected ? "#0869f9" : "#dce6f3"
+    color: "transparent"
+    border.width: 0
     opacity: enabled ? 1 : .5
     HoverHandler { id: cardHover }
     ToolTip.visible: card.compact && cardHover.hovered
@@ -29,7 +28,7 @@ Rectangle {
         anchors.fill: parent; anchors.margins: card.compact ? 8 : 12; spacing: card.compact ? 3 : 5
         RowLayout {
           Layout.fillWidth: true; spacing: 6
-        RadioButton {
+        ChoiceRadioButton {
             id: radio; objectName: card.choiceName
             Layout.fillWidth: true
             checked: card.selected
@@ -38,18 +37,6 @@ Rectangle {
             onClicked: card.chosen()
             Accessible.name: card.label
             Accessible.description: card.detail
-            indicator: Rectangle {
-                x: 0; y: (radio.height - height) / 2
-                width: 18; height: 18; radius: 9
-                color: "white"; border.width: radio.visualFocus ? 2 : 1
-                border.color: radio.checked ? "#0869f9" : "#8c9eb8"
-                Rectangle { anchors.centerIn: parent; width: 10; height: 10; radius: 5; color: "#0869f9"; visible: radio.checked }
-            }
-            contentItem: Text {
-                leftPadding: 25
-                text: radio.text; color: "#112650"; font.pixelSize: 13; font.weight: Font.DemiBold
-                wrapMode: Text.WordWrap; verticalAlignment: Text.AlignVCenter
-            }
         }
           ActionButton { objectName: card.compact ? card.choiceName + "Preview" : ""; visible: card.showPreview && card.compact; text: "Xem mẫu"; implicitHeight: 26; font.pixelSize: 11; onClicked: card.previewRequested() }
         }

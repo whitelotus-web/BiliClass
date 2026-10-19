@@ -129,6 +129,16 @@ def main():
                     for template in (False, True, False):
                         click(window, c("creationUseTemplate" if template else "creationKeepOriginal"))
                         pump(130)
+                        for name in ('formatChoice_parallel_columns', 'creationUseTemplate',
+                                     'creationPresetSelect_standard', 'creationPresetSelect_visual', 'creationPresetSelect_practice'):
+                            radio = c(name)
+                            indicator = radio.property('indicator')
+                            assert indicator.width() == indicator.height() == 18
+                            expected = '#0869f9' if radio.property('checked') else '#8c9eb8'
+                            expression = QQmlExpression(engine.rootContext(), indicator, 'border.color')
+                            color = expression.evaluate()
+                            color = color[0] if isinstance(color, tuple) else color
+                            assert color.name() == expected
                         scroll = c("creationScroll")
                         flick = scroll.property("contentItem")
                         flick.setProperty("contentY", 0)

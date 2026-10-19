@@ -40,7 +40,7 @@ def test_four_modes_are_editable_keep_source_and_have_paired_notes(tmp_path,mode
     assert len(deck.slides)==1
     shapes=[s for s in leaves(deck.slides[0].shapes) if s.has_text_frame]
     text='\n'.join(s.text for s in shapes)
-    assert '12 m/s' in text
+    assert '12\u00a0m/s' in text
     assert ('Vật có' in text)==(mode!='english_only')
     assert ('velocity' in text)
     notes=deck.slides[0].notes_slide.notes_text_frame.text

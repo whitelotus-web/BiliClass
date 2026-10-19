@@ -1164,9 +1164,19 @@ class Bridge(QObject):
         for identity, record in records(self._lesson).items():
             state = verified.get(identity, {})
             suffix = 'Sẵn sàng' if state.get('ready') else 'Cần tạo tiếp / kiểm tra' if state else 'Đang kiểm tra'
-            result.append({'id': identity, 'title': variant_title(record) + ' · ' + suffix,
+            result.append({**state, 'id': identity, 'title': variant_title(record) + ' · ' + suffix,
                            'ready': bool(state.get('ready')), 'status': state.get('status', 'checking')})
         return result
+
+    @Slot('QVariantList', result='QVariantMap')
+    def narrationAvailableModes(self, rows):
+        from .final_narration import available_modes
+
+        return available_modes(rows)
+
+    @Slot(str)
+    def downloadFinalPresentation(self, url):
+        self.downloadLibraryPresentations([self._lesson['id']], url, True)
 
     @Slot('QVariantList', str, int, result='QVariantMap')
     def narrationCreationChoices(self, rows, voice, rate):
@@ -1225,7 +1235,7 @@ class Bridge(QObject):
         directory = self.library.directory
 
         def ready(result):
-            self._show_lesson(*result)
+            self._show_lesson(*result, destination='voice')
             self.inform('Đã nhận PowerPoint. Kiểm tra hoặc bổ sung lời đọc theo slide rồi chọn giọng để tạo.')
 
         self.launch(lambda: import_presentation(directory, QUrl(url).toLocalFile()), ready)
@@ -2572,7 +2582,8 @@ class Bridge(QObject):
             inspection["review_notes"] = list(dict.fromkeys(inspection["review_notes"] + quality_messages(inspection["slide_quality"])))
             if Path(result["path"]).resolve() != Path(path).resolve():
                 source = result.get('stored_source') or self.library.store_source(Path(result["path"]))
-                self._lesson = self.library.replace_external_presentation(lesson["id"], lesson["revision"], source, inspection)
+                self._lesson = self.library.replace_external_presentation(lesson["id"], lesson["revision"], source, inspection,
+                                                                          retain_audio=True)
                 self.openLesson(lesson["id"])
             else:
                 self._lesson = self.library.update_slide_inspection(lesson["id"], inspection)

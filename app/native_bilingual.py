@@ -202,7 +202,8 @@ def extract(source, mode, *, preserve_design=False, same_slide=False):
                     if len(text)>14000:
                         unsupported.append(f'Slide {index}: vùng nội dung cần xử lý trực quan')
                     language = language_of(raw)
-                    if roman_label(raw) or equation_only(paragraph) or quantity_only(raw):
+                    if (roman_label(raw) or equation_only(paragraph) or quantity_only(raw)
+                            or re.fullmatch(r'(?:https?://|www\.|(?:facebook|youtube|mailto):)\S+', raw.strip(), re.I)):
                         language='neutral'
                     if same_slide and language != 'vi' and not TOKEN.sub('',text).strip():
                         language='neutral'
@@ -491,6 +492,9 @@ def assemble(source, destination, manifest, translations, mode):
                 same_slide.fit(shape,max(u['font_size'] for u in units))
             elif manifest.get('version', 1) >= 2:
                 fit_body(shape, max(u['font_size'] for u in units), minimum=14 if paired else 18)
+        from .slide_typography import protect_tree
+
+        protect_tree(tree)
         if together:
             same_slide.synchronize(tree,columns,paragraph_maps)
             pages=same_slide.paginate(tree,coverage.get(index,[]))

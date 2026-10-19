@@ -42,7 +42,7 @@ def test_text_to_local_pptx_paired_notes_and_idempotent_save(tmp_path, mode):
     assert all(not segment['approved'] for segment in lesson['segments'])
     deck = Presentation(preview['path'])
     text = '\n'.join(s.text for slide in deck.slides for s in slide.shapes if s.has_text_frame)
-    assert 'Energy is conserved.' in text and '12 m/s' in text
+    assert 'Energy is conserved.' in text and '12\u00a0m/s' in text
     assert ('Năng lượng được bảo toàn.' in text) == (mode != 'english_only')
     assert all('BILICLASS_NOTES:' in slide.notes_slide.notes_text_frame.text for slide in deck.slides)
     assert events[-1]['stage'] == 'save'

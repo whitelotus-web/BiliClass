@@ -28,6 +28,6 @@ def test_bilingual_table_keeps_one_copy_of_spaced_quantity(tmp_path):
     values = {unit['id']: {'en': unit['text'].replace('Khối lượng', 'Mass')} for unit in manifest['units']}
     assemble(source, target, manifest, values, 'parallel_columns')
     table = next(shape.table for shape in Presentation(target).slides[0].shapes if shape.has_table)
-    assert table.cell(0, 1).text == '12 kg'
+    assert table.cell(0, 1).text == '12\u00a0kg'
     assert table.cell(0, 0).text == 'Khối lượng\nMass'
     assert source.read_bytes() == original

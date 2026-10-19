@@ -71,6 +71,10 @@ def main():
                 window.resize(width, height)
                 c('libraryHomeScroll').property('contentItem').setProperty('contentY', 0)
                 pump(250)
+                for index in range(3):
+                    cell, content = c('homeFeatureCell'+str(index)), c('homeFeatureContent'+str(index))
+                    assert abs(content.x()+content.width()/2-cell.width()/2) <= 1
+                    assert content.width() <= cell.width()-20
                 # Force the resized window's layout/render before measuring it,
                 # including when Windows has occluded this test window.
                 assert window.grabWindow().save(str(report/f'home-{width}.png'))

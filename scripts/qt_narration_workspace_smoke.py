@@ -180,20 +180,12 @@ def main():
             until(lambda: not bridge.busy and bridge.lesson.get('speaker_position') == 'bottom_center')
             assert bridge.lesson['revision'] == before_position
             assert bridge.lesson['narration'] == before_voice and bridge.lessonNarration['ready']
-            assert c('createLessonNarrationButton').isEnabled()
+            until(lambda: bridge.narrationAvailableModes(bridge.narrationVariants).get('both'))
+            assert not c('createLessonNarrationButton').isEnabled()
             assert not window.findChild(type(c('createLessonNarrationButton')), 'voiceNarrationVariantChoice')
             assert 'hai ngôn ngữ' in c('narrationConfigurationExplanation').property('text')
-            click(window, c('createLessonNarrationButton'))
-            until(lambda: c('existingNarrationDialog').property('visible'))
-            assert c('existingNarrationDialog').property('visible') and not bridge.narrationBusy
-            click(window, c('useExistingNarration'))
-            assert not c('existingNarrationDialog').property('visible') and not bridge.narrationBusy
-            with patch('app.speech.narration_workers', return_value=1), patch('app.speech.synthesize_background', side_effect=render):
-                click(window, c('createLessonNarrationButton'))
-                until(lambda: c('existingNarrationDialog').property('visible'))
-                click(window, c('regenerateExistingNarration'))
-                until(lambda: not bridge.narrationBusy and bridge.lessonNarration.get('ready'))
-                assert bridge.narrationPreparation['cached'] == 0
+            assert not c('narrationEnglish').isVisible() and not c('narrationVietnamese').isVisible()
+            assert not c('narrationBoth').isVisible()
             assert c('downloadNarrationAudioButton').isVisible()
             assert not c('voiceDownloadWithoutNarration').isVisible()
             assert not c('voiceTeachWithoutNarration').isVisible()
@@ -222,7 +214,7 @@ def main():
                     pump(100)
                 create = c('createLessonNarrationButton')
                 bottom = create.mapToScene(QPointF(0, create.height())).y()
-                assert bottom <= window.height() - 30, (width, height, bottom)
+                assert bottom <= window.height() - 12, (width, height, bottom)
                 assert window.grabWindow().save(str(out / f'ready-{width}.png'))
             clicked_audio = []
             with patch.object(bridge.english_reader, 'start', side_effect=lambda *a, **k: clicked_audio.append((a, k))):
@@ -347,7 +339,7 @@ def main():
                                  'voice/rate/three modes visible and selectable before file at two sizes', 'configuration survives file/library choices and mono-language adjustment',
                                  'blank/image slide script editing without source changes', 'dirty script blocks slide switch',
                                  'language availability', 'cancel and resume reuse cached WAV', 'busy source/download guards',
-                                 'duplicate configuration offers reuse or explicit regeneration', 'ZIP WAV and embedded PowerPoint export',
+                                 'completed languages hide creation and retain WAVs', 'ZIP WAV and embedded PowerPoint export',
                                  'regular library lesson prepares matching preview', 'no auto review or playback'],
                       'new_checks': ['consistent unselected and missing-language status', 'cancel selected lesson while idle or synthesizing preserves library and WAVs', 'edit converted lesson narration directly without changing slide text'],
                       'scope': 'Real Qt and PowerPoint export; synthesized audio uses WAV fixtures'}

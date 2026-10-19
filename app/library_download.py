@@ -44,6 +44,10 @@ def export(directory, identities, destination, with_voice=True, cancel=None):
             else:
                 from .quick_conversion import build_preview
                 preview = build_preview(lesson, directory, terms=[r for r in terms if r['subject'] == lesson['subject']])
+            if with_voice:
+                from .final_narration import select_final
+
+                lesson = select_final(lesson, directory, cancel)
             voice = bool(with_voice and audio_status(lesson, directory).get('ready'))
             label = variant_title(lesson['narration']) if voice else 'Không kèm giọng'
             path = suggestion(work, f'{index:03d} - ' + lesson['title'], presentation_suffix(lesson, voice), 'pptx')
