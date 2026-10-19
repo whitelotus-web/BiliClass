@@ -56,4 +56,32 @@ RC92 đã kiểm checksum. RC93 là bản nháp trung gian khi yêu cầu đư�
 .venv/Scripts/python.exe -m scripts.build_from_runtime --baseline dist/rc92-voice-pairs --output dist/rc96-selection-ui
 ```
 
-Kết quả bản cài và phát hành được ghi sau khi xác minh.
+- Commit ứng dụng: `bcffd48d32809deacdcd34a6cc3246445dc63064`.
+- CI Source checks đạt:
+  https://github.com/whitelotus-web/BiliClass/actions/runs/39273315841
+- ZIP `BiliClass-RC96-Windows.zip`: 1.241.617.371 byte, 4.621 tệp ứng
+  dụng (4.625 mục ZIP). Dựng một lần từ mã đã kiểm thử; runtime RC92
+  xác minh đủ checksum, mọi module ứng dụng được dựng lại.
+- SHA256: `4e16de0c088cb254d841f2a92c38921acdfa327fa98e4d231910cc4f0dce1be8`.
+- Đã đối chiếu toàn bộ nội dung ZIP với manifest và checksum.
+
+Kiểm tra bản cài độc lập đạt tại
+`reports/release/1.0.0rc96-e775ecfd/installer.json`: đường dẫn Unicode,
+Windows Details, đăng ký shortcut tạm, trang Qt, template, hai engine
+thật, tiến trình lớp học, sao lưu và gỡ bản thử vẫn giữ thư viện riêng.
+Không dùng cache phát triển hoặc đổi dữ liệu cá nhân trong các phép thử.
+
+Kiểm tra nghe mẫu trong bản đóng gói đạt: sáu mẫu bắt đầu trong 59–156 ms,
+lưu khi đang chuẩn bị trong 21 ms; khoảng ngắt giao diện cao nhất 137 ms.
+Không nạp mô hình, không phát muộn sau khi hủy, không cảnh báo QML.
+Bằng chứng `reports/rc96/frozen-voice-ui.json`.
+
+Đã công bố tại https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc96 .
+Digest asset GitHub khớp SHA256 ở trên.
+
+Đã cài tại `F:/Applications/BiliClass/1.0.0rc96`, đóng RC92 bình thường và
+mở RC96 qua Explorer vào Cài đặt. Cửa sổ chính và Mascot đáp ứng; tiến
+trình độc lập với Codex. Icon nhỏ/lớn, AppUserModelID và hai shortcut đúng.
+Nguồn, revision, môn đã chọn, cấu hình giọng đã lưu, khóa API và toàn bộ
+134 WAV của bài đang thử giữ nguyên. Bằng chứng
+`reports/rc96/installed-verification.json`.
