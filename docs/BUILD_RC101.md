@@ -44,8 +44,8 @@ và chưa triển khai đọc từng đoạn bằng nút riêng.
 ## Đóng gói và bảo toàn dữ liệu
 
 ```powershell
-.venv/Scripts/python.exe -m scripts.build_from_runtime --baseline dist/rc100-mascot-menu --output dist/rc101-submission
-./scripts/verify_release.ps1 -DistRoot dist/rc101-submission
+.venv/Scripts/python.exe -m scripts.build_from_runtime --baseline dist/rc100-mascot-menu --output dist/rc101-submission-final
+./scripts/verify_release.ps1 -DistRoot dist/rc101-submission-final
 ```
 
 Chỉ dùng nền RC100 đã kiểm chứng, dựng lại mã ứng dụng. Gói cài và bộ
@@ -59,3 +59,21 @@ gốc, WAV, thiết lập, key và bản sao lưu nằm ngoài phạm vi dọn b
 Hiện chức năng xóa vĩnh viễn bài trong thùng rác xóa bản ghi và lịch sử;
 không đưa vào Thùng rác Windows. Các tệp nguồn/WAV/xuất, bản sao lưu và
 báo cáo riêng vẫn được giữ; không đồng nghĩa đã thu hồi toàn bộ dung lượng.
+
+## Gói đã phát hành và mở tại máy
+
+- Nguồn `949b430f3caeb85e3efe8101a21418be142bc519`, phiên bản `1.0.0rc101`.
+- `dist/rc101-submission-final/BiliClass-RC101-Windows.zip`,
+  1.246.807.575 byte; SHA-256
+  `3b8fd9d5fc2f8bc0268503851d488e711e6d3986f99f1069c4132c57b472be50`.
+- [GitHub Release RC101](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc101).
+  Digest phía GitHub khớp tệp đã kiểm chứng.
+- Kiểm tra gói cài riêng qua: manifest và đường dẫn Unicode, Windows Details,
+  shortcut/taskbar, bốn trang Qt với chính sách bản nộp, mẫu và preview,
+  giọng Việt VieNeu/Mỹ Kokoro thật, tạo đủ hai giọng qua giao diện Qt,
+  sao lưu và gỡ gói thử vẫn giữ thư viện thử. Trang lớp trực tiếp trở về
+  Trang chủ; không có cảnh báo QML ở các trang đã kiểm tra.
+- Đã cài và mở `F:/Applications/BiliClass/1.0.0rc101` bằng Explorer, độc lập
+  phiên Codex. Cửa sổ chính và Mascot hiện/đáp ứng, icon và các shortcut đúng.
+  Đối chiếu sau cài xác nhận bài, nguồn, thiết lập giọng, key và 940 tệp giọng
+  được tham chiếu giữ nguyên. Giữ RC100 làm bản lùi.
