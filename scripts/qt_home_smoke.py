@@ -43,11 +43,15 @@ def main():
         try:
             pump(300)
             assert window.property('page') == 'home'
-            assert 'ANH ↔ VIỆT · Lưu trên máy' in window.title()
+            assert 'Trợ lý dạy học song ngữ' in window.title()
+            assert c('applicationLanguageBadge').property('text') == 'ANH ↔ VIỆT'
+            assert c('applicationStorageBadge').property('text') == 'Lưu trên máy'
+            assert c('applicationLanguageBadge').property('color').name() == '#0869f9'
+            assert c('applicationStorageBadge').property('color').name() == '#008f89'
             for page in ('home', 'new', 'voice', 'library', 'classroom', 'settings'):
                 window.setProperty('page', page)
                 pump(30)
-                assert c('mainPageArea').mapToScene(QPointF()).y() == 0, page
+                assert c('mainPageArea').mapToScene(QPointF()).y() == window.safeAreaMargins().top(), page
             window.setProperty('page', 'home')
             assert c('applicationFooter').isVisible() and c('applicationStatusMessage').property('text') == 'BiliClass sẵn sàng'
             release = Event()

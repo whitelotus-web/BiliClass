@@ -14,7 +14,10 @@ def configure_application(application):
 
     if os.name == 'nt':
         import ctypes
-        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('BiliClass.Desktop')
+
+        from .windows_identity import APP_ID
+
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_ID)
     application.setApplicationName('BiliClass')
     application.setOrganizationName('BiliClass')
     application.setApplicationVersion(__version__)

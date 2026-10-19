@@ -75,6 +75,10 @@ if (-not $NoShortcuts) {
         $shortcut.Description = 'BiliClass - English Vietnamese teaching workspace'
         $shortcut.IconLocation = (Join-Path $versionPath 'BiliClass.exe') + ',0'
         $shortcut.Save()
+        # Match the process/window identity so Explorer resolves the group icon
+        # after versioned executable paths change. This CLI opens no UI/library.
+        $identityProcess = Start-Process -FilePath (Join-Path $versionPath 'BiliClass.exe') -ArgumentList @('--register-shortcut',('"' + $ownedShortcutPath + '"')) -WindowStyle Hidden -Wait -PassThru
+        if ($identityProcess.ExitCode -ne 0) { throw 'Could not register the BiliClass shortcut identity.' }
     }
 }
 Write-Output ('Installed BiliClass ' + $manifest.version + ' at ' + $versionPath)

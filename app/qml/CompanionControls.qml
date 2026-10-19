@@ -80,9 +80,9 @@ ColumnLayout {
     }
     RowLayout {
         visible: !!companion.session.bound || bridge.companionCanRead; Layout.fillWidth: true; spacing: 8
-        PanelAction { objectName: "companionPrevious"; text: "Trước"; iconName: "previous"; enabled: bridge.companionCanRead; ToolTip.visible: pointerHovered; ToolTip.text: "Lùi một bước/hiệu ứng; hết bước thì về slide trước"; onClicked: bridge.navigatePowerPoint("previous") }
+        PanelAction { objectName: "companionPrevious"; text: "Trước"; iconName: "previous"; enabled: bridge.companionCanRead; onClicked: bridge.navigatePowerPoint("previous") }
         Label { objectName: "companionSlidePosition"; text: bridge.powerpointState.active ? "Slide " + bridge.powerpointState.slide + " / " + bridge.powerpointState.total : "Sẵn sàng"; color: "#486385"; font.pixelSize: companion.controlFont; horizontalAlignment: Text.AlignHCenter; Layout.preferredWidth: 94 }
-        PanelAction { objectName: "companionNext"; text: "Sau"; iconName: "next"; enabled: bridge.companionCanRead; ToolTip.visible: pointerHovered; ToolTip.text: "Tiến một bước/hiệu ứng; hết bước thì sang slide tiếp"; onClicked: bridge.navigatePowerPoint("next") }
+        PanelAction { objectName: "companionNext"; text: "Sau"; iconName: "next"; enabled: bridge.companionCanRead; onClicked: bridge.navigatePowerPoint("next") }
     }
     GridLayout {
         objectName: "companionAudioControls"; visible: bridge.companionCanRead && companion.audioCount > 0
@@ -92,27 +92,56 @@ ColumnLayout {
         PanelAction { objectName: "companionReadBoth"; visible: !!companion.availableAudio.both; enabled: bridge.companionCanRead && !!companion.availableAudio.both; text: "Việt–Anh"; iconName: companion.readIcon("both") === "pause" ? "pause" : "speaker-both"; ToolTip.visible: pointerHovered; ToolTip.text: companion.readText("both", "Việt–Anh"); Accessible.name: companion.readText("both", "Việt–Anh"); onClicked: bridge.companionRead("both") }
     }
     Label {
-        objectName: "companionAudioHint"; visible: !!companion.session.bound && (!bridge.companionCanRead || companion.audioCount < 3)
+        objectName: "companionAudioHint"; visible: !!companion.session.bound && text.length > 0 && (!bridge.companionCanRead || companion.audioCount < 3)
         text: !bridge.companionCanRead ? "Bấm Trình chiếu để đọc giọng đã tạo."
-            : companion.audioCount === 0 ? "Slide này chưa có giọng đọc. Tạo giọng trong BiliClass nếu cần."
-            : "Nút sáng là giọng có trên slide này."
+            : companion.session.settling ? "Đang hiện nội dung…"
+            : companion.audioCount === 0 ? (companion.session.reading_mode === "auto" && companion.session.reading_scope === "visible" ? "Bước này chưa có lời đọc mới." : "Slide này chưa có giọng đọc.")
+            : ""
         color: "#667997"; font.pixelSize: 11; wrapMode: Text.WordWrap; Layout.fillWidth: true
+    }
+    ToolButton {
+        id: readingOptions; objectName: "companionReadingOptions"
+        visible: !!companion.session.can_choose_scope && bridge.companionCanRead
+        Layout.fillWidth: true; implicitHeight: 28; leftPadding: 0; rightPadding: 4
+        Accessible.name: "Chọn cách đọc bài giảng"
+        contentItem: Label {
+            text: "Đọc: " + (companion.session.reading_mode === "auto" ? "Tự động theo slide"
+                : companion.session.reading_mode === "visible" ? "Phần đang hiện" : "Toàn bộ slide") + "  ▾"
+            color: "#486385"; font.pixelSize: 11; verticalAlignment: Text.AlignVCenter
+        }
+        background: Rectangle { radius: 5; color: readingOptions.hovered ? "#eaf2ff" : "transparent"; border.color: readingOptions.visualFocus ? "#0869f9" : "transparent" }
+        onClicked: readingMenu.popup()
+        Menu {
+            id: readingMenu; objectName: "companionReadingMenu"; y: readingOptions.height
+            MenuItem { objectName: "companionReadingAuto"; text: "Tự động theo slide"; checkable: true; checked: companion.session.reading_mode === "auto"; onTriggered: bridge.teachingSession.setReadingScope("auto") }
+            MenuItem { objectName: "companionReadingVisible"; text: "Đọc phần đang hiện"; checkable: true; checked: companion.session.reading_mode === "visible"; onTriggered: bridge.teachingSession.setReadingScope("visible") }
+            MenuItem { objectName: "companionReadingFull"; text: "Đọc toàn bộ slide"; checkable: true; checked: companion.session.reading_mode === "full_slide"; onTriggered: bridge.teachingSession.setReadingScope("full_slide") }
+        }
     }
     RowLayout {
         visible: companion.session.bound && !!companion.session.active; Layout.fillWidth: true; spacing: 6
         Label { text: "Âm lượng"; font.pixelSize: 12; color: "#667997" }
-        Slider { objectName: "companionVolume"; from: 0; to: 100; stepSize: 5; value: companion.reader.volume === undefined ? 80 : companion.reader.volume; Layout.fillWidth: true; onMoved: bridge.teachingSession.setVolume(Math.round(value)); onPressedChanged: if (!pressed) bridge.focusTeachingPresentation() }
-        Label { text: (companion.reader.volume === undefined ? 80 : companion.reader.volume) + "%"; font.pixelSize: 12; color: "#102e54" }
-        HeaderAction {
-            id: readingOptions; objectName: "companionReadingOptions"; glyph: "⋯"; hint: "Cách đọc"; visible: !!companion.session.can_choose_scope
-            onClicked: readingMenu.popup()
-            Menu {
-                id: readingMenu; objectName: "companionReadingMenu"; y: readingOptions.height
-                MenuItem { objectName: "companionReadingAuto"; text: "Tự động theo slide"; checkable: true; checked: companion.session.reading_mode === "auto"; onTriggered: bridge.teachingSession.setReadingScope("auto") }
-                MenuItem { objectName: "companionReadingVisible"; text: "Đọc phần đang hiện"; checkable: true; checked: companion.session.reading_mode === "visible"; onTriggered: bridge.teachingSession.setReadingScope("visible") }
-                MenuItem { objectName: "companionReadingFull"; text: "Đọc toàn bộ slide"; checkable: true; checked: companion.session.reading_mode === "full_slide"; onTriggered: bridge.teachingSession.setReadingScope("full_slide") }
+        Slider {
+            id: volumeSlider; objectName: "companionVolume"
+            from: 0; to: 100; stepSize: 5; Layout.fillWidth: true
+            value: companion.reader.volume === undefined ? 80 : companion.reader.volume
+            onMoved: bridge.teachingSession.setVolume(Math.round(value))
+            onPressedChanged: if (!pressed) bridge.focusTeachingPresentation()
+            WheelHandler {
+                target: null; acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                property real remainder: 0
+                onWheel: function(event) {
+                    remainder += event.angleDelta.y ? event.angleDelta.y / 120 : event.pixelDelta.y / 40
+                    const steps = Math.trunc(remainder)
+                    if (steps) {
+                        remainder -= steps
+                        bridge.teachingSession.setVolume(Math.max(0, Math.min(100, Math.round(volumeSlider.value) + steps * 5)))
+                    }
+                    event.accepted = true
+                }
             }
         }
+        Label { text: (companion.reader.volume === undefined ? 80 : companion.reader.volume) + "%"; font.pixelSize: 12; color: "#102e54" }
     }
     Rectangle { visible: !!companion.session.bound || bridge.companionCanRead; Layout.fillWidth: true; implicitHeight: 1; color: "#e0e8f4" }
     RowLayout {

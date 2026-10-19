@@ -120,6 +120,7 @@ class EnglishReader(QObject):
     changed = Signal()
     failed = Signal(str)
     speakingChanged = Signal(bool)
+    chunkFinished = Signal(int)
 
     def __init__(self, directory, parent=None, player=None):
         super().__init__(parent)
@@ -263,6 +264,7 @@ class EnglishReader(QObject):
                 self.player.stop()
                 self.timer.stop()
                 self.position += 1
+                self.chunkFinished.emit(self.position - 1)
                 self._prepare()
         except Exception as exc:
             self._error(str(exc))

@@ -9,7 +9,7 @@ from types import SimpleNamespace
 
 from PySide6.QtCore import QCoreApplication, QEvent, QObject, QPoint, QPointF, Qt, QTimer, QUrl, Slot
 from PySide6.QtGui import QGuiApplication, QWheelEvent
-from PySide6.QtQml import QQmlApplicationEngine
+from PySide6.QtQml import QQmlApplicationEngine, QQmlEngine, QQmlExpression
 from PySide6.QtQuickControls2 import QQuickStyle
 from PySide6.QtTest import QTest
 
@@ -36,12 +36,19 @@ class ControlBridge(Bridge):
 def main():
     app = QGuiApplication([])
     QQuickStyle.setStyle('Basic')
-    report = Path('reports/rc90/companion-controls')
+    report = Path('reports/rc91/companion-controls')
     report.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='bcl-controls-', ignore_cleanup_errors=True) as folder:
         library = Library(Path(folder))
         lesson = library.create('Bài đang gắn để thử điều khiển', 'Vật lý', 'THPT', '11', [('Slide 1', 'Năng lượng.')])
         bridge = ControlBridge(library)
+        # Geometry/input tests must never adjust the teacher's Windows volume.
+        endpoint = [58, False]
+        def system_volume(target=None):
+            if target is not None:
+                endpoint[:] = target, False
+            return tuple(endpoint)
+        bridge.teachingSession.system_volume.backend = system_volume
         engine = QQmlApplicationEngine()
         warnings = []
         engine.warnings.connect(lambda entries: warnings.extend(map(str, entries)))
@@ -167,7 +174,31 @@ def main():
             QTest.mouseMove(companion, center - QPoint(45, 0))
             QTest.mouseRelease(companion, Qt.LeftButton, pos=center - QPoint(45, 0))
             assert QPoint(companion.x(), companion.y()) == origin
-            assert native_commands and native_commands[-1][0] == 'set_volume'
+            until(lambda: endpoint[0] == bridge.teachingSession.volume)
+            assert ('set_volume', 100) in native_commands, native_commands
+            assert all(command[1] == 100 for command in native_commands if command[0] == 'set_volume')
+            volume = c('companionVolume')
+            center = volume.mapToScene(QPointF(volume.width() / 2, volume.height() / 2))
+            initial = bridge.teachingSession.volume
+            scroll = c('companionControlsScroll').property('contentItem')
+            scroll_position = scroll.property('contentY')
+            for delta, expected in [(120, initial + 5), (-120, initial)]:
+                event = QWheelEvent(center, QPointF(companion.mapToGlobal(center.toPoint())), QPoint(), QPoint(0, delta), Qt.NoButton, Qt.NoModifier, Qt.NoScrollPhase, False)
+                QGuiApplication.sendEvent(companion, event)
+                until(lambda: bridge.teachingSession.volume == expected)
+                until(lambda: endpoint[0] == expected)
+                assert endpoint[0] == expected
+                assert scroll.property('contentY') == scroll_position
+            # An external Windows slider/hardware-key update is reflected back.
+            endpoint[0] = 37
+            until(lambda: bridge.teachingSession.volume == 37)
+            assert round(volume.property('value')) == 37
+            for name in ('companionPrevious', 'companionNext'):
+                target = c(name)
+                QTest.mouseMove(companion, target.mapToScene(QPointF(target.width()/2, target.height()/2)).toPoint())
+                pump(650)
+                hint = QQmlExpression(QQmlEngine.contextForObject(target), target, 'ToolTip.visible')
+                assert hint.evaluate() == (False, False) and not hint.hasError()
             help_button = c('companionShortcutGuideToggle')
             QTest.mouseMove(companion, QPoint(12, 12))
             pump(100)
@@ -276,6 +307,7 @@ def main():
             result = dict(status='passed', sizes=3, opacity_clicks=2, settings_preserves_binding=True,
                           subject_badge_hidden=True, qml_warnings=warnings,
                           panel_drag_and_down_arrow=True,
+                          wheel_volume_5_percent=True, system_volume_two_way=True, navigation_tooltips_removed=True,
                           transparency_max_ui_gap_seconds=round(max_gap, 3), transparency_broad_refreshes=len(broad_refreshes),
                           scope='Qt hit targets/geometry with intercepted commands; native Office verified separately')
             (report / 'result.json').write_text(json.dumps(result, indent=2), encoding='utf-8')

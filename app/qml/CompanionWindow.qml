@@ -149,10 +149,10 @@ Window {
             id: panelMoveArea
             objectName: "companionPanelMoveArea"
             exclusionRoot: menu
-            Accessible.name: "Kéo bảng trợ giảng để di chuyển; nhấp đúp để thu về Mascot"
+            Accessible.name: "Kéo bảng trợ giảng để di chuyển"
             ToolTip.visible: containsMouse && !overControl && mouseY < 48 && !pressed
             ToolTip.delay: 600
-            ToolTip.text: "Kéo để di chuyển · Nhấp đúp để thu về Mascot"
+            ToolTip.text: "Kéo để di chuyển"
         }
     }
 

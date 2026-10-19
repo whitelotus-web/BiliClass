@@ -11,7 +11,29 @@ ApplicationWindow {
     visible: true
     width: 1366; height: 850
     minimumWidth: 1080; minimumHeight: 700
-    title: "BiliClass · " + bridge.appVersion + " · ANH ↔ VIỆT · Lưu trên máy" + (bridge.developmentMode ? " · Bản nguồn" : "")
+    title: "BiliClass · " + bridge.appVersion + " · Trợ lý dạy học song ngữ" + (bridge.developmentMode ? " · Bản nguồn" : "")
+    flags: Qt.Window | (Qt.platform.os === "windows" ? Qt.ExpandedClientAreaHint | Qt.NoTitleBarBackgroundHint : 0)
+    background: Rectangle {
+        color: root.color
+        Rectangle {
+            objectName: "applicationTitleBar"
+            width: parent.width; height: root.SafeArea.margins.top
+            color: "white"
+            Row {
+                objectName: "applicationTitleBadges"
+                anchors.right: parent.right; anchors.rightMargin: 160
+                anchors.verticalCenter: parent.verticalCenter; spacing: 10
+                Rectangle {
+                    width: 92; height: 24; radius: 12; color: "#eaf2ff"
+                    Label { objectName: "applicationLanguageBadge"; anchors.centerIn: parent; text: "ANH ↔ VIỆT"; color: "#0869f9"; font.pixelSize: 11; font.weight: Font.DemiBold }
+                }
+                Rectangle {
+                    width: 94; height: 24; radius: 12; color: "#eaf7f4"
+                    Label { objectName: "applicationStorageBadge"; anchors.centerIn: parent; text: "Lưu trên máy"; color: "#008f89"; font.pixelSize: 11; font.weight: Font.DemiBold }
+                }
+            }
+        }
+    }
     color: "#f3f7fc"
     property string page: "home"
     onPageChanged: {

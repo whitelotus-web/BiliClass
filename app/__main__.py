@@ -22,6 +22,7 @@ def main():
     parser.add_argument('--check-voice-ui', metavar='REPORT_JSON', help=argparse.SUPPRESS)
     parser.add_argument('--check-narration-ui', metavar='REPORT_JSON', help=argparse.SUPPRESS)
     parser.add_argument('--check-universal-templates', metavar='REPORT_JSON', help=argparse.SUPPRESS)
+    parser.add_argument('--register-shortcut', metavar='BILICLASS_LNK', help=argparse.SUPPRESS)
     parser.add_argument("--screenshot")
     parser.add_argument("--lesson-id", help="Open a saved lesson in the guarded desktop entry point")
     parser.add_argument('--office-task', help=argparse.SUPPRESS)
@@ -46,6 +47,11 @@ def main():
         default="home",
     )
     args = parser.parse_args()
+    if args.register_shortcut:
+        from .windows_identity import register_shortcut
+
+        register_shortcut(args.register_shortcut)
+        return 0
     if args.office_task:
         from .office_tasks import worker_main
 

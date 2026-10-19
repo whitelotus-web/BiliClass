@@ -199,21 +199,24 @@ def animation_rules(slide):
             delays = xpath(effect, './/p:cond[@delay != "0"]')
             duration = [float(n.get("dur")) / 1000 for n in xpath(effect, ".//p:cTn[@dur]")
                         if n.get("dur", "").isdigit()]
-            if (clicks < 1 or effect.get("nodeType") not in {"clickEffect", "withEffect"} or len(ids) != 1
+            if (clicks < 1 or effect.get("nodeType") not in {"clickEffect", "withEffect"} or not ids
                     or effect.get("presetClass") not in {"entr", "exit"} or delays
                     or any(xpath(node, "./p:txEl") for node in targets)
                     or xpath(effect, './/p:cTn[@repeatCount]')):
                 unsafe.update(ids)
                 continue
-            shape_id = next(iter(ids))
-            previous = rules[shape_id]
-            if effect.get("presetClass") == "entr" and previous["kind"] == "unverified":
-                rules[shape_id] = {"kind": "click", "show_after": clicks, "hide_after": None,
-                                   "settle_seconds": max(duration or [0]) + .25}
-            elif effect.get("presetClass") == "exit" and previous["kind"] == "click":
-                previous["hide_after"] = clicks
-            else:
-                unsafe.add(shape_id)
+            # A bilingual conversion clones the original entrance behavior for
+            # its translated textbox inside the SAME effect. Both targets have
+            # the same click/visibility; multiple targets are not ambiguous.
+            for shape_id in ids:
+                previous = rules[shape_id]
+                if effect.get("presetClass") == "entr" and previous["kind"] == "unverified":
+                    rules[shape_id] = {"kind": "click", "show_after": clicks, "hide_after": None,
+                                       "settle_seconds": max(duration or [0]) + .25}
+                elif effect.get("presetClass") == "exit" and previous["kind"] == "click":
+                    previous["hide_after"] = clicks
+                else:
+                    unsafe.add(shape_id)
     # Anything in an interactive sequence overrides main-sequence inference.
     for sequence in slide._element.xpath('.//p:cTn[@nodeType="interactiveSeq"]'):
         for target in xpath(sequence, ".//p:spTgt"):

@@ -36,6 +36,16 @@ try {
     $taskDetails = [Diagnostics.FileVersionInfo]::GetVersionInfo($executable)
     if ($taskDetails.ProductName -ne 'BiliClass' -or $taskDetails.ProductVersion -ne $manifest.version -or $taskDetails.LegalCopyright -notlike '*Nguyễn Diệu Linh*') { throw 'Installed Windows Details resource failed validation.' }
     Write-Output 'Passed Windows Properties product, version and copyright.'
+    $taskShortcut = Join-Path $reportRoot 'BiliClass.lnk'
+    $taskShortcutShell = New-Object -ComObject WScript.Shell
+    $taskShortcutLink = $taskShortcutShell.CreateShortcut($taskShortcut)
+    $taskShortcutLink.TargetPath = $executable
+    $taskShortcutLink.IconLocation = $executable + ',0'
+    $taskShortcutLink.Save()
+    Invoke-InstalledCheck -Arguments @('--register-shortcut',('"' + $taskShortcut + '"'))
+    $taskShellFolder = (New-Object -ComObject Shell.Application).Namespace($reportRoot)
+    if ($taskShellFolder.ParseName('BiliClass.lnk').ExtendedProperty('System.AppUserModel.ID') -ne 'BiliClass.Desktop') { throw 'Installed shortcut identity failed validation.' }
+    Write-Output 'Passed installed shortcut taskbar identity without modifying user shortcuts.'
     foreach ($page in @('new','browser-ai')) {
         $shot = Join-Path $reportRoot ($page + '.png')
         Invoke-InstalledCheck -Arguments @('--smoke','--page',$page,'--size','1366x850','--screenshot',('"' + $shot + '"'))

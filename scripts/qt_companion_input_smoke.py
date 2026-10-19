@@ -113,6 +113,12 @@ def main():
         prepared['sha256'] = hashlib.sha256(Path(prepared['path']).read_bytes()).hexdigest()
         library = Library(directory)
         bridge = InputBridge(library)
+        endpoint = [80, False]
+        def fixture_volume(target=None):
+            if target is not None:
+                endpoint[:] = target, False
+            return tuple(endpoint)
+        bridge.teachingSession.system_volume.backend = fixture_volume
         engine = QQmlApplicationEngine()
         warnings, broad_refreshes, ticks = [], [], []
         engine.warnings.connect(lambda values: warnings.extend(map(str, values)))

@@ -51,6 +51,8 @@ def test_single_slide_queue_pause_resume_end_and_no_auto_read(qt, tmp_path, monk
     monkeypatch.setattr(speech, "synthesize", lambda text, *_: calls.append(text) or {"path": text})
     player = Player()
     reader = EnglishReader(tmp_path, player=player)
+    finished = []
+    reader.chunkFinished.connect(finished.append)
     assert reader.state == "stopped" and not calls
     reader.start(["Kinetic energy", "The energy is conserved."], "kokoro:af_heart", 0)
     wait(qt, lambda: reader.state == "reading")
@@ -59,6 +61,7 @@ def test_single_slide_queue_pause_resume_end_and_no_auto_read(qt, tmp_path, monk
     player.ended = True
     reader._tick()
     assert reader.position == 0
+    assert not finished
     reader.resume()
     assert reader.state == "reading"
     player.ended = True
@@ -67,6 +70,7 @@ def test_single_slide_queue_pause_resume_end_and_no_auto_read(qt, tmp_path, monk
     player.ended = True
     reader._tick()
     assert reader.state == "stopped"
+    assert finished == [0, 1]
     assert calls == ["Kinetic energy", "The energy is conserved."]
     assert [c[0] for c in player.calls].count("pause") == 1
     assert [c[0] for c in player.calls].count("resume") == 1

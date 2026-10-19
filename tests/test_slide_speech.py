@@ -11,7 +11,12 @@ from pptx.util import Inches
 from app.chatgpt_handoff import inspect_returned_deck, speaker_pair
 from app.library import Library
 from app.slide_quality import inspect_quality
-from app.slide_speech import deck_speech, inspect_slide, speech_chunks, visible_segments
+from app.slide_speech import (
+    deck_speech,
+    inspect_slide,
+    speech_chunks,
+    visible_segments,
+)
 
 
 def textbox(slide, text, x=1, y=1, name=""):
@@ -130,6 +135,35 @@ def test_with_click_entrance_uses_same_click_without_exposing_later_object():
     assert not visible_segments(result, 0, 2)
     assert [s['english_text'] for s in visible_segments(result, 1, 2)] == [first.text, second.text]
     assert len(visible_segments(result, 2, 2)) == 3
+
+
+def test_paired_translated_targets_follow_one_native_click_without_exposing_future_text():
+    import copy
+
+    deck = Presentation()
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    title = textbox(slide, 'Do you know?', name='BCL_EN_title')
+    original = textbox(slide, 'Khi kích thước của vật rất nhỏ.', y=2)
+    translated = textbox(slide, 'When the size of an object is very small.', y=2, name='BCL_EN_body')
+    later = textbox(slide, 'A car is considered a point mass.', y=3, name='BCL_EN_later')
+    animation(slide, original)
+    main = slide._element.xpath('.//p:cTn[@nodeType="mainSeq"]')[0]
+    effect = main[0]
+    clone = copy.deepcopy(effect[0])
+    clone.xpath('.//p:spTgt', namespaces={'p': 'http://schemas.openxmlformats.org/presentationml/2006/main'})[0].set('spid', str(translated.shape_id))
+    effect.append(clone)
+    animation(slide, later)
+    extra = slide._element.xpath('./p:timing')[-1]
+    main.append(extra.xpath('.//p:cTn[@nodeType="mainSeq"]/*')[0])
+    slide._element.remove(extra)
+    result = inspect_slide(slide, 1)
+    def text(rows):
+        return [row['english_text'] for row in rows]
+    assert text(visible_segments(result, 0, 2)) == [title.text]
+    assert text(visible_segments(result, 1, .1)) == [title.text]
+    assert text(visible_segments(result, 1, 2)) == [title.text, translated.text]
+    assert text(visible_segments(result, 2, 2)) == [title.text, translated.text, later.text]
+    assert text(visible_segments(result, 1, 2)) == [title.text, translated.text], 'Previous hides later builds'
 
 
 def test_repeated_text_is_kept_at_distinct_meaningful_sources_not_metadata_duplicates():

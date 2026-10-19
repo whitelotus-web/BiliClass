@@ -11,6 +11,7 @@ from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
 
 from . import speech
 from .powerpoint import slide_segment_indexes
+from .reading_progress import ReadingProgress
 from .slide_speech import speech_chunks, visible_segments
 
 
@@ -83,6 +84,16 @@ class TeachingSession(QObject):
         self.reading_scope = 'full_slide'
         self.reading_mode = 'auto'
         self.volume = 80
+        self._progress = ReadingProgress()
+        self._read_batch = []
+        self._batch_language = ''
+        self._batch_slide = None
+        self._cache_generation = None
+        from .system_volume import SystemVolume
+
+        self.system_volume = SystemVolume(self)
+        self.system_volume.changed.connect(self._sync_system_volume)
+        self._player_volume = None
         self._build_key = None
         self._cache_badge = None
         self._settled = QTimer(self)
@@ -92,6 +103,15 @@ class TeachingSession(QObject):
         getattr(bridge, 'powerpointStateChanged', bridge.changed).connect(self.changed)
         bridge.speechStateChanged.connect(self.changed)
         bridge.speechStateChanged.connect(self._sync_cache_badge)
+        if hasattr(bridge.english_reader, 'chunkFinished'):
+            bridge.english_reader.chunkFinished.connect(self._cached_chunk_finished)
+
+    @Slot(int)
+    def _cached_chunk_finished(self, index):
+        if self._cache_generation != getattr(self.bridge.english_reader, 'generation', None):
+            return
+        if 0 <= index < len(self._read_batch):
+            self._progress.finish(self._batch_slide, self._batch_language, [self._read_batch[index]])
 
     def _sync_cache_badge(self):
         worker = self.bridge.powerpoint_worker
@@ -105,6 +125,8 @@ class TeachingSession(QObject):
 
     def bind(self, prepared):
         self.bound = copy.deepcopy(prepared)
+        self._progress.reset()
+        self._player_volume = None
         self._verified_stamp = None
         self.reading_mode = 'auto'
         self._build_key = None
@@ -114,6 +136,8 @@ class TeachingSession(QObject):
 
     def _watch_build(self):
         state = self.bridge._powerpoint_state
+        self._progress.enter(state.get('slide_id') if self.bound else None)
+        self.system_volume.activate(bool(self.bound and state.get('active')))
         key = (state.get('slide_id'), state.get('click_index'), state.get('build_started'))
         if key != self._build_key:
             self._build_key = key
@@ -125,9 +149,11 @@ class TeachingSession(QObject):
                 self.reading_scope = 'visible' if animated else 'full_slide'
             if self.bound and state.get('active') and self.reading_scope == 'visible':
                 delay = max((r.get('visibility', {}).get('settle_seconds', 0)
-                             for r in page.get('englishSpeechSegments', [])), default=0)
-                if delay:
-                    self._settled.start(round(delay*1000)+50)
+                             for r in page.get('englishSpeechSegments', [])
+                             if r.get('visibility', {}).get('show_after') == state.get('click_index')), default=0)
+                remaining = delay - max(0, time.monotonic() - state.get('build_started', time.monotonic()))
+                if remaining > 0:
+                    self._settled.start(round(remaining*1000)+50)
 
     @Slot(str)
     def setReadingScope(self, scope):
@@ -141,6 +167,8 @@ class TeachingSession(QObject):
             self.changed.emit()
 
     def reset_reading(self):
+        self._read_batch = []
+        self._cache_generation = None
         self.token += 1
         self.pending_read = None
         self.native_state = 'stopped'
@@ -150,6 +178,8 @@ class TeachingSession(QObject):
         self.changed.emit()
 
     def clear(self):
+        self.system_volume.shutdown()
+        self._progress.reset()
         self._settled.stop()
         owned = self.bound.get('owned_path')
         if owned:
@@ -172,10 +202,11 @@ class TeachingSession(QObject):
                 'warning': self.bound.get('warning', ''),
                 'reading_scope': self.reading_scope,
                 'reading_mode': self.reading_mode,
+                'settling': self._settled.isActive(),
                 'can_choose_scope': bool(lesson.get('narration', {}).get('keys')),
                 'voice': (lesson.get('narration') or {}).get('voice', '')}
 
-    def texts(self, language):
+    def _speech_items(self, language):
         lesson = self.bound.get('lesson', {})
         state = self.bridge._powerpoint_state
         preview = self.bound.get('preview', {})
@@ -189,27 +220,38 @@ class TeachingSession(QObject):
         visible = ([row for row in page.get('englishSpeechSegments', []) if row['status'] == 'ready']
                    if self.reading_scope == 'full_slide' else visible_segments(page, state.get('click_index'),
                    time.monotonic() - state.get('build_started', time.monotonic())))
-        english = [part for row in visible
-                   for part in speech_chunks(row['english_text'])]
+        def chunks(kind, identity, text):
+            return [((kind, identity, index), part) for index, part in enumerate(speech_chunks(text))]
+        english_items = [part for row in visible for part in chunks('en', row['id'], row['english_text'])]
+        english = [part[1] for part in english_items]
         if language == 'en':
-            return english
+            return english_items
         vietnamese = [part for unit in units if self.reading_scope == 'full_slide' or lesson.get('voice_only') or lesson.get('narration_script') or
                       (speech_chunks(unit.get('en', '')) and set(speech_chunks(unit['en'])) <= set(english))
-                      for part in speech_chunks(unit.get('vi', ''))]
+                      for part in chunks('vi', unit['id'], unit.get('vi', ''))]
         if language == 'vi':
             return vietnamese
         if self.reading_scope == 'full_slide':
-            return vietnamese + english
+            return vietnamese + english_items
         paired, used = [], set()
         for unit in units:
             partner = speech_chunks(unit.get('en', ''))
             if partner and set(partner) <= set(english):
-                paired.extend(speech_chunks(unit.get('vi', '')))
-                paired.extend(partner)
+                paired.extend(chunks('vi', unit['id'], unit.get('vi', '')))
+                paired.extend(part for part in english_items if part[1] in partner)
                 used.update(partner)
             elif (lesson.get('voice_only') or lesson.get('narration_script')) and not partner:
-                paired.extend(speech_chunks(unit.get('vi', '')))
-        return paired + [part for part in english if part not in used]
+                paired.extend(chunks('vi', unit['id'], unit.get('vi', '')))
+        return paired + [part for part in english_items if part[1] not in used]
+
+    def _selected_items(self, language):
+        items = self._speech_items(language)
+        if self.reading_mode == 'auto' and self._settled.isActive():
+            return []  # Do not replay old text while a new entrance is settling.
+        return self._progress.choose(language, items) if self.reading_mode == 'auto' else items
+
+    def texts(self, language):
+        return [item[1] for item in self._selected_items(language)]
 
     @Property('QVariantMap', notify=changed)
     def audio(self):
@@ -272,6 +314,7 @@ class TeachingSession(QObject):
             if (token == state.get('token') == self.token and number == self.bridge._powerpoint_state.get('slide')
                     and slide_id == self.bridge._powerpoint_state.get('slide_id')):
                 self.bridge.english_reader.start(texts, voice, rate, cache_only=True)
+                self._cache_generation = getattr(self.bridge.english_reader, 'generation', None)
                 if self.pause_on_start:
                     self.pause_on_start = False
                     self.bridge.pauseEnglish()
@@ -284,6 +327,8 @@ class TeachingSession(QObject):
                 self.pause_on_start = False
                 self.bridge.powerpoint_worker.navigate('pause_media', self._media_request())
         elif event in {'media_paused', 'media_resumed', 'media_finished'}:
+            if event == 'media_finished' and self.native_state in {'reading', 'paused'} and self._cache_generation is None:
+                self._progress.finish(self._batch_slide, self._batch_language, self._read_batch)
             self.native_state = {'media_paused': 'paused', 'media_resumed': 'reading', 'media_finished': 'stopped'}[event]
         elif event == 'media_error':
             self.native_state = 'stopped'
@@ -306,6 +351,9 @@ class TeachingSession(QObject):
         wanted = [speech.audio_key(text, record.get('voice', ''), record.get('rate', 0)) for text in texts]
         if not texts or not all(key in keys and valid_key(self.bridge.library.directory, key) for key in wanted):
             return False
+        self._read_batch = self._selected_items(language)
+        self._batch_language = language
+        self._batch_slide = self.bridge._powerpoint_state.get('slide_id')
         self.pending_read = (self.token, self.bridge._powerpoint_state['slide'],
                              self.bridge._powerpoint_state.get('slide_id'), texts, record['voice'], record['rate'])
         self.native_state = 'preparing'
@@ -331,10 +379,14 @@ class TeachingSession(QObject):
         self.reset_reading()
         self.bridge._companion_language = language
         self.language = language
+        self._read_batch = self._selected_items(language)
+        self._batch_language = language
+        self._batch_slide = self.bridge._powerpoint_state.get('slide_id')
         if hasattr(getattr(self.bridge.english_reader, 'player', None), 'set_volume'):
-            self.bridge.english_reader.player.set_volume(self.volume)
+            self.bridge.english_reader.player.set_volume(100 if self.system_volume.available else self.volume)
         worker = self.bridge.powerpoint_worker
-        if self.reading_scope == 'full_slide' and language in self.bound.get('media', {}).get(self.bridge._powerpoint_state.get('slide'), []):
+        if (self.reading_scope == 'full_slide' and self._read_batch == self._speech_items(language)
+                and language in self.bound.get('media', {}).get(self.bridge._powerpoint_state.get('slide'), [])):
             self.native_state = 'preparing'
             worker.navigate('play_media', self._media_request())
         else:
@@ -369,6 +421,18 @@ class TeachingSession(QObject):
         if not self.bound or not self.bridge._powerpoint_state.get('active'):
             return
         volume = max(0, min(100, volume))
+        if self.system_volume.available:
+            self.system_volume.set_value(volume)
+            return
+        self._set_player_volume(volume)
+
+    def _sync_system_volume(self):
+        self.volume = self.system_volume.value
+        # The device controls loudness. Keep both playback routes at unity so
+        # master volume is not multiplied by a second software attenuation.
+        self._set_player_volume(100 if self.system_volume.available else self.volume)
+
+    def _set_player_volume(self, volume):
         try:
             player = getattr(self.bridge.english_reader, 'player', None)
             if hasattr(player, 'set_volume'):
@@ -376,9 +440,11 @@ class TeachingSession(QObject):
         except Exception:
             self.bridge.inform('Chưa đổi được âm lượng lời đọc. Kiểm tra loa của Windows.', True, refresh=False)
             return
-        self.volume = volume
-        if self.bridge.powerpoint_worker:
+        if not self.system_volume.available:
+            self.volume = volume
+        if self.bridge.powerpoint_worker and volume != self._player_volume:
             self.bridge.powerpoint_worker.navigate('set_volume', volume)
+        self._player_volume = volume
         self.changed.emit()
 
     @Slot()

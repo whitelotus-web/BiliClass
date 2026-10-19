@@ -84,6 +84,13 @@ def run(args):
         library.close()
         return 1
     window = engine.rootObjects()[0]
+    if os.name == 'nt':
+        from .windows_identity import configure_window
+
+        try:
+            configure_window(window)
+        except OSError:
+            bridge.logger.warning('Windows taskbar identity could not be registered')
     companion = window.findChild(QObject, 'companionWindow')
 
     def hide_windows():
