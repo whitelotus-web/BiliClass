@@ -36,7 +36,7 @@ def records(lesson):
 
 
 def variant_title(record):
-    voice = next((v['name'] for v in (*speech.VIENEU_VOICES, *speech.PAIRS) if v['id'] == record.get('voice')), record.get('voice', ''))
+    voice = next((v['name'] for v in (*speech.VIENEU_VOICES, *speech.ALL_PAIRS) if v['id'] == record.get('voice')), record.get('voice', ''))
     mode = 'Việt + Anh · hai loa riêng' if record.get('mode') == 'both' else LABELS.get(record.get('mode'), '')
     rate = record.get('rate', 0)
     speed = round(speech._SPEEDS[rate + 3] * 100) if type(rate) is int and -3 <= rate <= 3 else 100
@@ -67,7 +67,7 @@ def library_audio_status(lesson, directory, fallback_voices=None, *, cancel=None
 
 def creation_choices(lesson, voice, rate, verified=(), live=None):
     """Describe the three exact products using published audio checks, no I/O."""
-    if not lesson or voice not in {v['id'] for v in (*speech.VIENEU_VOICES, *speech.PAIRS)} or type(rate) is not int or not -3 <= rate <= 3:
+    if not lesson or voice not in {v['id'] for v in (*speech.VIENEU_VOICES, *speech.ALL_PAIRS)} or type(rate) is not int or not -3 <= rate <= 3:
         return {}
     saved = records(lesson)
     checked = {row['id']: row for row in verified if row.get('id')}

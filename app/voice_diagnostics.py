@@ -127,6 +127,7 @@ def run(output):
 
         voice_preview.preview = delayed
         control('settingsVoiceSample').setProperty('text', 'Câu riêng đang chuẩn bị.')
+        control('settingsEnglishVoiceSample').setProperty('text', '')
         click('previewMultilingualVoice')
         assert bridge.voiceUiState['phase'] == 'preparing' and not bridge.busy
         mark = time.perf_counter()

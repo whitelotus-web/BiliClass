@@ -27,3 +27,22 @@ def test_custom_text_or_incompatible_manifest_uses_real_synthesis(tmp_path, monk
     (tmp_path/'manifest.json').write_text(json.dumps({'engine': 'old', 'text': voice_preview.SAMPLE_TEXT, 'files': {}}))
     assert voice_preview.preview(voice_preview.SAMPLE_TEXT, voice, 0, tmp_path) == {'custom': True}
     assert len(calls) == 2
+
+
+def test_long_language_samples_and_arbitrary_pair_need_no_model(tmp_path, monkeypatch):
+    from app.voice_pairs import compose
+
+    monkeypatch.setattr(speech, 'synthesize', lambda *_: pytest.fail('Bundled long samples must not infer'))
+    for voice in speech.VIENEU_VOICES:
+        result = voice_preview.preview(voice_preview.VI_SAMPLE_TEXT, voice['id'], 0, tmp_path)
+        with wave.open(result['path']) as sample:
+            assert 10 < sample.getnframes() / sample.getframerate() < 60
+    for voice in speech.ENGLISH_VOICES:
+        result = voice_preview.preview(voice_preview.EN_SAMPLE_TEXT, voice, 0, tmp_path)
+        assert speech.valid_audio(result['path'])
+    voice = compose('vieneu:Mai Anh', 'kokoro-us:am_michael')
+    text = voice_preview.VI_SAMPLE_TEXT + '\n' + voice_preview.EN_SAMPLE_TEXT
+    for rate in (0, 1):
+        result = voice_preview.preview(text, voice, rate, tmp_path)
+        assert speech.valid_audio(result['path'])
+        assert voice_preview.preview(text, voice, rate, tmp_path)['cached']

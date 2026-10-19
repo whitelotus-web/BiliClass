@@ -1,6 +1,7 @@
 """Disposable Qt: six pairs, old recordings, three products, two playback buttons."""
 
 import json
+import os
 import sys
 import tempfile
 import time
@@ -26,7 +27,7 @@ from test_teaching_session import prepared_lesson
 def main():
     app = QGuiApplication([])
     QQuickStyle.setStyle('Basic')
-    report = Path('reports/rc92/voice-pairs-ui')
+    report = Path(os.environ.get('BILICLASS_VOICE_PAIRS_REPORT', 'reports/rc94/voice-pairs-ui'))
     report.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='bcl-pairs-', ignore_cleanup_errors=True) as folder:
         lesson, preview, directory, original = prepared_lesson(Path(folder))
@@ -43,7 +44,7 @@ def main():
         companion = control(root, 'companionWindow')
         old_render, old_secondary = speech.synthesize_background, speech.synthesize_secondary
         def render(text, voice, rate, directory, cancel):
-            assert voice in {'kokoro-us:af_heart', 'vieneu:Mai Anh'}
+            assert voice in {'kokoro-us:am_michael', 'vieneu:Mai Anh'}
             created.append((voice, text))
             destination = Path(directory)/(speech.audio_key(text, voice, rate)+'.wav')
             destination.parent.mkdir(parents=True, exist_ok=True)
@@ -70,6 +71,28 @@ def main():
             control(root, 'saveMultilingualVoice').clicked.emit()
             until(lambda: not bridge.voiceUiState['saving'])
             assert library.setting('voice_options', {})['voice'] == 'pair:south-male'
+            vi_choice = control(root, 'settingsVietnameseVoice')
+            vi_choice.setProperty('currentIndex', 0)
+            vi_choice.activated.emit(0)
+            custom = bridge.composeVoicePair('vieneu:Mai Anh', 'kokoro-us:am_michael')
+            assert settings.property('draftVoice') == custom
+            pump(80)
+            assert control(root, 'settingsEnglishVoice').property('currentIndex') == 1
+            for name in ('previewVietnameseVoice', 'previewEnglishVoice'):
+                before = len(played)
+                control(root, name).clicked.emit()
+                until(lambda: len(played) == before + 1)
+                assert speech.valid_audio(played[-1])
+                bridge.stopSpeech()
+            for size in ((1080, 700), (1366, 850)):
+                root.resize(*size)
+                pump(120)
+                assert root.grabWindow().save(str(report/f'custom-settings-{size[0]}.png'))
+            control(root, 'saveMultilingualVoice').clicked.emit()
+            until(lambda: not bridge.voiceUiState['saving'])
+            assert library.setting('voice_options', {})['voice'] == custom
+            assert bridge.voiceSettings['voice'] == custom
+            assert custom in {row['id'] for row in bridge.multilingualVoices}
             bridge._show_lesson(lesson, preview, destination='voice', auto_repair=False, load_preview=False)
             until(lambda: root.property('narrationComplete'))
             assert not control(root, 'createLessonNarrationButton').isEnabled()
@@ -79,7 +102,7 @@ def main():
             pump(80)
             assert root.property('narrationOptionsPinned')
             speech.synthesize_background = speech.synthesize_secondary = render
-            root.setProperty('narrationVoice', 'pair:north-female')
+            root.setProperty('narrationVoice', custom)
             for mode in ('en', 'vi', 'both'):
                 root.setProperty('narrationMode', mode)
                 pump(100)
@@ -92,12 +115,13 @@ def main():
                 assert bridge._lesson['narration']['playback'] == 'separate'
                 pages = slide_audio(bridge._lesson, directory)
                 assert set(pages[1]) == ({'en', 'vi'} if mode == 'both' else {mode})
-            assert {voice for voice, _ in created} == {'kokoro-us:af_heart'}, 'Existing Vietnamese WAVs should be reused'
+            assert {voice for voice, _ in created} == {'kokoro-us:am_michael'}, 'Existing Vietnamese WAVs should be reused'
             assert original.read_bytes() == source
             # The teacher's old multilingual product is still present and ready.
             assert any(row.get('voice') == 'vieneu:Mai Anh' for row in bridge._lesson['narration_variants'].values())
             assert not warnings, warnings
-            result = dict(status='passed', pairs=6, preview_playback=6, settings_saved=True,
+            result = dict(status='passed', pairs=6, preview_playback=8, settings_saved=True,
+                          custom_pair_saved=True, independent_language_previews=True,
                           old_voice_usable=True, creation_modes=3, combined_playback_removed=True,
                           new_pair_with_old_audio_can_create=True, source_preserved=True, warnings=warnings)
             (report/'result.json').write_text(json.dumps(result, indent=2), encoding='utf-8')

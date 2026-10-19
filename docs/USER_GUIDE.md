@@ -149,9 +149,17 @@ OCR chỉ xác nhận đã phát hiện thành phần, không thay cho kiểm tr
 
 ## Tạo giọng và bước tiếp theo
 
-Giọng là bước tùy chọn sau khi bài đã lưu. Chọn một trong sáu cặp giọng Việt–Mỹ, nghe
-thử, chọn tốc độ và tiếng Anh / tiếng Việt / cả hai (hai loa riêng). Chọn ở đây không
-thay cấu hình mặc định trong Cài đặt. Giọng chạy ngoại tuyến trên máy.
+Giọng là bước tùy chọn sau khi bài đã lưu. Trong **Cài đặt → Giọng đọc**, có thể
+chọn một trong sáu cặp gợi ý (hàng nữ ở trên, hàng nam ở dưới; Bắc–Trung–Nam)
+hoặc tự ghép bằng hai cột **Giọng tiếng Việt** và **Giọng tiếng Anh · Mỹ**.
+Chọn cặp gợi ý cập nhật cả hai cột; đổi một bên giữ nguyên bên còn lại.
+Mỗi bên có đoạn mẫu dài khoảng 12–16 giây, sửa được nội dung và nghe riêng;
+**Nghe cả cặp** lần lượt phát hai đoạn để so sánh. Mẫu mặc định phát ngay từ
+tệp có sẵn, không phải chờ mô hình. Chọn tốc độ rồi **Lưu cặp giọng và tốc độ**.
+
+Khi tạo giọng cho bài, chọn cặp và tiếng Anh / tiếng Việt / cả hai (hai loa riêng).
+Chọn ở màn tạo giọng không thay cấu hình mặc định trong Cài đặt. Chỉ lần tạo
+mới dùng lựa chọn mới; bài đã tạo giữ âm thanh cũ. Giọng chạy ngoại tuyến trên máy.
 
 Vị trí loa nằm cùng hàng ngôn ngữ, có hình mô phỏng chân slide. Giải thích
 chi tiết nằm trong tooltip của cấu hình. Chữ OCR được dịch trên ảnh vẫn

@@ -805,7 +805,7 @@ ApplicationWindow {
 
                 ContentScrollView {
                     id: creationScroll; objectName: "creationScroll"; outerGutter: true
-                    anchors.fill: parent; anchors.margins: root.compactCreation ? 16 : 28; anchors.bottomMargin: creationFooter.height + 12
+                    anchors.fill: parent; anchors.margins: 30; anchors.bottomMargin: creationFooter.height + 12
                     visible: root.page === "new"; contentWidth: availableWidth
                     ColumnLayout {
                         width: parent.width; spacing: root.compactCreation ? 8 : 12

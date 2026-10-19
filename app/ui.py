@@ -72,6 +72,7 @@ class Bridge(QObject):
     quickResultChanged = Signal()
     previewStateChanged = Signal()
     voiceSettingsChanged = Signal()
+    voiceCatalogChanged = Signal()
     voiceUiChanged = Signal()
     speechStateChanged = Signal()
     workflowChanged = Signal()
@@ -135,6 +136,10 @@ class Bridge(QObject):
         self.voice_controls = VoiceControls(library.directory, self)
         self.voice_controls.changed.connect(self.voiceUiChanged)
         self.voice_controls.saved.connect(self._voice_saved)
+        self.changed.connect(self.voiceCatalogChanged)
+        self.voiceSettingsChanged.connect(self.voiceCatalogChanged)
+        self.selectionChanged.connect(self.voiceCatalogChanged)
+        self.narrationChanged.connect(self.voiceCatalogChanged)
         self.voice_controls.ready.connect(self._voice_preview_ready)
         self.voice_controls.failed.connect(lambda message: self.inform(message, True, refresh=False))
         self._speech_timer = QTimer(self)
@@ -1275,7 +1280,7 @@ class Bridge(QObject):
 
         if self._busy or not self._lesson or self.narrationBusy or self.powerpoint_worker is not None:
             return
-        if voice not in {v['id'] for v in self._voices} or type(rate) is not int or not -3 <= rate <= 3:
+        if not self._available_voice(voice) or type(rate) is not int or not -3 <= rate <= 3:
             self.inform("Chọn giọng và tốc độ hợp lệ trước khi tạo âm thanh.", True)
             return
         identity, revision, directory = self._lesson['id'], self._lesson['revision'], self.library.directory
@@ -1287,7 +1292,7 @@ class Bridge(QObject):
             if result.get('already_created'):
                 self._narration_confirmation = (identity, revision, mode, voice, rate)
                 self.narrationAlreadyCreated.emit(dict(lesson_id=identity, revision=revision,
-                    mode=mode, voice=voice, rate=rate, title=next((v.get('name', voice) for v in self._voices if v['id'] == voice), voice)))
+                    mode=mode, voice=voice, rate=rate, title=next((v.get('name', voice) for v in self.multilingualVoices if v['id'] == voice), voice)))
                 self.inform('Cấu hình giọng này đã sẵn sàng. Chọn dùng bản có sẵn hoặc xác nhận tạo lại.', refresh=False)
                 return
             self._lesson = result['lesson']
@@ -1740,9 +1745,49 @@ class Bridge(QObject):
         return self.library.history(self._lesson["id"]) if self._lesson else []
 
 
-    @Property("QVariantList", notify=changed)
+    @Property("QVariantList", notify=voiceCatalogChanged)
     def multilingualVoices(self):
+        voices = list(self._voices)
+        if voices:
+            selected = [self.voiceSettings['voice'], (self._lesson.get('narration') or {}).get('voice')]
+            selected += [row.get('voice') for row in self._lesson.get('narration_variants', {}).values()]
+            for identity in selected:
+                if identity in speech.PAIRS_BY_ID and not any(v['id'] == identity for v in voices):
+                    voices.append(dict(speech.PAIRS_BY_ID[identity]))
+        return voices
+
+    @Property('QVariantList', notify=changed)
+    def suggestedVoicePairs(self):
         return self._voices
+
+    @Property('QVariantList', notify=changed)
+    def vietnameseVoices(self):
+        by_id = {row['id']: row for row in speech.VIENEU_VOICES}
+        return [by_id[row['vi']] for row in speech.PAIRS] if self._voices else []
+
+    @Property('QVariantList', notify=changed)
+    def englishVoices(self):
+        return [{'id': identity, 'name': name + (' · Nữ Mỹ' if identity.endswith('af_heart') else ' · Nam Mỹ')}
+                for identity, (name, _) in speech.ENGLISH_VOICES.items()] if self._voices else []
+
+    @Property('QVariantMap', constant=True)
+    def voicePreviewSamples(self):
+        from .voice_preview import EN_SAMPLE_TEXT, VI_SAMPLE_TEXT
+
+        return {'vi': VI_SAMPLE_TEXT, 'en': EN_SAMPLE_TEXT}
+
+    @Slot(str, str, result=str)
+    def composeVoicePair(self, vi, en):
+        from .voice_pairs import compose
+
+        return compose(vi, en)
+
+    @Slot(str, result='QVariantMap')
+    def voicePairDetails(self, identity):
+        return dict(speech.PAIRS_BY_ID.get(identity, {}))
+
+    def _available_voice(self, voice):
+        return voice in {v['id'] for v in self._voices} or bool(self._voices) and voice in speech.PAIRS_BY_ID
 
     @Property(bool, notify=changed)
     def vieneuReady(self):
@@ -2236,7 +2281,7 @@ class Bridge(QObject):
 
     @Slot(str, int)
     def saveMultilingualVoice(self, voice, rate):
-        if voice not in {v["id"] for v in self._voices} or not -3 <= rate <= 3:
+        if not self._available_voice(voice) or not -3 <= rate <= 3:
             self.inform("Chọn giọng và tốc độ hợp lệ trước khi lưu.", True, refresh=False)
             return
         self.voice_controls.save(voice, rate)
@@ -2256,21 +2301,21 @@ class Bridge(QObject):
 
     @Slot(str, int, str)
     def previewMultilingualVoice(self, voice, rate, sample):
-        if voice not in {v["id"] for v in self._voices} or not -3 <= rate <= 3:
+        if not self._available_voice(voice) or not -3 <= rate <= 3:
             self.inform("Chọn giọng và tốc độ hợp lệ để nghe thử.", True, refresh=False)
             return
         sample = sample.strip()
-        if not sample or len(sample) > 250:
-            self.inform("Câu nghe thử cần từ 1 đến 250 ký tự.", True, refresh=False)
+        if not sample or len(sample) > 1000:
+            self.inform("Câu nghe thử cần từ 1 đến 1000 ký tự.", True, refresh=False)
             return
         self.stopSpeech()
         self.voice_controls.preview(sample, voice, rate)
 
     @Slot(str, str, int, str)
     def previewNarrationLanguage(self, language, voice, rate, sample):
-        if language not in {'vi', 'en'} or voice not in {v['id'] for v in self._voices}:
+        if language not in {'vi', 'en'} or not self._available_voice(voice):
             return
-        if type(rate) is not int or not -3 <= rate <= 3 or not 1 <= len(sample.strip()) <= 250:
+        if type(rate) is not int or not -3 <= rate <= 3 or not 1 <= len(sample.strip()) <= 1000:
             return
         self.stopSpeech()
         self.voice_controls.preview(sample, speech.voice_for(voice, language), rate)

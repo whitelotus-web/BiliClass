@@ -12,8 +12,8 @@ from threading import Condition, Lock, local
 from uuid import uuid4
 from weakref import WeakValueDictionary
 
+from .voice_pairs import ALL_PAIRS, ENGLISH_VERSION, ENGLISH_VOICES, PAIRS, selection_for, voice_for
 from .voice_pairs import BY_ID as PAIRS_BY_ID
-from .voice_pairs import ENGLISH_VERSION, ENGLISH_VOICES, PAIRS, selection_for, voice_for
 
 VIENEU_VERSION = "vieneu-v3-turbo-onnx-fp32-61b85e3-3.8.3-multilingual-wsola1"
 VIENEU_VOICES = (
@@ -81,10 +81,11 @@ def voice_settings(library, voices=None):
     else:
         selected, rate = library.setting("voice_vi", ""), library.setting("voice_rate", 0)
     selected = selection_for(selected) if any(identity in PAIRS_BY_ID for identity in ids) else selected
+    if ids and selected in {row['id'] for row in ALL_PAIRS} and selected not in ids:
+        ids.append(selected)
     voice = selected if selected in ids else ids[0] if ids else ""
     rate = rate if type(rate) is int and -3 <= rate <= 3 else 0
-    # Language keys are routing aliases for existing narration/readiness consumers,
-    # never independent saved voices or settings controls.
+    # A stable pair identity keeps saved audio independent of later preferences.
     return {"voice": voice, "vi": voice_for(voice, 'vi'), "en": voice_for(voice, 'en'), "rate": rate,
             "index": ids.index(voice) if voice else -1, "speed": _SPEEDS[rate + 3]}
 

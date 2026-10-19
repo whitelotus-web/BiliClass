@@ -16,7 +16,7 @@ from app.lesson_narration import audio_status, creation_choices, make_plan, vari
 from app.narration_audio_export import export_audio
 from app.presentation_audio import slide_audio
 from app.teaching_session import TeachingSession, prepare_teaching
-from app.voice_pairs import PAIRS
+from app.voice_pairs import ALL_PAIRS, PAIRS, compose
 
 
 def wav(path):
@@ -28,6 +28,7 @@ def wav(path):
 
 def test_six_pairs_cover_each_region_and_gender_with_separate_us_speakers():
     assert len(PAIRS) == 6 and len({v['id'] for v in PAIRS}) == 6
+    assert len(ALL_PAIRS) == 12 and {row['en'] for row in ALL_PAIRS} <= set(speech.ENGLISH_VOICES)
     assert {(v['region'], v['gender']) for v in PAIRS} == {
         (region, gender) for region in ('Bắc', 'Trung', 'Nam') for gender in ('Nam', 'Nữ')}
     assert {v['vi'] for v in PAIRS} == {v['id'] for v in speech.VIENEU_VOICES}
@@ -35,7 +36,7 @@ def test_six_pairs_cover_each_region_and_gender_with_separate_us_speakers():
         assert pair['en'] == ('kokoro-us:af_heart' if pair['gender'] == 'Nữ' else 'kokoro-us:am_michael')
 
 
-@pytest.mark.parametrize('pair', PAIRS, ids=lambda row: row['id'])
+@pytest.mark.parametrize('pair', ALL_PAIRS, ids=lambda row: row['id'])
 @pytest.mark.parametrize('mode,languages', [('en', {'en'}), ('vi', {'vi'}), ('both', {'vi', 'en'})])
 def test_three_creation_choices_use_correct_speaker_and_only_selected_languages(tmp_path, pair, mode, languages):
     library, lesson, source = fixture(tmp_path)
@@ -121,5 +122,29 @@ def test_missing_english_pack_hides_new_pairs_without_invalidating_saved_voice(t
     library, lesson, _ = fixture(tmp_path)
     try:
         assert audio_status(lesson, library.directory)['ready']
+    finally:
+        library.close()
+
+
+def test_custom_pair_survives_reopen_and_reuses_each_selected_speakers_cache(tmp_path, monkeypatch):
+    monkeypatch.setattr(speech, 'vieneu_ready', lambda: True)
+    monkeypatch.setattr('app.english_speech.ready', lambda: True)
+    from app.library import Library
+    from app.voice_controls import store_preference
+
+    selected = compose('vieneu:Mai Anh', 'kokoro-us:am_michael')
+    assert selected and selected not in {row['id'] for row in PAIRS}
+    assert compose('vieneu:Mai Anh', 'kokoro-us:af_heart') == 'pair:north-female'
+    assert not compose('vieneu:Unknown', 'kokoro-us:am_michael')
+    library = Library(tmp_path)
+    library.close()
+    store_preference(tmp_path, {'voice': selected, 'rate': 1})
+    library = Library(tmp_path)
+    try:
+        saved = speech.voice_settings(library)
+        assert (saved['voice'], saved['vi'], saved['en'], saved['rate']) == (
+            selected, 'vieneu:Mai Anh', 'kokoro-us:am_michael', 1)
+        assert speech.voice_for(selected, 'vi') == speech.voice_for('pair:north-female', 'vi')
+        assert speech.voice_for(selected, 'en') == speech.voice_for('pair:north-male', 'en')
     finally:
         library.close()

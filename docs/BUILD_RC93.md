@@ -26,4 +26,15 @@ mô hình RC92 đã kiểm checksum. Không thay dependency hoặc model.
 .venv/Scripts/python.exe -m scripts.build_from_runtime --baseline dist/rc92-voice-pairs --output dist/rc93-voice-order
 ```
 
-Kết quả bản cài và phát hành được ghi sau khi xác minh.
+- Commit ứng dụng: `7c784052c74c9f9cdd25af8361384d9d11df6fb2`.
+- CI Source checks đạt:
+  https://github.com/whitelotus-web/BiliClass/actions/runs/39268483748
+- ZIP: `BiliClass-RC93-Windows.zip`, 1.232.964.657 byte; 4.613 tệp
+  ứng dụng (4.617 mục trong ZIP). Đã xác minh đủ manifest/checksum.
+- SHA256: `c9c9211d2a08fb184d7e066a0c414c7b2c3d81e9540c39422f749498cb80c96c`.
+
+Bản cài tạm đã xác minh đầy đủ tại
+`reports/release/1.0.0rc93-af7156e4/installer.json` (cài/gỡ, mô hình thật,
+Qt và thư viện riêng). Gói chỉ tải lên bản nháp GitHub; chưa công bố hoặc
+cài vào thư viện cá nhân. Người dùng mở rộng yêu cầu sang giao diện tự ghép
+và mẫu dài trong khi kiểm tra, nên mốc tiếp theo là RC94.

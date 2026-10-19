@@ -18,5 +18,55 @@
     "ac696c95a826f2bf0e77245e8d05f8a9ec8371d32bcbfc68578c76e638d48770.wav": "fca7d983aeee14f92fae80165ef2fb2cb366ae19822f3d97d92a2c63b30bc513",
     "75d33cd441effc0b8cf82bdcceb371267fae2d44a159d402e80342ae40b0bf73.wav": "80d0cc93e22b1feb07dff9421348ef7b265a1f33e7021571bacde7151093394e"
   },
-  "english_engine": "kokoro-v1_0-sherpa-1.13.8-us-weak-article-v1"
+  "english_engine": "kokoro-v1_0-sherpa-1.13.8-us-weak-article-v1",
+  "language_files": {
+    "9d80c090623883541c635e1f82707122b156e44e1752d535b0ecc673551ebca1.wav": {
+      "voice": "vieneu:Mai Anh",
+      "text": "Chào các em, hôm nay chúng ta sẽ cùng tìm hiểu một bài học mới. Trước hết, hãy quan sát ví dụ, suy nghĩ về điều em đã biết và thử giải thích bằng lời của mình. Nếu chưa tìm ra câu trả lời, các em cứ bình tĩnh, chúng ta sẽ khám phá từng bước.",
+      "engine": "vieneu-v3-turbo-onnx-fp32-61b85e3-3.8.3-multilingual-wsola1",
+      "sha256": "e3e87564b1b92ccc539a85f430652e2ea2a8aa7036bab2088277b59795e2eed9"
+    },
+    "24a4cc777c8c43847bf057fc0c120491634616f28461937acec28d2de73a1f46.wav": {
+      "voice": "vieneu:Thùy Dung",
+      "text": "Chào các em, hôm nay chúng ta sẽ cùng tìm hiểu một bài học mới. Trước hết, hãy quan sát ví dụ, suy nghĩ về điều em đã biết và thử giải thích bằng lời của mình. Nếu chưa tìm ra câu trả lời, các em cứ bình tĩnh, chúng ta sẽ khám phá từng bước.",
+      "engine": "vieneu-v3-turbo-onnx-fp32-61b85e3-3.8.3-multilingual-wsola1",
+      "sha256": "e2fbcff58f26e7b0b5d53c2b603a8e671dcd08b466d9248db0a551be81ee2ca9"
+    },
+    "9470701dcfd830cebaa115445bec69430f6e4830ca88592de4abd45a370abc87.wav": {
+      "voice": "vieneu:Hải Đăng",
+      "text": "Chào các em, hôm nay chúng ta sẽ cùng tìm hiểu một bài học mới. Trước hết, hãy quan sát ví dụ, suy nghĩ về điều em đã biết và thử giải thích bằng lời của mình. Nếu chưa tìm ra câu trả lời, các em cứ bình tĩnh, chúng ta sẽ khám phá từng bước.",
+      "engine": "vieneu-v3-turbo-onnx-fp32-61b85e3-3.8.3-multilingual-wsola1",
+      "sha256": "5347eb9d8d2b638302895d80b6f27fc91c69621a0bc82e7be5cba722607e4ef9"
+    },
+    "f5967c243cd4f309adec065b90db594573a6db6a566e2c5bc38d49cf88bbd6a2.wav": {
+      "voice": "vieneu:Thái Sơn",
+      "text": "Chào các em, hôm nay chúng ta sẽ cùng tìm hiểu một bài học mới. Trước hết, hãy quan sát ví dụ, suy nghĩ về điều em đã biết và thử giải thích bằng lời của mình. Nếu chưa tìm ra câu trả lời, các em cứ bình tĩnh, chúng ta sẽ khám phá từng bước.",
+      "engine": "vieneu-v3-turbo-onnx-fp32-61b85e3-3.8.3-multilingual-wsola1",
+      "sha256": "288b13e3ece9b5c95aaec30e80864faab83b204888d5c4680a9cf794115819cb"
+    },
+    "ab6cd7dad06a86a5b967c5aa194502eaaee2b646835a55a32e0f11070986c33b.wav": {
+      "voice": "vieneu:Ngọc Trân",
+      "text": "Chào các em, hôm nay chúng ta sẽ cùng tìm hiểu một bài học mới. Trước hết, hãy quan sát ví dụ, suy nghĩ về điều em đã biết và thử giải thích bằng lời của mình. Nếu chưa tìm ra câu trả lời, các em cứ bình tĩnh, chúng ta sẽ khám phá từng bước.",
+      "engine": "vieneu-v3-turbo-onnx-fp32-61b85e3-3.8.3-multilingual-wsola1",
+      "sha256": "191bd9d021543c9522229ba3df2f2f1b7cf043fd197f8853f87ce7402486aa0c"
+    },
+    "1ab3e4422e7c79214a4016480abfa142f6c205a21323c87539a9c6d9f19ca303.wav": {
+      "voice": "vieneu:Quang Sơn",
+      "text": "Chào các em, hôm nay chúng ta sẽ cùng tìm hiểu một bài học mới. Trước hết, hãy quan sát ví dụ, suy nghĩ về điều em đã biết và thử giải thích bằng lời của mình. Nếu chưa tìm ra câu trả lời, các em cứ bình tĩnh, chúng ta sẽ khám phá từng bước.",
+      "engine": "vieneu-v3-turbo-onnx-fp32-61b85e3-3.8.3-multilingual-wsola1",
+      "sha256": "1a6363d3d7cb8cf7458d44d58284ef52f5d8b399fdc4150a8de7ea2f21a11569"
+    },
+    "6afdc41649cdbc9cb80face955636b6a8da8a986d424476bbb7ec4c48be0ad60.wav": {
+      "voice": "kokoro-us:af_heart",
+      "text": "Hello everyone. Today, we are going to explore a new lesson together. First, look carefully at the example and think about what you already know. Take your time, explain your ideas in your own words, and remember that asking a good question is an important part of learning.",
+      "engine": "kokoro-v1_0-sherpa-1.13.8-us-weak-article-v1",
+      "sha256": "53560c553071487bea890df33512c2b6e184d8d64508f2e466049cc886a9b86b"
+    },
+    "f9655d0270f861fdba91d0e078e49b02364de19be21221f45f6ddf6291472547.wav": {
+      "voice": "kokoro-us:am_michael",
+      "text": "Hello everyone. Today, we are going to explore a new lesson together. First, look carefully at the example and think about what you already know. Take your time, explain your ideas in your own words, and remember that asking a good question is an important part of learning.",
+      "engine": "kokoro-v1_0-sherpa-1.13.8-us-weak-article-v1",
+      "sha256": "d8e9f136989ba9ebe671cb17894f4c3737d8b3f07ef56f03beaa220af61912cd"
+    }
+  }
 }

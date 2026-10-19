@@ -16,7 +16,20 @@ PAIRS = tuple(
         ('south-male', 'Thái Sơn', 'Nam', 'Nam', 'Michael', 'am_michael'),
     )
 )
-BY_ID = {row['id']: row for row in PAIRS}
+CUSTOM_PAIRS = tuple(
+    {**row, 'id': row['id'] + ':' + en_id.rsplit(':', 1)[1],
+     'name': f"{row['vi'].split(':', 1)[1]} + {en} · Tự ghép",
+     'detail': f"Việt: {row['vi'].split(':', 1)[1]} · Anh–Mỹ: {en}",
+     'en': en_id}
+    for row in PAIRS for en_id, (en, _) in ENGLISH_VOICES.items()
+    if row['en'] != en_id
+)
+ALL_PAIRS = PAIRS + CUSTOM_PAIRS
+BY_ID = {row['id']: row for row in ALL_PAIRS}
+
+
+def compose(vi, en):
+    return next((row['id'] for row in ALL_PAIRS if row['vi'] == vi and row['en'] == en), '')
 
 
 def voice_for(selection, language):

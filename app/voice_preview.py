@@ -11,15 +11,33 @@ from . import speech
 from .paths import RESOURCE_ROOT
 
 SAMPLE_TEXT = "Xin chào các em. Let's learn together."
+VI_SAMPLE_TEXT = (
+    'Chào các em, hôm nay chúng ta sẽ cùng tìm hiểu một bài học mới. '
+    'Trước hết, hãy quan sát ví dụ, suy nghĩ về điều em đã biết và thử giải thích bằng lời của mình. '
+    'Nếu chưa tìm ra câu trả lời, các em cứ bình tĩnh, chúng ta sẽ khám phá từng bước.'
+)
+EN_SAMPLE_TEXT = (
+    'Hello everyone. Today, we are going to explore a new lesson together. '
+    'First, look carefully at the example and think about what you already know. '
+    'Take your time, explain your ideas in your own words, and remember that asking a good question '
+    'is an important part of learning.'
+)
 SAMPLE_ROOT = RESOURCE_ROOT / 'assets' / 'voice-previews'
 
 
 def bundled_sample(text, voice):
-    if text != SAMPLE_TEXT:
-        return None
     try:
         manifest = json.loads((SAMPLE_ROOT / 'manifest.json').read_text(encoding='utf-8'))
         key = speech.audio_key(text, voice, 0)
+        record = manifest.get('language_files', {}).get(key + '.wav', {})
+        if record:
+            path = SAMPLE_ROOT / (key + '.wav')
+            expected = speech.ENGLISH_VERSION if voice in speech.ENGLISH_VOICES else speech.VIENEU_VERSION
+            if (record.get('text') == text and record.get('voice') == voice and record.get('engine') == expected
+                    and hashlib.sha256(path.read_bytes()).hexdigest() == record.get('sha256') and speech.valid_audio(path)):
+                return path
+        if text != SAMPLE_TEXT:
+            return None
         digest = manifest['files'].get(key + '.wav')
         if voice in speech.PAIRS_BY_ID:
             key = pair_preview_key(text, voice, 0)
@@ -88,7 +106,8 @@ def pair_preview(text, voice, rate, directory, *, cancel=None):
             temporary.unlink(missing_ok=True)
         return {'path': str(target), 'cached': False}
     files = []
-    for sentence in re.split(r'(?<=[.!?])\s+|\n+', text):
+    sentences = [VI_SAMPLE_TEXT, EN_SAMPLE_TEXT] if text == VI_SAMPLE_TEXT + '\n' + EN_SAMPLE_TEXT else re.split(r'(?<=[.!?])\s+|\n+', text)
+    for sentence in sentences:
         if not sentence.strip():
             continue
         language = 'vi' if language_of(sentence) == 'vi' else 'en'
