@@ -19,17 +19,23 @@ ApplicationWindow {
             objectName: "applicationTitleBar"
             width: parent.width; height: root.SafeArea.margins.top
             color: "white"
+            TextMetrics {
+                id: captionTextMetrics
+                text: root.title
+                font.family: bridge.windowCaptionFont.family
+                font.pointSize: bridge.windowCaptionFont.pointSize
+            }
             Row {
                 objectName: "applicationTitleBadges"
-                anchors.right: parent.right; anchors.rightMargin: 160
-                anchors.verticalCenter: parent.verticalCenter; spacing: 10
+                x: 32 + captionTextMetrics.advanceWidth + 16
+                anchors.verticalCenter: parent.verticalCenter; spacing: 8
                 Rectangle {
-                    width: 92; height: 24; radius: 12; color: "#eaf2ff"
-                    Label { objectName: "applicationLanguageBadge"; anchors.centerIn: parent; text: "ANH ↔ VIỆT"; color: "#0869f9"; font.pixelSize: 11; font.weight: Font.DemiBold }
+                    width: 82; height: 20; radius: 10; color: "#eaf2ff"
+                    Label { objectName: "applicationLanguageBadge"; anchors.centerIn: parent; text: "ANH ↔ VIỆT"; color: "#0869f9"; font.pixelSize: 10; font.weight: Font.DemiBold }
                 }
                 Rectangle {
-                    width: 94; height: 24; radius: 12; color: "#eaf7f4"
-                    Label { objectName: "applicationStorageBadge"; anchors.centerIn: parent; text: "Lưu trên máy"; color: "#008f89"; font.pixelSize: 11; font.weight: Font.DemiBold }
+                    width: 84; height: 20; radius: 10; color: "#eaf7f4"
+                    Label { objectName: "applicationStorageBadge"; anchors.centerIn: parent; text: "Lưu trên máy"; color: "#008f89"; font.pixelSize: 10; font.weight: Font.DemiBold }
                 }
             }
         }

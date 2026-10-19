@@ -1771,6 +1771,13 @@ class Bridge(QObject):
                 for identity, (name, _) in speech.ENGLISH_VOICES.items()] if self._voices else []
 
     @Property('QVariantMap', constant=True)
+    def windowCaptionFont(self):
+        from PySide6.QtGui import QFontDatabase
+
+        font = QFontDatabase.systemFont(QFontDatabase.TitleFont)
+        return {'family': font.family(), 'pointSize': font.pointSizeF()}
+
+    @Property('QVariantMap', constant=True)
     def voicePreviewSamples(self):
         from .voice_preview import EN_SAMPLE_TEXT, VI_SAMPLE_TEXT
 

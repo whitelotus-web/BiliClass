@@ -48,4 +48,4 @@ RC92 đã kiểm checksum. RC93 là bản nháp trung gian khi yêu cầu đư�
 .venv/Scripts/python.exe -m scripts.build_from_runtime --baseline dist/rc92-voice-pairs --output dist/rc94-voice-settings
 ```
 
-Kết quả bản cài và phát hành được ghi sau khi xác minh.
+Đã dựng cục bộ từ commit `0f0fb15f15e673ceb7e47b9bcfbe83b4c4d3bb78`, ZIP đã xác minh, SHA256 `993a4dece3c53899db591525d5f676146c43b93098e3a19e842677b7e4f63a93`. CI Source checks đạt: https://github.com/whitelotus-web/BiliClass/actions/runs/39271391074 . Chưa phát hành/cài vào thư viện cá nhân; người dùng bổ sung vị trí nhãn thanh tiêu đề trong khi dựng, nên mốc phát hành tích hợp là RC95.

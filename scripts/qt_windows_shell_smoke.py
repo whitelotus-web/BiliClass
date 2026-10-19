@@ -46,7 +46,7 @@ def main():
     app = QGuiApplication([])
     configure_application(app)
     QQuickStyle.setStyle('Basic')
-    report = Path('reports/rc91/windows-shell')
+    report = Path(os.environ.get('BILICLASS_SHELL_REPORT', 'reports/rc95/windows-shell'))
     report.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='bcl-shell-', ignore_cleanup_errors=True) as folder:
         library = Library(Path(folder))
@@ -78,12 +78,15 @@ def main():
                 badges = control(root, 'applicationTitleBadges')
                 assert 24 <= bar.height() <= 40
                 assert badges.mapToScene(QPointF()).y() >= 0
-                assert badges.x() > 450 and badges.x() + badges.width() <= width - 155
+                assert 250 < badges.x() < 450 and badges.x() + badges.width() <= width - 155
+                assert badges.height() == 20 and badges.property('spacing') == 8
                 assert control(root, 'mainPageArea').mapToScene(QPointF()).y() == bar.height()
                 assert root.grabWindow().save(str(report / f'client-{width}.png'))
                 caption_capture(hwnd, report / f'caption-{width}.png')
             win32gui.PostMessage(hwnd, win32con.WM_SYSCOMMAND, win32con.SC_MAXIMIZE, 0)
             until(lambda: root.visibility() == root.Visibility.Maximized)
+            pump(120)
+            caption_capture(hwnd, report / 'caption-maximized.png')
             assert root.frameGeometry().height() <= root.screen().availableGeometry().height() + 16
             win32gui.PostMessage(hwnd, win32con.WM_SYSCOMMAND, win32con.SC_MINIMIZE, 0)
             until(lambda: root.visibility() == root.Visibility.Minimized)
