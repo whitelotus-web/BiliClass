@@ -162,6 +162,7 @@ def run(output):
         for subject in choices[:-1]:
             bridge._lesson = {**preview_lesson, 'subject': subject}
             bridge.changed.emit()
+            settings.setProperty('selectedAccessorySubject', subject)
             pump(20)
             theme = control('mascotPreview').property('theme')
             theme = theme.toVariant() if hasattr(theme, 'toVariant') else theme
@@ -172,10 +173,12 @@ def run(output):
         for subject in ('Vật lý', 'Hóa học', 'Tin học', 'Địa lí'):
             bridge._lesson = {**preview_lesson, 'subject': subject}
             bridge.changed.emit()
+            settings.setProperty('selectedAccessorySubject', subject)
             pump(80)
             assert window.grabWindow().save(str(output.with_name('mascot-' + themes[subject] + '.png')))
         bridge._lesson = {**preview_lesson, 'subject': 'Môn riêng'}
         bridge.changed.emit()
+        settings.setProperty('selectedAccessorySubject', 'Môn riêng')
         pump(20)
         assert control('mascotPreview').property('subject') == 'Môn riêng'
         control('mascotAccessories').setProperty('checked', False)

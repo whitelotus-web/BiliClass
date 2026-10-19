@@ -95,8 +95,9 @@ ColumnLayout {
         PanelAction { text: "Gợi ý Việt"; enabled: bridge.companionCanRead; onClicked: bridge.companionAsk("rescue", "vi") }
     }
     ContentScrollView {
+        objectName: "companionResponseScroll"
         visible: companion.hasResponse; Layout.fillWidth: true; Layout.preferredHeight: 150
-        TextArea { text: companion.response.text || ""; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; font.pixelSize: companion.controlFont; color: "#112650"; background: null; textFormat: TextEdit.PlainText }
+        TextArea { objectName: "companionResponseText"; text: companion.response.text || ""; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; font.pixelSize: companion.controlFont; color: "#112650"; background: null; textFormat: TextEdit.PlainText }
     }
     ComboBox {
         objectName: "companionReadingScope"; visible: !!companion.session.can_choose_scope && companion.showAssistant

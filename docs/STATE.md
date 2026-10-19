@@ -1,5 +1,13 @@
 # Trạng thái BiliClass
 
+Ngày 19/10/2026 — RC82 thêm kéo bảng trợ giảng, nhấp đúp tiêu đề/vùng
+trống để thu về Mascot, giữ tọa độ; giữ nút, slider, chọn chữ và cuộn riêng.
+Đóng chính thoát cả app/Mascot; thu nhỏ giữ nổi, “−” chỉ ẩn. Khởi động hiện
+Mascot sẵn; bỏ ba công tắc Hiện cũ. Chọn môn phụ kiện bằng danh sách,
+lưu riêng ngoại hình, không đổi môn bài hay liên kết dạy. 921 core và 8
+luồng Qt liên quan đạt; GUI 30 môn và probe app nguồn thực tế đạt (mặc
+định hiện, thu nhỏ giữ, đóng ẩn/thoát). Chi tiết gói tại [BUILD_RC82](BUILD_RC82.md).
+
 Ngày 19/10/2026 — RC81 triển khai nhóm sửa luồng mở bài và cấu hình Mascot
 trong kế hoạch RC80. Mở PowerPoint giữ trang hiện tại, gắn đúng bài/bản
 giọng từ sau chuyển đổi, trước/sau tạo giọng và Thư viện; tạo giọng là nút

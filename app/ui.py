@@ -1754,7 +1754,8 @@ class Bridge(QObject):
             'subject_mode': 'auto', 'subject': '',
         }
         saved = self.library.setting("mascot_options", {})
-        return {**defaults, **saved, 'position': 'right'} if isinstance(saved, dict) else defaults
+        return {**defaults, **saved, 'position': 'right', 'visible': True,
+                'show_explanation': True, 'show_quiz': True} if isinstance(saved, dict) else defaults
 
     @Property(str, notify=changed)
     def companionPanelSize(self):
@@ -1778,6 +1779,11 @@ class Bridge(QObject):
     def mascotSubject(self):
         lesson = self.teaching_session.bound.get('lesson', self._lesson)
         return lesson.get('subject') or next(iter(self.settings['subjects']), '')
+
+    @Property(str, notify=changed)
+    def mascotAccessorySubject(self):
+        options = self.mascotSettings
+        return options.get('subject', '').strip() if options.get('subject_mode') == 'fixed' and options.get('subject', '').strip() else self.mascotSubject
 
     @Property(bool, notify=changed)
     def companionCanRead(self):
@@ -3345,14 +3351,14 @@ class Bridge(QObject):
             return
         self.library.set_setting("mascot", mascot)
         self.library.set_setting("mascot_options", {
-            "visible": visible, "size": max(60, min(160, size)),
+            "visible": True, "size": max(60, min(160, size)),
             "position": "right",
             "reduced_motion": reduced_motion, "accessories": accessories,
-            "show_explanation": show_explanation, "show_quiz": show_quiz,
-            'subject_mode': 'auto', 'subject': '',
+            "show_explanation": True, "show_quiz": True,
+            'subject_mode': subject_mode, 'subject': subject.strip() if subject_mode == 'fixed' else '',
             'always_on_top': self.mascotSettings['always_on_top'] if always_on_top is None else always_on_top,
         })
-        self.mascotPreferencesSaved.emit(visible)
+        self.mascotPreferencesSaved.emit(True)
         self.inform("Đã lưu mascot và cách hiển thị.")
 
     @Slot(str, int, int, str)

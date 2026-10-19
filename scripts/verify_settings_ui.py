@@ -204,28 +204,29 @@ def main():
         bridge.changed.emit()
         pump(50)
         assert control("mascotPreview").property("subject") == "Môn tự chọn"
+        for removed in ('mascotVisible', 'mascotExplanation', 'mascotQuiz'):
+            assert window.findChild(QObject, removed) is None
+        subject_choice = control('mascotAccessorySubject')
+        subjects = control('settingsPage').property('accessorySubjects').toVariant()
+        subject_choice.setProperty('currentIndex', subjects.index('Hóa học'))
+        subject_choice.activated.emit(subjects.index('Hóa học'))
+        assert control('mascotPreview').property('subject') == 'Hóa học'
         control("mascotSize").setProperty("value", 140)
         assert window.findChild(QObject, "mascotPosition") is None
         assert window.findChild(QObject, "companionPanelSize") is None
         control("mascotAccessories").setProperty("checked", False)
         control("mascotReducedMotion").setProperty("checked", False)
-        control("mascotExplanation").setProperty("checked", False)
-        control("mascotQuiz").setProperty("checked", False)
         click("mascotPreviewMode1")
-        assert not control("mascotPreview").property("visible")
+        assert control("mascotPreview").property("visible")
         click("mascotPreviewMode2")
-        assert not control("mascotPreview").property("visible")
+        assert control("mascotPreview").property("visible")
         click("mascotPreviewMode0")
         assert control("mascotPreview").property("visible")
-        control("mascotVisible").setProperty("checked", False)
         click("saveMascot")
         assert bridge.settings["mascot"] == "Lumi"
-        assert bridge.mascotSettings == {"visible": False, "size": 140, "position": "right", "reduced_motion": False, "accessories": False, "show_explanation": False, "show_quiz": False, 'subject_mode': 'auto', 'subject': '', 'always_on_top': True}
-        assert not control("companionWindow").isVisible()
-        assert not control("mascotProjectorLeft").property("visible")
-        assert not control("mascotProjectorRight").property("visible")
-        control("mascotVisible").setProperty("checked", True)
-        click("saveMascot")
+        assert bridge.mascotSettings == {"visible": True, "size": 140, "position": "right", "reduced_motion": False, "accessories": False, "show_explanation": True, "show_quiz": True, 'subject_mode': 'fixed', 'subject': 'Hóa học', 'always_on_top': True}
+        assert bridge.mascotSubject == 'Môn tự chọn' and bridge.mascotAccessorySubject == 'Hóa học'
+        assert library.get(preview_lesson['id'])['subject'] == 'Vật lý'
         assert control("companionWindow").isVisible(), "Saving an enabled mascot should show the floating assistant"
         assert control("openCompanion").isVisible(), "The main window should keep a mascot launcher available"
         control("companionWindow").hide()
@@ -244,7 +245,7 @@ def main():
         bridge.teaching.ask("explanation", "en")
         pump(80)
         assert bridge.teaching.response["available"]
-        assert not control("mascotProjectorRight").property("visible")
+        assert control("mascotProjectorRight").property("visible")
         bridge.teaching.reset()
         pump(80)
         assert control("mascotProjectorRight").property("visible")
@@ -275,7 +276,7 @@ def main():
         shot("mascot-compact-preview")
         window.resize(1366, 850)
         pump(160)
-        checks.append("mascot cards, context preview, accessory details, visibility, explanation/quiz, linked size and bottom-right default apply across teacher/projector/companion")
+        checks.append("always-visible contexts, saved accessory subject independent of lesson, linked size and bottom-right default across teacher/projector/companion")
 
         click("settingsTab4")
         control("settingsClassMode").setProperty("currentIndex", 1)

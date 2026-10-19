@@ -441,10 +441,11 @@ def main():
             assert window.findChild(QObject, removed) is None
         bridge._lesson['subject'] = 'Mĩ thuật'
         bridge.changed.emit()
+        c('settingsPage').setProperty('selectedAccessorySubject', 'Mĩ thuật')
         click(window, c("saveMascot"))
         pump(100)
         assert bridge.mascotSubject == "Mĩ thuật"
-        assert bridge.mascotSettings['subject_mode'] == 'auto'
+        assert bridge.mascotSettings['subject_mode'] == 'fixed'
         assert c("mascotCompanion").property("subject") == "Mĩ thuật"
         assert not bridge.companionCanRead
         assert not c("companionReadEnglish").isEnabled() and not c("companionReadBoth").isEnabled()

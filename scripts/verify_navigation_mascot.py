@@ -98,7 +98,10 @@ def main():
         assert abs(companion.x() - dragged_x) <= 1 and abs(companion.y() - dragged_y) <= 1
         bridge.saveMascotPreferences("Milo", False, 110, "left", True, True, True, True)
         pump()
-        assert not companion.isVisible() and not launcher.isVisible()
+        assert companion.isVisible() and launcher.isVisible()
+        companion.hide()
+        pump()
+        assert not companion.isVisible(), 'Manual hide remains available without a saved visibility switch'
         assert bridge.mascotSettings['position'] == 'right', "The old corner setting must not override the new default"
         bridge.saveMascotPreferences("Milo", True, 110, "right", False, True, True, True)
         pump()

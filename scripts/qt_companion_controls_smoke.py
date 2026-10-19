@@ -5,11 +5,13 @@ import sqlite3
 import tempfile
 import time
 from pathlib import Path
+from types import SimpleNamespace
 
-from PySide6.QtCore import QCoreApplication, QEvent, QObject, QPointF, QTimer, QUrl, Slot
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtCore import QCoreApplication, QEvent, QObject, QPoint, QPointF, Qt, QTimer, QUrl, Slot
+from PySide6.QtGui import QGuiApplication, QWheelEvent
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
+from PySide6.QtTest import QTest
 
 from app.library import Library
 from app.paths import RESOURCE_ROOT
@@ -34,7 +36,7 @@ class ControlBridge(Bridge):
 def main():
     app = QGuiApplication([])
     QQuickStyle.setStyle('Basic')
-    report = Path('reports/rc81/companion-controls')
+    report = Path('reports/rc82/companion-controls')
     report.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='bcl-controls-', ignore_cleanup_errors=True) as folder:
         library = Library(Path(folder))
@@ -75,7 +77,8 @@ def main():
                 assert companion.grabWindow().save(str(report / (size + '.png')))
             bridge.saveMascotPreferences('Milo', True, 110, 'right', False, True, True, True)
             bridge._powerpoint_state = {'active': True, 'opened': True, 'slide': 2, 'total': 7, 'message': ''}
-            bridge.powerpoint_worker = object()  # UI availability only; commands intercepted above.
+            native_commands = []
+            bridge.powerpoint_worker = SimpleNamespace(navigate=lambda *args: native_commands.append(args))
             bridge.teachingSession.bind({'lesson': lesson, 'path': '', 'preview': {}, 'media': {2: ['en', 'vi', 'both']}})
             bridge.changed.emit()
             pump(150)
@@ -90,8 +93,89 @@ def main():
                 assert companion.opacity() == 1 and all(item.opacity() == 1 for item in audio)
                 for name in ('companionPrevious', 'companionNext', 'companionReadEnglish', 'companionReadVietnamese', 'companionReadBoth'):
                     click(companion, c(name))
-                assert bridge.commands[-5:] == [('navigate', 'previous'), ('navigate', 'next'), ('read', 'en'), ('read', 'vi'), ('read', 'both')]
+                assert bridge.commands[-5:] == [('navigate', 'previous'), ('navigate', 'next'), ('read', 'en'), ('read', 'vi'), ('read', 'both')], (bridge.commands, c('companionPanelMoveArea').property('overControl'))
+                # Real mouse input on the panel moves the complete window,
+                # persists the mascot anchor, and never activates a control.
+                area = app.primaryScreen().availableGeometry()
+                bridge.saveMascotLocation(area.left() + area.width() * 2 // 3,
+                                          area.top() + area.height() * 2 // 3)
+                bridge.showCompanion(companion)
+                pump(120)
+                panel = c('companionPanelMoveArea')
+                grab = panel.mapToScene(QPointF(28, 26)).toPoint()
+                origin = QPoint(companion.x(), companion.y())
+                commands = list(bridge.commands)
+                QTest.mousePress(companion, Qt.LeftButton, pos=grab)
+                QTest.mouseMove(companion, grab + QPoint(-55, -35))
+                QTest.mouseRelease(companion, Qt.LeftButton, pos=grab + QPoint(-55, -35))
+                pump(150)
+                assert companion.x() < origin.x() - 30 and companion.y() < origin.y() - 20
+                assert not companion.property('collapsed') and bridge.commands == commands
+                mascot = c('mascotToggle')
+                anchor = {'x': companion.x() + mascot.x(), 'y': companion.y() + mascot.y()}
+                assert bridge._mascot_location == anchor
+                # A regular panel click stays expanded; a double click folds
+                # it into the mascot without changing the dragged anchor.
+                grab = panel.mapToScene(QPointF(28, 26)).toPoint()
+                QTest.mouseClick(companion, Qt.LeftButton, pos=grab)
+                pump(100)
+                assert not companion.property('collapsed')
+                QTest.mouseDClick(companion, Qt.LeftButton, pos=grab)
+                pump(150)
+                assert companion.property('collapsed') and not c('companionMenu').isVisible()
+                assert abs(companion.x() - anchor['x']) <= 1 and abs(companion.y() - anchor['y']) <= 1
+                click(companion, mascot)
+                pump(120)
+                assert not companion.property('collapsed')
+                # Buttons, including a double click, retain their action.
+                previous = c('companionPrevious')
+                center = previous.mapToScene(QPointF(previous.width() / 2, previous.height() / 2)).toPoint()
+                QTest.mouseDClick(companion, Qt.LeftButton, pos=center)
+                pump(100)
+                assert not companion.property('collapsed')
                 assert companion.grabWindow().save(str(report / f'active-opacity-{opacity}.png'))
+            # Dragging a disabled control, the volume slider, or selectable
+            # response text must not move the window beneath the pointer.
+            origin = QPoint(companion.x(), companion.y())
+            previous.setEnabled(False)
+            center = previous.mapToScene(QPointF(previous.width() / 2, previous.height() / 2)).toPoint()
+            QTest.mousePress(companion, Qt.LeftButton, pos=center)
+            QTest.mouseMove(companion, center + QPoint(25, 0))
+            QTest.mouseRelease(companion, Qt.LeftButton, pos=center + QPoint(25, 0))
+            assert QPoint(companion.x(), companion.y()) == origin
+            previous.setEnabled(True)
+            volume = c('companionVolume')
+            center = volume.mapToScene(QPointF(volume.width() * .8, volume.height() / 2)).toPoint()
+            QTest.mousePress(companion, Qt.LeftButton, pos=center)
+            QTest.mouseMove(companion, center - QPoint(45, 0))
+            QTest.mouseRelease(companion, Qt.LeftButton, pos=center - QPoint(45, 0))
+            assert QPoint(companion.x(), companion.y()) == origin
+            assert native_commands and native_commands[-1][0] == 'set_volume'
+            companion.setProperty('showShortcutGuide', True)
+            bridge.teachingSession.response = {'untouched': False, 'text': '\n'.join(['Selectable response text.'] * 30)}
+            bridge.teachingSession.changed.emit()
+            pump(150)
+            text = c('companionResponseText')
+            click(companion, c('companionResponseScroll'))  # Scroll its viewport into view first.
+            origin = QPoint(companion.x(), companion.y())
+            center = text.mapToScene(QPointF(12, 15)).toPoint()
+            QTest.mousePress(companion, Qt.LeftButton, pos=center)
+            QTest.mouseMove(companion, center + QPoint(60, 0))
+            QTest.mouseRelease(companion, Qt.LeftButton, pos=center + QPoint(60, 0))
+            assert QPoint(companion.x(), companion.y()) == origin
+            viewport = c('companionControlsScroll').property('contentItem')
+            viewport.setProperty('contentY', 0)
+            center = c('companionPanelMoveArea').mapToScene(QPointF(35, 65))
+            event = QWheelEvent(center, QPointF(companion.mapToGlobal(center.toPoint())), QPoint(), QPoint(0, -120),
+                                Qt.NoButton, Qt.NoModifier, Qt.NoScrollPhase, False)
+            QGuiApplication.sendEvent(companion, event)
+            pump(150)
+            assert viewport.property('contentY') > 0, 'Panel movement must not swallow wheel scrolling'
+            bridge.teachingSession.response = {'untouched': True}
+            bridge.teachingSession.changed.emit()
+            companion.setProperty('showShortcutGuide', False)
+            viewport.setProperty('contentY', 0)
+            pump(100)
             click(companion, c('companionSettings'))
             pump(150)
             assert root.property('page') == 'settings' and c('settingsPage').property('activeTab') == 3
@@ -102,6 +186,8 @@ def main():
             assert bridge.companionPanelOpacity == 100
             assert c('settingsPage').findChild(QObject, 'companionPanelSize') is None
             assert c('settingsPage').findChild(QObject, 'mascotPosition') is None
+            for removed in ('mascotVisible', 'mascotExplanation', 'mascotQuiz'):
+                assert c('settingsPage').findChild(QObject, removed) is None
             assert not c('mascotPreview').property('showSubjectBadge')
             assert not c('mascotPreview').findChild(QObject, 'mascotSubjectBadge').isVisible()
             for width, height in ((1366, 850), (1080, 700)):
@@ -110,7 +196,7 @@ def main():
                 summary, toggles = c('mascotAccessorySummary'), c('mascotAlwaysOnTop')
                 summary_left = summary.mapToScene(QPointF()).x()
                 toggles_right = toggles.mapToScene(QPointF(toggles.width(), 0)).x()
-                if c('settingsPage').property('wideMascotLayout'):
+                if c('settingsPage').width() >= 800:
                     assert summary_left > toggles_right, 'Accessory details belong beside display choices'
                 else:
                     assert summary.mapToScene(QPointF()).y() > toggles.mapToScene(QPointF(0, toggles.height())).y()
@@ -153,6 +239,7 @@ def main():
             assert not warnings, warnings
             result = dict(status='passed', sizes=3, opacity_clicks=2, settings_preserves_binding=True,
                           subject_badge_hidden=True, qml_warnings=warnings,
+                          panel_drag_and_double_click=True,
                           transparency_max_ui_gap_seconds=round(max_gap, 3), transparency_broad_refreshes=len(broad_refreshes),
                           scope='Qt hit targets/geometry with intercepted commands; native Office verified separately')
             (report / 'result.json').write_text(json.dumps(result, indent=2), encoding='utf-8')

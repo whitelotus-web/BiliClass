@@ -251,6 +251,11 @@ ApplicationWindow {
         else if (bridge.busy) { close.accepted = false; busyDialog.open() }
         else if (narrationScript.visible && narrationScript.dirty) { close.accepted = false; narrationScript.forceActiveFocus() }
         else if (dirty) { close.accepted = false; requestAction(function() { Qt.quit() }) }
+        if (close.accepted) {
+            companion.disposing = true
+            companion.hide()
+            Qt.quit()
+        }
     }
     Connections {
         target: bridge

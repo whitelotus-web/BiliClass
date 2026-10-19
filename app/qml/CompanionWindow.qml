@@ -3,6 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Window
 import QtQuick.Dialogs
+import QtQuick.Templates as T
 
 Window {
     id: companion
@@ -30,6 +31,70 @@ Window {
     readonly property int controlHeight: bridge.companionPanelSize === "large" ? 46 : bridge.companionPanelSize === "small" ? 36 : 40
     readonly property int controlFont: bridge.companionPanelSize === "large" ? 14 : bridge.companionPanelSize === "small" ? 12 : 13
     readonly property int audioCount: Number(!!availableAudio.en) + Number(!!availableAudio.vi) + Number(!!availableAudio.both)
+
+    function saveLocation() {
+        bridge.saveMascotLocation(companion.x + mascotButton.x, companion.y + mascotButton.y)
+        bridge.showCompanion(companion)
+    }
+    component MoveArea: MouseArea {
+        property bool dragged: false
+        property bool toggleOnClick: false
+        property bool collapseOnDoubleClick: false
+        property var exclusionRoot: null
+        property real pressGlobalX: 0
+        property real pressGlobalY: 0
+        property int startWindowX: 0
+        property int startWindowY: 0
+        // Include disabled controls: attempting to use a button must not drag
+        // the panel instead. Text selection and scrollbars retain their input.
+        function blocked(item, point) {
+            if (!item || !item.visible) return false
+            const local = mapToItem(item, point)
+            if (local.x < 0 || local.y < 0 || local.x >= item.width || local.y >= item.height) return false
+            if (item instanceof T.AbstractButton || item instanceof T.ComboBox || item instanceof T.Slider ||
+                item instanceof T.TextArea || item instanceof TextEdit || item instanceof T.ScrollBar) return true
+            const children = item.children || []
+            for (let i = 0; i < children.length; ++i)
+                if (blocked(children[i], point)) return true
+            return false
+        }
+        readonly property bool overControl: exclusionRoot ? blocked(exclusionRoot, Qt.point(mouseX, mouseY)) : false
+        anchors.fill: parent
+        acceptedButtons: Qt.LeftButton
+        hoverEnabled: true
+        preventStealing: true
+        cursorShape: overControl ? Qt.ArrowCursor : pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+        onPressed: function(mouse) {
+            dragged = false
+            if (exclusionRoot && blocked(exclusionRoot, Qt.point(mouse.x, mouse.y))) {
+                mouse.accepted = false
+                return
+            }
+            const point = mapToGlobal(Qt.point(mouse.x, mouse.y))
+            pressGlobalX = point.x
+            pressGlobalY = point.y
+            startWindowX = companion.x
+            startWindowY = companion.y
+        }
+        onPositionChanged: function(mouse) {
+            if (!pressed) return
+            const point = mapToGlobal(Qt.point(mouse.x, mouse.y))
+            const deltaX = point.x - pressGlobalX
+            const deltaY = point.y - pressGlobalY
+            if (!dragged && Math.abs(deltaX) + Math.abs(deltaY) < 7) return
+            dragged = true
+            companion.x = Math.round(startWindowX + deltaX)
+            companion.y = Math.round(startWindowY + deltaY)
+        }
+        onReleased: if (dragged) companion.saveLocation()
+        onCanceled: if (dragged) companion.saveLocation()
+        onClicked: if (toggleOnClick && !dragged) companion.collapsed = !companion.collapsed
+        onDoubleClicked: function(mouse) {
+            if (collapseOnDoubleClick && !dragged && !overControl) companion.collapsed = true
+            else mouse.accepted = false
+        }
+        onWheel: function(wheel) { wheel.accepted = false }
+    }
 
     // An owned tool window is hidden by Windows when its owner is minimized.
     transientParent: null
@@ -70,6 +135,15 @@ Window {
             }
             CompanionControls { id: menuContent; width: controlScroll.availableWidth; bridge: companion.bridge; companion: companion }
         }
+        MoveArea {
+            objectName: "companionPanelMoveArea"
+            exclusionRoot: menu
+            collapseOnDoubleClick: true
+            Accessible.name: "Kéo bảng trợ giảng để di chuyển; nhấp đúp để thu về Mascot"
+            ToolTip.visible: containsMouse && !overControl && mouseY < 48 && !pressed
+            ToolTip.delay: 600
+            ToolTip.text: "Kéo để di chuyển · Nhấp đúp để thu về Mascot"
+        }
     }
 
     Item {
@@ -84,46 +158,14 @@ Window {
             anchors.fill: parent
             character: bridge.settings.mascot
             expression: bridge.mascotState
-            subject: bridge.mascotSubject
+            subject: bridge.mascotAccessorySubject
             accessories: bridge.mascotSettings.accessories
             showSubjectBadge: false
             reducedMotion: bridge.mascotSettings.reduced_motion
         }
-        MouseArea {
+        MoveArea {
             id: mascotMouse
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
-            property real pressGlobalX: 0
-            property real pressGlobalY: 0
-            property int startWindowX: 0
-            property int startWindowY: 0
-            property bool dragged: false
-            onPressed: function(mouse) {
-                const point = mapToGlobal(Qt.point(mouse.x, mouse.y))
-                pressGlobalX = point.x
-                pressGlobalY = point.y
-                startWindowX = companion.x
-                startWindowY = companion.y
-                dragged = false
-            }
-            onPositionChanged: function(mouse) {
-                if (!pressed) return
-                const point = mapToGlobal(Qt.point(mouse.x, mouse.y))
-                const deltaX = point.x - pressGlobalX
-                const deltaY = point.y - pressGlobalY
-                if (!dragged && Math.abs(deltaX) + Math.abs(deltaY) < 7) return
-                dragged = true
-                companion.x = Math.round(startWindowX + deltaX)
-                companion.y = Math.round(startWindowY + deltaY)
-            }
-            onReleased: {
-                if (dragged) {
-                    bridge.saveMascotLocation(companion.x + mascotButton.x, companion.y + mascotButton.y)
-                    bridge.showCompanion(companion)
-                }
-            }
-            onClicked: { if (!dragged) companion.collapsed = !companion.collapsed }
+            toggleOnClick: true
             Accessible.role: Accessible.Button
             Accessible.name: companion.collapsed ? "Mở công cụ trợ giảng" : "Thu gọn công cụ trợ giảng"
         }

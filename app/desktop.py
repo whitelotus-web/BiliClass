@@ -76,6 +76,16 @@ def run(args):
         library.close()
         return 1
     window = engine.rootObjects()[0]
+    companion = window.findChild(QObject, 'companionWindow')
+
+    def hide_windows():
+        companion.setProperty('disposing', True)
+        for view in app.topLevelWindows():
+            view.hide()
+
+    app.aboutToQuit.connect(hide_windows)
+    if not args.smoke:
+        QTimer.singleShot(0, lambda: bridge.showCompanion(companion))
     width, height = (int(n) for n in args.size.split("x"))
     window.resize(width, height)
     lesson_id = getattr(args, "lesson_id", None)

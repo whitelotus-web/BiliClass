@@ -286,21 +286,28 @@ def test_incomplete_variant_cannot_silently_start_teaching(saved):
         bridge.browserAI.shutdown()
 
 
-def test_mascot_follows_lesson_even_with_legacy_fixed_subject(saved):
+def test_accessory_subject_is_independent_of_the_lesson_and_visibility_is_always_enabled(saved):
     _app = QCoreApplication.instance() or QCoreApplication([])
     library, lesson, _ = saved
     bridge = Bridge(library)
     try:
         bridge._lesson = lesson
-        library.set_setting('mascot_options', {'subject_mode': 'fixed', 'subject': 'Mĩ thuật'})
+        library.set_setting('mascot_options', {'subject_mode': 'fixed', 'subject': 'Mĩ thuật',
+                                              'visible': False, 'show_explanation': False, 'show_quiz': False})
         assert bridge.mascotSubject == 'Vật lý'
-        bridge.saveMascotPreferences("Lumi", True, 110, "right", False, True, True, True, "fixed", "Mĩ thuật")
+        assert bridge.mascotAccessorySubject == 'Mĩ thuật'
+        assert all(bridge.mascotSettings[name] for name in ('visible', 'show_explanation', 'show_quiz'))
+        bridge.saveMascotPreferences("Lumi", False, 110, "right", False, True, False, False, "fixed", "Mĩ thuật")
         assert bridge.mascotSubject == "Vật lý"
+        assert bridge.mascotAccessorySubject == 'Mĩ thuật'
+        assert all(library.setting('mascot_options', {})[name] for name in ('visible', 'show_explanation', 'show_quiz'))
         bridge._lesson = {**lesson, "subject": "Tin học"}
         assert bridge.mascotSubject == "Tin học"
+        assert bridge.mascotAccessorySubject == 'Mĩ thuật'
         bridge.saveMascotPreferences("Lumi", True, 110, "right", False, True, True, True, "auto", "Mĩ thuật")
         assert bridge.mascotSubject == "Tin học"
         assert bridge.mascotSettings['subject_mode'] == 'auto'
+        assert bridge.mascotAccessorySubject == 'Tin học'
         assert library.get(lesson["id"])["subject"] == "Vật lý"
     finally:
         bridge.narration_preparation.shutdown()

@@ -2,7 +2,9 @@
 
 Ứng dụng Windows chuyển tài liệu của giáo viên thành bài giảng Anh–Việt, rồi trình chiếu bằng PowerPoint với giọng đọc và mascot trợ giảng. Hỗ trợ cấu hình từ lớp 1 đến lớp 12 và môn tự nhập.
 
-## Luồng hiện tại — RC81
+## Luồng hiện tại — RC82
+
+RC82 cho kéo bảng trợ giảng để di chuyển cùng Mascot, nhấp đúp vùng trống/tiêu đề để thu bảng. Đóng BiliClass tắt cả Mascot; thu nhỏ vẫn giữ Mascot, “−” chỉ ẩn. Bỏ ba công tắc Hiện; chọn phụ kiện theo môn bằng danh sách, độc lập với môn bài giảng. [Kiểm chứng RC82](docs/BUILD_RC82.md).
 
 RC81 tách **Mở PowerPoint** và **Tạo giọng đọc** trong Thư viện. Các nút mở sau chuyển đổi, trước/sau tạo giọng và trong Thư viện đều mở bài và gắn Mascot trực tiếp, giữ nguyên trang; bấm F5 khi sẵn sàng. Mỗi phiên dùng bản sao riêng để tránh khóa nguồn/cache. [Kiểm chứng RC81](docs/BUILD_RC81.md) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md).
 
