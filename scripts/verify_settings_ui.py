@@ -135,7 +135,6 @@ def main():
         click("saveProfile")
         assert bridge.settings["show_profile"] is False
         assert control("projectorProfile").property("visible") is False
-        assert "Đang ẩn" in control("savedProfileVisibility").property("text")
         control("settingsShowProfile").setProperty("checked", True)
         click("saveProfile")
         assert control("projectorProfile").property("visible") is True

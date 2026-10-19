@@ -168,7 +168,6 @@ Item {
                 Layout.fillWidth: true; Layout.preferredWidth: 2; Layout.alignment: Qt.AlignTop
                 ColumnLayout { width: parent.width; spacing: 17
                     Title { text: "Thông tin thầy cô" }
-                    Hint { text: "Hồ sơ dùng chung trên máy. Môn và khối lớp cụ thể được chọn cho từng bài; tên lớp được nhập khi bắt đầu tiết học."; Layout.fillWidth: true }
                     RowLayout { Layout.fillWidth: true; spacing: 16
                         ColumnLayout { Layout.fillWidth: true; spacing: 6; Label { text: "Tên thầy/cô"; color: page.ink } Field { id: teacherName; objectName: "settingsTeacher"; text: bridge.settings.teacher; maximumLength: 100; Layout.fillWidth: true } }
                         ColumnLayout { Layout.fillWidth: true; spacing: 6; Label { text: "Trường"; color: page.ink } Field { id: schoolName; objectName: "settingsSchool"; text: bridge.settings.school; placeholderText: "Ví dụ: THPT ..."; maximumLength: 100; Layout.fillWidth: true } }
@@ -204,7 +203,6 @@ Item {
                             }
                         }
                         Field { id: otherTeachingSubject; objectName: "settingsCustomSubject"; visible: teachingSubjects.currentText === "Khác"; text: bridge.conversionSubjects.indexOf(bridge.defaultTeachingSubject) < 0 ? bridge.defaultTeachingSubject : ""; placeholderText: "Nhập tên môn học khác"; maximumLength: 100; Layout.fillWidth: true }
-                        Hint { text: "Môn mặc định cho bài mới ở Chuyển đổi bài giảng. Thầy cô vẫn có thể chọn môn khác cho từng bài."; Layout.fillWidth: true }
                     }
                     RowLayout { Layout.fillWidth: true
                         SoftButton { objectName: "uploadSchoolLogo"; text: "Tải logo trường (PNG/JPG)"; iconName: "upload"; onClicked: page.requestLogo() }
@@ -213,14 +211,13 @@ Item {
                     }
                     Hint { text: "Logo tối đa 5 MB, tự lưu vào thư viện khi chọn và đi cùng bản sao lưu."; Layout.fillWidth: true }
                     CheckBox { id: showProfile; objectName: "settingsShowProfile"; text: "Hiện tên, trường và logo trên màn hình bài giảng"; checked: bridge.settings.show_profile }
-                    RowLayout { Layout.fillWidth: true; Hint { text: "Cấp học và khối lớp nhớ lần chọn gần nhất; mỗi buổi chọn tên lớp riêng."; Layout.fillWidth: true } SaveButton { objectName: "saveProfile"; text: "Lưu thông tin"; enabled: teachingSubjects.currentText !== "Khác" || !!otherTeachingSubject.text.trim(); onClicked: bridge.savePrimaryTeachingProfile(teacherName.text, schoolName.text, teachingSubjects.currentText === "Khác" ? otherTeachingSubject.text : teachingSubjects.currentText, showProfile.checked) } }
+                    RowLayout { Layout.fillWidth: true; Item { Layout.fillWidth: true } SaveButton { objectName: "saveProfile"; text: "Lưu thông tin"; enabled: teachingSubjects.currentText !== "Khác" || !!otherTeachingSubject.text.trim(); onClicked: bridge.savePrimaryTeachingProfile(teacherName.text, schoolName.text, teachingSubjects.currentText === "Khác" ? otherTeachingSubject.text : teachingSubjects.currentText, showProfile.checked) } }
                 }
             }
             Card {
                 Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.alignment: Qt.AlignTop
                 ColumnLayout { width: parent.width; spacing: 9
-                    Title { text: "Xem trước hồ sơ đã lưu" }
-                    Hint { text: "Tên, trường và bộ môn bên dưới chỉ đổi sau khi bấm Lưu thông tin; logo được lưu ngay khi tải lên."; Layout.fillWidth: true }
+                    Title { text: "Xem trước hồ sơ" }
                     Rectangle { Layout.fillWidth: true; implicitHeight: 126; radius: 11; color: "#f2f7ff"
                         RowLayout { anchors.fill: parent; anchors.margins: 14; spacing: 10
                             Image { objectName: "savedProfileLogo"; visible: !!bridge.schoolLogoUrl; source: bridge.schoolLogoUrl; cache: false; fillMode: Image.PreserveAspectFit; Layout.preferredWidth: 56; Layout.preferredHeight: 70 }
@@ -235,7 +232,6 @@ Item {
                             }
                         }
                     }
-                    Hint { objectName: "savedProfileVisibility"; text: bridge.settings.show_profile ? "Đang hiện tên, trường và logo trong bài giảng." : "Đang ẩn tên, trường và logo trong bài giảng."; Layout.fillWidth: true }
                 }
             }
         }

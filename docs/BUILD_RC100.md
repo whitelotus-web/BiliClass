@@ -12,6 +12,8 @@
   bỏ dòng hướng dẫn tạo giọng lặp ở chân trang.
 - Bỏ dòng ghi chú mặc định dưới nút lưu trong Cài đặt giọng đọc;
   chỉ hiện trạng thái khi đang sửa, lưu hoặc có kết quả lưu.
+- Dọn các ghi chú hồ sơ được yêu cầu bỏ ở Cài đặt chung; rút gọn
+  tiêu đề thành “Xem trước hồ sơ”, giữ các trường và thao tác lưu.
 - Hiện slide ngay trong bước chuyển đổi hoàn tất, có Trước/Sau và
   bốn nút cân đối. Xem trước ở Tạo giọng không bị worker Office đã
   ngừng trình chiếu chặn. Không tự xác nhận nội dung hay tạo giọng.
