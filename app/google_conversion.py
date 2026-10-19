@@ -344,15 +344,33 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
     use_native = manifest is not None
     warnings = []
     picture_data = {'rows': [], 'warnings': []}
+    content_review = {}
     if source.suffix == '.pptx':
+        from pptx import Presentation
+
         from .picture_ocr import extract_pictures
+        from .universal_content import image_content_pages
+
+        image_pages = image_content_pages(Presentation(source))
 
         progress.stage('upload', 'Đang đọc nội dung và hình minh họa.')
         try:
             picture_data = extract_pictures(source, directory, cancel,
-                                           lambda message: progress.stage('upload', message))
+                                           lambda message: progress.stage('upload', message),
+                                           include_animated=config['style'] == 'template')
         except ValueError as exc:
             picture_data = {'rows': [], 'warnings': [str(exc)]}
+        # A photograph without detected text is not an untranslated paragraph.
+        # An unavailable OCR pass leaves coverage unknown rather than complete.
+        text_pages = picture_data.get('text_pages', image_pages)
+        needs_review = [number for number in image_pages if number in text_pages]
+        if needs_review:
+            content_review = {
+                'image_pages': needs_review, 'coverage': 'unverified',
+                'message': (f"{len(needs_review)} slide chứa nội dung trong ảnh. Chưa xác minh đã dịch đủ chữ, bảng và công thức "
+                            "trong ảnh; đối chiếu nội dung và lời đọc trước khi dạy."),
+            }
+            warnings.append(content_review['message'])
         warnings.extend(picture_data['warnings'])
         (folder/'picture-ocr.json').write_text(json.dumps(picture_data,ensure_ascii=False),encoding='utf-8')
     target = folder / 'result.pptx'
@@ -454,6 +472,8 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
                               layout_plan=manifest.get('layout_plan') if use_native else None)
     target=Path(checked['path'])
     inspection=checked['inspection']
+    if content_review:
+        inspection['content_review'] = content_review
     from .lesson_completion import VERSION
 
     inspection['slide_quality'].update(completion_version=VERSION,

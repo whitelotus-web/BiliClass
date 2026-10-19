@@ -99,7 +99,9 @@ def _legacy_pages(path, size, modified, digest):
 
 def prepare(lesson, library):
     """Upgrade old narration metadata without changing the PPTX or lesson text."""
-    if lesson.get('narration_image_policy') == 1:
+    source_hash = (lesson.get('source') or {}).get('sha256')
+    checked_hash = lesson.get('narration_image_source_sha256')
+    if lesson.get('narration_image_policy') == 1 and (not checked_hash or checked_hash == source_hash):
         return False
     pages = {str(page['slide']): page['imageText'] for page in lesson.get('slide_speech', {}).get('slides', [])
              if page.get('imageText')}
@@ -113,9 +115,14 @@ def prepare(lesson, library):
         except (OSError, ValueError):
             return False
     if not pages:
-        return False
+        # A successful scan with no image labels is a result too. Remember it
+        # instead of reparsing the entire presentation on every subsequent open.
+        lesson['narration_image_policy'] = 1
+        lesson['narration_image_source_sha256'] = source_hash
+        return True
     lesson['narration_image_text'] = copy.deepcopy(pages)
     lesson['narration_image_policy'] = 1
+    lesson['narration_image_source_sha256'] = source_hash
     for key in ('slide_speech', 'source_slide_speech'):
         for page in lesson.get(key, {}).get('slides', []):
             rows = pages.get(str(page['slide']), [])

@@ -813,7 +813,7 @@ Item {
                 Item { Layout.fillWidth: true }
                 SaveButton { objectName: "saveMultilingualVoice"; text: bridge.voiceUiState.saving ? "Đang lưu…" : "Lưu cặp giọng và tốc độ"; enabled: !bridge.voiceUiState.saving && !!page.draftVoice; onClicked: bridge.saveMultilingualVoice(page.draftVoice, page.draftRate) }
             }
-            Hint { objectName: "voiceSaveStatus"; text: bridge.voiceUiState.saving || bridge.voiceUiState.saveError ? bridge.voiceUiState.saveMessage : page.voiceDirty ? "Chưa lưu thay đổi · " + (page.selectedVoicePair.name || "") : bridge.voiceUiState.saveMessage || "Lần tạo giọng mới dùng cặp đã lưu. Bài đã tạo giữ nguyên âm thanh."; color: bridge.voiceUiState.saveError ? "#ba581a" : page.voiceDirty ? page.muted : "#168567"; Layout.fillWidth: true }
+            Hint { objectName: "voiceSaveStatus"; visible: !!text; text: bridge.voiceUiState.saving || bridge.voiceUiState.saveError ? bridge.voiceUiState.saveMessage : page.voiceDirty ? "Chưa lưu thay đổi · " + (page.selectedVoicePair.name || "") : bridge.voiceUiState.saveMessage || ""; color: bridge.voiceUiState.saveError ? "#ba581a" : page.voiceDirty ? page.muted : "#168567"; Layout.fillWidth: true }
             Hint { objectName: "voicePreviewStatus"; visible: !!bridge.voiceUiState.message; text: bridge.voiceUiState.message; Layout.fillWidth: true }
         }
     }

@@ -22,6 +22,40 @@ def text(deck):
     return "\n".join(s.text for page in deck.slides for s in page.shapes if s.has_text_frame)
 
 
+def test_image_content_keeps_small_fragments_with_their_parent_layout_and_ocr_is_not_a_title(tmp_path):
+    from PIL import ImageDraw
+
+    from app.universal_content import image_content_pages
+
+    source = Presentation()
+    source.slide_width, source.slide_height = Inches(13.333), Inches(7.5)
+    page = source.slides.add_slide(source.slide_layouts[6])
+    for name, size, box in [('body', (900, 400), (1, 1, 10, 4)), ('solution', (140, 40), (1, 5.2, 1.2, .3))]:
+        image = Image.new('RGB', size, 'white')
+        ImageDraw.Draw(image).text((5, 5), name, fill='black')
+        path = tmp_path/(name+'.png')
+        image.save(path)
+        page.shapes.add_picture(str(path), *(Inches(n) for n in box))
+    assert image_content_pages(source) == [1]
+    source_path = tmp_path/'scanned.pptx'
+    source.save(source_path)
+    original = source_path.read_bytes()
+    target = tmp_path/'result.pptx'
+    build(target, asset('standard'), config(),
+          [('Slide 1 · chữ trong ảnh', 'Dưới 20', 'Under 20')], Event(), source_path)
+    output = Presentation(target)
+    pictures = [shape for shape in output.slides[0].shapes if int(shape.shape_type) == 13]
+    assert len(pictures) == 2
+    body, solution = sorted(pictures, key=lambda shape: -shape.width)
+    assert abs(body.left-solution.left) <= 1, 'Small solution label must stay aligned with the body'
+    assert solution.top > body.top
+    headings = [shape.text for shape in output.slides[0].shapes if shape.has_text_frame and shape.top < Inches(1.7)]
+    assert 'Dưới 20' not in headings and config()['title'] in headings
+    assert 'Under 20' in text(output) and source_path.read_bytes() == original
+    page.shapes.add_textbox(Inches(1), Inches(.1), Inches(8), Inches(.6)).text = 'Editable lesson title'
+    assert image_content_pages(source) == []
+
+
 def examples():
     return [
         ("Slide 1", "Cơ năng", "Mechanical energy"),

@@ -423,10 +423,10 @@ class Bridge(QObject):
     def exportSuggestion(self, kind):
         from datetime import datetime
 
-        from .download_names import presentation_suffix, suggestion
+        from .download_names import presentation_suffix, presentation_title, suggestion
 
         extension = kind if kind in {'pptx', 'biliclass', 'bcbackup', 'csv', 'zip', 'json'} else 'pptx'
-        title = 'BiliClass - Sao lưu ' + datetime.now().strftime('%Y-%m-%d') if kind == 'bcbackup' else self._lesson.get('title', 'Bài giảng')
+        title = 'BiliClass - Sao lưu ' + datetime.now().strftime('%Y-%m-%d') if kind == 'bcbackup' else presentation_title(self._lesson)
         if kind == 'json':
             title = 'BiliClass - Chẩn đoán ' + datetime.now().strftime('%Y-%m-%d')
         suffix = presentation_suffix(self._lesson, kind == 'zip') if kind in {'pptx', 'zip'} else ''
@@ -440,15 +440,14 @@ class Bridge(QObject):
         from .download_names import presentation_suffix, suggestion
 
         if len(identities) == 1:
-            from .lesson_narration import variant_id
+            from .final_narration import preferred_ready
 
             lesson = self.library.get(identities[0])
             title = lesson['title']
             row = next((row for row in self._catalog.rows() if row['id'] == identities[0]), {})
-            active = variant_id(lesson.get('narration'))
             variants = row.get('narration', {}).get('variants', [])
-            voice = bool(with_voice and any(item.get('id') == active and item.get('ready') for item in variants))
-            suffix, extension = presentation_suffix(lesson, voice), 'pptx'
+            choice = preferred_ready(variants) if with_voice else {}
+            suffix, extension = presentation_suffix({**lesson, 'narration': choice}, bool(choice)), 'pptx'
         else:
             title = f'BiliClass - {len(identities)} bài giảng - ' + datetime.now().strftime('%Y-%m-%d')
             suffix, extension = '', 'zip'
@@ -950,7 +949,7 @@ class Bridge(QObject):
                                        lessonId=lesson['id'])
             self.browserStateChanged.emit()
             self.conversionClockChanged.emit()
-            self._show_lesson(lesson, preview, destination='chatgpt', auto_repair=False, load_preview=False)
+            self._show_lesson(lesson, preview, destination='chatgpt', auto_repair=False)
             self._google_settings.refresh()
             self.inform('Đã lưu bài giảng song ngữ. Chọn bước tiếp theo khi sẵn sàng.', refresh=False)
 
@@ -1093,7 +1092,7 @@ class Bridge(QObject):
                                        lessonId=lesson['id'], message="Đã nhận bài giảng song ngữ.")
             self.browserStateChanged.emit()
             self.conversionClockChanged.emit()
-            self._show_lesson(lesson, preview, destination='chatgpt', auto_repair=False, load_preview=False)
+            self._show_lesson(lesson, preview, destination='chatgpt', auto_repair=False)
             message = "Đã lưu bài giảng. Chọn bước tiếp theo khi sẵn sàng."
             self.inform(message, refresh=False)
 
@@ -1119,10 +1118,13 @@ class Bridge(QObject):
             return
         if self._lesson.get('id') == identity and self.quickResult.get('lesson_id') == identity:
             self.navigate.emit(destination)
+            if destination == 'chatgpt' and not self.quickResult.get('image') and not self.previewBusy:
+                self.previewConvertedSlide(self.quickResult.get('slide', 1))
             return
         directory = self.library.directory
         self.launch(lambda: prepare_library_lesson(directory, identity),
-                    lambda result: self._show_lesson(*result, destination=destination, auto_repair=False, load_preview=False))
+                    lambda result: self._show_lesson(*result, destination=destination, auto_repair=False,
+                                                     load_preview=destination == 'chatgpt'))
 
     @Property("QVariantMap", notify=narrationChanged)
     def narrationPreparation(self):
@@ -2677,6 +2679,9 @@ class Bridge(QObject):
             if lesson.get("external_deck"):
                 from .voice_import import prepare_library_lesson
 
+                # Show the selected lesson immediately; normalization and file
+                # verification run on the worker before enabling its actions.
+                self._show_lesson(lesson, auto_repair=False, load_preview=False)
                 self.launch(lambda: prepare_library_lesson(self.library.directory, lesson_id),
                             lambda result: self._show_lesson(*result))
             else:
@@ -2977,7 +2982,7 @@ class Bridge(QObject):
 
     @Slot(int)
     def previewConvertedSlide(self, slide):
-        if self._busy or self.powerpoint_worker is not None or not self.quickResult:
+        if self._busy or self._powerpoint_state.get('active') or self._powerpoint_state.get('starting') or not self.quickResult:
             return
         result = dict(self.quickResult)
         if not 1 <= slide <= result.get("total", 0):
@@ -3536,10 +3541,10 @@ class Bridge(QObject):
 
     @Slot(bool, result=str)
     def presentationDownloadSuggestion(self, with_voice):
-        from .download_names import presentation_suffix, suggestion
+        from .download_names import presentation_suffix, presentation_title, suggestion
 
-        suffix = presentation_suffix(self._lesson, with_voice and bool(self.selectedNarrationVariant))
-        path = suggestion(QUrl(self.downloadsDirectory).toLocalFile(), self._lesson.get('title', 'BiliClass'), suffix, 'pptx')
+        suffix = presentation_suffix(self._lesson, with_voice and bool(self.selectedNarrationVariant) and self.lessonNarration.get('ready'))
+        path = suggestion(QUrl(self.downloadsDirectory).toLocalFile(), presentation_title(self._lesson), suffix, 'pptx')
         return QUrl.fromLocalFile(str(path)).toString()
 
     @Slot(str, bool)

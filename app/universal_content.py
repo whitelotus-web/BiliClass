@@ -180,6 +180,24 @@ def source_blocks(deck):
     return result
 
 
+def image_content_pages(deck):
+    """Pages without editable content need image layout preserved as a whole.
+
+    OCR labels alone cannot establish the role or coverage of scanned content.
+    This structural check does not guess a subject, heading or formula.
+    """
+    pages = []
+    for number, slide in enumerate(deck.slides, 1):
+        visible = [obj['shape'] for obj in source_objects(slide) if not obj['hidden']]
+        has_picture = any(int(shape.shape_type) == 13 for shape in visible)
+        has_content = any(shape.has_text_frame and shape.text.strip() or shape.has_table
+                          or shape.has_chart or shape._element.xpath('.//*[local-name()="oMath"]')
+                          for shape in visible)
+        if has_picture and not has_content:
+            pages.append(number)
+    return pages
+
+
 def empty_picture(shape, inset=.1):
     """A blank label panel is decoration; never remove a picture with interior ink.
 

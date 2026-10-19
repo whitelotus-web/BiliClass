@@ -1,13 +1,25 @@
 """Real Qt + local PowerPoint; API fixture only, no keys or teacher data sent."""
 import json
+import os
 import tempfile
 import time
 from pathlib import Path
 from threading import Event
 
 from pptx import Presentation
+from pptx.dml.color import RGBColor
 from pptx.util import Inches, Pt
-from PySide6.QtCore import QCoreApplication, QEvent, QEventLoop, QObject, QPointF, Qt, QTimer, QUrl
+from PySide6.QtCore import (
+    QCoreApplication,
+    QEvent,
+    QEventLoop,
+    QMetaObject,
+    QObject,
+    QPointF,
+    Qt,
+    QTimer,
+    QUrl,
+)
 from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
@@ -40,7 +52,7 @@ QQuickStyle.setStyle('Basic')
 for path in (RESOURCE_ROOT / 'assets').glob('*.ttf'):
     QFontDatabase.addApplicationFont(str(path))
 app.setFont(QFont('Be Vietnam Pro', 10))
-reports = Path('reports/google-api')
+reports = Path(os.environ.get('BILICLASS_GOOGLE_REPORT', 'reports/google-api'))
 reports.mkdir(parents=True, exist_ok=True)
 calls = []
 release_response = Event()
@@ -58,12 +70,15 @@ with tempfile.TemporaryDirectory(prefix='biliclass-google-ui-', ignore_cleanup_e
     source = directory / 'source.pptx'
     deck = Presentation()
     deck.slide_width, deck.slide_height = Inches(13.333), Inches(7.5)
-    slide = deck.slides.add_slide(deck.slide_layouts[6])
-    for text, y, h, size in [('Cơ năng', .4, 1, 32), ('Vật có vận tốc 12 m/s.', 2, 4, 24)]:
-        box = slide.shapes.add_textbox(Inches(.6), Inches(y), Inches(12), Inches(h))
-        box.text = text
-        box.text_frame.paragraphs[0].font.size = Pt(size)
-        box.text_frame.paragraphs[0].font.name = 'Arial'
+    for number in (1, 2):
+        slide = deck.slides.add_slide(deck.slide_layouts[6])
+        slide.background.fill.solid()
+        slide.background.fill.fore_color.rgb = RGBColor(255, 255, 255) if number == 1 else RGBColor(241, 247, 255)
+        for text, y, h, size in [('Cơ năng', .4, 1, 32), ('Vật có vận tốc 12 m/s.', 2, 4, 24)]:
+            box = slide.shapes.add_textbox(Inches(.6), Inches(y), Inches(12), Inches(h))
+            box.text = text
+            box.text_frame.paragraphs[0].font.size = Pt(size)
+            box.text_frame.paragraphs[0].font.name = 'Arial'
     deck.save(source)
     library = Library(directory / 'library')
     library.set_setting('chatgpt_request_folder', 'old-browser-job-must-not-run')
@@ -169,15 +184,44 @@ with tempfile.TemporaryDirectory(prefix='biliclass-google-ui-', ignore_cleanup_e
     assert lesson['external_deck']['provider'] == 'google_translate'
     assert lesson['narration']['mode'] == 'none'
     assert bridge.browserState['phase'] == 'completed'
-    pump(200)
+    until(lambda: not bridge.previewBusy and bool(bridge.quickResult.get('image')))
+    until(lambda: control('conversionCompletionImage').property('paintedWidth') > 0)
     assert window.property('page') == 'chatgpt', 'Completion must wait for the teacher to choose the next step'
     assert control('conversionCompletion').isVisible()
-    for name in ['openConvertedVoiceButton', 'downloadCompletedConversion', 'teachCompletedConversion', 'libraryAfterConversion']:
+    action_names = ['openConvertedVoiceButton', 'downloadCompletedConversion', 'teachCompletedConversion', 'libraryAfterConversion']
+    for name in action_names:
         assert control(name).isVisible() and control(name).isEnabled(), name
     assert not control('browserConversionCancel').isVisible()
+    assert control('conversionCompletionCounter').property('text') == 'Slide 1 / 2'
+    assert not control('conversionCompletionPrevious').isEnabled()
+    assert control('conversionCompletionNext').isEnabled()
+    first_image = bridge.quickResult['image']
+    click('conversionCompletionNext')
+    until(lambda: not bridge.previewBusy and bridge.quickResult['slide'] == 2 and bridge.quickResult['image'] != first_image)
+    assert control('conversionCompletionCounter').property('text') == 'Slide 2 / 2'
+    assert not control('conversionCompletionNext').isEnabled()
+    assert window.property('page') == 'chatgpt' and calls == [2]
+    click('conversionCompletionPrevious')
+    until(lambda: not bridge.previewBusy and bridge.quickResult['slide'] == 1 and bridge.quickResult['image'] == first_image)
+    assert not any(row['approved'] for row in library.get(lesson['id'])['segments'])
+    for width, height in ((1080, 700), (1366, 850), (1920, 1080)):
+        window.resize(width, height)
+        pump(150)
+        actions = [control(name) for name in action_names]
+        assert max(a.width() for a in actions) - min(a.width() for a in actions) <= 1
+        for item in actions:
+            point = item.mapToScene(QPointF())
+            assert point.x() >= 0 and point.x() + item.width() <= width
+            assert point.y() >= 0 and point.y() + item.height() < height
+        navigation = control('conversionCompletionNavigation')
+        counter = control('conversionCompletionCounter')
+        assert abs(navigation.mapToScene(QPointF(navigation.width()/2, 0)).x() - counter.mapToScene(QPointF(counter.width()/2, 0)).x()) <= 1
+        assert window.grabWindow().save(str(reports / f'completed-{width}.png'))
+    window.resize(1366, 850)
+    pump(100)
     assert window.grabWindow().save(str(reports / 'completed.png'))
     # Both navigation choices stay explicit; merely finishing must not start
-    # narration, preview rendering or a second conversion.
+    # narration, teaching or a second conversion. Inline preview is automatic.
     click('libraryAfterConversion')
     assert window.property('page') == 'library'
     window.setProperty('page', 'chatgpt')
@@ -190,6 +234,8 @@ with tempfile.TemporaryDirectory(prefix='biliclass-google-ui-', ignore_cleanup_e
     window.setProperty('page', 'chatgpt')
     until(lambda: not bridge.busy and bridge.lesson['id'] == completed_id)
     assert bridge.quickResult['lesson_id'] == completed_id, 'Completion actions must never target a different browsed lesson'
+    until(lambda: not bridge.previewBusy and bool(bridge.quickResult.get('image')))
+    assert control('conversionCompletionPreview').property('current')
     bridge.browserConversionProgress.emit({'stage': 'quality', 'percent': 72, 'message': 'late', 'runId': 'older-run'})
     pump(100)
     assert bridge.browserState['phase'] == 'completed' and bridge.browserState['percent'] == 100
@@ -197,6 +243,27 @@ with tempfile.TemporaryDirectory(prefix='biliclass-google-ui-', ignore_cleanup_e
     pump(100)
     click('openConvertedVoiceButton')
     assert window.property('page') == 'voice' and bridge.lesson['id'] == completed_id
+    guide = control('voiceWorkflowGuide')
+    heading = control('voicePageHeading')
+    assert guide.isVisible() and 'Chọn giọng đọc và ngôn ngữ' in guide.property('text')
+    assert guide.mapToScene(QPointF()).y() >= heading.mapToScene(QPointF()).y() + heading.height()
+    assert window.grabWindow().save(str(reports / 'voice-instructions.png'))
+    # A worker may remain attached after Office stops presenting; preview still works.
+    bridge.powerpoint_worker = object()
+    bridge._quick_result.update(image='')
+    bridge.quickResultChanged.emit()
+    click('toggleVoiceSlidePreview')
+    until(lambda: not bridge.previewBusy and bool(bridge.quickResult.get('image')))
+    until(lambda: control('convertedSlideImage').property('paintedWidth') > 0)
+    assert control('lessonSlidePreview').isVisible()
+    assert window.grabWindow().save(str(reports / 'voice-slide-preview.png'))
+    bridge.powerpoint_worker = None
+    save = window.findChild(QObject, 'presentationNoVoiceSaveDialog')
+    QMetaObject.invokeMethod(save, 'openSuggested')
+    pump(250)
+    suggested = Path(save.property('selectedFile').toLocalFile()).name
+    assert bridge.lesson['title'] in suggested and '(Song ngữ VI-EN)' in suggested, suggested
+    save.setProperty('visible', False)
     window.setProperty('page', 'new')
     pump(100)
     assert control('resumeCreationTask').property('text') == 'Mở bài vừa chuyển đổi'
@@ -206,7 +273,7 @@ with tempfile.TemporaryDirectory(prefix='biliclass-google-ui-', ignore_cleanup_e
     output = directory / 'download.pptx'
     bridge.exportPowerPoint(QUrl.fromLocalFile(str(output)).toString())
     until(lambda: not bridge._busy)
-    assert output.is_file() and len(Presentation(output).slides) == 1
+    assert output.is_file() and len(Presentation(output).slides) == 2
     assert calls == [2]
     assert all('key' not in row for row in bridge.googleSettings.state['keys'])
     for size in [(1366, 850), (1080, 700)]:
@@ -245,7 +312,10 @@ with tempfile.TemporaryDirectory(prefix='biliclass-google-ui-', ignore_cleanup_e
                          'cancel confirmation, keep working, confirmed discard, stale-confirmation guard',
                          'discard cannot resume; cached response and usage retained; new run succeeds',
                          'cancel during preparation before UI knows folder; earlier completed lesson retained',
-                         'separate voice step; download without voice', 'two window sizes; no QML warnings'],
+                         'completion immediately shows real slides; previous/next without leaving completion',
+                         'four balanced actions at 1080/1366/1920; restore exact completed lesson',
+                         'voice preview works with inactive attached Office worker; fresh native filename uses current title',
+                         'separate voice step; download without voice', 'no QML warnings'],
               'qml_warnings': warnings, 'max_ui_gap_seconds': round(max(b-a for a,b in zip(beats, beats[1:])), 3)}
     (reports / 'qt-flow.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
     print(json.dumps(result, ensure_ascii=False))

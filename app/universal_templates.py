@@ -328,7 +328,7 @@ def _prune_unused(slide, slots, used):
                     slide.shapes._spTree.remove(shape._element)
 
 
-def _media(source_slide, deck_size=None, inline_expressions=()):
+def _media(source_slide, deck_size=None, inline_expressions=(), *, preserve_picture_layout=False):
     from .slide_speech import objects
     # Keep native equations and pictures, including group-relative pictures.
     result, seen = [], set()
@@ -336,7 +336,7 @@ def _media(source_slide, deck_size=None, inline_expressions=()):
         shape = obj['shape']
         if obj['hidden'] or shape._element in seen:
             continue
-        if int(shape.shape_type) == 13:
+        if int(shape.shape_type) == 13 and not preserve_picture_layout:
             from .universal_content import decorative_picture
 
             if deck_size and decorative_picture(obj, deck_size):
@@ -399,7 +399,7 @@ def _media(source_slide, deck_size=None, inline_expressions=()):
                 result.append({**obj, 'shape': cloned, 'w': cloned.width, 'h': cloned.height})
             seen.add(shape._element)
         elif int(shape.shape_type) in {13, 16} or shape.has_chart or math:
-            accent = (deck_size is not None and int(shape.shape_type) == 13
+            accent = (not preserve_picture_layout and deck_size is not None and int(shape.shape_type) == 13
                       and obj['w'] < deck_size[0]*.12 and obj['h'] < deck_size[1]*.2)
             result.append({**obj, 'accent': accent})
             seen.add(shape._element)
@@ -549,9 +549,10 @@ def build(target, template, config, pairs, cancel, source=None):
         key = int(match[1]) if match else 0
         groups.setdefault(key, []).append(pair)
     source_deck = Presentation(source) if source and Path(source).suffix.lower() == '.pptx' else None
-    from .universal_content import inline_math, source_objects
+    from .universal_content import image_content_pages, inline_math, source_objects
 
     equations_xml = inline_math(source_deck) if source_deck else {}
+    image_pages = set(image_content_pages(source_deck)) if source_deck else set()
 
     def fill(shape, value, english=False, title=False):
         return _fill(shape, value, english, title, maths=equations_xml)
@@ -683,7 +684,8 @@ def build(target, template, config, pairs, cancel, source=None):
         cells = [p for p in data if ' · ô ' in p[0]]
         data = [p for p in data if ' · ô ' not in p[0]]
         # Plain documents keep their first paragraph as content, not a new title.
-        title = data.pop(0) if number and data and not formula(data[0][1]) else title_fallback
+        title = (data.pop(0) if number and data and ' · chữ trong ảnh' not in data[0][0]
+                 and not formula(data[0][1]) else title_fallback)
         if data and re.fullmatch(r'[IVXLCDMivxlcdm\d.)\s]+',title[1]) and len(title[1])<12:
             heading=data.pop(0)
             title=(title[0],title[1]+' '+heading[1],title[1]+' '+heading[2])
@@ -691,7 +693,9 @@ def build(target, template, config, pairs, cancel, source=None):
             marker = data.pop(0)[1]
             title = (title[0], marker + ' · ' + title[1], marker + ' · ' + title[2])
         represented = set(re.findall(r'\$([^$]+)\$', '\n'.join(p[1] for p in [title]+data)))
-        native = _media(source_deck.slides[number-1], (source_deck.slide_width, source_deck.slide_height), represented) if source_deck and number else []
+        image_primary = number in image_pages and not any(' · chữ trong ảnh' not in pair[0] for pair in groups[number])
+        native = _media(source_deck.slides[number-1], (source_deck.slide_width, source_deck.slide_height), represented,
+                        preserve_picture_layout=image_primary) if source_deck and number else []
         # Native math is shared once. Plain equations also stay once in a formula slot.
         equations = [p for p in data if formula(p[1])]
         data = [p for p in data if not formula(p[1])]

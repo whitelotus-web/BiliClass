@@ -115,7 +115,7 @@ def recognize(files, cancel, notify=None, *, timeout=300):
         events.close()
 
 
-def extract_pictures(source, directory, cancel, progress=None, *, recognizer=None):
+def extract_pictures(source, directory, cancel, progress=None, *, recognizer=None, include_animated=False):
     from pptx import Presentation
 
     from .local_ocr import model_paths
@@ -151,7 +151,7 @@ def extract_pictures(source, directory, cancel, progress=None, *, recognizer=Non
                 if parent.tag.endswith("}grpSp")
             ):
                 continue
-            if any(str(key) in animated for key in item["ancestors"]):
+            if not include_animated and any(str(key) in animated for key in item["ancestors"]):
                 continue  # Never reveal text hidden behind a classroom trigger.
             crop_values=[getattr(shape,'crop_'+side,0) for side in ('left','top','right','bottom')]
             left,top,right,bottom=crop_values
@@ -185,7 +185,7 @@ def extract_pictures(source, directory, cancel, progress=None, *, recognizer=Non
                 }
             )
     if not occurrences:
-        return {"rows": [], "warnings": warnings, "images": 0}
+        return {"rows": [], "warnings": warnings, "images": 0, "text_pages": []}
     if recognizer is None and not model_paths():
         return {
             "rows": [],
@@ -251,4 +251,8 @@ def extract_pictures(source, directory, cancel, progress=None, *, recognizer=Non
                     "image": str(pictures[occurrence["key"]]),
                 }
             )
-    return {"rows": rows, "images": len(pictures), "warnings": list(dict.fromkeys(warnings))}
+    text_pages = sorted({occurrence['slide'] for occurrence in occurrences
+                         if any(sum(c.isalpha() for c in line['text']) >= 4
+                                for line in cached[occurrence['key']])})
+    return {"rows": rows, "images": len(pictures), "warnings": list(dict.fromkeys(warnings)),
+            "text_pages": text_pages}

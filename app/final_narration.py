@@ -15,13 +15,20 @@ def available_modes(rows):
     return result
 
 
+def preferred_ready(rows):
+    """One selection policy for verified audio and its cached download label."""
+    ready = [(index, row) for index, row in enumerate(rows) if row.get('ready') and row.get('mode') in MODES]
+    return max(ready, key=lambda item: (len(MODES[item[1]['mode']]),
+               item[1].get('playback') == 'both_controls', item[0]))[1] if ready else {}
+
+
 def select_final(lesson, directory, cancel=None):
     """Prefer the most complete ready product, then the latest saved product."""
     context, ready = {}, []
-    for index, record in enumerate(records(lesson).values()):
+    for record in records(lesson).values():
         state = audio_status({**lesson, 'narration': record}, directory, cancel=cancel, _context=context)
         if state.get('ready'):
-            score = (len(MODES[record['mode']]), record.get('playback') == 'both_controls', index)
-            ready.append((score, record))
-    selected = max(ready, key=lambda row: row[0])[1] if ready else {'version': 2, 'mode': 'none'}
+            ready.append({**state, 'record': record})
+    choice = preferred_ready(ready)
+    selected = choice['record'] if choice else {'version': 2, 'mode': 'none'}
     return {**lesson, 'narration': selected}

@@ -31,7 +31,7 @@ from app.ui import Bridge
 def main():
     app = QGuiApplication([])
     QQuickStyle.setStyle('Basic')
-    out = Path('reports/rc92/teaching')
+    out = Path(os.environ.get('BILICLASS_TEACHING_REPORT', 'reports/rc92/teaching'))
     out.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='bcl-teaching-', ignore_cleanup_errors=True) as folder:
         folder = Path(folder)

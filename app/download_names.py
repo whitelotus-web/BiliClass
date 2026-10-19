@@ -21,17 +21,15 @@ def suggestion(folder, title, suffix, extension):
     return target
 
 
-def presentation_suffix(lesson, with_voice=False):
-    """One product name for the workspace, library and files inside ZIPs."""
-    if with_voice and (record := lesson.get('narration')):
-        from . import speech
+def presentation_title(lesson):
+    title = str(lesson.get('title') or '').strip()
+    return title or Path(lesson.get('source', {}).get('name') or '').stem or 'Bài giảng'
 
-        language = {'en': 'Anh', 'vi': 'Việt', 'both': 'Việt–Anh'}.get(record.get('mode'), '')
-        voice = next((v.get('name', '').split(' · ')[0] for v in (*speech.VIENEU_VOICES, *speech.ALL_PAIRS)
-                      if v['id'] == record.get('voice')), record.get('voice', '').split(':')[-1])
-        rate = record.get('rate', 0)
-        speed = round(speech._SPEEDS[rate + 3] * 100) if type(rate) is int and -3 <= rate <= 3 else 100
-        return f'Có giọng {language} · {voice} · {speed}%'
-    if lesson.get('voice_only'):
-        return 'Nguyên bản · Không giọng'
-    return ('Tiếng Anh' if lesson.get('conversion_format') == 'english_only' else 'Song ngữ Việt–Anh')
+
+def presentation_suffix(lesson, with_voice=False):
+    """Describe the actual conversion and audio languages, across all downloads."""
+    base = ('Nguyên bản' if lesson.get('voice_only') else
+            'Tiếng Anh' if lesson.get('conversion_format') == 'english_only' else 'Song ngữ VI-EN')
+    record = lesson.get('narration') or {}
+    language = {'en': 'EN', 'vi': 'VI', 'both': 'VI-EN'}.get(record.get('mode'))
+    return base + (f' - Voice {language}' if with_voice and language else '')

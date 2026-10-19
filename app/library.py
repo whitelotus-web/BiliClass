@@ -627,6 +627,7 @@ class Library:
             "text_signature": text_signature(lesson), "reviewed_revision": 0,
             "conversion_format": config.get("conversion_format", ""),
             "review_notes": inspection.get("review_notes", []),
+            **({'content_review': inspection['content_review']} if inspection.get('content_review') else {}),
             **({'layout_plan':inspection['layout_plan']} if inspection.get('layout_plan') else {}),
         }
         lesson["slide_speech"] = inspection.get("slide_speech", {})

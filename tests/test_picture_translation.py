@@ -11,6 +11,44 @@ from app.picture_ocr import extract_pictures
 from app.picture_translation import apply_picture_translations, background
 
 
+def test_template_ocr_can_include_animated_content_without_exposing_it_in_preserved_design(tmp_path):
+    from lxml import etree
+
+    path = source(tmp_path)
+    deck = Presentation(path)
+    slide = deck.slides[0]
+    identity = slide.shapes[0].shape_id
+    slide._element.append(etree.fromstring(
+        f'<p:timing xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">'
+        f'<p:tnLst><p:par><p:cTn id="1"><p:childTnLst><p:anim><p:cBhvr><p:cTn id="2"/>'
+        f'<p:tgtEl><p:spTgt spid="{identity}"/></p:tgtEl></p:cBhvr></p:anim></p:childTnLst>'
+        '</p:cTn></p:par></p:tnLst></p:timing>'
+    ))
+    deck.save(path)
+    before = path.read_bytes()
+    assert not extract_pictures(path, tmp_path/'preserved', Event(), recognizer=recognizer)['rows']
+    assert extract_pictures(path, tmp_path/'template', Event(), recognizer=recognizer, include_animated=True)['rows']
+    assert path.read_bytes() == before
+
+
+def test_no_image_labels_are_remembered_without_rescanning_or_changing_audio(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from app.picture_narration import prepare
+
+    path = source(tmp_path)
+    lesson = {'source': {'file': 'source.pptx', 'sha256': 'fixture'}, 'narration': {'keys': {'en': ['old-key']}}}
+    calls = []
+    monkeypatch.setattr('app.powerpoint.verified_presentation', lambda *_: path)
+    monkeypatch.setattr('app.picture_narration._legacy_pages', lambda *_: calls.append(1) or {})
+    library = SimpleNamespace(directory=tmp_path)
+    assert prepare(lesson, library)
+    assert not prepare(lesson, library)
+    assert calls == [1] and lesson['narration']['keys'] == {'en': ['old-key']}
+    lesson['source']['sha256'] = 'changed-source'
+    assert prepare(lesson, library) and calls == [1, 1]
+
+
 def source(tmp_path, *, busy=False):
     image = Image.new("RGB", (1000, 600), "white")
     draw = ImageDraw.Draw(image)

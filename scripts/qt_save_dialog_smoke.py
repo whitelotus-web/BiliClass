@@ -26,8 +26,12 @@ def main():
     engine.loadData(b'''import QtQuick
 import QtQuick.Controls
 ApplicationWindow {
+    id: fixture
+    property url currentSuggestion
     visible: true; width: 520; height: 220
     SuggestedSaveDialog { objectName: "save"; title: "BiliClass filename regression";
+        suggestedFile: "file:///C:/BiliClass.pptx"
+        suggestionProvider: function() { return fixture.currentSuggestion }
         defaultSuffix: "pptx"; nameFilters: ["PowerPoint (*.pptx)"] }
 }''', QUrl.fromLocalFile(str(RESOURCE_ROOT / 'qml/SaveDialogSmoke.qml')))
     assert engine.rootObjects(), warnings
@@ -35,8 +39,10 @@ ApplicationWindow {
     dialog = window.findChild(QObject, 'save')
     checked = []
     with tempfile.TemporaryDirectory(prefix='bcl-save-name-') as folder:
-        cases = [('Bài 1. Hệ điều hành', 'Song ngữ Việt–Anh'),
-                 ('Bài 2. Mạng máy tính', 'Có giọng Anh · Mai Anh · 100%')]
+        cases = [('C3_ÔN TẬP CHƯƠNG 3', 'Song ngữ VI-EN'),
+                 ('Bài 2. Mạng máy tính', 'Song ngữ VI-EN - Voice VI'),
+                 ('Bài 3. Cơ năng', 'Song ngữ VI-EN - Voice EN'),
+                 ('Bài 4. Dao động', 'Song ngữ VI-EN - Voice VI-EN')]
         pending = {'deadline': 0, 'target': None, 'error': ''}
 
         def open_next():
@@ -47,7 +53,7 @@ ApplicationWindow {
             target = suggestion(folder, title, suffix, 'pptx')
             pending.update(target=target, deadline=time.monotonic() + 10)
             dialog.setProperty('currentFolder', QUrl.fromLocalFile(folder))
-            dialog.setProperty('suggestedFile', QUrl.fromLocalFile(str(target)))
+            window.setProperty('currentSuggestion', QUrl.fromLocalFile(str(target)))
             QMetaObject.invokeMethod(dialog, 'openSuggested')
 
         def inspect():
@@ -85,7 +91,7 @@ ApplicationWindow {
         assert not pending['error'], pending['error']
         assert len(checked) == len(cases), checked
         assert not warnings, warnings
-        out = Path('reports/rc73/save-dialog.json')
+        out = Path(os.environ.get('BILICLASS_SAVE_REPORT', 'reports/rc73/save-dialog.json'))
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps({'status': 'passed', 'native_filename_fields': checked,
                                    'qml_warnings': warnings}, ensure_ascii=False, indent=2), encoding='utf-8')

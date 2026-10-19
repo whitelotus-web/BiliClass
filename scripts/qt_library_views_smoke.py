@@ -1,6 +1,7 @@
 """Real Qt list/cards, native first-slide covers and selection routing."""
 
 import json
+import os
 import sys
 import tempfile
 from pathlib import Path
@@ -24,7 +25,7 @@ from app.ui import Bridge
 def main():
     app = QGuiApplication([])
     QQuickStyle.setStyle("Basic")
-    report = Path("reports/rc62/library-views")
+    report = Path(os.environ.get('BILICLASS_LIBRARY_REPORT', 'reports/rc62/library-views'))
     report.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="biliclass-views-", ignore_cleanup_errors=True) as folder:
         library = Library(Path(folder))
@@ -99,6 +100,7 @@ def main():
             click(window, c("lessonEdit_" + identity))
             assert c("lessonMetadataDialog").property("visible") and not selected()
             QMetaObject.invokeMethod(c("lessonMetadataDialog"), "reject", Qt.DirectConnection)
+            click(window, c('lessonMore_' + identity))
             click(window, c("lessonDelete_" + identity))
             assert c("deleteLessonDialog").property("visible") and not selected()
             click(window, c("cancelDeleteLessonButton"))
@@ -162,7 +164,7 @@ def main():
             ids = c("libraryDownloadDialog").property("identities").toVariant()
             assert ids == [identity]
             QMetaObject.invokeMethod(c("libraryDownloadDialog"), "close", Qt.DirectConnection)
-            for width, height, columns in ((1080, 700, 2), (1366, 850, 3)):
+            for width, height, columns in ((1080, 700, 2), (1366, 850, 3), (1920, 1080, 4)):
                 window.resize(width, height)
                 pump(250)
                 c("libraryHomeScroll").property("contentItem").setProperty("contentY", 0)
@@ -178,6 +180,27 @@ def main():
                 assert pos.x() + view.width() < width
                 assert abs(pos.y() - sort.mapToScene(QPointF()).y()) < 3
                 assert window.grabWindow().save(str(report / f"cards-{width}.png"))
+                normal_width = c('lessonCard_' + identity).width()
+                search = c('librarySearch')
+                assert not c('libraryClearSearch').isVisible()
+                for query, count in [('tin hoc', 1), ('vat ly', 2)]:
+                    search.setProperty('text', query)
+                    pump(300)
+                    rows = window.property('libraryResult')['rows']
+                    assert len(rows) == count
+                    first = c('lessonCard_' + rows[0]['id'])
+                    assert abs(first.width() - normal_width) <= 1, (width, query, normal_width, first.width())
+                    assert abs(first.mapToScene(QPointF()).x() - c('libraryGrid').mapToScene(QPointF()).x()) <= 1
+                    assert c('libraryClearSearch').isVisible()
+                    assert window.grabWindow().save(str(report / f'cards-{width}-{count}-results.png'))
+                    click(window, c('libraryClearSearch'))
+                    assert search.property('text') == '' and search.hasActiveFocus()
+                    assert not c('libraryClearSearch').isVisible()
+                    pump(200)
+                    assert len(window.property('libraryResult')['rows']) == 3
+            window.resize(1366, 850)
+            pump(200)
+            click(window, c('lessonSelect_' + identity))
             click(window, c("libraryViewToggle"))
             pump(150)
             assert bridge.libraryView == "list" and c("lessonSelect_" + identity).property("checked")
@@ -193,6 +216,18 @@ def main():
             pump(400)
             assert len(bridge.libraryThumbnails.wanted) == 1
             assert not c("librarySelectAll").property("checked"), "Filtering clears selection"
+            # Clearing a keyword must preserve the independently selected subject filter.
+            subject = c('librarySubjectFilter')
+            choices = subject.property('model')
+            subject.setProperty('currentIndex', next(i for i, row in enumerate(choices) if row['id'] == 'Vật lý'))
+            pump(200)
+            click(window, c('libraryClearSearch'))
+            assert c('librarySearch').property('text') == ''
+            assert subject.property('currentValue') == 'Vật lý'
+            assert len(window.property('libraryResult')['rows']) == 2
+            subject.setProperty('currentIndex', 0)
+            c('librarySearch').setProperty('text', 'tin hoc')
+            pump(200)
             window.setProperty("page", "home")
             pump(250)
             assert not c("libraryGrid").isVisible()
@@ -267,6 +302,8 @@ def main():
                     "list/grid preference persisted",
                     "selection and exact download IDs survive switch",
                     "filters keep same behavior",
+                    "one/two search results retain normal card width and left alignment at 1080/1366/1920",
+                    "clear-search button restores results and focus, hides on empty text, preserves other filters",
                     "16:9 covers; 2 columns at 1080, 3 at 1366; single 40px toggle right of sort",
                     "four-square and three-line icons match current mode and swap each click",
                     "home stays list; no duplicate new-lesson button",

@@ -1,6 +1,7 @@
 from copy import deepcopy
 
 from app.lesson_review import summarize
+from app.lesson_state import summarize_state
 
 
 def lesson():
@@ -30,6 +31,19 @@ def test_missing_translation_cannot_be_confirmed():
     item['segments'][0]['en'] = ''
     state = summarize(item)
     assert state['kind'] == 'incomplete' and not state['canConfirm']
+
+
+def test_available_presentation_does_not_require_classroom_approval_but_unread_images_never_claim_ready():
+    item = lesson()
+    item['external_deck'] = {'total': 1}
+    assert summarize(item)['label'] == 'Sẵn sàng trình chiếu'
+    assert not item['segments'][0]['approved']
+    item['external_deck']['content_review'] = {'coverage': 'unverified', 'message': 'Images need coverage checking.'}
+    state = summarize(item)
+    assert state['kind'] == 'incomplete' and not state['canConfirm']
+    item['segments'][0]['approved'] = True
+    item['prepared'] = {'revision': 1, 'source_sha256': ''}
+    assert not summarize_state(item)['content_ready'] and not summarize_state(item)['prepared']
 
 
 def test_approved_text_and_current_preparation_have_different_states():
