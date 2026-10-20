@@ -253,7 +253,7 @@ def test_invalid_numeric_translation_gets_only_one_focused_correction(translatio
     result = web.convert(store.get(), store.root, request["folder"], Event(), lambda _: None, timeout=20)
     native = [row for row in capture["sent"] if not row["files"]]
     assert len(native) == 2 and "Sửa JSON" in native[1]["prompt"]
-    assert "12 m/s." in Presentation(result["path"]).slides[0].shapes[0].text
+    assert "12 m/s." in Presentation(result["path"]).slides[0].shapes[0].text.replace('\u00a0', ' ')
 
 
 def test_received_batches_resume_local_merge_without_new_browser_or_send(translation_site, monkeypatch):

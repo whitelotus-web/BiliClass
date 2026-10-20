@@ -13,9 +13,17 @@ from lxml import etree
 from .input_analysis import EN_WORDS, language_of
 
 SCHEMA = 1
+EXTRACTION_VERSION = 2
 VI_MARKS = set("ăâđêôơưáàảãạắằẳẵặấầẩẫậéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ")
 TERMS = set("velocity acceleration kinetic potential mechanical energy work power force momentum mass speed displacement amplitude frequency period equilibrium oscillation gravity gravitational spring elastic friction conservation joule watt definition conclusion evidence answer question activity exercise solution distance height horizontal vertical positive negative maximum minimum chapter lesson introduction summary objective objectives sequences arithmetic geometric progression cell photosynthesis noun verb water oxygen hydrogen carbon atom molecule electron proton neutron voltage current resistance derivative integral triangle rectangle square volume area history geography computer software hardware technology art music physical education language literature culture environment ecosystem temperature pressure density heat magnetic electric thermal chemical biology chemistry physics mathematics".split())
 KINDS = {"title", "body", "caption", "question", "option", "keyword"}
+LABEL_PREFIX = re.compile(r"^\s*(?:\d+|[IVX]+|[A-D])[.)/]\s+", re.I)
+
+
+def neutral_fragment(text):
+    return bool(text) and not re.search(r'[^\W\d_]', text, re.UNICODE)
+
+
 # PowerPoint uses vertical tab for a normal soft line break (<a:br>).
 TECHNICAL = re.compile(r"BILICLASS_NOTES|englishSpeechSegments|^\s*(?:CHECK|QUIZ|SPEECH)\s*:|https?://|\b19wx568\b|\b(?:CHAPTER|CHƯƠNG)\s+s\s*\d|\ufffd|[\x00-\x08\x0c\x0e-\x1f]", re.I)
 
@@ -55,9 +63,9 @@ def english_text(text, *, tagged=False):
         text = identifiers
     if any(c in VI_MARKS for c in text.casefold()):
         return False
-    words = re.findall(r"[a-z]+", re.sub(r"^[A-D][.)]\s*", "", text).casefold())
+    words = re.findall(r"[a-z]+", LABEL_PREFIX.sub("", text).casefold())
     if not words:
-        return False
+        return tagged and neutral_fragment(text)
     if language_of(text) == "vi":
         return False
     if tagged:
@@ -243,15 +251,23 @@ def _candidates(item, mode, metadata):
     # Language-tagged runs preserve embedded terms, but never trust a Vietnamese run tagged en.
     if not output and (mode == 'integrated_keywords' or not any(c in VI_MARKS for c in text.casefold())):
         tagged = []
+        has_english = False
+        mixed_vi = any(c in VI_MARKS for c in item["text"].casefold())
         for run in item["runs"]:
             props = run._r.find("{http://schemas.openxmlformats.org/drawingml/2006/main}rPr")
-            mixed_vi = any(c in VI_MARKS for c in item["text"].casefold())
             if props is not None and props.get("lang", "").lower().startswith("en") and english_text(run.text, tagged=not mixed_vi):
                 tagged.append(run.text)
+                has_english = True
+            elif not mixed_vi and neutral_fragment(run.text):
+                # A separate number/punctuation run belongs to the same
+                # English phrase, even when its font/language is inherited.
+                tagged.append(run.text)
             elif tagged:
-                output.append("".join(tagged).strip())
+                if has_english:
+                    output.append("".join(tagged).strip())
                 tagged = []
-        if tagged:
+                has_english = False
+        if tagged and has_english:
             output.append("".join(tagged).strip())
     # AI may identify an inline term but must bind it to a real native substring.
     for segment in metadata:
@@ -388,7 +404,8 @@ def inspect_slide(slide, number, mode="", notes_en="", bounds=None):
 
 
 def deck_speech(path, deck, mode="", pairs=()):
-    return {"schema_version": SCHEMA, "sha256": hashlib.sha256(Path(path).read_bytes()).hexdigest(),
+    return {"schema_version": SCHEMA, "extraction_version": EXTRACTION_VERSION,
+            "sha256": hashlib.sha256(Path(path).read_bytes()).hexdigest(),
             "slides": [inspect_slide(slide, i, mode, pairs[i - 1].get("en", "") if i <= len(pairs) else "",
                                      bounds=(deck.slide_width,deck.slide_height))
                        for i, slide in enumerate(deck.slides, 1)]}
@@ -411,8 +428,11 @@ def visible_segments(slide, click_index=None, settled_seconds=0):
 
 
 def speech_chunks(text, limit=1500):
-    """Prefer sentence boundaries; refuse a giant token rather than truncate it."""
+    """Keep paragraph breaks audible; split oversized paragraphs at sentences."""
     text = text.replace('\u00a0', ' ').replace('\u202f', ' ')
+    paragraphs = [part.strip() for part in re.split(r'[\r\n\v]+', text) if part.strip()]
+    if len(paragraphs) > 1:
+        return [chunk for paragraph in paragraphs for chunk in speech_chunks(paragraph, limit)]
     chunks, current = [], ""
     for sentence in re.split(r"(?<=[.!?;])\s+|\n+", text.strip()):
         if len(sentence) > limit:

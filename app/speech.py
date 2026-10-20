@@ -97,6 +97,11 @@ def audio_key(text, voice_id, rate):
     # Preserve identity of old portable WAVs; their engines are no longer offered.
     provider = (ENGLISH_VERSION if voice_id in ENGLISH_VOICES else VIENEU_VERSION if voice_id in _VIENEU_BY_ID else
                 "kokoro-v1_0-sherpa-1.13.8" if voice_id.startswith("kokoro:") else "sapi-v1")
+    if voice_id in ENGLISH_VOICES:
+        from .spoken_labels import VERSION, english
+
+        if english(text) != text:
+            provider += '|' + VERSION
     payload = json.dumps({"text": text, "voice": voice_id, "rate": rate, "provider": provider}, sort_keys=True)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 

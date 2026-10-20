@@ -3006,13 +3006,14 @@ class Bridge(QObject):
 
     @Slot(int)
     def previewConvertedSlide(self, slide):
-        if self._busy or self._powerpoint_state.get('active') or self._powerpoint_state.get('starting') or not self.quickResult:
+        if self._busy or not self.quickResult:
             return
         result = dict(self.quickResult)
         if not 1 <= slide <= result.get("total", 0):
             return
-        self.stopSpeech()
-        self._quick_result.update(slide=slide)
+        if not self._powerpoint_state.get('active'):
+            self.stopSpeech()
+        self._quick_result.update(slide=slide, preview_note='')
         self.quickResultChanged.emit()
         self.slidePreview.start(self._lesson,result,slide)
 

@@ -315,7 +315,7 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
     translator = translator or Translator(directory, budget)
     if hasattr(translator, 'configure_terms'):
         with closing(Library(directory)) as library:
-            translator.configure_terms(config.get('subject', ''), library.glossary(config.get('subject', '')))
+            translator.configure_terms(config.get('subject', ''), library.glossary())
     if cancel.is_set():
         raise InterruptedError('Đã dừng chuyển đổi.')
     completed = folder / 'saved.json'

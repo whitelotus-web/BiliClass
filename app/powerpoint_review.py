@@ -2,9 +2,11 @@
 
 import hashlib
 import json
+import shutil
 import time
 from datetime import date
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from threading import RLock
 
 _preview_lock = RLock()
@@ -44,14 +46,21 @@ def _render_preview_pages(path,pages,directory,sha256):
     except (OSError,ValueError):
         pass
     office=deck=None
+    temporary = TemporaryDirectory(prefix='biliclass-preview-', dir=folder, ignore_cleanup_errors=True)
     existing=any((p.info['name'] or '').lower()=='powerpnt.exe' for p in psutil.process_iter(['name']))
     pythoncom.CoInitialize()
     try:
+        # PowerPoint may return an already open presentation for the same path.
+        # Render a private copy so Close() never closes the teacher's live deck.
+        preview_path = Path(temporary.name) / 'preview.pptx'
+        shutil.copyfile(path, preview_path)
+        if hashlib.sha256(preview_path.read_bytes()).hexdigest() != sha256:
+            raise ValueError('Bài giảng vừa thay đổi. Mở lại bài để xem bản mới.')
         office=win32com.client.DispatchEx('PowerPoint.Application')
         from .office_tasks import native_progress, register_office
 
         register_office(office)
-        deck=office.Presentations.Open(str(Path(path).resolve()),ReadOnly=True,Untitled=False,WithWindow=False)
+        deck=office.Presentations.Open(str(preview_path.resolve()),ReadOnly=True,Untitled=False,WithWindow=False)
         for page in pages:
             native_progress(f'Đang dựng ảnh xem trước slide {page}…')
             if not 1<=page<=deck.Slides.Count:
@@ -85,6 +94,7 @@ def _render_preview_pages(path,pages,directory,sha256):
             office.Quit()
         office=deck=None
         pythoncom.CoUninitialize()
+        temporary.cleanup()
 
 
 def render_slide(path, slide, directory):

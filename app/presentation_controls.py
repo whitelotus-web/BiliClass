@@ -11,7 +11,7 @@ def _node(parent, tag, **attributes):
     return etree.SubElement(parent, f"{{{NS['p']}}}{tag}", **{k: str(v) for k, v in attributes.items()})
 
 
-def picture(media, identity, language, icon_relation, *, paused=False):
+def picture(media, identity, language, icon_relation, *, paused=False, crop=None):
     result = copy.deepcopy(media)
     props = result.find('p:nvPicPr/p:cNvPr', NS)
     props.set('id', str(identity))
@@ -26,6 +26,12 @@ def picture(media, identity, language, icon_relation, *, paused=False):
     for child in list(application):
         application.remove(child)
     result.find('p:blipFill/a:blip', NS).set(f"{{{NS['r']}}}embed", icon_relation)
+    if crop:
+        fill = result.find('p:blipFill', NS)
+        existing = fill.find('a:srcRect', NS)
+        if existing is not None:
+            fill.remove(existing)
+        fill.insert(1, etree.Element(f"{{{NS['a']}}}srcRect", **crop))
     return result
 
 
@@ -79,28 +85,17 @@ def add_controls(tree, controls, *, managed=False):
         _node(_node(effect, 'stCondLst'), 'cond', delay='0')
         return _node(effect, 'childTnLst')
 
-    initial = effects(children) if not managed else None
+    initial = effects(children)
     for media_id, ready_id, pause_id, _duration in controls:
-        if not managed:
-            visibility(initial, ready_id, True)
-            visibility(initial, pause_id, False)
+        visibility(initial, ready_id, True)
+        visibility(initial, pause_id, False)
         media = _node(_node(children, 'audio'), 'cMediaNode', vol='80000')
         media_clock = clock(media, fill='hold', display='0')
         _node(_node(media_clock, 'stCondLst'), 'cond', delay='indefinite')
         target(media, media_id)
-        if managed:
-            # The bound Mascot session owns click/pause state. Native picture
-            # animations must not hide its pause badge or start a second voice.
-            # A neutral trigger gives PowerPoint its normal hand cursor. If a
-            # hook is unavailable, clicking neither advances a build nor plays
-            # audio: the only effect targets the already transparent media host.
-            for trigger in (ready_id, pause_id):
-                sequence = clock(_node(children, 'seq', concurrent='1'), restart='always', fill='hold',
-                                 evtFilter='cancelBubble', nodeType='interactiveSeq')
-                condition = _node(_node(sequence, 'stCondLst'), 'cond', evt='onClick', delay='0')
-                target(condition, trigger)
-                visibility(effects(_node(sequence, 'childTnLst')), media_id, True)
-            continue
+        # Managed clicks are consumed by BiliClass before Office receives
+        # them. Native actions remain as a working fallback if input control
+        # is unavailable, and also work in a standalone exported PowerPoint.
         for trigger, pause in ((ready_id, False), (pause_id, True)):
             sequence = clock(_node(children, 'seq', concurrent='1'), restart='always', fill='hold',
                              evtFilter='cancelBubble', nodeType='interactiveSeq')

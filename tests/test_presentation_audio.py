@@ -51,7 +51,7 @@ def fixture(tmp_path, mode="both", crowded=False):
     return library, lesson, path
 
 
-def test_managed_teaching_buttons_have_one_state_owner_and_no_native_click_commands(tmp_path):
+def test_managed_teaching_buttons_retain_native_fallback_when_input_control_is_unavailable(tmp_path):
     from app.presentation_audio import embed_audio
 
     library, lesson, source = fixture(tmp_path)
@@ -61,13 +61,11 @@ def test_managed_teaching_buttons_have_one_state_owner_and_no_native_click_comma
         with zipfile.ZipFile(target) as archive:
             tree = etree.fromstring(archive.read(source_slide_parts(target)[0]))
         assert len(tree.findall('.//p:audio', NS)) == 2
-        assert not tree.xpath('.//p:cmd', namespaces=NS), 'Only the shared session may start/pause audio'
+        assert set(tree.xpath('.//p:cmd/@cmd', namespaces=NS)) == {'pause', 'togglePause', 'stop'}
         triggers = tree.xpath('.//p:cTn[@nodeType="interactiveSeq"]', namespaces=NS)
         assert len(triggers) == 4, 'Both ready and pause pictures retain a native hand cursor'
-        hosts = set(tree.xpath('.//p:pic[p:nvPicPr/p:nvPr/a:audioFile]/p:nvPicPr/p:cNvPr/@id', namespaces=NS))
         for trigger in triggers:
-            assert trigger.xpath('.//p:set/p:cBhvr/p:tgtEl/p:spTgt/@spid', namespaces=NS)[0] in hosts
-            assert trigger.xpath('.//p:set/p:to/p:strVal/@val', namespaces=NS) == ['visible']
+            assert trigger.xpath('.//p:cmd/@cmd', namespaces=NS), 'A speaker click must actually control audio'
         buttons = tree.xpath('.//p:pic[not(p:nvPicPr/p:nvPr/a:audioFile)]', namespaces=NS)
         assert len(buttons) == 4
         assert all(int(p.find('p:spPr/a:xfrm/a:ext', NS).get('cx')) > 12700 for p in buttons)
@@ -159,12 +157,12 @@ def test_export_position_is_identical_across_pages_and_reuses_saved_audio(tmp_pa
         save_presentation(lesson, external_preview(lesson, library.directory), library.directory, target, with_voice=True)
         deck = Presentation(target)
         expected = fixed_slots((deck.slide_width / 12700, deck.slide_height / 12700), selected,
-                               mini=True, languages=('vi', 'en'))
+                               languages=('vi', 'en'))
         pages = []
         for slide in deck.slides:
             boxes = {shape.name.split()[-1].lower(): (shape.left / 12700, shape.top / 12700)
                      for shape in slide.shapes if shape.name.startswith('BiliClass control ')}
-            assert boxes == {lang: slot[:2] for lang, slot in expected.items()}
+            assert boxes == {lang: (slot[0] + 4, slot[1] + 2) for lang, slot in expected.items()}
             pages.append(boxes)
         assert pages[0] == pages[1]
     finally:

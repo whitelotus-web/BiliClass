@@ -68,6 +68,7 @@ ApplicationWindow {
     onPageChanged: {
         if (!bridge.experimentalTeaching && (page === "classroom" || page === "reports")) { page = "home"; return }
         if (page !== "library") root.endLibraryDrag()
+        if (page === "voice") Qt.callLater(root.revealCompletedNarration)
         if (page === "result") Qt.callLater(function() { if (root.page === "result") backToLibraryAction.forceActiveFocus(Qt.OtherFocusReason) })
         if (page === "chatgpt" && bridge.browserState.phase === "completed") bridge.restoreConversionResult()
         if (page === "glossary" || page === "knowledge") {
@@ -89,6 +90,13 @@ ApplicationWindow {
     property bool voicePreviewExpanded: false
     property bool voiceConfigurationExpanded: false
     readonly property bool narrationComplete: !!bridge.quickResult.path && !!narrationDraft.ready && !bridge.narrationBusy
+    onNarrationCompleteChanged: if (narrationComplete) Qt.callLater(root.revealCompletedNarration)
+    function revealCompletedNarration() {
+        if (page !== "voice" || !narrationComplete) return
+        voicePreviewExpanded = true
+        if (!bridge.quickResult.image && !bridge.previewBusy)
+            bridge.previewConvertedSlide(bridge.quickResult.slide || 1)
+    }
     function showNarrationPreview() {
         voicePreviewExpanded = true
         bridge.previewConvertedSlide(bridge.quickResult.slide || 1)
@@ -1175,7 +1183,7 @@ ApplicationWindow {
                 }
                 Rectangle {
                     id: creationFooter; objectName: "creationFooter"
-                    visible: root.page === "new" || root.page === "voice"; anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                    visible: root.page === "new" || (root.page === "voice" && !root.narrationComplete); anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
                     height: !visible ? 0 : root.page === "new" ? 60 : root.compactCreation ? 72 : 85; color: "#f3f7fc"
                     Rectangle { anchors.top: parent.top; height: 1; width: parent.width; color: root.line }
                     RowLayout {
@@ -1395,24 +1403,24 @@ ApplicationWindow {
                             BusyIndicator { anchors.centerIn: parent; running: bridge.previewBusy; visible: running }
                             ColumnLayout {
                                 visible: !bridge.quickResult.image; anchors.centerIn: parent; width: parent.width - 70; spacing: 12
-                                Caption { text: bridge.busy ? "BiliClass đang tạo bài giảng…" : bridge.quickResult.path ? "Bản trình chiếu đã tạo" : "Từ tài liệu của thầy cô đến bài giảng song ngữ"; font.pixelSize: 19; Layout.alignment: Qt.AlignHCenter }
-                                Copy { text: bridge.quickResult.preview_note || "PowerPoint giữ thiết kế gốc. Tài liệu và ảnh được chuyển thành slide theo mẫu BiliClass."; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
+                                Caption { visible: !bridge.previewBusy; text: bridge.busy ? "BiliClass đang tạo bài giảng…" : bridge.quickResult.path ? "Xem trước slide" : "Từ tài liệu của thầy cô đến bài giảng song ngữ"; font.pixelSize: 19; Layout.alignment: Qt.AlignHCenter }
+                                Copy { visible: !bridge.previewBusy; text: bridge.quickResult.preview_note || (bridge.quickResult.path ? "Ảnh slide chưa được tải." : "Giữ thiết kế gốc hoặc tạo theo mẫu BiliClass."); Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
+                                Action { objectName: "retrySlidePreview"; visible: !!bridge.quickResult.path && !bridge.previewBusy && !bridge.busy; text: "Tải lại slide"; Layout.alignment: Qt.AlignHCenter; onClicked: bridge.previewConvertedSlide(bridge.quickResult.slide || 1) }
                             }
                         }
                         RowLayout {
                             objectName: "resultSlideNavigation"; Layout.fillWidth: true; visible: !!bridge.quickResult.path && (root.page !== "voice" || root.voicePreviewExpanded)
-                            Item { Layout.fillWidth: true }
-                            Action { objectName: "resultPreviousSlide"; text: "‹"; implicitHeight: 34; enabled: !bridge.busy && !bridge.powerpointState.active && !bridge.powerpointState.starting && (bridge.quickResult.slide || 1) > 1; onClicked: bridge.previewConvertedSlide(bridge.quickResult.slide - 1) }
+                            Action { objectName: "resultPreviousSlide"; text: "‹"; implicitHeight: 34; enabled: !bridge.busy && (bridge.quickResult.slide || 1) > 1; onClicked: bridge.previewConvertedSlide(bridge.quickResult.slide - 1) }
                             Copy { objectName: "resultSlideCounter"; text: "Slide " + (bridge.quickResult.slide || 1) + " / " + (bridge.quickResult.total || 0); color: root.ink }
-                            Action { objectName: "resultNextSlide"; text: "›"; implicitHeight: 34; enabled: !bridge.busy && !bridge.powerpointState.active && !bridge.powerpointState.starting && (bridge.quickResult.slide || 1) < bridge.quickResult.total; onClicked: bridge.previewConvertedSlide(bridge.quickResult.slide + 1) }
+                            Action { objectName: "resultNextSlide"; text: "›"; implicitHeight: 34; enabled: !bridge.busy && (bridge.quickResult.slide || 1) < bridge.quickResult.total; onClicked: bridge.previewConvertedSlide(bridge.quickResult.slide + 1) }
                             Item { Layout.fillWidth: true }
-                        }
-                        Flow {
-                            objectName: "createdNarrationListening"; visible: root.page === "voice" && root.narrationComplete && root.voicePreviewExpanded
-                            Layout.fillWidth: true; spacing: 10
-                            Action { objectName: "listenCreatedEnglish"; text: "Nghe giọng Anh đã tạo"; enabled: !bridge.busy && root.narrationMode !== "vi"; onClicked: bridge.narrationWorkspace.listenCreated(bridge.quickResult.slide || 1, "en", root.narrationDraft.id) }
-                            Action { objectName: "listenCreatedVietnamese"; text: "Nghe giọng Việt đã tạo"; enabled: !bridge.busy && root.narrationMode !== "en"; onClicked: bridge.narrationWorkspace.listenCreated(bridge.quickResult.slide || 1, "vi", root.narrationDraft.id) }
-                            Action { objectName: "stopCreatedNarration"; text: "Dừng nghe"; danger: true; symbol: "■"; onClicked: bridge.stopSpeech() }
+                            RowLayout {
+                                objectName: "createdNarrationListening"; visible: root.page === "voice" && root.narrationComplete
+                                spacing: 8
+                                Action { objectName: "listenCreatedEnglish"; text: "Nghe Anh"; iconName: "play"; implicitHeight: 34; visible: root.narrationMode !== "vi"; enabled: !bridge.busy; ToolTip.visible: hovered; ToolTip.text: "Nghe giọng Anh đã tạo của slide đang xem"; onClicked: bridge.narrationWorkspace.listenCreated(bridge.quickResult.slide || 1, "en", root.narrationDraft.id) }
+                                Action { objectName: "listenCreatedVietnamese"; text: "Nghe Việt"; iconName: "play"; implicitHeight: 34; visible: root.narrationMode !== "en"; enabled: !bridge.busy; ToolTip.visible: hovered; ToolTip.text: "Nghe giọng Việt đã tạo của slide đang xem"; onClicked: bridge.narrationWorkspace.listenCreated(bridge.quickResult.slide || 1, "vi", root.narrationDraft.id) }
+                                Action { objectName: "stopCreatedNarration"; text: "Dừng nghe"; implicitHeight: 34; danger: true; symbol: "■"; onClicked: bridge.stopSpeech() }
+                            }
                         }
                         Surface {
                             objectName: "lessonNarrationPanel"; visible: root.page === "voice"
@@ -1506,11 +1514,10 @@ ApplicationWindow {
                                 Copy { objectName: "narrationPreparationStatus"; Layout.fillWidth: true; visible: !!bridge.lessonNarration.message && !root.narrationDraft.ready; text: bridge.lessonNarration.message || ""; color: root.muted; font.pixelSize: 12 }
                                 NarrationReadyCard {
                                     objectName: "narrationReadyNextStep"; visible: !!bridge.quickResult.path && !!root.narrationDraft.ready && !bridge.narrationBusy
-                                    Layout.fillWidth: true; busy: bridge.busy || !!bridge.powerpointState.active || !!bridge.powerpointState.starting
+                                    Layout.fillWidth: true; busy: bridge.busy || bridge.narrationBusy; opening: !!bridge.powerpointState.active || !!bridge.powerpointState.starting
                                     summary: root.narrationDraft.title || ""; total: root.narrationDraft.total || 0
                                     coverage: bridge.narrationWorkspace.playbackCoverage
                                     onOpenPowerPoint: bridge.openNarratedPowerPoint(root.narrationDraft.id)
-                                    onCheckPreview: root.showNarrationPreview()
                                     onShowInLibrary: root.showNarratedLessonInLibrary()
                                     onDownloadPresentation: { if (root.narrationDraft.id !== bridge.selectedNarrationVariant) bridge.selectNarrationVariant(root.narrationDraft.id); if (bridge.selectedNarrationVariant === root.narrationDraft.id) { root.includeDownloadVoice = true; presentationSave.openSuggested() } }
                                     onDownloadAudio: { if (root.narrationDraft.id !== bridge.selectedNarrationVariant) bridge.selectNarrationVariant(root.narrationDraft.id); if (bridge.selectedNarrationVariant === root.narrationDraft.id) narrationAudioSave.openSuggested() }

@@ -56,6 +56,25 @@ def test_badge_failure_does_not_disable_indexed_audio(monkeypatch):
     assert not badges and not other and warnings == [1]
 
 
+def test_named_controls_survive_office_shape_order_differences(monkeypatch):
+    from types import SimpleNamespace
+
+    monkeypatch.setattr('app.slideshow_controls.speaker_index', lambda path: ({256: [(5, 9, 'en', 6, 7)]}, False))
+    media = SimpleNamespace(Id=9)
+    ready = SimpleNamespace(Left=10, Top=20, Width=50, Height=20, Visible=True)
+    badge = SimpleNamespace(Visible=True)
+
+    class Shapes:
+        def Item(self, name):
+            assert isinstance(name, str), 'Stale positions must not choose a source shape'
+            return {'BiliClass audio EN':media, 'BiliClass control EN':ready, 'BiliClass pause EN':badge}[name]
+
+    slides = SimpleNamespace(FindBySlideID=lambda _:SimpleNamespace(Shapes=Shapes()))
+    players, badges, _ = prepare_controls(SimpleNamespace(Slides=slides), 'fixture')
+    assert players[256][0] == [(9, 'en', media)]
+    assert badges[(256,9)] == (ready,badge) and badge.Visible is False
+
+
 def test_source_audio_keeps_native_media_controls(tmp_path):
     import wave
 

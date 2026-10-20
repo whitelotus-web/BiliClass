@@ -283,6 +283,36 @@ def test_key_and_mouse_toggle_pause_resume_switch_and_missing_language(tmp_path)
     assert not any(call[0] == 'play_media' for call in bridge.calls[len(before):] if isinstance(call, tuple))
 
 
+def test_auto_reveal_only_new_english_and_matched_vietnamese_paragraphs(tmp_path):
+    lesson, preview, directory, _ = prepared_lesson(tmp_path)
+    prepared = prepare_teaching({**lesson, 'narration': {'mode':'none'}}, preview, directory)
+    lesson['segments'][0].update(vi='Năng lượng\nĐoạn thứ nhất.\nĐoạn thứ hai.',
+                                  en='Energy\nFirst paragraph.\nSecond paragraph.')
+    lesson['narration_script'] = {}
+    prepared['lesson'] = lesson
+    page = prepared['speech']['slides'][0]
+    page['englishSpeechSegments'] = [
+        {'id': 'title', 'kind':'title', 'status':'ready', 'english_text':'Energy', 'visibility':{'kind':'always'}},
+        *[{'id': f'body-{n}', 'kind':'body', 'status':'ready', 'english_text':text,
+           'visibility':{'kind':'click', 'show_after':n, 'hide_after':None, 'settle_seconds':0}}
+          for n,text in ((1,'First paragraph.'),(2,'Second paragraph.'))]]
+    bridge = FakeBridge(directory)
+    bridge._powerpoint_state.update(click_index=1)
+    session = TeachingSession(bridge)
+    session.bind(prepared)
+    assert session.texts('en') == ['Energy', 'First paragraph.']
+    assert session.texts('vi') == ['Năng lượng', 'Đoạn thứ nhất.']
+    for lang in ('vi','en'):
+        session._progress.finish(256, lang, session._selected_items(lang))
+        assert session.texts(lang) == []
+    bridge._powerpoint_state['click_index'] = 2
+    session._watch_build()
+    assert session.texts('en') == ['Second paragraph.']
+    assert session.texts('vi') == ['Đoạn thứ hai.']
+    session.setReadingScope('visible')
+    assert session.texts('en') == ['Energy', 'First paragraph.', 'Second paragraph.']
+
+
 def test_repeated_press_while_native_player_prepares_queues_pause_without_restarting(tmp_path):
     lesson, preview, directory, _ = prepared_lesson(tmp_path)
     bridge = FakeBridge(directory)

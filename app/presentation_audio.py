@@ -10,7 +10,6 @@ from lxml import etree
 
 from .lesson_narration import MODES, audio_status, valid_key
 from .narration_script import segments as narration_segments
-from .paths import RESOURCE_ROOT
 from .powerpoint import slide_for_locator
 from .source_deck import NS, _bytes, _rels_path, _xml, source_slide_parts
 
@@ -86,7 +85,7 @@ def joined_wav(directory, keys):
                 if current != parameters or source.getcomptype() != "NONE":
                     raise ValueError("Các đoạn voice khác định dạng. Tạo lại giọng đọc của bài.")
                 output.writeframes(source.readframes(source.getnframes()))
-                silence = int(current[2] * 0.18)
+                silence = int(current[2] * 0.45)
                 output.writeframes(b"\x00" * (silence * current[0] * current[1]))
                 total += source.getnframes() + silence
     return buffer.getvalue(), round(total / parameters[2] * 1000)
@@ -157,6 +156,7 @@ def embed_audio(source, destination, lesson, directory, *, scope='full_slide', m
     from .layout_regions import intersection
     from .presentation_controls import add_controls, picture
     from .slide_speech import objects
+    from .speaker_artwork import artwork
     from .speaker_layout import default_position, fixed_slots, position
 
     pages = slide_audio(lesson, directory, scope=scope)
@@ -173,7 +173,7 @@ def embed_audio(source, destination, lesson, directory, *, scope='full_slide', m
     selected_position = position(lesson.get('speaker_position', default_position(directory)))
     deck_languages = [lang for lang in ('vi', 'en', 'both') if any(lang in languages for languages in pages.values())]
     slots = fixed_slots((deck.slide_width / 12700, deck.slide_height / 12700), selected_position,
-                        mini=True, languages=deck_languages)
+                        languages=deck_languages)
     missing_pages = sorted(set(range(1, len(parts) + 1)) - set(pages))
     restricted_pages = list(missing_pages) if scope == 'visible' else []
     for number, languages in pages.items():
@@ -206,7 +206,7 @@ def embed_audio(source, destination, lesson, directory, *, scope='full_slide', m
             if not item["hidden"] and (item['source_type'] != 'image' or
                     box[2] * box[3] < deck.slide_width * deck.slide_height / 12700**2 * 0.6):
                 occupied.append(box)
-        if any(intersection((slots[lang][0], slots[lang][1], 50, 20), box) for lang in languages for box in occupied):
+        if any(intersection((slots[lang][0] + 4, slots[lang][1] + 2, 36, 36), box) for lang in languages for box in occupied):
             overlap_pages.append(number)
         embedded_pages.append(number)
         identity = max(int(v) for v in tree.xpath(".//p:cNvPr/@id", namespaces=NS))
@@ -223,19 +223,19 @@ def embed_audio(source, destination, lesson, directory, *, scope='full_slide', m
             identity += 1
             left, top, compact = slots[language]
             mini = compact == 'mini'
-            icon = (RESOURCE_ROOT / 'assets/actions' / ('speaker-' + language + ('-mini' if mini else '') + '.png')).read_bytes()
+            icon, crop = artwork(language)
             icon_name = 'ppt/media/biliclass-' + hashlib.sha256(icon).hexdigest() + '.png'
             entries[icon_name] = icon
             icon_id = relation(NS['r'] + '/image', '../media/' + Path(icon_name).name)
             box = (left, top, 50, 20) if mini else (left + (2 if compact else 4), top + 2, 36, 36)
             media = media_shape(identity, language, box, audio_id, media_id, icon_id)
             shape_tree.append(media)
-            shape_tree.append(picture(media, identity + 1, language, icon_id))
-            pause_icon = (RESOURCE_ROOT / 'assets/actions' / ('speaker-pause-' + language + ('-mini' if mini else '') + '.png')).read_bytes()
+            shape_tree.append(picture(media, identity + 1, language, icon_id, crop=crop))
+            pause_icon, pause_crop = artwork(language, paused=True)
             pause_name = 'ppt/media/biliclass-' + hashlib.sha256(pause_icon).hexdigest() + '.png'
             entries[pause_name] = pause_icon
             pause_id = relation(NS['r'] + '/image', '../media/' + Path(pause_name).name)
-            shape_tree.append(picture(media, identity + 2, language, pause_id, paused=True))
+            shape_tree.append(picture(media, identity + 2, language, pause_id, paused=True, crop=pause_crop))
             # Keep the native player enabled, but make its backing poster
             # transparent and tiny underneath the visible speaker control.
             # Selection-pane hiding prevents reliable playback in Office.

@@ -321,6 +321,12 @@ def test_chunking_keeps_every_word_without_cutting_normal_sentence():
         speech_chunks("a" * 1600)
 
 
+def test_paragraph_and_title_breaks_remain_separate_spoken_chunks():
+    assert speech_chunks('Lesson 4\nDisplacement is a vector. Speed is scalar.\nExample 1') == [
+        'Lesson 4', 'Displacement is a vector. Speed is scalar.', 'Example 1']
+    assert speech_chunks('Bài 4\vĐộ dịch chuyển\nVí dụ 1') == ['Bài 4', 'Độ dịch chuyển', 'Ví dụ 1']
+
+
 def test_alternate_content_reads_modern_shape_once_and_does_not_skip_math():
     import copy
 
@@ -364,6 +370,28 @@ def test_tagged_english_keeps_isolated_source_identifier_without_accepting_vietn
     assert not english_text('Con lắc Đ dao động.',tagged=True)
     assert not english_text('The answer by Đức is shown below.',tagged=True)
     assert english_text('Predict what happens when pendulum Đ oscillates.')
+
+
+@pytest.mark.parametrize('number', ['4', '3.5', '50%', '1,200', '20/10/2026'])
+def test_separate_number_and_punctuation_runs_stay_with_the_english_phrase(number):
+    deck = Presentation()
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    shape = textbox(slide, '')
+    paragraph = shape.text_frame.paragraphs[0]
+    for value in ['The song ', number, ' :']:
+        run = paragraph.add_run()
+        run.text = value
+        run._r.get_or_add_rPr().set('lang', 'en-US')
+    rows = inspect_slide(slide, 1)['englishSpeechSegments']
+    assert [s['english_text'] for s in rows] == ['The song ' + number + ' :']
+
+
+@pytest.mark.parametrize('label', ['1.', 'I/', 'II.'])
+def test_numbered_english_headings_keep_their_labels(label):
+    deck = Presentation()
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    textbox(slide, label + ' Introduction')
+    assert [s['english_text'] for s in inspect_slide(slide, 1)['englishSpeechSegments']] == [label + ' Introduction']
 
 
 def test_numeric_fragments_in_vietnamese_are_not_english_narration(tmp_path):

@@ -9,7 +9,7 @@ from pathlib import Path
 
 def run(output):
     from pptx import Presentation
-    from PySide6.QtCore import QCoreApplication, QEvent, QEventLoop, QTimer
+    from PySide6.QtCore import QCoreApplication, QEvent, QEventLoop, QObject, QTimer
     from PySide6.QtGui import QGuiApplication
     from PySide6.QtQml import QQmlApplicationEngine
     from PySide6.QtQuickControls2 import QQuickStyle
@@ -79,11 +79,14 @@ def run(output):
             until(lambda: bridge.lessonNarration.get('status') != 'checking')
             status = bridge.lessonNarration
             assert status.get('ready') and status['complete'] == 2, bridge.narrationPreparation
+            until(lambda: bool(bridge.quickResult.get('image')) and not bridge.previewBusy, seconds=90)
+            assert window.property('voicePreviewExpanded'), 'Completed narration must reveal the slide'
+            assert window.findChild(QObject, 'checkCompletedNarrationButton') is None
             gaps = [b-a for a, b in zip(ticks, ticks[1:])]
             result.update(complete=status['complete'], language_mode=status['mode'],
                           elapsed_seconds=round(time.monotonic() - started, 2), heartbeat_ticks=len(ticks),
                           max_ui_gap_seconds=round(max(gaps), 4), qml_warnings=warnings,
-                          watchdog_enabled=True, source_preserved=True)
+                          watchdog_enabled=True, source_preserved=True, automatic_slide_preview=True)
             if watcher.path.is_file():
                 output.with_suffix('.hang.log').write_bytes(watcher.path.read_bytes())
             assert len(ticks) >= 10 and max(gaps, default=0) < 5, result

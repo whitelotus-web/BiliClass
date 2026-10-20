@@ -91,6 +91,7 @@ def prepare_library_lesson(directory, identity, profile=None, *, complete=False,
         from .narration_script import prepare
 
         lesson = prepare(library, lesson)
+        lesson = refresh_native_speech(library, lesson, cancel)
         if complete:
             from .lesson_completion import complete_existing
 
@@ -107,6 +108,43 @@ def prepare_library_lesson(directory, identity, profile=None, *, complete=False,
         else:
             raise ValueError('Bài này chưa có PowerPoint hoặc chưa đủ nội dung. Hoàn tất bài hoặc chọn file PowerPoint có sẵn.')
     return import_presentation(directory, path)
+
+
+def refresh_native_speech(library, lesson, cancel=None):
+    """Upgrade derived speech once, preserving explicit scripts and valid WAVs."""
+    import copy
+
+    from pptx import Presentation
+
+    from .lesson_completion import _retain_unchanged_audio
+    from .narration_script import refresh_speech
+    from .powerpoint import verified_presentation
+    from .slide_speech import EXTRACTION_VERSION, deck_speech
+
+    base = lesson.get('source_slide_speech') or lesson.get('slide_speech', {})
+    if lesson.get('voice_only') or not base or base.get('extraction_version') == EXTRACTION_VERSION:
+        return lesson
+    if cancel and cancel.is_set():
+        raise InterruptedError('Đã dừng chuẩn bị lời đọc.')
+    before = copy.deepcopy(lesson)
+    path = verified_presentation(lesson, library.directory)
+    data = deck_speech(path, Presentation(path), lesson.get('conversion_format', ''))
+    if data['sha256'] != lesson['source']['sha256']:
+        raise ValueError('PowerPoint đã thay đổi trong lúc đọc. Mở lại bài giảng.')
+    if cancel and cancel.is_set():
+        raise InterruptedError('Đã dừng chuẩn bị lời đọc.')
+    lesson['source_slide_speech'] = data
+    refresh_speech(lesson)
+    _retain_unchanged_audio(before, lesson)
+    library.db.execute('BEGIN IMMEDIATE')
+    try:
+        if library.get(lesson['id']) != before:
+            raise RevisionConflict('Bài vừa thay đổi. Mở lại để chuẩn bị lời đọc mới.')
+        library._write(lesson)
+    except BaseException:
+        library.db.rollback()
+        raise
+    return lesson
 
 
 def import_presentation(directory, path):

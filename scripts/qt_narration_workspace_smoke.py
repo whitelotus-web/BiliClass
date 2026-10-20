@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from pptx import Presentation
-from PySide6.QtCore import Q_ARG, QCoreApplication, QEvent, QMetaObject, QPointF, Qt
+from PySide6.QtCore import Q_ARG, QCoreApplication, QEvent, QMetaObject, QObject, QPointF, Qt
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
@@ -193,6 +193,8 @@ def main():
             assert not c('voiceTeachWithoutNarration').isVisible()
             assert c('continueAfterNarrationButton').isVisible()
             assert c('downloadAfterNarrationButton').isVisible()
+            assert window.findChild(QObject, 'checkCompletedNarrationButton') is None
+            until(lambda: window.property('voicePreviewExpanded') and not bridge.previewBusy)
             assert c('continueAfterNarrationButton').property('text') == 'Mở PowerPoint'
             assert 'lưu vào Bài giảng' in c('narrationCompletionTitle').property('text')
             assert not c('narrationCreationOptions').isVisible()
@@ -220,8 +222,6 @@ def main():
                 assert window.grabWindow().save(str(out / f'ready-{width}.png'))
             clicked_audio = []
             with patch.object(bridge.english_reader, 'start', side_effect=lambda *a, **k: clicked_audio.append((a, k))):
-                c('checkCompletedNarrationButton').clicked.emit()
-                until(lambda: not bridge.previewBusy)
                 assert window.property('voicePreviewExpanded')
                 assert not clicked_audio, 'Opening a preview never starts playback'
                 c('listenCreatedEnglish').clicked.emit()

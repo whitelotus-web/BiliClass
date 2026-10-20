@@ -138,6 +138,11 @@ class EnglishReader(QObject):
         self._result = None
         self._last = None
         self.cache_only = False
+        self._between_chunks = False
+        self.gap = QTimer(self)
+        self.gap.setSingleShot(True)
+        self.gap.setInterval(450)
+        self.gap.timeout.connect(self._finish_gap)
         self.timer = QTimer(self)
         self.timer.setInterval(100)
         self.timer.timeout.connect(self._tick)
@@ -237,7 +242,10 @@ class EnglishReader(QObject):
         if self.state != "paused":
             return
         try:
-            if self.worker is not None:
+            if self._between_chunks:
+                self._state('reading', 'Đang đọc')
+                self.gap.start()
+            elif self.worker is not None:
                 self._state("preparing", "Đang chuẩn bị")
             else:
                 self.player.resume()
@@ -250,6 +258,8 @@ class EnglishReader(QObject):
         self._pending = None
         self.queue = []
         self.timer.stop()
+        self.gap.stop()
+        self._between_chunks = False
         try:
             self.player.stop()
         except Exception:
@@ -265,9 +275,18 @@ class EnglishReader(QObject):
                 self.timer.stop()
                 self.position += 1
                 self.chunkFinished.emit(self.position - 1)
-                self._prepare()
+                if self.position < len(self.queue):
+                    self._between_chunks = True
+                    self.gap.start()
+                else:
+                    self._prepare()
         except Exception as exc:
             self._error(str(exc))
+
+    def _finish_gap(self):
+        if self.state == 'reading' and self._between_chunks:
+            self._between_chunks = False
+            self._prepare()
 
     def shutdown(self):
         self.stop()

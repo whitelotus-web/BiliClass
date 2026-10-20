@@ -77,6 +77,26 @@ def test_single_slide_queue_pause_resume_end_and_no_auto_read(qt, tmp_path, monk
     reader.shutdown()
 
 
+def test_paragraph_gap_can_pause_and_cancel_without_late_playback(qt, tmp_path, monkeypatch):
+    calls = []
+    monkeypatch.setattr(speech, 'synthesize', lambda text, *_: calls.append(text) or {'path':text})
+    player = Player()
+    reader = EnglishReader(tmp_path, player=player)
+    reader.start(['Heading', 'Paragraph body.'], 'english', 0)
+    wait(qt, lambda: reader.state == 'reading')
+    player.ended = True
+    reader._tick()
+    assert reader._between_chunks and reader.gap.isActive() and calls == ['Heading']
+    reader.pause()
+    reader._finish_gap()
+    assert calls == ['Heading'] and reader.state == 'paused'
+    reader.resume()
+    reader.stop()
+    reader._finish_gap()
+    assert not reader.gap.isActive() and calls == ['Heading'] and reader.state == 'stopped'
+    reader.shutdown()
+
+
 def test_cached_teaching_never_synthesizes_missing_audio(qt, tmp_path, monkeypatch):
     monkeypatch.setattr(speech, 'synthesize', lambda *_: pytest.fail('Teaching may only play existing audio'))
     reader = EnglishReader(tmp_path, player=Player())

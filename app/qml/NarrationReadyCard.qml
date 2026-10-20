@@ -8,8 +8,8 @@ Rectangle {
     property int total: 0
     property var coverage: ({})
     property bool busy: false
+    property bool opening: false
     signal openPowerPoint()
-    signal checkPreview()
     signal downloadPresentation()
     signal downloadAudio()
     signal showInLibrary()
@@ -29,7 +29,7 @@ Rectangle {
             color: "#112650"; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap
         }
         Label {
-            text: (card.coverage.total ? card.coverage.readable + "/" + card.coverage.total + " slide có lời đọc · " : "") + "Loa đọc toàn bộ lời đã lưu của slide khi bấm, kể cả phần xuất hiện sau. Không tự phát theo hiệu ứng."
+            text: (card.coverage.total ? card.coverage.readable + "/" + card.coverage.total + " slide có lời đọc · " : "") + "Bấm loa VI hoặc EN trong PowerPoint để nghe."
             color: "#667997"; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap
         }
         Label {
@@ -39,15 +39,10 @@ Rectangle {
         }
         Flow {
             Layout.fillWidth: true; spacing: 10
-            ActionButton { objectName: "continueAfterNarrationButton"; text: "Mở PowerPoint"; primary: true; enabled: !card.busy; onClicked: card.openPowerPoint() }
-            ActionButton { objectName: "checkCompletedNarrationButton"; text: "Kiểm tra slide và giọng"; enabled: !card.busy; onClicked: card.checkPreview() }
-            ActionButton { objectName: "downloadAfterNarrationButton"; text: "Tải PowerPoint"; iconName: "download"; enabled: !card.busy; onClicked: card.downloadPresentation() }
-            ActionButton { objectName: "downloadNarrationAudioButton"; text: "Tải audio (.zip)"; enabled: !card.busy; onClicked: card.downloadAudio() }
-        }
-        RowLayout {
-            Layout.fillWidth: true
-            Item { Layout.fillWidth: true }
-            ActionButton { objectName: "viewCompletedNarrationInLibrary"; text: "Xem trong Bài giảng"; enabled: !card.busy; onClicked: card.showInLibrary() }
+            ActionButton { objectName: "continueAfterNarrationButton"; text: card.opening ? "PowerPoint đang mở" : "Mở PowerPoint"; implicitHeight: 36; primary: true; enabled: !card.busy && !card.opening; onClicked: card.openPowerPoint() }
+            ActionButton { objectName: "downloadAfterNarrationButton"; text: "Tải PowerPoint"; implicitHeight: 36; iconName: "download"; enabled: !card.busy; onClicked: card.downloadPresentation() }
+            ActionButton { objectName: "downloadNarrationAudioButton"; text: "Tải audio (.zip)"; implicitHeight: 36; enabled: !card.busy; onClicked: card.downloadAudio() }
+            ActionButton { objectName: "viewCompletedNarrationInLibrary"; text: "Xem trong Bài giảng"; implicitHeight: 36; enabled: !card.busy; onClicked: card.showInLibrary() }
         }
     }
 }

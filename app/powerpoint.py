@@ -249,8 +249,10 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
         progress("Đang mở bài giảng trong PowerPoint…")
         presentation = application.Presentations.Open(path, ReadOnly=True, Untitled=False, WithWindow=not autostart)
         presentation.SlideShowSettings.ShowType = 1  # ppShowTypeSpeaker: native full-screen slideshow.
+        if shortcuts is not None:
+            keys.start()
         try:
-            slide_media, badges, other_media = prepare_controls(presentation, path, add_badges=shortcuts is not None,
+            slide_media, badges, other_media = prepare_controls(presentation, path, add_badges=shortcuts is not None and not keys.error,
                                                                  on_warning=controls_warning)
             if badges and not other_media:
                 presentation.SlideShowSettings.ShowMediaControls = False
@@ -258,8 +260,6 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
             controls_warning()
         total = presentation.Slides.Count
         slide_width, slide_height = float(presentation.PageSetup.SlideWidth), float(presentation.PageSetup.SlideHeight)
-        if shortcuts is not None:
-            keys.start()
         if keys.error:
             events.put({'event': 'input_warning', 'message': keys.error})
         initial_slide = max(1, min(initial_slide, total))

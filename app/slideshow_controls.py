@@ -58,11 +58,24 @@ def prepare_controls(presentation, path, *, add_badges=True, on_warning=None):
         if not records:
             continue
         slide = presentation.Slides.FindBySlideID(identity)
-        for position, shape_id, language, control_position, pause_position in records:
-            shape = slide.Shapes.Item(position)
-            if int(shape.Id) != shape_id:
+
+        def resolve(name, position, expected_id=None):
+            # Office can flatten AlternateContent differently from the XML
+            # shape order. Our generated names survive that conversion.
+            try:
+                found = slide.Shapes.Item(name)
+                if expected_id is None or int(found.Id) == expected_id:
+                    return found
+            except Exception:
+                pass
+            found = slide.Shapes.Item(position)
+            if expected_id is not None and int(found.Id) != expected_id:
                 raise ValueError('PowerPoint đã đổi cấu trúc loa; mở lại bài giảng.')
-            ready = slide.Shapes.Item(control_position)
+            return found
+
+        for position, shape_id, language, control_position, pause_position in records:
+            shape = resolve('BiliClass audio ' + language.upper(), position, shape_id)
+            ready = resolve('BiliClass control ' + language.upper(), control_position)
             boxes.append((language, float(ready.Left), float(ready.Top), float(ready.Width), float(ready.Height)))
             audio.append((shape_id, language, shape))
             if not add_badges:
@@ -70,7 +83,7 @@ def prepare_controls(presentation, path, *, add_badges=True, on_warning=None):
             try:
                 mini = float(ready.Width) > float(ready.Height) * 1.8
                 filename = 'speaker-pause-' + language + ('-mini' if mini else '') + '.png' if language in {'vi', 'en', 'both'} else 'speaker-pause.png'
-                badge = slide.Shapes.Item(pause_position) if pause_position else None
+                badge = resolve('BiliClass pause ' + language.upper(), pause_position) if pause_position else None
                 if badge is None:
                     icon = str(RESOURCE_ROOT / 'assets/actions' / filename)
                     badge = slide.Shapes.AddPicture(icon, False, True, ready.Left, ready.Top, ready.Width, ready.Height)

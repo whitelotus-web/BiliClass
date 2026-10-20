@@ -19,7 +19,7 @@ from scripts.qt_result_preview_mascot_smoke import control, pump, until
 def main():
     app = QGuiApplication([])
     QQuickStyle.setStyle('Basic')
-    reports = Path('reports/rc100/mascot-context')
+    reports = Path('reports/rc106/mascot-context')
     reports.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='bcl-mascot-menu-', ignore_cleanup_errors=True) as folder:
         library = Library(Path(folder))
@@ -61,8 +61,8 @@ def main():
             pump(200)
             popup = open_menu()
             assert popup.grabWindow().save(str(reports/'context-menu.png'))
-            assert QQmlProperty(c('mascotContextSettings'), 'icon.source').read().toString().endswith('settings-active.png')
-            assert QQmlProperty(c('mascotContextHide'), 'icon.source').read().toString().endswith('eye-off.svg')
+            assert QQmlProperty(c('mascotContextSettings'), 'icon.source').read().toString().endswith('mascot-controls/settings.png')
+            assert QQmlProperty(c('mascotContextHide'), 'icon.source').read().toString().endswith('mascot-controls/hide.png')
             click(c('mascotContextSettings'))
             until(lambda: root.property('page') == 'settings')
             assert control(root, 'settingsPage').property('activeTab') == 3
@@ -81,7 +81,10 @@ def main():
             click(c('mascotToggle'))
             assert not companion.property('collapsed'), 'Left click still opens the controls'
             hide = c('hideCompanion')
-            assert hide.property('imageSource').toString().endswith('eye-off.svg') and not hide.property('glyph')
+            assert hide.property('iconName') == 'hide'
+            assert c('companionSettings').property('iconName') == 'settings'
+            assert c('collapseCompanionPanel').property('iconName') == 'collapse'
+            assert c('companionShortcutGuideToggle').property('iconName') == 'keyboard-help'
             assert companion.grabWindow().save(str(reports/'header-eye-off.png'))
             click(hide)
             assert not companion.isVisible()

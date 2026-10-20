@@ -12,6 +12,42 @@ def test_exact_teacher_term_and_classroom_heading_need_no_api(tmp_path):
     assert not translator.store.public()
 
 
+@pytest.mark.parametrize('source,target', [('Bài 4:', 'Lesson 4:'), ('BÀI 12', 'Lesson 12'),
+    ('Bai 4.1', 'Lesson 4.1'), ('Bài ⟦BLC0⟧:', 'Lesson ⟦BLC0⟧:'), ('Chương II', 'Chapter II')])
+def test_numbered_lesson_heading_is_local_and_never_becomes_song(tmp_path, source, target):
+    translator = Translator(tmp_path, transport=lambda *_:pytest.fail('Heading should not call API'))
+    assert translator.translate([source], Event()) == [target]
+
+
+def test_subject_defaults_aliases_and_teacher_priority():
+    from app.translation_terms import TermPolicy
+
+    physics = TermPolicy('Vật lí')
+    assert physics.exact('công') == 'work'
+    assert physics.matches('Tính độ dịch chuyển và vận tốc.') == {'độ dịch chuyển':'displacement', 'vận tốc':'velocity'}
+    assert not physics.matches('Người công nhân')
+    assert not TermPolicy('Tin học').matches('Tính độ dịch chuyển và vận tốc.')
+    assert TermPolicy('Địa lí').exact('mật độ dân số') == 'population density'
+    teacher = TermPolicy('Vật lý', [{'subject':'Vật lí','vi':'vận tốc','en':'custom velocity','locked':True},
+                                  {'subject':'Tin học','vi':'vận tốc','en':'wrong subject','locked':True}])
+    assert teacher.exact('vận tốc') == 'custom velocity'
+    assert not TermPolicy('Âm nhạc').matches('Bài hát 4')
+
+
+def test_contextual_title_protects_heading_and_subject_terms_before_api(tmp_path):
+    KeyStore(tmp_path).add('AIza' + 'x'*35)
+    seen = []
+
+    def transport(texts, *_):
+        seen.extend(texts)
+        return texts  # Protected words are restored without relying on API wording.
+
+    translator = Translator(tmp_path, transport=transport)
+    translator.configure_terms('Vật lý', [])
+    assert translator.translate(['Bài 4: Độ dịch chuyển'], Event()) == ['Lesson 4: displacement']
+    assert len(seen) == 1 and 'Bài' not in seen[0] and 'Độ dịch chuyển' not in seen[0]
+
+
 def test_term_cache_isolated_by_subject_and_teacher_wording(tmp_path):
     KeyStore(tmp_path).add('AIza' + 'x'*35)
     calls = []
@@ -34,7 +70,8 @@ def test_unlocked_terms_do_not_override_google_and_word_boundaries_are_respected
 
     policy = TermPolicy('Vật lý', [{'vi': 'lực', 'en': 'force', 'locked': True},
                                   {'vi': 'động năng', 'en': 'bad draft', 'locked': False}])
-    assert not policy.matches('lựcđẩy') and not policy.matches('động năng')
+    assert not policy.matches('lựcđẩy')
+    assert policy.matches('động năng') == {'động năng':'kinetic energy'}, 'An unlocked draft cannot replace the subject baseline'
     assert policy.matches('lực đẩy') == {'lực': 'force'}
 
 

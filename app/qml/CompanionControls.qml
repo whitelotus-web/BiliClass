@@ -21,16 +21,14 @@ ColumnLayout {
     component HeaderAction: ToolButton {
         id: tool
         property string hint: ""
-        property string glyph: ""
-        property url imageSource: ""
+        required property string iconName
         property bool standardHint: true
         readonly property bool pointerHovered: hovered || controls.companion.hoveringControl(tool)
         implicitWidth: 30; implicitHeight: 30
         Accessible.name: hint
         ToolTip.visible: standardHint && pointerHovered; ToolTip.text: hint; ToolTip.delay: 400
         contentItem: Item {
-            Image { anchors.centerIn: parent; width: 21; height: 21; source: tool.imageSource; visible: tool.imageSource.toString().length > 0; fillMode: Image.PreserveAspectFit }
-            Label { anchors.centerIn: parent; text: tool.glyph; visible: tool.imageSource.toString().length === 0; color: "#486385"; font.pixelSize: 19 }
+            CompanionIcon { anchors.centerIn: parent; width: 23; height: 23; iconName: tool.iconName }
         }
         background: Rectangle { radius: 7; color: tool.down ? "#d8e9ff" : tool.pointerHovered ? "#eaf2ff" : "transparent"; border.color: tool.visualFocus ? "#0869ff" : "transparent" }
     }
@@ -38,9 +36,9 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true; spacing: 3
         Label { text: "Trợ giảng"; color: "#112650"; font.pixelSize: 15; font.weight: Font.DemiBold; Layout.fillWidth: true }
-        HeaderAction { objectName: "collapseCompanionPanel"; glyph: "↓"; hint: "Thu bảng về Mascot"; onClicked: companion.collapsed = true }
+        HeaderAction { objectName: "collapseCompanionPanel"; iconName: "collapse"; hint: "Thu bảng về Mascot"; onClicked: companion.collapsed = true }
         HeaderAction {
-            id: shortcutHelp; objectName: "companionShortcutGuideToggle"; glyph: "?"; hint: "Rê chuột để xem hướng dẫn phím"; standardHint: false
+            id: shortcutHelp; objectName: "companionShortcutGuideToggle"; iconName: "keyboard-help"; hint: "Rê chuột để xem hướng dẫn phím"; standardHint: false
             ToolTip {
                 objectName: "companionShortcutTooltip"
                 visible: shortcutHelp.pointerHovered; delay: 250; timeout: -1
@@ -51,8 +49,8 @@ ColumnLayout {
                 contentItem: ShortcutGuide { settings: controls.bridge.mascotShortcuts }
             }
         }
-        HeaderAction { objectName: "companionSettings"; imageSource: "../assets/navigation/settings-active.png"; hint: "Cài đặt Mascot"; onClicked: companion.requestSettings() }
-        HeaderAction { objectName: "hideCompanion"; imageSource: "../assets/actions/eye-off.svg"; hint: "Ẩn trợ giảng nổi"; onClicked: companion.hide() }
+        HeaderAction { objectName: "companionSettings"; iconName: "settings"; hint: "Cài đặt Mascot"; onClicked: companion.requestSettings() }
+        HeaderAction { objectName: "hideCompanion"; iconName: "hide"; hint: "Ẩn trợ giảng nổi"; onClicked: companion.hide() }
     }
     Label {
         objectName: "companionBoundLesson"
@@ -94,7 +92,7 @@ ColumnLayout {
         objectName: "companionAudioHint"; visible: !!companion.session.bound && (!bridge.companionCanRead || companion.audioCount === 0)
         Layout.preferredHeight: 16
         text: !bridge.companionCanRead ? "Bấm Trình chiếu để đọc giọng đã tạo."
-            : companion.audioCount === 0 ? (companion.session.reading_mode === "auto" && companion.session.reading_scope === "visible" ? "Bước này chưa có lời đọc mới." : "Slide này chưa có giọng đọc.")
+            : companion.audioCount === 0 ? (companion.session.auto_completed ? "Đã đọc xong phần đang hiện. Chọn Đang hiện để nghe lại." : companion.session.reading_mode === "auto" && companion.session.reading_scope === "visible" ? "Bước này chưa có lời đọc mới." : "Slide này chưa có giọng đọc.")
             : ""
         color: "#667997"; font.pixelSize: 11; wrapMode: Text.WordWrap; Layout.fillWidth: true
     }

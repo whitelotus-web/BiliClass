@@ -188,8 +188,8 @@ Window {
         Menu {
             id: mascotContextMenu; objectName: "mascotContextMenu"
             popupType: Popup.Window
-            MenuItem { objectName: "mascotContextSettings"; text: "Cài đặt"; icon.source: "../assets/navigation/settings-active.png"; icon.color: "transparent"; onTriggered: companion.requestSettings() }
-            MenuItem { objectName: "mascotContextHide"; text: "Ẩn mini"; icon.source: "../assets/actions/eye-off.svg"; icon.color: "transparent"; onTriggered: companion.hide() }
+            CompanionMenuItem { objectName: "mascotContextSettings"; text: "Cài đặt"; iconName: "settings"; onTriggered: companion.requestSettings() }
+            CompanionMenuItem { objectName: "mascotContextHide"; text: "Ẩn mini"; iconName: "hide"; onTriggered: companion.hide() }
         }
     }
 }

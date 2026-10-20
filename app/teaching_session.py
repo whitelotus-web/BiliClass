@@ -10,7 +10,7 @@ from uuid import uuid4
 from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
 
 from . import speech
-from .powerpoint import slide_segment_indexes
+from .powerpoint import slide_for_locator, slide_segment_indexes
 from .reading_progress import ReadingProgress
 from .slide_speech import speech_chunks, visible_segments
 
@@ -137,7 +137,7 @@ class TeachingSession(QObject):
 
     def _watch_build(self):
         state = self.bridge._powerpoint_state
-        self._progress.enter(state.get('slide_id') if self.bound else None)
+        self._progress.enter(state.get('slide_id') if self.bound else None, state.get('slide'))
         self.system_volume.activate(bool(self.bound and state.get('active')))
         key = (state.get('slide_id'), state.get('click_index'), state.get('build_started'))
         if key != self._build_key:
@@ -211,6 +211,7 @@ class TeachingSession(QObject):
                 'warning': self.bound.get('warning', ''),
                 'reading_scope': self.reading_scope,
                 'reading_mode': self.reading_mode,
+                'auto_completed': self.reading_mode == 'auto' and any(self._progress.completed.values()),
                 'settling': self._settled.isActive(),
                 'can_choose_scope': bool(lesson.get('narration', {}).get('keys')),
                 'voice': (lesson.get('narration') or {}).get('voice', '')}
@@ -235,9 +236,16 @@ class TeachingSession(QObject):
         english = [part[1] for part in english_items]
         if language == 'en':
             return english_items
-        vietnamese = [part for unit in units if self.reading_scope == 'full_slide' or lesson.get('voice_only') or lesson.get('narration_script') or
-                      (speech_chunks(unit.get('en', '')) and set(speech_chunks(unit['en'])) <= set(english))
-                      for part in chunks('vi', unit['id'], unit.get('vi', ''))]
+        vietnamese = []
+        for unit in units:
+            parts = chunks('vi', unit['id'], unit.get('vi', ''))
+            partner = speech_chunks(unit.get('en', ''))
+            if self.reading_scope == 'full_slide':
+                vietnamese.extend(parts)
+            elif partner and len(partner) == len(parts):
+                vietnamese.extend(part for part, en in zip(parts, partner, strict=True) if en in english)
+            elif partner and set(partner) <= set(english):
+                vietnamese.extend(parts)
         if language == 'vi':
             return vietnamese
         if self.reading_scope == 'full_slide':
@@ -257,7 +265,28 @@ class TeachingSession(QObject):
         items = self._speech_items(language)
         if self.reading_mode == 'auto' and self._settled.isActive():
             return []  # Do not replay old text while a new entrance is settling.
-        return self._progress.choose(language, items) if self.reading_mode == 'auto' else items
+        return self._progress.choose(language, items, titles=self._titles(language)) if self.reading_mode == 'auto' else items
+
+    def _titles(self, language):
+        """Suppress only explicit headings actually read on the preceding page."""
+        page = next((p for p in self.bound.get('speech', {}).get('slides', [])
+                     if p['slide'] == self.bridge._powerpoint_state.get('slide')), {})
+        titles = {part for row in page.get('englishSpeechSegments', []) if row.get('kind') == 'title'
+                  for part in speech_chunks(row.get('english_text', ''))}
+        if language == 'en':
+            return titles
+        if language == 'vi':
+            from .narration_script import segments
+
+            found = set()
+            for unit in segments(self.bound.get('lesson', {})):
+                if slide_for_locator(unit.get('locator', '')) != page.get('slide'):
+                    continue
+                vi, en = speech_chunks(unit.get('vi', '')), speech_chunks(unit.get('en', ''))
+                if len(vi) == len(en):
+                    found.update(v for v, e in zip(vi, en, strict=True) if e in titles)
+            return found
+        return set()
 
     def texts(self, language):
         return [item[1] for item in self._selected_items(language)]
@@ -272,7 +301,7 @@ class TeachingSession(QObject):
         embedded = self.bound.get('media', {}).get(state.get('slide'), []) if self.reading_scope == 'full_slide' else []
         record = self.bound['lesson'].get('narration') or {}
         def available(language):
-            if language in embedded:
+            if language in embedded and (self.reading_mode != 'auto' or not record.get('keys')):
                 return True
             keys = record.get('keys', {}).get(language, [])
             if not keys:
@@ -282,7 +311,7 @@ class TeachingSession(QObject):
             # visible; it must not make the buttons blink off and on.
             items = self._speech_items(language, settled_seconds=float('inf'))
             if self.reading_mode == 'auto':
-                items = self._progress.choose(language, items)
+                items = self._progress.choose(language, items, titles=self._titles(language))
             texts = [item[1] for item in items]
             voice = speech.voice_for(record.get('voice', ''), language)
             wanted = [speech.audio_key(text, voice, record.get('rate', 0)) for text in texts]
