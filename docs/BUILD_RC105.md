@@ -19,3 +19,20 @@ viện tạm xác nhận ảnh/bước thật, chuyển động độc lập, re
 tiến trình và cửa sổ chính tiếp quản. Ảnh thực tế đã kiểm tra bố cục.
 Ruff và kiểm tra khoảng trắng qua. Không chạy lại các bộ chuyển đổi,
 giọng đọc hay thư viện vì mã các luồng đó không đổi.
+
+## Bộ cài đã kiểm chứng
+
+- Mã nguồn: `235aac5c1740c6e578abf0d696761380a4ebaca2`.
+- ZIP: 1.248.157.026 byte; SHA256
+  `487cbbec6ff9683fb682426814b1157cc4eaf3290d9549b556dc94ffd0fb035c`.
+- Nội dung ZIP khớp manifest; digest GitHub khớp checksum.
+- Qt thật trên executable đóng gói qua: ảnh/bước, chuyển động, pipe,
+  ready/EOF và giao diện chính tiếp quản. Lựa chọn Windows hiện tại bật
+  chuyển động; không thay thiết lập hệ thống của người dùng để thử.
+- RC105 đã cài riêng, executable/QML thay đổi khớp bộ đã thử; mở độc lập
+  qua Explorer, biểu tượng và shortcut đúng. Một lần kiểm tra cửa sổ hết
+  hạn 500 ms lúc khởi động, tiếp đó ba lần phản hồi 0,110 / 0,016 / 0 giây.
+- Đối chiếu nguồn bài, phiên bản chỉnh sửa, 940 WAV tham chiếu, cặp/tốc độ
+  và checksum key giữ nguyên. RC104 đóng bình thường và còn làm dự phòng.
+
+[Bản phát hành RC105](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc105).
