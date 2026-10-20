@@ -1367,13 +1367,8 @@ ApplicationWindow {
                             Menu { id: resultMoreMenu; objectName: "resultMoreMenu"; parent: resultMoreAction; x: parent.width - width; y: parent.height
                                 MenuItem { objectName: "reviewNarrationScript"; text: "Kiểm tra / sửa lời đọc…"; enabled: !!bridge.quickResult.path && !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !bridge.powerpointState.starting; onTriggered: narrationScript.open() }
                                 MenuItem { text: "Sửa thông tin bài"; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active; onTriggered: { metadataDialog.lessonData = root.lessonData; metadataDialog.open() } }
-                                Menu { objectName: "resultAdvancedMenu"; title: "Bài giảng…"
-                                MenuItem { objectName: "editLessonDetailsButton"; text: "Sửa nội dung trợ giảng"; visible: !root.lessonData.voice_only; height: visible ? implicitHeight : 0; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active; onTriggered: bridge.editLesson(root.lessonData.id) }
-                                MenuItem { objectName: "openConvertedDeckButton"; text: "Mở trong PowerPoint"; enabled: !!bridge.quickResult.path; onTriggered: bridge.openConvertedDeck() }
+                                MenuItem { objectName: "editLessonDetailsButton"; text: "Sửa nội dung bài giảng…"; visible: !root.lessonData.voice_only; height: visible ? implicitHeight : 0; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active; onTriggered: bridge.editLesson(root.lessonData.id) }
                                 MenuItem { objectName: "voiceDownloadWithoutNarrationMenu"; text: "Tải PowerPoint không giọng…"; visible: root.page === "voice" && !!root.narrationDraft.ready; height: visible ? implicitHeight : 0; enabled: !!bridge.quickResult.path && !bridge.busy && !bridge.narrationBusy; onTriggered: presentationNoVoiceSave.openSuggested() }
-                                MenuItem { text: "Kiểm tra và xác nhận…"; onTriggered: lessonReviewHelp.open() }
-                                MenuItem { objectName: "shareLessonPackButton"; text: "Gửi gói bài cho giáo viên khác…"; onTriggered: packSave.openSuggested() }
-                                }
                             }
                         }
                         LessonStateStrip { objectName: "lessonWorkflowState"; visible: root.page === "voice" && !!root.lessonData.id; state: bridge.workflowState; showPreparation: bridge.experimentalTeaching; Layout.fillWidth: true }
@@ -1979,7 +1974,7 @@ ApplicationWindow {
             RowLayout { Field { id: metaEducation; placeholderText: "Cấp học"; Layout.fillWidth: true; maximumLength: 200 } Field { id: metaGrade; placeholderText: "Khối"; Layout.fillWidth: true; maximumLength: 200 } }
             Copy { text: "Đổi môn sẽ đưa văn bản về trạng thái cần duyệt lại."; Layout.fillWidth: true }
             RowLayout {
-                Action { text: "Sửa nội dung trợ giảng"; enabled: !bridge.busy; onClicked: { const lessonId = metadataDialog.lessonData.id; metadataDialog.close(); bridge.editLesson(lessonId) } }
+                Action { text: "Sửa nội dung bài giảng"; enabled: !bridge.busy; onClicked: { const lessonId = metadataDialog.lessonData.id; metadataDialog.close(); bridge.editLesson(lessonId) } }
                 Item { Layout.fillWidth: true }
                 Action { text: "Hủy"; onClicked: metadataDialog.close() }
                 Action { objectName: "saveLessonMetadataButton"; text: "Lưu"; primary: true; onClicked: if (bridge.editLessonMetadata(metadataDialog.lessonData.id, metaTitle.text, metaSubject.text, metaEducation.text, metaGrade.text)) metadataDialog.close() }

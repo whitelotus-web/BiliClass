@@ -172,7 +172,7 @@ def main():
             wait(lambda: not bridge.busy and bool(bridge.quickResult.get("image")))
             assert window.property("page") == "result"
             assert item("backToLibraryButton").isVisible() and item("downloadPresentationButton").isVisible()
-            assert not item("openConvertedDeckButton").isVisible()
+            assert window.findChild(QObject, "openConvertedDeckButton") is None
             shot("slide.png")
             window.setProperty("width", 1080)
             app.processEvents()

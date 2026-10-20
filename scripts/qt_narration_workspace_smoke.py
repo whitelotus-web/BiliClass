@@ -199,10 +199,9 @@ def main():
             assert 'lưu vào Bài giảng' in c('narrationCompletionTitle').property('text')
             assert not c('narrationCreationOptions').isVisible()
             click(window, c('resultMoreButton'))
-            assert QMetaObject.invokeMethod(c('resultAdvancedMenu'), 'open')
             pump(100)
+            assert window.findChild(QObject, 'resultAdvancedMenu') is None
             assert c('voiceDownloadWithoutNarrationMenu').isVisible()
-            assert QMetaObject.invokeMethod(c('resultAdvancedMenu'), 'close')
             assert QMetaObject.invokeMethod(c('resultMoreMenu'), 'close')
             assert '1 slide thiếu lời Việt' in c('narrationCoverageMessage').property('text')
             assert not any(s['approved'] for s in bridge.lesson['segments'])
