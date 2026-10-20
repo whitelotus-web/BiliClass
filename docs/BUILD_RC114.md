@@ -51,3 +51,19 @@ nút tác vụ, bảo vệ bản sửa, bảng Mascot 60/80/110/150 px. Kiểm t
 voice hoàn tất dùng bản xem trước PowerPoint thật ở 1080×700 và
 1366×850. Qt menu và giao diện cũng đạt tại DPI 150%; không cảnh báo
 QML. Đã xem ảnh sáng/tối, màn hoàn tất, bảng nhỏ và menu.
+
+Gói phát hành từ commit `a159f5790b6274a0f84493735dfa26792a97ec23`,
+ZIP 1.249.962.134 byte, SHA-256
+`8c7be5cfedc672e1b6d46c6d731cc4dcb9f6134b7571c0e348199260bb50c2b0`.
+Manifest/ZIP đã xác minh; 50 QML/qmldir trong gói khớp nguồn đã kiểm
+tra. Bản đóng gói chạy smoke giao diện tối với thư viện tạm, thoát mã 0.
+GitHub xác nhận digest khớp và đã phát hành tag `v1.0.0rc114`.
+
+Đã cài, mở RC114 qua Explorer tại trang Cài đặt, kiểm tra cửa sổ chính,
+Mascot, shortcut và biểu tượng native. Khởi động có một lần thăm dò
+quá 500 ms rồi đạt ba lần phản hồi liên tiếp. Sau cài, hash nguồn và
+revision của 18 bản ghi bài (kể cả bài trong thùng rác), 1.658 WAV được
+tham chiếu, lựa chọn giọng và khóa dịch mã hóa khớp trước cài. PowerPoint
+độc lập và ứng dụng RC80 được giữ nguyên. Bài Bài 6 hiện có 436 đoạn
+cache được bảo toàn; kế hoạch phục hồi chỉ bổ sung hai đoạn thành 438,
+không ghi lại các đoạn đã hợp lệ. Phục hồi bắt đầu khi mở trang voice.
