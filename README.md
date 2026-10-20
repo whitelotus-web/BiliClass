@@ -2,7 +2,11 @@
 
 Ứng dụng Windows chuyển tài liệu của giáo viên thành bài giảng Anh–Việt, rồi trình chiếu bằng PowerPoint với giọng đọc và mascot trợ giảng. Hỗ trợ cấu hình từ lớp 1 đến lớp 12 và môn tự nhập.
 
-## Luồng hiện tại — RC104
+## Luồng hiện tại — RC105
+
+RC105 làm gọn loading, bỏ dãy vòng tròn cuối màn hình, chỉnh thanh chuyển
+động nhẹ và chuyển sang cửa sổ chính bằng hiệu ứng mờ ngắn. Tôn trọng
+lựa chọn tắt chuyển động của Windows. [Kiểm chứng RC105](docs/BUILD_RC105.md).
 
 RC104 thêm màn hình khởi động theo ảnh minh họa được cung cấp, cập nhật
 theo bước và tự đóng khi cửa sổ chính vẽ xong. F1 mở hướng dẫn đọc theo

@@ -1,6 +1,6 @@
 # BiliClass — Hướng dẫn sử dụng
 
-Phiên bản RC104 · 20/10/2026
+Phiên bản RC105 · 20/10/2026
 
 BiliClass chuyển bài giảng PowerPoint sang Việt–Anh hoặc tiếng Anh, tạo
 âm thanh Việt–Mỹ và hỗ trợ trình chiếu bằng Mascot. Bài giảng và giọng đọc

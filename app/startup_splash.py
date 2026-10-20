@@ -10,6 +10,16 @@ from threading import Thread
 STAGES = {'preparing', 'library', 'interface', 'ready'}
 
 
+def reduced_motion():
+    if os.name == 'nt':
+        import ctypes
+
+        enabled = ctypes.c_int(1)
+        if ctypes.windll.user32.SystemParametersInfoW(0x1042, 0, ctypes.byref(enabled), 0):
+            return not enabled.value  # Windows: animate controls and elements.
+    return False
+
+
 def input_stream():
     if sys.stdin is not None:
         return sys.stdin
@@ -112,6 +122,10 @@ def run():
             super().__init__()
             self.value = 'preparing'
 
+        @Property(bool, constant=True)
+        def reducedMotion(self):
+            return motion_reduced
+
         @Property(str, notify=changed)
         def stage(self):
             return self.value
@@ -121,6 +135,7 @@ def run():
                 self.value = value
                 self.changed.emit()
 
+    motion_reduced = reduced_motion()
     state, inbox = State(), SimpleQueue()
     engine = QQmlApplicationEngine()
     engine.rootContext().setContextProperty('splashState', state)
@@ -168,10 +183,10 @@ def run():
             if value in STAGES:
                 state.update(value)
                 if value == 'ready':
-                    QTimer.singleShot(180, app.quit)
+                    QTimer.singleShot(0 if motion_reduced else 120, app.quit)
 
     timer = QTimer(app)
-    timer.setInterval(40)
+    timer.setInterval(20)
     timer.timeout.connect(receive)
     timer.start()
     window.show()

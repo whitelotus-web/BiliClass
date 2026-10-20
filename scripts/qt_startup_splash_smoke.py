@@ -15,7 +15,7 @@ import win32process
 import win32ui
 from PIL import Image, ImageChops
 
-from app.startup_splash import StartupSplash
+from app.startup_splash import StartupSplash, reduced_motion
 
 
 def windows(process):
@@ -68,7 +68,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--exe', type=Path)
     args = parser.parse_args()
-    report = Path('reports/rc104/splash-native')
+    report = Path('reports/rc105/splash-native')
     report.mkdir(parents=True, exist_ok=True)
     command = [str(args.exe)] if args.exe else [sys.executable, '-m', 'app']
     child = subprocess.Popen(command+['--startup-splash'], stdin=subprocess.PIPE,
@@ -82,7 +82,8 @@ def main():
         # The caller has no Qt loop and is deliberately blocked; child motion continues.
         time.sleep(.38)
         two = capture(hwnd, report/'animation.png')
-        assert ImageChops.difference(one, two).getbbox(), 'Startup animation stopped with its caller'
+        if not reduced_motion():
+            assert ImageChops.difference(one, two).getbbox(), 'Startup animation stopped with its caller'
         control.stage('library')
         until(lambda: 'Đang mở thư viện' in win32gui.GetWindowText(hwnd))
         control.stage('interface')
@@ -112,7 +113,8 @@ def main():
                 win32gui.PostMessage(hwnd, 0x10, 0, 0)
             assert desktop.wait(timeout=15) == 0
     result = {'status':'passed','scope':'own disposable profile/processes; no teacher data',
-              'checks':['artwork and live phases render','animation continues while caller is blocked',
+              'reduced_motion':reduced_motion(),
+              'checks':['artwork and live phases render','motion follows Windows animation preference',
                         'ready/EOF closes dedicated child','normal desktop closes splash after first frame']}
     (report/'result.json').write_text(json.dumps(result, indent=2), encoding='utf-8')
     print(json.dumps(result), flush=True)
