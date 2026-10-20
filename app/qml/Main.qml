@@ -8,7 +8,7 @@ ApplicationWindow {
     id: root
     readonly property var appBridge: bridge
     readonly property var lessonData: bridge.lesson
-    visible: true
+    visible: false
     width: 1366; height: 850
     minimumWidth: 1080; minimumHeight: 700
     title: "BiliClass · " + bridge.appVersion + " · Trợ lý dạy học song ngữ" + (bridge.developmentMode ? " · Bản nguồn" : "")
@@ -314,7 +314,12 @@ ApplicationWindow {
         subjectInput.currentIndex = !subject ? -1 : index >= 0 ? index : bridge.conversionSubjects.indexOf("Khác")
         customSubjectInput.text = index < 0 ? subject : ""
     }
-    Component.onCompleted: applyDefaultTeachingSubject()
+    Component.onCompleted: {
+        applyDefaultTeachingSubject()
+        // Show after QML construction returns to the event loop. A native
+        // window shown halfway through cold loading cannot respond to input.
+        Qt.callLater(function() { root.visible = true })
+    }
     readonly property var creationPrompt: page === "new" ? bridge.conversionPromptPreview(
         titleInput.text, creationSubject, educationInput.currentText, gradeInput.currentText, pasteInput.text,
         selectedFile, selectedConversionFormat.id,

@@ -2,7 +2,11 @@
 
 Ứng dụng Windows chuyển tài liệu của giáo viên thành bài giảng Anh–Việt, rồi trình chiếu bằng PowerPoint với giọng đọc và mascot trợ giảng. Hỗ trợ cấu hình từ lớp 1 đến lớp 12 và môn tự nhập.
 
-## Luồng hiện tại — RC102
+## Luồng hiện tại — RC103
+
+RC103 chỉ hiện cửa sổ chính sau khi QML dựng xong và trở về vòng lặp
+sự kiện, tránh cửa sổ hiện quá sớm trong lần khởi động nguội.
+[Kiểm chứng RC103](docs/BUILD_RC103.md).
 
 RC102 đưa xóa/khôi phục bài và đọc/lưu cấu hình Google Dịch sang chạy nền.
 Giao diện báo đang xử lý trong lúc chờ ổ đĩa/cơ sở dữ liệu; thao tác ghi

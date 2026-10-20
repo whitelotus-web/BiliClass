@@ -62,12 +62,14 @@ def main():
         engine.load(QUrl.fromLocalFile(str(RESOURCE_ROOT / "qml/Main.qml")))
         assert engine.rootObjects(), warnings
         window = engine.rootObjects()[0]
+        assert not window.isVisible(), 'Do not expose a native window during QML construction'
         def c(name):
             return control(window, name)
         try:
             window.setProperty("page", "library")
             until(lambda: len(bridge.lessons) == 3 and bridge._catalog.worker is None)
             pump(200)
+            assert window.isVisible(), 'Show the main window once the event loop can accept input'
             print("Catalog ready", flush=True)
             assert bridge.libraryView == "list" and bridge.libraryThumbnails.worker is None
             identity = bridge.lessons[0]["id"]
