@@ -188,8 +188,10 @@ Window {
         Menu {
             id: mascotContextMenu; objectName: "mascotContextMenu"
             popupType: Popup.Window
-            CompanionMenuItem { objectName: "mascotContextSettings"; text: "Cài đặt"; iconName: "settings"; onTriggered: companion.requestSettings() }
-            CompanionMenuItem { objectName: "mascotContextHide"; text: "Ẩn mini"; iconName: "hide"; onTriggered: companion.hide() }
+            width: Math.ceil(Math.max(contextSettings.implicitWidth, contextHide.implicitWidth)) + leftPadding + rightPadding
+            padding: 4
+            CompanionMenuItem { id: contextSettings; objectName: "mascotContextSettings"; text: "Cài đặt"; iconName: "settings"; onTriggered: companion.requestSettings() }
+            CompanionMenuItem { id: contextHide; objectName: "mascotContextHide"; text: "Ẩn mini"; iconName: "hide"; onTriggered: companion.hide() }
         }
     }
 }

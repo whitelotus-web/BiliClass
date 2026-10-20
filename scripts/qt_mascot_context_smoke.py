@@ -52,6 +52,9 @@ def main():
                              body.mapToScene(QPointF(body.width()/2, body.height()/2)).toPoint())
             until(lambda: c('mascotContextMenu').property('visible'))
             assert (companion.x(), companion.y(), companion.property('collapsed')) == before
+            menu = c('mascotContextMenu')
+            assert 90 <= menu.property('width') <= 140, menu.property('width')
+            assert 64 <= menu.property('height') <= 82, menu.property('height')
             for name in ('mascotContextSettings', 'mascotContextHide'):
                 assert c(name).isVisible() and c(name).isEnabled()
             popup = c('mascotContextHide').window()
@@ -111,6 +114,7 @@ def main():
                 'Right click opens two icon actions without moving or expanding mascot',
                 'Gear opens Mascot settings; eye-off hides compact/expanded mascot',
                 'Native popup stays on screen; sidebar can reopen hidden mascot',
+                'Two-row context popup fits its labels without excess blank width',
                 'Header uses the same eye-off icon; normal left click still works',
                 'Four header actions stay aligned, spaced and clickable at all three panel sizes'])
             (reports/'result.json').write_text(json.dumps(result, indent=2), encoding='utf-8')
