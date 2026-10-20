@@ -1,6 +1,6 @@
 # BiliClass — Hướng dẫn sử dụng
 
-Phiên bản RC103 · 20/10/2026
+Phiên bản RC104 · 20/10/2026
 
 BiliClass chuyển bài giảng PowerPoint sang Việt–Anh hoặc tiếng Anh, tạo
 âm thanh Việt–Mỹ và hỗ trợ trình chiếu bằng Mascot. Bài giảng và giọng đọc
@@ -17,16 +17,28 @@ Cần Windows 10/11 64-bit và PowerPoint desktop để trình chiếu. Chuyển
 cần Internet và key Google Cloud Translation; tạo giọng chạy trên máy.
 Thư viện được lưu riêng với ứng dụng, tại nơi hiển thị trong **Cài đặt → Dữ liệu**.
 
+## Cài đặt lần đầu
+
+Trước khi tạo bài đầu tiên, mở **Cài đặt** và lần lượt chuẩn bị:
+
+- **Chung:** tên thầy cô, trường, bộ môn và logo.
+- **Google Dịch:** nhập key rồi lưu; dùng nút hướng dẫn trong tab nếu cần
+  tạo key. Key được mã hóa theo tài khoản Windows trên máy.
+- **Giọng đọc:** chọn cặp Việt–Mỹ, nghe thử, chỉnh tốc độ rồi lưu.
+- **Mascot:** chọn nhân vật, kích thước và cách hiển thị.
+
+Bấm **F1** hoặc **Hướng dẫn · F1** ở thanh bên bất cứ lúc nào. Chọn mục
+bên trái để đọc các bước; đóng hướng dẫn để tiếp tục màn hình đang làm.
+Hướng dẫn ghi nhớ mục vừa đọc trong lần mở ứng dụng hiện tại.
+
 ## Chuyển đổi bài giảng
 
-1. Trong **Cài đặt → Google Dịch**, thêm key rồi lưu. Dùng nút hướng dẫn
-   tại đây nếu cần tạo key. Key lưu mã hóa theo tài khoản Windows trên máy.
-2. Vào **Chuyển đổi bài giảng**, chọn hoặc kéo thả file `.pptx` tối đa 200 MB.
-3. Kiểm tra tên bài, môn, cấp học và khối lớp. Chọn **Song ngữ Việt–Anh**
+1. Vào **Chuyển đổi bài giảng**, chọn hoặc kéo thả file `.pptx` tối đa 200 MB.
+2. Kiểm tra tên bài, môn, cấp học và khối lớp. Chọn **Song ngữ Việt–Anh**
    hoặc **Tiếng Anh 100%**.
-4. Chọn **Giữ thiết kế PowerPoint gốc** hoặc **Tạo theo mẫu mới**. Với mẫu mới,
+3. Chọn **Giữ thiết kế PowerPoint gốc** hoặc **Tạo theo mẫu mới**. Với mẫu mới,
    chọn một trong ba mẫu BiliClass; bấm **Xem mẫu** nếu cần xem trước mẫu.
-5. Bấm **Chuyển đổi bài giảng**. Sau khi xong, xem slide ngay tại màn hình
+4. Bấm **Chuyển đổi bài giảng**. Sau khi xong, xem slide ngay tại màn hình
    hoàn tất; dùng Trước/Sau để đối chiếu. Có thể tạo giọng, tải bài, mở
    PowerPoint hoặc trở về thư viện.
 
@@ -66,6 +78,8 @@ không tự đoán nội dung hay công thức chưa nhận diện được.
 - Chế độ **Toàn bộ slide** đọc lời đã lưu của slide; **Đọc phần đang hiện**
   giới hạn theo nội dung Office báo đang hiển thị. Nếu cả slide đã hiện,
   tool chưa có nút riêng để tự dừng sau từng đoạn.
+- Ba ô **Tự động / Đang hiện / Toàn slide** cho chọn nhanh một cách đọc.
+  Rê chuột lên từng ô để xem giải thích; chọn chế độ rồi bấm loa Anh/Việt.
 - Chuột trái lên Mascot để mở/thu bảng; kéo để đổi vị trí. Chuột phải mở
   **Cài đặt** (bánh răng) hoặc **Ẩn mini** (mắt gạch chéo). Nút mắt gạch
   chéo trên bảng cũng ẩn Mascot. Mở lại từ thanh bên ứng dụng.

@@ -91,31 +91,51 @@ ColumnLayout {
         PanelAction { objectName: "companionReadVietnamese"; enabled: bridge.companionCanRead && !!companion.availableAudio.vi; text: "Việt"; iconName: companion.readIcon("vi") === "pause" ? "pause" : "speaker"; ToolTip.visible: pointerHovered; ToolTip.text: companion.readText("vi", "tiếng Việt"); Accessible.name: companion.readText("vi", "tiếng Việt"); onClicked: bridge.companionRead("vi") }
     }
     Label {
-        objectName: "companionAudioHint"; visible: !!companion.session.bound
+        objectName: "companionAudioHint"; visible: !!companion.session.bound && (!bridge.companionCanRead || companion.audioCount === 0)
         Layout.preferredHeight: 16
         text: !bridge.companionCanRead ? "Bấm Trình chiếu để đọc giọng đã tạo."
             : companion.audioCount === 0 ? (companion.session.reading_mode === "auto" && companion.session.reading_scope === "visible" ? "Bước này chưa có lời đọc mới." : "Slide này chưa có giọng đọc.")
-            : "Nút sáng là giọng có trên phần đang hiện."
+            : ""
         color: "#667997"; font.pixelSize: 11; wrapMode: Text.WordWrap; Layout.fillWidth: true
     }
-    ToolButton {
-        id: readingOptions; objectName: "companionReadingOptions"
+    RowLayout {
+        objectName: "companionReadingOptions"
         visible: !!companion.session.can_choose_scope && bridge.companionCanRead
-        Layout.fillWidth: true; implicitHeight: 28; leftPadding: 0; rightPadding: 4
-        Accessible.name: "Chọn cách đọc bài giảng"
-        contentItem: Label {
-            text: "Đọc: " + (companion.session.reading_mode === "auto" ? "Tự động theo slide"
-                : companion.session.reading_mode === "visible" ? "Phần đang hiện" : "Toàn bộ slide") + "  ▾"
-            color: "#486385"; font.pixelSize: 11; verticalAlignment: Text.AlignVCenter
+        Layout.fillWidth: true; spacing: 4
+        ButtonGroup { id: readingGroup }
+        component ScopeChoice: RadioButton {
+            id: choice
+            required property string mode
+            required property string hint
+            readonly property bool pointerHovered: hovered || controls.companion.hoveringControl(choice)
+            Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0
+            implicitHeight: 28; padding: 3; spacing: 4
+            ButtonGroup.group: readingGroup
+            checked: controls.companion.session.reading_mode === mode
+            onClicked: controls.bridge.teachingSession.setReadingScope(mode)
+            Accessible.name: "Cách đọc: " + text
+            ToolTip.visible: pointerHovered; ToolTip.text: hint; ToolTip.delay: 500
+            indicator: Rectangle {
+                x: choice.leftPadding; y: (choice.height - height) / 2
+                width: 14; height: 14; radius: 3
+                color: choice.checked ? "#0869ff" : "#ffffff"
+                border.color: choice.checked || choice.visualFocus ? "#0869ff" : "#b0c4e0"
+                Label { anchors.centerIn: parent; text: "✓"; color: "#ffffff"; font.pixelSize: 11; visible: choice.checked }
+            }
+            contentItem: Label {
+                text: choice.text; leftPadding: choice.indicator.width + choice.spacing
+                color: choice.checked ? "#075acb" : "#486385"
+                font.pixelSize: controls.bridge.companionPanelSize === "small" ? 10 : 11
+                verticalAlignment: Text.AlignVCenter
+            }
+            background: Rectangle {
+                radius: 5; color: choice.checked ? "#eaf2ff" : choice.pointerHovered ? "#f0f5fc" : "transparent"
+                border.color: choice.visualFocus ? "#0869ff" : "transparent"
+            }
         }
-        background: Rectangle { radius: 5; color: readingOptions.hovered ? "#eaf2ff" : "transparent"; border.color: readingOptions.visualFocus ? "#0869f9" : "transparent" }
-        onClicked: readingMenu.popup()
-        Menu {
-            id: readingMenu; objectName: "companionReadingMenu"; y: readingOptions.height
-            MenuItem { objectName: "companionReadingAuto"; text: "Tự động theo slide"; checkable: true; checked: companion.session.reading_mode === "auto"; onTriggered: bridge.teachingSession.setReadingScope("auto") }
-            MenuItem { objectName: "companionReadingVisible"; text: "Đọc phần đang hiện"; checkable: true; checked: companion.session.reading_mode === "visible"; onTriggered: bridge.teachingSession.setReadingScope("visible") }
-            MenuItem { objectName: "companionReadingFull"; text: "Đọc toàn bộ slide"; checkable: true; checked: companion.session.reading_mode === "full_slide"; onTriggered: bridge.teachingSession.setReadingScope("full_slide") }
-        }
+        ScopeChoice { objectName: "companionReadingAuto"; mode: "auto"; text: "Tự động"; hint: "Theo hiệu ứng slide; ưu tiên phần mới hiện. Bấm loa để đọc." }
+        ScopeChoice { objectName: "companionReadingVisible"; mode: "visible"; text: "Đang hiện"; hint: "Đọc nội dung hiện trên màn chiếu." }
+        ScopeChoice { objectName: "companionReadingFull"; mode: "full_slide"; text: "Toàn slide"; hint: "Đọc toàn bộ lời của slide, kể cả phần chưa hiện." }
     }
     RowLayout {
         visible: companion.session.bound && !!companion.session.active; Layout.fillWidth: true; spacing: 6

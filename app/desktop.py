@@ -18,6 +18,7 @@ from .ui import Bridge
 
 
 def run(args):
+    startup = getattr(args, 'startup_screen', None)
     speech._ISOLATED_SYNTHESIS = True
     from .branding import configure_application
 
@@ -30,6 +31,8 @@ def run(args):
     from .library_location import verify_transfer_start
 
     try:
+        if startup:
+            startup.stage('library')
         directory = user_data()
         marker = directory / 'library-transfer.json'
         if not args.smoke and marker.exists() and not json.loads(marker.read_text(encoding='utf-8')).get('activated'):
@@ -40,6 +43,8 @@ def run(args):
         else:
             verify_transfer_start(directory)
     except Exception as exc:
+        if startup:
+            startup.close()
         if os.name == 'nt' and not args.smoke:
             import ctypes
 
@@ -72,6 +77,8 @@ def run(args):
         )
         library.save_term("Liên môn", "lập luận", "reasoning")
     bridge = Bridge(library)
+    if startup:
+        startup.stage('interface')
     engine = QQmlApplicationEngine()
     engine.rootContext().setContextProperty("bridge", bridge)
     warnings = []
@@ -84,6 +91,16 @@ def run(args):
         library.close()
         return 1
     window = engine.rootObjects()[0]
+    if startup:
+        startup_pending = True
+        def startup_ready():
+            nonlocal startup_pending
+            if not startup_pending:
+                return
+            startup_pending = False
+            window.frameSwapped.disconnect(startup_ready)
+            startup.finish()
+        window.frameSwapped.connect(startup_ready)
     if os.name == 'nt':
         from .windows_identity import configure_window
 

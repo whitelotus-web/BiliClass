@@ -11,6 +11,7 @@ def main():
     freeze_support()
     parser = argparse.ArgumentParser(description="BiliClass bilingual lesson workspace")
     parser.add_argument("--smoke", action="store_true")
+    parser.add_argument('--startup-splash', action='store_true', help=argparse.SUPPRESS)
     parser.add_argument(
         "--self-test", metavar="REPORT_JSON", help="Test the local pipeline with disposable data"
     )
@@ -47,6 +48,10 @@ def main():
         default="home",
     )
     args = parser.parse_args()
+    if args.startup_splash:
+        from .startup_splash import run
+
+        return run()
     if args.register_shortcut:
         from .windows_identity import register_shortcut
 
@@ -107,9 +112,15 @@ def main():
         from .diagnostics import run
 
         return run(args.self_test)
-    from .ui import run
+    from .startup_splash import start
 
-    return run(args)
+    args.startup_screen = start(enabled=not args.smoke)
+    try:
+        from .ui import run
+
+        return run(args)
+    finally:
+        args.startup_screen.close()
 
 
 if __name__ == "__main__":

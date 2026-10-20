@@ -36,7 +36,7 @@ class ControlBridge(Bridge):
 def main():
     app = QGuiApplication([])
     QQuickStyle.setStyle('Basic')
-    report = Path('reports/rc92/companion-controls')
+    report = Path('reports/rc104/companion-controls')
     report.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='bcl-controls-', ignore_cleanup_errors=True) as folder:
         library = Library(Path(folder))
@@ -111,21 +111,31 @@ def main():
                     assert all(item.isVisible() for item in audio)
                     assert [item.isEnabled() for item in audio] == [lang in languages for lang in ('en', 'vi')]
                     assert before == [(item.x(), item.y(), item.width(), item.height()) for item in audio]
-                    assert companion.height() == height
+                    assert c('companionAudioHint').isVisible() == (not languages)
+                    assert companion.height() >= height
                     assert all(item.property('iconName') == 'speaker' for item in audio)
+                choices = [c('companionReading' + name) for name in ('Auto', 'Visible', 'Full')]
+                assert all(item.isVisible() for item in choices)
+                assert max(item.mapToScene(QPointF()).y() for item in choices) - min(item.mapToScene(QPointF()).y() for item in choices) < 1
+                for selected, mode in zip(choices, ('auto', 'visible', 'full_slide'), strict=True):
+                    click(companion, selected)
+                    assert bridge.teachingSession.state['reading_mode'] == mode
+                    assert [item.property('checked') for item in choices] == [item == selected for item in choices]
+                    assert all(item.width() >= item.property('contentItem').property('implicitWidth') + 6 for item in choices)
+                click(companion, choices[0])
+                click(companion, choices[0])
+                assert choices[0].property('checked'), 'Current reading mode cannot be unchecked'
                 assert companion.grabWindow().save(str(report / f'stable-speakers-{pixels}.png'))
             bridge.saveMascotPreferences('Milo', True, 110, 'right', False, True, True, True)
             until(lambda: not bridge.mascotSaving)
             assert c('companionEndShow').property('danger')
             assert c('companionStartShow').property('iconName') == 'presentation'
             assert c('companionReadingOptions').isVisible()
-            click(companion, c('companionReadingOptions'))
-            until(lambda: c('companionReadingMenu').property('visible'))
-            c('companionReadingFull').triggered.emit()
+            click(companion, c('companionReadingFull'))
             assert bridge.teachingSession.state['reading_mode'] == 'full_slide'
-            c('companionReadingAuto').triggered.emit()
+            click(companion, c('companionReadingAuto'))
             assert bridge.teachingSession.state['reading_mode'] == 'auto'
-            c('companionReadingMenu').close()
+            assert root.findChild(QObject, 'companionReadingMenu') is None
             assert root.findChild(QObject, 'companionReadingScope') is None
             for opacity in (100, 30):
                 bridge.setCompanionPanelOpacity(opacity)

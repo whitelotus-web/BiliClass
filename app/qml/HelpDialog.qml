@@ -4,44 +4,123 @@ import QtQuick.Layouts
 
 Dialog {
     id: guide
-    modal: true
-    title: "Bắt đầu với BiliClass"
-    width: Math.min(parent.width - 40, 760)
-    height: Math.min(parent.height - 50, 660)
-    anchors.centerIn: parent
-    standardButtons: Dialog.Close
-    contentItem: ContentScrollView {
-        contentWidth: availableWidth
-        ColumnLayout { width: parent.width; spacing: 18
+    modal: true; anchors.centerIn: parent
+    width: Math.min(parent.width - 48, 960); height: Math.min(parent.height - 56, 690)
+    padding: 20
+    property int activeTopic: 0
+    readonly property color ink: "#112650"
+    readonly property color muted: "#667997"
+    readonly property var topics: [
+        {label:"Cài đặt ban đầu", icon:"settings", title:"Bắt đầu từ 4 cài đặt này", intro:"Thiết lập một lần, BiliClass sẽ nhớ cho những lần dùng sau."},
+        {label:"Chuyển đổi bài giảng", icon:"bilingual", title:"Từ PowerPoint đến bài giảng song ngữ", intro:"Giữ thiết kế quen thuộc hoặc làm mới bằng mẫu BiliClass."},
+        {label:"Tạo giọng đọc", icon:"narration", title:"Thêm giọng Việt–Anh cho bài giảng", intro:"Hai ngôn ngữ, hai loa riêng — chủ động đọc đúng phần cần dạy."},
+        {label:"Dạy với Mascot", icon:"mascot", title:"Sẵn sàng lên lớp", intro:"Điều khiển bài chiếu và giọng đọc ngay từ trợ giảng nổi."},
+        {label:"Tìm và tải bài", icon:"lessons", title:"Bài giảng luôn trong tầm tay", intro:"Tìm nhanh, chọn nhiều bài và tải đúng phiên bản cần dùng."},
+        {label:"Sao lưu dữ liệu", icon:"data", title:"Giữ bài giảng để dùng lâu dài", intro:"Thư viện lưu trên máy; sao lưu để yên tâm dùng lại hoặc đổi máy."}
+    ]
+    readonly property var setup: [
+        {title:"Thông tin chung", body:"Nhập tên thầy cô, trường, bộ môn và thêm logo. Bật hiển thị hồ sơ nếu muốn đưa thông tin lên bài giảng."},
+        {title:"Key Google Dịch", body:"Mở tab Google Dịch → nhập key được cấp → Lưu key. Đây là bước cần có trước khi chuyển đổi bài giảng."},
+        {title:"Giọng đọc", body:"Chọn cặp giọng Việt–Mỹ, nghe thử, chỉnh tốc độ rồi lưu. Lần tạo giọng mới sẽ dùng lựa chọn gần nhất."},
+        {title:"Mascot", body:"Chọn nhân vật yêu thích, kích thước và cách hiển thị trợ giảng nổi phù hợp với màn hình dạy học."}
+    ]
+    readonly property var workflows: [[],
+        [
+            {title:"Chọn PowerPoint", body:"Kéo thả hoặc bấm chọn tệp .pptx. Kiểm tra tên bài, môn học và khối lớp."},
+            {title:"Chọn kiểu và thiết kế", body:"Chọn Song ngữ Việt–Anh hoặc Tiếng Anh 100%. Giữ thiết kế gốc hoặc chọn mẫu BiliClass; có thể Xem mẫu trước."},
+            {title:"Tạo và xem ngay kết quả", body:"Bấm Chuyển đổi bài giảng. Khi xong, xem từng slide ngay trên tool, đối chiếu nội dung rồi mở PowerPoint hoặc thêm giọng đọc."}
+        ],
+        [
+            {title:"Chọn bài cần tạo giọng", body:"Dùng bài vừa chuyển đổi hoặc chọn từ Thư viện. Bấm Xem trước slide khi cần đối chiếu."},
+            {title:"Chọn giọng và ngôn ngữ", body:"Chọn cặp Việt–Mỹ, tốc độ và Nghe thử. Chọn Tiếng Việt, Tiếng Anh hoặc cả hai; mỗi ngôn ngữ được đọc bằng giọng tương ứng."},
+            {title:"Tạo giọng và dùng để dạy", body:"Bấm Tạo giọng đọc. Chọn cả hai sẽ có hai loa VI và EN riêng trên slide. Có thể nghe, mở PowerPoint hoặc tải bài có giọng."}
+        ],
+        [
+            {title:"Mở bài trong PowerPoint", body:"Bấm Mở PowerPoint từ Thư viện hoặc chọn bài trên Mascot. Bấm F5 khi sẵn sàng trình chiếu."},
+            {title:"Điều khiển ngay trên Mascot", body:"Dùng Trước/Sau, loa Việt/Anh và âm lượng. Chọn Tự động, Đang hiện hoặc Toàn slide để đổi cách đọc; rê chuột xem giải thích. Bấm nhân vật để mở/thu bảng."},
+            {title:"Thu gọn khi cần", body:"Chuột phải vào nhân vật để mở Cài đặt hoặc Ẩn mini. Có thể mở lại trợ giảng nổi từ thanh bên của BiliClass."}
+        ],
+        [
+            {title:"Tìm đúng bài", body:"Gõ tên bài, môn hoặc khối — có thể gõ không dấu. Kết hợp bộ lọc, sắp xếp và đổi giữa Thẻ/Danh sách."},
+            {title:"Chọn một hoặc nhiều bài", body:"Tích ô chọn; giữ Shift để chọn một dải, hoặc giữ chuột kéo qua các bài. Thanh tìm kiếm và tác vụ vẫn hiện khi cuộn."},
+            {title:"Tải hoặc đưa vào thùng rác", body:"Nút Tải dùng tên bài và ghi rõ ngôn ngữ, giọng đọc đã có. Bài đã xóa có thể khôi phục trong Chia sẻ & quản lý → Thùng rác."}
+        ],
+        [
+            {title:"Sao lưu thư viện", body:"Mở Cài đặt → Dữ liệu → Sao lưu dữ liệu, rồi chọn nơi giữ bản sao. BiliClass cũng tự sao lưu theo lịch khi mở ứng dụng."},
+            {title:"Khôi phục khi cần", body:"Chọn Khôi phục bản sao và chọn tệp sao lưu. Tool kiểm tra, mở thư viện khôi phục; thư viện trước vẫn được giữ."},
+            {title:"Đổi nơi lưu hoặc cập nhật", body:"Dùng Đổi nơi lưu nếu cần chuyển thư viện sang ổ khác. Kiểm tra bản mới tại Cài đặt → Thông tin BiliClass."}
+        ]
+    ]
+    background: Rectangle { color: "white"; radius: 16; border.color: "#d6e4f6" }
+    header: Item {
+        implicitHeight: 82
+        Label { x:24; y:18; text:"Hướng dẫn BiliClass"; color:guide.ink; font.pixelSize:23; font.weight:Font.Bold }
+        Label { x:24; y:51; text:"Từ thiết lập lần đầu đến một tiết dạy song ngữ"; color:guide.muted; font.pixelSize:13 }
+    }
+    contentItem: RowLayout {
+        spacing: 24
+        ColumnLayout {
+            Layout.preferredWidth:216; Layout.fillHeight:true; spacing:6
             Repeater {
-                model: !bridge.experimentalTeaching ? [
-                    {title:"1 · Chuyển đổi bài giảng", body:"Chọn file PowerPoint, kiểu chuyển đổi và thiết kế. BiliClass dịch và lưu bản trình chiếu trên máy. Có thể giữ thiết kế gốc hoặc dùng mẫu BiliClass. Xem trước kết quả để đối chiếu nội dung, số liệu và công thức; chữ trong ảnh vẫn có thể cần kiểm tra."},
-                    {title:"2 · Tạo giọng đọc local", body:"Chọn cặp Việt–Mỹ, tốc độ và tiếng Anh, tiếng Việt hoặc cả hai. Tiếng Việt dùng VieNeu, tiếng Anh dùng giọng Mỹ Kokoro, chạy trên máy. Chọn cả hai tạo hai loa độc lập. Nghe thử dùng mẫu dài theo ngôn ngữ đang chọn; cặp và tốc độ gần nhất được nhớ cho lần tạo mới."},
-                    {title:"3 · Dạy bằng PowerPoint và Mascot", body:"Mở bài từ thư viện hoặc chọn trên Mascot, rồi bấm F5 để trình chiếu. Dùng Trước/Sau, loa Anh/Việt và âm lượng. Chuột trái lên Mascot để mở/thu bảng; chuột phải mở Cài đặt hoặc Ẩn mini. Mở lại Mascot từ thanh bên khi cần."},
-                    {title:"4 · Tìm và tải bài", body:"Thư viện có tìm kiếm, bộ lọc, xem thẻ hoặc danh sách. Shift chọn theo dải; kéo chuột qua các bài để chọn nhiều. Thanh tìm kiếm và tác vụ giữ cố định khi cuộn. Tệp tải lấy theo tên bài và ghi rõ ngôn ngữ cùng giọng đọc đã tạo."},
-                    {title:"5 · Lưu và khôi phục dữ liệu", body:"Bài giảng được lưu trên máy. Trong Cài đặt → Dữ liệu, dùng Sao lưu dữ liệu, Khôi phục bản sao hoặc Đổi nơi lưu. Khôi phục vào thư mục mới, kiểm tra rồi mở lại; thư viện trước vẫn được giữ. Kiểm tra cập nhật trong Thông tin BiliClass."}
-                ] : bridge.googleTranslation ? [
-                    {title:"1 · Cấu hình Google Dịch", body:"Mở Cài đặt → Google Dịch. Bật Cloud Translation API và thanh toán trên Google Cloud, nhập key rồi Lưu cấu hình. Mỗi dòng một key; có thể dùng Tên dự án | key để nhóm các key cùng dự án. Key được mã hóa trên tài khoản Windows, không đi cùng bản sao lưu."},
-                    {title:"2 · Chọn tài liệu và bố cục", body:"Chọn PPTX có chữ chỉnh sửa được, DOCX, PDF có chữ, TXT hoặc dán nội dung. Điền tên bài, môn, cấp và khối lớp. Chọn Song ngữ Việt–Anh để tự căn từng vùng, hoặc Tiếng Anh 100% để thay chữ tại vị trí gốc. Giữ thiết kế PowerPoint gốc hoặc chọn một trong ba mẫu mới. Vùng song ngữ quá chật có thể dùng trang tiếp nối; chữ trong ảnh và hiệu ứng phức tạp cần đối chiếu."},
-                    {title:"3 · Chuyển đổi và tải về", body:"Bấm Chuyển đổi bài giảng. BiliClass tự dịch chữ, sắp xếp và lưu PowerPoint tại máy. Màn hình có phần trăm và thời gian; phần đã dịch được lưu để tiếp tục nếu lỗi mạng. Khi xong tự sang Tạo giọng đọc bài giảng, nạp sẵn bài vừa chuyển. Có thể tải PowerPoint không giọng ngay hoặc cấu hình tạo giọng. Chữ trong ảnh, biểu đồ, công thức và hiệu ứng chưa kiểm chứng vẫn cần đối chiếu."},
-                    {title:"4 · Tạo giọng đọc khi cần", body:"Chọn Tiếng Anh, Tiếng Việt hoặc Việt + Anh rồi bấm Tạo giọng đọc. VieNeu chạy tại máy bằng giọng và tốc độ đã lưu. Khi đủ giọng, tích Kèm giọng đọc khi tải PowerPoint: file có nút loa VI/EN trên slide, dùng được độc lập với BiliClass. Chỉ nhúng lời đọc tĩnh; lời đọc ẩn theo hiệu ứng vẫn dùng trong BiliClass. Bỏ tích để tải bản không voice."},
-                    {title:"5 · Xem và dùng để dạy", body:"Xem lại bản trình chiếu, nội dung, thuật ngữ và các phần cần rà soát. Bấm Mở bài giảng để dạy và xác nhận nội dung. PowerPoint mở ở trạng thái sẵn sàng, Mascot gắn với đúng bài và bản giọng. Bấm Trình chiếu (F5) trên Mascot. Thu nhỏ BiliClass vẫn dùng được; chọn/đổi bài ngay trên Mascot hoặc từ thư viện. Quiz và đáp án vẫn cần duyệt riêng."},
-                    {title:"6 · Hạn mức và dữ liệu", body:"500.000 ký tự/tháng là tín dụng theo điều kiện Google, không phải hạn mức riêng mỗi key. BiliClass chỉ đếm lượng dùng cục bộ theo nhóm, không thấy số dư hay lượt dùng ở ứng dụng/máy khác. Đặt thêm quota trong Google Cloud để kiểm soát chi phí. Bài học lưu trên máy; sao lưu hoặc xuất gói bài để chuyển máy. Key cần nhập lại ở máy mới. Kiểm tra cập nhật tại Cài đặt → Thông tin BiliClass."}
-                ] : [
-                    {title:"1 · Tài liệu và kiểu chuyển đổi",body:"Kéo thả hoặc chọn PPTX (tối đa 200 MB), DOCX, PDF, TXT, PNG/JPG (tối đa 50 MB); cũng có thể dán nội dung. Tên tệp và Đã nhận tệp hiện sau khi chọn. Điền tên bài, môn và cấp học; khối lớp chỉ hiện theo cấp đã chọn. Tích một trong bốn kiểu và Xem mẫu bố cục. Giữ thiết kế PowerPoint gốc hoặc tạo theo mẫu mới; tài liệu khác dùng mẫu mới. Ghi chú thêm cho ChatGPT không bắt buộc và được ghép vào prompt. Có thể Hiện/Ẩn prompt để xem kịch bản sẽ gửi."},
-                    {title:"2 · Đăng nhập ChatGPT và chuyển đổi",body:"Cài đặt → Browser AI → Thêm tài khoản. Đăng nhập Free/Plus trong Chrome riêng rồi kiểm tra và lưu. Bấm Chuyển đổi bài giảng: app tự gửi prompt và tài liệu, nhận PowerPoint rồi chuẩn bị giọng đọc Việt–Anh theo cài đặt đã lưu. Bài mới ưu tiên Plus còn dùng được rồi Free; bài đã gửi giữ tài khoản/cuộc trò chuyện để tránh gửi trùng. Mất phiên/cần xác minh thì xử lý trong Browser AI; hết lượt thì chờ."},
-                    {title:"3 · Xem kết quả rồi Dùng để dạy",body:"Xem từng slide hoặc mở toàn bộ bài. Kiểm tra ý nghĩa, thuật ngữ, số liệu, công thức và bố cục. Bấm Dùng để dạy rồi xác nhận đã kiểm tra cả bài một lần để mở trình chiếu; không phải duyệt từng đoạn. Chỉnh sửa chi tiết vẫn có sửa/tách đoạn, khóa, trợ giảng, quiz và lịch sử. Sửa bài xong cần chuyển đổi và xác nhận lại."},
-                    {title:"4 · Dạy bằng PowerPoint và mascot",body:"Nguồn được giữ riêng. Prompt yêu cầu giữ đúng số lượng/thứ tự slide PPTX; slide quá kín phải báo hạn chế. Mở bài giảng để dạy gắn PowerPoint với Mascot; bấm Trình chiếu (F5) khi sẵn sàng. Mascot trong suốt, kéo tự do; bấm mascot để dùng các thao tác hoặc chọn bài khác. Voice bám slide thực tế, dừng khi đổi/đóng slide. Tiếng Anh 100% chỉ có Anh trên slide, lời đọc Việt lưu riêng trong ghi chú. Giọng đọc offline cần model hoặc cache phù hợp."},
-                    {title:"5 · Câu hỏi hiểu bài",body:"Câu hỏi trong ghi chú PPTX được nhập vào đúng slide ở trạng thái nháp. Thầy cô xem và duyệt riêng trong Trợ giảng & Quiz; xác nhận PowerPoint không tự duyệt đáp án. Câu hỏi không thêm slide và không được đọc lẫn vào voice. Khi dùng lớp học, học sinh cùng Wi-Fi quét QR, không cần tài khoản; đóng câu trước khi công bố đáp án."},
-                    {title:"6 · Kết quả và dùng lại bài",body:"Báo cáo luôn ghi số câu trả lời và mẫu số; khảo sát không chấm điểm. Gợi ý level cần cặp câu tương đương được thầy cô gắn nhãn. Xuất gói bài để chuyển máy; máy nhận cần kiểm tra lại. Trong Chỉnh sửa chi tiết, xuất PPTX giữ thiết kế nguồn hoặc dùng mẫu theo cách đã chọn. Hiệu ứng của slide nguồn được giữ ở chế độ giữ thiết kế gốc."},
-                    {title:"Khi cần khôi phục hoặc đổi máy",body:"Cài đặt → Sao lưu thư viện. Tự sao lưu mỗi ngày khi mở ứng dụng, giữ tối đa 14 bản tự động. Khôi phục luôn vào thư mục mới, sau đó chọn Mở thư viện. Gỡ ứng dụng giữ dữ liệu trong thư mục BiliClass của tài khoản Windows. Model dịch được cài từ gói .bclanguage trên máy/USB; không tự tải Internet."},
-                    {title:"Khi điện thoại không vào được lớp",body:"Chọn đúng địa chỉ Wi-Fi/Ethernet, không chọn 127.0.0.1 cho điện thoại. Cho phép BiliClass trên mạng riêng trong Windows Firewall nếu Windows hỏi. Kiểm tra hai máy cùng mạng và router không bật cô lập thiết bị. Khi đổi mạng, ngắt máy chủ rồi mở lại phiên trong Báo cáo; phát lại QR mới. Mất kết nối vẫn giữ câu trả lời đã được xác nhận."}
-                ]
-                ColumnLayout { required property var modelData; Layout.fillWidth: true; spacing: 5
-                    Label { text: modelData.title; font.pixelSize: 17; font.bold: true; color: "#112650"; Layout.fillWidth: true; wrapMode: Text.WordWrap }
-                    Label { text: modelData.body; font.pixelSize: 13; color: "#667997"; Layout.fillWidth: true; wrapMode: Text.WordWrap; lineHeight: 1.3 }
+                model:guide.topics
+                delegate:ItemDelegate {
+                    required property int index
+                    required property var modelData
+                    objectName:"helpTopic"+index
+                    Layout.fillWidth:true; implicitHeight:51
+                    contentItem:RowLayout {
+                        spacing:10
+                        NavigationIcon { name:modelData.icon; active:guide.activeTopic===index; Layout.preferredWidth:24; Layout.preferredHeight:24 }
+                        Label { text:(index+1)+". "+modelData.label; Layout.fillWidth:true; color:guide.activeTopic===index?"#0869f9":guide.ink; font.pixelSize:13; font.weight:Font.DemiBold; wrapMode:Text.WordWrap }
+                    }
+                    background:Rectangle { radius:10; color:guide.activeTopic===index?"#edf5ff":parent.hovered?"#f6f9fd":"transparent" }
+                    onClicked:guide.activeTopic=index
                 }
             }
+            Item { Layout.fillHeight:true }
+            Label { text:"F1 · Mở hướng dẫn bất cứ lúc nào"; wrapMode:Text.WordWrap; Layout.fillWidth:true; font.pixelSize:11; color:guide.muted }
+        }
+        Rectangle { Layout.fillHeight:true; Layout.preferredWidth:1; color:"#e6edf7" }
+        ColumnLayout {
+            Layout.fillWidth:true; Layout.fillHeight:true; spacing:10
+            Label { objectName:"helpTopicHeading"; text:guide.topics[guide.activeTopic].title; color:guide.ink; font.pixelSize:22; font.weight:Font.Bold; wrapMode:Text.WordWrap; Layout.fillWidth:true }
+            Label { text:guide.topics[guide.activeTopic].intro; color:guide.muted; font.pixelSize:13; wrapMode:Text.WordWrap; Layout.fillWidth:true }
+            ContentScrollView {
+                id:stepsScroll; objectName:"helpStepsScroll"
+                Layout.fillWidth:true; Layout.fillHeight:true; contentWidth:availableWidth
+                ColumnLayout {
+                    width:stepsScroll.availableWidth; spacing:10
+                    Repeater {
+                        model:guide.activeTopic===0?guide.setup:guide.workflows[guide.activeTopic]
+                        delegate:Rectangle {
+                            required property int index
+                            required property var modelData
+                            objectName:"helpStep"+index
+                            Layout.fillWidth:true; implicitHeight:stepRow.implicitHeight+24; radius:11; color:"#f7faff"
+                            RowLayout {
+                                id:stepRow; anchors.fill:parent; anchors.margins:12; spacing:12
+                                Rectangle { Layout.alignment:Qt.AlignTop; implicitWidth:29; implicitHeight:29; radius:15; color:"#e6f0ff"; Label { anchors.centerIn:parent; text:index+1; font.weight:Font.Bold; color:"#0869f9" } }
+                                ColumnLayout {
+                                    Layout.fillWidth:true; spacing:4
+                                    Label { text:modelData.title; color:guide.ink; font.pixelSize:15; font.weight:Font.DemiBold; wrapMode:Text.WordWrap; Layout.fillWidth:true }
+                                    Label { text:modelData.body; color:guide.muted; font.pixelSize:13; wrapMode:Text.WordWrap; lineHeight:1.2; Layout.fillWidth:true }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    onActiveTopicChanged:if(stepsScroll.contentItem) stepsScroll.contentItem.contentY=0
+    footer:Item {
+        implicitHeight:65
+        RowLayout {
+            anchors.fill:parent; anchors.margins:16; spacing:8
+            ActionButton { objectName:"helpClose"; text:"Đóng"; onClicked:guide.close() }
+            Item { Layout.fillWidth:true }
+            ActionButton { objectName:"helpPrevious"; text:"← Trước"; visible:guide.activeTopic>0; onClicked:guide.activeTopic-- }
+            ActionButton { objectName:"helpNext"; text:guide.activeTopic===0?"Xem cách tạo bài →":"Tiếp →"; visible:guide.activeTopic<guide.topics.length-1; onClicked:guide.activeTopic++ }
         }
     }
 }
