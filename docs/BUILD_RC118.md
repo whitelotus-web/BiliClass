@@ -59,3 +59,22 @@ Kiểm tra thư viện dạng dòng/thẻ và các hộp tải/sửa tên đã �
 nút nội bộ MainAction được tách khỏi Action của Qt để tránh nhận nhầm
 wrapper khi đóng/mở popup; bài kiểm tra giữ nguyên thao tác click thực.
 Bài kiểm tra đợi popup đóng xong và đóng các worker trước dọn cửa sổ.
+
+## Gói và cài đặt đã kiểm tra
+
+Nguồn dựng: `4e34e62b709a71da3f8908fe94f9287908831f9d`. Biên dịch lại
+module app, dùng runtime/model RC117 đã xác minh hash. Gói có 4.662 tệp
+ứng dụng và 54 tệp QML/qmldir khớp nguồn. Kiểm từng tệp trong ZIP, SHA256
+ZIP và digest asset GitHub; bản cài cũng đối chiếu EXE và toàn bộ QML.
+
+- Phát hành: https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc118
+- ZIP: `BiliClass-RC118-Windows.zip`, 1.249.984.085 byte.
+- SHA256: `38499c8405e0061a714f69b0e35e950941dc83cc909d3483cc3b297367a3de08`.
+- Bản đóng gói mở đúng tab Tạo giọng 1366×850 với thư viện tạm; không có
+  cảnh báo QML. Không dùng thư viện cá nhân cho thử chức năng.
+- RC116 đóng bình thường; cài tại `F:/Applications/BiliClass/1.0.0rc118`,
+  mở qua Explorer độc lập với agent. Main/Mascot đạt ba lần phản hồi
+  liên tiếp sau khởi động; biểu tượng/taskbar và shortcut trỏ đúng RC118.
+- Đối chiếu trước/sau: 20 bản ghi bài cùng hash nội dung/nguồn, 1.658 WAV
+  tham chiếu, lựa chọn giọng, logo và khóa API mã hóa không đổi. PowerPoint
+  và RC80 chạy riêng vẫn được giữ.
