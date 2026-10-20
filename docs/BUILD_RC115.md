@@ -13,8 +13,8 @@ cho bài mới và bản cũ: kéo khung chữ BiliClass về đúng dải, đo/
 PowerPoint trên bản sao. Không cho bước nới hộp chữ mở rộng khỏi dải.
 Giữ văn bản, media, cấu trúc cặp lời và vị trí của mục tiêu motion/trigger.
 Bản cũ có sơ đồ cặp được rà thêm khi mở/tải dù phép kiểm tra trước đây
-chưa báo FAIL; mỗi phiên bản hoàn thiện chỉ chạy lại một lần trên đúng
-hash nguồn. Giữ kiểm tra đồng thời và lịch sử nguồn/giọng sẵn có.
+chưa báo FAIL; lượt sửa ghi nhận phiên bản và hash nguồn để không lặp
+vô hạn. Giữ kiểm tra đồng thời và lịch sử nguồn/giọng sẵn có.
 
 Đây là sửa quy tắc chung, không phải vá tọa độ một bài. Kiểm tra trên
 các khối nền tạo bằng code và ảnh có bóng trong suốt; thử lại ví dụ bốn
@@ -39,3 +39,17 @@ DPI 100%/150%, cỡ Mascot 60/65/66/80/94/95/110/129/130/150/160 px đạt,
 không cảnh báo QML. Kiểm tra chữ “Đang chiếu” không bị cắt, các lựa chọn
 vẫn cân giữa, mask logo không làm đổi byte ảnh gốc. Đã xem render ví dụ
 chuyển đổi, giao diện với logo thật và bảng Mascot nhỏ.
+
+Gói từ commit `8a43de22e984bd523ed5a0098c8ea3a0cb20cf66`, ZIP
+1.249.974.070 byte, SHA-256
+`3c545410f2ea1d51595bc4a62305e0b9be4a98b1a8cc757690b37cef1ccd4672`.
+Manifest và ZIP đã xác minh; 51 QML/qmldir khớp nguồn đã kiểm tra.
+Bản đóng gói chạy smoke giao diện tối với logo thật trong thư viện tạm,
+thoát mã 0. GitHub xác nhận digest và phát hành `v1.0.0rc115`.
+
+Đã cài, mở RC115 độc lập qua Explorer tại Cài đặt. Cửa sổ chính và
+Mascot đạt ba thăm dò phản hồi liên tiếp sau một lần timeout khởi động
+500 ms; shortcut, biểu tượng và danh tính taskbar đúng. Hash nguồn và
+revision của 18 bản ghi bài (gồm thùng rác), 1.658 WAV được tham chiếu,
+cấu hình giọng, khóa dịch mã hóa và ảnh logo gốc khớp trước/sau cài.
+PowerPoint độc lập và RC80 được giữ nguyên.
