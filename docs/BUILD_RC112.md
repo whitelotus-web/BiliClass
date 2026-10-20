@@ -21,3 +21,22 @@ Menu chuột phải dùng chung SVG; ảnh PNG nguồn vẫn được giữ nguy
 Qt context smoke đạt ở tỉ lệ 100% và 150%: bấm, mở Cài đặt, ẩn/mở lại,
 ba cỡ Mascot và khoảng cách nút đều đúng, không cảnh báo QML. Đã xem
 ảnh đầu bảng và menu ở kích thước thực.
+
+Gói phát hành dựng từ commit `578c1d931393c199140af5acf88f93c19a44c7e0`,
+ZIP 1.249.945.407 byte, SHA-256
+`6815a8ad5cd1e8491d02233c5a657660213f2573baf561984dcaf6bbb73917a8`.
+Manifest và ZIP được xác minh; bốn QML và bốn SVG trong gói khớp nguồn
+đã kiểm tra. GitHub xác nhận digest khớp; tag `v1.0.0rc112` đã phát hành.
+
+Đã cài và mở bản RC112 qua Explorer tại trang bài giảng; cửa sổ chính,
+Mascot, shortcut và biểu tượng taskbar đúng. Khởi động có ba lần thăm
+dò quá 500 ms rồi đạt ba lần phản hồi liên tiếp trong ngưỡng. Hash nguồn,
+revision bài, 1.224 WAV được tham chiếu, lựa chọn giọng và khóa dịch mã
+hóa khớp trước/sau. PowerPoint độc lập của người dùng được giữ nguyên.
+
+Đã tìm nguyên nhân của câu hỏi về tiêu đề lặp: ở ví dụ Warm-up, dòng
+tiêu đề được trích xuất với kind=body. ReadingProgress hiện chỉ bỏ tiêu
+đề đã nghe ở trang liền trước trong chế độ tự động của Mascot, còn âm
+thanh xuất theo slide giữ đầy đủ nội dung. RC112 chưa thay đổi chính
+sách này; hướng đề xuất là nhận diện tiêu đề chắc chắn hơn và tránh
+đọc lặp khi đọc nối tiếp, vẫn giữ ngữ cảnh khi mở thẳng hoặc quay lại.
