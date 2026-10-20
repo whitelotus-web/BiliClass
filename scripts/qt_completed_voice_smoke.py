@@ -116,6 +116,19 @@ def main():
             window.setProperty('page', 'voice')
             pump(150)
             assert window.property('voicePreviewExpanded'), 'Returning to a completed voice shows its preview'
+            c('toggleVoiceSlidePreview').clicked.emit()
+            window.setProperty('narrationOptionsPinned', True)
+            window.setProperty('narrationVoice', 'pair:north-male')
+            bridge.narration_preparation.state = dict(plan, lesson_id=lesson['id'], running=True, complete=0)
+            bridge.narrationChanged.emit()
+            bridge.narration_preparation.state.update(running=False, complete=6, failed=0, cancelled=False)
+            bridge.narrationChanged.emit()
+            pump(120)
+            assert window.property('voicePreviewExpanded'), 'Completion reveals the slide even if the draft choice differs'
+            c('toggleVoiceSlidePreview').clicked.emit()
+            bridge.narrationChanged.emit()
+            pump(60)
+            assert not window.property('voicePreviewExpanded'), 'Later notifications must respect a deliberate hide'
             assert not warnings, warnings
             (reports / 'result.json').write_text(json.dumps({'status': 'passed', 'automatic_preview': True,
                 'preview_while_powerpoint_active': True, 'sizes': [[1080, 700], [1366, 850]], 'qml_warnings': warnings}), encoding='utf-8')

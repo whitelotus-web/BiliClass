@@ -88,6 +88,7 @@ ApplicationWindow {
     readonly property bool tightCreation: height < 800
     readonly property bool compactVoice: page === "voice" && !!bridge.quickResult.path && height < 850
     property bool voicePreviewExpanded: false
+    property bool narrationPreviewPending: false
     property bool voiceConfigurationExpanded: false
     readonly property bool narrationComplete: !!bridge.quickResult.path && !!narrationDraft.ready && !bridge.narrationBusy
     onNarrationCompleteChanged: if (narrationComplete) Qt.callLater(root.revealCompletedNarration)
@@ -429,6 +430,18 @@ ApplicationWindow {
     Connections {
         target: bridge
         function onBrowserStateChanged() { if (!bridge.browserState.running) cancelConversionDialog.close() }
+        function onNarrationChanged() {
+            const job = bridge.narrationPreparation
+            if (job.lesson_id !== root.lessonData.id) return
+            if (job.running) { root.narrationPreviewPending = true; return }
+            if (!root.narrationPreviewPending || bridge.narrationBusy) return
+            root.narrationPreviewPending = false
+            if (root.page === "voice" && job.total > 0 && job.complete === job.total && !job.failed && !job.cancelled) {
+                root.voicePreviewExpanded = true
+                if (!bridge.quickResult.image && !bridge.previewBusy)
+                    bridge.previewConvertedSlide(bridge.quickResult.slide || 1)
+            }
+        }
         function onNarrationAlreadyCreated(config) { existingNarration.selection = config; existingNarration.open() }
         function onUpdateAvailable() { updateDialog.open() }
         function onPowerpointSlideChanged(slide) { if (!root.dirty && !bridge.teachingSession.state.bound) bridge.followPowerPoint() }
