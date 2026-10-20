@@ -26,7 +26,7 @@ GridLayout {
             implicitHeight: contents.implicitHeight + 20; radius: 10
             color: picker.currentIndex === card.index ? AppTheme.adapt("#f2f7ff") : "transparent"
             border.width: 1
-            border.color: picker.currentIndex === card.index ? AppTheme.adapt("#dce8f8") : "transparent"
+            border.color: picker.currentIndex === card.index ? AppTheme.adapt("#dce8f8") : AppTheme.line
             ColumnLayout {
                 id: contents; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 10; spacing: 6
                 Image {

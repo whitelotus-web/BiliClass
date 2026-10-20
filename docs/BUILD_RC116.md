@@ -1,4 +1,4 @@
-# RC116 — Cài đặt gọn và các nút đi cùng nội dung
+# RC116 — Bố cục gọn, xem trước trực quan và lưu cạnh file gốc
 
 Tab Chung bỏ thẻ “Xem trước hồ sơ” trùng thông tin thanh bên. Form thầy cô
 và phần chọn giao diện đặt cạnh nhau trên cửa sổ rộng, tự xếp dọc khi hẹp;
@@ -18,8 +18,53 @@ lời nghe thử, cơ chế lưu giọng và bản thu cũ.
 Thông tin BiliClass căn giữa theo một cột: thương hiệu, Copyright, phiên bản,
 kiểm tra cập nhật. Nội dung dài tự xuống dòng.
 
-Kiểm tra nguồn: 15 ca liên quan giọng, nghe thử và tùy chọn thư viện đạt.
+Tab Mascot giới hạn nội dung 1.180 px và căn giữa khi phóng to. Các nhóm
+phím đọc và phím di chuyển có khoảng cách cố định, không giãn theo cửa sổ.
+Thanh tiêu đề dùng một lớp chữ Segoe UI thường, vẽ ở tọa độ pixel nguyên;
+không chồng lớp chữ tiêu đề của nền tảng. Giữ khung, menu hệ thống, phím
+thu/phóng/đóng, AppUserModelID và biểu tượng Windows.
+
+Thư viện dành cùng độ rộng cho nhãn trạng thái, ngày tạo và nút mở. Ngày
+tạo thẳng cột khi trạng thái hay độ dài tên bài khác nhau. Giữ chọn nhiều,
+kéo chọn, bộ lọc và bố cục cửa sổ hẹp.
+
+Màn tạo giọng ghép thông tin bài và nút mở/tải với ảnh thu nhỏ 16:9 ở bên
+phải. Hết hàng trống chỉ dành cho ảnh. Loa demo EN/VI/hai loa theo lựa chọn
+ngôn ngữ và vị trí trái/giữa/phải dưới, cả ảnh nhỏ lẫn ảnh phóng to. Dùng
+ảnh loa và khung cắt của bản xuất; không tạo audio hay sửa PowerPoint khi
+đổi demo. Giữ một dòng quy trình; bỏ hướng dẫn trùng dưới ô chọn bài.
+
+Màn chuyển đổi sau khi chọn PowerPoint thu gọn khối tải lên thành trạng
+thái đã chọn, nút chọn bài khác/bỏ tệp và ảnh slide gốc. Xem trước chạy ở
+worker, render bản sao riêng bằng PowerPoint; có thể hủy khi đổi/bỏ file,
+bỏ qua kết quả cũ đến muộn và không chặn bước chọn cấu hình. Mọi ô lựa
+chọn chuyển đổi/thiết kế/mẫu có viền mảnh ngay cả khi chưa chọn. Nút xem
+mẫu mở ảnh PNG trong ứng dụng; không khởi chạy file mẫu PowerPoint.
+
+Ô “Cấu hình đã chọn” của chuyển đổi và tạo giọng nằm trong thanh cố định,
+cạnh nút thực hiện. Cuộn nội dung không làm ô này trôi đi; nội dung tự
+xuống dòng theo độ rộng, thanh tự tăng chiều cao và vùng cuộn chừa chỗ.
+Thông tin giọng/ngôn ngữ/tốc độ/vị trí loa cập nhật ngay theo lựa chọn.
+
+Các hộp mở/lưu/chọn thư mục dùng hộp thoại Windows ở cả hai chế độ màu.
+Gợi ý lưu một bài ưu tiên thư mục và tên file gốc đã tải lên; giữ hậu tố
+ngôn ngữ/giọng, thêm số khi trùng để không ghi đè nguồn. Đường dẫn chỉ lưu
+trong cấu hình cục bộ, tách khỏi nội dung bài và gói chia sẻ; liên kết theo
+bài để lần nhập khác không đổi thư mục của bản cũ. Bài cũ chưa có đường
+dẫn hoặc thư mục không truy cập được dùng vị trí tải dự phòng. Lưu nhiều
+bài ZIP tiếp tục dùng thư mục tải chung.
+
+Kiểm tra nguồn: 66 ca liên quan nhập/chuyển đổi, đường dẫn lưu, giọng,
+nghe thử và tùy chọn thư viện đạt; Ruff và kiểm tra khoảng trắng đạt.
 Qt kiểm tra lưu cấu hình giọng và bảo toàn bản thu cũ đạt. Qt Cài đặt dùng
 font thật ở 1080/1366/1920, sáng/tối, DPI 100% và 150%; kiểm tra hình học,
 nút trong thẻ và khả năng cuộn, trạng thái tải/thay/bỏ logo, lưu hồ sơ,
-sao lưu/khôi phục thư viện tạm. Không dùng thư viện cá nhân cho các phép thử.
+sao lưu/khôi phục thư viện tạm. Qt chuyển đổi kiểm tra 48 cấu hình bố cục
+ở mỗi mức DPI, gồm ô tóm tắt cố định khi cuộn. Qt theme kiểm tra thumbnail,
+9 tổ hợp loa/ngôn ngữ/vị trí, ảnh mẫu và bảng Mascot 60–160 px; Qt thư viện
+kiểm tra ngày tạo thẳng cột, chọn nhiều/kéo chọn và lọc. Hộp mở/lưu Windows
+thật kiểm tra tên Unicode có dấu #, hủy không mất lựa chọn, thư mục lưu
+đúng và SHA256 file gốc không đổi. Qt màn hoàn tất giọng và thao tác quay
+lại cấu hình đạt. Khung Windows kiểm tra chữ tiêu đề một lớp sáng/tối,
+DPI 100%/150%, thu/phóng/khôi phục và biểu tượng cửa sổ/taskbar đạt.
+Không dùng thư viện cá nhân cho các phép thử chức năng.

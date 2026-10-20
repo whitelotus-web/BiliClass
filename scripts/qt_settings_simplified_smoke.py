@@ -126,6 +126,17 @@ def main():
                         assert point.x() >= 0 and point.x()+button.width() <= viewport.width()+1
                         assert point.y() >= 0 and point.y()+button.height() <= viewport.height()+1
                     window.grabWindow().save(str(reports/f'{mode}-voice-{width}.png'))
+                    page.setProperty('activeTab', 3)
+                    pump(150)
+                    mascot = c('mascotSettingsContent')
+                    assert mascot.width() <= 1180 and abs(center(mascot)-center(page)) < 2
+                    viewport.setProperty('contentY', max(0, viewport.property('contentHeight')-viewport.height()))
+                    pump(100)
+                    guide, bindings, navigation = c('shortcutGuideLayout'), c('shortcutBindings'), c('shortcutNavigationGuide')
+                    if guide.property('columns') == 2:
+                        gap = navigation.mapToScene(QPointF()).x()-(bindings.mapToScene(QPointF()).x()+bindings.width())
+                        assert 31 <= gap <= 33, gap
+                    assert window.grabWindow().save(str(reports/f'{mode}-mascot-shortcuts-{width}.png'))
             for width, height in ((1080, 700), (1366, 850), (1920, 1080)):
                 window.resize(width, height)
                 page.setProperty('activeTab', 1)
@@ -187,6 +198,7 @@ def main():
                 'Logo add/replace/remove updates image, buttons and saved asset',
                 'Voice actions remain next to rate controls at 1080/1366/1920, light/dark',
                 'Centered brand, copyright, version and update in that vertical order',
+                'Mascot settings stay centered and bounded; shortcut columns remain adjacent',
                 'Three main storage actions; advanced actions collapsed and reachable',
                 'Profile fields still save; redundant voice hint hidden at rest',
                 'Real backup/restore preserves original library, profile and audio',

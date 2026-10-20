@@ -73,9 +73,9 @@ ColumnLayout {
     }
     GridLayout {
         objectName: "shortcutGuideLayout"; Layout.fillWidth: true
-        columns: panel.wideGuide ? 2 : 1; columnSpacing: 40; rowSpacing: 22
+        columns: panel.wideGuide ? 2 : 1; columnSpacing: 32; rowSpacing: 22
         ColumnLayout {
-        objectName: "shortcutBindings"; Layout.fillWidth: true; Layout.maximumWidth: panel.wideGuide ? 500 : Infinity; spacing: 12
+        objectName: "shortcutBindings"; Layout.fillWidth: true; Layout.preferredWidth: 400; Layout.maximumWidth: panel.wideGuide ? 420 : Infinity; spacing: 12
         Repeater {
         model: [{language: "en", label: "Đọc tiếng Anh", detail: "Một phím"}, {language: "vi", label: "Đọc tiếng Việt", detail: "Một phím"}]
         RowLayout {

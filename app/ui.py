@@ -446,7 +446,12 @@ class Bridge(QObject):
         if kind == 'json':
             title = 'BiliClass - Chẩn đoán ' + datetime.now().strftime('%Y-%m-%d')
         suffix = presentation_suffix(self._lesson, kind == 'zip') if kind in {'pptx', 'zip'} else ''
-        path = suggestion(QUrl(self.downloadsDirectory).toLocalFile(), title, suffix, extension)
+        folder = QUrl(self.downloadsDirectory).toLocalFile()
+        if kind == 'pptx':
+            from .export_origin import destination
+
+            folder, title = destination(self.library, self._lesson, folder)
+        path = suggestion(folder, title, suffix, extension)
         return QUrl.fromLocalFile(str(path)).toString()
 
     @Slot('QVariantList', bool, result=str)
@@ -454,12 +459,15 @@ class Bridge(QObject):
         from datetime import datetime
 
         from .download_names import presentation_suffix, suggestion
+        from .export_origin import destination
+
+        folder = QUrl(self.downloadsDirectory).toLocalFile()
 
         if len(identities) == 1:
             from .final_narration import preferred_ready
 
             lesson = self.library.get(identities[0])
-            title = lesson['title']
+            folder, title = destination(self.library, lesson, folder)
             row = next((row for row in self._catalog.rows() if row['id'] == identities[0]), {})
             variants = row.get('narration', {}).get('variants', [])
             choice = preferred_ready(variants) if with_voice else {}
@@ -467,7 +475,7 @@ class Bridge(QObject):
         else:
             title = f'BiliClass - {len(identities)} bài giảng - ' + datetime.now().strftime('%Y-%m-%d')
             suffix, extension = '', 'zip'
-        return QUrl.fromLocalFile(str(suggestion(QUrl(self.downloadsDirectory).toLocalFile(), title, suffix, extension))).toString()
+        return QUrl.fromLocalFile(str(suggestion(folder, title, suffix, extension))).toString()
 
     @Slot(str, bool, result=str)
     def reportDownloadSuggestion(self, title, detailed):
@@ -3621,10 +3629,12 @@ class Bridge(QObject):
 
     @Slot(bool, result=str)
     def presentationDownloadSuggestion(self, with_voice):
-        from .download_names import presentation_suffix, presentation_title, suggestion
+        from .download_names import presentation_suffix, suggestion
+        from .export_origin import destination
 
         suffix = presentation_suffix(self._lesson, with_voice and bool(self.selectedNarrationVariant) and self.lessonNarration.get('ready'))
-        path = suggestion(QUrl(self.downloadsDirectory).toLocalFile(), presentation_title(self._lesson), suffix, 'pptx')
+        folder, title = destination(self.library, self._lesson, QUrl(self.downloadsDirectory).toLocalFile())
+        path = suggestion(folder, title, suffix, 'pptx')
         return QUrl.fromLocalFile(str(path)).toString()
 
     @Slot(str, bool)

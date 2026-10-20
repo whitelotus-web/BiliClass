@@ -8,7 +8,7 @@ RadioButton {
         radius: 7
         color: radio.highlightSelection && radio.checked ? AppTheme.adapt("#f2f7ff") : "transparent"
         border.width: 1
-        border.color: radio.highlightSelection && radio.checked ? AppTheme.adapt("#dce8f8") : "transparent"
+        border.color: radio.highlightSelection ? (radio.checked ? AppTheme.adapt("#dce8f8") : AppTheme.line) : "transparent"
     }
     indicator: Rectangle {
         objectName: radio.objectName + "Indicator"

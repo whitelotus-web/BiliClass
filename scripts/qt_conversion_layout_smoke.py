@@ -44,12 +44,18 @@ def main():
         measurements = []
         def verify_layout(entry, scroll):
             upload = c('creationSourceArea')
-            assert upload.property('compact') and not upload.property('condensed')
-            assert upload.height() >= 140, 'Keep the illustrated upload panel readable'
-            icon = c('chooseInputDocumentButtonIllustration')
+            assert upload.property('compact') and upload.property('condensed') == entry['selected']
+            assert upload.height() >= 140
             button = c('chooseInputDocumentButton')
-            assert icon.width() >= 139 and icon.height() >= 109
-            assert button.mapToScene(QPointF(0, 0)).x() > icon.mapToScene(QPointF(icon.width(), 0)).x()
+            if entry['selected']:
+                thumbnail = c('creationSelectedSlidePreview')
+                assert thumbnail.isVisible() and abs(thumbnail.width()/thumbnail.height()-16/9) < .01
+                assert thumbnail.mapToScene(QPointF()).x() >= button.mapToScene(QPointF(button.width(), 0)).x()
+                assert button.property('text') == 'Chọn bài khác'
+            else:
+                icon = c('chooseInputDocumentButtonIllustration')
+                assert icon.width() >= 139 and icon.height() >= 109
+                assert button.mapToScene(QPointF(0, 0)).x() > icon.mapToScene(QPointF(icon.width(), 0)).x()
             entry['requires_scroll'] = entry['content'] > entry['viewport'] + .5
             if entry['requires_scroll']:
                 # The restored panel retains its original size. Extra fields
@@ -64,14 +70,19 @@ def main():
             assert bottom <= viewport_bottom + 1, entry
             summary = c('conversionConfigurationSummary')
             assert summary.isVisible()
-            container = c('creationConfiguration')
-            local = summary.mapToItem(container, QPointF())
-            assert local.x() >= 10 and local.y() > 0
-            assert local.x() + summary.width() <= container.width() - 10
-            assert local.y() + summary.height() <= container.height() - 10
-            assert summary.mapToScene(QPointF(0, summary.height())).y() <= viewport_bottom + 1, entry
             footer = c('creationFooter')
             convert = c('createLessonButton')
+            local = summary.mapToItem(footer, QPointF())
+            assert abs(local.x() - 28) <= 1 and local.y() >= 12
+            assert local.y() + summary.height() <= footer.height() - 12 + 1
+            assert summary.mapToScene(QPointF(summary.width(), 0)).x() + 15 <= convert.mapToScene(QPointF()).x()
+            fixed_y = summary.mapToScene(QPointF()).y()
+            flick = scroll.property('contentItem')
+            flick.setProperty('contentY', 0)
+            pump(40)
+            assert abs(summary.mapToScene(QPointF()).y() - fixed_y) <= 1
+            assert viewport_bottom < fixed_y, entry
+            entry['fixed_summary_height'] = summary.height()
             right = convert.mapToItem(footer, QPointF(convert.width(), 0)).x()
             entry['footer_right_gap'] = footer.width() - right
             assert abs(entry['footer_right_gap'] - 28) <= 1, entry

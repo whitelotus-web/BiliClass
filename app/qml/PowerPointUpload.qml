@@ -14,6 +14,11 @@ Rectangle {
     property bool illustrated: false
     property bool compact: false
     property bool condensed: false
+    property bool previewEnabled: false
+    property url previewImage
+    property bool previewBusy: false
+    property int slideCount: 0
+    property string previewError: ""
     property string chooseObjectName: ""
     property string dropObjectName: ""
     property string filenameObjectName: ""
@@ -23,6 +28,8 @@ Rectangle {
     signal filesDropped(var urls)
     signal removeFile()
     signal showProgress()
+    signal previewRequested()
+    signal previewRetryRequested()
     implicitHeight: condensed ? condensedRow.implicitHeight + 20 : uploadRow.implicitHeight + (compact ? 28 : 44)
     radius: 16; color: drop.containsDrag ? AppTheme.adapt("#edf5ff") : AppTheme.surface
     border.color: drop.containsDrag ? AppTheme.adapt("#0869f9") : AppTheme.adapt("#cbdcf4")
@@ -136,7 +143,7 @@ Rectangle {
         anchors.margins: 10; spacing: 14
         Image {
             objectName: upload.condensed ? upload.chooseObjectName + "Illustration" : ""
-            visible: upload.illustrated; source: "../assets/powerpoint-upload.png"
+            visible: upload.illustrated && !upload.previewEnabled; source: "../assets/powerpoint-upload.png"
             sourceClipRect: Qt.rect(248, 120, 1040, 830)
             fillMode: Image.PreserveAspectFit; smooth: true; mipmap: true
             Layout.preferredWidth: 80; Layout.preferredHeight: 64
@@ -146,7 +153,7 @@ Rectangle {
             Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 4
             Label {
                 objectName: upload.condensed ? "powerpointUploadHeading" : ""
-                text: upload.working ? upload.workingTitle : "Tải lên bài giảng PowerPoint (.pptx)"
+                text: upload.working ? upload.workingTitle : upload.fileName ? "Đã chọn PowerPoint" : "Tải lên bài giảng PowerPoint (.pptx)"
                 color: AppTheme.adapt("#0869f9"); font.pixelSize: 17; font.weight: Font.Bold
                 Layout.fillWidth: true; wrapMode: Text.WordWrap
             }
@@ -160,14 +167,28 @@ Rectangle {
                 Label { objectName: upload.condensed ? upload.filenameObjectName : ""; text: upload.fileName; textFormat: Text.PlainText; elide: Text.ElideMiddle; color: AppTheme.adapt("#16314f"); font.pixelSize: 12; Layout.fillWidth: true; Layout.minimumWidth: 0 }
                 ActionButton { objectName: upload.condensed ? upload.removeObjectName : ""; text: "Bỏ tệp"; implicitHeight: 26; font.pixelSize: 11; enabled: !upload.busy && !upload.working; onClicked: upload.removeFile() }
             }
+            Label { visible: upload.slideCount > 0; text: upload.slideCount + " slide · Chọn cấu hình chuyển đổi ở bên dưới"; color: AppTheme.muted; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap }
             Label { objectName: upload.condensed ? upload.errorObjectName : ""; visible: !!upload.errorText; text: upload.errorText; textFormat: Text.PlainText; Layout.fillWidth: true; wrapMode: Text.WordWrap; maximumLineCount: 1; elide: Text.ElideRight; color: AppTheme.adapt("#ab5b20"); font.pixelSize: 12; HoverHandler { id: uploadErrorHover } ToolTip.visible: uploadErrorHover.hovered; ToolTip.text: upload.errorText }
         }
         ActionButton {
             objectName: upload.condensed ? upload.chooseObjectName : ""
-            text: upload.working ? upload.progressLabel : upload.fileName ? "Đổi file PowerPoint" : "Chọn file PowerPoint"
+            text: upload.working ? upload.progressLabel : upload.fileName ? "Chọn bài khác" : "Chọn file PowerPoint"
             primary: true; implicitHeight: 38; font.pixelSize: 13
-            Layout.preferredWidth: 220; enabled: upload.working || !upload.busy
+            Layout.preferredWidth: upload.fileName ? 156 : 220; enabled: upload.working || !upload.busy
             onClicked: upload.working ? upload.showProgress() : upload.chooseFile()
+        }
+        Rectangle {
+            objectName: upload.previewEnabled ? "creationSelectedSlidePreview" : ""
+            visible: upload.previewEnabled
+            Layout.preferredWidth: upload.width >= 1000 ? 304 : 240
+            Layout.preferredHeight: width * 9 / 16
+            radius: 8; color: AppTheme.field; border.color: AppTheme.line
+            Image { objectName: upload.previewEnabled ? "creationSelectedSlideImage" : ""; anchors.fill: parent; anchors.margins: 3; source: upload.previewImage; fillMode: Image.PreserveAspectFit; asynchronous: true; smooth: true }
+            BusyIndicator { anchors.centerIn: parent; running: upload.previewBusy; visible: running }
+            Label { visible: !upload.previewBusy && !upload.previewImage; anchors.centerIn: parent; text: upload.previewError ? "Bấm để tải lại ảnh slide" : "Xem trước slide"; color: AppTheme.muted; font.pixelSize: 12 }
+            TapHandler { onTapped: upload.previewImage ? upload.previewRequested() : upload.previewRetryRequested() }
+            HoverHandler { id: previewHover; cursorShape: Qt.PointingHandCursor }
+            ToolTip.visible: previewHover.hovered; ToolTip.text: upload.previewImage ? "Phóng to slide gốc" : upload.previewError || "Đang chuẩn bị ảnh slide gốc"
         }
     }
     DropArea {

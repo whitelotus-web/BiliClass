@@ -6,11 +6,12 @@ import tempfile
 from pathlib import Path
 
 from PySide6.QtCore import QCoreApplication, QEvent, QPointF, Qt, QUrl
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine, QQmlComponent
 from PySide6.QtQuickControls2 import QQuickStyle
 from PySide6.QtTest import QTest
 
+from app.branding import configure_application
 from app.library import Library
 from app.paths import RESOURCE_ROOT
 from app.ui import Bridge
@@ -19,7 +20,11 @@ from scripts.qt_result_preview_mascot_smoke import click, control, pump, until
 
 def main():
     app = QGuiApplication([])
+    configure_application(app)
     QQuickStyle.setStyle('Basic')
+    for font in (RESOURCE_ROOT/'assets').glob('*.ttf'):
+        QFontDatabase.addApplicationFont(str(font))
+    app.setFont(QFont('Be Vietnam Pro', 10))
     reports = Path(os.environ.get('BILICLASS_SELECTION_REPORT', 'reports/rc100/library-selection'))
     reports.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='bcl-selection-', ignore_cleanup_errors=True) as folder:
@@ -56,8 +61,32 @@ def main():
         try:
             root.setProperty('page', 'library')
             until(lambda: len(bridge.lessons) == 8 and bridge._catalog.worker is None)
+            # Mixed status/title/date fixtures expose independently sized row
+            # columns. Selection and the stored lesson records remain real.
+            labels = ('Đã lưu bài', 'Sẵn sàng trình chiếu', 'Chưa có lời đọc')
+            for index, row in enumerate(bridge._catalog._active):
+                row['review'] = {**row.get('review', {}), 'label': labels[index % 3]}
+                row['created_at'] = f'2026-10-{index+10:02}T{index+10:02}:54:00+07:00'
+                if index == 0:
+                    row['title'] += ' – Dao động tắt dần, dao động cưỡng bức và hiện tượng cộng hưởng'
+            bridge.lessonsChanged.emit()
             pump(150)
             ordered = root.property('libraryResult')['ids']
+            for mode in ('light', 'dark'):
+                bridge.setApplicationTheme(mode)
+                for width, height in ((1080, 700), (1366, 850), (1920, 1080)):
+                    root.resize(width, height)
+                    pump(180)
+                    dates = [c('lessonCreated_'+identity) for identity in ordered]
+                    positions = [item.mapToScene(QPointF()).x() for item in dates]
+                    assert max(positions)-min(positions) < 1, (width, positions)
+                    for identity in ordered:
+                        date, card = c('lessonCreated_'+identity), c('lessonCard_'+identity)
+                        assert date.width() >= 140
+                        assert date.mapToItem(card, QPointF()).x()+date.width() < card.width()
+                    root.grabWindow().save(str(reports/f'{mode}-aligned-dates-{width}.png'))
+            root.resize(1080, 700)
+            pump(120)
             for mode in ('list', 'grid'):
                 bridge.setLibraryView(mode)
                 pump(200)
@@ -170,6 +199,7 @@ def main():
             badge.deleteLater()
             assert not warnings, warnings
             result = {'status': 'passed', 'checks': ['Shift-click and Shift-checkbox select the filtered ordered range',
+                      'Mixed status labels, long titles and dates align at 1080/1366/1920 in light/dark',
                       'drag selection in list/grid; automatic scrolling at bottom edge',
                       'search, filters and bulk actions remain fixed while lessons scroll',
                       'mouse Back and Backspace return from lesson; text fields still delete text',

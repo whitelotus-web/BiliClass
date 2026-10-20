@@ -157,6 +157,14 @@ def prepare_request(directory, config, source_path=None, text=""):
     require_space(directory, 256 * MIB + len(data) * 6)
     config.update(schema_version=1, request_id=str(uuid4()), source_original_name=original_name,
                   source_file="tai-lieu-goc" + suffix, source_sha256=hashlib.sha256(data).hexdigest())
+    if source_path:
+        from contextlib import closing
+
+        from .export_origin import remember_source
+        from .library import Library
+
+        with closing(Library(directory)) as library:
+            remember_source(library, source_path, config['source_sha256'])
     folder = Path(directory) / "chatgpt" / config["request_id"]
     folder.mkdir(parents=True)
     try:

@@ -81,3 +81,42 @@ def test_clearing_selection_discards_late_result_and_reports_next_error(monkeypa
     finally:
         release.set()
         picker.shutdown()
+
+
+def test_source_preview_cancels_replaced_file_and_ignores_its_late_image(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from PySide6.QtCore import QObject
+
+    app = QCoreApplication.instance() or QCoreApplication([])
+    parent = QObject()
+    parent.library = SimpleNamespace(directory=tmp_path)
+    entered, cancelled = threading.Event(), threading.Event()
+    gui_thread = threading.get_ident()
+
+    def validate(urls):
+        return {'valid': True, 'name': urls[0].split('/')[-1], 'url': urls[0]}
+
+    def preview(url, _directory, cancel):
+        assert threading.get_ident() != gui_thread
+        if url.endswith('first.pptx'):
+            entered.set()
+            assert cancel.wait(3)
+            cancelled.set()
+        return {'image': url + '.png', 'total': 2}
+
+    monkeypatch.setattr('app.input_documents.document_selection', validate)
+    monkeypatch.setattr('app.input_documents.input_preview', preview)
+    picker = InputDocuments(parent)
+    try:
+        picker.select(['file:///first.pptx'])
+        pump_until(entered.is_set)
+        assert not picker.busy and picker.preview['busy']
+        picker.select(['file:///second.pptx'])
+        pump_until(lambda: picker.preview.get('image') == 'file:///second.pptx.png')
+        assert cancelled.is_set() and not picker.preview['busy']
+        picker.clear()
+        app.processEvents()
+        assert not picker.preview
+    finally:
+        picker.shutdown()

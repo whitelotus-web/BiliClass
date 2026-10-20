@@ -176,6 +176,9 @@ def import_presentation(directory, path):
         raise ValueError('Tổng lời đọc của bài tối đa 1.000.000 ký tự.')
     with closing(Library(directory)) as library:
         source = library.store_source(path)
+        from .export_origin import bind_lesson, remember_source
+
+        remember_source(library, path, source['sha256'])
         if source['sha256'] != inspection['slide_speech']['sha256']:
             raise ValueError('PowerPoint đã thay đổi trong lúc đọc. Chọn lại file trước khi tạo giọng.')
         # Reuse an earlier import of the exact file, including its voice variants.
@@ -185,10 +188,12 @@ def import_presentation(directory, path):
                 from .narration_script import prepare
 
                 lesson = prepare(library, prepare_script(library, lesson))
+                bind_lesson(library, lesson, source['sha256'])
                 return lesson, external_preview(lesson, directory)
         config = {'title': path.stem, 'subject': 'Bài giảng có sẵn', 'education_level': '', 'grade': '',
                   'level': 4, 'layout': 'split_view', 'style': 'source', 'preset': 'standard', 'mode': 'preserve'}
         lesson = library.create_external_lesson(config, source, inspection, voice_only=True)
+        bind_lesson(library, lesson, source['sha256'])
         prepare_script(library, lesson)
         from .narration_script import prepare
 

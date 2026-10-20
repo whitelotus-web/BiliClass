@@ -10,6 +10,7 @@ Rectangle {
     property int readable: 0
     property int total: 0
     property bool hasLesson: false
+    property string positionLabel: ""
     radius: 9; color: AppTheme.adapt("#f5f8fd"); border.color: AppTheme.adapt("#e0e8f3")
     implicitHeight: content.implicitHeight + 24
     ColumnLayout {
@@ -19,7 +20,7 @@ Rectangle {
         Layout.fillWidth: true
         Label {
             objectName: "narrationConfigurationTitle"
-            text: (card.voiceName || "Chọn người đọc") + " · " + (100 + card.rate * 6) + "% · " +
+            text: "Cấu hình đã chọn · " + (card.voiceName || "Chọn người đọc") + " · " + (100 + card.rate * 6) + "% · " +
                 (card.mode === "both" ? "Việt + Anh" : card.mode === "vi" ? "Tiếng Việt" : "Tiếng Anh")
             color: AppTheme.adapt("#112650"); font.pixelSize: 13; font.weight: Font.DemiBold
             Layout.fillWidth: true; wrapMode: Text.WordWrap
@@ -37,8 +38,9 @@ Rectangle {
         }
         Label {
             objectName: "narrationConfigurationExplanation"
-            text: card.mode === "both" ? "Tạo hai loa riêng trên slide: Anh và Việt. Mỗi loa đọc một ngôn ngữ."
-                : card.mode === "vi" ? "Tạo loa tiếng Việt trên slide." : "Tạo loa tiếng Anh trên slide."
+            text: (card.mode === "both" ? "Tạo hai loa riêng trên slide: Anh và Việt. Mỗi loa đọc một ngôn ngữ."
+                : card.mode === "vi" ? "Tạo loa tiếng Việt trên slide." : "Tạo loa tiếng Anh trên slide.") +
+                (card.positionLabel ? " Vị trí: " + card.positionLabel.toLowerCase() + "." : "")
             color: AppTheme.adapt("#667997"); font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap
         }
         Label {

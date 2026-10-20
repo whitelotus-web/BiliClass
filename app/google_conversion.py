@@ -52,6 +52,12 @@ def prepare(directory, config, source=None, text=''):
             config.update(template_version=3, template_layouts=manifest()['layouts'],
                           template_sha256=hashlib.sha256((folder / 'template.pptx').read_bytes()).hexdigest())
     config.update(source_file=target.name, source_sha256=hashlib.sha256(target.read_bytes()).hexdigest())
+    if source:
+        from .export_origin import remember_source
+        from .library import Library
+
+        with closing(Library(directory)) as library:
+            remember_source(library, source, config['source_sha256'])
     (folder / 'config.json').write_text(json.dumps(config, ensure_ascii=False), encoding='utf-8')
     from .library import Library
     with closing(Library(directory)) as library:

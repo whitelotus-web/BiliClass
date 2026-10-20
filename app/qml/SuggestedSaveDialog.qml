@@ -1,7 +1,6 @@
 import QtQuick.Dialogs
 
 FileDialog {
-    options: AppTheme.dark ? FileDialog.DontUseNativeDialog : 0
     property url suggestedFile
     property var suggestionProvider: null
     fileMode: FileDialog.SaveFile
@@ -9,7 +8,13 @@ FileDialog {
     function openSuggested() {
         // Native Windows dialogs copy the initial name when open() is called.
         // visibleChanged fires too late to populate their filename control.
-        selectedFile = typeof suggestionProvider === "function" ? suggestionProvider() : suggestedFile
+        const target = typeof suggestionProvider === "function" ? suggestionProvider() : suggestedFile
+        if (target) {
+            const url = target.toString()
+            const slash = url.lastIndexOf("/")
+            if (slash >= 0) currentFolder = url.substring(0, slash + 1)
+        }
+        selectedFile = target
         open()
     }
 }

@@ -42,7 +42,7 @@ def test_library_filename_matches_the_ready_product_instead_of_the_active_incomp
     lesson = {'title': 'Bài mẫu', 'conversion_format': 'parallel_columns', 'narration': {'mode': 'none'}}
     bridge = SimpleNamespace(
         downloadsDirectory=QUrl.fromLocalFile(str(tmp_path)).toString(),
-        library=SimpleNamespace(get=lambda _: lesson),
+        library=SimpleNamespace(get=lambda _: lesson, setting=lambda _key, default: default, directory=tmp_path/'data'),
         _catalog=SimpleNamespace(rows=lambda: [{'id': 'fixture', 'narration': {'variants': [
             {'mode': 'both', 'ready': True}, {'mode': 'en', 'ready': True}, {'mode': 'vi', 'ready': False}]}}]),
     )

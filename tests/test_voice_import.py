@@ -36,6 +36,9 @@ def test_import_keeps_original_bytes_and_language_and_reuses_exact_file(tmp_path
     assert again['id'] == lesson['id']
     library = Library(directory)
     assert len(library.list_lessons()) == 1
+    from app.export_origin import destination
+
+    assert destination(library, again, directory) == (source.parent, source.stem)
     reviewed = library.review_external_deck(lesson['id'], lesson['revision'])
     assert reviewed['segments'][0]['approved']
     from app.readiness import text_readiness

@@ -16,22 +16,31 @@ ApplicationWindow {
     width: 1366; height: 850
     minimumWidth: 1080; minimumHeight: 700
     title: "BiliClass · " + bridge.appVersion + " · Trợ lý dạy học song ngữ" + (bridge.developmentMode ? " · Bản nguồn" : "")
-    flags: Qt.Window | (Qt.platform.os === "windows" ? Qt.ExpandedClientAreaHint | Qt.NoTitleBarBackgroundHint : 0)
+    flags: Qt.Window | (Qt.platform.os === "windows" ? Qt.CustomizeWindowHint | Qt.WindowSystemMenuHint | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint | Qt.WindowCloseButtonHint | Qt.ExpandedClientAreaHint | Qt.NoTitleBarBackgroundHint : 0)
     background: Rectangle {
         color: root.color
         Rectangle {
             objectName: "applicationTitleBar"
             width: parent.width; height: root.SafeArea.margins.top
-            color: AppTheme.surface
-            TextMetrics {
-                id: captionTextMetrics
-                text: root.title
+            color: AppTheme.surface; clip: true
+            Image {
+                x: 16; y: Math.round((parent.height - height) / 2); width: 16; height: 16
+                source: "../assets/brand/biliclass.svg"; sourceSize.width: 64; sourceSize.height: 64
+                Accessible.ignored: true
+            }
+            Text {
+                id: captionText; objectName: "applicationCaptionText"
+                x: 40; y: Math.round((parent.height - height) / 2)
+                width: Math.min(implicitWidth, Math.max(0, parent.width - x - titleBadges.width - 175))
+                text: root.title; color: AppTheme.ink; elide: Text.ElideRight
                 font.family: bridge.windowCaptionFont.family
                 font.pointSize: bridge.windowCaptionFont.pointSize
+                font.weight: Font.Normal; renderType: Text.NativeRendering
             }
             Row {
+                id: titleBadges
                 objectName: "applicationTitleBadges"
-                x: 32 + captionTextMetrics.advanceWidth + 16
+                x: captionText.x + captionText.width + 16
                 anchors.verticalCenter: parent.verticalCenter; spacing: 8
                 Rectangle {
                     width: 82; height: 20; radius: 10; color: AppTheme.adapt("#eaf2ff")
@@ -951,13 +960,13 @@ ApplicationWindow {
                                             Copy { Layout.fillWidth: true; text: modelData.subject + "  ·  " + modelData.education_level + " " + modelData.grade + "  ·  " + (modelData.slides_count ? modelData.slides_count + " slide" : modelData.segments_count + " phần"); font.pixelSize: 12 }
                                             RowLayout { Layout.fillWidth: true; spacing: 10
                                                 LibraryVoiceBadge { objectName: "lessonNarrationBadge_" + modelData.id; Layout.fillWidth: true; Layout.minimumWidth: 0; audio: modelData.narration || ({}) }
-                                                Copy { objectName: "lessonCreated_" + modelData.id; text: (modelData.created_at_estimated ? "Lưu: " : "Tạo: ") + bridge.lessonDateLabel(modelData.created_at); font.pixelSize: 10 }
+                                                Copy { objectName: "lessonCreated_" + modelData.id; text: (modelData.created_at_estimated ? "Lưu: " : "Tạo: ") + bridge.lessonDateLabel(modelData.created_at); font.pixelSize: 10; Layout.minimumWidth: 145; Layout.preferredWidth: 145; Layout.maximumWidth: 145 }
                                             }
                                         }
-                                        LessonStatus { id: rowStatus; lessonRow: modelData; Layout.column: 3; Layout.row: 0 }
+                                        LessonStatus { id: rowStatus; lessonRow: modelData; Layout.column: 3; Layout.row: 0; Layout.minimumWidth: 140; Layout.preferredWidth: 140; Layout.maximumWidth: 140 }
                                         RowLayout {
                                         Layout.column: lessonRow.wideActions ? 4 : 2; Layout.row: lessonRow.wideActions ? 0 : 1; Layout.columnSpan: lessonRow.wideActions ? 1 : 2; Layout.fillWidth: !lessonRow.wideActions; spacing: 8
-                                        LibraryRowAction { id: rowOpen; objectName: "lessonOpen_" + modelData.id; text: bridge.openingTeachingLesson === modelData.id ? "Đang mở…" : "Mở PowerPoint"; primary: true; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.starting; ToolTip.visible: hovered; ToolTip.text: "Mở bài và gắn Mascot với bài này. Bấm F5 khi sẵn sàng trình chiếu."; onClicked: bridge.openTeachingLibraryLesson(modelData.id) }
+                                        LibraryRowAction { id: rowOpen; objectName: "lessonOpen_" + modelData.id; text: bridge.openingTeachingLesson === modelData.id ? "Đang mở…" : "Mở PowerPoint"; Layout.minimumWidth: 128; Layout.preferredWidth: 128; Layout.maximumWidth: 128; primary: true; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.starting; ToolTip.visible: hovered; ToolTip.text: "Mở bài và gắn Mascot với bài này. Bấm F5 khi sẵn sàng trình chiếu."; onClicked: bridge.openTeachingLibraryLesson(modelData.id) }
                                         LibraryRowAction { id: rowVoice; objectName: "lessonNarrate_" + modelData.id; text: "Tạo giọng đọc"; enabled: !bridge.busy && !bridge.narrationBusy; ToolTip.visible: hovered; ToolTip.text: "Chọn ngôn ngữ, giọng và vị trí loa; không mở PowerPoint."; onClicked: bridge.openLessonNarration(modelData.id) }
                                         LibraryRowAction { id: rowDownload; objectName: "lessonDownload_" + modelData.id; text: "Tải"; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: root.downloadLibraryLessons([modelData.id]) }
                                         Item { visible: !lessonRow.wideActions; Layout.fillWidth: true }
@@ -1067,6 +1076,11 @@ ApplicationWindow {
                         Copy { text: "Chọn PowerPoint → Chọn kiểu chuyển đổi → Thiết kế bài giảng → Tạo bài giảng."; Layout.fillWidth: true }
                         PowerPointUpload {
                             objectName: "creationSourceArea"; illustrated: true; compact: true; Layout.fillWidth: true
+                            condensed: !!root.selectedFile; previewEnabled: !!root.selectedFile
+                            previewImage: bridge.inputDocuments.preview.image || ""
+                            previewBusy: !!bridge.inputDocuments.preview.busy
+                            previewError: bridge.inputDocuments.preview.error || ""
+                            slideCount: bridge.inputDocuments.preview.total || 0
                             chooseObjectName: "chooseInputDocumentButton"
                             dropObjectName: "creationDocumentDrop"
                             filenameObjectName: "creationSelectedFilename"
@@ -1081,6 +1095,8 @@ ApplicationWindow {
                             onFilesDropped: function(urls) { root.acceptInputDocuments(urls) }
                             onRemoveFile: root.removeInputDocument()
                             onShowProgress: root.go(bridge.narrationBusy ? "voice" : "chatgpt")
+                            onPreviewRequested: creationInputPreview.open()
+                            onPreviewRetryRequested: bridge.inputDocuments.retryPreview()
                         }
                         TextArea { id: pasteInput; objectName: "lessonContent"; visible: false }
                         Surface {
@@ -1198,7 +1214,7 @@ ApplicationWindow {
                                 Caption { visible: !root.creationKeepSource; text: "Chọn mẫu BiliClass" }
                                 TemplatePresetPicker {
                                     id: creationPreset; objectName: "creationPreset"; visible: !root.creationKeepSource; Layout.fillWidth: true
-                                    onPreviewRequested: function(preset) { if (bridge.googleTranslation) bridge.openLocalTemplateSample(preset, root.selectedConversionFormat.id); else { templateGallery.forCreation = true; templateGallery.preset = preset; templateGallery.level = root.selectedConversionFormat.level; templateGallery.layout = root.selectedConversionFormat.layout; templateGallery.open() } }
+                                    onPreviewRequested: function(preset) { creationTemplatePreview.preset = preset; creationTemplatePreview.open() }
                                 }
                                 RowLayout {
                                     visible: !bridge.googleTranslation
@@ -1216,14 +1232,6 @@ ApplicationWindow {
                                         color: root.ink; font.pixelSize: 13
                                         background: Rectangle { radius: 8; color: AppTheme.adapt("#fafcff"); border.color: root.line }
                                     }
-                                }
-                                ConversionConfiguration {
-                                    objectName: "conversionConfigurationSummary"; Layout.fillWidth: true
-                                    formatLabel: root.selectedConversionFormat.label
-                                    formatId: root.selectedConversionFormat.id
-                                    keepSource: root.creationKeepSource
-                                    templateName: creationPreset.currentText
-                                    subject: root.creationSubject; education: educationInput.currentText; grade: gradeInput.currentText
                                 }
                             }
                         }
@@ -1250,12 +1258,29 @@ ApplicationWindow {
                 Rectangle {
                     id: creationFooter; objectName: "creationFooter"
                     visible: root.page === "new" || (root.page === "voice" && !root.narrationComplete && !root.voiceResultShown); anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-                    height: !visible ? 0 : root.page === "new" ? 60 : root.compactCreation ? 72 : 85; color: AppTheme.adapt("#f3f7fc")
+                    height: visible ? creationFooterContent.implicitHeight + 24 : 0; color: AppTheme.adapt("#f3f7fc")
                     Rectangle { anchors.top: parent.top; height: 1; width: parent.width; color: root.line }
                     RowLayout {
-                        anchors.fill: parent; anchors.leftMargin: 28; anchors.rightMargin: 28; spacing: 16
+                        id: creationFooterContent
+                        anchors.fill: parent; anchors.leftMargin: 28; anchors.rightMargin: 28; anchors.topMargin: 12; anchors.bottomMargin: 12; spacing: 16
                         ColumnLayout {
                             Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.maximumWidth: Infinity; spacing: 3
+                            ConversionConfiguration {
+                                objectName: "conversionConfigurationSummary"; visible: root.page === "new"; Layout.fillWidth: true
+                                formatLabel: root.selectedConversionFormat.label
+                                formatId: root.selectedConversionFormat.id
+                                keepSource: root.creationKeepSource
+                                templateName: creationPreset.currentText
+                                subject: root.creationSubject; education: educationInput.currentText; grade: gradeInput.currentText
+                            }
+                            NarrationConfiguration {
+                                objectName: "narrationConfiguration"; visible: root.page === "voice"; Layout.fillWidth: true
+                                mode: root.narrationMode
+                                voiceName: (bridge.multilingualVoices.find(function(v) { return v.id === root.narrationVoice }) || {}).name || ""
+                                rate: root.narrationRate; readable: root.narrationReadableSlides; total: root.narrationEligibleSlides
+                                hasLesson: !!bridge.quickResult.path
+                                positionLabel: speakerPositionChoice.currentText
+                            }
                             Copy { visible: root.page === "new" && bridge.narrationBusy; text: "Đang tạo giọng đọc · Chờ hoàn tất hoặc dừng trước khi chuyển đổi bài mới."; Layout.fillWidth: true; font.pixelSize: 12 }
                             RowLayout { visible: root.page === "new" && !!bridge.chatgptRequest.folder && !bridge.narrationBusy; Layout.fillWidth: true; spacing: 6
                                 Action { objectName: "resumeCreationTask"; text: bridge.browserState.phase === "completed" ? "Mở bài vừa chuyển đổi" : "Tiếp tục bài đang chuẩn bị"; visible: !!bridge.chatgptRequest.folder && !bridge.narrationBusy; subtle: true; implicitHeight: 28; font.pixelSize: 11; onClicked: root.go("chatgpt") }
@@ -1393,8 +1418,7 @@ ApplicationWindow {
                                 Action { objectName: "changeVoiceSource"; visible: !!bridge.quickResult.path; text: root.voiceSourceExpanded ? "Thu gọn" : "Chọn bài khác"; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !bridge.powerpointState.starting; onClicked: root.voiceSourceExpanded = !root.voiceSourceExpanded }
                                 Action { objectName: "dismissVoiceLesson"; visible: !!bridge.quickResult.path; danger: true; symbol: "×"; text: bridge.lessonNarration.stopping ? "Đang hủy…" : "Hủy bài đang chọn"; Accessible.description: "Bỏ bài đang chọn khỏi màn tạo giọng; bài đã lưu vẫn còn trong thư viện."; enabled: !bridge.busy && !bridge.lessonNarration.stopping && !bridge.powerpointState.active && !bridge.powerpointState.starting; onClicked: bridge.dismissNarrationLesson() }
                             }
-                            Copy { objectName: "voiceWorkflowGuide"; text: "Chọn cấu hình → Chọn giọng đọc và ngôn ngữ → Tạo giọng đọc"; Layout.fillWidth: true; font.pixelSize: 12 }
-                            Copy { visible: !bridge.quickResult.path || root.voiceSourceExpanded; text: "Chọn PowerPoint có sẵn hoặc bài trong thư viện. Tạo giọng cho nội dung đang có; không cần chuyển ngữ lại."; Layout.fillWidth: true }
+                            Copy { objectName: "voiceWorkflowGuide"; text: "Chọn PowerPoint có sẵn hoặc bài trong thư viện → Chọn cấu hình giọng đọc và ngôn ngữ → Tạo giọng đọc"; Layout.fillWidth: true; font.pixelSize: 12 }
                             PowerPointUpload { objectName: "voiceSourceArea"; visible: !bridge.quickResult.path || root.voiceSourceExpanded; illustrated: true; compact: true; Layout.fillWidth: true; chooseObjectName: "chooseVoicePresentation"; dropObjectName: "voicePresentationDrop"; busy: bridge.busy || bridge.narrationBusy
                                 onChooseFile: voicePresentationOpen.open()
                                 onFilesDropped: function(urls) { if (urls.length === 1) bridge.importNarrationPresentation(urls[0]) }
@@ -1403,12 +1427,18 @@ ApplicationWindow {
                                 Choice { id: voiceLibraryPicker; objectName: "voiceLibraryPicker"; model: bridge.lessons; textRole: "title"; Layout.fillWidth: true; Layout.minimumWidth: 0; enabled: !bridge.busy && !bridge.narrationBusy }
                                 Action { objectName: "selectVoiceLibraryLesson"; text: "Dùng bài trong thư viện"; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !bridge.powerpointState.starting && voiceLibraryPicker.currentIndex >= 0; onClicked: bridge.narrationWorkspace.selectLibrary(bridge.lessons[voiceLibraryPicker.currentIndex].id) }
                             }
-                            Copy { visible: !bridge.quickResult.path || root.voiceSourceExpanded; text: "Chọn bài → kiểm tra lời đọc → tạo giọng → nghe thử hoặc tải về. Có thể bổ sung lời cho slide ảnh; BiliClass không tự dịch trong bước này."; Layout.fillWidth: true }
                             Copy { objectName: "voiceWorkspaceError"; visible: bridge.error && !bridge.busy; text: bridge.message; color: AppTheme.adapt("#a66318"); Layout.fillWidth: true }
                             ProgressBar { visible: bridge.busy; indeterminate: true; Layout.fillWidth: true }
                         }
                         ColumnLayout { Layout.fillWidth: true; spacing: root.compactVoice ? 12 : 18
                         Action { id: backToLibraryAction; objectName: "backToLibraryButton"; visible: root.page !== "voice"; text: "Trở lại thư viện"; iconName: "back"; subtle: true; implicitHeight: 32; Layout.alignment: Qt.AlignRight; enabled: !bridge.busy; onClicked: root.requestAction(function() { bridge.returnToLibrary() }) }
+                        GridLayout {
+                            id: voiceOverview; objectName: "voiceLessonOverview"
+                            Layout.fillWidth: true; columnSpacing: 24; rowSpacing: 12
+                            columns: root.page === "voice" && !!bridge.quickResult.path && !root.voicePreviewExpanded && width >= 760 ? 2 : 1
+                            ColumnLayout {
+                                objectName: "voiceLessonDetails"
+                                Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.alignment: Qt.AlignTop; spacing: 12
                         RowLayout {
                             visible: root.page !== "voice" || !!bridge.quickResult.path; Layout.fillWidth: true
                             ColumnLayout {
@@ -1433,22 +1463,37 @@ ApplicationWindow {
                         Copy { visible: root.page === "voice" && bridge.narrationWorkspace.summary.silent > 0; text: bridge.narrationWorkspace.summary.silent + " slide được chọn không đọc"; Layout.fillWidth: true; font.pixelSize: 12 }
                         RowLayout { visible: root.page === "voice" && !!bridge.quickResult.path; Layout.fillWidth: true
                             Copy { objectName: "voiceSourceSummary"; Layout.fillWidth: true; Layout.minimumWidth: 0; color: root.ink; text: bridge.narrationWorkspace.summary.total + " slide · có lời Việt: " + bridge.narrationWorkspace.summary.vi + " · có lời Anh: " + bridge.narrationWorkspace.summary.en + (bridge.narrationWorkspace.summary.empty ? " · " + bridge.narrationWorkspace.summary.empty + " slide chưa có lời đọc" : "") }
-                            Action { objectName: "toggleVoiceSlidePreview"; text: root.voicePreviewExpanded ? "Ẩn xem trước" : "Xem trước slide"; subtle: true; implicitHeight: 32; onClicked: { if (root.voicePreviewExpanded) { root.voicePreviewExpanded = false; bridge.stopSpeech() } else root.showNarrationPreview() } }
-                        }
-                        Surface {
-                            objectName: "voiceSlideThumbnail"; visible: root.page === "voice" && !!bridge.quickResult.path && !root.voicePreviewExpanded
-                            Layout.preferredWidth: Math.min(304, resultScroll.availableWidth); Layout.alignment: Qt.AlignRight
-                            implicitHeight: width * 9 / 16; radius: 10; color: AppTheme.adapt("#e9eef5")
-                            Accessible.role: Accessible.Button; Accessible.name: "Phóng to xem trước slide"
-                            Accessible.onPressAction: root.showNarrationPreview()
-                            Image { objectName: "voiceSlideThumbnailImage"; anchors.fill: parent; anchors.margins: 3; source: parent.visible ? bridge.quickResult.image || "" : ""; fillMode: Image.PreserveAspectFit; sourceSize.width: 640; asynchronous: true; cache: true }
-                            Copy { visible: !bridge.quickResult.image; anchors.centerIn: parent; text: bridge.previewBusy ? "Đang tải slide…" : "Xem trước slide"; font.pixelSize: 12 }
-                            TapHandler { onTapped: root.showNarrationPreview() }
-                            HoverHandler { cursorShape: Qt.PointingHandCursor }
                         }
                         Flow { visible: root.page === "voice" && !!bridge.quickResult.path && !root.narrationDraft.ready; Layout.fillWidth: true; spacing: 10
                             Action { objectName: "voiceDownloadWithoutNarration"; text: "Tải PowerPoint không giọng"; iconName: "download"; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: presentationNoVoiceSave.openSuggested() }
                             Action { objectName: "voiceTeachWithoutNarration"; text: "Mở PowerPoint"; enabled: !bridge.busy && !bridge.previewBusy && !bridge.narrationBusy; onClicked: root.prepareTeaching() }
+                        }
+                            }
+                            ColumnLayout {
+                                visible: root.page === "voice" && !!bridge.quickResult.path
+                                Layout.preferredWidth: Math.min(voiceOverview.width >= 1000 ? 304 : 240, voiceOverview.width)
+                                Layout.minimumWidth: Layout.preferredWidth; Layout.maximumWidth: Layout.preferredWidth
+                                Layout.alignment: Qt.AlignTop | Qt.AlignRight; spacing: 8
+                                Action { objectName: "toggleVoiceSlidePreview"; text: root.voicePreviewExpanded ? "Ẩn xem trước" : "Xem trước slide"; Layout.alignment: Qt.AlignRight; subtle: true; implicitHeight: 32; onClicked: { if (root.voicePreviewExpanded) { root.voicePreviewExpanded = false; bridge.stopSpeech() } else root.showNarrationPreview() } }
+                                Surface {
+                                    objectName: "voiceSlideThumbnail"; visible: !root.voicePreviewExpanded
+                                    Layout.fillWidth: true; implicitHeight: width * 9 / 16; radius: 10; color: AppTheme.adapt("#e9eef5")
+                                    Accessible.role: Accessible.Button; Accessible.name: "Phóng to xem trước slide"
+                                    Accessible.onPressAction: root.showNarrationPreview()
+                                    Image { id: voiceThumbnailImage; objectName: "voiceSlideThumbnailImage"; anchors.fill: parent; anchors.margins: 3; source: parent.visible ? bridge.quickResult.image || "" : ""; fillMode: Image.PreserveAspectFit; sourceSize.width: 640; asynchronous: true; cache: true }
+                                    NarrationSpeakerPreview {
+                                        objectName: "thumbnailSpeakerPreview"
+                                        visible: voiceThumbnailImage.status === Image.Ready && !bridge.previewBusy
+                                        x: voiceThumbnailImage.x + (voiceThumbnailImage.width - width) / 2
+                                        y: voiceThumbnailImage.y + (voiceThumbnailImage.height - height) / 2
+                                        width: voiceThumbnailImage.paintedWidth; height: voiceThumbnailImage.paintedHeight
+                                        mode: root.narrationMode; position: bridge.narrationWorkspace.speakerPosition
+                                    }
+                                    Copy { visible: !bridge.quickResult.image; anchors.centerIn: parent; text: bridge.previewBusy ? "Đang tải slide…" : "Xem trước slide"; font.pixelSize: 12 }
+                                    TapHandler { onTapped: root.showNarrationPreview() }
+                                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                                }
+                            }
                         }
                         RowLayout {
                             objectName: "resultStatusActions"; visible: root.page !== "voice"; Layout.fillWidth: true; spacing: 0
@@ -1470,7 +1515,15 @@ ApplicationWindow {
                         ProgressBar { visible: root.page !== "voice" && bridge.busy; indeterminate: true; Layout.fillWidth: true }
                         Surface {
                             id: lessonSlidePreview; objectName: "lessonSlidePreview"; visible: root.page !== "voice" || (!!bridge.quickResult.path && root.voicePreviewExpanded); Layout.fillWidth: true; implicitHeight: Math.max(260, Math.min(560, (root.height - 150) * .62)); color: AppTheme.adapt("#e9eef5")
-                            Image { objectName: "convertedSlideImage"; anchors.fill: parent; anchors.margins: 6; source: bridge.quickResult.image || ""; fillMode: Image.PreserveAspectFit; asynchronous: true; cache: true; sourceSize.width: 1600; opacity: bridge.previewBusy ? .6 : 1 }
+                            Image { id: expandedSlideImage; objectName: "convertedSlideImage"; anchors.fill: parent; anchors.margins: 6; source: bridge.quickResult.image || ""; fillMode: Image.PreserveAspectFit; asynchronous: true; cache: true; sourceSize.width: 1600; opacity: bridge.previewBusy ? .6 : 1 }
+                            NarrationSpeakerPreview {
+                                objectName: "expandedSpeakerPreview"
+                                visible: root.page === "voice" && expandedSlideImage.status === Image.Ready && !bridge.previewBusy
+                                x: expandedSlideImage.x + (expandedSlideImage.width - width) / 2
+                                y: expandedSlideImage.y + (expandedSlideImage.height - height) / 2
+                                width: expandedSlideImage.paintedWidth; height: expandedSlideImage.paintedHeight
+                                mode: root.narrationMode; position: bridge.narrationWorkspace.speakerPosition
+                            }
                             BusyIndicator { anchors.centerIn: parent; running: bridge.previewBusy; visible: running }
                             ColumnLayout {
                                 visible: !bridge.quickResult.image; anchors.centerIn: parent; width: parent.width - 70; spacing: 12
@@ -1561,11 +1614,12 @@ ApplicationWindow {
                                 }
                                 }
                                 NarrationConfiguration {
-                                    objectName: "narrationConfiguration"; Layout.fillWidth: true
+                                    objectName: "completedNarrationConfiguration"; visible: root.narrationComplete; Layout.fillWidth: true
                                     mode: root.narrationMode
                                     voiceName: (bridge.multilingualVoices.find(function(v) { return v.id === root.narrationVoice }) || {}).name || ""
                                     rate: root.narrationRate; readable: root.narrationReadableSlides; total: root.narrationEligibleSlides
                                     hasLesson: !!bridge.quickResult.path
+                                    positionLabel: speakerPositionChoice.currentText
                                 }
                                 Copy { visible: !bridge.multilingualVoices.length; text: "Bộ giọng chưa sẵn sàng. Kiểm tra trong Cài đặt → Giọng đọc trước khi tạo."; color: AppTheme.adapt("#a66318"); Layout.fillWidth: true }
                                 RowLayout { objectName: "narrationScriptNotice"; visible: root.page === "voice" && !!bridge.quickResult.path && root.narrationMode === "both" && root.narrationPartialSlides > 0; Layout.fillWidth: true
@@ -1899,7 +1953,23 @@ ApplicationWindow {
             }
         }
     }
-    FolderDialog { options: AppTheme.dark ? FolderDialog.DontUseNativeDialog : 0; id: relocationFolder; objectName: "relocationFolderDialog"; title: "Chọn ổ hoặc thư mục chứa thư viện mới"; onAccepted: relocationConfirm.open() }
+    Dialog {
+        id: creationInputPreview; objectName: "creationInputPreviewDialog"
+        title: "Xem trước PowerPoint gốc"; modal: true; anchors.centerIn: parent
+        width: Math.min(1080, root.width - 48); height: Math.min(root.height - 64, width * 9 / 16 + 100)
+        standardButtons: Dialog.Close
+        contentItem: Image { source: bridge.inputDocuments.preview.image || ""; fillMode: Image.PreserveAspectFit; asynchronous: true; smooth: true }
+    }
+    Dialog {
+        id: creationTemplatePreview; objectName: "creationTemplateImageDialog"
+        property string preset: "standard"
+        title: ({standard: "Chuẩn lớp học", visual: "Trực quan", practice: "Luyện tập & tương tác"})[preset] || "Xem mẫu"
+        modal: true; anchors.centerIn: parent
+        width: Math.min(1080, root.width - 48); height: Math.min(root.height - 64, width * 9 / 16 + 100)
+        standardButtons: Dialog.Close
+        contentItem: Image { objectName: "creationTemplateImage"; source: "../assets/templates/universal2026/previews/" + creationTemplatePreview.preset + ".png"; fillMode: Image.PreserveAspectFit; asynchronous: true; smooth: true }
+    }
+    FolderDialog { id: relocationFolder; objectName: "relocationFolderDialog"; title: "Chọn ổ hoặc thư mục chứa thư viện mới"; onAccepted: relocationConfirm.open() }
     Popup {
         id: operationError; objectName: "operationErrorNotice"
         property string notice: ""
@@ -1943,19 +2013,19 @@ ApplicationWindow {
     NarrationScriptDialog { id: narrationScript; workspace: bridge.narrationWorkspace; appBridge: bridge; voice: root.narrationVoice; rate: root.narrationRate; working: bridge.busy || bridge.narrationBusy }
     SuggestedSaveDialog { id: finalPresentationSave; objectName: "finalPresentationSaveDialog"; title: "Tải PowerPoint"; nameFilters: ["PowerPoint (*.pptx)"]; defaultSuffix: "pptx"; currentFolder: bridge.downloadsDirectory; suggestionProvider: function() { return root.lessonData.id ? bridge.libraryDownloadSuggestion([root.lessonData.id], true) : "" }; onAccepted: bridge.downloadFinalPresentation(selectedFile.toString()) }
     SuggestedSaveDialog { id: narrationAudioSave; objectName: "narrationAudioSaveDialog"; title: "Lưu audio theo slide"; nameFilters: ["Audio theo slide (*.zip)"]; defaultSuffix: "zip"; currentFolder: bridge.downloadsDirectory; suggestionProvider: function() { return bridge.exportSuggestion("zip") }; onAccepted: bridge.narrationWorkspace.exportAudio(selectedFile.toString()) }
-    FileDialog { options: AppTheme.dark ? FileDialog.DontUseNativeDialog : 0; id: voicePresentationOpen; objectName: "voicePresentationFileDialog"; title: "Chọn PowerPoint để tạo giọng đọc"; nameFilters: ["PowerPoint (*.pptx)"]; onAccepted: bridge.importNarrationPresentation(selectedFile.toString()) }
-    FileDialog { options: AppTheme.dark ? FileDialog.DontUseNativeDialog : 0; id: documentOpen; objectName: "creationFileDialog"; title: "Chọn file PowerPoint"; nameFilters: ["PowerPoint (*.pptx)"]; onAccepted: root.acceptInputDocuments([selectedFile.toString()]) }
-    FileDialog { options: AppTheme.dark ? FileDialog.DontUseNativeDialog : 0; id: chatgptDeckOpen; title: "Nhận PowerPoint đã tải từ ChatGPT"; nameFilters: ["PowerPoint (*.pptx)"]; onAccepted: bridge.receiveChatGPTDeck(selectedFile.toString()) }
-    FileDialog { options: AppTheme.dark ? FileDialog.DontUseNativeDialog : 0; id: logoOpen; title: "Chọn logo trường"; nameFilters: ["Ảnh (*.png *.jpg *.jpeg)"]; onAccepted: bridge.saveSchoolLogo(selectedFile.toString()) }
-    FileDialog { options: AppTheme.dark ? FileDialog.DontUseNativeDialog : 0; id: packOpen; title: "Nhập gói bài BiliClass"; nameFilters: ["BiliClass (*.biliclass)"]; onAccepted: bridge.importPack(selectedFile.toString()) }
+    FileDialog { id: voicePresentationOpen; objectName: "voicePresentationFileDialog"; title: "Chọn PowerPoint để tạo giọng đọc"; nameFilters: ["PowerPoint (*.pptx)"]; onAccepted: bridge.importNarrationPresentation(selectedFile.toString()) }
+    FileDialog { id: documentOpen; objectName: "creationFileDialog"; title: "Chọn file PowerPoint"; nameFilters: ["PowerPoint (*.pptx)"]; onAccepted: root.acceptInputDocuments([selectedFile.toString()]) }
+    FileDialog { id: chatgptDeckOpen; title: "Nhận PowerPoint đã tải từ ChatGPT"; nameFilters: ["PowerPoint (*.pptx)"]; onAccepted: bridge.receiveChatGPTDeck(selectedFile.toString()) }
+    FileDialog { id: logoOpen; title: "Chọn logo trường"; nameFilters: ["Ảnh (*.png *.jpg *.jpeg)"]; onAccepted: bridge.saveSchoolLogo(selectedFile.toString()) }
+    FileDialog { id: packOpen; title: "Nhập gói bài BiliClass"; nameFilters: ["BiliClass (*.biliclass)"]; onAccepted: bridge.importPack(selectedFile.toString()) }
     SuggestedSaveDialog { id: deckSave; title: "Xuất PowerPoint song ngữ mới"; currentFolder: bridge.downloadsDirectory; suggestionProvider: function() { return bridge.exportSuggestion("pptx") }; defaultSuffix: "pptx"; nameFilters: ["PowerPoint (*.pptx)"]; onAccepted: bridge.exportPowerPoint(selectedFile.toString()) }
     SuggestedSaveDialog { id: presentationNoVoiceSave; objectName: "presentationNoVoiceSaveDialog"; title: "Tải PowerPoint không kèm giọng đọc"; currentFolder: bridge.downloadsDirectory; defaultSuffix: "pptx"; nameFilters: ["PowerPoint (*.pptx)"]; suggestionProvider: function() { return bridge.presentationDownloadSuggestion(false) }; onAccepted: bridge.downloadPresentationWithVoice(selectedFile.toString(), false) }
     SuggestedSaveDialog { id: presentationSave; objectName: "presentationSaveDialog"; title: "Tải PowerPoint · " + (bridge.lessonNarration.title || "Không kèm giọng đọc"); currentFolder: bridge.downloadsDirectory; defaultSuffix: "pptx"; nameFilters: ["PowerPoint (*.pptx)"]; suggestionProvider: function() { return bridge.presentationDownloadSuggestion(!!bridge.selectedNarrationVariant && root.includeDownloadVoice) }; onAccepted: bridge.downloadPresentationWithVoice(selectedFile.toString(), !!bridge.selectedNarrationVariant && root.includeDownloadVoice) }
     SuggestedSaveDialog { id: packSave; title: "Xuất gói bài BiliClass"; currentFolder: bridge.downloadsDirectory; suggestionProvider: function() { return bridge.exportSuggestion("biliclass") }; defaultSuffix: "biliclass"; nameFilters: ["BiliClass (*.biliclass)"]; onAccepted: bridge.exportPack(selectedFile.toString()) }
-    FileDialog { options: AppTheme.dark ? FileDialog.DontUseNativeDialog : 0; id: knowledgeOpen; title: "Cài gói kiến thức có nguồn"; nameFilters: ["BiliClass Knowledge (*.biliknowledge)"]; onAccepted: bridge.installKnowledgePack(selectedFile.toString()) }
-    FileDialog { options: AppTheme.dark ? FileDialog.DontUseNativeDialog : 0; id: backupOpen; title: "Chọn bản sao thư viện"; nameFilters: ["BiliClass Backup (*.bcbackup)"]; onAccepted: restoreDestination.open() }
-    FolderDialog { options: AppTheme.dark ? FolderDialog.DontUseNativeDialog : 0; id: restoreDestination; objectName: "restoreDestinationDialog"; title: "Chọn nơi lưu dữ liệu khôi phục · BiliClass sẽ mở lại khi xong"; onAccepted: bridge.restoreLibraryTo(backupOpen.selectedFile.toString(), selectedFolder.toString()) }
-    FolderDialog { options: AppTheme.dark ? FolderDialog.DontUseNativeDialog : 0; id: libraryOpen; title: "Chọn thư viện và mở lại BiliClass"; onAccepted: root.requestAction(function() { bridge.openLibrary(libraryOpen.selectedFolder.toString()) }) }
+    FileDialog { id: knowledgeOpen; title: "Cài gói kiến thức có nguồn"; nameFilters: ["BiliClass Knowledge (*.biliknowledge)"]; onAccepted: bridge.installKnowledgePack(selectedFile.toString()) }
+    FileDialog { id: backupOpen; title: "Chọn bản sao thư viện"; nameFilters: ["BiliClass Backup (*.bcbackup)"]; onAccepted: restoreDestination.open() }
+    FolderDialog { id: restoreDestination; objectName: "restoreDestinationDialog"; title: "Chọn nơi lưu dữ liệu khôi phục · BiliClass sẽ mở lại khi xong"; onAccepted: bridge.restoreLibraryTo(backupOpen.selectedFile.toString(), selectedFolder.toString()) }
+    FolderDialog { id: libraryOpen; title: "Chọn thư viện và mở lại BiliClass"; onAccepted: root.requestAction(function() { bridge.openLibrary(libraryOpen.selectedFolder.toString()) }) }
     Dialog {
         id: existingNarration; objectName: "existingNarrationDialog"; anchors.centerIn: parent; modal: true
         property var selection: ({})

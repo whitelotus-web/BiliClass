@@ -12,16 +12,21 @@ from threading import RLock
 _preview_lock = RLock()
 
 
-def render_preview_pages(path,pages,directory,sha256):
+def render_preview_pages(path,pages,directory,sha256,cancel=None):
     # Library covers and the open lesson share an atomic cache and one Office
     # renderer. A fast view switch must not start multiple Office instances.
-    with _preview_lock:
+    while not _preview_lock.acquire(timeout=.1):
+        if cancel and cancel.is_set():
+            raise InterruptedError('Đã dừng xem trước.')
+    try:
         from .office_tasks import run_task
 
         folder, index = run_task('preview', directory,
                                  dict(path=str(Path(path).resolve()), pages=pages,
-                                      directory=str(Path(directory).resolve()), sha256=sha256), timeout=180)
+                                      directory=str(Path(directory).resolve()), sha256=sha256), cancel, timeout=180)
         return Path(folder), index
+    finally:
+        _preview_lock.release()
 
 
 def _render_preview_pages(path,pages,directory,sha256):

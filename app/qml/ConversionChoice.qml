@@ -19,7 +19,7 @@ Rectangle {
     radius: 10
     color: selected ? AppTheme.adapt("#f2f7ff") : "transparent"
     border.width: 1
-    border.color: selected ? AppTheme.adapt("#dce8f8") : "transparent"
+    border.color: selected ? AppTheme.adapt("#dce8f8") : AppTheme.line
     opacity: enabled ? 1 : .5
     HoverHandler { id: cardHover }
     ToolTip.visible: card.compact && cardHover.hovered

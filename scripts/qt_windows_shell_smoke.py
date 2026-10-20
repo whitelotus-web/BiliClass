@@ -4,6 +4,7 @@ import ctypes
 import json
 import os
 import tempfile
+from ctypes import wintypes
 from pathlib import Path
 
 import win32con
@@ -33,7 +34,10 @@ def caption_capture(hwnd, path):
     bitmap.CreateCompatibleBitmap(source, right-left, bottom-top)
     memory.SelectObject(bitmap)
     try:
-        assert ctypes.windll.user32.PrintWindow(hwnd, memory.GetSafeHdc(), 2)
+        print_window = ctypes.windll.user32.PrintWindow
+        print_window.argtypes = [wintypes.HWND, wintypes.HDC, wintypes.UINT]
+        print_window.restype = wintypes.BOOL
+        assert print_window(hwnd, memory.GetSafeHdc(), 2)
         Image.frombuffer('RGB', (right-left, bottom-top), bitmap.GetBitmapBits(True), 'raw', 'BGRX', 0, 1).save(path)
     finally:
         win32gui.DeleteObject(bitmap.GetHandle())
@@ -50,6 +54,7 @@ def main():
     report.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='bcl-shell-', ignore_cleanup_errors=True) as folder:
         library = Library(Path(folder))
+        library.set_setting('application_theme', os.environ.get('BILICLASS_SHELL_THEME', 'light'))
         bridge = Bridge(library)
         engine = QQmlApplicationEngine()
         warnings = []
@@ -71,12 +76,17 @@ def main():
             assert Path(icon.rsplit(',', 1)[0]).is_file()
             assert win32gui.SendMessage(hwnd, win32con.WM_GETICON, 0, 0)
             assert win32gui.SendMessage(hwnd, win32con.WM_GETICON, 1, 0)
+            caption = control(root, 'applicationCaptionText')
+            assert caption.property('text') == root.title()
+            assert caption.property('color').name() == ('#e6edf7' if bridge.applicationTheme == 'dark' else '#112650')
+            assert not root.flags() & Qt.WindowTitleHint, 'Avoid a second, platform-painted caption over QML text'
             for width, height in [(1080, 700), (1366, 850), (1680, 960)]:
                 root.resize(width, height)
                 pump(200)
                 bar = control(root, 'applicationTitleBar')
                 badges = control(root, 'applicationTitleBadges')
-                assert 24 <= bar.height() <= 40
+                assert 24 <= bar.height()*root.devicePixelRatio() <= 60
+                assert bar.height() >= badges.height()
                 assert badges.mapToScene(QPointF()).y() >= 0
                 assert 250 < badges.x() < 450 and badges.x() + badges.width() <= width - 155
                 assert badges.height() == 20 and badges.property('spacing') == 8
@@ -95,7 +105,8 @@ def main():
             assert not root.flags() & Qt.FramelessWindowHint
             assert 'Trợ lý dạy học song ngữ' in win32gui.GetWindowText(hwnd)
             assert not warnings, warnings
-            result = dict(status='passed', native_caption=True, colored_badges_sizes=3,
+            result = dict(status='passed', system_window_controls=True, single_qml_caption=True,
+                          theme=bridge.applicationTheme, colored_badges_sizes=3,
                           minimize_maximize_restore=True, taskbar_window_properties=True,
                           valid_small_large_icons=True, qml_warnings=warnings)
             (report / 'result.json').write_text(json.dumps(result, indent=2), encoding='utf-8')

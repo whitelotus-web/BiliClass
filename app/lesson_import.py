@@ -42,4 +42,7 @@ def save_conversion(directory, config, source, inspection, cancel=None):
                 lesson = prepare(library, lesson)
         # A cancellation after the commit does not delete the saved result.
         # The request ID above lets the next resume find it safely.
+        from .export_origin import bind_lesson
+
+        bind_lesson(library, lesson, config.get('source_sha256', ''))
         return lesson, external_preview(lesson, directory)

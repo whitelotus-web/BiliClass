@@ -41,7 +41,9 @@ def main():
     with tempfile.TemporaryDirectory(prefix='bcl-theme-', ignore_cleanup_errors=True) as folder:
         folder = Path(folder)
         library = Library(folder/'data')
-        lesson = library.create('Bài thử giao diện', 'Vật lý', 'THPT', '10', [('Năng lượng.', 'Energy.')])
+        lesson = library.create('Bài 6 – Dao động tắt dần, dao động cưỡng bức và hiện tượng cộng hưởng',
+                                'Vật lý', 'THPT', '11', [('Năng lượng.', 'Energy.')])
+        lesson = library.edit_segment(lesson['id'], lesson['segments'][0]['id'], 'Năng lượng.', 'Energy.', True)
         image = QImage(1600, 900, QImage.Format_RGB32)
         image.fill(QColor('#ffffff'))
         image.save(str(folder/'slide.png'))
@@ -93,6 +95,21 @@ def main():
             assert evaluate(c('helpDialog'), 'background.color.toString()') == '#182438'
             root.grabWindow().save(str(reports/'dark-help.png'))
             invoke(c('helpDialog'), 'close')
+            root.setProperty('page', 'new')
+            c('creationUseTemplate').clicked.emit()
+            pump(80)
+            powerpoint_before = dict(bridge.powerpointState)
+            for preset in ('standard', 'visual', 'practice'):
+                c('creationPresetView_'+preset).clicked.emit()
+                until(lambda: c('creationTemplateImageDialog').property('visible'))
+                until(lambda: evaluate(c('creationTemplateImage'), 'Number(status)') == 1)
+                assert c('creationTemplateImage').property('source').toString().endswith('/'+preset+'.png')
+                assert bridge.powerpointState == powerpoint_before
+                root.grabWindow().save(str(reports/f'template-image-{preset}.png'))
+                invoke(c('creationTemplateImageDialog'), 'close')
+            for name in ('formatChoice_parallel_columnsCard', 'formatChoice_english_onlyCard',
+                         'creationKeepOriginalCard', 'creationUseTemplateCard'):
+                assert evaluate(c(name), 'border.width') == 1 and evaluate(c(name), 'border.color.a') > 0
             # A converted lesson has a 16:9 thumbnail before any preview click.
             bridge._lesson = lesson
             bridge._quick_result = dict(lesson_id=lesson['id'], revision=lesson['revision'], path='fixture.pptx', total=2, slide=1)
@@ -103,9 +120,69 @@ def main():
             assert bridge.preview_calls == 1
             thumbnail = c('voiceSlideThumbnail')
             assert thumbnail.isVisible() and abs(thumbnail.width()/thumbnail.height()-16/9) < .01
+            for width, height in ((1080, 700), (1366, 850), (1920, 1080)):
+                root.resize(width, height)
+                pump(150)
+                assert c('voiceWorkflowGuide').property('lineCount') == 1
+                overview, details = c('voiceLessonOverview'), c('voiceLessonDetails')
+                assert overview.property('columns') == 2
+                assert thumbnail.mapToScene(QPointF()).x() >= details.mapToScene(QPointF()).x()+details.width()+23
+                button = c('voiceTeachWithoutNarration')
+                assert button.isVisible()
+                assert button.mapToScene(QPointF()).y() < thumbnail.mapToScene(QPointF()).y()+thumbnail.height()+80
+                assert overview.height() < 290
+                assert abs(thumbnail.width()/thumbnail.height()-16/9) < .01
+                summary, footer, create = c('narrationConfiguration'), c('creationFooter'), c('createLessonNarrationButton')
+                assert summary.isVisible()
+                point = summary.mapToItem(footer, QPointF())
+                assert abs(point.x()-28) <= 1 and point.y() >= 12
+                assert point.y()+summary.height() <= footer.height()-11
+                assert summary.mapToScene(QPointF(summary.width(), 0)).x()+15 <= create.mapToScene(QPointF()).x()
+                fixed_y = summary.mapToScene(QPointF()).y()
+                scroll = c('resultScroll').property('contentItem')
+                scroll.setProperty('contentY', max(0, scroll.property('contentHeight')-scroll.height()))
+                pump(60)
+                assert abs(summary.mapToScene(QPointF()).y()-fixed_y) < 1
+                scroll.setProperty('contentY', 0)
+                pump(60)
+                root.grabWindow().save(str(reports/f'compact-voice-overview-{width}.png'))
+            root.resize(1366, 850)
+            pump(100)
+            # Real language/position controls update only the display overlay;
+            # selecting a position persists it without re-rendering the slide.
+            preview = c('thumbnailSpeakerPreview')
+            until(lambda: preview.isVisible())
+            for mode, button_name in (('en', 'narrationEnglish'), ('vi', 'narrationVietnamese'), ('both', 'narrationBoth')):
+                c(button_name).clicked.emit()
+                pump(80)
+                assert root.property('narrationMode') == mode
+                assert c('narrationConfiguration').property('mode') == mode
+                expected = ['vi', 'en'] if mode == 'both' else [mode]
+                assert evaluate(preview, 'languages.join(",")') == ','.join(expected)
+                for index, position in enumerate(('bottom_left', 'bottom_center', 'bottom_right')):
+                    choice = c('narrationSpeakerPosition')
+                    choice.setProperty('currentIndex', index)
+                    choice.activated.emit(index)
+                    until(lambda: not bridge.busy)
+                    until(lambda: preview.property('position') == position)
+                    assert c('narrationConfiguration').property('positionLabel') == choice.property('currentText')
+                    group = c('thumbnailSpeakerPreviewGroup')
+                    assert group.y() >= 0 and group.y()+group.height() <= preview.height()
+                    assert group.x() >= 0 and group.x()+group.width() <= preview.width()
+                    if index == 0:
+                        assert group.x() < preview.width()/4
+                    elif index == 1:
+                        assert abs(group.x()+group.width()/2-preview.width()/2) < 1
+                    else:
+                        assert group.x() > preview.width()/2
+                    for language in expected:
+                        until(lambda: evaluate(c('thumbnailSpeakerPreview_'+language), 'Number(status)') == 1)
+                    root.grabWindow().save(str(reports/f'speaker-demo-{mode}-{position}.png'))
+            assert bridge.preview_calls == 1
             c('toggleVoiceSlidePreview').clicked.emit()
             pump(100)
             assert root.property('voicePreviewExpanded') and not thumbnail.isVisible()
+            assert c('expandedSpeakerPreview').isVisible()
             c('toggleVoiceSlidePreview').clicked.emit()
             pump(100)
             assert thumbnail.isVisible() and bridge.preview_calls == 1
@@ -237,7 +314,11 @@ def main():
             assert not warnings, warnings
             result = dict(status='passed', warnings=warnings, dimensions=dimensions,
                           checks=['light/dark across pages and Settings tabs', 'dialogs inherit dark palette',
+                                  'Compact lesson details/actions share a row with 16:9 thumbnail at 1080/1366/1920',
                                   '16:9 thumbnail expands/collapses without repeated render',
+                                  'EN/VI/both speaker demo follows left/center/right immediately; preview image reused',
+                                  'Template samples open PNGs in-app; selection cards retain thin borders',
+                                  'Narration summary stays beside action while scrolling and updates with language/position',
                                   'task return preserves Settings subtab and dirty guard',
                                   'update task destination', '60px companion shrinks further'])
             (reports/'result.json').write_text(json.dumps(result, indent=2), encoding='utf-8')
