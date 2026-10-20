@@ -98,7 +98,8 @@ def main():
             until(lambda: bridge.powerpointState.get('active'), timeout=50)
             assert bridge.teachingSession.audio == {'vi': True, 'en': True, 'both': False}
             assert bridge.powerpointState.get('hwnd'), 'Mascot must resolve this slideshow window when Office omits HWND'
-            assert cc('companionReadingOptions').isVisible()
+            assert companion.findChild(QObject, 'companionReadingOptions') is None
+            assert bridge.teachingSession.state['reading_mode'] == 'auto'
             assert companion.findChild(QObject, 'companionStopSpeech') is None
             assert companion.findChild(QObject, 'companionPauseEnglish') is None
             assert cc('companionReadEnglish').isVisible() and cc('companionReadVietnamese').isVisible()
@@ -152,6 +153,18 @@ def main():
             tap('companionEndShow')
             until(lambda: not bridge.powerpointState.get('active') and bridge.powerpointState.get('opened'))
             assert bridge.teachingSession.state['lesson_id'] == lesson['id']
+            tap('companionStartShow')
+            until(lambda: bridge.powerpointState.get('active'))
+            worker, token = bridge.powerpoint_worker, bridge.teachingSession.token
+            tap('companionChooseLesson')
+            assert bridge.powerpoint_worker is worker and bridge.powerpointState['active']
+            from PySide6.QtCore import QMetaObject, Qt
+            QMetaObject.invokeMethod(cc('companionPresentationDialog'), 'open', Qt.DirectConnection)
+            pump(120)
+            QMetaObject.invokeMethod(cc('companionPresentationDialog'), 'reject', Qt.DirectConnection)
+            pump(120)
+            assert bridge.powerpoint_worker is worker and bridge.teachingSession.token == token
+            tap('companionChooseLesson')
             # Floating Mascot and library share one direct open/bind route.
             tap('companionChooseLesson')
             assert cc('companionLibraryPicker').isVisible() and cc('companionSelectFile').isVisible()
@@ -159,6 +172,7 @@ def main():
             cc('companionLibraryPicker').setProperty('currentIndex', index)
             tap('companionSelectLibrary')
             until(lambda: bridge.teachingSession.state.get('lesson_id') == other['id'] and bridge.powerpointState.get('opened'), timeout=50)
+            assert window.property('page') == 'library', 'Mascot opens in the lesson library, never the voice tool'
             assert not c('wholeLessonReview').property('visible')
             assert not bridge.powerpointState.get('active')
             tap('companionStartShow')
@@ -198,9 +212,8 @@ def main():
             click(window, c('voiceTeachWithoutNarration'))
             print('Before-voice open requested: ' + json.dumps({'busy': bridge.busy, 'message': bridge.message,
                   'token': bridge.teachingSession.token, 'previous_token': token}), flush=True)
-            until(lambda: not bridge.busy and bridge.teachingSession.token != token
-                  and bridge.powerpointState.get('opened') and not bridge.powerpointState.get('starting')
-                  and not bridge._pending_teaching, timeout=50)
+            until(lambda: not bridge.busy and bridge.powerpointState.get('opened') and not bridge.teachingTransitioning, timeout=50)
+            assert bridge.teachingSession.token == token, 'Opening the same ready product focuses it without rebinding'
             assert window.property('page') == 'voice' and bridge.teachingSession.state['lesson_id'] == other['id']
             assert not bridge.narrationBusy and not c('wholeLessonReview').property('visible')
             # After voice creation, the selected ready variant replaces the old binding.

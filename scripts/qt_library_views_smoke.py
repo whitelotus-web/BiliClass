@@ -75,7 +75,7 @@ def main():
             identity = bridge.lessons[0]["id"]
 
             def selected():
-                return c("lessonSelect_" + identity).property("checked")
+                return identity in window.property('selectedLessons').toVariant()
 
             def point_click(item, x, y):
                 point = item.mapToScene(QPointF(x, y)).toPoint()
@@ -88,13 +88,14 @@ def main():
             assert selected() and card.property("selected")
             click(window, c("lessonTitle_" + identity))
             assert not selected(), "Title click should deselect, not open the lesson"
-            click(window, c("lessonNarrationBadge_" + identity))
+            click(window, c("lessonCreated_" + identity))
             assert selected() and not bridge.lesson.get("id")
             click(window, c("lessonSelect_" + identity))
             assert not selected(), "Checkbox must toggle exactly once"
             click(window, c("lessonDownload_" + identity))
             assert c("libraryDownloadDialog").property("visible") and not selected()
             QMetaObject.invokeMethod(c("libraryDownloadDialog"), "close", Qt.DirectConnection)
+            pump(150)
             assert c("lessonOpen_" + identity).property("text") == "Mở PowerPoint"
             assert c("lessonNarrate_" + identity).property("text") == "Tạo giọng đọc"
             assert window.findChild(QObject, "lessonTeach_" + identity) is None
@@ -102,6 +103,7 @@ def main():
             click(window, c("lessonEdit_" + identity))
             assert c("lessonMetadataDialog").property("visible") and not selected()
             QMetaObject.invokeMethod(c("lessonMetadataDialog"), "reject", Qt.DirectConnection)
+            pump(150)
             click(window, c("lessonDelete_" + identity))
             assert c("deleteLessonDialog").property("visible") and not selected()
             click(window, c("cancelDeleteLessonButton"))
@@ -161,12 +163,14 @@ def main():
             click(window, c("lessonEdit_" + identity))
             assert c("lessonMetadataDialog").property("visible") and selected()
             QMetaObject.invokeMethod(c("lessonMetadataDialog"), "reject", Qt.DirectConnection)
+            pump(150)
             click(window, c("lessonDownload_" + identity))
             assert c("libraryDownloadDialog").property("visible")
             assert selected(), "Download action must not toggle selection"
             ids = c("libraryDownloadDialog").property("identities").toVariant()
             assert ids == [identity]
             QMetaObject.invokeMethod(c("libraryDownloadDialog"), "close", Qt.DirectConnection)
+            pump(150)
             for width, height, columns in ((1080, 700, 2), (1366, 850, 3), (1920, 1080, 4)):
                 window.resize(width, height)
                 pump(250)
@@ -276,6 +280,7 @@ def main():
             pump(100)
             c("keyDisplayNameInput").setProperty("text", "Gmail riêng")
             QMetaObject.invokeMethod(c("renameGoogleKeyDialog"), "accept", Qt.DirectConnection)
+            pump(150)
             until(lambda: not bridge.busy)
             assert bridge.googleSettings.state["keys"][0]["name"] == "Key 1 (Gmail riêng)"
             assert bridge.googleSettings.state["keys"][0]["used"] == 400000
@@ -323,7 +328,15 @@ def main():
                 json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8"
             )
             print(json.dumps(result, ensure_ascii=False), flush=True)
+        except BaseException:
+            import traceback
+
+            traceback.print_exc()
+            window.grabWindow().save(str(report / 'failure.png'))
+            raise
         finally:
+            QTest.keyClick(window, Qt.Key_Escape)
+            pump(80)
             if bridge.powerpoint_worker is not None:
                 bridge.stopPowerPoint()
                 until(lambda: bridge.powerpoint_worker is None, timeout=20)
@@ -338,6 +351,8 @@ def main():
             bridge.browserAI.shutdown()
             bridge.english_reader.shutdown()
             bridge.narration_preparation.shutdown()
+            bridge.narrationPreferences.shutdown()
+            bridge._companion_preferences.shutdown()
             bridge.classroom.shutdown()
             bridge.voice_controls.shutdown()
             engine.deleteLater()

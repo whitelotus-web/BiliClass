@@ -18,6 +18,7 @@ ContentScrollView {
         width: result.availableWidth; spacing: 16
         RowLayout { Layout.fillWidth: true
             Label { objectName: "narrationResultHeading"; text: "Đã tạo giọng đọc bài giảng"; color: AppTheme.ink; font.pixelSize: 27; font.weight: Font.Bold; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+            ActionButton { objectName: "narrationResultChange"; text: "Đổi cấu hình giọng"; onClicked: result.requestConfiguration() }
             ActionButton { objectName: "narrationResultLibrary"; text: "Trở lại thư viện"; onClicked: result.requestLibrary() }
         }
         Label { text: result.bridge.lesson.title || ""; color: AppTheme.ink; font.pixelSize: 20; font.weight: Font.DemiBold; wrapMode: Text.WordWrap; Layout.fillWidth: true }
@@ -31,7 +32,7 @@ ContentScrollView {
             }
         }
         Flow { Layout.fillWidth: true; spacing: 10
-            ActionButton { objectName: "narrationResultOpen"; text: "Mở PowerPoint"; primary: true; enabled: !result.bridge.busy && !result.bridge.powerpointState.active && !result.bridge.powerpointState.starting; onClicked: result.requestPowerPoint() }
+            ActionButton { objectName: "narrationResultOpen"; text: "Mở PowerPoint"; primary: true; enabled: !result.bridge.busy && !result.bridge.narrationBusy && !result.bridge.teachingTransitioning; onClicked: result.requestPowerPoint() }
             ActionButton { objectName: "narrationResultDownload"; text: "Tải PowerPoint"; iconName: "download"; enabled: !result.bridge.busy; onClicked: result.requestDownload() }
             ActionButton { objectName: "narrationResultAudio"; text: "Tải audio (.zip)"; enabled: !result.bridge.busy; onClicked: result.requestAudio() }
         }
@@ -52,7 +53,6 @@ ContentScrollView {
             ActionButton { objectName: "narrationResultListenEnglish"; text: "Nghe giọng Anh"; iconName: "play"; visible: result.record.mode !== "vi"; enabled: !result.bridge.busy; onClicked: result.bridge.narrationWorkspace.listenCreated(result.bridge.quickResult.slide || 1, "en", result.record.id) }
             ActionButton { objectName: "narrationResultListenVietnamese"; text: "Nghe giọng Việt"; iconName: "play"; visible: result.record.mode !== "en"; enabled: !result.bridge.busy; onClicked: result.bridge.narrationWorkspace.listenCreated(result.bridge.quickResult.slide || 1, "vi", result.record.id) }
             ActionButton { text: "Dừng nghe"; danger: true; onClicked: result.bridge.stopSpeech() }
-            ActionButton { objectName: "narrationResultChange"; text: "Đổi cấu hình giọng"; onClicked: result.requestConfiguration() }
         }
     }
 }

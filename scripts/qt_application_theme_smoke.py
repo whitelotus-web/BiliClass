@@ -83,6 +83,27 @@ def main():
                     c('settingsPage').setProperty('activeTab', index)
                     pump(60)
                     root.grabWindow().save(str(reports/f'{mode}-settings-{index}.png'))
+            root.setProperty('page', 'library')
+            until(lambda: bridge._catalog.worker is None)
+            pump(100)
+            status = c('lessonStatus_' + lesson['id'])
+            original_row = next(row for row in bridge.lessons if row['id'] == lesson['id'])
+            for audio, label in [
+                ({'status': 'none'}, 'Chưa có giọng'),
+                ({'status': 'none', 'variants': [{'status': 'partial', 'ready': False}]}, 'Giọng chưa đủ'),
+                ({'status': 'stale', 'variants': [{'mode': 'en', 'ready': True}]}, 'Có giọng Anh'),
+                ({'status': 'ready', 'variants': [{'mode': 'en', 'ready': True}, {'mode': 'vi', 'ready': True}]}, 'Có giọng Việt + Anh'),
+                ({'status': 'unknown'}, 'Chưa kiểm tra giọng'),
+                ({'status': 'checking'}, 'Đang kiểm tra giọng…'),
+            ]:
+                status.setProperty('lessonRow', {**original_row, 'narration': audio})
+                pump(40)
+                assert status.property('text') == label
+                text = status.findChild(QObject, 'libraryVoicePillText')
+                assert not text.property('truncated'), (label, text.width(), text.property('contentWidth'))
+            status.setProperty('lessonRow', original_row)
+            root.grabWindow().save(str(reports/'clear-library-status.png'))
+            root.setProperty('page', 'settings')
             c('settingsPage').setProperty('activeTab', 0)
             pump(100)
             scroll = c('settingsContentScroll').property('contentItem')
@@ -288,11 +309,9 @@ def main():
                 dimensions[pixels] = (companion.width(), c('companionMenu').height())
                 companion.grabWindow().save(str(reports/f'dark-mascot-{pixels}.png'))
                 assert c('companionSettings').mapToScene(QPointF()).x() > 0
-                options = c('companionReadingOptions')
-                assert options.isVisible()
-                first, last = c('companionReadingAuto'), c('companionReadingFull')
-                middle = (first.mapToScene(QPointF()).x() + last.mapToScene(QPointF(last.width(), 0)).x())/2
-                assert abs(middle-options.mapToScene(QPointF(options.width()/2, 0)).x()) < 1
+                for removed in ('companionReadingOptions', 'companionReadingAuto', 'companionReadingVisible', 'companionReadingFull'):
+                    assert companion.findChild(QObject, removed) is None
+                assert bridge.teachingSession.state['reading_mode'] == 'auto'
                 assert 'Bấm loa để nghe lại' not in c('companionAudioHint').property('text')
                 start = c('companionStartShow')
                 label = start.findChild(QObject, 'actionButtonLabel')

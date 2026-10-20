@@ -82,7 +82,6 @@ class TeachingSession(QObject):
         self.language = ''
         self.pause_on_start = False
         self.reading_scope = 'full_slide'
-        self.reading_mode = 'auto'
         self.volume = 80
         self._progress = ReadingProgress()
         self._read_batch = []
@@ -129,7 +128,6 @@ class TeachingSession(QObject):
         self._progress.reset()
         self._player_volume = None
         self._verified_stamp = None
-        self.reading_mode = 'auto'
         self._build_key = None
         self.reset_reading()
         self._watch_build()
@@ -145,10 +143,9 @@ class TeachingSession(QObject):
             self._deferred_read = None
             self._settled.stop()
             page = next((p for p in self.bound.get('speech', {}).get('slides', []) if p['slide'] == state.get('slide')), {})
-            if self.reading_mode == 'auto':
-                animated = any(row.get('visibility', {}).get('kind', 'always') not in {'always', 'hidden'}
-                               for row in page.get('englishSpeechSegments', []))
-                self.reading_scope = 'visible' if animated else 'full_slide'
+            animated = any(row.get('visibility', {}).get('kind', 'always') not in {'always', 'hidden'}
+                           for row in page.get('englishSpeechSegments', []))
+            self.reading_scope = 'visible' if animated else 'full_slide'
             if self.bound and state.get('active') and self.reading_scope == 'visible':
                 delay = max((r.get('visibility', {}).get('settle_seconds', 0)
                              for r in page.get('englishSpeechSegments', [])
@@ -162,17 +159,6 @@ class TeachingSession(QObject):
         if intent and intent[1] == self._build_key and self.bridge._powerpoint_state.get('active'):
             self.read(intent[0])
         self.changed.emit()
-
-    @Slot(str)
-    def setReadingScope(self, scope):
-        if scope in {'auto', 'full_slide', 'visible'} and scope != self.reading_mode:
-            self.stop()
-            self.reading_mode = scope
-            if scope != 'auto':
-                self.reading_scope = scope
-            self._build_key = None
-            self._watch_build()
-            self.changed.emit()
 
     def reset_reading(self):
         self._read_batch = []
@@ -210,11 +196,10 @@ class TeachingSession(QObject):
                 'title': lesson.get('title', ''), 'response': self.response,
                 'warning': self.bound.get('warning', ''),
                 'reading_scope': self.reading_scope,
-                'reading_mode': self.reading_mode,
-                'auto_completed': self.reading_mode == 'auto' and bool(self._progress.completed.get(self.language))
+                'reading_mode': 'auto',
+                'auto_completed': bool(self._progress.completed.get(self.language))
                                   and not self._selected_items(self.language),
                 'settling': self._settled.isActive(),
-                'can_choose_scope': bool(lesson.get('narration', {}).get('keys')),
                 'voice': (lesson.get('narration') or {}).get('voice', '')}
 
     def _speech_items(self, language, *, settled_seconds=None):
@@ -264,12 +249,10 @@ class TeachingSession(QObject):
 
     def _selected_items(self, language, *, replay=False):
         items = self._speech_items(language)
-        if self.reading_mode == 'auto' and self._settled.isActive():
+        if self._settled.isActive():
             return []  # Do not replay old text while a new entrance is settling.
-        if self.reading_mode == 'auto':
-            chosen = self._progress.choose(language, items, titles=self._titles(language))
-            return chosen or (items if replay else [])
-        return items
+        chosen = self._progress.choose(language, items, titles=self._titles(language))
+        return chosen or (items if replay else [])
 
     def _titles(self, language):
         """Suppress only explicit headings actually read on the preceding page."""
@@ -305,7 +288,7 @@ class TeachingSession(QObject):
         embedded = self.bound.get('media', {}).get(state.get('slide'), []) if self.reading_scope == 'full_slide' else []
         record = self.bound['lesson'].get('narration') or {}
         def available(language):
-            if language in embedded and (self.reading_mode != 'auto' or not record.get('keys')):
+            if language in embedded and not record.get('keys'):
                 return True
             keys = record.get('keys', {}).get(language, [])
             if not keys:

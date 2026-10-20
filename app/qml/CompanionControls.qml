@@ -61,20 +61,20 @@ ColumnLayout {
         HoverHandler { id: lessonHover }
     }
     Label { visible: !!companion.session.bound; text: bridge.mascotSubject; color: AppTheme.adapt("#667997"); font.pixelSize: 11; Layout.fillWidth: true; elide: Text.ElideRight }
-    PanelAction { objectName: "companionChooseLesson"; text: companion.choosingLesson ? "Thu chọn bài" : companion.session.bound ? "Đổi bài giảng" : "Chọn bài giảng"; primary: !companion.session.bound; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: companion.choosingLesson = !companion.choosingLesson }
+    PanelAction { objectName: "companionChooseLesson"; text: companion.choosingLesson ? "Thu chọn bài" : companion.session.bound ? "Đổi bài giảng" : "Chọn bài giảng"; primary: !companion.session.bound; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.teachingTransitioning; onClicked: companion.choosingLesson = !companion.choosingLesson }
     ColumnLayout {
         visible: companion.choosingLesson; Layout.fillWidth: true; spacing: 6
-        ComboBox { id: teachingLibrary; objectName: "companionLibraryPicker"; Layout.fillWidth: true; model: bridge.lessons; textRole: "title"; enabled: !bridge.busy && !bridge.narrationBusy }
+        ComboBox { id: teachingLibrary; objectName: "companionLibraryPicker"; Layout.fillWidth: true; model: bridge.lessons; textRole: "title"; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.teachingTransitioning }
         RowLayout { Layout.fillWidth: true; spacing: 6
-            PanelAction { objectName: "companionSelectLibrary"; text: "Mở bài đã chọn"; enabled: teachingLibrary.currentIndex >= 0 && !bridge.busy && !bridge.narrationBusy; onClicked: { bridge.openTeachingLibraryLesson(bridge.lessons[teachingLibrary.currentIndex].id); companion.choosingLesson = false } }
-            PanelAction { objectName: "companionSelectFile"; text: "Chọn file…"; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: companion.choosePresentation() }
+            PanelAction { objectName: "companionSelectLibrary"; text: "Mở bài đã chọn"; enabled: teachingLibrary.currentIndex >= 0 && !bridge.busy && !bridge.narrationBusy && !bridge.teachingTransitioning; onClicked: { bridge.openCompanionLibraryLesson(bridge.lessons[teachingLibrary.currentIndex].id); companion.choosingLesson = false } }
+            PanelAction { objectName: "companionSelectFile"; text: "Chọn file…"; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.teachingTransitioning; onClicked: companion.choosePresentation() }
         }
     }
     Label { visible: !companion.session.bound && !bridge.companionCanRead; text: "Chọn bài trong thư viện hoặc file PowerPoint để Mascot điều khiển."; color: AppTheme.adapt("#667997"); wrapMode: Text.WordWrap; Layout.fillWidth: true; font.pixelSize: 12 }
     RowLayout {
         visible: !!bridge.powerpointState.opened; Layout.fillWidth: true; spacing: 6
-        PanelAction { objectName: "companionStartShow"; text: bridge.powerpointState.active ? "Đang chiếu" : controls.companion.compactPanel ? "Chiếu · F5" : "Trình chiếu · F5"; inactiveStatus: bridge.powerpointState.active; primary: !bridge.powerpointState.active; iconName: "presentation"; enabled: !bridge.powerpointState.active; ToolTip.visible: pointerHovered; ToolTip.text: bridge.powerpointState.active ? "PowerPoint đang trình chiếu" : "Bắt đầu trình chiếu PowerPoint · F5"; onClicked: bridge.startTeachingShow() }
-        PanelAction { objectName: "companionEndShow"; text: "Kết thúc"; danger: true; visible: !!bridge.powerpointState.active && !!companion.session.bound; onClicked: bridge.navigatePowerPoint("end_show") }
+        PanelAction { objectName: "companionStartShow"; text: bridge.powerpointState.show_pending === "start" ? "Đang bắt đầu…" : bridge.powerpointState.active ? "Đang chiếu" : controls.companion.compactPanel ? "Chiếu · F5" : "Trình chiếu · F5"; inactiveStatus: bridge.powerpointState.active; primary: !bridge.powerpointState.active; iconName: "presentation"; enabled: !bridge.powerpointState.active && !bridge.teachingTransitioning; ToolTip.visible: pointerHovered; ToolTip.text: bridge.powerpointState.active ? "PowerPoint đang trình chiếu" : "Bắt đầu trình chiếu PowerPoint · F5"; onClicked: bridge.startTeachingShow() }
+        PanelAction { objectName: "companionEndShow"; text: "Kết thúc"; danger: true; enabled: !bridge.teachingTransitioning; visible: !!bridge.powerpointState.active && !!companion.session.bound; onClicked: bridge.navigatePowerPoint("end_show") }
     }
     Label {
         objectName: "companionAudioHint"; visible: !!companion.session.bound && text.length > 0
@@ -87,47 +87,6 @@ ColumnLayout {
         wrapMode: Text.WordWrap; Layout.fillWidth: true
         ToolTip.visible: statusHover.hovered && truncated; ToolTip.text: text
         HoverHandler { id: statusHover }
-    }
-    RowLayout {
-        objectName: "companionReadingOptions"
-        visible: !!companion.session.can_choose_scope && bridge.companionCanRead
-        Layout.fillWidth: true; spacing: 4
-        ButtonGroup { id: readingGroup }
-        component ScopeChoice: RadioButton {
-            id: choice
-            required property string mode
-            required property string hint
-            readonly property bool pointerHovered: hovered || controls.companion.hoveringControl(choice)
-            Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0
-            implicitHeight: 28; padding: 3; spacing: 4
-            ButtonGroup.group: readingGroup
-            checked: controls.companion.session.reading_mode === mode
-            onClicked: controls.bridge.teachingSession.setReadingScope(mode)
-            Accessible.name: "Cách đọc: " + text
-            ToolTip.visible: pointerHovered; ToolTip.text: hint; ToolTip.delay: 500
-            indicator: Rectangle {
-                x: Math.max(choice.leftPadding, (choice.width - scopeLabel.implicitWidth) / 2); y: (choice.height - height) / 2
-                width: 14; height: 14; radius: 3
-                color: choice.checked ? AppTheme.accent : AppTheme.field
-                border.color: choice.checked || choice.visualFocus ? AppTheme.adapt("#0869ff") : AppTheme.adapt("#b0c4e0")
-                Label { anchors.centerIn: parent; text: "✓"; color: AppTheme.accentText; font.pixelSize: 11; visible: choice.checked }
-            }
-            contentItem: Label {
-                id: scopeLabel
-                text: choice.text; leftPadding: choice.indicator.width + choice.spacing
-                color: choice.checked ? AppTheme.adapt("#075acb") : AppTheme.adapt("#486385")
-                font.pixelSize: controls.bridge.companionPanelSize === "small" ? 10 : 11
-                verticalAlignment: Text.AlignVCenter
-                horizontalAlignment: Text.AlignHCenter
-            }
-            background: Rectangle {
-                radius: 5; color: choice.checked ? AppTheme.adapt("#eaf2ff") : choice.pointerHovered ? AppTheme.adapt("#f0f5fc") : "transparent"
-                border.color: choice.visualFocus ? AppTheme.adapt("#0869ff") : "transparent"
-            }
-        }
-        ScopeChoice { objectName: "companionReadingAuto"; mode: "auto"; text: "Tự động"; hint: "Theo hiệu ứng slide; ưu tiên phần mới hiện. Bấm loa để đọc." }
-        ScopeChoice { objectName: "companionReadingVisible"; mode: "visible"; text: "Đang hiện"; hint: "Đọc nội dung hiện trên màn chiếu." }
-        ScopeChoice { objectName: "companionReadingFull"; mode: "full_slide"; text: "Toàn slide"; hint: "Đọc toàn bộ lời của slide, kể cả phần chưa hiện." }
     }
     Rectangle { visible: bridge.experimentalTeaching && (!!companion.session.bound || bridge.companionCanRead); Layout.fillWidth: true; implicitHeight: 1; color: AppTheme.adapt("#e0e8f4") }
     RowLayout {

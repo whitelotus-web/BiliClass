@@ -311,8 +311,7 @@ def test_auto_reveal_only_new_english_and_matched_vietnamese_paragraphs(tmp_path
     session._watch_build()
     assert session.texts('en') == ['Second paragraph.']
     assert session.texts('vi') == ['Đoạn thứ hai.']
-    session.setReadingScope('visible')
-    assert session.texts('en') == ['Energy', 'First paragraph.', 'Second paragraph.']
+    assert [row[1] for row in session._selected_items('en', replay=True)] == ['Second paragraph.'], 'Auto still prefers the newly revealed paragraph'
 
 
 def test_repeated_press_while_native_player_prepares_queues_pause_without_restarting(tmp_path):
@@ -360,9 +359,7 @@ def test_build_aware_reading_bypasses_whole_slide_media_and_only_uses_visible_ca
     session.bind(prepared)
     assert session.state['reading_mode'] == 'auto' and session.reading_scope == 'visible'
     assert not session.audio['en'], 'Auto never reads unrevealed animated content'
-    session.setReadingScope('full_slide')
-    assert session.audio['en'], 'Explicit whole-slide playback remains available'
-    session.setReadingScope('auto')
+    assert session.metaObject().indexOfMethod('setReadingScope(QString)') == -1, 'No manual override is exposed to QML'
     assert not session.audio['en']
     bridge._powerpoint_state['click_index'] = 1
     assert session.audio['en']

@@ -78,6 +78,10 @@ def main():
             bridge._show_lesson(lesson, preview, destination='voice', auto_repair=False, load_preview=False)
             until(lambda: window.property('narrationComplete'), timeout=30)
             until(lambda: bool(bridge.quickResult.get('image')) and not bridge.previewBusy, timeout=90)
+            assert not c('narrationResultPage').isVisible(), 'Opening Voice config must not resurrect an old result'
+            window.setProperty('voiceResultDismissed', False)
+            bridge.narrationChanged.emit()
+            pump(120)
             assert window.property('voicePreviewExpanded')
             assert c('narrationResultSlideImage').property('source').toString()
             assert c('narrationResultPage').isVisible()
@@ -114,7 +118,7 @@ def main():
                 stopped.assert_not_called()
             assert c('narrationResultNext').isEnabled()
             assert c('narrationResultDownload').isEnabled()
-            assert not c('narrationResultOpen').isEnabled()
+            assert c('narrationResultOpen').isEnabled(), 'Opening an active managed lesson is a safe focus/switch action'
             bridge._powerpoint_state = dict(initial_powerpoint_state)
             bridge.powerpointStateChanged.emit()
             c('narrationResultChange').clicked.emit()
@@ -130,8 +134,14 @@ def main():
             window.setProperty('page', 'library')
             window.setProperty('page', 'voice')
             pump(150)
-            assert window.property('voicePreviewExpanded'), 'Returning to a completed voice shows its preview'
-            c('narrationResultChange').clicked.emit()
+            assert not c('narrationResultPage').isVisible(), 'Returning to the tool keeps configuration available'
+            window.setProperty('voiceResultDismissed', False)
+            bridge.narrationChanged.emit()
+            pump(100)
+            assert c('narrationResultPage').isVisible()
+            c('navigationvoice').clicked.emit()
+            pump(100)
+            assert not c('narrationResultPage').isVisible(), 'Clicking the current Voice tab exits its result too'
             window.setProperty('narrationOptionsPinned', True)
             window.setProperty('narrationVoice', 'pair:north-male')
             bridge.narration_preparation.state = dict(plan, lesson_id=lesson['id'], running=True, complete=0)
@@ -145,6 +155,12 @@ def main():
             bridge.narrationChanged.emit()
             pump(60)
             assert not window.property('voicePreviewExpanded'), 'Later notifications must respect a deliberate hide'
+            c('navigationlibrary').clicked.emit()
+            pump(100)
+            assert window.property('page') == 'library'
+            c('navigationvoice').clicked.emit()
+            pump(100)
+            assert window.property('page') == 'voice' and not c('narrationResultPage').isVisible()
             assert not warnings, warnings
             (reports / 'result.json').write_text(json.dumps({'status': 'passed', 'automatic_preview': True,
                 'preview_while_powerpoint_active': True, 'sizes': [[1080, 700], [1366, 850]], 'qml_warnings': warnings}), encoding='utf-8')

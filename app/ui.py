@@ -1771,6 +1771,11 @@ class Bridge(QObject):
     def powerpointState(self):
         return self._powerpoint_state
 
+    @Property(bool, notify=powerpointStateChanged)
+    def teachingTransitioning(self):
+        return bool(self._pending_teaching or any(self._powerpoint_state.get(key)
+                    for key in ('starting', 'closing', 'show_pending')))
+
     @Property("QVariantList", notify=changed)
     def screens(self):
         return [{"name": f"Màn hình {index + 1} · {screen.name()}", "index": index}
@@ -1975,7 +1980,7 @@ class Bridge(QObject):
 
     @Property(bool, notify=powerpointStateChanged)
     def companionCanRead(self):
-        return bool(self._powerpoint_state.get('active') and self.powerpoint_worker is not None
+        return bool(not self.teachingTransitioning and self._powerpoint_state.get('active') and self.powerpoint_worker is not None
                     and (self.teaching_session.bound or self._powerpoint_lesson_id == self._lesson.get('id')))
 
     @Slot(result=bool)
@@ -2898,6 +2903,7 @@ class Bridge(QObject):
         self._powerpoint_lesson_id = prepared['lesson']['id'] if prepared else self._lesson["id"]
         self._powerpoint_state = {"active": False, "starting": True, "slide": 0, "total": 0,
                                   "message": "Đang mở PowerPoint…"}
+        self.powerpointStateChanged.emit()
         self.changed.emit()
         worker.stateChanged.connect(self._powerpoint_changed)
         worker.failed.connect(self._powerpoint_failed)
@@ -2928,6 +2934,8 @@ class Bridge(QObject):
 
     @Slot(object)
     def _powerpoint_changed(self, state):
+        if self.sender() is not None and self.sender() is not self.powerpoint_worker:
+            return
         if self._powerpoint_state.get('closing'):
             return  # Already-queued Office events must not reopen a retiring binding.
         if state.get('event'):
@@ -2939,6 +2947,9 @@ class Bridge(QObject):
             source_slide = self._powerpoint_source_map[index - 1] if 0 < index <= len(self._powerpoint_source_map) else index
             state = {**state, "source_slide": source_slide}
             previous = self._powerpoint_state
+            pending = previous.get('show_pending')
+            if pending and bool(state.get('active')) != (pending == 'start'):
+                state['show_pending'] = pending
             self._powerpoint_state = state
             if (not state.get("active") or index != previous.get("slide")
                     or (self.teaching_session.reading_scope == 'visible'
@@ -2955,10 +2966,14 @@ class Bridge(QObject):
 
     @Slot(str)
     def _powerpoint_failed(self, error):
+        if self.sender() is not None and self.sender() is not self.powerpoint_worker:
+            return
         self.inform(error, True)
 
     @Slot()
     def _powerpoint_finished(self):
+        if self.sender() is not None and self.sender() is not self.powerpoint_worker:
+            return
         self.stopSpeech()
         worker = self.powerpoint_worker
         if worker is not None:
@@ -2969,6 +2984,7 @@ class Bridge(QObject):
         self._powerpoint_segment_map = []
         self._powerpoint_state = {"active": False, "slide": 0, "total": 0, "message": ""}
         self.teaching_session.clear()
+        self.powerpointStateChanged.emit()
         self.changed.emit()
         prepared, self._pending_teaching = self._pending_teaching, None
         if prepared:
@@ -2988,7 +3004,9 @@ class Bridge(QObject):
 
     @Slot(str)
     def navigatePowerPoint(self, command):
-        if not self.powerpoint_worker or not self._powerpoint_state["active"]:
+        if self.teachingTransitioning:
+            return
+        if not self.powerpoint_worker or not self._powerpoint_state.get('active'):
             self.inform("Chưa có trình chiếu PowerPoint đang hoạt động.", True)
             return
         self.stopSpeech()
@@ -3001,12 +3019,20 @@ class Bridge(QObject):
                 slide = self._powerpoint_source_map.index(slide) + 1
             self.powerpoint_worker.navigate("goto", slide)
         elif command in ("next", "previous", "next_slide", "previous_slide", "end_show"):
+            if command == 'end_show':
+                self.teaching_session.reset_reading()
+                self._powerpoint_state = {**self._powerpoint_state, 'show_pending': 'end'}
+                self.powerpointStateChanged.emit()
             self.powerpoint_worker.navigate(command)
         self.focusTeachingPresentation()
 
     @Slot()
     def startTeachingShow(self):
+        if self.teachingTransitioning or self._powerpoint_state.get('active'):
+            return
         if self.powerpoint_worker and self._powerpoint_state.get('opened'):
+            self._powerpoint_state = {**self._powerpoint_state, 'show_pending': 'start'}
+            self.powerpointStateChanged.emit()
             self.focusTeachingPresentation()
             self.powerpoint_worker.navigate('start')
 
@@ -3014,11 +3040,11 @@ class Bridge(QObject):
     def stopPowerPoint(self):
         self.stopSpeech()
         self.teaching_session.reset_reading()
-        if self.powerpoint_worker:
-            self.powerpoint_worker.stop()
+        if self.powerpoint_worker and not self._powerpoint_state.get('closing'):
             self._powerpoint_state = {**self._powerpoint_state, 'active': False, 'opened': False,
                                      'closing': True, "message": "Đang đóng PowerPoint…"}
             self.powerpointStateChanged.emit()
+            self.powerpoint_worker.stop()
 
 
     def _conversion_terms(self):
@@ -3123,8 +3149,7 @@ class Bridge(QObject):
         if self.previewBusy:
             self.inform('Đang hoàn thiện ảnh xem trước. Bạn có thể mở trình chiếu ngay sau đó.')
             return
-        if self._busy or self.narrationBusy or self.classroom.running:
-            self.inform("Hoàn tất tác vụ hoặc tiết học trước khi đổi bài dạy.", True)
+        if not self._can_open_teaching():
             return
         try:
             if self.selectedNarrationVariant and not self.lessonNarration.get('ready'):
@@ -3144,11 +3169,7 @@ class Bridge(QObject):
             lesson, directory = copy.deepcopy(self._lesson), self.library.directory
 
             def ready(prepared):
-                if self.powerpoint_worker is not None:
-                    self._pending_teaching = prepared
-                    self.stopPowerPoint()
-                else:
-                    self._activate_teaching(prepared)
+                self._open_library_teaching(prepared)
 
             self.launch(lambda: prepare_teaching(lesson, result, directory), ready)
         except Exception as exc:
@@ -3159,6 +3180,34 @@ class Bridge(QObject):
         self._start_powerpoint_session(prepared['path'], preview.get('slide_map'), preview.get('segment_map'), prepared=prepared)
         self.inform(prepared.get('warning') or 'Đang mở PowerPoint và gắn bài với Mascot. Bấm Trình chiếu (F5) khi sẵn sàng.')
 
+    def _can_open_teaching(self):
+        if self.teachingTransitioning:
+            self.inform('PowerPoint đang mở hoặc đóng. Chờ hoàn tất trước khi đổi bài.', refresh=False)
+            return False
+        if self._busy or self.narrationBusy or self.classroom.running:
+            self.inform('Hoàn tất tác vụ hoặc tiết học trước khi chọn bài dạy.', True, refresh=False)
+            return False
+        return True
+
+    def _focus_open_teaching(self, identity, narration=None):
+        """Reopening the same saved product must preserve its slide and playback."""
+        from .lesson_narration import records, variant_id
+
+        bound = self.teaching_session.bound.get('lesson', {})
+        if (not self.powerpoint_worker or not self._powerpoint_state.get('opened')
+                or bound.get('id') != identity):
+            return False
+        try:
+            saved = self.library.get(identity)
+        except (KeyError, ValueError):
+            return False
+        if (saved.get('revision') != bound.get('revision') or saved.get('source') != bound.get('source')
+                or records(saved) != records(bound)
+                or (narration is not None and variant_id(narration) != variant_id(bound.get('narration')))):
+            return False
+        self.focusTeachingPresentation()
+        return True
+
     @Slot(str)
     def openNarratedPowerPoint(self, identity):
         """Open the chosen audio product without approving translation or layout."""
@@ -3166,8 +3215,7 @@ class Bridge(QObject):
 
         from .lesson_completion import prepare_library_teaching
 
-        if self._busy or self.narrationBusy or self.classroom.running:
-            self.inform('Hoàn tất tác vụ hoặc tiết học trước khi mở PowerPoint.', True, refresh=False)
+        if not self._can_open_teaching():
             return
         if identity != self.selectedNarrationVariant:
             self.selectNarrationVariant(identity)
@@ -3175,6 +3223,8 @@ class Bridge(QObject):
             self.inform('Bản giọng đã chọn chưa hoàn tất. Tạo tiếp phần còn thiếu trước khi mở.', True, refresh=False)
             return
         lesson, directory, profile = copy.deepcopy(self._lesson), self.library.directory, dict(self.settings)
+        if self._focus_open_teaching(lesson['id'], lesson['narration']):
+            return
         self._opening_teaching_id = lesson['id']
         self.launch(lambda: prepare_library_teaching(directory, lesson['id'], profile, self.cancel_event,
                                                        narration=lesson['narration']), self._open_library_teaching)
@@ -3182,28 +3232,40 @@ class Bridge(QObject):
 
     @Slot(str)
     def openTeachingLibraryLesson(self, identity):
+        self._open_teaching_library(identity)
+
+    @Slot(str)
+    def openCompanionLibraryLesson(self, identity):
+        self._open_teaching_library(identity, destination='library')
+
+    def _open_teaching_library(self, identity, *, destination=None):
         from .lesson_completion import prepare_library_teaching
 
-        if self._busy or self.narrationBusy or self.classroom.running:
-            self.inform('Hoàn tất tác vụ hoặc tiết học trước khi chọn bài dạy.', True, refresh=False)
+        if not self._can_open_teaching():
+            return
+        if self._focus_open_teaching(identity):
+            if destination:
+                self.navigate.emit(destination)
             return
         directory, profile = self.library.directory, dict(self.settings)
         self._opening_teaching_id = identity
         self.launch(lambda: prepare_library_teaching(directory, identity, profile, self.cancel_event),
-                    self._open_library_teaching)
+                    lambda prepared: self._open_library_teaching(prepared, destination=destination))
         self.inform('Đang mở PowerPoint và gắn Mascot…', refresh=False)
 
     @Property(str, notify=powerpointStateChanged)
     def openingTeachingLesson(self):
         if self._busy:
             return self._opening_teaching_id
-        if self._powerpoint_state.get('starting'):
+        if self.teachingTransitioning:
+            if self._pending_teaching:
+                return self._pending_teaching['lesson']['id']
             return self.teaching_session.bound.get('lesson', {}).get('id', '')
         return ''
 
-    def _open_library_teaching(self, prepared):
+    def _open_library_teaching(self, prepared, *, destination=None):
         lesson, preview = prepared['lesson'], prepared['preview']
-        self._show_lesson(lesson, preview, auto_repair=False, destination=None, load_preview=False)
+        self._show_lesson(lesson, preview, auto_repair=False, destination=destination, load_preview=False)
         if self.powerpoint_worker is not None:
             self._pending_teaching = prepared
             self.stopPowerPoint()
@@ -3214,14 +3276,17 @@ class Bridge(QObject):
         from .teaching_session import prepare_teaching
 
         lesson, preview = result
-        self.launch(lambda: prepare_teaching(lesson, preview, self.library.directory), self._open_library_teaching)
+        if self._focus_open_teaching(lesson['id']):
+            self.navigate.emit('library')
+            return
+        self.launch(lambda: prepare_teaching(lesson, preview, self.library.directory),
+                    lambda prepared: self._open_library_teaching(prepared, destination='library'))
 
     @Slot(str)
     def openTeachingPresentation(self, url):
         from .voice_import import import_presentation
 
-        if self._busy or self.narrationBusy or self.classroom.running:
-            self.inform('Hoàn tất tác vụ hoặc tiết học trước khi chọn bài dạy.', True, refresh=False)
+        if not url or not self._can_open_teaching():
             return
         directory = self.library.directory
         self.launch(lambda: import_presentation(directory, QUrl(url).toLocalFile()), self._teaching_lesson_ready)
