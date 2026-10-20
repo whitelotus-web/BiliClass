@@ -1386,11 +1386,10 @@ ApplicationWindow {
                             Action { objectName: "voiceDownloadWithoutNarration"; text: "Tải PowerPoint không giọng"; iconName: "download"; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: presentationNoVoiceSave.openSuggested() }
                             Action { objectName: "voiceTeachWithoutNarration"; text: "Mở PowerPoint"; enabled: !bridge.busy && !bridge.previewBusy && !bridge.narrationBusy; onClicked: root.prepareTeaching() }
                         }
-                        GridLayout {
-                            objectName: "resultStatusActions"; visible: root.page !== "voice"; Layout.fillWidth: true; columnSpacing: 16; rowSpacing: 10
-                            columns: width >= 680 ? 2 : 1
-                            Copy { objectName: "resultSaveStatus"; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.alignment: Qt.AlignVCenter; text: bridge.busy ? "Đang hoàn thiện bài giảng…" : (bridge.quickResult.total || 0) + " slide · Đã lưu" + (bridge.narrationVariants.some(function(row) { return row.id && row.ready }) ? " · Có giọng đọc" : " · Chưa có giọng đọc"); color: root.muted }
-                            Flow { Layout.alignment: Qt.AlignRight | Qt.AlignVCenter; Layout.preferredWidth: Math.min(500, parent.width); Layout.fillWidth: parent.columns === 1; spacing: 10
+                        RowLayout {
+                            objectName: "resultStatusActions"; visible: root.page !== "voice"; Layout.fillWidth: true; spacing: 0
+                            Item { Layout.fillWidth: true }
+                            Flow { Layout.preferredWidth: Math.min(500, parent.width); spacing: 10
                             Action { objectName: "convertCurrentLessonButton"; visible: !bridge.quickResult.path; text: "Xem trình chiếu"; primary: true; enabled: !bridge.busy; onClicked: bridge.convertCurrentLesson() }
                             Action { objectName: "useConvertedLessonButton"; visible: !!bridge.quickResult.path; text: "Mở PowerPoint"; primary: true; enabled: !bridge.busy && !bridge.previewBusy && !bridge.narrationBusy; onClicked: bridge.openTeachingLibraryLesson(root.lessonData.id) }
                             Action { objectName: "downloadPresentationButton"; visible: !!bridge.quickResult.path; text: "Tải PowerPoint"; iconName: "download"; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: finalPresentationSave.openSuggested() }
@@ -1418,6 +1417,7 @@ ApplicationWindow {
                         }
                         RowLayout {
                             objectName: "resultSlideNavigation"; Layout.fillWidth: true; visible: !!bridge.quickResult.path && (root.page !== "voice" || root.voicePreviewExpanded)
+                            Item { Layout.fillWidth: true; visible: root.page !== "voice" || !root.narrationComplete }
                             Action { objectName: "resultPreviousSlide"; text: "‹"; implicitHeight: 34; enabled: !bridge.busy && (bridge.quickResult.slide || 1) > 1; onClicked: bridge.previewConvertedSlide(bridge.quickResult.slide - 1) }
                             Copy { objectName: "resultSlideCounter"; text: "Slide " + (bridge.quickResult.slide || 1) + " / " + (bridge.quickResult.total || 0); color: root.ink }
                             Action { objectName: "resultNextSlide"; text: "›"; implicitHeight: 34; enabled: !bridge.busy && (bridge.quickResult.slide || 1) < bridge.quickResult.total; onClicked: bridge.previewConvertedSlide(bridge.quickResult.slide + 1) }

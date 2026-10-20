@@ -5,7 +5,7 @@ import QtQuick.Layouts
 MenuItem {
     id: item
     required property string iconName
-    icon.source: "../assets/mascot-controls/" + iconName + ".png"
+    icon.source: "../assets/mascot-controls/" + iconName + ".svg"
     icon.color: "transparent"
     leftPadding: 12; rightPadding: 12; topPadding: 8; bottomPadding: 8
     contentItem: RowLayout {

@@ -65,8 +65,8 @@ def main():
             pump(200)
             popup = open_menu()
             assert popup.grabWindow().save(str(reports/'context-menu.png'))
-            assert QQmlProperty(c('mascotContextSettings'), 'icon.source').read().toString().endswith('mascot-controls/settings.png')
-            assert QQmlProperty(c('mascotContextHide'), 'icon.source').read().toString().endswith('mascot-controls/hide.png')
+            assert QQmlProperty(c('mascotContextSettings'), 'icon.source').read().toString().endswith('mascot-controls/settings.svg')
+            assert QQmlProperty(c('mascotContextHide'), 'icon.source').read().toString().endswith('mascot-controls/hide.svg')
             click(c('mascotContextSettings'))
             until(lambda: root.property('page') == 'settings')
             assert control(root, 'settingsPage').property('activeTab') == 3

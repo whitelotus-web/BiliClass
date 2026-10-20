@@ -202,11 +202,7 @@ def main():
                 assert item.isVisible()
             scroll = c("resultScroll")
             assert scroll.property("contentWidth") <= scroll.width()
-            status = c("resultSaveStatus")
-            download = c("downloadPresentationButton")
-            status_center = status.mapToScene(QPointF(0, status.height() / 2)).y()
-            action_center = download.mapToScene(QPointF(0, download.height() / 2)).y()
-            assert abs(status_center - action_center) <= 1, (width, status_center, action_center)
+            assert window.findChild(QObject, "resultSaveStatus") is None
             nav = c("resultSlideNavigation")
             counter = c("resultSlideCounter")
             nav_center = nav.mapToScene(QPointF(nav.width() / 2, 0)).x()

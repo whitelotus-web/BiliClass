@@ -1,4 +1,4 @@
-"""An attached Office worker must block preview only while actually presenting."""
+"""App preview stays available alongside Office without interrupting its audio."""
 
 from types import SimpleNamespace
 
@@ -10,8 +10,8 @@ from app.ui import Bridge
 @pytest.mark.parametrize('state,busy,expected', [
     ({}, False, True),
     ({'opened': True, 'active': False, 'starting': False}, False, True),
-    ({'active': True}, False, False),
-    ({'starting': True}, False, False),
+    ({'active': True}, False, True),
+    ({'starting': True}, False, True),
     ({}, True, False),
 ])
 def test_preview_with_attached_worker_respects_actual_presentation_state(state, busy, expected):
@@ -29,6 +29,7 @@ def test_preview_with_attached_worker_respects_actual_presentation_state(state, 
     if expected:
         assert result['slide'] == 2
         assert calls[-1] == ({'id': 'fixture'}, {'total': 3, 'slide': 1}, 2)
+        assert ('stop' in calls) is (not state.get('active', False))
 
 
 def test_open_navigation_does_not_wait_for_preparation_worker():
