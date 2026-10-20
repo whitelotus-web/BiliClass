@@ -111,15 +111,13 @@ def main():
         control("settingsTeacher").setProperty("text", "Cô Minh")
         control("settingsSchool").setProperty("text", "THPT Bình Minh")
         control("settingsSubjects").setProperty("currentIndex", bridge.conversionSubjects.index("Ngữ văn"))
-        assert control("savedProfileTeacher").property("text") == "Thầy cô"
-        assert control("savedProfileSubjects").property("text") == "Chưa thêm bộ môn"
+        assert not bridge.settings["teacher"]
+        assert not bridge.settings["subjects"]
         click("saveProfile")
         assert bridge.settings["teacher"] == "Cô Minh"
         assert bridge.settings["school"] == "THPT Bình Minh"
         assert bridge.settings["subjects"] == ["Ngữ văn"]
-        assert control("savedProfileTeacher").property("text") == "Cô Minh"
-        assert control("savedProfileSchool").property("text") == "THPT Bình Minh"
-        assert "Ngữ văn" in control("savedProfileSubjects").property("text")
+        assert control("sidebarTeacherName").property("text") == "Cô Minh"
         assert "Cô Minh" in control("projectorProfile").property("text")
         from PIL import Image
         logo = Path(directory) / "sample-logo.png"
@@ -130,16 +128,9 @@ def main():
         assert bridge.schoolLogoUrl
         assert control("previewSchoolLogo").property("source").toString().startswith("file:")
         assert control("projectorSchoolLogo").property("source").toString().startswith("file:")
-        assert control("savedProfileLogo").property("source").toString().startswith("file:")
-        control("settingsShowProfile").setProperty("checked", False)
-        click("saveProfile")
-        assert bridge.settings["show_profile"] is False
-        assert control("projectorProfile").property("visible") is False
-        control("settingsShowProfile").setProperty("checked", True)
-        click("saveProfile")
-        assert control("projectorProfile").property("visible") is True
+        assert control("sidebarSchoolLogo").property("source").toString().startswith("file:")
         shot("general")
-        checks.append("core settings tabs; multi-subject teacher profile and school logo persist; projector profile can be hidden")
+        checks.append("core settings tabs; teacher profile and school logo persist in the sidebar")
 
         click("settingsTab1")
         assert control("aboutBiliClassCard").isVisible()

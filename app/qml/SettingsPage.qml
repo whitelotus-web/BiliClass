@@ -172,10 +172,14 @@ Item {
             Layout.fillWidth: true; Layout.fillHeight: true; contentWidth: availableWidth
             ColumnLayout { width: contentScroll.availableWidth; spacing: 14
 
-        RowLayout {
-            visible: page.activeTab === 0; Layout.fillWidth: true; spacing: 14
+        GridLayout {
+            id: generalSettings
+            objectName: "generalSettingsLayout"
+            visible: page.activeTab === 0; Layout.fillWidth: true
+            columns: width >= 1000 ? 2 : 1; columnSpacing: 14; rowSpacing: 14
             Card {
-                Layout.fillWidth: true; Layout.preferredWidth: 2; Layout.alignment: Qt.AlignTop
+                objectName: "teacherProfileCard"
+                Layout.fillWidth: true; Layout.preferredWidth: 1.65; Layout.minimumWidth: 0; Layout.alignment: Qt.AlignTop
                 ColumnLayout { width: parent.width; spacing: 17
                     Title { text: "Thông tin thầy cô" }
                     RowLayout { Layout.fillWidth: true; spacing: 16
@@ -214,39 +218,31 @@ Item {
                         }
                         Field { id: otherTeachingSubject; objectName: "settingsCustomSubject"; visible: teachingSubjects.currentText === "Khác"; text: bridge.conversionSubjects.indexOf(bridge.defaultTeachingSubject) < 0 ? bridge.defaultTeachingSubject : ""; placeholderText: "Nhập tên môn học khác"; maximumLength: 100; Layout.fillWidth: true }
                     }
-                    RowLayout { Layout.fillWidth: true
-                        SoftButton { objectName: "uploadSchoolLogo"; text: "Tải logo trường (PNG/JPG)"; iconName: "upload"; onClicked: page.requestLogo() }
-                        SoftButton { objectName: "removeSchoolLogo"; text: "Bỏ logo"; enabled: !!bridge.schoolLogoUrl; onClicked: bridge.removeSchoolLogo() }
-                        Item { Layout.fillWidth: true }
+                    RowLayout { Layout.fillWidth: true; spacing: 12
+                        SchoolLogo {
+                            objectName: "settingsCurrentLogo"
+                            visible: !!bridge.schoolLogoUrl; source: bridge.schoolLogoUrl; roundMask: bridge.schoolLogoRound
+                            Layout.preferredWidth: 48; Layout.preferredHeight: 48
+                            Accessible.name: "Logo trường đang dùng"
+                        }
+                        ColumnLayout {
+                            visible: !!bridge.schoolLogoUrl; Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 3
+                            Label { text: "Logo đang dùng"; color: page.ink; font.pixelSize: 13; font.weight: Font.DemiBold; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                            Hint { text: "Đã lưu trên máy"; font.pixelSize: 12; Layout.fillWidth: true }
+                        }
+                        SoftButton { objectName: "uploadSchoolLogo"; text: bridge.schoolLogoUrl ? "Thay logo" : "Tải logo trường (PNG/JPG)"; iconName: "upload"; onClicked: page.requestLogo() }
+                        SoftButton { objectName: "removeSchoolLogo"; text: "Bỏ logo"; visible: !!bridge.schoolLogoUrl; onClicked: bridge.removeSchoolLogo() }
+                        Item { visible: !bridge.schoolLogoUrl; Layout.fillWidth: true }
                     }
                     Hint { text: "Logo tối đa 5 MB, tự lưu vào thư viện khi chọn và đi cùng bản sao lưu."; Layout.fillWidth: true }
-                    CheckBox { id: showProfile; objectName: "settingsShowProfile"; text: "Hiện tên, trường và logo trên màn hình bài giảng"; checked: bridge.settings.show_profile }
-                    RowLayout { Layout.fillWidth: true; Item { Layout.fillWidth: true } SaveButton { objectName: "saveProfile"; text: "Lưu thông tin"; enabled: teachingSubjects.currentText !== "Khác" || !!otherTeachingSubject.text.trim(); onClicked: bridge.savePrimaryTeachingProfile(teacherName.text, schoolName.text, teachingSubjects.currentText === "Khác" ? otherTeachingSubject.text : teachingSubjects.currentText, showProfile.checked) } }
+                    RowLayout { Layout.fillWidth: true; Item { Layout.fillWidth: true } SaveButton { objectName: "saveProfile"; text: "Lưu thông tin"; enabled: teachingSubjects.currentText !== "Khác" || !!otherTeachingSubject.text.trim(); onClicked: bridge.savePrimaryTeachingProfile(teacherName.text, schoolName.text, teachingSubjects.currentText === "Khác" ? otherTeachingSubject.text : teachingSubjects.currentText, bridge.settings.show_profile) } }
                 }
             }
-            Card {
-                Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.alignment: Qt.AlignTop
-                ColumnLayout { width: parent.width; spacing: 9
-                    Title { text: "Xem trước hồ sơ" }
-                    Rectangle { Layout.fillWidth: true; implicitHeight: 126; radius: 11; color: AppTheme.adapt("#f2f7ff")
-                        RowLayout { anchors.fill: parent; anchors.margins: 14; spacing: 10
-                            SchoolLogo { objectName: "savedProfileLogo"; visible: !!bridge.schoolLogoUrl; source: bridge.schoolLogoUrl; roundMask: bridge.schoolLogoRound; Layout.preferredWidth: 56; Layout.preferredHeight: 56 }
-                            Rectangle { visible: !bridge.schoolLogoUrl; Layout.preferredWidth: 56; Layout.preferredHeight: 56; radius: 10; color: AppTheme.surface; border.color: page.line
-                                Label { anchors.centerIn: parent; text: "Logo"; color: page.muted; font.pixelSize: 12 }
-                            }
-                            ColumnLayout { Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 5
-                                Label { text: "BiliClass"; color: page.blue; font.pixelSize: 12 }
-                                Label { objectName: "savedProfileTeacher"; text: bridge.settings.teacher || "Thầy cô"; color: page.ink; font.pixelSize: 17; font.bold: true; Layout.fillWidth: true; elide: Text.ElideRight }
-                                Hint { objectName: "savedProfileSchool"; text: bridge.settings.school || "Chưa thêm trường"; Layout.fillWidth: true }
-                                Hint { objectName: "savedProfileSubjects"; text: bridge.settings.subjects.length ? "Bộ môn: " + bridge.settings.subjects.join(", ") : "Chưa thêm bộ môn"; Layout.fillWidth: true }
-                            }
-                        }
-                    }
-                }
+            AppearancePicker {
+                bridge: page.bridge
+                Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; Layout.alignment: Qt.AlignTop
             }
         }
-
-        AppearancePicker { bridge: page.bridge; visible: page.activeTab === 0; Layout.fillWidth: true }
 
         ColumnLayout {
             visible: page.activeTab === 1; Layout.fillWidth: true; spacing: 14
@@ -262,21 +258,19 @@ Item {
                         }
                     }
                     Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: page.line }
-                    RowLayout { Layout.fillWidth: true; Layout.maximumWidth: 820; Layout.alignment: Qt.AlignHCenter; spacing: 32
-                        ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; Layout.alignment: Qt.AlignTop; spacing: 6
-                            Hint { text: "PHIÊN BẢN"; font.pixelSize: 10; font.letterSpacing: 1; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
-                            Title { objectName: "aboutBiliClassVersion"; text: bridge.appVersion; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
-                            Hint { text: bridge.developmentMode ? "Đang chạy từ mã nguồn" : "Ứng dụng BiliClass cho Windows"; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
-                            SoftButton { objectName: "aboutCheckUpdate"; Layout.alignment: Qt.AlignHCenter; text: bridge.updateState.checking ? "Đang kiểm tra…" : "Kiểm tra cập nhật"; iconName: "refresh"; enabled: !bridge.updateState.checking && !bridge.updateState.downloading; onClicked: bridge.checkForUpdates(false) }
-                        }
-                        ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; Layout.alignment: Qt.AlignTop; spacing: 7
-                            Hint { text: "BẢN QUYỀN"; font.pixelSize: 10; font.letterSpacing: 1; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
-                            Title { objectName: "aboutBiliClassCopyright"; text: "Copyright © 2026 Nguyễn Diệu Linh"; font.pixelSize: 17; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
-                            Hint { text: "Giáo viên Tin học · Trường THPT Vân\u00a0Cốc"; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
-                            Hint { text: "All rights reserved."; font.pixelSize: 11; Layout.topMargin: 4; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
-                        }
+                    ColumnLayout { Layout.fillWidth: true; Layout.maximumWidth: 820; Layout.alignment: Qt.AlignHCenter; spacing: 7
+                        Hint { text: "BẢN QUYỀN"; font.pixelSize: 10; font.letterSpacing: 1; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
+                        Title { objectName: "aboutBiliClassCopyright"; text: "Copyright © 2026 Nguyễn Diệu Linh"; font.pixelSize: 17; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
+                        Hint { text: "Giáo viên Tin học · Trường THPT Vân\u00a0Cốc"; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
+                        Hint { text: "All rights reserved."; font.pixelSize: 11; Layout.topMargin: 4; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
                     }
-                    Hint { text: "Chuyển tài liệu thành bài giảng Việt–Anh, trình chiếu và đồng hành cùng thầy cô với giọng đọc, mascot trợ giảng. Thư viện bài giảng được lưu trên máy."; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
+                    ColumnLayout { Layout.fillWidth: true; Layout.maximumWidth: 820; Layout.alignment: Qt.AlignHCenter; spacing: 6
+                        Hint { text: "PHIÊN BẢN"; font.pixelSize: 10; font.letterSpacing: 1; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
+                        Title { objectName: "aboutBiliClassVersion"; text: bridge.appVersion; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
+                        Hint { text: bridge.developmentMode ? "Đang chạy từ mã nguồn" : "Ứng dụng BiliClass cho Windows"; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
+                        SoftButton { objectName: "aboutCheckUpdate"; Layout.alignment: Qt.AlignHCenter; text: bridge.updateState.checking ? "Đang kiểm tra…" : "Kiểm tra cập nhật"; iconName: "refresh"; enabled: !bridge.updateState.checking && !bridge.updateState.downloading; onClicked: bridge.checkForUpdates(false) }
+                    }
+                    Hint { text: "Chuyển tài liệu thành bài giảng Việt–Anh, trình chiếu và đồng hành cùng thầy cô với giọng đọc, mascot trợ giảng. Thư viện bài giảng được lưu trên máy."; Layout.fillWidth: true; Layout.maximumWidth: 820; Layout.alignment: Qt.AlignHCenter; horizontalAlignment: Text.AlignHCenter }
                 }
             }
         }
@@ -390,6 +384,17 @@ Item {
                         }
                         Label { objectName: "settingsVoiceSpeedLabel"; text: Math.round([.82, .88, .94, 1, 1.06, 1.12, 1.18][page.draftRate + 3] * 100) + "%"; color: page.blue; font.weight: Font.Bold; font.pixelSize: 16 }
                     }
+                    Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: page.line; Layout.topMargin: 5; Layout.bottomMargin: 5 }
+                    RowLayout {
+                        objectName: "settingsVoiceActions"
+                        Layout.fillWidth: true; spacing: 10
+                        SoftButton { objectName: "previewMultilingualVoice"; text: bridge.voiceUiState.phase === "preparing" ? "Đang chuẩn bị…" : "Nghe cả cặp"; iconName: "play"; enabled: !!page.draftVoice && !!page.pairPreviewText(); onClicked: bridge.previewMultilingualVoice(page.draftVoice, page.draftRate, page.pairPreviewText()) }
+                        SoftButton { objectName: "stopVoicePreview"; text: "Dừng nghe"; onClicked: bridge.stopSpeech() }
+                        Item { Layout.fillWidth: true }
+                        SaveButton { objectName: "saveMultilingualVoice"; text: bridge.voiceUiState.saving ? "Đang lưu…" : "Lưu cặp giọng và tốc độ"; enabled: !bridge.voiceUiState.saving && !!page.draftVoice; onClicked: bridge.saveMultilingualVoice(page.draftVoice, page.draftRate) }
+                    }
+                    Hint { objectName: "voiceSaveStatus"; visible: !!text; text: bridge.voiceUiState.saving || bridge.voiceUiState.saveError ? bridge.voiceUiState.saveMessage : page.voiceDirty ? "Chưa lưu thay đổi · " + (page.selectedVoicePair.name || "") : bridge.voiceUiState.saveMessage || ""; color: bridge.voiceUiState.saveError ? AppTheme.adapt("#ba581a") : page.voiceDirty ? page.muted : AppTheme.adapt("#168567"); Layout.fillWidth: true }
+                    Hint { objectName: "voicePreviewStatus"; visible: !!bridge.voiceUiState.message; text: bridge.voiceUiState.message; Layout.fillWidth: true }
                 }
             }
         }
@@ -812,17 +817,6 @@ Item {
             }
         }
             }
-        }
-        ColumnLayout {
-            visible: page.activeTab === 2; Layout.fillWidth: true; spacing: 6
-            RowLayout { Layout.fillWidth: true; spacing: 10
-                SoftButton { objectName: "previewMultilingualVoice"; text: bridge.voiceUiState.phase === "preparing" ? "Đang chuẩn bị…" : "Nghe cả cặp"; iconName: "play"; enabled: !!page.draftVoice && !!page.pairPreviewText(); onClicked: bridge.previewMultilingualVoice(page.draftVoice, page.draftRate, page.pairPreviewText()) }
-                SoftButton { objectName: "stopVoicePreview"; text: "Dừng nghe"; onClicked: bridge.stopSpeech() }
-                Item { Layout.fillWidth: true }
-                SaveButton { objectName: "saveMultilingualVoice"; text: bridge.voiceUiState.saving ? "Đang lưu…" : "Lưu cặp giọng và tốc độ"; enabled: !bridge.voiceUiState.saving && !!page.draftVoice; onClicked: bridge.saveMultilingualVoice(page.draftVoice, page.draftRate) }
-            }
-            Hint { objectName: "voiceSaveStatus"; visible: !!text; text: bridge.voiceUiState.saving || bridge.voiceUiState.saveError ? bridge.voiceUiState.saveMessage : page.voiceDirty ? "Chưa lưu thay đổi · " + (page.selectedVoicePair.name || "") : bridge.voiceUiState.saveMessage || ""; color: bridge.voiceUiState.saveError ? AppTheme.adapt("#ba581a") : page.voiceDirty ? page.muted : AppTheme.adapt("#168567"); Layout.fillWidth: true }
-            Hint { objectName: "voicePreviewStatus"; visible: !!bridge.voiceUiState.message; text: bridge.voiceUiState.message; Layout.fillWidth: true }
         }
     }
 }

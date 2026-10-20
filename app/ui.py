@@ -3478,7 +3478,7 @@ class Bridge(QObject):
             self.library.set_setting(key, value)
         self.library.set_setting("teaching_subjects", subjects)
         self.library.set_setting("show_profile", show_profile)
-        self.inform("Đã lưu hồ sơ giáo viên và cách hiển thị trên bài giảng.")
+        self.inform("Đã lưu thông tin thầy cô.")
         self.teacherProfileSaved.emit()
 
     @Slot(str)
@@ -3504,7 +3504,7 @@ class Bridge(QObject):
                     pending.unlink(missing_ok=True)
             self._logo_revision += 1
             self.changed.emit()
-            self.inform("Đã lưu logo trường. Logo sẽ hiện trong bài giảng khi bật hồ sơ.")
+            self.inform("Đã lưu logo trường.")
         except Exception as exc:
             self.inform("Không thể tải logo: " + str(exc), True)
 

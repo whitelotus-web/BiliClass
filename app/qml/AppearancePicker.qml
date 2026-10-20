@@ -11,9 +11,8 @@ Frame {
     ColumnLayout {
         width: parent.width; spacing: 12
         Label { text: "Giao diện ứng dụng"; font.pixelSize: 19; font.weight: Font.Bold; color: AppTheme.ink }
-        Label { text: "Áp dụng cho ứng dụng và trợ giảng Mascot. Lựa chọn được lưu tự động."; font.pixelSize: 13; color: AppTheme.muted; wrapMode: Text.WordWrap; Layout.fillWidth: true }
         RowLayout {
-            spacing: 14
+            Layout.fillWidth: true; spacing: 14
             Repeater {
                 model: [{value: "light", label: "Sáng"}, {value: "dark", label: "Tối"}]
                 Button {
@@ -22,6 +21,7 @@ Frame {
                     readonly property bool night: modelData.value === "dark"
                     objectName: "applicationTheme" + (night ? "Dark" : "Light")
                     implicitWidth: 166; implicitHeight: 126; padding: 10
+                    Layout.fillWidth: true; Layout.preferredWidth: 166; Layout.minimumWidth: 110; Layout.maximumWidth: 210
                     checkable: true; checked: picker.bridge.applicationTheme === modelData.value
                     Accessible.role: Accessible.RadioButton; Accessible.name: "Giao diện " + modelData.label
                     onClicked: picker.bridge.setApplicationTheme(modelData.value)

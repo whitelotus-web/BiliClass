@@ -1,15 +1,18 @@
 """Disposable Qt settings layout and real backup/restore; never touch user data."""
 
 import json
+import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
+from PIL import Image
 from PySide6.QtCore import QCoreApplication, QEvent, QPointF, QUrl
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
 
+from app.branding import configure_application
 from app.library import Library
 from app.paths import RESOURCE_ROOT
 from app.ui import Bridge
@@ -18,8 +21,12 @@ from scripts.qt_result_preview_mascot_smoke import click, control, pump, until
 
 def main():
     app = QGuiApplication([])
+    configure_application(app)
     QQuickStyle.setStyle('Basic')
-    reports = Path('reports/rc100/settings-final')
+    for font in (RESOURCE_ROOT/'assets').glob('*.ttf'):
+        QFontDatabase.addApplicationFont(str(font))
+    app.setFont(QFont('Be Vietnam Pro', 10))
+    reports = Path(sys.argv[1] if len(sys.argv) > 1 else 'reports/settings-layout')
     reports.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='bcl-settings-final-', ignore_cleanup_errors=True) as folder:
         directory = Path(folder)
@@ -49,11 +56,76 @@ def main():
             pump(150)
             c('settingsTeacher').setProperty('text', 'Cô Minh')
             c('settingsSchool').setProperty('text', 'THPT Bình Minh')
-            c('settingsShowProfile').setProperty('checked', False)
+            show_profile_before = bridge.settings['show_profile']
             click(window, c('saveProfile'))
-            assert bridge.settings['teacher'] == 'Cô Minh' and not bridge.settings['show_profile']
-            assert c('savedProfileTeacher').property('text') == 'Cô Minh'
+            assert bridge.settings['teacher'] == 'Cô Minh'
+            assert bridge.settings['show_profile'] == show_profile_before
+            assert c('sidebarTeacherName').property('text') == 'Cô Minh'
+            assert c('uploadSchoolLogo').property('text') == 'Tải logo trường (PNG/JPG)'
+            assert not c('removeSchoolLogo').isVisible() and not c('settingsCurrentLogo').isVisible()
+            # Add, replace and remove through the real storage slots in a
+            # disposable library. The current image and controls follow state.
+            logo = directory/'logo.png'
+            Image.new('RGBA', (90, 90), '#0869f9').save(logo)
+            bridge.saveSchoolLogo(QUrl.fromLocalFile(str(logo)).toString())
+            pump(150)
+            assert c('settingsCurrentLogo').isVisible() and c('removeSchoolLogo').isVisible()
+            assert c('uploadSchoolLogo').property('text') == 'Thay logo'
+            original_logo = (library.directory/'assets/school-logo.png').read_bytes()
+            Image.new('RGBA', (90, 90), '#ff7d2b').save(logo)
+            bridge.saveSchoolLogo(QUrl.fromLocalFile(str(logo)).toString())
+            pump(100)
+            assert original_logo != (library.directory/'assets/school-logo.png').read_bytes()
+            c('removeSchoolLogo').clicked.emit()
+            pump(100)
+            assert not bridge.schoolLogoUrl and not c('settingsCurrentLogo').isVisible()
+            assert c('uploadSchoolLogo').property('text') == 'Tải logo trường (PNG/JPG)'
+            bridge.saveSchoolLogo(QUrl.fromLocalFile(str(logo)).toString())
+            pump(100)
             assert window.grabWindow().save(str(reports/'general.png'))
+            # Content owns its actions: enlarging the window must not send
+            # preview/save buttons to the bottom of the otherwise empty page.
+            for mode in ('light', 'dark'):
+                bridge.setApplicationTheme(mode)
+                for width, height in ((1080, 700), (1366, 850), (1920, 1080)):
+                    window.resize(width, height)
+                    page.setProperty('activeTab', 0)
+                    pump(150)
+                    viewport = c('settingsContentScroll').property('contentItem')
+                    profile, appearance = c('teacherProfileCard'), c('applicationAppearanceCard')
+                    profile_pos, appearance_pos = (item.mapToScene(QPointF()) for item in (profile, appearance))
+                    if c('generalSettingsLayout').width() >= 1000:
+                        assert abs(profile_pos.y()-appearance_pos.y()) < 1
+                        assert appearance_pos.x() >= profile_pos.x()+profile.width()+13
+                    else:
+                        assert appearance_pos.y() >= profile_pos.y()+profile.height()+13
+                    for name in ('applicationThemeLight', 'applicationThemeDark'):
+                        choice = c(name)
+                        point = choice.mapToItem(appearance, QPointF())
+                        assert point.x() >= 0 and point.x()+choice.width() <= appearance.width()
+                    for name in ('settingsCurrentLogo', 'uploadSchoolLogo', 'removeSchoolLogo'):
+                        item = c(name)
+                        point = item.mapToItem(profile, QPointF())
+                        assert point.x() >= 0 and point.x()+item.width() <= profile.width()
+                    assert viewport.property('contentWidth') <= c('settingsContentScroll').width()+1
+                    window.grabWindow().save(str(reports/f'{mode}-general-{width}.png'))
+                    page.setProperty('activeTab', 2)
+                    pump(150)
+                    card, actions, rate = c('multilingualVoiceCard'), c('settingsVoiceActions'), c('settingsVoiceRate')
+                    action_pos = actions.mapToItem(card, QPointF())
+                    rate_pos = rate.mapToItem(card, QPointF())
+                    assert 0 < action_pos.y()-(rate_pos.y()+rate.height()) < 40
+                    assert action_pos.y()+actions.height() < card.height()
+                    # Scroll on short windows, then verify every action is
+                    # reachable without horizontal overflow or changing drafts.
+                    viewport.setProperty('contentY', max(0, viewport.property('contentHeight')-viewport.height()))
+                    pump(100)
+                    for name in ('previewMultilingualVoice', 'stopVoicePreview', 'saveMultilingualVoice'):
+                        button = c(name)
+                        point = button.mapToItem(viewport, QPointF())
+                        assert point.x() >= 0 and point.x()+button.width() <= viewport.width()+1
+                        assert point.y() >= 0 and point.y()+button.height() <= viewport.height()+1
+                    window.grabWindow().save(str(reports/f'{mode}-voice-{width}.png'))
             for width, height in ((1080, 700), (1366, 850), (1920, 1080)):
                 window.resize(width, height)
                 page.setProperty('activeTab', 1)
@@ -61,7 +133,11 @@ def main():
                 card, brand = c('aboutBiliClassCard'), c('aboutBiliClassBrand')
                 assert abs(center(card)-center(brand)) < 2
                 version, copyright = c('aboutBiliClassVersion'), c('aboutBiliClassCopyright')
-                assert abs((center(version)+center(copyright))/2-center(card)) < 2
+                update = c('aboutCheckUpdate')
+                assert all(abs(center(item)-center(card)) < 2 for item in (version, copyright, update))
+                assert brand.mapToScene(QPointF()).y()+brand.height() < copyright.mapToScene(QPointF()).y()
+                assert copyright.mapToScene(QPointF()).y()+copyright.height() < version.mapToScene(QPointF()).y()
+                assert version.mapToScene(QPointF()).y()+version.height() < update.mapToScene(QPointF()).y()
                 assert copyright.width() >= 300
                 assert window.grabWindow().save(str(reports/f'about-{width}.png'))
                 page.setProperty('activeTab', 5)
@@ -107,7 +183,10 @@ def main():
             assert library.get(lesson['id'])['revision'] == lesson['revision']
             assert not warnings, warnings
             result = dict(status='passed', warnings=warnings, checks=[
-                'Centered brand, balanced version/copyright at 1080/1366/1920',
+                'General profile/theme columns stack on narrow windows; preview card removed',
+                'Logo add/replace/remove updates image, buttons and saved asset',
+                'Voice actions remain next to rate controls at 1080/1366/1920, light/dark',
+                'Centered brand, copyright, version and update in that vertical order',
                 'Three main storage actions; advanced actions collapsed and reachable',
                 'Profile fields still save; redundant voice hint hidden at rest',
                 'Real backup/restore preserves original library, profile and audio',
