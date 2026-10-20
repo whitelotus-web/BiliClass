@@ -2,7 +2,12 @@
 
 Ứng dụng Windows chuyển tài liệu của giáo viên thành bài giảng Anh–Việt, rồi trình chiếu bằng PowerPoint với giọng đọc và mascot trợ giảng. Hỗ trợ cấu hình từ lớp 1 đến lớp 12 và môn tự nhập.
 
-## Luồng hiện tại — RC101
+## Luồng hiện tại — RC102
+
+RC102 đưa xóa/khôi phục bài và đọc/lưu cấu hình Google Dịch sang chạy nền.
+Giao diện báo đang xử lý trong lúc chờ ổ đĩa/cơ sở dữ liệu; thao tác ghi
+nguyên khối không bị bấm lặp hoặc báo hủy sau khi đã lưu. Lỗi lưu key giữ
+nguyên nội dung nhập. [Kiểm chứng RC102](docs/BUILD_RC102.md).
 
 RC101 thu gọn giao diện bản nộp: chuyển đổi PowerPoint, thư viện, giọng Việt–Mỹ
 và Mascot điều khiển trình chiếu. Lớp học, kết quả và các công cụ trợ giảng thử

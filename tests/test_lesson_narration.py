@@ -400,6 +400,7 @@ def test_companion_vietnamese_skips_hidden_partner_and_changed_file(saved, monke
 def test_companion_assistance_refuses_missing_or_wrong_presentation(saved, monkeypatch):
     from types import SimpleNamespace
 
+    monkeypatch.setenv('BILICLASS_EXPERIMENTAL_TEACHING', '1')
     _app = QCoreApplication.instance() or QCoreApplication([])
     library, lesson, path = saved
     bridge = Bridge(library)

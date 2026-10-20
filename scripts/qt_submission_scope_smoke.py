@@ -100,7 +100,7 @@ def main():
                     assert library.get(lesson['id'])['narration'] == lesson['narration']
                     assert not warnings, warnings
                 finally:
-                    for worker in (bridge._catalog, bridge.browserAI, bridge.slidePreview, bridge.libraryThumbnails,
+                    for worker in (bridge.googleSettings, bridge._library_preferences, bridge._catalog, bridge.browserAI, bridge.slidePreview, bridge.libraryThumbnails,
                                    bridge.narrationPreferences, bridge.narration_preparation, bridge.english_reader,
                                    bridge.voice_controls, bridge._companion_preferences, bridge.classroom):
                         worker.shutdown()

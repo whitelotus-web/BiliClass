@@ -199,6 +199,8 @@ def run(output):
         if window is not None:
             window.close()
         if bridge is not None:
+            bridge.googleSettings.shutdown()
+            bridge._library_preferences.shutdown()
             bridge.voice_controls.shutdown()
             bridge.slidePreview.shutdown()
             bridge.narration_preparation.shutdown()

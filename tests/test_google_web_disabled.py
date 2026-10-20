@@ -33,29 +33,38 @@ def test_repair_of_old_web_lesson_uses_only_local_repair_in_google_mode(tmp_path
     assert calls[0][1] == tmp_path and calls[0][2]['source'] is None
 
 
-def test_key_save_readback_failure_preserves_the_input(monkeypatch):
+def test_key_save_readback_failure_preserves_the_input(tmp_path, monkeypatch):
     from PySide6.QtCore import QCoreApplication, QObject
 
+    from app import google_settings_tasks
     from app.google_settings import GoogleSettings
+    from app.library import Library
 
     app = QCoreApplication.instance() or QCoreApplication([])
     class FakeBridge(QObject):
         def __init__(self):
             super().__init__()
             self._busy = False
-            self.library = SimpleNamespace(setting=lambda *args: 500000, set_setting=lambda *args: None)
+            self.library = Library(tmp_path)
             self.messages = []
-        def inform(self, message, error=False):
+        def inform(self, message, error=False, **kwargs):
             self.messages.append((message, error))
+        def launch(self, work, complete, **kwargs):
+            complete(work())
     class Store:
         def public(self):
             raise ValueError('Không đọc lại được key đã mã hóa.')
         def add(self, text):
             pass
-    monkeypatch.setattr(GoogleSettings, 'store', lambda self: Store())
+    monkeypatch.setattr(google_settings_tasks, 'KeyStore', lambda directory: Store())
     bridge = FakeBridge()
     settings = GoogleSettings(bridge)
-    assert settings.save('AIza' + 'a' * 35, 500000) is False
+    saved = []
+    settings.saved.connect(saved.append)
+    assert settings.save('AIza' + 'a' * 35, 500000) is True  # accepted, not a claim of success
+    assert saved == [False]
     assert settings.state['configured'] is False
     assert bridge.messages[-1][1] is True
+    settings.shutdown()
+    bridge.library.close()
     app.processEvents()

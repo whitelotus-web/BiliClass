@@ -101,7 +101,7 @@ def run(output):
                 # Wait for any requested operation before destroying its QObject.
                 if bridge.worker is not None:
                     until(lambda: not bridge.busy)
-                for service in (bridge.narration_preparation, bridge.english_reader, bridge.voice_controls,
+                for service in (bridge.googleSettings, bridge._library_preferences, bridge.narration_preparation, bridge.english_reader, bridge.voice_controls,
                                 bridge.classroom, bridge.libraryThumbnails, bridge.slidePreview, bridge._catalog,
                                 bridge.browserAI, bridge.narrationPreferences):
                     service.shutdown()

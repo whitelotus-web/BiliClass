@@ -135,7 +135,7 @@ def main():
             )
             print("Native covers ready", flush=True)
             assert not bridge.lesson.get("id"), "Covers must not select/open a lesson"
-            assert library.setting("library_view", "") == "grid"
+            until(lambda: library.setting("library_view", "") == "grid")
             assert c("lessonSelect_" + identity).property("checked"), "Switch must retain selection"
             click(window, c("lessonCover_" + identity))
             assert not selected() and not bridge.lesson.get("id"), (
@@ -274,7 +274,7 @@ def main():
             pump(100)
             c("keyDisplayNameInput").setProperty("text", "Gmail riêng")
             QMetaObject.invokeMethod(c("renameGoogleKeyDialog"), "accept", Qt.DirectConnection)
-            pump(100)
+            until(lambda: not bridge.busy)
             assert bridge.googleSettings.state["keys"][0]["name"] == "Key 1 (Gmail riêng)"
             assert bridge.googleSettings.state["keys"][0]["used"] == 400000
             window.setProperty("page", "library")
@@ -329,6 +329,8 @@ def main():
             c("companionWindow").hide()
             window.hide()
             bridge.libraryThumbnails.shutdown()
+            bridge.googleSettings.shutdown()
+            bridge._library_preferences.shutdown()
             bridge.slidePreview.shutdown()
             bridge._catalog.shutdown()
             bridge.browserAI.shutdown()

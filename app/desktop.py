@@ -4,7 +4,7 @@ import os
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QCoreApplication, QEvent, QObject, QTimer, QUrl
+from PySide6.QtCore import QCoreApplication, QEvent, QObject, QThread, QTimer, QUrl
 from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuick import QQuickWindow
@@ -141,9 +141,12 @@ def run(args):
     backup_job.completed.connect(bridge.storage.finish_backup)
     if not args.smoke:
         def start_backup():
+            if bridge.busy or bridge.narrationBusy or bridge.powerpoint_worker or bridge.storage.state.get('running'):
+                QTimer.singleShot(30_000, start_backup)
+                return
             if not bridge.storage.moving:
                 bridge.storage.begin_backup()
-                backup_job.start()
+                backup_job.start(QThread.LowPriority)
         QTimer.singleShot(1000, start_backup)
         QTimer.singleShot(4000, lambda: bridge.checkForUpdates(True))
     from .library_location import cleanup_previous
@@ -159,6 +162,8 @@ def run(args):
     if cleanup_job.isRunning():
         cleanup_job.wait()
     bridge.browserAI.shutdown()
+    bridge.googleSettings.shutdown()
+    bridge._library_preferences.shutdown()
     if backup_job.isRunning():
         backup_job.wait()
     if bridge.update_worker and bridge.update_worker.isRunning():

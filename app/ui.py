@@ -18,7 +18,7 @@ from PySide6.QtCore import (
 )
 from PySide6.QtGui import QDesktopServices, QGuiApplication
 
-from . import speech
+from . import library_actions, speech
 from .browser_web_ui import WebBrowserAI
 from .classroom_ui import ClassroomBridge
 from .jobs import Job
@@ -116,6 +116,12 @@ class Bridge(QObject):
 
         self._narration_preferences = NarrationPreferences(library, self)
         self._narration_preferences.failed.connect(lambda message: self.inform(message, True, refresh=False))
+        from .library_preferences import LibraryPreferences
+
+        self._library_preferences = LibraryPreferences(library, self)
+        self._library_preferences.changed.connect(self.libraryViewChanged)
+        self._library_preferences.changed.connect(self.lessonsChanged)
+        self._library_preferences.failed.connect(lambda message: self.inform(message, True, refresh=False))
         from .companion_preferences import CompanionPreferences
 
         self._companion_preferences = CompanionPreferences(library, self)
@@ -131,6 +137,7 @@ class Bridge(QObject):
         self._lesson = {}
         self._segment_index = 0
         self._busy = False
+        self._job_cancellable = True
         self._opening_teaching_id = ''
         self._speaking = False
         self._speech_generation = 0
@@ -362,25 +369,21 @@ class Bridge(QObject):
         from .library_view import query
         return query(rows, text, subject, grade, state, voice, page)
 
-    @Property(str, notify=changed)
+    @Property(str, notify=libraryViewChanged)
     def lessonOrder(self):
-        return self.library.setting("lesson_order", "created_desc")
+        return self._library_preferences.values['lesson_order']
 
     @Slot(str)
     def setLessonOrder(self, order):
-        if order in {"created_desc", "created_asc", "updated_desc", 'title_asc'}:
-            self.library.set_setting("lesson_order", order)
-            self.changed.emit()
+        self._library_preferences.select('lesson_order', order)
 
     @Property(str, notify=libraryViewChanged)
     def libraryView(self):
-        return self.library.setting('library_view', 'list')
+        return self._library_preferences.values['library_view']
 
     @Slot(str)
     def setLibraryView(self, view):
-        if view in ('list', 'grid') and view != self.libraryView:
-            self.library.set_setting('library_view', view)
-            self.libraryViewChanged.emit()
+        self._library_preferences.select('library_view', view)
 
     @Property(QObject, constant=True)
     def libraryCovers(self):
@@ -468,27 +471,22 @@ class Bridge(QObject):
                           'Từng phản hồi' if detailed else 'Kết quả', 'csv')
         return QUrl.fromLocalFile(str(path)).toString()
 
-    @Slot(str)
+    @Slot(str, result=bool)
     def trashLesson(self, lesson_id):
-        self.trashLessons([lesson_id])
+        return self.trashLessons([lesson_id])
 
     @Slot('QVariantList', result=bool)
     def trashLessons(self, lesson_ids):
         if self._busy or self.narrationBusy or self.powerpoint_worker or self.classroom.running:
             self.inform("Kết thúc tác vụ, trình chiếu hoặc tiết học trước khi xóa bài.", True)
             return False
-        try:
-            count = self.library.trash_lessons(lesson_ids)
+        def finished(count):
             if self._lesson.get("id") in lesson_ids:
                 self.stopSpeech()
                 self._lesson, self._quick_result = {}, {}
                 self.selectionChanged.emit()
-            self.changed.emit()
             self.inform(f"Đã đưa {count} bài vào thùng rác. Có thể khôi phục từ Chia sẻ & quản lý.")
-            return True
-        except Exception as exc:
-            self.inform(str(exc), True)
-            return False
+        return self._change_library('trash', lesson_ids, finished, 'Đang đưa bài đã chọn vào thùng rác…')
 
     @Slot(str)
     def restoreLesson(self, lesson_id):
@@ -499,30 +497,31 @@ class Bridge(QObject):
         if self._busy or self.narrationBusy or self.powerpoint_worker or self.classroom.running:
             self.inform('Hoàn tất tác vụ, trình chiếu hoặc lớp học trước khi khôi phục bài.', True)
             return False
-        try:
-            count = self.library.restore_lessons(lesson_ids)
-            self.inform(f'Đã khôi phục {count} bài về thư viện.')
-            return True
-        except Exception as exc:
-            self.inform(str(exc), True)
-            return False
+        return self._change_library('restore', lesson_ids,
+            lambda count: self.inform(f'Đã khôi phục {count} bài về thư viện.'), 'Đang khôi phục bài đã chọn…')
 
     @Slot('QVariantList', result=bool)
     def purgeLessons(self, lesson_ids):
         if self._busy or self.narrationBusy or self.powerpoint_worker or self.classroom.running:
             self.inform('Hoàn tất tác vụ, trình chiếu hoặc lớp học trước khi xóa vĩnh viễn.', True)
             return False
-        try:
-            count = self.library.purge_lessons(lesson_ids)
+        def finished(count):
             if self._lesson.get('id') in lesson_ids:
                 self.stopSpeech()
                 self._lesson, self._quick_result = {}, {}
                 self.selectionChanged.emit()
             self.inform(f'Đã xóa vĩnh viễn {count} bài khỏi thùng rác.')
-            return True
-        except Exception as exc:
-            self.inform(str(exc), True)
+        return self._change_library('purge', lesson_ids, finished, 'Đang xóa vĩnh viễn bài đã chọn…')
+
+    def _change_library(self, operation, identities, callback, message):
+        if (not isinstance(identities, list) or not identities or len(identities) > 10000
+                or any(not isinstance(identity, str) for identity in identities)):
+            self.inform('Chọn ít nhất một bài giảng hợp lệ.', True, refresh=False)
             return False
+        identities = list(dict.fromkeys(identities))
+        self.launch(lambda: library_actions.change(self.library.directory, operation, identities), callback,
+                    cancellable=False, message=message)
+        return True
 
     @Slot()
     def returnToLibrary(self):
@@ -897,13 +896,12 @@ class Bridge(QObject):
             config = validate_config(creation_config(title, subject, education, grade, mode, preset, style))
             config['template_bookends'] = self.library.setting('template_bookends', False)
             self._google_settings.refresh()
-            if not self._google_settings.state.get('configured'):
+            if not self._google_settings.loading and not self._google_settings.state.get('configured'):
                 self.navigate.emit('browser-settings')
                 raise ValueError(self._google_settings.state.get('message') or
                                  'Thêm API key trong Cài đặt → Google Dịch trước khi chuyển đổi.')
             if bool(file_url) == bool(text.strip()):
                 raise ValueError('Chọn một nguồn: tài liệu hoặc nội dung dán vào.')
-            path = local_document(file_url) if file_url else None
             self._discard_conversion = False
             self._chatgpt_request = {'config': {**config, 'provider': 'google_translate'}}
             self._browser_state = {'running': True, 'phase': 'working', 'stage': 'session',
@@ -918,7 +916,15 @@ class Bridge(QObject):
                 self.changed.emit()
                 self._run_google_conversion()
 
-            self.launch(lambda: prepare(self.library.directory, config, path, text), prepared)
+            def work():
+                from .google_translation import KeyStore, TranslationProblem
+
+                if not KeyStore(self.library.directory).keys():
+                    raise TranslationProblem('api_settings', 'Thêm API key trong Cài đặt → Google Dịch trước khi chuyển đổi.')
+                path = local_document(file_url) if file_url else None
+                return prepare(self.library.directory, config, path, text)
+
+            self.launch(work, prepared)
         except (ValueError, OSError) as exc:
             self.inform(str(exc), True)
 
@@ -2049,6 +2055,10 @@ class Bridge(QObject):
     def busy(self):
         return self._busy
 
+    @Property(bool, notify=changed)
+    def jobCancellable(self):
+        return self._job_cancellable
+
     @Property(str, notify=statusChanged)
     def message(self):
         return self._message
@@ -2159,17 +2169,18 @@ class Bridge(QObject):
         self.updateChanged.emit()
         QTimer.singleShot(0, QGuiApplication.quit)
 
-    def launch(self, action, callback):
+    def launch(self, action, callback, *, cancellable=True, message='Đang xử lý tại máy…'):
         if self._busy:
             return
         self._busy = True
+        self._job_cancellable = cancellable
         self.cancel_event.clear()
         self.callback = callback
         self.worker = Job(action, self)
         self.worker.completed.connect(self.receiveResult)
         self.worker.finished.connect(self.finishJob)
         self.worker.start()
-        self.inform("Đang xử lý tại máy…")
+        self.inform(message)
 
     @Slot(object, str)
     def receiveResult(self, result, error):
@@ -2178,6 +2189,7 @@ class Bridge(QObject):
     @Slot()
     def finishJob(self):
         self._busy = False
+        self._job_cancellable = True
         result, error = self.job_result
         # A completed stage may immediately launch the next stage. Release the
         # old references first so cleanup cannot erase the new worker/callback.
@@ -2262,6 +2274,9 @@ class Bridge(QObject):
 
     @Slot()
     def cancelJob(self):
+        if self._busy and not getattr(self, '_job_cancellable', True):
+            self.inform('Đang lưu thay đổi. Vui lòng chờ hoàn tất.', refresh=False)
+            return
         if self._browser_running and self._chatgpt_request.get('folder') and not self.googleTranslation:
             # Separate marker: the worker may still flush its send journal as
             # cancellation arrives. It must not overwrite the human's stop.

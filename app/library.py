@@ -315,18 +315,19 @@ class Library:
         if not isinstance(lesson_ids, list) or not lesson_ids or len(lesson_ids) > 10000 or any(not isinstance(i, str) for i in lesson_ids):
             raise ValueError('Chọn ít nhất một bài giảng hợp lệ.')
         identities = list(dict.fromkeys(lesson_ids))
-        lessons = [self.get(identity) for identity in identities]
-        classroom = self.directory / "classroom.db"
-        if classroom.exists():
-            with sqlite3.connect(classroom) as connection:
-                for (snapshot,) in connection.execute("SELECT lesson FROM sessions WHERE status!='ended'"):
-                    if json.loads(snapshot).get("id") in identities:
-                        raise ValueError("Kết thúc tiết học của bài này trước khi xóa.")
-        deleted_at = now()
-        for lesson in lessons:
-            lesson['deleted_at'] = deleted_at
         # Keep source/audio, revisions and classroom snapshots for recovery.
         with self.db:
+            self.db.execute('BEGIN IMMEDIATE')
+            lessons = [self.get(identity) for identity in identities]
+            classroom = self.directory / "classroom.db"
+            if classroom.exists():
+                with sqlite3.connect(classroom) as connection:
+                    for (snapshot,) in connection.execute("SELECT lesson FROM sessions WHERE status!='ended'"):
+                        if json.loads(snapshot).get("id") in identities:
+                            raise ValueError("Kết thúc tiết học của bài này trước khi xóa.")
+            deleted_at = now()
+            for lesson in lessons:
+                lesson['deleted_at'] = deleted_at
             self.db.executemany("UPDATE lessons SET content=? WHERE id=?",
                                 [(json.dumps(lesson, ensure_ascii=False), lesson['id']) for lesson in lessons])
         return len(lessons)

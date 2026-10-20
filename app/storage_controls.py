@@ -71,6 +71,7 @@ class StorageControls(QObject):
         backup = getattr(b, '_automatic_backup', None)
         cleanup = getattr(b, '_storage_cleanup', None)
         return not (b.busy or b.narrationBusy or b.powerpoint_worker or b.classroom.running
+                    or getattr(getattr(b, '_google_settings', None), 'loading', False)
                     or b.classroom.busy or b._speaking or b._browser_ai.loginBusy
                     or b.english_reader.worker
                     or b.voice_controls.save_worker or b.voice_controls.preview_workers
@@ -104,7 +105,8 @@ class StorageControls(QObject):
         self.bridge.launch(lambda: transfer(self.bridge.library.directory, target), finished)
 
     def failed(self):
-        if self._backing:
+        automatic = getattr(self.bridge, '_automatic_backup', None)
+        if self._backing and not (automatic and automatic.isRunning()):
             self._backing = False
             self.refresh()
         if self._moving and not self.transfer_record:

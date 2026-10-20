@@ -1783,8 +1783,8 @@ ApplicationWindow {
                     anchors.leftMargin: 25; anchors.rightMargin: 25; spacing: 18
                     RowLayout { Layout.fillWidth: true; spacing: 10
                         BusyIndicator { visible: root.taskRunning; running: root.taskRunning; Layout.preferredWidth: 23; Layout.preferredHeight: 23 }
-                        Label { id: statusMessage; objectName: "applicationStatusMessage"; text: !root.taskRunning ? "BiliClass sẵn sàng" : bridge.narrationBusy ? "Đang tạo giọng đọc · " + (bridge.lessonNarration.percent || 0) + "%" : bridge.browserState.running ? (bridge.browserState.displayMessage || "Đang chuyển đổi bài giảng…") : bridge.inputDocuments.busy ? "Đang đọc PowerPoint…" : "Đang thực hiện tác vụ…"; color: root.muted; font.pixelSize: 11; wrapMode: Text.WordWrap; Layout.fillWidth: true; textFormat: Text.PlainText }
-                        Action { objectName: "applicationCancel"; visible: bridge.busy && !conversionCancel.visible; text: "Dừng tác vụ"; implicitHeight: 30; onClicked: bridge.cancelJob() }
+                        Label { id: statusMessage; objectName: "applicationStatusMessage"; text: !root.taskRunning ? "BiliClass sẵn sàng" : bridge.narrationBusy ? "Đang tạo giọng đọc · " + (bridge.lessonNarration.percent || 0) + "%" : bridge.browserState.running ? (bridge.browserState.displayMessage || "Đang chuyển đổi bài giảng…") : bridge.inputDocuments.busy ? "Đang đọc PowerPoint…" : bridge.message || "Đang thực hiện tác vụ…"; color: root.muted; font.pixelSize: 11; wrapMode: Text.WordWrap; Layout.fillWidth: true; textFormat: Text.PlainText }
+                        Action { objectName: "applicationCancel"; visible: bridge.busy && bridge.jobCancellable && !conversionCancel.visible; text: "Dừng tác vụ"; implicitHeight: 30; onClicked: bridge.cancelJob() }
                         Action { objectName: "applicationCancelNarration"; visible: bridge.narrationBusy && root.page !== "voice"; text: "Dừng tạo giọng"; implicitHeight: 30; enabled: !bridge.lessonNarration.stopping; onClicked: bridge.cancelLessonNarration() }
                     }
                 }
@@ -1977,14 +1977,14 @@ ApplicationWindow {
         contentItem: ColumnLayout { spacing: 16
             Caption { text: deleteLessonDialog.lessonTitle; Layout.fillWidth: true; wrapMode: Text.WordWrap }
             Copy { text: "Bài sẽ được đưa vào thùng rác. Có thể khôi phục; bản PowerPoint, âm thanh và báo cáo lớp được giữ lại."; Layout.fillWidth: true }
-            RowLayout { Item { Layout.fillWidth: true } Action { objectName: "cancelDeleteLessonButton"; text: "Hủy"; onClicked: deleteLessonDialog.close() } Action { objectName: "confirmDeleteLessonButton"; text: "Xóa bài"; danger: true; onClicked: { bridge.trashLesson(deleteLessonDialog.lessonId); deleteLessonDialog.close() } } }
+            RowLayout { Item { Layout.fillWidth: true } Action { objectName: "cancelDeleteLessonButton"; text: "Hủy"; onClicked: deleteLessonDialog.close() } Action { objectName: "confirmDeleteLessonButton"; text: "Xóa bài"; danger: true; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: if (bridge.trashLesson(deleteLessonDialog.lessonId)) deleteLessonDialog.close() } }
         }
     }
     Dialog { id: bulkDeleteDialog; objectName: "bulkDeleteLessonsDialog"; anchors.centerIn: parent; modal: true; title: "Xóa " + identities.length + " bài đã chọn?"; width: Math.min(root.width - 48, 500)
         property var identities: []
         contentItem: ColumnLayout { spacing: 16
             Copy { text: "Các bài đã chọn sẽ vào thùng rác. Có thể khôi phục trong Chia sẻ & quản lý. PowerPoint, âm thanh và báo cáo lớp được giữ lại."; Layout.fillWidth: true }
-            RowLayout { Item { Layout.fillWidth: true } Action { objectName: "cancelBulkDeleteLessons"; text: "Hủy"; onClicked: bulkDeleteDialog.close() } Action { objectName: "confirmBulkDeleteLessons"; text: "Xóa đã chọn"; danger: true; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: { if (bridge.trashLessons(bulkDeleteDialog.identities)) { root.selectedLessons = []; bulkDeleteDialog.close() } } } }
+            RowLayout { Item { Layout.fillWidth: true } Action { objectName: "cancelBulkDeleteLessons"; text: "Hủy"; onClicked: bulkDeleteDialog.close() } Action { objectName: "confirmBulkDeleteLessons"; text: "Xóa đã chọn"; danger: true; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: if (bridge.trashLessons(bulkDeleteDialog.identities)) bulkDeleteDialog.close() } }
         }
     }
     Dialog { id: libraryDownloadDialog; objectName: "libraryDownloadDialog"; anchors.centerIn: parent; modal: true; title: "Tải " + identities.length + " bài giảng"; width: Math.min(root.width - 48, 530)
@@ -2020,9 +2020,9 @@ ApplicationWindow {
             Flow { Layout.fillWidth: true; spacing: 6
                 LibraryCheck { objectName: "trashSelectAll"; text: "Chọn tất cả (" + lessonTrashDialog.identities.length + ")"; checkState: !lessonTrashDialog.selected.length ? Qt.Unchecked : lessonTrashDialog.selected.length === lessonTrashDialog.identities.length ? Qt.Checked : Qt.PartiallyChecked; nextCheckState: function() { return checkState === Qt.Checked ? Qt.Unchecked : Qt.Checked }; enabled: lessonTrashDialog.identities.length > 0; onClicked: lessonTrashDialog.selected = checked ? lessonTrashDialog.identities.slice() : [] }
                 LibraryAction { objectName: "trashDeselectAll"; text: "Bỏ chọn"; subtle: true; enabled: lessonTrashDialog.selected.length > 0; onClicked: lessonTrashDialog.selected = [] }
-                LibraryAction { objectName: "trashRestoreSelected"; text: "Khôi phục đã chọn"; enabled: lessonTrashDialog.canChange && lessonTrashDialog.selected.length > 0; onClicked: if (bridge.restoreLessons(lessonTrashDialog.selected)) lessonTrashDialog.selected = [] }
+                LibraryAction { objectName: "trashRestoreSelected"; text: "Khôi phục đã chọn"; enabled: lessonTrashDialog.canChange && lessonTrashDialog.selected.length > 0; onClicked: bridge.restoreLessons(lessonTrashDialog.selected) }
                 LibraryAction { objectName: "trashPurgeSelected"; text: "Xóa đã chọn"; danger: true; enabled: lessonTrashDialog.canChange && lessonTrashDialog.selected.length > 0; onClicked: lessonTrashDialog.confirmPurge(lessonTrashDialog.selected) }
-                LibraryAction { objectName: "trashRestoreAll"; text: "Khôi phục tất cả"; enabled: lessonTrashDialog.canChange && lessonTrashDialog.identities.length > 0; onClicked: if (bridge.restoreLessons(lessonTrashDialog.identities)) lessonTrashDialog.selected = [] }
+                LibraryAction { objectName: "trashRestoreAll"; text: "Khôi phục tất cả"; enabled: lessonTrashDialog.canChange && lessonTrashDialog.identities.length > 0; onClicked: bridge.restoreLessons(lessonTrashDialog.identities) }
                 LibraryAction { objectName: "trashPurgeAll"; text: "Xóa tất cả"; danger: true; enabled: lessonTrashDialog.canChange && lessonTrashDialog.identities.length > 0; onClicked: lessonTrashDialog.confirmPurge(lessonTrashDialog.identities) }
             }
             Copy { text: lessonTrashDialog.selected.length + " / " + lessonTrashDialog.identities.length + " bài đã chọn"; font.pixelSize: 11; Layout.fillWidth: true }
@@ -2049,7 +2049,7 @@ ApplicationWindow {
         property var identities: []
         contentItem: ColumnLayout { spacing: 16
             Copy { text: "Sẽ xóa " + purgeTrashDialog.identities.length + " bài cùng lịch sử chỉnh sửa. Không thể khôi phục các bài này từ thùng rác. Báo cáo lớp học, bản sao lưu và tệp dùng chung được giữ lại."; Layout.fillWidth: true }
-            RowLayout { Layout.fillWidth: true; Item { Layout.fillWidth: true } Action { objectName: "cancelPurgeTrash"; text: "Hủy"; onClicked: purgeTrashDialog.close() } Action { objectName: "confirmPurgeTrash"; text: "Xóa vĩnh viễn"; danger: true; enabled: lessonTrashDialog.canChange; onClicked: { if (bridge.purgeLessons(purgeTrashDialog.identities)) { lessonTrashDialog.selected = []; purgeTrashDialog.close() } } } }
+            RowLayout { Layout.fillWidth: true; Item { Layout.fillWidth: true } Action { objectName: "cancelPurgeTrash"; text: "Hủy"; onClicked: purgeTrashDialog.close() } Action { objectName: "confirmPurgeTrash"; text: "Xóa vĩnh viễn"; danger: true; enabled: lessonTrashDialog.canChange; onClicked: if (bridge.purgeLessons(purgeTrashDialog.identities)) purgeTrashDialog.close() } }
         }
     }
     Dialog {

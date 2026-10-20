@@ -26,6 +26,10 @@ Item {
         target: page.bridge
         function onVoiceSettingsChanged() { page.draftVoice = page.bridge.voiceSettings.voice; page.draftRate = page.bridge.voiceSettings.rate }
     }
+    Connections {
+        target: page.bridge.googleSettings
+        function onSaved(success) { if (success) { googleKeys.clear(); page.showGoogleKeyEntry = false } }
+    }
     onActiveTabChanged: { if (!bridge.experimentalTeaching && activeTab === 4) { activeTab = 0; return } if (contentScroll.contentItem && contentScroll.contentItem.contentY !== undefined) contentScroll.contentItem.contentY = 0 }
     property string selectedMascot: bridge.settings.mascot
     property int mascotPreviewMode: 0
@@ -605,7 +609,7 @@ Item {
                         visible: !bridge.googleSettings.state.configured || page.showGoogleKeyEntry
                         Layout.fillWidth: true; Layout.preferredHeight: 130;
                         TextArea {
-                            id: googleKeys; objectName: "googleApiKeys"; selectByMouse: true; wrapMode: TextEdit.NoWrap
+                            id: googleKeys; objectName: "googleApiKeys"; selectByMouse: true; wrapMode: TextEdit.NoWrap; readOnly: bridge.busy
                             placeholderText: "Tên dự án | API_KEY\nTên dự án khác | API_KEY\nHoặc chỉ nhập key trên mỗi dòng"
                             color: page.ink; font.pixelSize: 13
                             background: Rectangle { radius: 9; color: "#fbfdff"; border.color: page.line }
@@ -615,7 +619,7 @@ Item {
                     RowLayout { Layout.fillWidth: true; spacing: 12
                         visible: !bridge.googleSettings.state.configured || page.showGoogleKeyEntry
                         Item { Layout.fillWidth: true }
-                        SaveButton { objectName: "saveGoogleApiKeys"; text: "Lưu key"; enabled: !bridge.busy; onClicked: { if (bridge.googleSettings.save(googleKeys.text, bridge.googleSettings.state.budget)) { googleKeys.clear(); page.showGoogleKeyEntry = false } } }
+                        SaveButton { objectName: "saveGoogleApiKeys"; text: "Lưu key"; enabled: !bridge.busy && bridge.googleSettings.ready; onClicked: bridge.googleSettings.save(googleKeys.text, bridge.googleSettings.state.budget) }
                     }
                     Hint { text: "Key được mã hóa và lưu trên máy này."; Layout.fillWidth: true; font.pixelSize: 11 }
                 }
@@ -627,7 +631,7 @@ Item {
                         Title { text: "Key đã lưu"; Layout.fillWidth: true }
                         SoftButton { objectName: "recheckGoogleApiKeys"; visible: bridge.googleSettings.state.keys.some(function(row) { return !!row.blocked }); text: "Thử lại key đã kiểm tra"; enabled: !bridge.busy; onClicked: bridge.googleSettings.recheck() }
                     }
-                    Hint { visible: !bridge.googleSettings.state.configured; text: bridge.googleSettings.state.message || "Chưa có API key. Thêm key ở trên để bắt đầu."; Layout.fillWidth: true }
+                    Hint { visible: !bridge.googleSettings.state.configured; text: !bridge.googleSettings.ready ? "Đang đọc cấu hình Google Dịch…" : bridge.googleSettings.state.message || "Chưa có API key. Thêm key ở trên để bắt đầu."; Layout.fillWidth: true }
                     Repeater {
                         model: bridge.googleSettings.state.keys
                         delegate: RowLayout {

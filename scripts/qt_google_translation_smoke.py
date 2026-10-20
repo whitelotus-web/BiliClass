@@ -130,6 +130,7 @@ with tempfile.TemporaryDirectory(prefix='biliclass-google-ui-', ignore_cleanup_e
     assert not control('browserServiceGemini').isVisible()
     control('googleApiKeys').setProperty('text', 'Project A | ' + 'AIza' + 'a'*35 + '\nProject B | ' + 'AIza' + 'b'*35)
     click('saveGoogleApiKeys')
+    until(lambda: not bridge.busy)
     assert not control('googleApiKeys').property('text')
     assert len(bridge.googleSettings.state['keys']) == 2
     assert not hasattr(bridge.googleSettings, 'syncGitHub')
@@ -321,6 +322,8 @@ with tempfile.TemporaryDirectory(prefix='biliclass-google-ui-', ignore_cleanup_e
     print(json.dumps(result, ensure_ascii=False))
     window.close()
     bridge.slidePreview.shutdown()
+    bridge.googleSettings.shutdown()
+    bridge._library_preferences.shutdown()
     bridge._catalog.shutdown()
     bridge.classroom.shutdown()
     bridge.libraryThumbnails.shutdown()
