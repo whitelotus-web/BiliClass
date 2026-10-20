@@ -208,7 +208,7 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
     playing = set()
     previous_paused = set()
     badges = {}
-    badge_state = set()
+    overlay = None
     cached_badge = None
     volume = 100
     boxes = []
@@ -251,8 +251,16 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
         presentation.SlideShowSettings.ShowType = 1  # ppShowTypeSpeaker: native full-screen slideshow.
         if shortcuts is not None:
             keys.start()
+        if shortcuts is not None and not keys.error:
+            try:
+                from .slideshow_overlay import SpeakerOverlay
+
+                overlay = SpeakerOverlay()
+            except Exception:
+                controls_warning()
         try:
-            slide_media, badges, other_media = prepare_controls(presentation, path, add_badges=shortcuts is not None and not keys.error,
+            slide_media, badges, other_media = prepare_controls(presentation, path, add_badges=overlay is not None,
+                                                                 overlay=overlay is not None,
                                                                  on_warning=controls_warning)
             if badges and not other_media:
                 presentation.SlideShowSettings.ShowMediaControls = False
@@ -280,16 +288,18 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
             if command == 'set_shortcuts':
                 keys.configure(target)
             if command == 'set_volume' and type(target) is int and 0 <= target <= 100:
-                volume = target
                 try:
-                    for _, _, shape in current_audio if view else []:
-                        shape.MediaFormat.Volume = volume / 100
+                    for _, _, shape in current_audio if view and target != volume else []:
+                        shape.MediaFormat.Volume = target / 100
+                    volume = target
                     events.put({'event': 'volume_changed', 'volume': volume})
                 except Exception:
                     events.put({'event': 'input_warning', 'message': 'PowerPoint chưa áp dụng được âm lượng. Dùng thanh âm lượng Windows để kiểm tra.'})
             # Resolve only THIS presentation, never the foreground Office deck.
             if view is None:
                 keys.bind()
+                if overlay:
+                    overlay.update()
                 try:
                     window = presentation.SlideShowWindow
                     view = window.View
@@ -360,7 +370,6 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
                         try:
                             players[identity] = view.Player(identity)
                             player_languages[identity] = language
-                            shape.MediaFormat.Volume = volume / 100
                         except Exception:
                             pass
                 if not hwnd or focus_after_start or not isinstance(last, tuple) or last[0] == 'ready':
@@ -391,7 +400,8 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
                 handles_refreshed = time.monotonic()
             # Refresh screen geometry as the teacher can change monitor/DPI
             # without changing slides. Hit-testing never covers source content.
-            keys.bind(hwnd, current[1], speaker_regions(boxes, hwnd, slide_width, slide_height), presenter)
+            regions = speaker_regions(boxes, hwnd, slide_width, slide_height)
+            keys.bind(hwnd, current[1], regions if overlay else (), presenter)
             # Input belongs to the real slide at key-down, never the currently
             # browsed lesson or a slide changed while Office was busy.
             while not keys.actions.empty():
@@ -440,20 +450,24 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
             visible_badges = {(current[1], identity) for identity in now_playing - paused}
             visible_badges.update((current[1], identity) for identity, language in player_languages.items()
                                   if cached_badge and language == cached_badge)
-            for identity in badge_state ^ visible_badges:
-                pair = badges.get(identity)
-                if pair is not None:
-                    try:
-                        ready, badge = pair
-                        ready.Visible = identity not in visible_badges
-                        badge.Visible = identity in visible_badges
-                    except Exception:
-                        pass
-            badge_state = visible_badges
+            if overlay:
+                try:
+                    overlay.update(hwnd, regions,
+                                   {language for identity, language in player_languages.items()
+                                    if (current[1], identity) in visible_badges})
+                except Exception:
+                    # A drawing failure must never close the teacher's show.
+                    overlay.close()
+                    overlay = None
+                    keys.bind(hwnd, current[1], (), presenter)
+                    events.put({'event': 'input_warning', 'message':
+                                'Chưa hiển thị được loa trên slide. Dùng nút đọc trên Mascot.'})
     except Exception as exc:
         events.put({"error": "Không thể điều khiển PowerPoint: " + str(exc)})
     finally:
         keys.close()
+        if overlay:
+            overlay.close()
         if window is not None:
             try:
                 view.Exit()

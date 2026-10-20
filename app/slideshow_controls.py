@@ -43,7 +43,7 @@ def speaker_index(path):
     return result, other_media
 
 
-def prepare_controls(presentation, path, *, add_badges=True, on_warning=None):
+def prepare_controls(presentation, path, *, add_badges=True, overlay=False, on_warning=None):
     """Resolve only indexed speakers once, on the private Office thread.
 
     Appending in-memory badges leaves original shape positions intact. The bound
@@ -75,6 +75,8 @@ def prepare_controls(presentation, path, *, add_badges=True, on_warning=None):
 
         for position, shape_id, language, control_position, pause_position in records:
             shape = resolve('BiliClass audio ' + language.upper(), position, shape_id)
+            if overlay:
+                shape.MediaFormat.Volume = 1  # Unity gain, set before starting the show.
             ready = resolve('BiliClass control ' + language.upper(), control_position)
             boxes.append((language, float(ready.Left), float(ready.Top), float(ready.Width), float(ready.Height)))
             audio.append((shape_id, language, shape))
@@ -84,6 +86,15 @@ def prepare_controls(presentation, path, *, add_badges=True, on_warning=None):
                 mini = float(ready.Width) > float(ready.Height) * 1.8
                 filename = 'speaker-pause-' + language + ('-mini' if mini else '') + '.png' if language in {'vi', 'en', 'both'} else 'speaker-pause.png'
                 badge = resolve('BiliClass pause ' + language.upper(), pause_position) if pause_position else None
+                if overlay:
+                    # Set once BEFORE the show starts. Live visibility changes
+                    # interfere with native animation builds; the owned overlay
+                    # supplies both pictures without touching slide content.
+                    if badge is not None:
+                        badge.Visible = False
+                    ready.Visible = False
+                    badges[(identity, shape_id)] = (ready, badge)
+                    continue
                 if badge is None:
                     icon = str(RESOURCE_ROOT / 'assets/actions' / filename)
                     badge = slide.Shapes.AddPicture(icon, False, True, ready.Left, ready.Top, ready.Width, ready.Height)

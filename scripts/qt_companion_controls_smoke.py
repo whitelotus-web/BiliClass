@@ -1,5 +1,6 @@
 """Disposable Qt geometry, settings navigation and hit testing; no Office/model."""
 
+import argparse
 import json
 import sqlite3
 import tempfile
@@ -34,9 +35,13 @@ class ControlBridge(Bridge):
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--report-dir', type=Path, default=Path('reports/companion-controls'))
+    parser.add_argument('--layout-only', action='store_true')
+    args = parser.parse_args()
     app = QGuiApplication([])
     QQuickStyle.setStyle('Basic')
-    report = Path('reports/rc104/companion-controls')
+    report = args.report_dir
     report.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='bcl-controls-', ignore_cleanup_errors=True) as folder:
         library = Library(Path(folder))
@@ -102,6 +107,7 @@ def main():
                 bridge.saveMascotPreferences('Milo', True, pixels, 'right', False, True, True, True)
                 until(lambda: not bridge.mascotSaving)
                 pump(100)
+                bridge.teachingSession.setReadingScope('full_slide')
                 before = [(item.x(), item.y(), item.width(), item.height()) for item in audio]
                 height = companion.height()
                 for languages in (['en'], [], ['vi'], ['en', 'vi']):
@@ -111,8 +117,9 @@ def main():
                     assert all(item.isVisible() for item in audio)
                     assert [item.isEnabled() for item in audio] == [lang in languages for lang in ('en', 'vi')]
                     assert before == [(item.x(), item.y(), item.width(), item.height()) for item in audio]
-                    assert c('companionAudioHint').isVisible() == (not languages)
-                    assert companion.height() >= height
+                    assert c('companionAudioHint').isVisible()
+                    assert bool(c('companionAudioHint').property('text')) == (not languages)
+                    assert companion.height() == height
                     assert all(item.property('iconName') == 'speaker' for item in audio)
                 choices = [c('companionReading' + name) for name in ('Auto', 'Visible', 'Full')]
                 assert all(item.isVisible() for item in choices)
@@ -126,6 +133,30 @@ def main():
                 click(companion, choices[0])
                 assert choices[0].property('checked'), 'Current reading mode cannot be unchecked'
                 assert companion.grabWindow().save(str(report / f'stable-speakers-{pixels}.png'))
+                assert c('companionReadEnglish').mapToScene(QPointF()).y() > c('companionVolume').mapToScene(QPointF()).y()
+                assert c('companionPrevious').mapToScene(QPointF()).y() > c('companionReadEnglish').mapToScene(QPointF()).y()
+                geometry = (companion.x(), companion.y(), companion.height(),
+                            audio[0].mapToGlobal(QPointF()).y(), audio[0].width(), audio[0].height())
+                for state in ('preparing', 'reading', 'paused', 'reading', 'stopped'):
+                    bridge.teachingSession.language = 'en'
+                    bridge.teachingSession.native_state = state
+                    bridge.teachingSession.changed.emit()
+                    pump(80)
+                    assert geometry == (companion.x(), companion.y(), companion.height(),
+                                        audio[0].mapToGlobal(QPointF()).y(), audio[0].width(), audio[0].height()), (pixels, state, geometry, companion.x(), companion.y(), companion.height(), audio[0].mapToGlobal(QPointF()).y(), audio[0].width(), audio[0].height())
+            if args.layout_only:
+                bridge.teachingSession.setReadingScope('full_slide')
+                pump(100)
+                for name in ('companionPrevious', 'companionNext', 'companionReadEnglish', 'companionReadVietnamese'):
+                    click(companion, c(name))
+                assert bridge.commands[-4:] == [('navigate', 'previous'), ('navigate', 'next'), ('read', 'en'), ('read', 'vi')]
+                assert not warnings, warnings
+                result = {'status': 'passed', 'qml_warnings': warnings, 'panel_sizes': ['small', 'standard', 'large'],
+                          'audio_below_volume': True, 'navigation_below_audio': True,
+                          'stable_geometry_during_play_pause': True, 'buttons_clickable': True}
+                (report / 'result.json').write_text(json.dumps(result, indent=2), encoding='utf-8')
+                print(json.dumps(result), flush=True)
+                return
             bridge.saveMascotPreferences('Milo', True, 110, 'right', False, True, True, True)
             until(lambda: not bridge.mascotSaving)
             assert c('companionEndShow').property('danger')

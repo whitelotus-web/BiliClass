@@ -76,25 +76,18 @@ ColumnLayout {
         PanelAction { objectName: "companionStartShow"; text: bridge.powerpointState.active ? "Đang trình chiếu" : "Trình chiếu · F5"; primary: !bridge.powerpointState.active; iconName: "presentation"; enabled: !bridge.powerpointState.active; onClicked: bridge.startTeachingShow() }
         PanelAction { objectName: "companionEndShow"; text: "Kết thúc"; danger: true; visible: !!bridge.powerpointState.active && !!companion.session.bound; onClicked: bridge.navigatePowerPoint("end_show") }
     }
-    RowLayout {
-        visible: !!companion.session.bound || bridge.companionCanRead; Layout.fillWidth: true; spacing: 8
-        PanelAction { objectName: "companionPrevious"; text: "Trước"; iconName: "previous"; enabled: bridge.companionCanRead; onClicked: bridge.navigatePowerPoint("previous") }
-        Label { objectName: "companionSlidePosition"; text: bridge.powerpointState.active ? "Slide " + bridge.powerpointState.slide + " / " + bridge.powerpointState.total : "Sẵn sàng"; color: "#486385"; font.pixelSize: companion.controlFont; horizontalAlignment: Text.AlignHCenter; Layout.preferredWidth: 94 }
-        PanelAction { objectName: "companionNext"; text: "Sau"; iconName: "next"; enabled: bridge.companionCanRead; onClicked: bridge.navigatePowerPoint("next") }
-    }
-    GridLayout {
-        objectName: "companionAudioControls"; visible: !!companion.session.bound || bridge.companionCanRead
-        Layout.fillWidth: true; columns: 2; columnSpacing: 6; uniformCellWidths: true
-        PanelAction { objectName: "companionReadEnglish"; enabled: bridge.companionCanRead && !!companion.availableAudio.en; text: "Anh"; iconName: companion.readIcon("en") === "pause" ? "pause" : "speaker"; ToolTip.visible: pointerHovered; ToolTip.text: companion.readText("en", "tiếng Anh"); Accessible.name: companion.readText("en", "tiếng Anh"); onClicked: bridge.companionRead("en") }
-        PanelAction { objectName: "companionReadVietnamese"; enabled: bridge.companionCanRead && !!companion.availableAudio.vi; text: "Việt"; iconName: companion.readIcon("vi") === "pause" ? "pause" : "speaker"; ToolTip.visible: pointerHovered; ToolTip.text: companion.readText("vi", "tiếng Việt"); Accessible.name: companion.readText("vi", "tiếng Việt"); onClicked: bridge.companionRead("vi") }
-    }
     Label {
-        objectName: "companionAudioHint"; visible: !!companion.session.bound && (!bridge.companionCanRead || companion.audioCount === 0)
-        Layout.preferredHeight: 16
+        objectName: "companionAudioHint"; visible: !!companion.session.bound
+        Layout.minimumHeight: 16; Layout.preferredHeight: 16; Layout.maximumHeight: 16
         text: !bridge.companionCanRead ? "Bấm Trình chiếu để đọc giọng đã tạo."
-            : companion.audioCount === 0 ? (companion.session.auto_completed ? "Đã đọc xong phần đang hiện. Chọn Đang hiện để nghe lại." : companion.session.reading_mode === "auto" && companion.session.reading_scope === "visible" ? "Bước này chưa có lời đọc mới." : "Slide này chưa có giọng đọc.")
+            : companion.reader.message && companion.reader.state !== "stopped" ? companion.reader.message
+            : companion.audioCount === 0 ? "Phần đang hiện chưa có giọng đọc."
+            : companion.session.auto_completed ? "Bấm loa để nghe lại phần đang hiện."
             : ""
-        color: "#667997"; font.pixelSize: 11; wrapMode: Text.WordWrap; Layout.fillWidth: true
+        color: companion.reader.state === "error" ? "#b14828" : "#667997"; font.pixelSize: 11
+        elide: Text.ElideRight; Layout.fillWidth: true
+        ToolTip.visible: statusHover.hovered && truncated; ToolTip.text: text
+        HoverHandler { id: statusHover }
     }
     RowLayout {
         objectName: "companionReadingOptions"
@@ -135,6 +128,26 @@ ColumnLayout {
         ScopeChoice { objectName: "companionReadingVisible"; mode: "visible"; text: "Đang hiện"; hint: "Đọc nội dung hiện trên màn chiếu." }
         ScopeChoice { objectName: "companionReadingFull"; mode: "full_slide"; text: "Toàn slide"; hint: "Đọc toàn bộ lời của slide, kể cả phần chưa hiện." }
     }
+    Rectangle { visible: bridge.experimentalTeaching && (!!companion.session.bound || bridge.companionCanRead); Layout.fillWidth: true; implicitHeight: 1; color: "#e0e8f4" }
+    RowLayout {
+        visible: bridge.experimentalTeaching && (!!companion.session.bound || bridge.companionCanRead); Layout.fillWidth: true
+        Label { text: "Trợ giảng"; color: "#112650"; font.pixelSize: companion.controlFont; font.weight: Font.DemiBold; Layout.fillWidth: true }
+        ToolButton { objectName: "companionAssistantToggle"; text: companion.showAssistant ? "Thu gọn" : "Mở công cụ"; font.pixelSize: 11; implicitHeight: 26; onClicked: companion.showAssistant = !companion.showAssistant }
+    }
+    GridLayout {
+        visible: bridge.experimentalTeaching && companion.showAssistant && (!!companion.session.bound || bridge.companionCanRead); Layout.fillWidth: true
+        columns: 2; columnSpacing: 6; rowSpacing: 6
+        PanelAction { objectName: "companionExplain"; text: "Giải thích Anh"; enabled: bridge.companionCanRead; onClicked: bridge.companionAsk("explanation", "en") }
+        PanelAction { text: "Ví dụ"; enabled: bridge.companionCanRead; onClicked: bridge.companionAsk("example", "en") }
+        PanelAction { text: "Câu hỏi gợi mở"; enabled: bridge.companionCanRead; onClicked: bridge.companionAsk("question", "en") }
+        PanelAction { text: "Gợi ý Việt"; enabled: bridge.companionCanRead; onClicked: bridge.companionAsk("rescue", "vi") }
+    }
+    ContentScrollView {
+        objectName: "companionResponseScroll"
+        visible: bridge.experimentalTeaching && companion.hasResponse; Layout.fillWidth: true; Layout.preferredHeight: 150
+        TextArea { objectName: "companionResponseText"; text: companion.response.text || ""; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; font.pixelSize: companion.controlFont; color: "#112650"; background: null; textFormat: TextEdit.PlainText }
+    }
+    Label { visible: !!companion.session.warning; text: companion.session.warning || ""; color: "#a66318"; wrapMode: Text.WordWrap; Layout.fillWidth: true; font.pixelSize: 11 }
     RowLayout {
         visible: companion.session.bound && !!companion.session.active; Layout.fillWidth: true; spacing: 6
         Label { text: "Âm lượng"; font.pixelSize: 12; color: "#667997" }
@@ -160,25 +173,16 @@ ColumnLayout {
         }
         Label { text: (companion.reader.volume === undefined ? 80 : companion.reader.volume) + "%"; font.pixelSize: 12; color: "#102e54" }
     }
-    Rectangle { visible: bridge.experimentalTeaching && (!!companion.session.bound || bridge.companionCanRead); Layout.fillWidth: true; implicitHeight: 1; color: "#e0e8f4" }
-    RowLayout {
-        visible: bridge.experimentalTeaching && (!!companion.session.bound || bridge.companionCanRead); Layout.fillWidth: true
-        Label { text: "Trợ giảng"; color: "#112650"; font.pixelSize: companion.controlFont; font.weight: Font.DemiBold; Layout.fillWidth: true }
-        ToolButton { objectName: "companionAssistantToggle"; text: companion.showAssistant ? "Thu gọn" : "Mở công cụ"; font.pixelSize: 11; implicitHeight: 26; onClicked: companion.showAssistant = !companion.showAssistant }
-    }
     GridLayout {
-        visible: bridge.experimentalTeaching && companion.showAssistant && (!!companion.session.bound || bridge.companionCanRead); Layout.fillWidth: true
-        columns: 2; columnSpacing: 6; rowSpacing: 6
-        PanelAction { objectName: "companionExplain"; text: "Giải thích Anh"; enabled: bridge.companionCanRead; onClicked: bridge.companionAsk("explanation", "en") }
-        PanelAction { text: "Ví dụ"; enabled: bridge.companionCanRead; onClicked: bridge.companionAsk("example", "en") }
-        PanelAction { text: "Câu hỏi gợi mở"; enabled: bridge.companionCanRead; onClicked: bridge.companionAsk("question", "en") }
-        PanelAction { text: "Gợi ý Việt"; enabled: bridge.companionCanRead; onClicked: bridge.companionAsk("rescue", "vi") }
+        objectName: "companionAudioControls"; visible: !!companion.session.bound || bridge.companionCanRead
+        Layout.fillWidth: true; columns: 2; columnSpacing: 6; uniformCellWidths: true
+        PanelAction { objectName: "companionReadEnglish"; enabled: bridge.companionCanRead && !!companion.availableAudio.en; text: "Anh"; iconName: companion.readIcon("en") === "pause" ? "pause" : "speaker"; ToolTip.visible: pointerHovered; ToolTip.text: companion.readText("en", "tiếng Anh"); Accessible.name: companion.readText("en", "tiếng Anh"); onClicked: bridge.companionRead("en") }
+        PanelAction { objectName: "companionReadVietnamese"; enabled: bridge.companionCanRead && !!companion.availableAudio.vi; text: "Việt"; iconName: companion.readIcon("vi") === "pause" ? "pause" : "speaker"; ToolTip.visible: pointerHovered; ToolTip.text: companion.readText("vi", "tiếng Việt"); Accessible.name: companion.readText("vi", "tiếng Việt"); onClicked: bridge.companionRead("vi") }
     }
-    ContentScrollView {
-        objectName: "companionResponseScroll"
-        visible: bridge.experimentalTeaching && companion.hasResponse; Layout.fillWidth: true; Layout.preferredHeight: 150
-        TextArea { objectName: "companionResponseText"; text: companion.response.text || ""; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; font.pixelSize: companion.controlFont; color: "#112650"; background: null; textFormat: TextEdit.PlainText }
+    RowLayout {
+        visible: !!companion.session.bound || bridge.companionCanRead; Layout.fillWidth: true; spacing: 8
+        PanelAction { objectName: "companionPrevious"; text: "Trước"; iconName: "previous"; enabled: bridge.companionCanRead; onClicked: bridge.navigatePowerPoint("previous") }
+        Label { objectName: "companionSlidePosition"; text: bridge.powerpointState.active ? "Slide " + bridge.powerpointState.slide + " / " + bridge.powerpointState.total : "Sẵn sàng"; color: "#486385"; font.pixelSize: companion.controlFont; horizontalAlignment: Text.AlignHCenter; Layout.preferredWidth: 94 }
+        PanelAction { objectName: "companionNext"; text: "Sau"; iconName: "next"; enabled: bridge.companionCanRead; onClicked: bridge.navigatePowerPoint("next") }
     }
-    Label { visible: !!companion.session.warning; text: companion.session.warning || ""; color: "#a66318"; wrapMode: Text.WordWrap; Layout.fillWidth: true; font.pixelSize: 11 }
-    Label { objectName: "companionReaderStatus"; visible: !!companion.reader.message && companion.reader.state !== "stopped"; text: companion.reader.message; color: companion.reader.state === "error" ? "#b14828" : "#667997"; wrapMode: Text.WordWrap; Layout.fillWidth: true; font.pixelSize: 11 }
 }

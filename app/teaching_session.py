@@ -211,7 +211,8 @@ class TeachingSession(QObject):
                 'warning': self.bound.get('warning', ''),
                 'reading_scope': self.reading_scope,
                 'reading_mode': self.reading_mode,
-                'auto_completed': self.reading_mode == 'auto' and any(self._progress.completed.values()),
+                'auto_completed': self.reading_mode == 'auto' and bool(self._progress.completed.get(self.language))
+                                  and not self._selected_items(self.language),
                 'settling': self._settled.isActive(),
                 'can_choose_scope': bool(lesson.get('narration', {}).get('keys')),
                 'voice': (lesson.get('narration') or {}).get('voice', '')}
@@ -261,11 +262,14 @@ class TeachingSession(QObject):
                 paired.extend(chunks('vi', unit['id'], unit.get('vi', '')))
         return paired + [part for part in english_items if part[1] not in used]
 
-    def _selected_items(self, language):
+    def _selected_items(self, language, *, replay=False):
         items = self._speech_items(language)
         if self.reading_mode == 'auto' and self._settled.isActive():
             return []  # Do not replay old text while a new entrance is settling.
-        return self._progress.choose(language, items, titles=self._titles(language)) if self.reading_mode == 'auto' else items
+        if self.reading_mode == 'auto':
+            chosen = self._progress.choose(language, items, titles=self._titles(language))
+            return chosen or (items if replay else [])
+        return items
 
     def _titles(self, language):
         """Suppress only explicit headings actually read on the preceding page."""
@@ -310,8 +314,6 @@ class TeachingSession(QObject):
             # its entrance animation. A click is deferred until the words are
             # visible; it must not make the buttons blink off and on.
             items = self._speech_items(language, settled_seconds=float('inf'))
-            if self.reading_mode == 'auto':
-                items = self._progress.choose(language, items, titles=self._titles(language))
             texts = [item[1] for item in items]
             voice = speech.voice_for(record.get('voice', ''), language)
             wanted = [speech.audio_key(text, voice, record.get('rate', 0)) for text in texts]
@@ -389,13 +391,16 @@ class TeachingSession(QObject):
         from .lesson_narration import valid_key
 
         record = self.bound.get('lesson', {}).get('narration') or {}
-        texts = self.texts(language) if language in {'vi', 'en'} else []
+        items = (self._read_batch if self._batch_language == language
+                 and self._batch_slide == self.bridge._powerpoint_state.get('slide_id')
+                 else self._selected_items(language, replay=True)) if language in {'vi', 'en'} else []
+        texts = [item[1] for item in items]
         keys = record.get('keys', {}).get(language, [])
         voice = speech.voice_for(record.get('voice', ''), language)
         wanted = [speech.audio_key(text, voice, record.get('rate', 0)) for text in texts]
         if not texts or not all(key in keys and valid_key(self.bridge.library.directory, key) for key in wanted):
             return False
-        self._read_batch = self._selected_items(language)
+        self._read_batch = items
         self._batch_language = language
         self._batch_slide = self.bridge._powerpoint_state.get('slide_id')
         self.pending_read = (self.token, self.bridge._powerpoint_state['slide'],
@@ -426,7 +431,7 @@ class TeachingSession(QObject):
         self.reset_reading()
         self.bridge._companion_language = language
         self.language = language
-        self._read_batch = self._selected_items(language)
+        self._read_batch = self._selected_items(language, replay=True)
         self._batch_language = language
         self._batch_slide = self.bridge._powerpoint_state.get('slide_id')
         if hasattr(getattr(self.bridge.english_reader, 'player', None), 'set_volume'):
@@ -452,9 +457,6 @@ class TeachingSession(QObject):
     def toggleRead(self, language):
         if language not in {'vi', 'en'} or not self.bound or not self.bridge._powerpoint_state.get('active'):
             return
-        if not self.audio.get(language):
-            self.bridge.inform('Slide này chưa có giọng ' + {'vi': 'tiếng Việt', 'en': 'tiếng Anh', 'both': 'hai ngôn ngữ'}[language] + '. Chọn loa đang có giọng.', refresh=False)
-            return
         if self._deferred_read:
             # A second press cancels a queued start just as it pauses playback.
             self._deferred_read = None if self._deferred_read[0] == language else (language, self._build_key)
@@ -464,6 +466,8 @@ class TeachingSession(QObject):
             self.pause_on_start = not self.pause_on_start
         elif self.language == language and state in {'reading', 'paused'}:
             self.pauseResume()
+        elif not self.audio.get(language):
+            self.bridge.inform('Slide này chưa có giọng ' + {'vi': 'tiếng Việt', 'en': 'tiếng Anh', 'both': 'hai ngôn ngữ'}[language] + '. Chọn loa đang có giọng.', refresh=False)
         else:
             self.read(language)
 

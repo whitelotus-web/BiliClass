@@ -206,7 +206,7 @@ def embed_audio(source, destination, lesson, directory, *, scope='full_slide', m
             if not item["hidden"] and (item['source_type'] != 'image' or
                     box[2] * box[3] < deck.slide_width * deck.slide_height / 12700**2 * 0.6):
                 occupied.append(box)
-        if any(intersection((slots[lang][0] + 4, slots[lang][1] + 2, 36, 36), box) for lang in languages for box in occupied):
+        if any(intersection((slots[lang][0] + 4, slots[lang][1] + 2, 28, 28), box) for lang in languages for box in occupied):
             overlap_pages.append(number)
         embedded_pages.append(number)
         identity = max(int(v) for v in tree.xpath(".//p:cNvPr/@id", namespaces=NS))
@@ -227,7 +227,7 @@ def embed_audio(source, destination, lesson, directory, *, scope='full_slide', m
             icon_name = 'ppt/media/biliclass-' + hashlib.sha256(icon).hexdigest() + '.png'
             entries[icon_name] = icon
             icon_id = relation(NS['r'] + '/image', '../media/' + Path(icon_name).name)
-            box = (left, top, 50, 20) if mini else (left + (2 if compact else 4), top + 2, 36, 36)
+            box = (left, top, 50, 20) if mini else (left + (2 if compact else 4), top + 2, 28, 28)
             media = media_shape(identity, language, box, audio_id, media_id, icon_id)
             shape_tree.append(media)
             shape_tree.append(picture(media, identity + 1, language, icon_id, crop=crop))

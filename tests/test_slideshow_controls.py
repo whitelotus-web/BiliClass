@@ -75,6 +75,25 @@ def test_named_controls_survive_office_shape_order_differences(monkeypatch):
     assert badges[(256,9)] == (ready,badge) and badge.Visible is False
 
 
+def test_overlay_hides_only_generated_pictures_once_before_the_show(monkeypatch):
+    from types import SimpleNamespace
+
+    monkeypatch.setattr('app.slideshow_controls.speaker_index', lambda _: ({256: [(5, 9, 'en', 6, 7)]}, False))
+    media = SimpleNamespace(Id=9, MediaFormat=SimpleNamespace(Volume=.8))
+    ready = SimpleNamespace(Left=10, Top=20, Width=28, Height=28, Visible=True)
+    pause = SimpleNamespace(Visible=True)
+
+    class Shapes:
+        def Item(self, name):
+            return {'BiliClass audio EN': media, 'BiliClass control EN': ready, 'BiliClass pause EN': pause}[name]
+
+    slides = SimpleNamespace(FindBySlideID=lambda _: SimpleNamespace(Shapes=Shapes()))
+    players, badges, other = prepare_controls(SimpleNamespace(Slides=slides), 'fixture', overlay=True)
+    assert players[256] == ([(9, 'en', media)], [('en', 10., 20., 28., 28.)])
+    assert not ready.Visible and not pause.Visible and media.MediaFormat.Volume == 1
+    assert badges[(256, 9)] == (ready, pause) and not other
+
+
 def test_source_audio_keeps_native_media_controls(tmp_path):
     import wave
 

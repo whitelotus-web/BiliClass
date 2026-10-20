@@ -303,8 +303,10 @@ def test_auto_reveal_only_new_english_and_matched_vietnamese_paragraphs(tmp_path
     assert session.texts('en') == ['Energy', 'First paragraph.']
     assert session.texts('vi') == ['Năng lượng', 'Đoạn thứ nhất.']
     for lang in ('vi','en'):
+        visible = session._selected_items(lang)
         session._progress.finish(256, lang, session._selected_items(lang))
         assert session.texts(lang) == []
+        assert session._selected_items(lang, replay=True) == visible
     bridge._powerpoint_state['click_index'] = 2
     session._watch_build()
     assert session.texts('en') == ['Second paragraph.']
@@ -326,6 +328,22 @@ def test_repeated_press_while_native_player_prepares_queues_pause_without_restar
     session.office_event({'event': 'media_started', 'language': 'en'})
     assert bridge.calls[-1] == ('pause_media', session._media_request())
     assert sum(call[0] == 'play_media' for call in bridge.calls if isinstance(call, tuple)) == 1
+
+
+def test_reading_can_pause_after_auto_marks_all_current_words_complete(tmp_path):
+    lesson, preview, directory, _ = prepared_lesson(tmp_path)
+    bridge = FakeBridge(directory)
+    session = TeachingSession(bridge)
+    session.bind(prepare_teaching(lesson, preview, directory))
+    session.toggleRead('en')
+    session.office_event({'event': 'media_started', 'language': 'en'})
+    session._progress.finish(256, 'en', session._read_batch)
+    assert session.audio['en'], 'Completed audio remains available for deliberate replay'
+    session.toggleRead('en')
+    assert bridge.calls[-1] == ('pause_media', session._media_request())
+    session.office_event({'event': 'media_finished', 'slide_id': 256})
+    session.toggleRead('en')
+    assert bridge.calls[-1] == ('play_media', session._media_request())
 
 
 def test_build_aware_reading_bypasses_whole_slide_media_and_only_uses_visible_cached_words(tmp_path):

@@ -27,7 +27,7 @@ def default_position(directory):
 
 def fixed_slots(bounds, selected=DEFAULT_POSITION, *, mini=False, languages=('vi', 'en', 'both')):
     width, height = bounds
-    cell_width, cell_height = (50, 20) if mini else (44, 42)
+    cell_width, cell_height = (50, 20) if mini else (36, 34)
     total = cell_width * len(languages)
     left = {'bottom_left': 12, 'bottom_center': (width - total) / 2,
             'bottom_right': width - total - 12}[position(selected)]
