@@ -9,7 +9,7 @@ Rectangle {
     property string conversion: ""
     property int slides: 0
     color: "white"; radius: 16; border.color: "#e0e8f3"
-    readonly property var savedVoices: voices.filter(function(row) { return !!row.id })
+    readonly property var savedVoices: voices.filter(function(row) { return !!row.id && !!row.ready })
     implicitHeight: content.implicitHeight + 32
     ColumnLayout {
         id: content
@@ -33,7 +33,7 @@ Rectangle {
         }
         Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: "#e0e8f3" }
         Label { text: "Giọng đọc"; color: "#667997"; font.pixelSize: 13 }
-        Label { objectName: "lessonNoVoiceInformation"; visible: !card.savedVoices.length; text: "Chưa có giọng đọc"; color: "#112650"; font.pixelSize: 13 }
+        Label { objectName: "lessonNoVoiceInformation"; visible: !card.savedVoices.length; text: "Chưa có giọng đọc hoàn tất"; color: "#112650"; font.pixelSize: 13 }
         Repeater {
             model: card.savedVoices
             Label {
@@ -41,7 +41,7 @@ Rectangle {
                 objectName: "lessonVoiceInformation_" + modelData.id
                 text: modelData.title
                 textFormat: Text.PlainText; wrapMode: Text.WordWrap; Layout.fillWidth: true
-                color: modelData.ready ? "#168567" : "#667997"; font.pixelSize: 13
+                color: "#168567"; font.pixelSize: 13
             }
         }
     }
