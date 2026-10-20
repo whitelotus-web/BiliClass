@@ -32,3 +32,18 @@ phát trong lượt này. Thư viện hiện có đủ 14 đoạn Anh và 5 đo�
 phần đã mở, và chọn lại đủ số đoạn khi nghe lại. Đây là kiểm tra điều
 khiển Office và chọn lời đọc; chưa thay thế thao tác bấm chuột thực của
 người dùng trên từng slide. Tệp nguồn và WAV cá nhân không được sửa.
+
+## Bản đã phát hành và mở trên máy
+
+- Commit đóng gói: `dc646c881f3fa804aaebeacba9981362541c466e`.
+- ZIP: 1.249.943.910 byte; SHA256
+  `8e84119d4c5aa6f5aeffd40cd209ccd3dc0562e346d10681d5a42e191afe44fa`.
+- ZIP khớp manifest; digest asset trên GitHub khớp checksum. Executable
+  vượt qua smoke khởi động; QML/icon trong gói khớp nguồn đã kiểm tra.
+- Cài riêng RC109 và mở qua Explorer; cửa sổ chính/Mascot hiện, shortcut
+  và biểu tượng đúng. Khi mở bài có năm lượt hết hạn kiểm tra 500 ms;
+  sau đó ba lượt phản hồi liên tiếp 0,140 / 0,016 / 0,031 giây.
+- So với trạng thái trước cài: nguồn/phiên bản bài, 1.224 WAV tham chiếu,
+  cặp/tốc độ và checksum Key giữ nguyên.
+
+[Bản phát hành RC109](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc109).
