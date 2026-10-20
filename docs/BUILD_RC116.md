@@ -68,3 +68,19 @@ thật kiểm tra tên Unicode có dấu #, hủy không mất lựa chọn, th�
 lại cấu hình đạt. Khung Windows kiểm tra chữ tiêu đề một lớp sáng/tối,
 DPI 100%/150%, thu/phóng/khôi phục và biểu tượng cửa sổ/taskbar đạt.
 Không dùng thư viện cá nhân cho các phép thử chức năng.
+
+Bản phát hành dùng nguồn `c955ef45f6e06eae70a97fdfcaf0217cff3afd50`,
+runtime/model RC115 đã đối chiếu SHA256; biên dịch lại toàn bộ module app.
+Gói có 4.660 tệp ứng dụng, 52 tệp QML/qmldir khớp nguồn; ZIP đã đối chiếu
+từng tệp và digest GitHub sau tải lên. Bản đóng gói mở Cài đặt 1366×850
+với thư viện tạm, không có cảnh báo QML.
+
+- Phát hành: https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc116
+- ZIP: `BiliClass-RC116-Windows.zip`, 1.249.981.021 byte.
+- SHA256: `ea403cf0527d913e452ea20f5ba8a7d019d3af4cc0a00cf1542bd8056d7b16dc`.
+- Cài tại `F:/Applications/BiliClass/1.0.0rc116`; đóng RC115 bình thường,
+  mở RC116 qua Explorer độc lập với phiên agent. Cửa sổ chính và Mascot
+  đáp ứng, icon/taskbar và shortcut trỏ đúng bản mới.
+- Đối chiếu trước/sau: 18 bản ghi bài, nguồn bài, 1.658 WAV tham chiếu,
+  cấu hình giọng, logo và khóa API mã hóa không đổi. PowerPoint đang mở
+  và bản RC80 chạy riêng không bị đóng.
