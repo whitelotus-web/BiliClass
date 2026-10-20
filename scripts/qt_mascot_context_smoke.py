@@ -1,5 +1,6 @@
 """Qt right-click mascot menu and eye-off header; isolated app windows only."""
 
+import argparse
 import json
 import tempfile
 from pathlib import Path
@@ -17,9 +18,12 @@ from scripts.qt_result_preview_mascot_smoke import control, pump, until
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--report-dir', type=Path, default=Path('reports/mascot-context'))
+    args = parser.parse_args()
     app = QGuiApplication([])
     QQuickStyle.setStyle('Basic')
-    reports = Path('reports/rc106/mascot-context')
+    reports = args.report_dir
     reports.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='bcl-mascot-menu-', ignore_cleanup_errors=True) as folder:
         library = Library(Path(folder))
@@ -85,7 +89,21 @@ def main():
             assert c('companionSettings').property('iconName') == 'settings'
             assert c('collapseCompanionPanel').property('iconName') == 'collapse'
             assert c('companionShortcutGuideToggle').property('iconName') == 'keyboard-help'
-            assert companion.grabWindow().save(str(reports/'header-eye-off.png'))
+            header = [c(name) for name in ('collapseCompanionPanel', 'companionShortcutGuideToggle',
+                                          'companionSettings', 'hideCompanion')]
+            for size, pixels in (('small', 80), ('standard', 110), ('large', 150)):
+                bridge.saveMascotPreferences('Milo', True, pixels, 'right', False, True, True, True)
+                until(lambda: not bridge.mascotSaving)
+                pump(150)
+                positions = [item.mapToItem(c('companionMenu'), QPointF()) for item in header]
+                for item, position in zip(header, positions):
+                    assert item.isVisible() and item.isEnabled()
+                    assert item.width() >= 30 and item.height() >= 30
+                    assert position.x() >= 0 and position.x() + item.width() <= c('companionMenu').width()
+                for left, right, item in zip(positions, positions[1:], header):
+                    assert right.x() - left.x() - item.width() >= 6
+                    assert abs(left.y() - right.y()) < 1
+                assert companion.grabWindow().save(str(reports/('header-' + size + '.png')))
             click(hide)
             assert not companion.isVisible()
             assert not warnings, warnings
@@ -93,7 +111,8 @@ def main():
                 'Right click opens two icon actions without moving or expanding mascot',
                 'Gear opens Mascot settings; eye-off hides compact/expanded mascot',
                 'Native popup stays on screen; sidebar can reopen hidden mascot',
-                'Header uses the same eye-off icon; normal left click still works'])
+                'Header uses the same eye-off icon; normal left click still works',
+                'Four header actions stay aligned, spaced and clickable at all three panel sizes'])
             (reports/'result.json').write_text(json.dumps(result, indent=2), encoding='utf-8')
             print(json.dumps(result), flush=True)
         finally:

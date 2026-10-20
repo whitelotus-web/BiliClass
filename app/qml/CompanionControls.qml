@@ -28,13 +28,13 @@ ColumnLayout {
         Accessible.name: hint
         ToolTip.visible: standardHint && pointerHovered; ToolTip.text: hint; ToolTip.delay: 400
         contentItem: Item {
-            CompanionIcon { anchors.centerIn: parent; width: 23; height: 23; iconName: tool.iconName }
+            CompanionIcon { anchors.centerIn: parent; width: 21; height: 21; iconName: tool.iconName }
         }
         background: Rectangle { radius: 7; color: tool.down ? "#d8e9ff" : tool.pointerHovered ? "#eaf2ff" : "transparent"; border.color: tool.visualFocus ? "#0869ff" : "transparent" }
     }
 
     RowLayout {
-        Layout.fillWidth: true; spacing: 3
+        Layout.fillWidth: true; spacing: 7
         Label { text: "Trợ giảng"; color: "#112650"; font.pixelSize: 15; font.weight: Font.DemiBold; Layout.fillWidth: true }
         HeaderAction { objectName: "collapseCompanionPanel"; iconName: "collapse"; hint: "Thu bảng về Mascot"; onClicked: companion.collapsed = true }
         HeaderAction {
