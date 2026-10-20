@@ -37,3 +37,26 @@ ngắn; dùng cùng logic đọc đã có, chọn chế độ không tự phát 
 Không chạy lại toàn bộ bộ kiểm thử 1.111 của RC103: các luồng chuyển đổi,
 giọng và lưu dữ liệu không đổi. Bản đóng gói sẽ kiểm tra riêng đúng các
 thay đổi khởi động/F1/Mascot và tính toàn vẹn bộ cài.
+
+## Bộ cài và lần mở trên máy này
+
+- Mã nguồn đóng gói: `9bd11dbf02e8479fb1e8fb1ea4188605c767d20d`.
+- `BiliClass-RC104-Windows.zip`: 1.248.157.157 byte.
+- SHA256: `ec7442b04f42481cbfa88161f0d1468b4feba48cc90f97b7cbb2f64446938944`.
+- Toàn bộ nội dung ZIP khớp manifest; digest tài sản GitHub khớp SHA256.
+- Thử executable đóng gói với thư viện tạm: ảnh và bước thật hiển thị,
+  chuyển động độc lập, pipe hoạt động trong bản không console, loading
+  tự đóng sau khung hình đầu; tiến trình phụ thoát sạch.
+- Đã cài RC104 vào thư mục phiên bản riêng bằng bộ cài kiểm tra manifest.
+  Executable, ảnh nền và ba QML thay đổi ở nơi cài khớp bộ đã thử.
+- RC104 đã mở độc lập qua Explorer, có Mascot, biểu tượng và shortcut đúng.
+  Đối chiếu nguồn bài, phiên bản chỉnh sửa, 940 WAV được tham chiếu,
+  cặp/tốc độ và checksum key đều giữ nguyên. RC103 đã đóng bình thường.
+
+Lần mở thư viện thật vẫn ghi nạp QML khoảng 5,03 giây. Kiểm tra cửa sổ
+ghi nhận năm lần hết hạn 500 ms trong giai đoạn khởi động, sau đó ba lần
+liên tiếp phản hồi (0,047 / 0,031 / 0,359 giây). Loading không làm khởi
+động nhanh hơn; nó cung cấp phản hồi trong lúc chuẩn bị. Không đổi ngưỡng
+hay xóa nhật ký để che khoảng nạp này. Đây là kiểm tra trên máy hiện tại.
+
+[Bản phát hành RC104](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc104).
