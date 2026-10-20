@@ -230,7 +230,7 @@ Item {
                     Title { text: "Xem trước hồ sơ" }
                     Rectangle { Layout.fillWidth: true; implicitHeight: 126; radius: 11; color: AppTheme.adapt("#f2f7ff")
                         RowLayout { anchors.fill: parent; anchors.margins: 14; spacing: 10
-                            Image { objectName: "savedProfileLogo"; visible: !!bridge.schoolLogoUrl; source: bridge.schoolLogoUrl; cache: false; fillMode: Image.PreserveAspectFit; Layout.preferredWidth: 56; Layout.preferredHeight: 70 }
+                            SchoolLogo { objectName: "savedProfileLogo"; visible: !!bridge.schoolLogoUrl; source: bridge.schoolLogoUrl; roundMask: bridge.schoolLogoRound; Layout.preferredWidth: 56; Layout.preferredHeight: 56 }
                             Rectangle { visible: !bridge.schoolLogoUrl; Layout.preferredWidth: 56; Layout.preferredHeight: 56; radius: 10; color: AppTheme.surface; border.color: page.line
                                 Label { anchors.centerIn: parent; text: "Logo"; color: page.muted; font.pixelSize: 12 }
                             }

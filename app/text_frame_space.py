@@ -6,6 +6,7 @@ from .source_deck import NS
 
 
 def grow(shape, slide, width, height):
+    from .framed_text import owner, panels
     from .native_layout import text_height
     from .slide_speech import objects
 
@@ -26,12 +27,15 @@ def grow(shape, slide, width, height):
         return False
     local_x, local_y, local_w, local_h = [int(node.get(key)) / 12700 for node, key in
                    [(offset, 'x'), (offset, 'y'), (extent, 'cx'), (extent, 'cy')]]
+    page_width, page_height = width, height
     width, height = width / 12700, height / 12700
     items = objects(slide)
     target_index = next((i for i, row in enumerate(items) if row['shape_id'] == int(identity.get('id'))), None)
     if target_index is None:
         return False
     target = items[target_index]
+    if owner(target, panels(slide, page_width, page_height)):
+        return False  # Empty space outside a decorative band is not usable room.
     x, y, w, h = [target[key] / 12700 for key in ('x', 'y', 'w', 'h')]
     if min(x, y) < 0 or min(w, h) <= 0 or x+w > width or y+h > height:
         return False

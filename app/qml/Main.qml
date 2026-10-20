@@ -765,10 +765,10 @@ ApplicationWindow {
                     Layout.fillWidth: true; spacing: 10
                     Item {
                         Layout.preferredWidth: 40; Layout.preferredHeight: 40
-                        Image {
+                        SchoolLogo {
                             id: sidebarSchoolLogo; objectName: "sidebarSchoolLogo"
-                            anchors.fill: parent; source: bridge.schoolLogoUrl; cache: false
-                            fillMode: Image.PreserveAspectFit; visible: status === Image.Ready
+                            anchors.fill: parent; source: bridge.schoolLogoUrl; roundMask: bridge.schoolLogoRound
+                            visible: status === Image.Ready
                             Accessible.name: "Logo trường"
                         }
                         Rectangle {
@@ -2314,7 +2314,7 @@ ApplicationWindow {
             }
             Copy { text: bridge.segment.approved ? "Xem trước văn bản đã duyệt · " + (root.lessonData.title || "") : "BẢN NHÁP CHƯA DUYỆT · Chỉ dùng để kiểm tra nội dung"; color: bridge.segment.approved ? root.muted : AppTheme.adapt("#ad651d"); Layout.fillWidth: true }
             RowLayout { visible: bridge.settings.show_profile; Layout.fillWidth: true; spacing: 10
-                Image { objectName: "previewSchoolLogo"; visible: !!bridge.schoolLogoUrl; source: bridge.schoolLogoUrl; cache: false; fillMode: Image.PreserveAspectFit; Layout.preferredWidth: 50; Layout.preferredHeight: 50 }
+                SchoolLogo { objectName: "previewSchoolLogo"; visible: !!bridge.schoolLogoUrl; source: bridge.schoolLogoUrl; roundMask: bridge.schoolLogoRound; Layout.preferredWidth: 50; Layout.preferredHeight: 50 }
                 Copy { text: root.profileLabel; Layout.fillWidth: true }
             }
             TemplateSlide { objectName: "lessonTemplatePreview"; Layout.fillWidth: true; Layout.fillHeight: true; plan: root.templatePages[root.templatePageIndex] || ({}) }

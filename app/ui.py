@@ -1892,6 +1892,12 @@ class Bridge(QObject):
         path = self.library.directory / "assets" / "school-logo.png"
         return QUrl.fromLocalFile(str(path)).toString() + f"?v={self._logo_revision}" if path.is_file() else ""
 
+    @Property(bool, notify=changed)
+    def schoolLogoRound(self):
+        from .logo_display import round_mask_safe
+
+        return round_mask_safe(self.library.directory / 'assets/school-logo.png')
+
     @Property("QVariantMap", notify=changed)
     def classroomSettings(self):
         return self.library.setting("classroom_options", {

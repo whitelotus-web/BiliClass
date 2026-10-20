@@ -459,11 +459,18 @@ def repair_and_inspect(path, directory, *, source=None, mode="", style="source",
     # opportunity; the same normalized VI/EN pair hashes remain valid.
     replacements, typography = {}, []
     with zipfile.ZipFile(current) as archive:
+        from pptx import Presentation
+
+        from .framed_text import constrain_generated
+
+        deck = Presentation(current)
         for number, part in enumerate(source_slide_parts(current), 1):
             tree = etree.fromstring(archive.read(part))
+            panel_changes = constrain_generated(tree, deck.slides[number-1], deck.slide_width, deck.slide_height)
             protected = protect_tree(tree)
-            if protected:
+            if protected or panel_changes:
                 replacements[part] = etree.tostring(tree, xml_declaration=True, encoding='UTF-8', standalone=True)
+            typography.extend({'slide': number, **row} for row in panel_changes)
             if protected:
                 typography.append({'slide': number, 'operation': 'keep_quantities_together'})
     if replacements:
@@ -471,6 +478,10 @@ def repair_and_inspect(path, directory, *, source=None, mode="", style="source",
         target.parent.mkdir(parents=True)
         _write_copy(current, target, replacements)
         current = target
+        if any(row.get('operation') == 'fit_painted_panel' for row in typography) and layout_plan:
+            from .native_layout import fit_preserved_frames
+
+            fit_preserved_frames(current, {'layout_plan': layout_plan, 'same_slide': True}, cancel)
     inspection = inspect_returned_deck(current, source, mode, style, layout_plan=layout_plan)
     render_quality(current, directory, inspection["slide_quality"], cancel, progress, reuse_directory=reuse_directory)
     history = list(typography)

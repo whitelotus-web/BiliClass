@@ -102,6 +102,22 @@ def test_no_improvement_is_recorded_once_and_never_called_ready(tmp_path, monkey
     library.close()
 
 
+def test_older_deck_with_escaped_panel_is_repaired_even_if_old_check_had_no_failure(tmp_path, monkeypatch):
+    library, lesson, path = converted(tmp_path)
+    lesson['slide_quality']['counts']['FAIL'] = 0
+    lesson['external_deck']['layout_plan'] = [{'pairs': [{'unit': 'legacy-pair'}]}]
+    library._write(lesson)
+    candidate = checked_copy(library, path)
+    calls = []
+    monkeypatch.setattr('app.framed_text.escapes', lambda *_: [{'code': 'panel_text_escape'}])
+    monkeypatch.setattr('app.slide_repair.repair_and_inspect',
+                        lambda *a, **k: calls.append(1) or candidate)
+    updated = complete_existing(library, lesson)
+    assert updated['revision'] == lesson['revision'] + 1 and calls == [1]
+    assert complete_existing(library, updated) == updated and calls == [1]
+    library.close()
+
+
 def test_cancel_during_completion_never_publishes_candidate(tmp_path, monkeypatch):
     library, lesson, path = converted(tmp_path)
     candidate, cancel = checked_copy(library, path), Event()

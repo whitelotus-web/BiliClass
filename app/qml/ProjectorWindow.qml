@@ -29,7 +29,7 @@ Window {
         RowLayout { Label { text: "BiliClass"; color: AppTheme.adapt("#112650"); font.pixelSize: 25; font.bold: true } Item { Layout.fillWidth: true } Label { text: bridge.lesson.conversion_format ? bridge.conversionLabel : "L" + (bridge.lesson.level || 0); color: AppTheme.adapt("#0869f9"); font.pixelSize: 20 } }
         Label { text: bridge.lesson.title || ""; font.pixelSize: 30; font.bold: true; color: AppTheme.adapt("#112650"); Layout.fillWidth: true; elide: Text.ElideRight; textFormat: Text.PlainText }
         RowLayout { visible: bridge.settings.show_profile; Layout.fillWidth: true; spacing: 12
-            Image { objectName: "projectorSchoolLogo"; visible: !!bridge.schoolLogoUrl; source: bridge.schoolLogoUrl; cache: false; fillMode: Image.PreserveAspectFit; Layout.preferredWidth: 56; Layout.preferredHeight: 56 }
+            SchoolLogo { objectName: "projectorSchoolLogo"; visible: !!bridge.schoolLogoUrl; source: bridge.schoolLogoUrl; roundMask: bridge.schoolLogoRound; Layout.preferredWidth: 56; Layout.preferredHeight: 56 }
             Label { objectName: "projectorProfile"; text: [bridge.settings.teacher, bridge.settings.school].filter(function(value) { return !!value }).join("  ·  "); font.pixelSize: 16; color: AppTheme.adapt("#667997"); Layout.fillWidth: true; elide: Text.ElideRight; textFormat: Text.PlainText }
         }
         ColumnLayout { visible: !projection.quiz; Layout.fillWidth: true; Layout.fillHeight: true; spacing: 16

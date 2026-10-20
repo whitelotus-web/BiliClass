@@ -32,7 +32,7 @@ Window {
     readonly property bool hasResponse: bridge.companionCanRead && !companion.response.untouched
     readonly property bool compactPanel: bridge.mascotSettings.size <= 65
     readonly property int controlHeight: compactPanel ? 30 : bridge.companionPanelSize === "large" ? 44 : bridge.companionPanelSize === "small" ? 34 : 38
-    readonly property int controlFont: compactPanel ? 11 : bridge.companionPanelSize === "large" ? 14 : bridge.companionPanelSize === "small" ? 12 : 13
+    readonly property int controlFont: bridge.companionPanelSize === "large" ? 14 : bridge.companionPanelSize === "small" ? 12 : 13
     readonly property int audioCount: Number(!!availableAudio.en) + Number(!!availableAudio.vi) + Number(!!availableAudio.both)
 
     function saveLocation() {

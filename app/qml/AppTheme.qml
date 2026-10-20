@@ -15,7 +15,7 @@ QtObject {
     readonly property color line: dark ? "#34465e" : "#dfe8f4"
     readonly property color selected: dark ? "#223a5c" : "#eaf3ff"
     readonly property color hover: dark ? "#21334e" : "#edf5ff"
-    readonly property color disabled: dark ? "#7f91ab" : "#96a6bc"
+    readonly property color disabled: dark ? "#a4b5cd" : "#96a6bc"
     readonly property color disabledSurface: dark ? "#202d40" : "#edf1f7"
     readonly property color icon: dark ? "#c0d2ee" : "#526f98"
     readonly property color success: dark ? "#79dbb8" : "#168567"

@@ -23,6 +23,7 @@ MESSAGES = {
     "outside_slide": "Có chữ nằm ngoài khung slide.",
     "possible_overlap": "Hình ở phía trước có thể che chữ; cần kiểm tra ảnh render.",
     "text_overflow": "PowerPoint đo được chữ tràn khỏi hộp văn bản.",
+    "panel_text_escape": "Hộp chữ song ngữ vượt khỏi dải nền; cần tự căn lại trong cùng khối.",
     "small_text": "Có chữ nhỏ hơn 18 pt; kiểm tra độ dễ đọc khi chiếu.",
     "low_contrast": "Chữ có độ tương phản thấp với màu nền đặc của hộp chữ.",
     "quiz_mismatch": "Dấu tick trên phương án không khớp đáp án QUIZ trong ghi chú.",
@@ -93,6 +94,9 @@ def inspect_quality(deck, speech, mode="", source_total=None, *, source_deck=Non
         spoken = speech["slides"][index-1]
         issues = [{"code": code, "severity": "CHECK"} for code in spoken["issues"]]
         shapes = objects(slide)
+        from .framed_text import escapes
+
+        issues.extend(escapes(slide, deck.slide_width, deck.slide_height))
         workspace = []
         original = {}
         layout = layout_plan[index-1] if layout_plan else None

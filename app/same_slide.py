@@ -92,6 +92,9 @@ def prepare(source, manifest):
     suppressed = {}
     for index, slide in enumerate(deck.slides, 1):
         items = objects(slide)
+        from .framed_text import fit_box, owner, panels
+
+        backgrounds = panels(slide, deck.slide_width, deck.slide_height)
         raster_backdrop = any(
             item["source_type"] == "image"
             and item["w"] * item["h"] > deck.slide_width * deck.slide_height * 0.6
@@ -101,6 +104,7 @@ def prepare(source, manifest):
         shapes = {shape.shape_id: shape for shape in leaves(slide.shapes, modern=True)}
         texts = {key: shape for key, shape in shapes.items() if shape.has_text_frame and shape.text.strip()}
         animated = set(slide._element.xpath(".//p:spTgt/@spid"))
+        fixed_targets = set(slide._element.xpath('.//p:animMotion//p:spTgt/@spid|.//p:cond/p:tgtEl/p:spTgt/@spid'))
         # A duplicated workspace caption must not become a second visible answer.
         signatures = {}
         for key, shape in texts.items():
@@ -173,6 +177,10 @@ def prepare(source, manifest):
                 desired = max(h, min(bottom - y0, h * 1.8 + 36 * 12700))
             height = max(127000, min(desired, bottom - y0))
             width = max(254000, right - x0)
+            panel = owner(box, backgrounds) if not title and str(key) not in fixed_targets else None
+            if panel:
+                interior = fit_box(box, panel)
+                x0, y0, width, height = (interior[name] for name in ('x', 'y', 'w', 'h'))
             # Translate world-coordinate adjustments back into a group's coordinates.
             sx, sy = shape.width / max(1, w), shape.height / max(1, h)
             geometry = {
@@ -250,7 +258,8 @@ def fit(shape, fallback_size):
     props.set(
         "anchor",
         "t"
-        if sum(bool(text_of(p).strip()) for p in paragraphs) > 2
+        if shape.find('p:nvSpPr/p:cNvPr', NS).get('name', '').startswith('BCL_BODY ')
+        or sum(bool(text_of(p).strip()) for p in paragraphs) > 2
         or sum(len(text_of(p)) for p in paragraphs) > 180
         else "ctr",
     )

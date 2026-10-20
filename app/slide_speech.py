@@ -96,7 +96,7 @@ def _visible_text(element, *, math=False):
     return (' ' if math else '').join(result)
 
 
-def objects(slide):
+def objects(slide, *, include_empty=False):
     """Keep group ancestry and stable native IDs, including table cells."""
     def compose(parent, local):
         a,b,c,d,e,f = parent
@@ -149,6 +149,8 @@ def objects(slide):
                     **bounds(shape, transform),
                     "shape": shape, "hidden": hidden}
             if shape.has_text_frame:
+                if include_empty and not shape.text.strip() and not shape._element.xpath('.//*[local-name()="oMath" or local-name()="oMathPara"]'):
+                    yield {**base, 'paragraph': None, 'cell': None, 'text': '', 'runs': [], 'source_type': 'object'}
                 if shape._element.xpath('.//*[local-name()="oMath" or local-name()="oMathPara"]'):
                     formula_text = _visible_text(shape._element,math=True)
                     yield {**base, "paragraph": None, "cell": None, "text": formula_text, "runs": [], "source_type": "formula"}

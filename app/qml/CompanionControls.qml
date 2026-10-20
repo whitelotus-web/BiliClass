@@ -15,7 +15,7 @@ ColumnLayout {
         Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0
         implicitHeight: controls.companion.controlHeight
         font.pixelSize: controls.companion.controlFont
-        iconSize: controls.bridge.companionPanelSize === "small" ? 18 : controls.bridge.companionPanelSize === "large" ? 22 : 20
+        iconSize: controls.companion.compactPanel ? 16 : controls.bridge.companionPanelSize === "small" ? 18 : controls.bridge.companionPanelSize === "large" ? 22 : 20
         leftPadding: 7; rightPadding: 7
     }
     component HeaderAction: ToolButton {
@@ -73,18 +73,18 @@ ColumnLayout {
     Label { visible: !companion.session.bound && !bridge.companionCanRead; text: "Chọn bài trong thư viện hoặc file PowerPoint để Mascot điều khiển."; color: AppTheme.adapt("#667997"); wrapMode: Text.WordWrap; Layout.fillWidth: true; font.pixelSize: 12 }
     RowLayout {
         visible: !!bridge.powerpointState.opened; Layout.fillWidth: true; spacing: 6
-        PanelAction { objectName: "companionStartShow"; text: bridge.powerpointState.active ? "Đang trình chiếu" : "Trình chiếu · F5"; primary: !bridge.powerpointState.active; iconName: "presentation"; enabled: !bridge.powerpointState.active; onClicked: bridge.startTeachingShow() }
+        PanelAction { objectName: "companionStartShow"; text: bridge.powerpointState.active ? "Đang chiếu" : controls.companion.compactPanel ? "Chiếu · F5" : "Trình chiếu · F5"; inactiveStatus: bridge.powerpointState.active; primary: !bridge.powerpointState.active; iconName: "presentation"; enabled: !bridge.powerpointState.active; ToolTip.visible: pointerHovered; ToolTip.text: bridge.powerpointState.active ? "PowerPoint đang trình chiếu" : "Bắt đầu trình chiếu PowerPoint · F5"; onClicked: bridge.startTeachingShow() }
         PanelAction { objectName: "companionEndShow"; text: "Kết thúc"; danger: true; visible: !!bridge.powerpointState.active && !!companion.session.bound; onClicked: bridge.navigatePowerPoint("end_show") }
     }
     Label {
         objectName: "companionAudioHint"; visible: !!companion.session.bound && text.length > 0
-        Layout.minimumHeight: 16; Layout.preferredHeight: 16; Layout.maximumHeight: 16
+        Layout.preferredHeight: Math.max(16, contentHeight)
         text: !bridge.companionCanRead ? "Bấm Trình chiếu để đọc giọng đã tạo."
             : companion.reader.state === "error" ? companion.reader.message || ""
             : companion.audioCount === 0 ? "Phần đang hiện chưa có giọng đọc."
             : ""
         color: companion.reader.state === "error" ? AppTheme.adapt("#b14828") : AppTheme.adapt("#667997"); font.pixelSize: 11
-        elide: Text.ElideRight; Layout.fillWidth: true
+        wrapMode: Text.WordWrap; Layout.fillWidth: true
         ToolTip.visible: statusHover.hovered && truncated; ToolTip.text: text
         HoverHandler { id: statusHover }
     }

@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-VERSION = 3
+VERSION = 4
 
 
 def complete_existing(library, lesson, cancel=None):
@@ -12,13 +12,26 @@ def complete_existing(library, lesson, cancel=None):
     from .slide_repair import repair_and_inspect
 
     quality = lesson.get('slide_quality', {})
-    if (lesson.get('voice_only') or not lesson.get('external_deck')
-            or not quality.get('counts', {}).get('FAIL')):
+    if lesson.get('voice_only') or not lesson.get('external_deck'):
         return lesson
-    path = verified_presentation(lesson, library.directory)
     stamp = lesson['source']['sha256']
     if quality.get('completion_version') == VERSION and quality.get('completion_sha256') == stamp:
         return lesson
+    if not quality.get('counts', {}).get('FAIL'):
+        # Earlier checks could approve an oversized box while its text escaped
+        # a painted panel. Audit only native converted decks with paired frames.
+        if not any(row.get('pairs') for row in lesson['external_deck'].get('layout_plan', [])):
+            return lesson
+        from pptx import Presentation
+
+        from .framed_text import escapes
+
+        path = verified_presentation(lesson, library.directory)
+        deck = Presentation(path)
+        if not any(escapes(slide, deck.slide_width, deck.slide_height) for slide in deck.slides):
+            return lesson
+    else:
+        path = verified_presentation(lesson, library.directory)
     if cancel and cancel.is_set():
         raise InterruptedError('Đã dừng hoàn thiện bài giảng.')
     result = repair_and_inspect(path, library.directory, source=original_source(library.directory, lesson),

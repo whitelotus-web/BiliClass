@@ -5,11 +5,13 @@ import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 
-from PySide6.QtCore import QCoreApplication, QEvent, QMetaObject, QPointF, Qt, QUrl, Slot
-from PySide6.QtGui import QColor, QGuiApplication, QImage
+from PIL import Image, ImageDraw
+from PySide6.QtCore import QCoreApplication, QEvent, QMetaObject, QObject, QPointF, Qt, QUrl, Slot
+from PySide6.QtGui import QColor, QFont, QFontDatabase, QGuiApplication, QImage
 from PySide6.QtQml import QQmlApplicationEngine, QQmlEngine, QQmlExpression
 from PySide6.QtQuickControls2 import QQuickStyle
 
+from app.branding import configure_application
 from app.library import Library
 from app.paths import RESOURCE_ROOT
 from app.ui import Bridge
@@ -29,7 +31,11 @@ class PreviewFixtureBridge(Bridge):
 
 def main():
     app = QGuiApplication([])
+    configure_application(app)
     QQuickStyle.setStyle('Basic')
+    for font in (RESOURCE_ROOT/'assets').glob('*.ttf'):
+        QFontDatabase.addApplicationFont(str(font))
+    app.setFont(QFont('Be Vietnam Pro', 10))
     reports = Path(sys.argv[1] if len(sys.argv) > 1 else 'reports/application-theme')
     reports.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='bcl-theme-', ignore_cleanup_errors=True) as folder:
@@ -171,7 +177,7 @@ def main():
             bridge._powerpoint_state.update(active=True, opened=True, slide=1, total=2)
             bridge.powerpointStateChanged.emit()
             dimensions = {}
-            for pixels in (60, 80, 110, 150):
+            for pixels in (60, 65, 66, 80, 94, 95, 110, 129, 130, 150, 160):
                 bridge.saveMascotPreferences('Milo', True, pixels, 'right', False, True, True, True)
                 until(lambda: not bridge.mascotSaving)
                 bridge.showCompanion(companion)
@@ -186,6 +192,10 @@ def main():
                 middle = (first.mapToScene(QPointF()).x() + last.mapToScene(QPointF(last.width(), 0)).x())/2
                 assert abs(middle-options.mapToScene(QPointF(options.width()/2, 0)).x()) < 1
                 assert 'Bấm loa để nghe lại' not in c('companionAudioHint').property('text')
+                start = c('companionStartShow')
+                label = start.findChild(QObject, 'actionButtonLabel')
+                assert start.property('text') == 'Đang chiếu'
+                assert label.property('contentWidth') <= label.width()+1
             assert dimensions[60][0] == 280 < dimensions[80][0], dimensions
             assert dimensions[60][1] < dimensions[80][1]
             invoke(c('companionPresentationDialog'), 'open')
@@ -193,6 +203,35 @@ def main():
             assert c('companionPresentationDialog').property('visible')
             root.grabWindow().save(str(reports/'dark-file-picker.png'))
             invoke(c('companionPresentationDialog'), 'close')
+            root.setProperty('page', 'settings')
+            c('settingsPage').setProperty('activeTab', 0)
+            # Round logos lose only empty white corners; square/wide marks keep
+            # all their pixels. The saved source is never rewritten by display.
+            logo = Image.new('RGBA', (256, 256), 'white')
+            draw = ImageDraw.Draw(logo)
+            draw.ellipse((1, 1, 254, 254), outline='#1377bc', width=10)
+            draw.ellipse((70, 70, 185, 185), fill='#1377bc')
+            assets = library.directory/'assets'
+            assets.mkdir(exist_ok=True)
+            path = assets/'school-logo.png'
+            logo.save(path)
+            before = path.read_bytes()
+            bridge._logo_revision += 1
+            bridge.changed.emit()
+            until(lambda: evaluate(c('sidebarSchoolLogo'), 'Number(status)') == 1)
+            pump(160)
+            assert bridge.schoolLogoRound and c('sidebarSchoolLogo').property('roundMask')
+            sidebar = c('sidebarSchoolLogo')
+            point = sidebar.mapToScene(QPointF(1, 1))*root.devicePixelRatio()
+            assert root.grabWindow().pixelColor(round(point.x()), round(point.y())).name() != '#ffffff'
+            root.grabWindow().save(str(reports/'round-school-logo.png'))
+            assert before == path.read_bytes()
+            draw.rectangle((0, 0, 25, 25), fill='red')
+            logo.save(path)
+            bridge._logo_revision += 1
+            bridge.changed.emit()
+            pump(150)
+            assert not bridge.schoolLogoRound and not sidebar.property('roundMask')
             assert library.setting('application_theme', '') == 'dark'
             assert len(library.list_lessons(verify_audio=False)) == 1
             assert not warnings, warnings
