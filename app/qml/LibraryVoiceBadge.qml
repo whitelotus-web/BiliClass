@@ -27,7 +27,7 @@ RowLayout {
         Accessible.ignored: true
     }
     Label {
-        text: badge.text; color: badge.languages.length ? "#0869f9" : "#667997"
+        text: badge.text; color: badge.languages.length ? AppTheme.adapt("#0869f9") : AppTheme.adapt("#667997")
         font.pixelSize: 11; font.weight: badge.languages.length ? Font.DemiBold : Font.Normal
         Layout.fillWidth: true; Layout.minimumWidth: 0; elide: Text.ElideRight
         Accessible.ignored: true

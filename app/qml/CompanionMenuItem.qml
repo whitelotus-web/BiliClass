@@ -13,7 +13,7 @@ MenuItem {
     contentItem: RowLayout {
         spacing: 8
         CompanionIcon { iconName: item.iconName; Layout.preferredWidth: 18; Layout.preferredHeight: 18 }
-        Label { text: item.text; font: item.font; color: "#112650"; Layout.fillWidth: true }
+        Label { text: item.text; font: item.font; color: AppTheme.adapt("#112650"); Layout.fillWidth: true }
     }
-    background: Rectangle { radius: 6; color: item.down ? "#d8e9ff" : item.highlighted ? "#eaf2ff" : "transparent" }
+    background: Rectangle { radius: 6; color: item.down ? AppTheme.adapt("#d8e9ff") : item.highlighted ? AppTheme.adapt("#eaf2ff") : "transparent" }
 }

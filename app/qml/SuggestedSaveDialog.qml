@@ -1,6 +1,7 @@
 import QtQuick.Dialogs
 
 FileDialog {
+    options: AppTheme.dark ? FileDialog.DontUseNativeDialog : 0
     property url suggestedFile
     property var suggestionProvider: null
     fileMode: FileDialog.SaveFile

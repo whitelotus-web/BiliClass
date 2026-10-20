@@ -29,11 +29,11 @@ ColumnLayout {
         implicitWidth: 54; implicitHeight: 50
         Accessible.name: keyText + " · Đổi phím"
         background: Rectangle {
-            radius: 9; color: panel.capturing === keyCap.bindingAction ? "#eaf3ff" : keyCap.hovered ? "#f4f8ff" : "white"
-            border.color: keyCap.visualFocus || panel.capturing === keyCap.bindingAction ? "#0869f9" : "#c6d5e9"
-            Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 1; height: 4; radius: 3; color: "#e4ecf6" }
+            radius: 9; color: panel.capturing === keyCap.bindingAction ? AppTheme.adapt("#eaf3ff") : keyCap.hovered ? AppTheme.adapt("#f4f8ff") : AppTheme.surface
+            border.color: keyCap.visualFocus || panel.capturing === keyCap.bindingAction ? AppTheme.adapt("#0869f9") : AppTheme.adapt("#c6d5e9")
+            Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 1; height: 4; radius: 3; color: AppTheme.adapt("#e4ecf6") }
         }
-        contentItem: Label { text: keyCap.keyText; color: "#102e54"; font.pixelSize: text.length > 2 ? 12 : 29; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+        contentItem: Label { text: keyCap.keyText; color: AppTheme.adapt("#102e54"); font.pixelSize: text.length > 2 ? 12 : 29; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
         ToolTip.visible: hovered; ToolTip.text: "Bấm để đổi phím"; ToolTip.delay: 400
         onClicked: panel.beginCapture(bindingAction, keyCap)
         onActiveFocusChanged: if (!activeFocus && panel.capturing === bindingAction) panel.capturing = ""
@@ -66,10 +66,10 @@ ColumnLayout {
         capturing = ""; feedback = "Bấm Lưu phím để áp dụng."; invalid = false
     }
 
-    Label { text: "Phím đọc khi trình chiếu"; color: "#102e54"; font.pixelSize: 17; font.bold: true }
+    Label { text: "Phím đọc khi trình chiếu"; color: AppTheme.adapt("#102e54"); font.pixelSize: 17; font.bold: true }
     Label {
         text: "Bấm lần đầu: phát  →  Bấm lần nữa: tạm dừng  →  Bấm tiếp: đọc tiếp."
-        Layout.fillWidth: true; wrapMode: Text.WordWrap; color: "#667997"; font.pixelSize: 13
+        Layout.fillWidth: true; wrapMode: Text.WordWrap; color: AppTheme.adapt("#667997"); font.pixelSize: 13
     }
     GridLayout {
         objectName: "shortcutGuideLayout"; Layout.fillWidth: true
@@ -83,16 +83,16 @@ ColumnLayout {
             Layout.fillWidth: true; spacing: 12
             ColumnLayout {
                 Layout.fillWidth: true; spacing: 3
-                Label { text: modelData.label; color: "#102e54"; font.pixelSize: 14; font.bold: true }
-                Label { text: modelData.detail; color: "#667997"; font.pixelSize: 11 }
+                Label { text: modelData.label; color: AppTheme.adapt("#102e54"); font.pixelSize: 14; font.bold: true }
+                Label { text: modelData.detail; color: AppTheme.adapt("#667997"); font.pixelSize: 11 }
             }
             Button {
                 id: bindingButton
                 objectName: "shortcutBind" + modelData.language
                 text: panel.capturing === modelData.language ? "Nhấn phím… (Esc hủy)" : panel.draft[modelData.language].replace("Space", "Space ␣").replace("Enter", "Enter ↵").replace("+", " + ") + "   ·   Đổi phím"
                 Layout.preferredWidth: 220; implicitHeight: 46
-                background: Rectangle { radius: 8; color: panel.capturing === modelData.language ? "#eaf3ff" : bindingButton.hovered ? "#f4f8ff" : "white"; border.color: bindingButton.activeFocus || panel.capturing === modelData.language ? "#0869f9" : "#cbdcf4"; border.width: bindingButton.visualFocus ? 2 : 1 }
-                contentItem: Label { text: bindingButton.text; color: "#0869f9"; font.pixelSize: 13; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                background: Rectangle { radius: 8; color: panel.capturing === modelData.language ? AppTheme.adapt("#eaf3ff") : bindingButton.hovered ? AppTheme.adapt("#f4f8ff") : AppTheme.surface; border.color: bindingButton.activeFocus || panel.capturing === modelData.language ? AppTheme.adapt("#0869f9") : AppTheme.adapt("#cbdcf4"); border.width: bindingButton.visualFocus ? 2 : 1 }
+                contentItem: Label { text: bindingButton.text; color: AppTheme.adapt("#0869f9"); font.pixelSize: 13; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                 onClicked: { panel.capturing = modelData.language; panel.feedback = "Nhấn phím muốn gán; Esc để hủy."; panel.invalid = false; forceActiveFocus() }
                 onActiveFocusChanged: if (!activeFocus && panel.capturing === modelData.language) panel.capturing = ""
                 Keys.priority: Keys.BeforeItem
@@ -105,7 +105,7 @@ ColumnLayout {
         }
         ColumnLayout {
             objectName: "shortcutNavigationGuide"; Layout.fillWidth: true; spacing: 12
-            Label { text: "Di chuyển và âm lượng"; color: "#102e54"; font.pixelSize: 15; font.bold: true }
+            Label { text: "Di chuyển và âm lượng"; color: AppTheme.adapt("#102e54"); font.pixelSize: 15; font.bold: true }
             RowLayout {
                 Layout.fillWidth: true; spacing: 22
                 Item {
@@ -117,19 +117,19 @@ ColumnLayout {
                 }
                 ColumnLayout {
                     Layout.fillWidth: true; spacing: 9
-                    Label { text: panel.keyLabel("previous") + "  Lùi hiệu ứng / slide"; color: "#102e54"; font.pixelSize: 14; font.bold: true; Layout.fillWidth: true; wrapMode: Text.WordWrap }
-                    Label { text: panel.keyLabel("next") + "  Tiến hiệu ứng / slide"; color: "#102e54"; font.pixelSize: 14; font.bold: true; Layout.fillWidth: true; wrapMode: Text.WordWrap }
-                    Label { text: panel.keyLabel("volume_up") + "  Tăng âm lượng 5%\n" + panel.keyLabel("volume_down") + "  Giảm âm lượng 5%"; color: "#667997"; font.pixelSize: 14; lineHeight: 1.3; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                    Label { text: panel.keyLabel("previous") + "  Lùi hiệu ứng / slide"; color: AppTheme.adapt("#102e54"); font.pixelSize: 14; font.bold: true; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                    Label { text: panel.keyLabel("next") + "  Tiến hiệu ứng / slide"; color: AppTheme.adapt("#102e54"); font.pixelSize: 14; font.bold: true; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                    Label { text: panel.keyLabel("volume_up") + "  Tăng âm lượng 5%\n" + panel.keyLabel("volume_down") + "  Giảm âm lượng 5%"; color: AppTheme.adapt("#667997"); font.pixelSize: 14; lineHeight: 1.3; Layout.fillWidth: true; wrapMode: Text.WordWrap }
                 }
             }
-            Label { text: "Bấm nút để đổi phím. Hết hiệu ứng mới chuyển slide. Esc: thoát trình chiếu."; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: "#667997"; font.pixelSize: 12 }
+            Label { text: "Bấm nút để đổi phím. Hết hiệu ứng mới chuyển slide. Esc: thoát trình chiếu."; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: AppTheme.adapt("#667997"); font.pixelSize: 12 }
         }
     }
-    Label { text: "Áp dụng khi trình chiếu bài đang gắn với BiliClass. Đổi ngôn ngữ hoặc chuyển slide sẽ dừng giọng trước. Nếu chưa có giọng, tool báo nhắc và giữ slide hiện tại."; Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 12; color: "#667997" }
+    Label { text: "Áp dụng khi trình chiếu bài đang gắn với BiliClass. Đổi ngôn ngữ hoặc chuyển slide sẽ dừng giọng trước. Nếu chưa có giọng, tool báo nhắc và giữ slide hiện tại."; Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 12; color: AppTheme.adapt("#667997") }
     Label {
         objectName: "shortcutFeedback"; visible: !!text
         text: panel.feedback || panel.settings.state.message
-        color: panel.invalid || panel.settings.state.error ? "#b42d38" : "#168567"
+        color: panel.invalid || panel.settings.state.error ? AppTheme.adapt("#b42d38") : AppTheme.adapt("#168567")
         Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 12
     }
     RowLayout {

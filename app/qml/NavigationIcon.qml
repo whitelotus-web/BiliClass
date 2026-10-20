@@ -6,7 +6,8 @@ Item {
     property bool active: false
     objectName: name + "NavigationIcon"
     implicitWidth: 29; implicitHeight: 29
-    Image {
+    ThemedImage {
+        darkTint: artwork.active ? AppTheme.blue : AppTheme.muted
         anchors.fill: parent
         visible: artwork.name !== "narration"
         source: visible ? "../assets/navigation/" + artwork.name + (artwork.active ? "-active" : "") + ".png" : ""
@@ -14,6 +15,8 @@ Item {
         fillMode: Image.PreserveAspectFit
     }
     Canvas {
+        property bool applicationDark: AppTheme.dark
+        onApplicationDarkChanged: requestPaint()
         id: narrationArt
         objectName: artwork.name + "NavigationArt"
         anchors.fill: parent
@@ -34,9 +37,9 @@ Item {
             // Keep the supplied PNG unchanged; its transparent margin is only
             // cropped while drawing into the same 29 px frame as the other tabs.
             context.drawImage(imageUrl, 198, 200, 914, 914, 0, 0, width, height)
-            if (highlighted) {
+            if (highlighted || AppTheme.dark) {
                 context.globalCompositeOperation = "source-in"
-                context.fillStyle = "#0869f9"
+                context.fillStyle = highlighted ? AppTheme.blue : AppTheme.muted
                 context.fillRect(0, 0, width, height)
                 context.globalCompositeOperation = "source-over"
             }

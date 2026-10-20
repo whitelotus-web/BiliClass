@@ -23,8 +23,8 @@ def test_fitting_font_also_releases_excessive_fixed_line_spacing():
       <a:p><a:pPr><a:lnSpc><a:spcPts val="2800"/></a:lnSpc></a:pPr><a:r><a:rPr sz="2800"/><a:t>Second line</a:t></a:r></a:p>
     </p:txBody>''').encode())
     _compact_fixed_spacing(body)
-    assert body.xpath('.//a:lnSpc/a:spcPct/@val', namespaces=NS) == ['110000']
-    assert body.xpath('.//a:lnSpc/a:spcPts/@val', namespaces=NS) == ['2800']
+    assert body.xpath('.//a:lnSpc/a:spcPct/@val', namespaces=NS) == ['110000', '100000']
+    assert body.xpath('.//a:lnSpc/a:spcPts/@val', namespaces=NS) == []
     assert body.xpath('.//a:spcAft/a:spcPts/@val', namespaces=NS) == ['420']
     assert body.xpath('.//a:t/text()', namespaces=NS) == ['Original text', 'Second line']
 

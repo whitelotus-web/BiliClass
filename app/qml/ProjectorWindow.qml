@@ -5,6 +5,7 @@ import QtQuick.Window
 
 Window {
     id: projection
+    palette: AppPalette {}
     required property var bridge
     property bool rescue: false
     property bool quiz: false
@@ -17,7 +18,7 @@ Window {
     property int templatePageIndex: 0
     Connections { target: bridge; function onChanged() { projection.content = bridge.presentationContent(projection.rescue); projection.templatePages = bridge.templatePages(projection.rescue); projection.templatePageIndex = 0 } }
     onRescueChanged: { content = bridge.presentationContent(rescue); templatePages = bridge.templatePages(rescue); templatePageIndex = 0 }
-    color: "#f3f7fc"
+    color: AppTheme.adapt("#f3f7fc")
     title: "BiliClass · Màn hình lớp học"
     width: 1280; height: 720
     minimumWidth: 800; minimumHeight: 500
@@ -25,33 +26,33 @@ Window {
     Connections { target: bridge; function onSelectionChanged() { projection.rescue = false } }
     ColumnLayout {
         anchors.fill: parent; anchors.margins: 40; spacing: 22
-        RowLayout { Label { text: "BiliClass"; color: "#112650"; font.pixelSize: 25; font.bold: true } Item { Layout.fillWidth: true } Label { text: bridge.lesson.conversion_format ? bridge.conversionLabel : "L" + (bridge.lesson.level || 0); color: "#0869f9"; font.pixelSize: 20 } }
-        Label { text: bridge.lesson.title || ""; font.pixelSize: 30; font.bold: true; color: "#112650"; Layout.fillWidth: true; elide: Text.ElideRight; textFormat: Text.PlainText }
+        RowLayout { Label { text: "BiliClass"; color: AppTheme.adapt("#112650"); font.pixelSize: 25; font.bold: true } Item { Layout.fillWidth: true } Label { text: bridge.lesson.conversion_format ? bridge.conversionLabel : "L" + (bridge.lesson.level || 0); color: AppTheme.adapt("#0869f9"); font.pixelSize: 20 } }
+        Label { text: bridge.lesson.title || ""; font.pixelSize: 30; font.bold: true; color: AppTheme.adapt("#112650"); Layout.fillWidth: true; elide: Text.ElideRight; textFormat: Text.PlainText }
         RowLayout { visible: bridge.settings.show_profile; Layout.fillWidth: true; spacing: 12
             Image { objectName: "projectorSchoolLogo"; visible: !!bridge.schoolLogoUrl; source: bridge.schoolLogoUrl; cache: false; fillMode: Image.PreserveAspectFit; Layout.preferredWidth: 56; Layout.preferredHeight: 56 }
-            Label { objectName: "projectorProfile"; text: [bridge.settings.teacher, bridge.settings.school].filter(function(value) { return !!value }).join("  ·  "); font.pixelSize: 16; color: "#667997"; Layout.fillWidth: true; elide: Text.ElideRight; textFormat: Text.PlainText }
+            Label { objectName: "projectorProfile"; text: [bridge.settings.teacher, bridge.settings.school].filter(function(value) { return !!value }).join("  ·  "); font.pixelSize: 16; color: AppTheme.adapt("#667997"); Layout.fillWidth: true; elide: Text.ElideRight; textFormat: Text.PlainText }
         }
         ColumnLayout { visible: !projection.quiz; Layout.fillWidth: true; Layout.fillHeight: true; spacing: 16
-                Label { visible: !bridge.segment.approved; text: "Thầy cô đang chuẩn bị nội dung tiếp theo."; font.pixelSize: 27; color: "#667997"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                Label { visible: !bridge.segment.approved; text: "Thầy cô đang chuẩn bị nội dung tiếp theo."; font.pixelSize: 27; color: AppTheme.adapt("#667997"); wrapMode: Text.WordWrap; Layout.fillWidth: true }
                 TemplateSlide { visible: !!bridge.segment.approved; objectName: "projectorTemplateSlide"; Layout.fillWidth: true; Layout.fillHeight: true; plan: projection.templatePages[projection.templatePageIndex] || ({}) }
                 RowLayout { visible: !!bridge.segment.approved && projection.templatePages.length > 1; Layout.fillWidth: true
                     ActionButton { text: "Trang trước"; enabled: projection.templatePageIndex > 0; onClicked: projection.templatePageIndex-- }
-                    Label { text: (projection.templatePageIndex + 1) + " / " + projection.templatePages.length; color: "#667997" }
+                    Label { text: (projection.templatePageIndex + 1) + " / " + projection.templatePages.length; color: AppTheme.adapt("#667997") }
                     ActionButton { text: "Trang tiếp"; enabled: projection.templatePageIndex < projection.templatePages.length - 1; onClicked: projection.templatePageIndex++ }
                 }
-                Label { visible: !!bridge.segment.approved && projection.content.needs_keywords; text: "Chưa có từ khóa song ngữ khớp với đoạn này."; color: "#667997"; font.pixelSize: 20; Layout.fillWidth: true; wrapMode: Text.WordWrap }
-                Label { visible: !!bridge.segment.approved && !!bridge.teachingContext.response.available; text: bridge.teachingContext.response.text; font.pixelSize: 26; color: "#112650"; Layout.fillWidth: true; wrapMode: Text.WordWrap; textFormat: Text.PlainText }
+                Label { visible: !!bridge.segment.approved && projection.content.needs_keywords; text: "Chưa có từ khóa song ngữ khớp với đoạn này."; color: AppTheme.adapt("#667997"); font.pixelSize: 20; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                Label { visible: !!bridge.segment.approved && !!bridge.teachingContext.response.available; text: bridge.teachingContext.response.text; font.pixelSize: 26; color: AppTheme.adapt("#112650"); Layout.fillWidth: true; wrapMode: Text.WordWrap; textFormat: Text.PlainText }
         }
         ContentScrollView { visible: projection.quiz; Layout.fillWidth: true; Layout.fillHeight: true; contentWidth: availableWidth
             ColumnLayout { width: parent.width; spacing: 20
-                Label { text: projection.classState.title || "Chưa có lớp đang mở"; color: "#112650"; font.pixelSize: 26; Layout.fillWidth: true; wrapMode: Text.WordWrap; textFormat: Text.PlainText }
-                Label { text: projection.classState.round ? ((projection.classState.round.language === "en" ? "" : projection.classState.round.vi) + "\n" + (projection.classState.round.language === "vi" ? "" : projection.classState.round.en)) : "Quét QR để tham gia lớp"; font.pixelSize: 32; color: "#112650"; wrapMode: Text.WordWrap; Layout.fillWidth: true; textFormat: Text.PlainText }
+                Label { text: projection.classState.title || "Chưa có lớp đang mở"; color: AppTheme.adapt("#112650"); font.pixelSize: 26; Layout.fillWidth: true; wrapMode: Text.WordWrap; textFormat: Text.PlainText }
+                Label { text: projection.classState.round ? ((projection.classState.round.language === "en" ? "" : projection.classState.round.vi) + "\n" + (projection.classState.round.language === "vi" ? "" : projection.classState.round.en)) : "Quét QR để tham gia lớp"; font.pixelSize: 32; color: AppTheme.adapt("#112650"); wrapMode: Text.WordWrap; Layout.fillWidth: true; textFormat: Text.PlainText }
                 Repeater { model: (projection.classState.round || {}).options || []
-                    Label { required property var modelData; text: modelData.id + " · " + (projection.classState.round.language === "en" ? modelData.en : projection.classState.round.language === "vi" ? modelData.vi : modelData.vi + " / " + modelData.en); color: "#0869f9"; font.pixelSize: 25; wrapMode: Text.WordWrap; Layout.fillWidth: true; textFormat: Text.PlainText }
+                    Label { required property var modelData; text: modelData.id + " · " + (projection.classState.round.language === "en" ? modelData.en : projection.classState.round.language === "vi" ? modelData.vi : modelData.vi + " / " + modelData.en); color: AppTheme.adapt("#0869f9"); font.pixelSize: 25; wrapMode: Text.WordWrap; Layout.fillWidth: true; textFormat: Text.PlainText }
                 }
-                Label { visible: (projection.classState.round || {}).status === "revealed"; text: (projection.classState.round || {}).kind === "poll" ? "Khảo sát không chấm điểm" : "Đáp án: " + ((projection.classState.round || {}).correct || ""); color: "#168567"; font.pixelSize: 28; font.bold: true; Layout.fillWidth: true }
+                Label { visible: (projection.classState.round || {}).status === "revealed"; text: (projection.classState.round || {}).kind === "poll" ? "Khảo sát không chấm điểm" : "Đáp án: " + ((projection.classState.round || {}).correct || ""); color: AppTheme.adapt("#168567"); font.pixelSize: 28; font.bold: true; Layout.fillWidth: true }
                 Image { source: bridge.classroomContext.qrImage; Layout.preferredWidth: 150; Layout.preferredHeight: 150; fillMode: Image.PreserveAspectFit; smooth: false }
-                Label { text: bridge.classroomContext.joinUrl; font.pixelSize: 14; color: "#667997"; Layout.fillWidth: true; wrapMode: Text.WrapAnywhere; textFormat: Text.PlainText }
+                Label { text: bridge.classroomContext.joinUrl; font.pixelSize: 14; color: AppTheme.adapt("#667997"); Layout.fillWidth: true; wrapMode: Text.WrapAnywhere; textFormat: Text.PlainText }
             }
         }
         RowLayout { Layout.fillWidth: true

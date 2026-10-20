@@ -24,9 +24,9 @@ GridLayout {
             objectName: "creationPresetCard_" + modelData.id
             Layout.fillWidth: true; Layout.preferredWidth: 1
             implicitHeight: contents.implicitHeight + 20; radius: 10
-            color: picker.currentIndex === card.index ? "#f2f7ff" : "transparent"
+            color: picker.currentIndex === card.index ? AppTheme.adapt("#f2f7ff") : "transparent"
             border.width: 1
-            border.color: picker.currentIndex === card.index ? "#dce8f8" : "transparent"
+            border.color: picker.currentIndex === card.index ? AppTheme.adapt("#dce8f8") : "transparent"
             ColumnLayout {
                 id: contents; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 10; spacing: 6
                 Image {
@@ -42,13 +42,13 @@ GridLayout {
                     text: card.modelData.name; font.pixelSize: 13; font.bold: true
                     Layout.fillWidth: true; onClicked: picker.currentIndex = card.index
                 }
-                Label { text: card.modelData.detail; color: "#667997"; font.pixelSize: 11; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                Label { text: card.modelData.detail; color: AppTheme.adapt("#667997"); font.pixelSize: 11; Layout.fillWidth: true; wrapMode: Text.WordWrap }
                 Button {
                     objectName: "creationPresetView_" + card.modelData.id
                     text: "Xem mẫu"; implicitHeight: 31; Layout.alignment: Qt.AlignRight
                     onClicked: picker.previewRequested(card.modelData.id)
-                    contentItem: Label { text: parent.text; color: "#0869ff"; font.pixelSize: 12; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                    background: Rectangle { color: parent.hovered ? "#e7f1ff" : "white"; radius: 7; border.color: "#cbdcf4" }
+                    contentItem: Label { text: parent.text; color: AppTheme.adapt("#0869ff"); font.pixelSize: 12; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                    background: Rectangle { color: parent.hovered ? AppTheme.adapt("#e7f1ff") : AppTheme.surface; radius: 7; border.color: AppTheme.adapt("#cbdcf4") }
                 }
             }
         }

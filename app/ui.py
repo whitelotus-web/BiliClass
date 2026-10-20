@@ -78,6 +78,7 @@ class Bridge(QObject):
     workflowChanged = Signal()
     narrationAlreadyCreated = Signal('QVariantMap')
     companionAppearanceChanged = Signal()
+    applicationThemeChanged = Signal()
 
     @Property(bool, constant=True)
     def developmentMode(self):
@@ -109,6 +110,11 @@ class Bridge(QObject):
         self.changed.connect(self.powerpointStateChanged)
         self._translation_engine = translation_engine
         self.library = library
+        from .appearance import apply_color_scheme, saved_mode
+
+        self._application_theme = saved_mode(library)
+        apply_color_scheme(self._application_theme)
+        self._automatic_narration_repairs = set()
         from .storage_controls import StorageControls
 
         self.storage = StorageControls(self)
@@ -1273,6 +1279,22 @@ class Bridge(QObject):
     def createLessonNarrationWithVoice(self, mode, voice, rate):
         self._create_narration(mode, voice, rate)
 
+    @Slot()
+    def completeLegacyNarration(self):
+        from .lesson_narration import automatic_repair_choice, variant_id
+
+        if self._busy or self.narrationBusy or not self._lesson or self.powerpoint_worker is not None:
+            return
+        record = self._lesson.get('narration') or {}
+        attempt = self._lesson['id'], self._lesson['revision'], variant_id(record)
+        if attempt in self._automatic_narration_repairs or not self._available_voice(record.get('voice', '')):
+            return
+        choice = automatic_repair_choice(self._lesson)
+        if not choice:
+            return
+        self._automatic_narration_repairs.add(attempt)
+        self._create_narration(choice['mode'], choice['voice'], choice['rate'])
+
     @Slot(str, int, str, str, int, bool)
     def confirmExistingNarration(self, lesson_id, revision, mode, voice, rate, regenerate):
         request = getattr(self, '_narration_confirmation', None)
@@ -1836,6 +1858,34 @@ class Bridge(QObject):
             "show_profile": self.library.setting("show_profile", True),
             "mascot": self.library.setting("mascot", "Milo"),
         }
+
+    @Property(str, notify=applicationThemeChanged)
+    def applicationTheme(self):
+        return self._application_theme
+
+    @Slot(str)
+    def setApplicationTheme(self, mode):
+        from .appearance import MODES, apply_color_scheme
+
+        if mode not in MODES:
+            self.inform("Chọn giao diện Sáng hoặc Tối.", True, refresh=False)
+            return
+        if mode == self._application_theme:
+            return
+        try:
+            self.library.set_setting('application_theme', mode)
+        except Exception:
+            self.inform("Chưa lưu được giao diện. Vui lòng thử lại.", True, refresh=False)
+            return
+        self._application_theme = mode
+        apply_color_scheme(mode)
+        self.applicationThemeChanged.emit()
+
+    @Slot(QObject)
+    def applyWindowAppearance(self, window):
+        from .appearance import apply_window
+
+        apply_window(window, self._application_theme)
 
     @Property(str, notify=changed)
     def schoolLogoUrl(self):

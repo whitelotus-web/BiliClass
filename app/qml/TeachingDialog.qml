@@ -21,7 +21,7 @@ Dialog {
     onOpened: { clearItem(); clearQuestion() }
     contentItem: ColumnLayout {
         spacing: 12
-        Label { text: "Nội dung gắn với: " + (bridge.segment.locator || ""); color: "#112650"; font.bold: true; Layout.fillWidth: true; elide: Text.ElideRight }
+        Label { text: "Nội dung gắn với: " + (bridge.segment.locator || ""); color: AppTheme.adapt("#112650"); font.bold: true; Layout.fillWidth: true; elide: Text.ElideRight }
         TabBar { id: tabs; objectName: "teachingTabs"; Layout.fillWidth: true; TabButton { text: "Trợ giảng" } TabButton { text: "Câu hỏi kiểm tra" } }
         StackLayout {
             currentIndex: tabs.currentIndex; Layout.fillWidth: true; Layout.fillHeight: true
@@ -29,15 +29,15 @@ Dialog {
                 spacing: 16
                 ListView { Layout.preferredWidth: 235; Layout.fillHeight: true; clip: true; spacing: 8; model: teaching.items
                     delegate: ItemDelegate { required property var modelData; width: ListView.view.width; height: 74
-                        contentItem: Label { text: (modelData.approved ? "Đã duyệt · " : "Nháp · ") + modelData.kind + "\n" + (modelData.vi || modelData.en); elide: Text.ElideRight; maximumLineCount: 3; wrapMode: Text.WordWrap; color: "#112650"; textFormat: Text.PlainText }
+                        contentItem: Label { text: (modelData.approved ? "Đã duyệt · " : "Nháp · ") + modelData.kind + "\n" + (modelData.vi || modelData.en); elide: Text.ElideRight; maximumLineCount: 3; wrapMode: Text.WordWrap; color: AppTheme.adapt("#112650"); textFormat: Text.PlainText }
                         onClicked: { panel.itemId = modelData.id; kind.currentIndex = panel.kinds.indexOf(modelData.kind); itemVi.text = modelData.vi; itemEn.text = modelData.en; itemReview.checked = modelData.approved }
                     }
                 }
                 ColumnLayout { Layout.fillWidth: true; Layout.fillHeight: true; spacing: 10
                     SelectBox { id: kind; Layout.fillWidth: true; model: ["Giải thích", "English đơn giản", "Ví dụ", "Câu điều hành lớp", "Câu hỏi thảo luận", "Hỗ trợ tiếng Việt", "Từ vựng"] }
-                    Label { text: "Tiếng Việt"; color: "#112650" }
+                    Label { text: "Tiếng Việt"; color: AppTheme.adapt("#112650") }
                     ContentScrollView { Layout.fillWidth: true; Layout.fillHeight: true;  TextArea { id: itemVi; objectName: "supportVi"; wrapMode: TextEdit.Wrap; selectByMouse: true; placeholderText: "Nội dung theo bài đang dạy…" } }
-                    Label { text: "English"; color: "#0869f9" }
+                    Label { text: "English"; color: AppTheme.adapt("#0869f9") }
                     ContentScrollView { Layout.fillWidth: true; Layout.fillHeight: true;  TextArea { id: itemEn; objectName: "supportEn"; wrapMode: TextEdit.Wrap; selectByMouse: true; placeholderText: "Prepared English explanation, example or prompt…" } }
                     CheckBox { id: itemReview; objectName: "supportReview"; text: "Đã kiểm tra và duyệt mục này" }
                     RowLayout {
@@ -52,7 +52,7 @@ Dialog {
                 spacing: 16
                 ListView { Layout.preferredWidth: 235; Layout.fillHeight: true; clip: true; spacing: 8; model: teaching.questions
                     delegate: ItemDelegate { required property var modelData; width: ListView.view.width; height: 80
-                        contentItem: Label { text: (modelData.approved ? "Đã duyệt · " : "Nháp · ") + modelData.concept_label + "\n" + modelData.vi; maximumLineCount: 3; elide: Text.ElideRight; wrapMode: Text.WordWrap; color: "#112650"; textFormat: Text.PlainText }
+                        contentItem: Label { text: (modelData.approved ? "Đã duyệt · " : "Nháp · ") + modelData.concept_label + "\n" + modelData.vi; maximumLineCount: 3; elide: Text.ElideRight; wrapMode: Text.WordWrap; color: AppTheme.adapt("#112650"); textFormat: Text.PlainText }
                         onClicked: { panel.questionId = modelData.id; qKind.currentIndex = ["single", "true_false", "poll"].indexOf(modelData.kind); qVi.text = modelData.vi; qEn.text = modelData.en; options.text = modelData.options.map(o => o.vi + " | " + o.en + (o.misconception ? " | " + o.misconception : "")).join("\n"); correct.currentIndex = modelData.correct ? modelData.correct.charCodeAt(0) - 65 : 0; rationale.text = modelData.rationale_vi; qReview.checked = modelData.approved; conceptLabel.text = modelData.concept_label; pairGroup.text = modelData.comparison_group || ""; rationaleEn.text = modelData.rationale_en || "" }
                     }
                 }
@@ -78,6 +78,6 @@ Dialog {
                 }
             }
         }
-        Label { text: bridge.message; color: bridge.error ? "#b14828" : "#667997"; wrapMode: Text.WordWrap; Layout.fillWidth: true; font.pixelSize: 11; textFormat: Text.PlainText }
+        Label { text: bridge.message; color: bridge.error ? AppTheme.adapt("#b14828") : AppTheme.adapt("#667997"); wrapMode: Text.WordWrap; Layout.fillWidth: true; font.pixelSize: 11; textFormat: Text.PlainText }
     }
 }

@@ -54,3 +54,14 @@ def test_approved_text_and_current_preparation_have_different_states():
     assert summarize(item)['kind'] == 'ready'
     item['revision'] = 2
     assert summarize(item)['kind'] == 'reviewed'
+
+
+def test_blank_external_slide_does_not_mean_missing_translation():
+    item = lesson()
+    item['external_deck'] = {'total': 2}
+    item['segments'].append({'vi': '', 'en': '', 'approved': False})
+    assert summarize(item)['missing'] == 0
+    assert summarize(item)['label'] == 'Sẵn sàng trình chiếu'
+    item['segments'][0]['en'] = ''
+    assert summarize(item)['missing'] == 1
+    assert summarize(item)['kind'] == 'incomplete'

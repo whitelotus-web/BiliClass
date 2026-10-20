@@ -75,6 +75,7 @@ def test_selected_languages_only_and_metadata_does_not_approve_or_change_pptx(sa
     status = audio_status(changed, library.directory, VOICES)
     assert status["ready"] and set(status["languages"]) == languages
     assert library.list_lessons()[0]["narration"]["mode"] == mode
+    assert len(library.list_lessons()) == 1
     assert path.read_bytes() == original
 
 

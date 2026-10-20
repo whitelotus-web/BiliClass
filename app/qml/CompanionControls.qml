@@ -6,7 +6,7 @@ ColumnLayout {
     id: controls
     required property var bridge
     required property var companion
-    spacing: 8
+    spacing: companion.compactPanel ? 5 : 8
 
     component PanelAction: ActionButton {
         id: panelAction
@@ -30,12 +30,12 @@ ColumnLayout {
         contentItem: Item {
             CompanionIcon { anchors.centerIn: parent; width: 21; height: 21; iconName: tool.iconName }
         }
-        background: Rectangle { radius: 7; color: tool.down ? "#d8e9ff" : tool.pointerHovered ? "#eaf2ff" : "transparent"; border.color: tool.visualFocus ? "#0869ff" : "transparent" }
+        background: Rectangle { radius: 7; color: tool.down ? AppTheme.adapt("#d8e9ff") : tool.pointerHovered ? AppTheme.adapt("#eaf2ff") : "transparent"; border.color: tool.visualFocus ? AppTheme.adapt("#0869ff") : "transparent" }
     }
 
     RowLayout {
         Layout.fillWidth: true; spacing: 7
-        Label { text: "Trợ giảng"; color: "#112650"; font.pixelSize: 15; font.weight: Font.DemiBold; Layout.fillWidth: true }
+        Label { text: "Trợ giảng"; color: AppTheme.adapt("#112650"); font.pixelSize: companion.compactPanel ? 13 : 15; font.weight: Font.DemiBold; Layout.fillWidth: true }
         HeaderAction { objectName: "collapseCompanionPanel"; iconName: "collapse"; hint: "Thu bảng về Mascot"; onClicked: companion.collapsed = true }
         HeaderAction {
             id: shortcutHelp; objectName: "companionShortcutGuideToggle"; iconName: "keyboard-help"; hint: "Rê chuột để xem hướng dẫn phím"; standardHint: false
@@ -45,7 +45,7 @@ ColumnLayout {
                 width: Math.min(370, controls.companion.width - 20)
                 x: -width + shortcutHelp.width; y: shortcutHelp.height + 6
                 padding: 12
-                background: Rectangle { color: "#ffffff"; border.color: "#cbdcf4"; radius: 10 }
+                background: Rectangle { color: AppTheme.adapt("#ffffff"); border.color: AppTheme.adapt("#cbdcf4"); radius: 10 }
                 contentItem: ShortcutGuide { settings: controls.bridge.mascotShortcuts }
             }
         }
@@ -55,12 +55,12 @@ ColumnLayout {
     Label {
         objectName: "companionBoundLesson"
         text: companion.session.bound ? companion.session.title : bridge.companionCanRead ? bridge.lesson.title : "Chưa gắn với bài giảng"
-        color: companion.session.bound ? "#112650" : "#667997"; font.pixelSize: companion.controlFont
+        color: companion.session.bound ? AppTheme.adapt("#112650") : AppTheme.adapt("#667997"); font.pixelSize: companion.controlFont
         font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight; textFormat: Text.PlainText
         ToolTip.visible: lessonHover.hovered; ToolTip.text: text
         HoverHandler { id: lessonHover }
     }
-    Label { visible: !!companion.session.bound; text: bridge.mascotSubject; color: "#667997"; font.pixelSize: 11; Layout.fillWidth: true; elide: Text.ElideRight }
+    Label { visible: !!companion.session.bound; text: bridge.mascotSubject; color: AppTheme.adapt("#667997"); font.pixelSize: 11; Layout.fillWidth: true; elide: Text.ElideRight }
     PanelAction { objectName: "companionChooseLesson"; text: companion.choosingLesson ? "Thu chọn bài" : companion.session.bound ? "Đổi bài giảng" : "Chọn bài giảng"; primary: !companion.session.bound; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: companion.choosingLesson = !companion.choosingLesson }
     ColumnLayout {
         visible: companion.choosingLesson; Layout.fillWidth: true; spacing: 6
@@ -70,21 +70,20 @@ ColumnLayout {
             PanelAction { objectName: "companionSelectFile"; text: "Chọn file…"; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: companion.choosePresentation() }
         }
     }
-    Label { visible: !companion.session.bound && !bridge.companionCanRead; text: "Chọn bài trong thư viện hoặc file PowerPoint để Mascot điều khiển."; color: "#667997"; wrapMode: Text.WordWrap; Layout.fillWidth: true; font.pixelSize: 12 }
+    Label { visible: !companion.session.bound && !bridge.companionCanRead; text: "Chọn bài trong thư viện hoặc file PowerPoint để Mascot điều khiển."; color: AppTheme.adapt("#667997"); wrapMode: Text.WordWrap; Layout.fillWidth: true; font.pixelSize: 12 }
     RowLayout {
         visible: !!bridge.powerpointState.opened; Layout.fillWidth: true; spacing: 6
         PanelAction { objectName: "companionStartShow"; text: bridge.powerpointState.active ? "Đang trình chiếu" : "Trình chiếu · F5"; primary: !bridge.powerpointState.active; iconName: "presentation"; enabled: !bridge.powerpointState.active; onClicked: bridge.startTeachingShow() }
         PanelAction { objectName: "companionEndShow"; text: "Kết thúc"; danger: true; visible: !!bridge.powerpointState.active && !!companion.session.bound; onClicked: bridge.navigatePowerPoint("end_show") }
     }
     Label {
-        objectName: "companionAudioHint"; visible: !!companion.session.bound
+        objectName: "companionAudioHint"; visible: !!companion.session.bound && text.length > 0
         Layout.minimumHeight: 16; Layout.preferredHeight: 16; Layout.maximumHeight: 16
         text: !bridge.companionCanRead ? "Bấm Trình chiếu để đọc giọng đã tạo."
-            : companion.reader.message && companion.reader.state !== "stopped" ? companion.reader.message
+            : companion.reader.state === "error" ? companion.reader.message || ""
             : companion.audioCount === 0 ? "Phần đang hiện chưa có giọng đọc."
-            : companion.session.auto_completed ? "Bấm loa để nghe lại phần đang hiện."
             : ""
-        color: companion.reader.state === "error" ? "#b14828" : "#667997"; font.pixelSize: 11
+        color: companion.reader.state === "error" ? AppTheme.adapt("#b14828") : AppTheme.adapt("#667997"); font.pixelSize: 11
         elide: Text.ElideRight; Layout.fillWidth: true
         ToolTip.visible: statusHover.hovered && truncated; ToolTip.text: text
         HoverHandler { id: statusHover }
@@ -107,31 +106,33 @@ ColumnLayout {
             Accessible.name: "Cách đọc: " + text
             ToolTip.visible: pointerHovered; ToolTip.text: hint; ToolTip.delay: 500
             indicator: Rectangle {
-                x: choice.leftPadding; y: (choice.height - height) / 2
+                x: Math.max(choice.leftPadding, (choice.width - scopeLabel.implicitWidth) / 2); y: (choice.height - height) / 2
                 width: 14; height: 14; radius: 3
-                color: choice.checked ? "#0869ff" : "#ffffff"
-                border.color: choice.checked || choice.visualFocus ? "#0869ff" : "#b0c4e0"
-                Label { anchors.centerIn: parent; text: "✓"; color: "#ffffff"; font.pixelSize: 11; visible: choice.checked }
+                color: choice.checked ? AppTheme.accent : AppTheme.field
+                border.color: choice.checked || choice.visualFocus ? AppTheme.adapt("#0869ff") : AppTheme.adapt("#b0c4e0")
+                Label { anchors.centerIn: parent; text: "✓"; color: AppTheme.accentText; font.pixelSize: 11; visible: choice.checked }
             }
             contentItem: Label {
+                id: scopeLabel
                 text: choice.text; leftPadding: choice.indicator.width + choice.spacing
-                color: choice.checked ? "#075acb" : "#486385"
+                color: choice.checked ? AppTheme.adapt("#075acb") : AppTheme.adapt("#486385")
                 font.pixelSize: controls.bridge.companionPanelSize === "small" ? 10 : 11
                 verticalAlignment: Text.AlignVCenter
+                horizontalAlignment: Text.AlignHCenter
             }
             background: Rectangle {
-                radius: 5; color: choice.checked ? "#eaf2ff" : choice.pointerHovered ? "#f0f5fc" : "transparent"
-                border.color: choice.visualFocus ? "#0869ff" : "transparent"
+                radius: 5; color: choice.checked ? AppTheme.adapt("#eaf2ff") : choice.pointerHovered ? AppTheme.adapt("#f0f5fc") : "transparent"
+                border.color: choice.visualFocus ? AppTheme.adapt("#0869ff") : "transparent"
             }
         }
         ScopeChoice { objectName: "companionReadingAuto"; mode: "auto"; text: "Tự động"; hint: "Theo hiệu ứng slide; ưu tiên phần mới hiện. Bấm loa để đọc." }
         ScopeChoice { objectName: "companionReadingVisible"; mode: "visible"; text: "Đang hiện"; hint: "Đọc nội dung hiện trên màn chiếu." }
         ScopeChoice { objectName: "companionReadingFull"; mode: "full_slide"; text: "Toàn slide"; hint: "Đọc toàn bộ lời của slide, kể cả phần chưa hiện." }
     }
-    Rectangle { visible: bridge.experimentalTeaching && (!!companion.session.bound || bridge.companionCanRead); Layout.fillWidth: true; implicitHeight: 1; color: "#e0e8f4" }
+    Rectangle { visible: bridge.experimentalTeaching && (!!companion.session.bound || bridge.companionCanRead); Layout.fillWidth: true; implicitHeight: 1; color: AppTheme.adapt("#e0e8f4") }
     RowLayout {
         visible: bridge.experimentalTeaching && (!!companion.session.bound || bridge.companionCanRead); Layout.fillWidth: true
-        Label { text: "Trợ giảng"; color: "#112650"; font.pixelSize: companion.controlFont; font.weight: Font.DemiBold; Layout.fillWidth: true }
+        Label { text: "Trợ giảng"; color: AppTheme.adapt("#112650"); font.pixelSize: companion.controlFont; font.weight: Font.DemiBold; Layout.fillWidth: true }
         ToolButton { objectName: "companionAssistantToggle"; text: companion.showAssistant ? "Thu gọn" : "Mở công cụ"; font.pixelSize: 11; implicitHeight: 26; onClicked: companion.showAssistant = !companion.showAssistant }
     }
     GridLayout {
@@ -145,12 +146,12 @@ ColumnLayout {
     ContentScrollView {
         objectName: "companionResponseScroll"
         visible: bridge.experimentalTeaching && companion.hasResponse; Layout.fillWidth: true; Layout.preferredHeight: 150
-        TextArea { objectName: "companionResponseText"; text: companion.response.text || ""; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; font.pixelSize: companion.controlFont; color: "#112650"; background: null; textFormat: TextEdit.PlainText }
+        TextArea { objectName: "companionResponseText"; text: companion.response.text || ""; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; font.pixelSize: companion.controlFont; color: AppTheme.adapt("#112650"); background: null; textFormat: TextEdit.PlainText }
     }
-    Label { visible: !!companion.session.warning; text: companion.session.warning || ""; color: "#a66318"; wrapMode: Text.WordWrap; Layout.fillWidth: true; font.pixelSize: 11 }
+    Label { visible: !!companion.session.warning; text: companion.session.warning || ""; color: AppTheme.adapt("#a66318"); wrapMode: Text.WordWrap; Layout.fillWidth: true; font.pixelSize: 11 }
     RowLayout {
         visible: companion.session.bound && !!companion.session.active; Layout.fillWidth: true; spacing: 6
-        Label { text: "Âm lượng"; font.pixelSize: 12; color: "#667997" }
+        Label { text: "Âm lượng"; font.pixelSize: 12; color: AppTheme.adapt("#667997") }
         Slider {
             id: volumeSlider; objectName: "companionVolume"
             from: 0; to: 100; stepSize: 5; Layout.fillWidth: true
@@ -171,7 +172,7 @@ ColumnLayout {
                 }
             }
         }
-        Label { text: (companion.reader.volume === undefined ? 80 : companion.reader.volume) + "%"; font.pixelSize: 12; color: "#102e54" }
+        Label { text: (companion.reader.volume === undefined ? 80 : companion.reader.volume) + "%"; font.pixelSize: 12; color: AppTheme.adapt("#102e54") }
     }
     GridLayout {
         objectName: "companionAudioControls"; visible: !!companion.session.bound || bridge.companionCanRead
@@ -182,7 +183,7 @@ ColumnLayout {
     RowLayout {
         visible: !!companion.session.bound || bridge.companionCanRead; Layout.fillWidth: true; spacing: 8
         PanelAction { objectName: "companionPrevious"; text: "Trước"; iconName: "previous"; enabled: bridge.companionCanRead; onClicked: bridge.navigatePowerPoint("previous") }
-        Label { objectName: "companionSlidePosition"; text: bridge.powerpointState.active ? "Slide " + bridge.powerpointState.slide + " / " + bridge.powerpointState.total : "Sẵn sàng"; color: "#486385"; font.pixelSize: companion.controlFont; horizontalAlignment: Text.AlignHCenter; Layout.preferredWidth: 94 }
+        Label { objectName: "companionSlidePosition"; text: bridge.powerpointState.active ? "Slide " + bridge.powerpointState.slide + " / " + bridge.powerpointState.total : "Sẵn sàng"; color: AppTheme.adapt("#486385"); font.pixelSize: companion.controlFont; horizontalAlignment: Text.AlignHCenter; Layout.preferredWidth: 94 }
         PanelAction { objectName: "companionNext"; text: "Sau"; iconName: "next"; enabled: bridge.companionCanRead; onClicked: bridge.navigatePowerPoint("next") }
     }
 }

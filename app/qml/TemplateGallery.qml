@@ -44,11 +44,11 @@ Dialog {
         Label {
             Layout.fillWidth: true
             text: (gallery.bridge.templatePresets[["standard", "visual", "practice"].indexOf(gallery.preset)] || {}).description || ""
-            color: "#667997"; wrapMode: Text.WordWrap; font.pixelSize: 14
+            color: AppTheme.adapt("#667997"); wrapMode: Text.WordWrap; font.pixelSize: 14
         }
         RowLayout {
             Layout.fillWidth: true
-            Label { text: "Kiểu đã chọn: " + gallery.modeNames[gallery.conversionFormat]; color: "#112650"; font.bold: true; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+            Label { text: "Kiểu đã chọn: " + gallery.modeNames[gallery.conversionFormat]; color: AppTheme.adapt("#112650"); font.bold: true; Layout.fillWidth: true; wrapMode: Text.WordWrap }
             ActionButton { text: "Dùng mẫu này"; primary: true; onClicked: { gallery.applyPreset(gallery.preset); gallery.close() } }
         }
         RowLayout {
@@ -61,7 +61,7 @@ Dialog {
                     objectName: "templateThumbnail_" + modelData.id
                     Layout.fillWidth: true; Layout.preferredHeight: 115
                     onClicked: gallery.selectedRole = modelData.id
-                    background: Rectangle { color: gallery.selectedRole === thumbnail.modelData.id ? "#f2f7ff" : "white"; radius: 6; border.width: 1; border.color: gallery.selectedRole === thumbnail.modelData.id ? "#dce8f8" : "#e0e8f3" }
+                    background: Rectangle { color: gallery.selectedRole === thumbnail.modelData.id ? AppTheme.adapt("#f2f7ff") : AppTheme.surface; radius: 6; border.width: 1; border.color: gallery.selectedRole === thumbnail.modelData.id ? AppTheme.adapt("#dce8f8") : AppTheme.adapt("#e0e8f3") }
                     contentItem: ColumnLayout {
                         spacing: 3
                         Image {
@@ -69,7 +69,7 @@ Dialog {
                             source: gallery.bridge.templatePreviewImage(gallery.preset, thumbnail.modelData.id, gallery.conversionFormat)
                             fillMode: Image.PreserveAspectFit; asynchronous: false; mipmap: true
                         }
-                        Label { text: thumbnail.modelData.label; font.pixelSize: 12; color: "#112650"; Layout.alignment: Qt.AlignHCenter }
+                        Label { text: thumbnail.modelData.label; font.pixelSize: 12; color: AppTheme.adapt("#112650"); Layout.alignment: Qt.AlignHCenter }
                     }
                 }
             }
@@ -81,7 +81,7 @@ Dialog {
             fillMode: Image.PreserveAspectFit; asynchronous: false; mipmap: true
         }
         Label {
-            Layout.fillWidth: true; wrapMode: Text.WordWrap; color: "#667997"; font.pixelSize: 12
+            Layout.fillWidth: true; wrapMode: Text.WordWrap; color: AppTheme.adapt("#667997"); font.pixelSize: 12
             text: gallery.selectedRole === "language"
                 ? "Ví dụ thể hiện đúng kiểu song ngữ đã chọn. Nội dung minh họa không được gửi cho ChatGPT."
                 : "Ảnh minh họa vai trò và phong cách slide. Khi chuyển đổi, ngôn ngữ luôn theo kiểu đã chọn; nội dung và hình lấy từ tài liệu thầy cô."
@@ -90,7 +90,7 @@ Dialog {
             Layout.fillWidth: true
             Label {
                 text: "Dùng cho lớp 1–12 và mọi môn. BiliClass gửi mẫu trống; ChatGPT điều chỉnh chữ, hình và cách diễn đạt theo môn/khối."
-                Layout.fillWidth: true; wrapMode: Text.WordWrap; color: "#667997"; font.pixelSize: 12
+                Layout.fillWidth: true; wrapMode: Text.WordWrap; color: AppTheme.adapt("#667997"); font.pixelSize: 12
             }
             ActionButton { text: "Mở PowerPoint mẫu trống"; onClicked: gallery.bridge.openTemplateSample(gallery.preset) }
         }

@@ -28,18 +28,18 @@ ContentScrollView {
     Timer { interval: 250; repeat: true; running: page.visible && page.active && page.round.status === "open"; onTriggered: page.now = Date.now() }
     onVisibleChanged: if (visible) { classroom.refreshInterfaces(); if (bridge.lesson.id) bridge.refreshReadiness() }
     contentWidth: availableWidth
-    component Copy: Label { color: "#687b94"; font.pixelSize: 12; wrapMode: Text.WordWrap; textFormat: Text.PlainText; Layout.fillWidth: true }
-    component Title: Label { color: "#152d4d"; font.pixelSize: 17; font.weight: Font.DemiBold; wrapMode: Text.WordWrap; Layout.fillWidth: true }
-    component Panel: Frame { padding: 18; background: Rectangle { color: "white"; radius: 12; border.color: "#dce5f0" } }
+    component Copy: Label { color: AppTheme.adapt("#687b94"); font.pixelSize: 12; wrapMode: Text.WordWrap; textFormat: Text.PlainText; Layout.fillWidth: true }
+    component Title: Label { color: AppTheme.adapt("#152d4d"); font.pixelSize: 17; font.weight: Font.DemiBold; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+    component Panel: Frame { padding: 18; background: Rectangle { color: AppTheme.surface; radius: 12; border.color: AppTheme.adapt("#dce5f0") } }
     ColumnLayout { width: page.availableWidth; spacing: 18
         RowLayout { Layout.fillWidth: true
             ColumnLayout { Layout.fillWidth: true; spacing: 6
-                Label { text: "Lớp học"; color: "#152d4d"; font.pixelSize: 28; font.bold: true }
+                Label { text: "Lớp học"; color: AppTheme.adapt("#152d4d"); font.pixelSize: 28; font.bold: true }
                 Copy { text: "Hỏi đáp trực tiếp qua điện thoại học sinh. Không cần mở lớp nếu chỉ trình chiếu và đọc bài." }
             }
             ActionButton { objectName: "classroomReportsButton"; text: "Kết quả lớp học"; iconName: "view"; onClicked: page.requestReports() }
         }
-        Copy { objectName: "classroomMessage"; text: classroom.message; color: "#41648c" }
+        Copy { objectName: "classroomMessage"; text: classroom.message; color: AppTheme.adapt("#41648c") }
         GridLayout { visible: !classroom.running; Layout.fillWidth: true; columns: width > 940 ? 2 : 1; columnSpacing: 16; rowSpacing: 14
             Panel { Layout.fillWidth: true; Layout.alignment: Qt.AlignTop; Layout.preferredWidth: 1
                 ColumnLayout { width: parent.width; spacing: 13
@@ -49,7 +49,7 @@ ContentScrollView {
                         ActionButton { objectName: "classroomSelectLesson"; text: "Dùng bài này"; enabled: !classroom.busy && !bridge.narrationBusy && lessonPicker.currentIndex >= 0; onClicked: bridge.selectLessonForClass(bridge.lessons[lessonPicker.currentIndex].id) }
                     }
                     Title { objectName: "classroomSelectedTitle"; text: bridge.lesson.title || "Chưa chọn bài giảng"; font.pixelSize: 15 }
-                    Copy { text: !bridge.lesson.id ? "Chọn bài đã có trong thư viện để bắt đầu." : bridge.readiness.prepared_ready ? "✓ Bản bài hiện tại đã duyệt và chốt." : "Cần duyệt nội dung và chốt bản chuẩn bị trước khi mở lớp."; color: bridge.readiness.prepared_ready ? "#168567" : "#9e6423" }
+                    Copy { text: !bridge.lesson.id ? "Chọn bài đã có trong thư viện để bắt đầu." : bridge.readiness.prepared_ready ? "✓ Bản bài hiện tại đã duyệt và chốt." : "Cần duyệt nội dung và chốt bản chuẩn bị trước khi mở lớp."; color: bridge.readiness.prepared_ready ? AppTheme.adapt("#168567") : AppTheme.adapt("#9e6423") }
                     Copy { text: page.approvedQuestions + " câu hỏi đã duyệt" + (page.approvedQuestions ? " · Chỉ các câu này được gửi cho học sinh." : " · Thêm câu hỏi để học sinh có nội dung trả lời.") }
                     Flow { Layout.fillWidth: true; spacing: 8
                         ActionButton { objectName: "classroomPrepareButton"; text: "Kiểm tra và chốt bài"; enabled: !!bridge.lesson.id && !classroom.busy; onClicked: page.requestPreparation() }
@@ -65,14 +65,14 @@ ContentScrollView {
                     TextField { id: title; objectName: "classTitle"; placeholderText: "Tên lớp / tiết, ví dụ: Vật lý 11A · Dao động"; maximumLength: 150; Layout.fillWidth: true; selectByMouse: true }
                     RowLayout { Layout.fillWidth: true
                         SelectBox { id: mode; objectName: "classMode"; model: ["Ẩn danh", "Số chỗ ngồi"]; currentIndex: bridge.classroomSettings.mode === "seat" ? 1 : 0; Layout.fillWidth: true }
-                        Label { text: "Tối đa"; color: "#687b94" }
+                        Label { text: "Tối đa"; color: AppTheme.adapt("#687b94") }
                         SpinBox { id: size; objectName: "classSize"; from: 1; to: 200; value: bridge.classroomSettings.capacity; editable: true }
                     }
                     Copy { text: mode.currentIndex ? "Mỗi học sinh chọn số chỗ riêng, không cần tài khoản." : "Không thu tên học sinh; kết quả dùng mã người tham gia." }
                     SelectBox { id: host; objectName: "classroomNetwork"; model: classroom.interfaces; textRole: "name"; enabled: !classroom.scanningInterfaces; Layout.fillWidth: true }
-                    Copy { text: classroom.interfaces[host.currentIndex] && classroom.interfaces[host.currentIndex].host === "127.0.0.1" ? "Chỉ thử trên máy này. Chọn Wi-Fi/Ethernet để điện thoại vào lớp." : "Máy giáo viên và điện thoại học sinh cần cùng mạng Wi-Fi/LAN."; color: classroom.interfaces[host.currentIndex] && classroom.interfaces[host.currentIndex].host === "127.0.0.1" ? "#9e6423" : "#687b94" }
+                    Copy { text: classroom.interfaces[host.currentIndex] && classroom.interfaces[host.currentIndex].host === "127.0.0.1" ? "Chỉ thử trên máy này. Chọn Wi-Fi/Ethernet để điện thoại vào lớp." : "Máy giáo viên và điện thoại học sinh cần cùng mạng Wi-Fi/LAN."; color: classroom.interfaces[host.currentIndex] && classroom.interfaces[host.currentIndex].host === "127.0.0.1" ? AppTheme.adapt("#9e6423") : AppTheme.adapt("#687b94") }
                     ActionButton { text: classroom.scanningInterfaces ? "Đang tìm mạng…" : "Làm mới mạng"; enabled: !classroom.scanningInterfaces; onClicked: classroom.refreshInterfaces() }
-                    Copy { objectName: "classroomStartHelp"; visible: !bridge.lesson.id || !bridge.readiness.prepared_ready || !title.text.trim(); text: !bridge.lesson.id ? "Chọn bài ở bước 1." : !bridge.readiness.prepared_ready ? "Bấm Kiểm tra và chốt bài ở bước 1." : "Điền tên lớp / tiết để mở QR."; color: "#9e6423" }
+                    Copy { objectName: "classroomStartHelp"; visible: !bridge.lesson.id || !bridge.readiness.prepared_ready || !title.text.trim(); text: !bridge.lesson.id ? "Chọn bài ở bước 1." : !bridge.readiness.prepared_ready ? "Bấm Kiểm tra và chốt bài ở bước 1." : "Điền tên lớp / tiết để mở QR."; color: AppTheme.adapt("#9e6423") }
                     ActionButton { objectName: "startClassButton"; text: classroom.busy ? "Đang mở lớp…" : "Mở lớp · Hiện QR"; primary: true; Layout.fillWidth: true; enabled: !classroom.busy && !bridge.narrationBusy && !classroom.scanningInterfaces && host.currentIndex >= 0 && !!bridge.lesson.id && !!bridge.readiness.prepared_ready && !!title.text.trim(); onClicked: classroom.start(title.text, mode.currentIndex ? "seat" : "anonymous", size.value, classroom.interfaces[host.currentIndex].host, "") }
                 }
             }
@@ -82,7 +82,7 @@ ContentScrollView {
                 Image { source: classroom.qrImage; Layout.preferredWidth: 156; Layout.preferredHeight: 156; fillMode: Image.PreserveAspectFit; smooth: false; Accessible.name: "QR tham gia lớp" }
                 ColumnLayout { Layout.fillWidth: true; spacing: 9
                     Title { text: classroom.state.title || ""; font.pixelSize: 22 }
-                    Title { text: (classroom.state.joined || 0) + " / " + (classroom.state.capacity || 0) + " đã tham gia"; color: "#0869f9" }
+                    Title { text: (classroom.state.joined || 0) + " / " + (classroom.state.capacity || 0) + " đã tham gia"; color: AppTheme.adapt("#0869f9") }
                     Copy { text: classroom.state.status === "ended" ? "Tiết đã kết thúc. Mở Kết quả lớp học để xem và tải dữ liệu." : "Quét QR bằng điện thoại cùng mạng. Chọn Thử trên máy để kiểm tra trước." }
                     TextField { text: classroom.joinUrl; readOnly: true; selectByMouse: true; Layout.fillWidth: true; font.pixelSize: 11 }
                     Flow { Layout.fillWidth: true; spacing: 8
@@ -97,7 +97,7 @@ ContentScrollView {
             ColumnLayout { width: parent.width; spacing: 13
                 RowLayout { Layout.fillWidth: true
                     Title { text: "03  Điều khiển câu hỏi" }
-                    Label { objectName: "classroomCountdown"; visible: page.round.status === "open"; text: Math.max(0, Math.ceil((page.round.deadline * 1000 - page.now - page.clockOffset) / 1000)) + " giây"; font.pixelSize: 22; font.bold: true; color: "#0869f9" }
+                    Label { objectName: "classroomCountdown"; visible: page.round.status === "open"; text: Math.max(0, Math.ceil((page.round.deadline * 1000 - page.now - page.clockOffset) / 1000)) + " giây"; font.pixelSize: 22; font.bold: true; color: AppTheme.adapt("#0869f9") }
                 }
                 Copy { visible: !(classroom.state.questions || []).length; text: "Tiết này chưa có câu hỏi đã duyệt. Có thể kết thúc, soạn câu hỏi rồi mở tiết mới. Bản câu hỏi trong tiết đang mở được giữ cố định." }
                 RowLayout { Layout.fillWidth: true
@@ -106,7 +106,7 @@ ContentScrollView {
                         onModelChanged: Qt.callLater(function() { const found = (question.model || []).findIndex(function(q) { return q.id === page.selectedQuestion }); question.currentIndex = Math.max(0, found) })
                     }
                     SpinBox { id: duration; objectName: "classroomDuration"; from: 5; to: 3600; value: bridge.classroomSettings.duration; editable: true }
-                    Label { text: "giây"; color: "#687b94" }
+                    Label { text: "giây"; color: AppTheme.adapt("#687b94") }
                     SelectBox { id: language; objectName: "classroomLanguage"; model: ["Việt–Anh", "Tiếng Việt", "English"]; currentIndex: ["both", "vi", "en"].indexOf(bridge.classroomSettings.language); Layout.preferredWidth: 122 }
                 }
                 Flow { Layout.fillWidth: true; spacing: 8
@@ -118,12 +118,12 @@ ContentScrollView {
                 Copy { text: !page.round.id ? "Chọn câu và bấm Mở câu hỏi. Học sinh trả lời trên điện thoại." : page.round.status === "open" ? "Đang nhận trả lời · học sinh được đổi lựa chọn trước khi đóng câu." : page.round.status === "closed" ? "Đã đóng · bấm Hiện đáp án khi sẵn sàng giải thích." : "Đã công bố đáp án · mở câu tiếp theo hoặc hỏi lại." }
                 Title { text: page.round.vi || ""; font.pixelSize: 20 }
                 Copy { text: page.round.en || ""; font.pixelSize: 15 }
-                Copy { objectName: "classroomResponseCount"; visible: !!page.round.id; text: (page.round.answered || 0) + " / " + (page.round.eligible || 0) + " đã trả lời"; color: "#0869f9" }
+                Copy { objectName: "classroomResponseCount"; visible: !!page.round.id; text: (page.round.answered || 0) + " / " + (page.round.eligible || 0) + " đã trả lời"; color: AppTheme.adapt("#0869f9") }
                 Repeater { model: page.round.options || []
                     RowLayout { required property var modelData; Layout.fillWidth: true; spacing: 12
                         Copy { text: modelData.id + " · " + modelData.vi; Layout.preferredWidth: 2 }
                         ProgressBar { Layout.fillWidth: true; Layout.preferredWidth: 1; value: ((page.round.counts || {})[modelData.id] || 0) / Math.max(1, page.round.answered || 0) }
-                        Label { text: ((page.round.counts || {})[modelData.id] || 0) + " chọn"; color: "#687b94" }
+                        Label { text: ((page.round.counts || {})[modelData.id] || 0) + " chọn"; color: AppTheme.adapt("#687b94") }
                     }
                 }
                 Flow { Layout.fillWidth: true; spacing: 8

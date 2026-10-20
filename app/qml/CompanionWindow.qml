@@ -7,6 +7,7 @@ import QtQuick.Templates as T
 
 Window {
     id: companion
+    palette: AppPalette {}
     required property var bridge
     signal requestSettings()
     property bool collapsed: true
@@ -29,8 +30,9 @@ Window {
     property bool mascotAtBottom: true
     readonly property int mascotExtent: Math.max(90, Math.min(178, bridge.mascotSettings.size + 18))
     readonly property bool hasResponse: bridge.companionCanRead && !companion.response.untouched
-    readonly property int controlHeight: bridge.companionPanelSize === "large" ? 44 : bridge.companionPanelSize === "small" ? 34 : 38
-    readonly property int controlFont: bridge.companionPanelSize === "large" ? 14 : bridge.companionPanelSize === "small" ? 12 : 13
+    readonly property bool compactPanel: bridge.mascotSettings.size <= 65
+    readonly property int controlHeight: compactPanel ? 30 : bridge.companionPanelSize === "large" ? 44 : bridge.companionPanelSize === "small" ? 34 : 38
+    readonly property int controlFont: compactPanel ? 11 : bridge.companionPanelSize === "large" ? 14 : bridge.companionPanelSize === "small" ? 12 : 13
     readonly property int audioCount: Number(!!availableAudio.en) + Number(!!availableAudio.vi) + Number(!!availableAudio.both)
 
     function saveLocation() {
@@ -110,7 +112,7 @@ Window {
     transientParent: null
     flags: Qt.Tool | Qt.FramelessWindowHint | (bridge.mascotSettings.always_on_top ? Qt.WindowStaysOnTopHint : 0) | Qt.NoDropShadowWindowHint | Qt.WindowDoesNotAcceptFocus
     title: "BiliClass · Trợ giảng"
-    width: collapsed ? mascotExtent : Math.min(Screen.desktopAvailableWidth - 16, bridge.companionPanelSize === "large" ? 400 : bridge.companionPanelSize === "small" ? 320 : 356)
+    width: collapsed ? mascotExtent : Math.min(Screen.desktopAvailableWidth - 16, compactPanel ? 280 : bridge.companionPanelSize === "large" ? 400 : bridge.companionPanelSize === "small" ? 320 : 356)
     height: collapsed ? mascotExtent : Math.min(Screen.desktopAvailableHeight - 16, mascotExtent + menuContent.implicitHeight + 32)
     color: "transparent"
 
@@ -124,7 +126,7 @@ Window {
     Shortcut { sequence: "Escape"; onActivated: companion.collapsed = true }
 
     Shortcut { sequence: "F5"; onActivated: bridge.startTeachingShow() }
-    FileDialog { id: teachingFile; objectName: "companionPresentationDialog"; title: "Chọn PowerPoint để dạy cùng Mascot"; nameFilters: ["PowerPoint (*.pptx)"]; onAccepted: bridge.openTeachingPresentation(selectedFile.toString()) }
+    FileDialog { options: AppTheme.dark ? FileDialog.DontUseNativeDialog : 0; id: teachingFile; objectName: "companionPresentationDialog"; title: "Chọn PowerPoint để dạy cùng Mascot"; nameFilters: ["PowerPoint (*.pptx)"]; onAccepted: bridge.openTeachingPresentation(selectedFile.toString()) }
     function choosePresentation() { teachingFile.open() }
     Rectangle {
         id: menu
@@ -133,11 +135,11 @@ Window {
         x: 4; y: companion.mascotAtBottom ? 4 : companion.mascotExtent + 4
         width: companion.width - 8
         height: companion.height - companion.mascotExtent - 8
-        radius: 15; color: Qt.rgba(249 / 255, 251 / 255, 1, bridge.companionPanelOpacity / 100); border.color: "#cbdcf4"
+        radius: 15; color: Qt.rgba(AppTheme.dark ? 24 / 255 : 249 / 255, AppTheme.dark ? 36 / 255 : 251 / 255, AppTheme.dark ? 56 / 255 : 1, bridge.companionPanelOpacity / 100); border.color: AppTheme.adapt("#cbdcf4")
         ContentScrollView {
             id: controlScroll
             objectName: "companionControlsScroll"
-            anchors.fill: parent; anchors.margins: 12; contentWidth: availableWidth
+            anchors.fill: parent; anchors.margins: companion.compactPanel ? 9 : 12; contentWidth: availableWidth
             rightPadding: 0
             ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
             ScrollBar.vertical: SlimScrollBar {
@@ -188,6 +190,7 @@ Window {
         Menu {
             id: mascotContextMenu; objectName: "mascotContextMenu"
             popupType: Popup.Window
+            palette: AppPalette {}
             width: Math.ceil(Math.max(contextSettings.implicitWidth, contextHide.implicitWidth)) + leftPadding + rightPadding
             padding: 4
             CompanionMenuItem { id: contextSettings; objectName: "mascotContextSettings"; text: "Cài đặt"; iconName: "settings"; onTriggered: companion.requestSettings() }

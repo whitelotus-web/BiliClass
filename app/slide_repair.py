@@ -62,16 +62,23 @@ def _write_copy(source, target, replacements):
 def _compact_fixed_spacing(body):
     """Let line spacing follow the font in an already measured overflow.
 
-    Shrinking glyphs alone cannot fit text with inherited 50–70 pt leading.
-    Keep ordinary spacing and all wording; touch only excessive fixed gaps.
+    Shrinking glyphs alone cannot fit text with inherited fixed leading.
+    Keep ordinary ratios while allowing line height to follow the fitted font.
     """
     sizes = [int(n) for n in body.xpath('.//a:rPr/@sz|.//a:defRPr/@sz', namespaces=NS)]
     size = max(sizes, default=2400)
     for node in body.xpath('.//a:lnSpc/a:spcPts', namespaces=NS):
-        if int(node.get('val', '0')) > size * 1.35:
-            parent = node.getparent()
-            parent.remove(node)
-            etree.SubElement(parent, '{' + NS['a'] + '}spcPct', val='110000')
+        value = int(node.get('val', '0'))
+        if value <= 0:
+            continue
+        paragraph = node.getparent().getparent().getparent()
+        local_sizes = [int(n) for n in paragraph.xpath('.//a:rPr/@sz|.//a:defRPr/@sz', namespaces=NS)]
+        local_size = max(local_sizes, default=size)
+        ratio = value / max(1, local_size)
+        parent = node.getparent()
+        parent.remove(node)
+        etree.SubElement(parent, '{' + NS['a'] + '}spcPct',
+                         val=str(round((1.1 if ratio > 1.35 else ratio) * 100000)))
     for node in body.xpath('.//a:spcBef/a:spcPts|.//a:spcAft/a:spcPts', namespaces=NS):
         if int(node.get('val', '0')) > size * .5:
             node.set('val', str(round(size * .15)))

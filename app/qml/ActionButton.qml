@@ -17,10 +17,10 @@ Button {
     contentItem: RowLayout {
         spacing: 6
         Item { Layout.fillWidth: true }
-        Image { visible: !!control.iconName; source: control.iconName ? "../assets/actions/" + control.iconName + (control.iconName === "presentation" ? (control.primary ? "-white.svg" : ".svg") : control.iconName === "speaker" ? ".svg" : ".png") : ""; sourceSize.width: 64; sourceSize.height: 64; fillMode: Image.PreserveAspectFit; Layout.preferredWidth: control.iconSize; Layout.preferredHeight: control.iconSize; opacity: control.enabled ? 1 : .4 }
-        Text { visible: !!control.symbol; text: control.symbol; font: control.font; color: control.enabled ? (control.danger ? "#c92d37" : "#0869f9") : "#96a6bc" }
-        Text { text: control.text; font: control.font; color: !control.enabled ? "#96a6bc" : control.primary ? "white" : control.danger ? "#c92d37" : "#0869f9"; verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight }
+        ThemedImage { darkTint: control.primary ? AppTheme.accentText : control.danger ? AppTheme.danger : AppTheme.blue; visible: !!control.iconName; source: control.iconName ? "../assets/actions/" + control.iconName + (control.iconName === "presentation" ? (control.primary ? "-white.svg" : ".svg") : control.iconName === "speaker" ? ".svg" : ".png") : ""; sourceSize.width: 64; sourceSize.height: 64; fillMode: Image.PreserveAspectFit; Layout.preferredWidth: control.iconSize; Layout.preferredHeight: control.iconSize; opacity: control.enabled ? 1 : .4 }
+        Text { visible: !!control.symbol; text: control.symbol; font: control.font; color: control.enabled ? (control.danger ? AppTheme.adapt("#c92d37") : AppTheme.adapt("#0869f9")) : AppTheme.adapt("#96a6bc") }
+        Text { text: control.text; font: control.font; color: !control.enabled ? AppTheme.adapt("#96a6bc") : control.primary ? AppTheme.accentText : control.danger ? AppTheme.adapt("#c92d37") : AppTheme.adapt("#0869f9"); verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight }
         Item { Layout.fillWidth: true }
     }
-    background: Rectangle { radius: 8; color: !control.enabled ? "#edf1f7" : control.primary ? (control.down ? "#0055d8" : "#0869f9") : control.danger ? (control.pointerHovered ? "#ffe4e7" : "#fff6f7") : control.pointerHovered ? "#eaf3ff" : "white"; border.color: control.primary ? "transparent" : control.danger ? "#f1b8be" : "#cbdcf4"; border.width: control.visualFocus ? 2 : 1 }
+    background: Rectangle { radius: 8; color: !control.enabled ? AppTheme.adapt("#edf1f7") : control.primary ? (control.down ? AppTheme.adapt("#0055d8") : AppTheme.accent) : control.danger ? (control.pointerHovered ? AppTheme.adapt("#ffe4e7") : AppTheme.adapt("#fff6f7")) : control.pointerHovered ? AppTheme.adapt("#eaf3ff") : AppTheme.surface; border.color: control.primary ? "transparent" : control.danger ? AppTheme.adapt("#f1b8be") : AppTheme.adapt("#cbdcf4"); border.width: control.visualFocus ? 2 : 1 }
 }

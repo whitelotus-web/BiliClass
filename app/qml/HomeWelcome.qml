@@ -20,7 +20,7 @@ ColumnLayout {
     spacing: 18
 
     component Copy: Label {
-        color: "#687e9b"; font.pixelSize: 12; wrapMode: Text.WordWrap
+        color: AppTheme.adapt("#687e9b"); font.pixelSize: 12; wrapMode: Text.WordWrap
         textFormat: Text.PlainText; Layout.fillWidth: true
     }
 
@@ -28,20 +28,22 @@ ColumnLayout {
         objectName: "homeWelcomeHero"
         Layout.fillWidth: true
         implicitHeight: home.wide ? 280 : 244
-        radius: 22; clip: true; color: "#f2f8ff"
+        radius: 22; clip: true; color: AppTheme.adapt("#f2f8ff")
         Canvas {
+        property bool applicationDark: AppTheme.dark
+        onApplicationDarkChanged: requestPaint()
             anchors.fill: parent
             onWidthChanged: requestPaint()
             onHeightChanged: requestPaint()
             onPaint: {
                 var ctx = getContext("2d")
                 ctx.clearRect(0, 0, width, height)
-                ctx.fillStyle = "#e7f2ff"
+                ctx.fillStyle = AppTheme.adapt("#e7f2ff")
                 ctx.beginPath(); ctx.moveTo(0, height)
                 ctx.bezierCurveTo(width * 0.18, height * 0.76, width * 0.4, height * 0.98, width * 0.56, height * 0.3)
                 ctx.bezierCurveTo(width * 0.75, -height * 0.3, width * 0.82, height * 0.24, width, 0)
                 ctx.lineTo(width, height); ctx.closePath(); ctx.fill()
-                ctx.fillStyle = "#dcecff"
+                ctx.fillStyle = AppTheme.adapt("#dcecff")
                 ctx.beginPath(); ctx.moveTo(width * 0.62, height)
                 ctx.bezierCurveTo(width * 0.83, height * 0.72, width * 0.8, height * 0.87, width, height * 0.58)
                 ctx.lineTo(width, height); ctx.closePath(); ctx.fill()
@@ -54,7 +56,7 @@ ColumnLayout {
                 Layout.fillWidth: true; spacing: 14
                 Label {
                     objectName: "homeHeroTitle"
-                    text: "Chào " + ((home.bridge.settings.teacher || "").trim() || "Thầy cô") + "!"; color: "#102c56"
+                    text: "Chào " + ((home.bridge.settings.teacher || "").trim() || "Thầy cô") + "!"; color: AppTheme.adapt("#102c56")
                     font.pixelSize: home.wide ? 43 : 35; font.weight: Font.Bold
                     font.letterSpacing: -1; Layout.fillWidth: true
                     textFormat: Text.PlainText; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
@@ -64,7 +66,7 @@ ColumnLayout {
                 Rectangle { width: 46; height: 4; radius: 2; color: "#ff891c" }
                 Copy {
                     text: "Chuyển PowerPoint thành bài giảng Việt–Anh hoặc tiếng Anh, kèm giọng đọc và mascot đồng hành khi dạy."
-                    color: "#355478"; font.pixelSize: home.wide ? 17 : 15
+                    color: AppTheme.adapt("#355478"); font.pixelSize: home.wide ? 17 : 15
                     lineHeight: 1.35; Layout.maximumWidth: 600
                 }
             }
@@ -76,13 +78,13 @@ ColumnLayout {
                     objectName: "homeMascotSpeech"
                     x: -20; y: home.wide ? 36 : 24
                     width: Math.min(166, heroArt.width * 0.47); height: home.wide ? 100 : 88
-                    radius: 20; color: "#ffffff"; border.color: "#ccdef7"; border.width: 2
+                    radius: 20; color: AppTheme.adapt("#ffffff"); border.color: AppTheme.adapt("#ccdef7"); border.width: 2
                     rotation: -5
                     Label {
                         anchors.fill: parent; anchors.margins: 11
                         text: "Cùng thầy cô\nbiến mỗi bài giảng\nthành trải nghiệm\nsong ngữ thú vị."
                         font.pixelSize: home.wide ? 14 : 12; font.weight: Font.DemiBold
-                        color: "#0869f9"; horizontalAlignment: Text.AlignHCenter
+                        color: AppTheme.adapt("#0869f9"); horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter; lineHeight: 1.2
                     }
                 }
@@ -101,7 +103,7 @@ ColumnLayout {
 
     ColumnLayout {
         objectName: "homeWorkflow"; Layout.fillWidth: true; spacing: 12
-        Label { objectName: "homeWorkflowHeading"; text: "Quy trình đơn giản"; color: "#16314f"; font.pixelSize: 19; font.weight: Font.DemiBold }
+        Label { objectName: "homeWorkflowHeading"; text: "Quy trình đơn giản"; color: AppTheme.adapt("#16314f"); font.pixelSize: 19; font.weight: Font.DemiBold }
         RowLayout {
             Layout.fillWidth: true; spacing: home.width > 1000 ? 12 : 8
             Repeater {
@@ -121,14 +123,14 @@ ColumnLayout {
                         Layout.fillWidth: true; Layout.preferredWidth: 1; implicitHeight: 178; padding: 13
                         enabled: !home.bridge.busy
                         Accessible.name: (index + 1) + ". " + modelData.title + ". " + modelData.detail
-                        background: Rectangle { radius: 14; color: step.hovered ? "#f8fbff" : "white"; border.color: step.visualFocus ? "#0869f9" : "#dce7f5" }
+                        background: Rectangle { radius: 14; color: step.hovered ? AppTheme.adapt("#f8fbff") : AppTheme.surface; border.color: step.visualFocus ? AppTheme.adapt("#0869f9") : AppTheme.adapt("#dce7f5") }
                         onClicked: { if (index === 0) home.chooseDocument(); else if (index === 1) home.continueWork(); else if (index === 2) home.openNarration(); else home.openTeaching() }
                         contentItem: Item {
                             Image { objectName: "homeWorkflowNumber" + index; x: -3; y: -3; width: 34; height: 34; source: "../assets/workflow/number-" + (index + 1) + ".png"; sourceClipRect: modelData.number; fillMode: Image.PreserveAspectFit; mipmap: true; Accessible.ignored: true }
                             ColumnLayout {
                                 anchors.fill: parent; anchors.topMargin: 3; spacing: 8
                                 Image { objectName: "homeWorkflowIcon" + index; source: "../assets/workflow/" + modelData.icon + ".png"; sourceClipRect: modelData.box; Layout.alignment: Qt.AlignHCenter; Layout.preferredWidth: 54; Layout.preferredHeight: 54; fillMode: Image.PreserveAspectFit; mipmap: true; Accessible.ignored: true }
-                                Label { objectName: "homeWorkflowTitle" + index; text: modelData.title; color: "#16314f"; font.pixelSize: home.width > 1000 ? 16 : 14; font.weight: Font.DemiBold; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap }
+                                Label { objectName: "homeWorkflowTitle" + index; text: modelData.title; color: AppTheme.adapt("#16314f"); font.pixelSize: home.width > 1000 ? 16 : 14; font.weight: Font.DemiBold; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap }
                                 Copy { text: modelData.detail; font.pixelSize: home.width > 1000 ? 14 : 12; Layout.fillHeight: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignTop }
                             }
                         }
@@ -138,7 +140,7 @@ ColumnLayout {
             }
         }
         Rectangle {
-            Layout.fillWidth: true; implicitHeight: 80; color: "white"; radius: 14
+            Layout.fillWidth: true; implicitHeight: 80; color: AppTheme.surface; radius: 14
             RowLayout {
                 anchors.fill: parent; anchors.margins: 16; spacing: 16
                 Repeater {
@@ -153,14 +155,14 @@ ColumnLayout {
                         required property int index
                         objectName: "homeFeatureCell" + index
                         Layout.fillWidth: true; Layout.fillHeight: true; Layout.preferredWidth: 1
-                        Rectangle { visible: featureCell.index > 0; width: 1; height: parent.height; color: "#e5edf7"; anchors.left: parent.left }
+                        Rectangle { visible: featureCell.index > 0; width: 1; height: parent.height; color: AppTheme.adapt("#e5edf7"); anchors.left: parent.left }
                         RowLayout {
                         objectName: "homeFeatureContent" + featureCell.index
                         anchors.centerIn: parent; width: Math.min(implicitWidth, parent.width - 24); spacing: 12
                         Image { source: "../assets/workflow/" + modelData.icon + ".png"; sourceClipRect: modelData.box; Layout.preferredWidth: 34; Layout.preferredHeight: 34; fillMode: Image.PreserveAspectFit; mipmap: true; Accessible.ignored: true }
                         ColumnLayout {
                             Layout.fillWidth: true; Layout.maximumWidth: Math.max(80, featureCell.width - 70); spacing: 4
-                            Label { text: modelData.title; color: "#16314f"; font.pixelSize: home.width > 1000 ? 14 : 12; font.weight: Font.DemiBold; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                            Label { text: modelData.title; color: AppTheme.adapt("#16314f"); font.pixelSize: home.width > 1000 ? 14 : 12; font.weight: Font.DemiBold; Layout.fillWidth: true; wrapMode: Text.WordWrap }
                             Copy { text: modelData.detail; font.pixelSize: 11 }
                         }
                         }
@@ -173,16 +175,16 @@ ColumnLayout {
     Rectangle {
         objectName: "homeWorkPanel"; visible: home.working
         Layout.fillWidth: true; implicitHeight: Math.max(94, focusContent.implicitHeight + 30)
-        radius: 13; color: "#edf4fd"
+        radius: 13; color: AppTheme.adapt("#edf4fd")
         RowLayout {
             id: focusContent; anchors.fill: parent; anchors.margins: 15; spacing: 14
             ColumnLayout {
                 Layout.fillWidth: true; spacing: 5
-                Label { text: home.working ? "ĐANG XỬ LÝ" : "TIẾP TỤC CHUẨN BỊ"; color: "#687e9b"; font.pixelSize: 10; font.letterSpacing: .5; font.weight: Font.DemiBold }
+                Label { text: home.working ? "ĐANG XỬ LÝ" : "TIẾP TỤC CHUẨN BỊ"; color: AppTheme.adapt("#687e9b"); font.pixelSize: 10; font.letterSpacing: .5; font.weight: Font.DemiBold }
                 Label {
                     objectName: "homeFeaturedTitle"
                     text: home.working ? (home.bridge.narrationBusy ? "Giọng đọc đang được chuẩn bị" : "Bài giảng đang chuyển ngữ") : home.featured.title || "Bài giảng đang mở"
-                    color: "#16314f"; font.pixelSize: 17; font.weight: Font.DemiBold
+                    color: AppTheme.adapt("#16314f"); font.pixelSize: 17; font.weight: Font.DemiBold
                     Layout.fillWidth: true; elide: Text.ElideRight; textFormat: Text.PlainText
                 }
                 Copy { text: home.working ? "Các phần đã xong được lưu lại." : [home.featured.subject, home.featured.grade ? "Lớp " + home.featured.grade : ""].filter(function(s) { return !!s }).join(" · "); font.pixelSize: 11 }

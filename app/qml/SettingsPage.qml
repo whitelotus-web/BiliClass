@@ -70,31 +70,31 @@ Item {
         onAccepted: bridge.googleSettings.rename(keyId, keyDisplayName.text)
     }
 
-    readonly property color ink: "#112650"
-    readonly property color muted: "#667997"
-    readonly property color blue: "#0869f9"
-    readonly property color line: "#dfe8f4"
+    readonly property color ink: AppTheme.adapt("#112650")
+    readonly property color muted: AppTheme.adapt("#667997")
+    readonly property color blue: AppTheme.adapt("#0869f9")
+    readonly property color line: AppTheme.adapt("#dfe8f4")
 
     component Card: Frame {
         padding: 22
-        background: Rectangle { color: "white"; radius: 16; border.color: page.line }
+        background: Rectangle { color: AppTheme.surface; radius: 16; border.color: page.line }
     }
     component Title: Label { color: page.ink; font.pixelSize: 19; font.weight: Font.Bold; wrapMode: Text.WordWrap }
     component Hint: Label { color: page.muted; font.pixelSize: 13; wrapMode: Text.WordWrap; textFormat: Text.PlainText }
     component Field: TextField {
         implicitHeight: 44; font.pixelSize: 13; color: page.ink; selectByMouse: true
-        background: Rectangle { radius: 9; color: "#fbfdff"; border.color: parent.activeFocus ? page.blue : page.line }
+        background: Rectangle { radius: 9; color: AppTheme.adapt("#fbfdff"); border.color: parent.activeFocus ? page.blue : page.line }
     }
     component Choice: ComboBox {
         implicitHeight: 44; font.pixelSize: 13
-        background: Rectangle { radius: 9; color: "#fbfdff"; border.color: parent.activeFocus ? page.blue : page.line }
+        background: Rectangle { radius: 9; color: AppTheme.adapt("#fbfdff"); border.color: parent.activeFocus ? page.blue : page.line }
     }
     component SaveButton: Button {
         id: saveButton
         implicitHeight: 44; leftPadding: 22; rightPadding: 22
         font.pixelSize: 13; font.weight: Font.DemiBold
-        contentItem: Label { text: saveButton.text; color: "white"; font: saveButton.font; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-        background: Rectangle { radius: 9; color: saveButton.down ? "#0053d2" : saveButton.hovered ? "#147aff" : page.blue }
+        contentItem: Label { text: saveButton.text; color: AppTheme.accentText; font: saveButton.font; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+        background: Rectangle { radius: 9; color: saveButton.down ? AppTheme.adapt("#0053d2") : saveButton.hovered ? AppTheme.adapt("#147aff") : AppTheme.accent }
     }
     component SoftButton: Button {
         id: softButton
@@ -104,11 +104,11 @@ Item {
         contentItem: RowLayout {
             spacing: 6
             Item { Layout.fillWidth: true }
-            Image { visible: !!softButton.iconName; source: softButton.iconName ? "../assets/actions/" + softButton.iconName + ".png" : ""; sourceSize.width: 64; sourceSize.height: 64; fillMode: Image.PreserveAspectFit; Layout.preferredWidth: 22; Layout.preferredHeight: 22; opacity: softButton.enabled ? 1 : .4 }
+            ThemedImage { darkTint: AppTheme.blue; visible: !!softButton.iconName; source: softButton.iconName ? "../assets/actions/" + softButton.iconName + ".png" : ""; sourceSize.width: 64; sourceSize.height: 64; fillMode: Image.PreserveAspectFit; Layout.preferredWidth: 22; Layout.preferredHeight: 22; opacity: softButton.enabled ? 1 : .4 }
             Label { text: softButton.text; color: softButton.enabled ? page.blue : page.muted; font: softButton.font; verticalAlignment: Text.AlignVCenter }
             Item { Layout.fillWidth: true }
         }
-        background: Rectangle { radius: 9; color: softButton.hovered ? "#edf5ff" : "white"; border.color: page.line }
+        background: Rectangle { radius: 9; color: softButton.hovered ? AppTheme.adapt("#edf5ff") : AppTheme.surface; border.color: page.line }
     }
 
     ColumnLayout {
@@ -143,13 +143,14 @@ Item {
                     Layout.fillWidth: true; Layout.preferredWidth: modelData.tabId === 1 ? 1.35 : 1; implicitHeight: 57
                     onClicked: page.activeTab = modelData.tabId
                     background: Rectangle {
-                        color: page.activeTab === tab.modelData.tabId ? "#e7f2ff" : tab.hovered ? "#f5f8fc" : "transparent"
+                        color: page.activeTab === tab.modelData.tabId ? AppTheme.adapt("#e7f2ff") : tab.hovered ? AppTheme.adapt("#f5f8fc") : "transparent"
                         radius: 11
                         Rectangle { anchors.bottom: parent.bottom; anchors.horizontalCenter: parent.horizontalCenter; width: parent.width - 35; height: 2; color: page.blue; visible: page.activeTab === tab.modelData.tabId }
                     }
                     contentItem: RowLayout {
                         spacing: 7
-                        Image {
+                        ThemedImage {
+                            darkTint: page.activeTab === tab.modelData.tabId ? AppTheme.blue : AppTheme.ink
                             source: tab.modelData.tabId === 1 ? "../assets/navigation/about.png" : "../assets/navigation/" + tab.modelData.icon + (page.activeTab === tab.modelData.tabId ? "-active" : "") + ".png"
                             // The supplied artwork has a wide transparent border.
                             sourceClipRect: tab.modelData.tabId === 1 ? Qt.rect(184, 214, 888, 888) : Qt.rect(0, 0, 0, 0)
@@ -196,7 +197,7 @@ Item {
                                 width: teachingSubjectList.width - 16; height: 38; text: modelData; font: teachingSubjects.font
                                 highlighted: teachingSubjects.highlightedIndex === index
                                 contentItem: Text { text: parent.text; font: parent.font; color: page.ink; verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight }
-                                background: Rectangle { radius: 5; color: parent.highlighted || parent.hovered ? "#e8f1ff" : "transparent" }
+                                background: Rectangle { radius: 5; color: parent.highlighted || parent.hovered ? AppTheme.adapt("#e8f1ff") : "transparent" }
                             }
                             popup: Popup {
                                 id: teachingSubjectPopup; objectName: "settingsSubjectPopup"
@@ -208,7 +209,7 @@ Item {
                                     currentIndex: teachingSubjects.highlightedIndex; highlightMoveDuration: 0
                                     ScrollBar.vertical: SlimScrollBar { }
                                 }
-                                background: Rectangle { color: "white"; radius: 8; border.color: page.line }
+                                background: Rectangle { color: AppTheme.surface; radius: 8; border.color: page.line }
                             }
                         }
                         Field { id: otherTeachingSubject; objectName: "settingsCustomSubject"; visible: teachingSubjects.currentText === "Khác"; text: bridge.conversionSubjects.indexOf(bridge.defaultTeachingSubject) < 0 ? bridge.defaultTeachingSubject : ""; placeholderText: "Nhập tên môn học khác"; maximumLength: 100; Layout.fillWidth: true }
@@ -227,10 +228,10 @@ Item {
                 Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.alignment: Qt.AlignTop
                 ColumnLayout { width: parent.width; spacing: 9
                     Title { text: "Xem trước hồ sơ" }
-                    Rectangle { Layout.fillWidth: true; implicitHeight: 126; radius: 11; color: "#f2f7ff"
+                    Rectangle { Layout.fillWidth: true; implicitHeight: 126; radius: 11; color: AppTheme.adapt("#f2f7ff")
                         RowLayout { anchors.fill: parent; anchors.margins: 14; spacing: 10
                             Image { objectName: "savedProfileLogo"; visible: !!bridge.schoolLogoUrl; source: bridge.schoolLogoUrl; cache: false; fillMode: Image.PreserveAspectFit; Layout.preferredWidth: 56; Layout.preferredHeight: 70 }
-                            Rectangle { visible: !bridge.schoolLogoUrl; Layout.preferredWidth: 56; Layout.preferredHeight: 56; radius: 10; color: "white"; border.color: page.line
+                            Rectangle { visible: !bridge.schoolLogoUrl; Layout.preferredWidth: 56; Layout.preferredHeight: 56; radius: 10; color: AppTheme.surface; border.color: page.line
                                 Label { anchors.centerIn: parent; text: "Logo"; color: page.muted; font.pixelSize: 12 }
                             }
                             ColumnLayout { Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 5
@@ -244,6 +245,8 @@ Item {
                 }
             }
         }
+
+        AppearancePicker { bridge: page.bridge; visible: page.activeTab === 0; Layout.fillWidth: true }
 
         ColumnLayout {
             visible: page.activeTab === 1; Layout.fillWidth: true; spacing: 14
@@ -285,10 +288,10 @@ Item {
                 ColumnLayout { width: parent.width; spacing: 7
                     RowLayout { Layout.fillWidth: true
                         Title { text: "Cặp giọng gợi ý"; Layout.fillWidth: true }
-                        Hint { text: "Hoàn toàn ngoại tuyến"; color: "#168567"; font.pixelSize: 12 }
+                        Hint { text: "Hoàn toàn ngoại tuyến"; color: AppTheme.adapt("#168567"); font.pixelSize: 12 }
                     }
                     Hint { text: "Chọn nhanh một cặp, hoặc tự ghép giọng Việt và giọng Anh ở bên dưới."; Layout.fillWidth: true }
-                    Hint { visible: !bridge.vieneuReady; color: "#ba581a"; text: "Chưa tìm thấy đủ bộ giọng Việt–Mỹ. Hãy cài bản BiliClass đầy đủ."; Layout.fillWidth: true }
+                    Hint { visible: !bridge.vieneuReady; color: AppTheme.adapt("#ba581a"); text: "Chưa tìm thấy đủ bộ giọng Việt–Mỹ. Hãy cài bản BiliClass đầy đủ."; Layout.fillWidth: true }
                     GridLayout {
                         objectName: "multilingualVoiceGrid"; Layout.fillWidth: true
                         columns: width >= 720 ? 3 : width >= 480 ? 2 : 1; rowSpacing: 6; columnSpacing: 12
@@ -300,7 +303,7 @@ Item {
                                 required property int index
                                 objectName: "multilingualVoiceOption" + index
                                 Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; padding: 3
-                                background: Rectangle { radius: 9; color: page.draftVoice === voiceOption.modelData.id ? "#f2f7ff" : "#fbfdff"; border.color: page.draftVoice === voiceOption.modelData.id ? "#dce8f8" : page.line }
+                                background: Rectangle { radius: 9; color: page.draftVoice === voiceOption.modelData.id ? AppTheme.adapt("#f2f7ff") : AppTheme.adapt("#fbfdff"); border.color: page.draftVoice === voiceOption.modelData.id ? AppTheme.adapt("#dce8f8") : page.line }
                                 contentItem: RadioButton {
                                     id: suggestedVoice
                                     objectName: "selectMultilingualVoice" + voiceOption.index
@@ -310,7 +313,7 @@ Item {
                                     indicator: Rectangle {
                                         x: 8; y: (suggestedVoice.height - height) / 2
                                         implicitWidth: 18; implicitHeight: 18; radius: 9
-                                        color: "white"; border.color: suggestedVoice.checked ? page.blue : "#b9c9de"
+                                        color: AppTheme.surface; border.color: suggestedVoice.checked ? page.blue : AppTheme.adapt("#b9c9de")
                                         Rectangle { anchors.centerIn: parent; width: 10; height: 10; radius: 5; color: page.blue; visible: suggestedVoice.checked }
                                     }
                                     onClicked: { bridge.stopSpeech(); page.draftVoice = voiceOption.modelData.id }
@@ -348,7 +351,7 @@ Item {
                                 id: vietnameseSample; objectName: "settingsVoiceSample"; Layout.fillWidth: true
                                 implicitHeight: 88; padding: 10; font.pixelSize: 13; color: page.ink; wrapMode: TextEdit.Wrap; selectByMouse: true
                                 text: bridge.voicePreviewSamples.vi; Accessible.name: "Nội dung nghe thử tiếng Việt"
-                                background: Rectangle { radius: 9; color: "#fbfdff"; border.color: vietnameseSample.activeFocus ? page.blue : page.line }
+                                background: Rectangle { radius: 9; color: AppTheme.adapt("#fbfdff"); border.color: vietnameseSample.activeFocus ? page.blue : page.line }
                             }
                         }
                         ColumnLayout {
@@ -372,7 +375,7 @@ Item {
                                 id: englishSample; objectName: "settingsEnglishVoiceSample"; Layout.fillWidth: true
                                 implicitHeight: 88; padding: 10; font.pixelSize: 13; color: page.ink; wrapMode: TextEdit.Wrap; selectByMouse: true
                                 text: bridge.voicePreviewSamples.en; Accessible.name: "Nội dung nghe thử tiếng Anh"
-                                background: Rectangle { radius: 9; color: "#fbfdff"; border.color: englishSample.activeFocus ? page.blue : page.line }
+                                background: Rectangle { radius: 9; color: AppTheme.adapt("#fbfdff"); border.color: englishSample.activeFocus ? page.blue : page.line }
                             }
                         }
                     }
@@ -402,7 +405,7 @@ Item {
                     Rectangle { id: mascotCard; required property var modelData; required property int index
                         readonly property bool chosen: page.selectedMascot === modelData.name
                         Layout.row: 0; Layout.column: index; Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.preferredHeight: 300
-                        radius: 16; color: chosen ? "#f2f7ff" : "white"; border.color: chosen ? "#dce8f8" : page.line; border.width: 1
+                        radius: 16; color: chosen ? AppTheme.adapt("#f2f7ff") : AppTheme.surface; border.color: chosen ? AppTheme.adapt("#dce8f8") : page.line; border.width: 1
                         MouseArea { objectName: "mascot" + mascotCard.modelData.name; anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.showMascotPreview(mascotCard.modelData.name) }
                         ColumnLayout { anchors.fill: parent; anchors.margins: 13; spacing: 7
                             RowLayout { Layout.fillWidth: true
@@ -414,7 +417,7 @@ Item {
                                 Image { source: mascotCard.modelData.image; Layout.preferredWidth: 118; Layout.preferredHeight: 139; fillMode: Image.PreserveAspectFit; sourceSize.width: 236; sourceSize.height: 278 }
                                 ColumnLayout { Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 4
                                     Label { text: mascotCard.modelData.name; color: page.ink; font.pixelSize: 25; font.bold: true }
-                                    Label { text: mascotCard.modelData.mood; color: mascotCard.modelData.name === "Milo" ? page.blue : "#a66b24"; font.pixelSize: 12; font.bold: true; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                                    Label { text: mascotCard.modelData.mood; color: mascotCard.modelData.name === "Milo" ? page.blue : AppTheme.adapt("#a66b24"); font.pixelSize: 12; font.bold: true; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                                     Hint { text: mascotCard.modelData.detail; Layout.fillWidth: true; font.pixelSize: 11 }
                                 }
                             }
@@ -432,17 +435,17 @@ Item {
                 Rectangle { id: stageCard
                     Layout.row: page.wideMascotLayout ? 0 : 1; Layout.column: page.wideMascotLayout ? 2 : 0
                     Layout.columnSpan: page.wideMascotLayout ? 1 : 2; Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.preferredHeight: 300
-                    radius: 16; color: "white"; border.color: page.line
+                    radius: 16; color: AppTheme.surface; border.color: page.line
                     ColumnLayout { anchors.fill: parent; anchors.margins: 13; spacing: 8
                         RowLayout { Layout.fillWidth: true
                             Label { text: "Xem trước khi dạy"; color: page.ink; font.pixelSize: 17; font.bold: true; Layout.fillWidth: true }
                             Label { text: "TRÊN MÀN CHIẾU"; color: page.blue; font.pixelSize: 9; font.bold: true }
                         }
-                        Rectangle { id: mascotMiniSlide; objectName: "mascotMiniSlide"; Layout.fillWidth: true; Layout.fillHeight: true; radius: 12; clip: true; color: "#dcecff"
-                            Rectangle { anchors.fill: parent; anchors.margins: 8; radius: 10; color: "#fafdff"; border.color: "#b7d5f8" }
+                        Rectangle { id: mascotMiniSlide; objectName: "mascotMiniSlide"; Layout.fillWidth: true; Layout.fillHeight: true; radius: 12; clip: true; color: AppTheme.adapt("#dcecff")
+                            Rectangle { anchors.fill: parent; anchors.margins: 8; radius: 10; color: AppTheme.adapt("#fafdff"); border.color: AppTheme.adapt("#b7d5f8") }
                             Label { anchors.left: parent.left; anchors.leftMargin: 20; anchors.top: parent.top; anchors.topMargin: 17; text: page.mascotPreviewMode === 2 ? "CÂU HỎI NHANH" : page.mascotPreviewMode === 1 ? "GIẢI THÍCH" : "BÀI GIẢNG SONG NGỮ"; color: page.blue; font.pixelSize: 10; font.bold: true }
                             Label { anchors.left: parent.left; anchors.leftMargin: 20; anchors.top: parent.top; anchors.topMargin: 41; width: parent.width - 115; text: page.mascotPreviewMode === 2 ? "Cả lớp sẵn sàng chưa?" : page.mascotPreviewMode === 1 ? "Cùng hiểu từng bước" : "Cùng khám phá bài học"; color: page.ink; font.pixelSize: 14; font.bold: true; wrapMode: Text.WordWrap }
-                            Rectangle { visible: page.mascotPreviewVisible; width: Math.max(110, Math.min(parent.width - mascotPreview.width - 36, 225)); height: Math.max(53, previewBubbleText.implicitHeight + 16); radius: 14; color: "white"; border.color: "#bed5f4"; anchors.top: parent.top; anchors.topMargin: 82; x: 18
+                            Rectangle { visible: page.mascotPreviewVisible; width: Math.max(110, Math.min(parent.width - mascotPreview.width - 36, 225)); height: Math.max(53, previewBubbleText.implicitHeight + 16); radius: 14; color: AppTheme.surface; border.color: AppTheme.adapt("#bed5f4"); anchors.top: parent.top; anchors.topMargin: 82; x: 18
                                 Label { id: previewBubbleText; width: parent.width - 16; anchors.centerIn: parent; text: page.mascotPreviewText; color: page.ink; font.pixelSize: 11; font.bold: true; wrapMode: Text.WordWrap; verticalAlignment: Text.AlignVCenter; textFormat: Text.PlainText }
                             }
                             Mascot { id: mascotPreview; objectName: "mascotPreview"; visible: page.mascotPreviewVisible; character: page.selectedMascot; expression: page.mascotPreviewMode === 1 ? "thinking" : page.mascotPreviewMode === 2 ? "celebrate" : "speaking"; subject: page.previewSubject; showSubjectBadge: false; accessories: mascotAccessories.checked; reducedMotion: reducedMotion.checked; width: Math.max(85, Math.min(120, mascotSize.value * .82)); height: width + 25; anchors.bottom: parent.bottom; anchors.bottomMargin: 5; x: parent.width - width - 16 }
@@ -450,7 +453,7 @@ Item {
                         RowLayout { Layout.fillWidth: true; spacing: 5
                             Repeater { model: bridge.experimentalTeaching ? ["Slide", "Giải thích", "Quiz"] : ["Slide"]
                                 Button { id: contextButton; required property string modelData; required property int index; objectName: "mascotPreviewMode" + index; text: modelData; Layout.fillWidth: true; implicitHeight: 34; onClicked: page.mascotPreviewMode = index
-                                    background: Rectangle { radius: 8; color: page.mascotPreviewMode === contextButton.index ? "#e8f2ff" : "white"; border.color: page.mascotPreviewMode === contextButton.index ? page.blue : page.line }
+                                    background: Rectangle { radius: 8; color: page.mascotPreviewMode === contextButton.index ? AppTheme.adapt("#e8f2ff") : AppTheme.surface; border.color: page.mascotPreviewMode === contextButton.index ? page.blue : page.line }
                                     contentItem: Label { text: contextButton.text; color: page.mascotPreviewMode === contextButton.index ? page.blue : page.muted; font.pixelSize: 11; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                                 }
                             }
@@ -482,7 +485,7 @@ Item {
                             Slider { id: mascotSize; objectName: "mascotSize"; from: 60; to: 160; value: bridge.mascotSettings.size; Layout.fillWidth: true }
                             Repeater { model: [{label:"Nhỏ",size:80},{label:"Vừa",size:110},{label:"Lớn",size:150}]
                                 Button { id: sizeChoice; required property var modelData; objectName: "mascotSize" + modelData.size; text: modelData.label; implicitWidth: 58; implicitHeight: 34; onClicked: mascotSize.value = modelData.size
-                                    background: Rectangle { radius: 8; color: Math.abs(mascotSize.value - sizeChoice.modelData.size) < 16 ? "#e8f2ff" : "white"; border.color: Math.abs(mascotSize.value - sizeChoice.modelData.size) < 16 ? page.blue : page.line }
+                                    background: Rectangle { radius: 8; color: Math.abs(mascotSize.value - sizeChoice.modelData.size) < 16 ? AppTheme.adapt("#e8f2ff") : AppTheme.surface; border.color: Math.abs(mascotSize.value - sizeChoice.modelData.size) < 16 ? page.blue : page.line }
                                     contentItem: Label { text: sizeChoice.text; color: page.ink; font.pixelSize: 11; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                                 }
                             }
@@ -541,7 +544,7 @@ Item {
                             : backup.status === "failed" ? "Sao lưu chưa thành công: " + backup.last_error
                             : backup.last_success ? "Đã sao lưu: " + Qt.formatDateTime(new Date(backup.last_success), "dd/MM/yyyy · HH:mm")
                             : "Chưa có bản sao lưu. Bấm Sao lưu dữ liệu để tạo một bản."
-                        color: backup.status === "failed" && !backup.running ? "#a63d2f" : page.ink
+                        color: backup.status === "failed" && !backup.running ? AppTheme.adapt("#a63d2f") : page.ink
                         Layout.fillWidth: true
                     }
                     Flow { Layout.fillWidth: true; spacing: 8
@@ -592,7 +595,7 @@ Item {
                                     font.pixelSize: 13; wrapMode: Text.WordWrap
                                     textFormat: Text.PlainText
                                 }
-                                background: Rectangle { radius: 9; color: "#f7faff"; border.color: page.line }
+                                background: Rectangle { radius: 9; color: AppTheme.adapt("#f7faff"); border.color: page.line }
                             }
                         }
                         SoftButton {
@@ -612,7 +615,7 @@ Item {
                             id: googleKeys; objectName: "googleApiKeys"; selectByMouse: true; wrapMode: TextEdit.NoWrap; readOnly: bridge.busy
                             placeholderText: "Tên dự án | API_KEY\nTên dự án khác | API_KEY\nHoặc chỉ nhập key trên mỗi dòng"
                             color: page.ink; font.pixelSize: 13
-                            background: Rectangle { radius: 9; color: "#fbfdff"; border.color: page.line }
+                            background: Rectangle { radius: 9; color: AppTheme.adapt("#fbfdff"); border.color: page.line }
                         }
                     }
                     Hint { visible: !bridge.googleSettings.state.configured || page.showGoogleKeyEntry; text: "Mỗi key một dòng; có thể ghi Tên dự án | key. Mỗi key có bộ đếm riêng, mặc định tối đa 500.000 ký tự/tháng tại máy."; Layout.fillWidth: true }
@@ -639,12 +642,12 @@ Item {
                             Layout.fillWidth: true
                             ColumnLayout { Layout.fillWidth: true; spacing: 4
                                 Label { text: modelData.name + " · " + modelData.label; color: page.ink; font.bold: true; Layout.fillWidth: true; elide: Text.ElideRight }
-                                Hint { objectName: "googleKeyRemaining_" + modelData.id; text: "Còn " + Number(modelData.remaining).toLocaleString(Qt.locale("vi_VN"), "f", 0) + " / " + Number(modelData.budget).toLocaleString(Qt.locale("vi_VN"), "f", 0) + " ký tự"; color: modelData.blocked || modelData.remaining <= 0 ? "#b14828" : page.muted; Layout.fillWidth: true }
+                                Hint { objectName: "googleKeyRemaining_" + modelData.id; text: "Còn " + Number(modelData.remaining).toLocaleString(Qt.locale("vi_VN"), "f", 0) + " / " + Number(modelData.budget).toLocaleString(Qt.locale("vi_VN"), "f", 0) + " ký tự"; color: modelData.blocked || modelData.remaining <= 0 ? AppTheme.adapt("#b14828") : page.muted; Layout.fillWidth: true }
                                 ProgressBar { objectName: "googleKeyProgress_" + modelData.id; Layout.fillWidth: true; from: 0; to: 100; value: modelData.percent
-                                    background: Rectangle { implicitHeight: 5; radius: 2; color: "#e8eef7" }
-                                    contentItem: Item { implicitHeight: 5; Rectangle { width: parent.width * Math.min(1, modelData.percent / 100); height: parent.height; radius: 2; color: modelData.percent >= 95 ? "#b14828" : modelData.percent >= 80 ? "#d59020" : "#168567" } }
+                                    background: Rectangle { implicitHeight: 5; radius: 2; color: AppTheme.adapt("#e8eef7") }
+                                    contentItem: Item { implicitHeight: 5; Rectangle { width: parent.width * Math.min(1, modelData.percent / 100); height: parent.height; radius: 2; color: modelData.percent >= 95 ? AppTheme.adapt("#b14828") : modelData.percent >= 80 ? AppTheme.adapt("#d59020") : AppTheme.adapt("#168567") } }
                                 }
-                                Hint { visible: !!modelData.blocked || modelData.remaining <= 0; text: modelData.blocked ? "Key bị từ chối; tool sẽ thử key khác. Có thể kiểm tra rồi cho phép thử lại." : "Đã dùng hết giới hạn tháng này; tool tự chuyển key khác."; color: "#b14828"; Layout.fillWidth: true; font.pixelSize: 11 }
+                                Hint { visible: !!modelData.blocked || modelData.remaining <= 0; text: modelData.blocked ? "Key bị từ chối; tool sẽ thử key khác. Có thể kiểm tra rồi cho phép thử lại." : "Đã dùng hết giới hạn tháng này; tool tự chuyển key khác."; color: AppTheme.adapt("#b14828"); Layout.fillWidth: true; font.pixelSize: 11 }
                             }
                             SoftButton { objectName: "renameGoogleKey_" + modelData.id; text: "Đổi tên"; enabled: !bridge.busy; onClicked: { renameGoogleKey.keyId = modelData.id; keyDisplayName.text = modelData.customName; renameGoogleKey.open() } }
                             SoftButton { text: "Xóa key"; enabled: !bridge.busy; onClicked: bridge.googleSettings.remove(modelData.id) }
@@ -764,7 +767,7 @@ Item {
                                         onClicked: bridge.browserAI.remove(accountRow.accountId)
                                     }
                                 }
-                                Hint { objectName: "browserProfileError"; visible: !!accountRow.modelData.error && !accountRow.modelData.checking; text: accountRow.modelData.error; color: "#ab5b20"; Layout.fillWidth: true }
+                                Hint { objectName: "browserProfileError"; visible: !!accountRow.modelData.error && !accountRow.modelData.checking; text: accountRow.modelData.error; color: AppTheme.adapt("#ab5b20"); Layout.fillWidth: true }
                             }
                         }
                     }
@@ -772,7 +775,7 @@ Item {
                         visible: !bridge.browserAI.webMode; Layout.fillWidth: true; spacing: 18
                     RowLayout {
                         Layout.fillWidth: true; spacing: 8
-                        Rectangle { implicitWidth: 8; implicitHeight: 8; radius: 4; color: bridge.browserAI.hasError ? "#c05b31" : bridge.browserAI.accountInfo.ready ? "#138578" : page.muted }
+                        Rectangle { implicitWidth: 8; implicitHeight: 8; radius: 4; color: bridge.browserAI.hasError ? AppTheme.adapt("#c05b31") : bridge.browserAI.accountInfo.ready ? AppTheme.adapt("#138578") : page.muted }
                         Label {
                             objectName: "browserConnectionState"
                             text: bridge.browserAI.disconnectBusy ? "Đang ngắt kết nối…" : bridge.browserAI.loginBusy ? "Đang kết nối…" : bridge.browserAI.hasError ? "Lần đăng nhập vừa rồi chưa thành công" : bridge.browserAI.accountInfo.ready ? "Đã đăng nhập · Tự lưu" : "Chưa đăng nhập"
@@ -790,7 +793,7 @@ Item {
                         visible: !!bridge.browserAI.accountInfo.ready; Layout.fillWidth: true
                         columns: 2; columnSpacing: 24; rowSpacing: 12
                         Hint { text: "Quyền xử lý bài" }
-                        Hint { objectName: "browserAccountPermission"; text: bridge.browserAI.webMode ? "Dùng phiên đăng nhập web ChatGPT" : bridge.browserAI.accountInfo.ready ? "Đã cấp quyền dùng hạn mức ChatGPT" : "Chưa cấp quyền dùng hạn mức ChatGPT"; color: bridge.browserAI.accountInfo.ready ? "#138578" : "#ab5b20"; Layout.fillWidth: true }
+                        Hint { objectName: "browserAccountPermission"; text: bridge.browserAI.webMode ? "Dùng phiên đăng nhập web ChatGPT" : bridge.browserAI.accountInfo.ready ? "Đã cấp quyền dùng hạn mức ChatGPT" : "Chưa cấp quyền dùng hạn mức ChatGPT"; color: bridge.browserAI.accountInfo.ready ? AppTheme.adapt("#138578") : AppTheme.adapt("#ab5b20"); Layout.fillWidth: true }
                         Hint { text: "Gói tài khoản"; visible: !!bridge.browserAI.accountInfo.plan }
                         Hint { text: bridge.browserAI.accountInfo.plan === "unknown" ? "Chưa xác định trên web" : bridge.browserAI.accountInfo.plan || ""; visible: !!text; Layout.fillWidth: true }
                         Hint { text: "Bài mới"; visible: bridge.browserAI.webMode }
@@ -802,7 +805,7 @@ Item {
                     RowLayout {
                         visible: bridge.browserAI.loginBusy || (!bridge.browserAI.webMode && bridge.browserAI.hasError); Layout.fillWidth: true; spacing: 10
                         BusyIndicator { visible: bridge.browserAI.loginBusy; running: visible; implicitWidth: 24; implicitHeight: 24 }
-                        Hint { objectName: "browserAccountStatus"; text: bridge.browserAI.message; Layout.fillWidth: true; color: bridge.browserAI.hasError ? "#ab5b20" : page.blue }
+                        Hint { objectName: "browserAccountStatus"; text: bridge.browserAI.message; Layout.fillWidth: true; color: bridge.browserAI.hasError ? AppTheme.adapt("#ab5b20") : page.blue }
                     }
                     Hint { visible: !bridge.browserAI.webMode; text: "Cửa sổ đăng nhập tự đóng khi xong. Chỉ khi có thông tin tài khoản ở đây thì kết nối mới được lưu."; Layout.fillWidth: true; font.pixelSize: 12 }
                 }
@@ -818,7 +821,7 @@ Item {
                 Item { Layout.fillWidth: true }
                 SaveButton { objectName: "saveMultilingualVoice"; text: bridge.voiceUiState.saving ? "Đang lưu…" : "Lưu cặp giọng và tốc độ"; enabled: !bridge.voiceUiState.saving && !!page.draftVoice; onClicked: bridge.saveMultilingualVoice(page.draftVoice, page.draftRate) }
             }
-            Hint { objectName: "voiceSaveStatus"; visible: !!text; text: bridge.voiceUiState.saving || bridge.voiceUiState.saveError ? bridge.voiceUiState.saveMessage : page.voiceDirty ? "Chưa lưu thay đổi · " + (page.selectedVoicePair.name || "") : bridge.voiceUiState.saveMessage || ""; color: bridge.voiceUiState.saveError ? "#ba581a" : page.voiceDirty ? page.muted : "#168567"; Layout.fillWidth: true }
+            Hint { objectName: "voiceSaveStatus"; visible: !!text; text: bridge.voiceUiState.saving || bridge.voiceUiState.saveError ? bridge.voiceUiState.saveMessage : page.voiceDirty ? "Chưa lưu thay đổi · " + (page.selectedVoicePair.name || "") : bridge.voiceUiState.saveMessage || ""; color: bridge.voiceUiState.saveError ? AppTheme.adapt("#ba581a") : page.voiceDirty ? page.muted : AppTheme.adapt("#168567"); Layout.fillWidth: true }
             Hint { objectName: "voicePreviewStatus"; visible: !!bridge.voiceUiState.message; text: bridge.voiceUiState.message; Layout.fillWidth: true }
         }
     }

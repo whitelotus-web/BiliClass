@@ -164,6 +164,35 @@ def valid_key(directory, key):
         return False
 
 
+def automatic_repair_choice(lesson):
+    """Recover a previously finished voice affected only by known source stamps."""
+    from .narration_text import clean_artifacts
+
+    record = lesson.get('narration') or {}
+    if (not isinstance(record, dict) or type(record.get('total')) is not int or record['total'] <= 0
+            or record.get('complete') != record['total']
+            or record.get('failed') or record.get('cancelled') or not record.get('skipped')
+            or not variant_id(record) or record.get('signature') != signature(lesson)):
+        return None
+    if not any(clean_artifacts(row[lang]) != row[lang]
+               for row in narration_segments(lesson) for lang in MODES[record['mode']]):
+        return None
+    plan, _ = make_plan(lesson, record['mode'], record, playback=record.get('playback', 'separate'))
+    if plan['skipped']:
+        return None
+    old_keys = record.get('keys', {})
+    if (not isinstance(old_keys, dict) or set(old_keys) != set(plan['keys']) or any(
+            not isinstance(old_keys[lang], list) or any(not isinstance(key, str) for key in old_keys[lang])
+            or not set(old_keys[lang]) <= set(plan['keys'][lang])
+            for lang in plan['keys'])):
+        return None
+    old = set(key for values in old_keys.values() for key in values)
+    new = set(key for values in plan['keys'].values() for key in values)
+    if len(old) != record['total'] or len(new - old) > 8:
+        return None
+    return {'mode': record['mode'], 'voice': record['voice'], 'rate': record['rate']}
+
+
 def audio_status(lesson, directory, fallback_voices=None, *, cancel=None, _context=None):
     # Scope reuse to this single inspection, never across edits/file changes.
     context = {} if _context is None else _context

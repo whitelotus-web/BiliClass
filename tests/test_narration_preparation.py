@@ -369,3 +369,20 @@ def test_extra_model_requires_a_long_job_and_memory_headroom(monkeypatch):
     assert speech.narration_workers(tasks) == 1
     monkeypatch.setenv("BILICLASS_NARRATION_WORKERS", "1")
     assert speech.narration_workers(tasks) == 1
+
+
+def test_transient_primary_failure_retries_once_and_keeps_every_line(monkeypatch, tmp_path):
+    calls = []
+    def render(text, *args):
+        calls.append(text)
+        if calls.count(text) == 1:
+            raise RuntimeError('temporary engine error')
+        return {'cached': False}
+    monkeypatch.setattr(speech, 'synthesize_background', render)
+    monkeypatch.setattr(speech, 'narration_workers', lambda _: 1)
+    job = NarrationJob({'profile': {'units': [{'vi': 'Một câu hoàn chỉnh.', 'en': ''}]}},
+                       {'vi': VOICE, 'rate': 0}, tmp_path, None)
+    job.run()
+    assert len(calls) == 2
+    assert job.result['complete'] == job.result['total'] == 1
+    assert job.result['failed'] == 0

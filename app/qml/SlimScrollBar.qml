@@ -12,7 +12,7 @@ ScrollBar {
     Accessible.name: orientation === Qt.Vertical ? "Cuộn trang" : "Cuộn ngang"
     contentItem: Rectangle {
         implicitWidth: 6; implicitHeight: 6; radius: 3
-        color: bar.pressed ? "#637f9f" : bar.hovered ? "#8ca3bf" : "#bdcbdc"
+        color: bar.pressed ? AppTheme.adapt("#637f9f") : bar.hovered ? AppTheme.adapt("#8ca3bf") : AppTheme.adapt("#bdcbdc")
     }
     background: null
 }

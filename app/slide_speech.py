@@ -42,6 +42,12 @@ def normalized(text):
 
 
 def speech_problem(text):
+    from .narration_text import clean_artifacts
+
+    cleaned = clean_artifacts(text)
+    if text.strip() and not cleaned.strip():
+        return "technical_text"
+    text = cleaned
     if TECHNICAL.search(text):
         return "technical_text"
     if re.search(r"(?<!\w)\d+[a-z]{2,}\d+(?!\w)", text, re.I):
@@ -429,6 +435,9 @@ def visible_segments(slide, click_index=None, settled_seconds=0):
 
 def speech_chunks(text, limit=1500):
     """Keep paragraph breaks audible; split oversized paragraphs at sentences."""
+    from .narration_text import clean_artifacts
+
+    text = clean_artifacts(text)
     text = text.replace('\u00a0', ' ').replace('\u202f', ' ')
     paragraphs = [part.strip() for part in re.split(r'[\r\n\v]+', text) if part.strip()]
     if len(paragraphs) > 1:

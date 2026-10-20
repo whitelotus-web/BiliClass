@@ -5,6 +5,9 @@ from .readiness import preparation_current
 
 def summarize(lesson):
     segments = lesson.get('segments', [])
+    if lesson.get('external_deck'):
+        # A blank/media-only page has no missing translation to supply.
+        segments = [s for s in segments if s.get('vi', '').strip() or s.get('en', '').strip()]
     counts = lesson.get('slide_quality', {}).get('counts', {})
     failures = 0 if lesson.get('voice_only') else max(0, int(counts.get('FAIL', 0)))
     if lesson.get('voice_only'):

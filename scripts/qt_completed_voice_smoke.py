@@ -34,7 +34,7 @@ def main():
     for font in (RESOURCE_ROOT / 'assets').glob('*.ttf'):
         QFontDatabase.addApplicationFont(str(font))
     app.setFont(QFont('Be Vietnam Pro', 10))
-    reports = Path(sys.argv[1] if len(sys.argv) > 1 else 'reports/rc106/completed-voice')
+    reports = Path(sys.argv[1] if len(sys.argv) > 1 else 'reports/completed-voice')
     reports.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='bcl-completed-voice-', ignore_cleanup_errors=True) as folder:
         folder = Path(folder)
@@ -79,24 +79,32 @@ def main():
             until(lambda: window.property('narrationComplete'), timeout=30)
             until(lambda: bool(bridge.quickResult.get('image')) and not bridge.previewBusy, timeout=90)
             assert window.property('voicePreviewExpanded')
-            assert c('convertedSlideImage').property('source').toString()
+            assert c('narrationResultSlideImage').property('source').toString()
+            assert c('narrationResultPage').isVisible()
+            assert not c('resultScroll').isVisible()
             assert window.findChild(QObject, 'checkCompletedNarrationButton') is None
             assert 'Kiểm tra slide và giọng' not in (RESOURCE_ROOT / 'qml/NarrationReadyCard.qml').read_text(encoding='utf-8')
             for width, height in ((1080, 700), (1366, 850)):
                 window.resize(width, height)
                 pump(150)
-                for name in ('resultPreviousSlide', 'resultSlideCounter', 'resultNextSlide',
-                             'listenCreatedEnglish', 'listenCreatedVietnamese', 'stopCreatedNarration'):
+                for name in ('narrationResultPrevious', 'narrationResultCounter', 'narrationResultNext',
+                             'narrationResultListenEnglish', 'narrationResultListenVietnamese'):
                     item = c(name)
                     assert item.isVisible(), name
                     assert item.mapToScene(QPointF()).x() >= 0
                     assert item.mapToScene(QPointF(item.width(), 0)).x() <= width
-                    assert abs(item.mapToScene(QPointF(0, item.height()/2)).y()
-                               - c('resultSlideCounter').mapToScene(QPointF(0, c('resultSlideCounter').height()/2)).y()) < 2
-                viewport = c('resultScroll').property('contentItem')
+                counter = c('narrationResultCounter')
+                viewport = c('narrationResultPage').property('contentItem')
+                assert abs(counter.mapToScene(QPointF(counter.width()/2, 0)).x()
+                           - c('narrationResultPage').mapToScene(QPointF(c('narrationResultPage').width()/2, 0)).x()) < 5
                 viewport.setProperty('contentY', max(0, viewport.property('contentHeight') - viewport.height()))
                 pump(180)
                 assert window.grabWindow().save(str(reports / f'completed-{width}.png'))
+            bridge.setApplicationTheme('dark')
+            viewport.setProperty('contentY', 0)
+            pump(120)
+            assert window.grabWindow().save(str(reports / 'completed-dark.png'))
+            bridge.setApplicationTheme('light')
             bridge._powerpoint_state = {**initial_powerpoint_state, 'active': True, 'starting': False}
             bridge.powerpointStateChanged.emit()
             with patch.object(bridge, 'stopSpeech') as stopped:
@@ -104,19 +112,26 @@ def main():
                 until(lambda: not bridge.previewBusy, timeout=90)
                 assert bridge.quickResult['slide'] == 2 and bridge.quickResult['image']
                 stopped.assert_not_called()
-            assert c('resultNextSlide').isEnabled()
-            assert c('downloadAfterNarrationButton').isEnabled()
-            assert not c('continueAfterNarrationButton').isEnabled()
+            assert c('narrationResultNext').isEnabled()
+            assert c('narrationResultDownload').isEnabled()
+            assert not c('narrationResultOpen').isEnabled()
             bridge._powerpoint_state = dict(initial_powerpoint_state)
             bridge.powerpointStateChanged.emit()
-            c('toggleVoiceSlidePreview').clicked.emit()
+            c('narrationResultChange').clicked.emit()
             pump(100)
+            assert c('voiceSlideThumbnail').isVisible()
+            assert abs(c('voiceSlideThumbnail').width() / c('voiceSlideThumbnail').height() - 16/9) < .01
+            c('toggleVoiceSlidePreview').clicked.emit()
+            pump(60)
+            assert window.property('voicePreviewExpanded')
+            c('toggleVoiceSlidePreview').clicked.emit()
+            pump(60)
             assert not window.property('voicePreviewExpanded')
             window.setProperty('page', 'library')
             window.setProperty('page', 'voice')
             pump(150)
             assert window.property('voicePreviewExpanded'), 'Returning to a completed voice shows its preview'
-            c('toggleVoiceSlidePreview').clicked.emit()
+            c('narrationResultChange').clicked.emit()
             window.setProperty('narrationOptionsPinned', True)
             window.setProperty('narrationVoice', 'pair:north-male')
             bridge.narration_preparation.state = dict(plan, lesson_id=lesson['id'], running=True, complete=0)
@@ -125,7 +140,8 @@ def main():
             bridge.narrationChanged.emit()
             pump(120)
             assert window.property('voicePreviewExpanded'), 'Completion reveals the slide even if the draft choice differs'
-            c('toggleVoiceSlidePreview').clicked.emit()
+            c('narrationResultChange').clicked.emit()
+            window.setProperty('voicePreviewExpanded', False)
             bridge.narrationChanged.emit()
             pump(60)
             assert not window.property('voicePreviewExpanded'), 'Later notifications must respect a deliberate hide'

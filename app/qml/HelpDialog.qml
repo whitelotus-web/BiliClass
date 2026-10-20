@@ -8,8 +8,8 @@ Dialog {
     width: Math.min(parent.width - 48, 960); height: Math.min(parent.height - 56, 690)
     padding: 20
     property int activeTopic: 0
-    readonly property color ink: "#112650"
-    readonly property color muted: "#667997"
+    readonly property color ink: AppTheme.adapt("#112650")
+    readonly property color muted: AppTheme.adapt("#667997")
     readonly property var topics: [
         {label:"Cài đặt ban đầu", icon:"settings", title:"Bắt đầu từ 4 cài đặt này", intro:"Thiết lập một lần, BiliClass sẽ nhớ cho những lần dùng sau."},
         {label:"Chuyển đổi bài giảng", icon:"bilingual", title:"Từ PowerPoint đến bài giảng song ngữ", intro:"Giữ thiết kế quen thuộc hoặc làm mới bằng mẫu BiliClass."},
@@ -51,7 +51,7 @@ Dialog {
             {title:"Đổi nơi lưu hoặc cập nhật", body:"Dùng Đổi nơi lưu nếu cần chuyển thư viện sang ổ khác. Kiểm tra bản mới tại Cài đặt → Thông tin BiliClass."}
         ]
     ]
-    background: Rectangle { color: "white"; radius: 16; border.color: "#d6e4f6" }
+    background: Rectangle { color: AppTheme.surface; radius: 16; border.color: AppTheme.adapt("#d6e4f6") }
     header: Item {
         implicitHeight: 82
         Label { x:24; y:18; text:"Hướng dẫn BiliClass"; color:guide.ink; font.pixelSize:23; font.weight:Font.Bold }
@@ -71,16 +71,16 @@ Dialog {
                     contentItem:RowLayout {
                         spacing:10
                         NavigationIcon { name:modelData.icon; active:guide.activeTopic===index; Layout.preferredWidth:24; Layout.preferredHeight:24 }
-                        Label { text:(index+1)+". "+modelData.label; Layout.fillWidth:true; color:guide.activeTopic===index?"#0869f9":guide.ink; font.pixelSize:13; font.weight:Font.DemiBold; wrapMode:Text.WordWrap }
+                        Label { text:(index+1)+". "+modelData.label; Layout.fillWidth:true; color:guide.activeTopic===index?AppTheme.adapt("#0869f9"):guide.ink; font.pixelSize:13; font.weight:Font.DemiBold; wrapMode:Text.WordWrap }
                     }
-                    background:Rectangle { radius:10; color:guide.activeTopic===index?"#edf5ff":parent.hovered?"#f6f9fd":"transparent" }
+                    background:Rectangle { radius:10; color:guide.activeTopic===index?AppTheme.adapt("#edf5ff"):parent.hovered?AppTheme.adapt("#f6f9fd"):"transparent" }
                     onClicked:guide.activeTopic=index
                 }
             }
             Item { Layout.fillHeight:true }
             Label { text:"F1 · Mở hướng dẫn bất cứ lúc nào"; wrapMode:Text.WordWrap; Layout.fillWidth:true; font.pixelSize:11; color:guide.muted }
         }
-        Rectangle { Layout.fillHeight:true; Layout.preferredWidth:1; color:"#e6edf7" }
+        Rectangle { Layout.fillHeight:true; Layout.preferredWidth:1; color:AppTheme.adapt("#e6edf7") }
         ColumnLayout {
             Layout.fillWidth:true; Layout.fillHeight:true; spacing:10
             Label { objectName:"helpTopicHeading"; text:guide.topics[guide.activeTopic].title; color:guide.ink; font.pixelSize:22; font.weight:Font.Bold; wrapMode:Text.WordWrap; Layout.fillWidth:true }
@@ -96,10 +96,10 @@ Dialog {
                             required property int index
                             required property var modelData
                             objectName:"helpStep"+index
-                            Layout.fillWidth:true; implicitHeight:stepRow.implicitHeight+24; radius:11; color:"#f7faff"
+                            Layout.fillWidth:true; implicitHeight:stepRow.implicitHeight+24; radius:11; color:AppTheme.adapt("#f7faff")
                             RowLayout {
                                 id:stepRow; anchors.fill:parent; anchors.margins:12; spacing:12
-                                Rectangle { Layout.alignment:Qt.AlignTop; implicitWidth:29; implicitHeight:29; radius:15; color:"#e6f0ff"; Label { anchors.centerIn:parent; text:index+1; font.weight:Font.Bold; color:"#0869f9" } }
+                                Rectangle { Layout.alignment:Qt.AlignTop; implicitWidth:29; implicitHeight:29; radius:15; color:AppTheme.adapt("#e6f0ff"); Label { anchors.centerIn:parent; text:index+1; font.weight:Font.Bold; color:AppTheme.adapt("#0869f9") } }
                                 ColumnLayout {
                                     Layout.fillWidth:true; spacing:4
                                     Label { text:modelData.title; color:guide.ink; font.pixelSize:15; font.weight:Font.DemiBold; wrapMode:Text.WordWrap; Layout.fillWidth:true }

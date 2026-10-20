@@ -89,6 +89,7 @@ class NarrationJob(QThread):
         last_error = ''
         tasks=deque(self.tasks)
         futures={}
+        retries = {}
         second_enabled=False
         self.progressed.emit({'complete': complete, 'cached': cached, 'total': self.total,
                               'skipped': self.skipped, 'duplicates': self.duplicates,
@@ -132,9 +133,13 @@ class NarrationJob(QThread):
                                 self.parallelism=1
                                 second_enabled=False
                             else:
-                                failed+=1
-                                consecutive+=1
                                 last_error = str(exc)[:280]
+                                if retries.get(task, 0) < 1 and not self.cancel.is_set():
+                                    retries[task] = retries.get(task, 0) + 1
+                                    tasks.appendleft(task)
+                                else:
+                                    failed+=1
+                                    consecutive+=1
                         self.result={'complete':complete,'cached':cached,'failed':failed,
                                      'total':self.total,'skipped':self.skipped,
                                      'duplicates':self.duplicates,'workers':2 if second_enabled else 1}
@@ -274,7 +279,7 @@ class NarrationPreparation(QObject):
                     + (result.get('last_error') or 'Bộ giọng chưa sẵn sàng.')
                     + ' Kiểm tra bộ giọng và dung lượng ổ đĩa, rồi bấm Tiếp tục tạo giọng.')
         if result.get("skipped"):
-            return "Một số lời đọc cần kiểm tra. Bài giảng đã được lưu."
+            return "Đã lưu giọng đọc cho phần nội dung có thể đọc."
         if not result.get("total"):
             return "Chưa có nội dung phù hợp để tạo giọng đọc."
         return "Giọng đọc sẵn sàng."

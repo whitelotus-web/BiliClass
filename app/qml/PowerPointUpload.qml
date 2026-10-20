@@ -24,8 +24,8 @@ Rectangle {
     signal removeFile()
     signal showProgress()
     implicitHeight: condensed ? condensedRow.implicitHeight + 20 : uploadRow.implicitHeight + (compact ? 28 : 44)
-    radius: 16; color: drop.containsDrag ? "#edf5ff" : "white"
-    border.color: drop.containsDrag ? "#0869f9" : "#cbdcf4"
+    radius: 16; color: drop.containsDrag ? AppTheme.adapt("#edf5ff") : AppTheme.surface
+    border.color: drop.containsDrag ? AppTheme.adapt("#0869f9") : AppTheme.adapt("#cbdcf4")
     border.width: drop.containsDrag ? 2 : 1
 
     RowLayout {
@@ -52,12 +52,12 @@ Rectangle {
             Label {
                 objectName: upload.condensed ? "" : "powerpointUploadHeading"
                 text: upload.working ? upload.workingTitle : "Tải lên bài giảng PowerPoint (.pptx)"
-                color: "#0869f9"; font.pixelSize: upload.compact ? 19 : 22; font.weight: Font.Bold
+                color: AppTheme.adapt("#0869f9"); font.pixelSize: upload.compact ? 19 : 22; font.weight: Font.Bold
                 Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
             }
             Label {
                 text: upload.working ? upload.workingDetail : "Kéo thả tệp vào đây hoặc bấm nút bên dưới để chọn file"
-                color: "#687e9b"; font.pixelSize: 13; Layout.fillWidth: true
+                color: AppTheme.adapt("#687e9b"); font.pixelSize: 13; Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
             }
             ActionButton {
@@ -72,6 +72,8 @@ Rectangle {
                     spacing: 9
                     Item { Layout.fillWidth: true }
                     Canvas {
+        property bool applicationDark: AppTheme.dark
+        onApplicationDarkChanged: requestPaint()
                         Layout.preferredWidth: 20; Layout.preferredHeight: 20
                         property bool active: choose.enabled
                         property bool progress: upload.working
@@ -80,7 +82,7 @@ Rectangle {
                         onPaint: {
                             var ctx = getContext("2d")
                             ctx.clearRect(0, 0, width, height)
-                            ctx.strokeStyle = active ? "white" : "#96a6bc"
+                            ctx.strokeStyle = active ? AppTheme.accentText : AppTheme.adapt("#96a6bc")
                             ctx.lineWidth = 1.7; ctx.lineJoin = "round"; ctx.lineCap = "round"
                             ctx.beginPath()
                             if (progress) {
@@ -94,12 +96,12 @@ Rectangle {
                             ctx.stroke()
                         }
                     }
-                    Label { text: choose.text; font: choose.font; color: choose.enabled ? "white" : "#96a6bc" }
+                    Label { text: choose.text; font: choose.font; color: choose.enabled ? AppTheme.accentText : AppTheme.adapt("#96a6bc") }
                     Item { Layout.fillWidth: true }
                 }
             }
             Label {
-                text: "Chỉ hỗ trợ tệp .pptx tối đa 200 MB"; color: "#687e9b"; font.pixelSize: 12
+                text: "Chỉ hỗ trợ tệp .pptx tối đa 200 MB"; color: AppTheme.adapt("#687e9b"); font.pixelSize: 12
                 Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
             }
             RowLayout {
@@ -111,7 +113,7 @@ Rectangle {
                     id: selectedName
                     objectName: upload.condensed ? "" : upload.filenameObjectName
                     text: upload.fileName; textFormat: Text.PlainText; elide: Text.ElideMiddle
-                    color: "#16314f"; font.pixelSize: 12; Layout.fillWidth: true
+                    color: AppTheme.adapt("#16314f"); font.pixelSize: 12; Layout.fillWidth: true
                 }
                 ActionButton {
                     id: removeSelected
@@ -123,7 +125,7 @@ Rectangle {
                 objectName: upload.condensed ? "" : upload.errorObjectName
                 visible: !!upload.errorText; text: upload.errorText; textFormat: Text.PlainText
                 Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
-                color: "#ab5b20"; font.pixelSize: 12
+                color: AppTheme.adapt("#ab5b20"); font.pixelSize: 12
             }
         }
     }
@@ -145,20 +147,20 @@ Rectangle {
             Label {
                 objectName: upload.condensed ? "powerpointUploadHeading" : ""
                 text: upload.working ? upload.workingTitle : "Tải lên bài giảng PowerPoint (.pptx)"
-                color: "#0869f9"; font.pixelSize: 17; font.weight: Font.Bold
+                color: AppTheme.adapt("#0869f9"); font.pixelSize: 17; font.weight: Font.Bold
                 Layout.fillWidth: true; wrapMode: Text.WordWrap
             }
             Label {
                 visible: !upload.fileName && !upload.errorText
                 text: upload.working ? upload.workingDetail : "Kéo thả tệp .pptx vào đây · Tối đa 200 MB"
-                color: "#687e9b"; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap
+                color: AppTheme.adapt("#687e9b"); font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap
             }
             RowLayout {
                 visible: !!upload.fileName; Layout.fillWidth: true; spacing: 8
-                Label { objectName: upload.condensed ? upload.filenameObjectName : ""; text: upload.fileName; textFormat: Text.PlainText; elide: Text.ElideMiddle; color: "#16314f"; font.pixelSize: 12; Layout.fillWidth: true; Layout.minimumWidth: 0 }
+                Label { objectName: upload.condensed ? upload.filenameObjectName : ""; text: upload.fileName; textFormat: Text.PlainText; elide: Text.ElideMiddle; color: AppTheme.adapt("#16314f"); font.pixelSize: 12; Layout.fillWidth: true; Layout.minimumWidth: 0 }
                 ActionButton { objectName: upload.condensed ? upload.removeObjectName : ""; text: "Bỏ tệp"; implicitHeight: 26; font.pixelSize: 11; enabled: !upload.busy && !upload.working; onClicked: upload.removeFile() }
             }
-            Label { objectName: upload.condensed ? upload.errorObjectName : ""; visible: !!upload.errorText; text: upload.errorText; textFormat: Text.PlainText; Layout.fillWidth: true; wrapMode: Text.WordWrap; maximumLineCount: 1; elide: Text.ElideRight; color: "#ab5b20"; font.pixelSize: 12; HoverHandler { id: uploadErrorHover } ToolTip.visible: uploadErrorHover.hovered; ToolTip.text: upload.errorText }
+            Label { objectName: upload.condensed ? upload.errorObjectName : ""; visible: !!upload.errorText; text: upload.errorText; textFormat: Text.PlainText; Layout.fillWidth: true; wrapMode: Text.WordWrap; maximumLineCount: 1; elide: Text.ElideRight; color: AppTheme.adapt("#ab5b20"); font.pixelSize: 12; HoverHandler { id: uploadErrorHover } ToolTip.visible: uploadErrorHover.hovered; ToolTip.text: upload.errorText }
         }
         ActionButton {
             objectName: upload.condensed ? upload.chooseObjectName : ""

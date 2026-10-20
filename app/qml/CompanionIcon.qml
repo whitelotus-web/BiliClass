@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Window
 
-Image {
+ThemedImage {
     required property string iconName
     source: "../assets/mascot-controls/" + iconName + ".svg"
     // Rasterize the rounded vector strokes above display resolution, including

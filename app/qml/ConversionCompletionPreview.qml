@@ -11,14 +11,14 @@ Frame {
     readonly property var result: current ? bridge.quickResult : ({})
     readonly property bool loading: visible && (!current || bridge.previewBusy)
     padding: 12
-    background: Rectangle { radius: 12; color: "#f7faff"; border.color: "#dce8f8" }
+    background: Rectangle { radius: 12; color: AppTheme.adapt("#f7faff"); border.color: AppTheme.adapt("#dce8f8") }
     contentItem: ColumnLayout {
         spacing: 10
         Label {
             Layout.fillWidth: true
             text: (preview.current && preview.bridge.lesson.external_deck
                    ? (preview.bridge.lesson.external_deck.content_review || {}).message : "") || ""
-            visible: text.length > 0; color: "#986019"; font.pixelSize: 12; wrapMode: Text.WordWrap
+            visible: text.length > 0; color: AppTheme.adapt("#986019"); font.pixelSize: 12; wrapMode: Text.WordWrap
         }
         Item {
             Layout.fillWidth: true; implicitHeight: preview.previewHeight
@@ -35,7 +35,7 @@ Frame {
                 anchors.centerIn: parent; width: parent.width - 40
                 visible: !preview.loading && !preview.result.image
                 text: preview.result.preview_note || "Chưa có ảnh xem trước. Bấm Thử lại để nạp slide."
-                font.pixelSize: 13; color: "#667997"; wrapMode: Text.WordWrap; horizontalAlignment: Text.AlignHCenter
+                font.pixelSize: 13; color: AppTheme.adapt("#667997"); wrapMode: Text.WordWrap; horizontalAlignment: Text.AlignHCenter
             }
         }
         RowLayout {
@@ -49,7 +49,7 @@ Frame {
             Label {
                 objectName: "conversionCompletionCounter"
                 text: preview.current ? "Slide " + (preview.result.slide || 1) + " / " + (preview.result.total || 0) : "Đang nạp bài giảng…"
-                color: "#112650"; font.pixelSize: 13
+                color: AppTheme.adapt("#112650"); font.pixelSize: 13
             }
             ActionButton {
                 objectName: "conversionCompletionNext"; text: "Sau"; implicitHeight: 34; Layout.preferredWidth: 84
