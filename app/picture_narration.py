@@ -97,15 +97,19 @@ def _legacy_pages(path, size, modified, digest):
             if (rows := image_text(objects(slide), slide.notes_slide.notes_text_frame.text if slide.has_notes_slide else ''))}
 
 
-def prepare(lesson, library):
+def prepare(lesson, library, *, freshly_extracted=False):
     """Upgrade old narration metadata without changing the PPTX or lesson text."""
     source_hash = (lesson.get('source') or {}).get('sha256')
     checked_hash = lesson.get('narration_image_source_sha256')
     if lesson.get('narration_image_policy') == 1 and (not checked_hash or checked_hash == source_hash):
         return False
-    pages = {str(page['slide']): page['imageText'] for page in lesson.get('slide_speech', {}).get('slides', [])
+    from .slide_speech import EXTRACTION_VERSION
+
+    speech = lesson.get('source_slide_speech') or lesson.get('slide_speech', {})
+    pages = {str(page['slide']): page['imageText'] for page in speech.get('slides', [])
              if page.get('imageText')}
-    if not pages and (lesson.get('source') or {}).get('file', '').lower().endswith('.pptx'):
+    if (not pages and not (freshly_extracted and speech.get('extraction_version') == EXTRACTION_VERSION)
+            and (lesson.get('source') or {}).get('file', '').lower().endswith('.pptx')):
         from .powerpoint import verified_presentation
 
         try:

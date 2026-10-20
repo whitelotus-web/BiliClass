@@ -237,7 +237,8 @@ def load_request(folder):
             "attachments": [name] + (["mau-biliclass.pptx"] if (folder / "mau-biliclass.pptx").is_file() else [])}
 
 
-def inspect_returned_deck(path, source_path=None, conversion_format="", requested_style="source", *, layout_plan=None):
+def inspect_returned_deck(path, source_path=None, conversion_format="", requested_style="source", *, layout_plan=None,
+                          narration_only=False):
     """Read native text/notes only; no OCR, translation or document rewriting."""
     from pptx import Presentation
 
@@ -253,6 +254,7 @@ def inspect_returned_deck(path, source_path=None, conversion_format="", requeste
         raise ValueError("PowerPoint cần từ 1 đến 1.000 slide.")
     units = text_blocks(deck)
     blocks, render_only, questions, review_notes = [], [], [], []
+    narration_notes = {}
     source_total = None
     source_deck = None
     if source_path and requested_style == "source" and Path(source_path).suffix.lower() == ".pptx":
@@ -282,7 +284,9 @@ def inspect_returned_deck(path, source_path=None, conversion_format="", requeste
                 except (ValueError, TypeError):
                     review_notes.append(f"{locator}: Câu hỏi trong ghi chú chưa hợp lệ; kiểm tra lại trước khi dùng.")
         fallback_notes = re.split(r"(?im)^\s*(?:CHECK|QUIZ)\s*[:：]", assistant_notes, maxsplit=1)[0]
-        pair = speaker_pair(assistant_notes) or split_existing_pair(fallback_notes)
+        pair = speaker_pair(assistant_notes, allow_single=narration_only) or split_existing_pair(fallback_notes)
+        if narration_only and pair:
+            narration_notes[locator] = pair
         native = [unit["text"] for unit in units if unit["slide"] == index]
         if pair:
             text = f"VI: {pair['vi']}\nEN: {pair['en']}"
@@ -302,20 +306,30 @@ def inspect_returned_deck(path, source_path=None, conversion_format="", requeste
     for unit in profile["units"]:
         if unit["locator"] in render_only:
             unit.update(vi="", en="", language="unknown", existing_pair=False)
-    from .slide_quality import inspect_quality, quality_messages
+        if unit['locator'] in narration_notes:
+            unit.update(narration_notes[unit['locator']])
+    if narration_only and (sum(len(u['vi']) + len(u['en']) for u in profile['units']) > 1_000_000
+                           or any(len(u['vi']) + len(u['en']) > 100_000 for u in profile['units'])):
+        raise ValueError('Tổng lời đọc của bài quá lớn; mỗi slide tối đa 100.000 ký tự và cả bài tối đa 1.000.000 ký tự.')
     from .slide_speech import deck_speech
 
     speech_data = deck_speech(path, deck, conversion_format, profile["units"])
-    quality = inspect_quality(deck, speech_data, conversion_format, source_total,source_deck=source_deck,
-                              layout_plan=layout_plan)
-    review_notes.extend(quality_messages(quality))
+    # Voice imports preserve the original deck; conversion layout review belongs
+    # to the conversion workflow. Native speech/animation extraction still runs.
+    quality = {}
+    if not narration_only:
+        from .slide_quality import inspect_quality, quality_messages
+
+        quality = inspect_quality(deck, speech_data, conversion_format, source_total, source_deck=source_deck,
+                                  layout_plan=layout_plan)
+        review_notes.extend(quality_messages(quality))
     return {"blocks": blocks, "profile": profile, "total": len(deck.slides), "render_only": render_only,
             "questions": questions, "review_notes": review_notes,
             "slide_speech": speech_data, "slide_quality": quality,
             **({'layout_plan':layout_plan} if layout_plan else {})}
 
 
-def speaker_pair(notes):
+def speaker_pair(notes, *, allow_single=False):
     """Keep labelled narration/continuations; CHECK lines are never spoken."""
     notes = re.split(r"(?im)^\s*BILICLASS_NOTES\s*[:：]", notes)[-1]
     parts, language = {"vi": [], "en": []}, None
@@ -329,7 +343,8 @@ def speaker_pair(notes):
             language = None
         elif language and line.strip():
             parts[language].append(line.strip())
-    return {key: "\n".join(value) for key, value in parts.items()} if all(parts.values()) else None
+    return ({key: "\n".join(value) for key, value in parts.items()}
+            if (any(parts.values()) if allow_single else all(parts.values())) else None)
 
 
 def text_signature(lesson):

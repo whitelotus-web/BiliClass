@@ -5,6 +5,7 @@ import QtQuick.Layouts
 Rectangle {
     id: upload
     property string fileName: ""
+    property string loadingFileName: ""
     property string errorText: ""
     property bool busy: false
     property bool working: false
@@ -58,19 +59,19 @@ Rectangle {
             Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: upload.compact ? 7 : 10
             Label {
                 objectName: upload.condensed ? "" : "powerpointUploadHeading"
-                text: upload.working ? upload.workingTitle : "Tải lên bài giảng PowerPoint (.pptx)"
+                text: upload.working ? upload.workingTitle : upload.loadingFileName ? "Đang đọc bài giảng PowerPoint…" : "Tải lên bài giảng PowerPoint (.pptx)"
                 color: AppTheme.adapt("#0869f9"); font.pixelSize: upload.compact ? 19 : 22; font.weight: Font.Bold
                 Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
             }
             Label {
-                text: upload.working ? upload.workingDetail : "Kéo thả tệp vào đây hoặc bấm nút bên dưới để chọn file"
+                text: upload.working ? upload.workingDetail : upload.loadingFileName || "Kéo thả tệp vào đây hoặc bấm nút bên dưới để chọn file"
                 color: AppTheme.adapt("#687e9b"); font.pixelSize: 13; Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
             }
             ActionButton {
                 id: choose
                 objectName: upload.condensed ? "" : upload.chooseObjectName
-                text: upload.working ? upload.progressLabel : upload.fileName ? "Đổi file PowerPoint" : "Chọn file PowerPoint"
+                text: upload.working ? upload.progressLabel : upload.loadingFileName ? "Đang đọc…" : upload.fileName ? "Đổi file PowerPoint" : "Chọn file PowerPoint"
                 primary: true; font.pixelSize: 14; implicitHeight: 44
                 Layout.alignment: Qt.AlignHCenter; Layout.preferredWidth: 258
                 enabled: upload.working || !upload.busy

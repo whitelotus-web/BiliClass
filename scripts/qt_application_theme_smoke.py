@@ -110,6 +110,17 @@ def main():
             for name in ('formatChoice_parallel_columnsCard', 'formatChoice_english_onlyCard',
                          'creationKeepOriginalCard', 'creationUseTemplateCard'):
                 assert evaluate(c(name), 'border.width') == 1 and evaluate(c(name), 'border.color.a') > 0
+            conversion_summary = c('conversionConfigurationSummary')
+            for choice in bridge.conversionFormats:
+                c('formatChoice_'+choice['id']).clicked.emit()
+                pump(50)
+                assert evaluate(conversion_summary, 'entries[0].text') == choice['label']
+            for index, preset in enumerate(('standard', 'visual', 'practice')):
+                c('creationPresetSelect_'+preset).clicked.emit()
+                pump(50)
+                assert c('creationPreset').property('currentIndex') == index
+                assert evaluate(conversion_summary, 'entries[1].text').startswith('Mẫu: ')
+                assert c('creationPreset').property('currentText') in evaluate(conversion_summary, 'entries[1].text')
             # A converted lesson has a 16:9 thumbnail before any preview click.
             bridge._lesson = lesson
             bridge._quick_result = dict(lesson_id=lesson['id'], revision=lesson['revision'], path='fixture.pptx', total=2, slide=1)
@@ -138,6 +149,12 @@ def main():
                 assert abs(point.x()-28) <= 1 and point.y() >= 12
                 assert point.y()+summary.height() <= footer.height()-11
                 assert summary.mapToScene(QPointF(summary.width(), 0)).x()+15 <= create.mapToScene(QPointF()).x()
+                for key in ('language', 'voice', 'rate', 'speakers', 'coverage'):
+                    badge = c('narrationConfiguration_'+key)
+                    origin = badge.mapToItem(summary, QPointF())
+                    assert origin.x() >= 10 and origin.y() >= 10
+                    assert origin.x()+badge.width() <= summary.width()-9
+                    assert origin.y()+badge.height() <= summary.height()-9
                 fixed_y = summary.mapToScene(QPointF()).y()
                 scroll = c('resultScroll').property('contentItem')
                 scroll.setProperty('contentY', max(0, scroll.property('contentHeight')-scroll.height()))
@@ -157,6 +174,9 @@ def main():
                 pump(80)
                 assert root.property('narrationMode') == mode
                 assert c('narrationConfiguration').property('mode') == mode
+                names = bridge.voicePairDetails(root.property('narrationVoice'))['label'].split(' – ')
+                assert c('narrationConfiguration').property('selectedVoice') == (
+                    ' + '.join(names) if mode == 'both' else names[mode == 'en'])
                 expected = ['vi', 'en'] if mode == 'both' else [mode]
                 assert evaluate(preview, 'languages.join(",")') == ','.join(expected)
                 for index, position in enumerate(('bottom_left', 'bottom_center', 'bottom_right')):
@@ -166,6 +186,7 @@ def main():
                     until(lambda: not bridge.busy)
                     until(lambda: preview.property('position') == position)
                     assert c('narrationConfiguration').property('positionLabel') == choice.property('currentText')
+                    assert choice.property('currentText') in evaluate(c('narrationConfiguration'), 'entries[3].text')
                     group = c('thumbnailSpeakerPreviewGroup')
                     assert group.y() >= 0 and group.y()+group.height() <= preview.height()
                     assert group.x() >= 0 and group.x()+group.width() <= preview.width()
@@ -179,6 +200,10 @@ def main():
                         until(lambda: evaluate(c('thumbnailSpeakerPreview_'+language), 'Number(status)') == 1)
                     root.grabWindow().save(str(reports/f'speaker-demo-{mode}-{position}.png'))
             assert bridge.preview_calls == 1
+            root.setProperty('narrationRate', 2)
+            pump(60)
+            assert evaluate(c('narrationConfiguration'), 'entries[2].text') == 'Tốc độ: 112%'
+            root.setProperty('narrationRate', 0)
             c('toggleVoiceSlidePreview').clicked.emit()
             pump(100)
             assert root.property('voicePreviewExpanded') and not thumbnail.isVisible()

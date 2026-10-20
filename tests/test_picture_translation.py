@@ -190,8 +190,11 @@ def test_google_pipeline_sends_image_text_once_and_saves_editable_overlay(tmp_pa
     sent = []
 
     def transport(texts, *_):
+        import re
+
         sent.extend(texts)
-        return ["The velocity of the object" for _ in texts]
+        return ['The ' + next(iter(re.findall(r'BCLLOCK\d+END', text)), 'velocity') + ' of the object'
+                for text in texts]
 
     config = creation_config("Chữ trong ảnh", "Vật lý", "THPT", "11", "english_only", "standard", "source")
     job = prepare(data, config, path)
@@ -202,7 +205,7 @@ def test_google_pipeline_sends_image_text_once_and_saves_editable_overlay(tmp_pa
         ConversionProgress(job["folder"], lambda _: None),
         translator=Translator(data, transport=transport),
     )
-    assert len(sent) == 1 and "Vận tốc" in sent[0]
+    assert len(sent) == 1 and ("Vận tốc" in sent[0] or 'BCLLOCK0END' in sent[0])
     assert any(
         "The velocity" in s.text for s in Presentation(preview["path"]).slides[0].shapes if s.has_text_frame
     )

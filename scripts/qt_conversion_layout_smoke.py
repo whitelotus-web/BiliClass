@@ -11,11 +11,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from pptx import Presentation
 from PySide6.QtCore import Q_ARG, QCoreApplication, QEvent, QMetaObject, QPointF, Qt
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine, QQmlExpression
 from PySide6.QtQuickControls2 import QQuickStyle
 from qt_result_preview_mascot_smoke import click, control, pump, until
 
+from app.branding import configure_application
 from app.library import Library
 from app.paths import RESOURCE_ROOT
 from app.ui import Bridge
@@ -23,7 +24,11 @@ from app.ui import Bridge
 
 def main():
     app = QGuiApplication([])
+    configure_application(app)
     QQuickStyle.setStyle("Basic")
+    for font in (RESOURCE_ROOT/'assets').glob('*.ttf'):
+        QFontDatabase.addApplicationFont(str(font))
+    app.setFont(QFont('Be Vietnam Pro', 10))
     out = Path(os.environ.get('BILICLASS_CONVERSION_REPORT', 'reports/rc96/conversion'))
     out.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="bcl-compact-conversion-", ignore_cleanup_errors=True) as temp:
@@ -44,13 +49,19 @@ def main():
         measurements = []
         def verify_layout(entry, scroll):
             upload = c('creationSourceArea')
-            assert upload.property('compact') and upload.property('condensed') == entry['selected']
+            assert upload.property('compact')
             assert upload.height() >= 140
             button = c('chooseInputDocumentButton')
             if entry['selected']:
+                assert not upload.isVisible()
+                overview, details = c('creationLessonOverview'), c('creationLessonDetails')
+                assert overview.isVisible() and overview.property('columns') == 2
                 thumbnail = c('creationSelectedSlidePreview')
                 assert thumbnail.isVisible() and abs(thumbnail.width()/thumbnail.height()-16/9) < .01
-                assert thumbnail.mapToScene(QPointF()).x() >= button.mapToScene(QPointF(button.width(), 0)).x()
+                assert thumbnail.mapToScene(QPointF()).x() >= details.mapToScene(QPointF(details.width(), 0)).x()+23
+                assert button.mapToScene(QPointF()).y()+button.height() <= overview.mapToScene(QPointF()).y()
+                assert c('removeInputDocumentButton').isVisible()
+                assert c('creationSelectedLessonTitle').property('text') == c('lessonTitle').property('text')
                 assert button.property('text') == 'Chọn bài khác'
             else:
                 icon = c('chooseInputDocumentButtonIllustration')

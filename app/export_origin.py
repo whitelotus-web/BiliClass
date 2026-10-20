@@ -8,12 +8,16 @@ from .download_names import presentation_title
 def remember_source(library, path, digest):
     path = Path(path).resolve()
     if digest and path.is_file() and not path.is_relative_to(library.directory.resolve()):
-        library.set_setting('export_origin_source:' + digest, {'folder': str(path.parent), 'name': path.name})
+        key = 'export_origin_source:' + digest
+        origin = {'folder': str(path.parent), 'name': path.name}
+        if library.setting(key, {}) != origin:
+            library.set_setting(key, origin)
 
 
 def bind_lesson(library, lesson, digest):
     origin = library.setting('export_origin_source:' + digest, {}) if digest else {}
-    if isinstance(origin, dict) and origin.get('folder'):
+    if (isinstance(origin, dict) and origin.get('folder')
+            and library.setting('export_origin_lesson:' + lesson['id'], {}) != origin):
         library.set_setting('export_origin_lesson:' + lesson['id'], origin)
 
 

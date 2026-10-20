@@ -152,7 +152,8 @@ def main():
                     assert window.findChild(QObject, "creationWorkflow").property("currentIndex") == 0
                     if path is not None:
                         assert bridge.inputDocuments.preview.get('image'), bridge.inputDocuments.preview
-                        assert window.findChild(QObject, 'creationSourceArea').property('condensed')
+                        assert not window.findChild(QObject, 'creationSourceArea').isVisible()
+                        assert window.findChild(QObject, 'creationLessonOverview').isVisible()
                         checked.append({"name": path.name, "bytes": path.stat().st_size})
                         print(f"Native picker accepted {len(checked)}/{len(sources)}", flush=True)
                         assert window.grabWindow().save(str(reports / "accepted-pptx.png"))

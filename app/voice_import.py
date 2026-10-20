@@ -1,7 +1,7 @@
 """Import an existing PowerPoint for narration without translation or redesign."""
 
+import hashlib
 import json
-import re
 from contextlib import closing
 from pathlib import Path
 
@@ -148,54 +148,38 @@ def refresh_native_speech(library, lesson, cancel=None):
 
 
 def import_presentation(directory, path):
+    from .document_limits import check_document_size
+    from .export_origin import bind_lesson, remember_source
+    from .narration_script import prepare
+
     path = Path(path)
-    inspection = inspect_returned_deck(path)
-    # Explicit narration notes may contain only one language. The bilingual
-    # conversion inspector intentionally requires pairs; this workspace does not.
-    from pptx import Presentation
-
-    for slide, unit in zip(Presentation(path).slides, inspection['profile']['units'], strict=True):
-        if not slide.has_notes_slide:
-            continue
-        parts, language = {'vi': [], 'en': []}, None
-        for line in slide.notes_slide.notes_text_frame.text.splitlines():
-            match = re.match(r'^\s*(VI|VN|EN|English|Tiếng Việt|Tiếng Anh)\s*[:：]\s*(.*)$', line, re.I)
-            if match:
-                language = 'vi' if match[1].casefold() in {'vi', 'vn', 'tiếng việt'} else 'en'
-                parts[language].append(match[2])
-            elif re.match(r'^\s*(CHECK|QUIZ|SPEECH|BILICLASS_NOTES)\s*[:：]', line, re.I):
-                language = None
-            elif language:
-                parts[language].append(line)
-        if any(parts.values()):
-            vi, en = ('\n'.join(parts[lang]).strip() for lang in ('vi', 'en'))
-            if len(vi) + len(en) > 100_000:
-                raise ValueError('Mỗi slide tối đa 100.000 ký tự lời đọc.')
-            unit.update(vi=vi, en=en)
-    if sum(len(u['vi']) + len(u['en']) for u in inspection['profile']['units']) > 1_000_000:
-        raise ValueError('Tổng lời đọc của bài tối đa 1.000.000 ký tự.')
+    if path.suffix.lower() != '.pptx' or not path.is_file():
+        raise ValueError('Chọn một tệp PowerPoint (.pptx) trên máy tính.')
+    check_document_size(path)
+    with path.open('rb') as stream:
+        digest = hashlib.file_digest(stream, 'sha256').hexdigest()
     with closing(Library(directory)) as library:
-        source = library.store_source(path)
-        from .export_origin import bind_lesson, remember_source
-
-        remember_source(library, path, source['sha256'])
-        if source['sha256'] != inspection['slide_speech']['sha256']:
-            raise ValueError('PowerPoint đã thay đổi trong lúc đọc. Chọn lại file trước khi tạo giọng.')
-        # Reuse an earlier import of the exact file, including its voice variants.
+        # Check exact bytes before parsing. Reopening a known presentation keeps
+        # its edited scripts and recordings, without inspecting every slide again.
         for row in library.db.execute('SELECT content FROM lessons'):
             lesson = json.loads(row[0])
-            if lesson.get('voice_only') and (lesson.get('source') or {}).get('sha256') == source['sha256'] and not lesson.get('deleted_at'):
-                from .narration_script import prepare
-
+            if lesson.get('voice_only') and (lesson.get('source') or {}).get('sha256') == digest and not lesson.get('deleted_at'):
+                source = library.store_source(path)
+                if source['sha256'] != digest:
+                    raise ValueError('PowerPoint đã thay đổi trong lúc đọc. Chọn lại file trước khi tạo giọng.')
                 lesson = prepare(library, prepare_script(library, lesson))
-                bind_lesson(library, lesson, source['sha256'])
+                remember_source(library, path, digest)
+                bind_lesson(library, lesson, digest)
                 return lesson, external_preview(lesson, directory)
+        inspection = inspect_returned_deck(path, narration_only=True)
+        source = library.store_source(path)
+        if source['sha256'] != digest or source['sha256'] != inspection['slide_speech']['sha256']:
+            raise ValueError('PowerPoint đã thay đổi trong lúc đọc. Chọn lại file trước khi tạo giọng.')
+        remember_source(library, path, digest)
         config = {'title': path.stem, 'subject': 'Bài giảng có sẵn', 'education_level': '', 'grade': '',
                   'level': 4, 'layout': 'split_view', 'style': 'source', 'preset': 'standard', 'mode': 'preserve'}
         lesson = library.create_external_lesson(config, source, inspection, voice_only=True)
         bind_lesson(library, lesson, source['sha256'])
         prepare_script(library, lesson)
-        from .narration_script import prepare
-
         lesson = prepare(library, lesson)
         return lesson, external_preview(lesson, directory)

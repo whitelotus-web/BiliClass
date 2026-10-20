@@ -92,7 +92,7 @@ def prepare(library, lesson, *, new=False):
     """Repair once; new records are normalized before their first database write."""
     from .picture_narration import prepare as prepare_images
 
-    image_changed = prepare_images(lesson, library)
+    image_changed = prepare_images(lesson, library, freshly_extracted=new)
     if lesson.get('narration_classification_version') == 1:
         if image_changed and not new:
             library._write(lesson)

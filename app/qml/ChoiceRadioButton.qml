@@ -3,6 +3,7 @@ import QtQuick.Controls
 
 RadioButton {
     id: radio
+    opacity: enabled ? 1 : .45
     property bool highlightSelection: false
     background: Rectangle {
         radius: 7

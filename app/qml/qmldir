@@ -13,6 +13,7 @@ ContentScrollView 1.0 ContentScrollView.qml
 ConversionChoice 1.0 ConversionChoice.qml
 ConversionCompletionPreview 1.0 ConversionCompletionPreview.qml
 ConversionConfiguration 1.0 ConversionConfiguration.qml
+ConfigurationSummary 1.0 ConfigurationSummary.qml
 ConversionLayoutPreview 1.0 ConversionLayoutPreview.qml
 HelpDialog 1.0 HelpDialog.qml
 HomeLibraryOverview 1.0 HomeLibraryOverview.qml

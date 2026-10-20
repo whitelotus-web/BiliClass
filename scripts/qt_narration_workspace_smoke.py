@@ -185,7 +185,7 @@ def main():
             until(lambda: bridge.narrationAvailableModes(bridge.narrationVariants).get('both'))
             assert not c('createLessonNarrationButton').isEnabled()
             assert not window.findChild(type(c('createLessonNarrationButton')), 'voiceNarrationVariantChoice')
-            assert 'hai ngôn ngữ' in c('narrationConfigurationExplanation').property('text')
+            assert c('narrationConfiguration').property('mode') == 'both'
             assert not c('narrationEnglish').isVisible() and not c('narrationVietnamese').isVisible()
             assert not c('narrationBoth').isVisible()
             assert c('downloadNarrationAudioButton').isVisible()
@@ -299,10 +299,10 @@ def main():
                                        'parallel_columns', 'standard', 'source')
                 assert bridge.narrationBusy and bridge.lesson['id'] == saved_id
                 assert 'Chờ tạo giọng' in bridge.message
-                assert 'Giữ thiết kế gốc' in c('conversionConfigurationTitle').property('text')
+                assert c('conversionConfigurationSummary').property('keepSource')
                 c('creationFormat').setProperty('currentIndex', 1)
                 pump(30)
-                assert 'tiếng Anh' in c('conversionConfigurationExplanation').property('text')
+                assert c('conversionConfigurationSummary').property('formatId') == 'english_only'
                 click(window, c('chooseInputDocumentButton'))
                 assert window.property('page') == 'voice'
                 assert bridge.narrationBusy

@@ -63,3 +63,57 @@ def test_no_text_can_be_completed_with_explicit_narration_and_wrong_type_rejecte
     wrong.write_bytes(b'not a deck')
     with pytest.raises(ValueError):
         import_presentation(tmp_path / 'library', wrong)
+
+
+def test_reimport_reuses_script_and_audio_without_parsing_and_changed_bytes_are_reinspected(tmp_path, monkeypatch):
+    from contextlib import closing
+
+    from app.voice_import import save_script
+
+    source = deck(tmp_path/'Known.pptx', 'Năng lượng được bảo toàn.')
+    directory = tmp_path/'library'
+    lesson, _ = import_presentation(directory, source)
+    with closing(Library(directory)) as library:
+        lesson = save_script(library, lesson['id'], lesson['segments'][0]['id'], lesson['revision'],
+                             'Lời thầy cô đã sửa.', 'An edited script.')
+        audio = directory/'audio/keep.wav'
+        audio.parent.mkdir(exist_ok=True)
+        audio.write_bytes(b'cached audio')
+        lesson['narration'] = {'mode': 'both', 'keys': {'vi': ['keep']}}
+        library._write(lesson)
+    def unexpected_parse(*_, **__):
+        raise AssertionError('The cached import must not parse again')
+    with monkeypatch.context() as patch:
+        patch.setattr('app.voice_import.inspect_returned_deck', unexpected_parse)
+        again, _ = import_presentation(directory, source)
+    assert again['id'] == lesson['id'] and again['revision'] == lesson['revision']
+    assert again['segments'] == lesson['segments'] and again['narration'] == lesson['narration']
+    assert audio.read_bytes() == b'cached audio'
+    deck(source, 'Nội dung khác hoàn toàn.')
+    changed, _ = import_presentation(directory, source)
+    assert changed['id'] != lesson['id'] and changed['source']['sha256'] != lesson['source']['sha256']
+
+
+@pytest.mark.parametrize(('notes', 'vi', 'en'), [
+    ('VI: Lời Việt\ntiếp theo\nCHECK: Không đọc dòng này', 'Lời Việt\ntiếp theo', ''),
+    ('EN: An English script.\nSPEECH: do not read', '', 'An English script.'),
+    ('BILICLASS_NOTES:\nVI: Lời Việt\nEN: An English script.', 'Lời Việt', 'An English script.'),
+])
+def test_narration_notes_read_once_and_new_import_skips_conversion_layout_review(tmp_path, monkeypatch, notes, vi, en):
+    import pptx
+
+    calls = []
+    presentation = pptx.Presentation
+    def parsed(*args, **kwargs):
+        calls.append(1)
+        return presentation(*args, **kwargs)
+    def unexpected_scan(*_, **__):
+        raise AssertionError('Current extraction already checked image narration')
+    source = deck(tmp_path/'Notes.pptx', 'Nội dung hiển thị.', notes)
+    monkeypatch.setattr(pptx, 'Presentation', parsed)
+    monkeypatch.setattr('app.picture_narration._legacy_pages', unexpected_scan)
+    monkeypatch.setattr('app.slide_quality.inspect_quality', unexpected_scan)
+    lesson, _ = import_presentation(tmp_path/'library', source)
+    assert lesson['segments'][0]['vi'] == vi and lesson['segments'][0]['en'] == en
+    assert calls == [1] and not lesson['slide_quality']
+    assert lesson['source_slide_speech']['extraction_version']

@@ -1276,12 +1276,18 @@ class Bridge(QObject):
         if not self.narration_workspace.available():
             return
         directory = self.library.directory
+        self._narration_import_name = Path(QUrl(url).toLocalFile()).name
 
         def ready(result):
             self._show_lesson(*result, destination='voice')
             self.inform('Đã nhận PowerPoint. Kiểm tra hoặc bổ sung lời đọc theo slide rồi chọn giọng để tạo.')
 
-        self.launch(lambda: import_presentation(directory, QUrl(url).toLocalFile()), ready)
+        self.launch(lambda: import_presentation(directory, QUrl(url).toLocalFile()), ready,
+                    message='Đang đọc bài giảng: ' + self._narration_import_name)
+
+    @Property(str, notify=changed)
+    def narrationImportName(self):
+        return getattr(self, '_narration_import_name', '') if self._busy else ''
 
     @Slot(str, str, int)
     def createLessonNarrationWithVoice(self, mode, voice, rate):
@@ -2253,6 +2259,7 @@ class Bridge(QObject):
     @Slot()
     def finishJob(self):
         self._busy = False
+        self._narration_import_name = ''
         self._job_cancellable = True
         result, error = self.job_result
         # A completed stage may immediately launch the next stage. Release the
