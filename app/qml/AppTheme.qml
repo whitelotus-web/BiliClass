@@ -20,6 +20,9 @@ QtObject {
     readonly property color icon: dark ? "#c0d2ee" : "#526f98"
     readonly property color success: dark ? "#79dbb8" : "#168567"
     readonly property color warning: dark ? "#f2be77" : "#a66318"
+    readonly property color warningSurface: dark ? "#352c22" : "#fff8eb"
+    readonly property color warningInk: dark ? "#f2be77" : "#85500f"
+    readonly property color warningLine: dark ? "#715936" : "#e8cf9c"
     readonly property color danger: dark ? "#ff9ca5" : "#c92d37"
     // Preserve the established light shades while sharing their dark roles.
     readonly property var darkColors: ({

@@ -16,14 +16,8 @@ Frame {
         spacing: 10
         LessonChecks {
             objectName: "completionChecks"; Layout.fillWidth: true
-            bridge: preview.bridge; visible: preview.current && !!report.remaining
+            bridge: preview.bridge; visible: preview.current && (!!report.remaining || !!report.image_note)
             onViewRequested: function(slide) { preview.bridge.previewConvertedSlide(slide) }
-        }
-        Label {
-            Layout.fillWidth: true
-            text: (preview.current && preview.bridge.lesson.external_deck
-                   ? (preview.bridge.lesson.external_deck.content_review || {}).message : "") || ""
-            visible: text.length > 0; color: AppTheme.adapt("#986019"); font.pixelSize: 12; wrapMode: Text.WordWrap
         }
         Item {
             Layout.fillWidth: true; implicitHeight: preview.previewHeight

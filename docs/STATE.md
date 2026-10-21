@@ -1,5 +1,12 @@
 # Trạng thái BiliClass
 
+Ngày 22/10/2026 — nguồn RC140 sửa khung cảnh báo khó đọc ở chế độ
+tối: bộ màu theo giao diện, chữ 13–14 px, tiêu đề tách lời nhắc với
+lỗi bố cục; lời nhắc chữ trong ảnh cùng khung ở cả hai công cụ.
+10 pytest và Qt 16 trạng thái sáng/tối, thu gọn/mở rộng, hai cỡ màn
+đạt; độ tương phản chữ tối thiểu 6,31:1, không cảnh báo QML.
+Xem [BUILD_RC140](BUILD_RC140.md) cho kiểm chứng và tình trạng gói.
+
 Ngày 22/10/2026 — nguồn RC139 kế thừa RC138, sửa căn hàng trong
 khung nền lớn, tỉ lệ chữ theo kích thước slide, khung nhãn Câu/Question
 và nền kế thừa từ nhóm cha. 77 kiểm thử liên quan và Qt chẩn đoán

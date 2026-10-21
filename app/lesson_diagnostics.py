@@ -36,10 +36,17 @@ def layout(lesson):
     repairs = report.get('local_repairs', [])
     fixed = {row['slide'] for row in repairs if row.get('slide') and row.get('operation') != 'keep_quantities_together'}
     failures = sum(row['failed'] for row in pages)
+    review = (lesson.get('external_deck') or {}).get('content_review') or {}
+    image_pages = sorted({n for n in review.get('image_pages', []) if type(n) is int and n > 0})
+    image_note = (f"Chữ trong ảnh ở slide nguồn {', '.join(map(str, image_pages[:8]))}{'…' if len(image_pages) > 8 else ''} "
+                  'chưa được kiểm tra hết. Hãy đối chiếu chữ, bảng và công thức với bản gốc.'
+                  if image_pages else review.get('message', ''))
     return dict(pages=pages, total=len(report.get('slides', [])), repaired=len(fixed), failures=failures,
                 remaining=len(pages), has_report=bool(report),
+                title='Cần sửa bố cục trước khi dạy' if failures else 'Cần xem lại trước khi dạy',
+                image_note=image_note,
                 summary=(f'Đã tự căn chỉnh {len(fixed)} slide. ' if fixed else '')
-                        + (f'Còn {len(pages)} slide cần đối chiếu' + (f', trong đó {failures} slide còn lỗi bố cục.' if failures else '.')
+                        + (f'Có {len(pages)} slide cần xem lại' + (f', trong đó {failures} slide còn lỗi bố cục.' if failures else '.')
                            if pages else 'Chưa phát hiện lỗi trong các phép kiểm tra tự động.' if report else 'Chưa có kết quả kiểm tra slide.'))
 
 

@@ -24,7 +24,18 @@ def test_layout_explains_specific_pages_without_turning_generic_review_into_erro
     assert report['failures'] == 1 and report['remaining'] == 2 and report['repaired'] == 1
     assert report['pages'][1]['source_slide'] == 1
     assert report['pages'][1]['issues'][0]['excerpt'] == 'Định nghĩa'
+    assert report['title'] == 'Cần sửa bố cục trước khi dạy'
     assert layout({})['has_report'] is False
+
+
+def test_image_review_is_plain_and_retained_without_a_layout_failure():
+    report = layout({'external_deck': {'content_review': {'image_pages': [1], 'message': 'Legacy technical message'}},
+                     'slide_quality': {'slides': [{'slide': 1, 'issues': [{'code': 'notes_mismatch', 'severity': 'CHECK'}]}]}})
+    assert report['title'] == 'Cần xem lại trước khi dạy'
+    assert report['failures'] == 0 and report['remaining'] == 1
+    assert report['summary'] == 'Có 1 slide cần xem lại.'
+    assert report['image_note'] == 'Chữ trong ảnh ở slide nguồn 1 chưa được kiểm tra hết. Hãy đối chiếu chữ, bảng và công thức với bản gốc.'
+    assert layout({'external_deck': {'content_review': {'message': 'Cần xem ảnh.'}}})['image_note'] == 'Cần xem ảnh.'
 
 
 def test_failed_shared_speech_lists_every_source_slide_and_language():
