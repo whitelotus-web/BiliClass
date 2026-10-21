@@ -54,7 +54,8 @@ def main():
                   'conversion_format': 'parallel_columns', 'style': 'source', 'preset': 'standard'}
         lesson = library.create_external_lesson(config, library.store_source(source), inspect_returned_deck(source))
         with patch.object(Bridge, 'previewConvertedSlide'):
-            bridge = Bridge(library)
+            with patch.object(speech, 'list_voices', return_value=[dict(speech.PAIRS[0])]):
+                bridge = Bridge(library)
             engine = QQmlApplicationEngine()
             engine.warnings.connect(lambda items: warnings.extend(str(x) for x in items))
             engine.rootContext().setContextProperty('bridge', bridge)
@@ -70,7 +71,7 @@ def main():
                 pump(150)
                 assert not bridge.narrationBusy and bridge.lessonNarration['status'] == 'none'
                 with patch.object(speech, 'valid_audio', side_effect=check), patch.object(speech, 'synthesize_background', side_effect=render):
-                    bridge.createLessonNarrationWithVoice('en', 'vieneu:Mai Anh', 0)
+                    bridge.createLessonNarrationWithVoice('en', speech.PAIRS[0]['id'], 0)
                     until(checking.is_set)
                     before = len(ticks)
                     pump(250)

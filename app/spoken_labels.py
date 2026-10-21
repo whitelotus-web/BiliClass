@@ -2,7 +2,7 @@
 import re
 
 VERSION = 'spoken-labels-v1'
-_PREFIX = re.compile(r'^(\s*)(\d+|[IVX]+)[.)/]\s*(?=\S|$)')
+_PREFIX = re.compile(r'^(\s*)(\d+|[IVX]+)\s*[.)/]\s*(?=\S|$)')
 
 
 def english(text):

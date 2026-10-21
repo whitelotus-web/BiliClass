@@ -116,4 +116,5 @@ def test_valid_items_are_cached_when_another_item_in_same_batch_is_rejected(tmp_
     with pytest.raises(TranslationProblem):
         translator.translate(['Xin chào', 'Sai 12'], Event())
     assert translator.translate(['Xin chào'], Event()) == ['Hello']
-    assert len(calls) == 1
+    assert len(calls) == 2, 'Only the invalid chunk gets one bounded opaque-value repair'
+    assert len(calls[1]) == 1 and 'Sai' in calls[1][0]

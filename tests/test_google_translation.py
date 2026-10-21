@@ -180,6 +180,70 @@ def test_missing_number_token_is_rejected_and_not_cached(tmp_path):
         assert db.execute('SELECT COUNT(*) FROM cache').fetchone()[0] == 0
 
 
+def test_numeric_repair_retries_only_failed_chunks_and_keeps_exact_values(tmp_path):
+    KeyStore(tmp_path).add(KEY1)
+    calls=[]
+    def transport(rows,*_):
+        calls.append(rows)
+        if len(calls)==1:
+            return [rows[0].replace('Độ dài','Length'),rows[1].replace('Tọa độ','Coordinates')+' 999']
+        assert len(rows)==1 and '>1,2<' not in rows[0], 'Retry must hide the exposed value'
+        return [rows[0].replace('Tọa độ','Coordinates')]
+    translator=Translator(tmp_path,transport=transport)
+    texts=['Độ dài 12 m','Tọa độ (1,2; -3)']
+    assert translator.translate(texts,Event()) == ['Length 12 m','Coordinates (1,2; -3)']
+    assert len(calls)==2
+    assert translator.store.public()[0]['used'] == sum(len(row) for batch in calls for row in batch)
+    assert translator.translate(texts,Event()) == ['Length 12 m','Coordinates (1,2; -3)']
+    assert len(calls)==2, 'Good values and repaired values must both resume from cache'
+
+
+def test_invalid_numeric_repair_stops_after_one_attempt_and_never_caches(tmp_path):
+    KeyStore(tmp_path).add(KEY1)
+    calls=[]
+    def transport(rows,*_):
+        calls.append(rows)
+        return [row+' 999' for row in rows]
+    translator=Translator(tmp_path,transport=transport)
+    with pytest.raises(TranslationProblem,match='số liệu'):
+        translator.translate(['Giá trị 12'],Event())
+    assert len(calls)==2
+    with closing(translator.store.connect()) as db:
+        assert db.execute('select count(*) from cache').fetchone()[0]==0
+
+
+def test_cancel_before_numeric_repair_never_sends_the_retry(tmp_path):
+    KeyStore(tmp_path).add(KEY1)
+    cancel=Event(); calls=[]
+    def transport(rows,*_):
+        calls.append(rows); cancel.set()
+        return [row+' 999' for row in rows]
+    with pytest.raises(InterruptedError):
+        Translator(tmp_path,transport=transport).translate(['Giá trị 12'],cancel)
+    assert len(calls)==1
+
+
+def test_circled_number_labels_from_geometry_deck_never_reach_google(tmp_path):
+    translator=Translator(tmp_path,transport=lambda *_:pytest.fail('A numeric label needs no API key or translation'))
+    labels=['❶','❷','❸','①','⑳','㊿','⑴','⓿','½','Ⅲ']
+    assert translator.translate(labels,Event())==labels
+
+
+def test_inline_unicode_numbers_restore_exact_glyphs_and_skip_old_bad_cache(tmp_path):
+    import hashlib
+    KeyStore(tmp_path).add(KEY1)
+    calls=[]
+    def transport(rows,*_):
+        calls.extend(rows)
+        return [row.replace('Hoạt động','Activity').replace('>❸<','>4<').replace('>½<','>9<') for row in rows]
+    translator=Translator(tmp_path,transport=transport)
+    text='Hoạt động ❸, phần ½'
+    legacy=hashlib.sha256(('google-nmt-context-v3|vi|en|'+text).encode()).hexdigest()
+    translator.store.cache(legacy,'Activity four, part nine')
+    assert translator.translate([text],Event())==['Activity ❸, phần ½']
+    assert len(calls)==1
+
+
 def test_source_html_escaped_and_long_content_not_truncated():
     text = '<script>Tiếng Việt</script>\nGiá trị 12 + $x^2$ + ⟦BLC0⟧'
     encoded, locks = protected_html(text)

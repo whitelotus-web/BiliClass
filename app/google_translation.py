@@ -14,6 +14,7 @@ import os
 import re
 import sqlite3
 import threading
+import unicodedata
 import urllib.error
 import urllib.request
 from contextlib import closing
@@ -41,6 +42,12 @@ class TranslationProblem(ValueError):
 
 def _digest(value):
     return hashlib.sha256(value.encode('utf-8')).hexdigest()
+
+
+def numeric_glyphs(text):
+    """Circled/parenthesized/fractional numbers are numbers, not words to translate."""
+    return ''.join(sorted({char for char in text if unicodedata.category(char) in {'No','Nl'}
+        and char not in '⁰¹²³⁴⁵⁶⁷⁸⁹'}))
 
 
 def _atomic(path, data):
@@ -324,12 +331,27 @@ def request(texts, key, source, target):
         raise TranslationProblem('api_result', 'Google Dịch trả kết quả chưa hợp lệ; phần đã xong vẫn được lưu.') from None
 
 
-def protected_html(text, terms=None):
+def protected_html(text, terms=None, *, chemistry=False, opaque_values=False):
     # Protect arithmetic, LaTeX spans and native OOXML placeholder tokens.
     terms = terms or {}
     term_pattern = r'(?<!\w)(?:' + '|'.join(re.escape(t) for t in sorted(terms, key=len, reverse=True)) + r')(?!\w)' if terms else r'(?!)'
     pattern = (r'⟦BLC\d+⟧|\$[^$]+\$|' + term_pattern + '|' + _MEASUREMENT + '|'
                + _UNIT_EXPRESSION + r'|[⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾]+')
+    glyphs = numeric_glyphs(text)
+    if glyphs:
+        pattern += '|[' + re.escape(glyphs) + ']+'
+    formula_pattern = ''
+    formulas = set()
+    if chemistry:
+        from .chemical_notation import formula_spans
+
+        # Escape the complete, case-sensitive span, including its native index
+        # tokens. Protecting just "2" let Google remove "CO" from CO₂.
+        formulas = {match.group()[1:-1] if match.group().startswith('(') and match.group().endswith(')')
+                    else match.group() for match in formula_spans(text)}
+        if formulas:
+            formula_pattern = r'(?<![\w⟦])(?-i:' + '|'.join(re.escape(value) for value in sorted(formulas,key=lambda v:(-len(v),v))) + r')(?![\w⟧])|'
+    pattern = formula_pattern + pattern
     locks = []
     parts, last = [], 0
     for match in re.finditer(pattern, text, re.I):
@@ -337,13 +359,19 @@ def protected_html(text, terms=None):
         token = f'BCLLOCK{len(locks)}END'
         from .translation_terms import normalized
 
-        locks.append(terms.get(normalized(match.group()), match.group()))
+        locks.append(match.group() if match.group() in formulas else terms.get(normalized(match.group()), match.group()))
         # Expose words/numbers to the model's sentence context. Opaque codes
         # make e.g. velocity look like a person's name and can move a question
         # number into the middle of the sentence. The HTML id still lets us
         # verify and restore every protected value exactly. Native math keeps
         # its opaque token because its XML representation is not prose.
-        contextual = normalized(match.group()) in terms or not match.group().startswith(('⟦', '$'))
+        # Never expose chemical XML indices to the model: CO⟦BLC0⟧ prompted
+        # invented atoms. A semantic replacement such as "chemical formula"
+        # can swallow surrounding nouns; keep the opaque token instead.
+        chemical = match.group() in formulas
+        term = normalized(match.group()) in terms
+        contextual = not chemical and ((term and not (opaque_values and re.search(r'\d', locks[-1]))) or
+            (not opaque_values and not match.group().startswith(('⟦', '$'))))
         parts.append(('<span translate="no" class="notranslate" id="' + token + '">' +
                       html.escape(locks[-1]) + '</span>') if contextual else
                      '<span translate="no" class="notranslate">' + token + '</span>')
@@ -442,16 +470,27 @@ class Translator:
                 whitespace = re.fullmatch(r'(\s*)(.*?)(\s*)', text, re.S)
                 values[text] = whitespace[1] + exact + whitespace[3]
                 continue
+            chemistry = policy.subject == 'hoa hoc'
+            if chemistry:
+                from .chemical_notation import VERSION as notation_version, formula_spans, only_notation
+
+                if only_notation(text):
+                    values[text] = text
+                    continue
             matches = policy.matches(text)
             namespace = 'google-nmt-context-v3|' + policy.fingerprint(matches) if matches else 'google-nmt-context-v3'
+            if chemistry and formula_spans(text):
+                namespace += '|' + notation_version
+            if numeric_glyphs(text):
+                namespace += '|unicode-numeric-glyphs-v1'
             cache_id = _digest(namespace + '|' + source + '|' + target + '|' + text)
             cached = self.store.cached(cache_id)
             if cached is not None:
                 values[text] = cached
-            elif not re.search(r'[^\W\d_]', text, re.UNICODE):
+            elif not any(unicodedata.category(char).startswith('L') for char in text):
                 values[text] = text
             else:
-                payload, locks = protected_html(text, matches)
+                payload, locks = protected_html(text, matches, chemistry=chemistry)
                 if len(payload) > MAX_CHARS:
                     raise TranslationProblem('api_request', 'Một công thức/vùng nội dung quá dài; chia nhỏ trước khi dịch.')
                 pending.append((text, payload, locks, cache_id))
@@ -468,7 +507,7 @@ class Translator:
         if progress:
             progress(done, total)
 
-        def run(group):
+        def run(group, *, repairing=False):
             count = sum(len(item[1]) for item in group)
             excluded = set()
             attempts = 0
@@ -506,12 +545,40 @@ class Translator:
                         from .translation_batches import NUMBERS
                         if Counter(NUMBERS.findall(result)) != Counter(NUMBERS.findall(item[0])):
                             raise TranslationProblem('api_result', 'Bản dịch làm thay đổi số liệu; chưa áp dụng kết quả này.')
+                        if policy.subject == 'hoa hoc':
+                            from .chemical_notation import signature
+
+                            if signature(result) != signature(item[0]):
+                                raise TranslationProblem('api_result', 'Bản dịch làm thay đổi công thức hóa học; chưa áp dụng kết quả này. Phần đã dịch đúng được giữ để tiếp tục.')
                         translated.append((item, result))
                     except TranslationProblem as exc:
-                        invalid.append(exc)
+                        invalid.append((item, exc))
                 self.store.cache_many([(item[3], value) for item, value in translated])
                 if invalid:
-                    raise invalid[0]
+                    if repairing:
+                        raise invalid[0][1]
+                    # One bounded repair of failed chunks only. Hide numeric
+                    # values from the model as well as restoring them afterward;
+                    # exposed numbers can be repeated outside their HTML locks.
+                    # All calls still reserve budget; valid chunks stay cached.
+                    repairs = []
+                    for item, error in invalid:
+                        payload, locks = protected_html(item[0], policy.matches(item[0]),
+                            chemistry=policy.subject == 'hoa hoc', opaque_values=True)
+                        if len(payload) > MAX_CHARS:
+                            raise error
+                        repairs.append((item[0],payload,locks,item[3]))
+                    repaired = []
+                    batch, size = [], 0
+                    for item in repairs:
+                        if batch and size + len(item[1]) > MAX_CHARS:
+                            repaired.extend(run(batch,repairing=True))
+                            batch, size = [], 0
+                        batch.append(item)
+                        size += len(item[1])
+                    if batch:
+                        repaired.extend(run(batch,repairing=True))
+                    return [(item[0], value) for item, value in translated] + repaired
                 return [(item[0], value) for item, value in translated]
 
         with ThreadPoolExecutor(max_workers=2, thread_name_prefix='google-translate') as executor:

@@ -6,8 +6,14 @@ import wave
 from functools import lru_cache
 from pathlib import Path
 
-from .spoken_labels import english as spoken_text
 from .voice_pairs import ENGLISH_VOICES
+
+
+def spoken_text(text):
+    from .spoken_labels import english as labels
+    from .spoken_chemistry import english as chemistry
+
+    return chemistry(labels(text))
 
 
 def model_root():

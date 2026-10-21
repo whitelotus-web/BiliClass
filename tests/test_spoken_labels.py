@@ -11,7 +11,8 @@ from app.voice_pairs import ENGLISH_VERSION
 @pytest.mark.parametrize('text,expected', [('1. Introduction','Section 1. Introduction'),
     ('I/ Energy','Section 1. Energy'), ('II. Speed','Section 2. Speed'), ('IV/','Section 4. '),
     ('3.5 m/s','3.5 m/s'), ('I am here.','I am here.'), ('A. Force','A. Force'),
-    ('Lesson 4:','Lesson 4:'), ('The value is 50%.','The value is 50%.')])
+    ('Lesson 4:','Lesson 4:'), ('The value is 50%.','The value is 50%.'),
+    ('III . Functional groups','Section 3. Functional groups'), ('2 . Bond','Section 2. Bond')])
 def test_spoken_section_labels_preserve_values_and_english(text, expected):
     assert english(text) == expected
 

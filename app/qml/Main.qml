@@ -783,7 +783,7 @@ ApplicationWindow {
             implicitWidth: statusBadge.implicitWidth; implicitHeight: statusBadge.implicitHeight
             LibraryVoiceBadge { id: statusBadge; objectName: "lessonNarrationBadge_" + statusButton.lessonRow.id; anchors.centerIn: parent; audio: statusButton.lessonRow.narration || ({}); Accessible.ignored: true }
         }
-        background: Rectangle { anchors.horizontalCenter: parent.horizontalCenter; width: Math.max(36, statusBadge.implicitWidth + 20); radius: 14; color: statusButton.hovered ? (AppTheme.dark ? Qt.lighter(statusBadge.fill, 1.1) : Qt.darker(statusBadge.fill, 1.04)) : statusBadge.fill; border.color: statusButton.visualFocus ? root.blue : statusBadge.outline; border.width: statusButton.visualFocus ? 2 : 1 }
+        background: Rectangle { objectName: "lessonStatusSurface_" + statusButton.lessonRow.id; anchors.centerIn: parent; width: 64; height: 28; radius: 14; color: statusButton.hovered ? (AppTheme.dark ? Qt.lighter(statusBadge.fill, 1.1) : Qt.darker(statusBadge.fill, 1.04)) : statusBadge.fill; border.color: statusButton.visualFocus ? root.blue : statusBadge.outline; border.width: statusButton.visualFocus ? 2 : 1 }
         onClicked: bridge.openLessonNarration(lessonRow.id)
     }
 
