@@ -1681,7 +1681,7 @@ ApplicationWindow {
                         Surface {
                             id: lessonNarrationPanel; objectName: "lessonNarrationPanel"; visible: root.page === "voice"
                             readonly property real contentPadding: root.compactVoice ? 16 : 20
-                            Layout.fillWidth: true; Layout.topMargin: !bridge.quickResult.path ? (root.height < 850 ? 16 : 48) : 0
+                            Layout.fillWidth: true
                             implicitHeight: narrationForm.height + contentPadding * 2
                             ColumnLayout {
                                 id: narrationForm; objectName: "narrationConfigurationForm"; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: lessonNarrationPanel.contentPadding; spacing: root.compactVoice ? 10 : 12
