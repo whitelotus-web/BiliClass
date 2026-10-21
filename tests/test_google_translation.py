@@ -190,6 +190,25 @@ def test_source_html_escaped_and_long_content_not_truncated():
     assert ''.join(parts) == long and all(len(part) <= 1010 for part in parts)
 
 
+def test_translation_context_exposes_locked_terms_values_and_complete_units():
+    text = 'Vận tốc là 1 cm/s và gia tốc là 1,57 cm/s2, với $x=2$.'
+    payload, locks = protected_html(text, {'vận tốc': 'velocity', 'gia tốc': 'acceleration'})
+    assert '>velocity</span>' in payload and '>1,57 cm/s2</span>' in payload
+    assert 'x=2' not in payload, 'Native math stays opaque and exact'
+    assert unprotect(payload, locks) == 'velocity là 1 cm/s và acceleration là 1,57 cm/s2, với $x=2$.'
+    assert unprotect(payload.replace('>1,57 cm/s2<', '>wrong value<'), locks).count('1,57 cm/s2') == 1
+    with pytest.raises(TranslationProblem):
+        unprotect(payload.replace('id="BCLLOCK0END"', ''), locks)
+    with pytest.raises(TranslationProblem):
+        unprotect(payload + payload, locks)
+    units, locked = protected_html('Đơn vị (cm/s2), (m/s²) và cm².')
+    assert '>cm/s2</span>' in units and '>m/s²</span>' in units and '>cm²</span>' in units
+    assert unprotect(units, locked) == 'Đơn vị (cm/s2), (m/s²) và cm².'
+    powers, locked = protected_html('Hệ số ω² và chú thích¹.')
+    assert '>²</span>' in powers and '>¹</span>' in powers
+    assert unprotect(powers, locked) == 'Hệ số ω² và chú thích¹.'
+
+
 def test_cancel_before_network_and_no_keys_error(tmp_path):
     cancel = Event()
     cancel.set()

@@ -65,6 +65,24 @@ def test_term_cache_isolated_by_subject_and_teacher_wording(tmp_path):
     assert len(calls) == 3 and all('lực' not in value for value in calls)
 
 
+def test_contextual_payload_does_not_reuse_opaque_term_cache(tmp_path):
+    import hashlib
+    from app.translation_terms import TermPolicy
+
+    KeyStore(tmp_path).add('AIza' + 'x'*35)
+    text = 'Vận tốc thay đổi.'
+    policy = TermPolicy('Vật lý')
+    old = 'google-nmt-terms-v1|' + policy.fingerprint(policy.matches(text))
+    key = hashlib.sha256((old+'|vi|en|'+text).encode()).hexdigest()
+    calls = []
+    translator = Translator(tmp_path, transport=lambda rows,*_: calls.extend(rows) or [s.replace('thay đổi.', 'changes.') for s in rows])
+    translator.store.cache_many([(key, 'Bad word order from old opaque payload')])
+    translator.configure_terms('Vật lý', [])
+    assert translator.translate([text], Event()) == ['velocity changes.']
+    assert len(calls) == 1 and '>velocity</span>' in calls[0]
+    assert translator.store.cached(key) == 'Bad word order from old opaque payload'
+
+
 def test_unlocked_terms_do_not_override_google_and_word_boundaries_are_respected(tmp_path):
     from app.translation_terms import TermPolicy
 

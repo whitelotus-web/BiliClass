@@ -352,14 +352,18 @@ def _media(source_slide, deck_size=None, inline_expressions=(), *, preserve_pict
             node = copy.deepcopy(shape._element)
             paragraphs = node.xpath('./p:txBody/a:p')
             for paragraph in paragraphs:
-                from .universal_content import equation_only, math_text
+                from .universal_content import equation_only, math_text, visible_run
+
+                standalone = equation_only(paragraph)
 
                 expressions = [math_text(c) for c in paragraph if c.xpath('.//*[local-name()="oMath"]') or etree.QName(c).localname == 'oMath']
-                if (not expressions or not equation_only(paragraph)
+                if (not expressions or not standalone
                         and all(value in inline_expressions for value in expressions)):
                     paragraph.getparent().remove(paragraph)
                     continue
                 for child in list(paragraph):
+                    if standalone and etree.QName(child).localname in {'r','fld','br'} and visible_run(child):
+                        continue  # Keep the native equation's unit/punctuation.
                     if child.tag != '{'+NS['a']+'}pPr' and not child.xpath('.//*[local-name()="oMath" or local-name()="oMathPara"]') and child not in math and child.tag.rsplit('}',1)[-1] not in {'oMath','oMathPara'}:
                         paragraph.remove(child)
             # Each equation is an independent native object. Source paragraph
@@ -711,7 +715,19 @@ def build(target, template, config, pairs, cancel, source=None):
         main_media = [o for o in native if not o.get('accent')]
         pictures = any(int(o['shape'].shape_type) in {13, 16} or o['shape'].has_chart for o in main_media)
         other_formulas=[]
-        if not pictures and len(main_media)>1:
+        if pictures:
+            # A graph and an expanded native equation have incompatible
+            # source coordinates. Scaling their union into the image column
+            # can reduce an equation below 10pt. Keep the figure prominent
+            # and carry standalone equations once on readable formula pages.
+            standalone = [o for o in main_media if o['shape'].has_text_frame]
+            if standalone:
+                from .universal_layout import equation_pages
+
+                other_formulas = equation_pages(standalone)
+                native = [o for o in native if o not in standalone]
+                main_media = [o for o in native if not o.get('accent')]
+        elif len(main_media)>1:
             from .universal_layout import equation_pages
 
             pages = equation_pages(main_media)
@@ -832,7 +848,9 @@ def build(target, template, config, pairs, cancel, source=None):
         for formula_group in other_formulas:
             slide,assigned,_=new('FORMULA',title,[])
             finish(slide,'FORMULA',title,assigned,formula_group,number)
-    if config.get('template_bookends'):
+    last_source = next(reversed(groups.values()), [])
+    already_closed = any(re.match(r'^(?:cam on|thank(?:s| you))\b', _plain(p[1])) for p in last_source)
+    if config.get('template_bookends') and not already_closed:
         ending=('', 'Cảm ơn!', 'Thank you!')
         slide,assigned,_=new('THANK_YOU',ending,[])
         finish(slide,'THANK_YOU',ending,assigned,[],0)

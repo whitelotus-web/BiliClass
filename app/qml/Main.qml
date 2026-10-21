@@ -101,6 +101,11 @@ ApplicationWindow {
     readonly property bool tightCreation: height < 800
     readonly property bool compactVoice: page === "voice" && !!bridge.quickResult.path && height < 850
     property bool voicePreviewExpanded: false
+    property bool creationPreviewExpanded: false
+    function showCreationPreview() {
+        creationPreviewExpanded = true
+        Qt.callLater(function() { creationScroll.contentItem.contentY = Math.max(0, creationSlidePreview.y - 16) })
+    }
     property bool voiceResultShown: false
     property bool voiceResultDismissed: true
     function openVoiceConfiguration() {
@@ -397,6 +402,7 @@ ApplicationWindow {
     property int templatePageIndex: 0
     function refreshTemplate() { templatePages = bridge.templatePages(rescue); templatePageIndex = 0 }
     function acceptInputDocuments(urls) {
+        creationPreviewExpanded = false
         if (urls.length === 1 && !String(urls[0]).toLowerCase().endsWith(".pptx")) {
             bridge.inputDocuments.clear()
             inputDocumentError = "Chỉ nhận tệp PowerPoint (.pptx), tối đa 200 MB."
@@ -435,6 +441,7 @@ ApplicationWindow {
         return true
     }
     function removeInputDocument() {
+        creationPreviewExpanded = false
         bridge.inputDocuments.clear()
         if (titleInput.text === (selectedFileName ? selectedFileName.replace(/\.[^.]+$/, "") : previousInputTitle)) titleInput.text = ""
         previousInputTitle = ""
@@ -1145,9 +1152,9 @@ ApplicationWindow {
                                 Layout.preferredWidth: Math.min(creationScroll.availableWidth >= 1000 ? 304 : 240, creationScroll.availableWidth)
                                 Layout.minimumWidth: Layout.preferredWidth; Layout.maximumWidth: Layout.preferredWidth
                                 Layout.alignment: Qt.AlignTop | Qt.AlignRight; spacing: 8
-                                MainAction { objectName: "creationPreviewButton"; text: "Xem trước slide"; subtle: true; implicitHeight: 32; Layout.alignment: Qt.AlignRight; enabled: !!bridge.inputDocuments.preview.image; onClicked: creationInputPreview.open() }
+                                MainAction { objectName: "creationPreviewButton"; text: root.creationPreviewExpanded ? "Ẩn xem trước" : "Xem trước slide"; subtle: true; implicitHeight: 32; Layout.alignment: Qt.AlignRight; enabled: root.creationPreviewExpanded || !!bridge.inputDocuments.preview.image; onClicked: { if (root.creationPreviewExpanded) root.creationPreviewExpanded = false; else root.showCreationPreview() } }
                                 Surface {
-                                    objectName: "creationSelectedSlidePreview"; Layout.fillWidth: true; implicitHeight: width * 9 / 16; radius: 10; color: AppTheme.adapt("#e9eef5")
+                                    objectName: "creationSelectedSlidePreview"; visible: !root.creationPreviewExpanded; Layout.fillWidth: true; implicitHeight: width * 9 / 16; radius: 10; color: AppTheme.adapt("#e9eef5")
                                     Image { objectName: "creationSelectedSlideImage"; anchors.fill: parent; anchors.margins: 3; source: bridge.inputDocuments.preview.image || ""; fillMode: Image.PreserveAspectFit; sourceSize.width: 640; asynchronous: true; cache: true }
                                     BusyIndicator { anchors.centerIn: parent; running: !!bridge.inputDocuments.preview.busy; visible: running }
                                     ColumnLayout { anchors.centerIn: parent; width: parent.width - 24; visible: !bridge.inputDocuments.preview.busy && !bridge.inputDocuments.preview.image
@@ -1155,13 +1162,34 @@ ApplicationWindow {
                                         MainAction { text: "Thử lại"; implicitHeight: 30; Layout.alignment: Qt.AlignHCenter; onClicked: bridge.inputDocuments.retryPreview() }
                                     }
                                     Accessible.role: Accessible.Button; Accessible.name: "Phóng to xem trước slide gốc"
-                                    Accessible.onPressAction: if (bridge.inputDocuments.preview.image) creationInputPreview.open()
-                                    TapHandler { onTapped: if (bridge.inputDocuments.preview.image) creationInputPreview.open() }
+                                    Accessible.onPressAction: if (bridge.inputDocuments.preview.image) root.showCreationPreview()
+                                    TapHandler { onTapped: if (bridge.inputDocuments.preview.image) root.showCreationPreview() }
                                     HoverHandler { cursorShape: Qt.PointingHandCursor }
                                 }
                             }
                         }
                         TextArea { id: pasteInput; objectName: "lessonContent"; visible: false }
+                        Surface {
+                            id: creationSlidePreview; objectName: "creationExpandedSlidePreview"
+                            visible: !!root.selectedFile && root.creationPreviewExpanded
+                            Layout.fillWidth: true; implicitHeight: Math.max(260, Math.min(560, (root.height - 150) * .62)); color: AppTheme.adapt("#e9eef5")
+                            Image { objectName: "creationExpandedSlideImage"; anchors.fill: parent; anchors.margins: 6; source: bridge.inputDocuments.preview.image || ""; fillMode: Image.PreserveAspectFit; asynchronous: true; cache: true; sourceSize.width: 1600; opacity: bridge.inputDocuments.preview.busy ? .6 : 1 }
+                            BusyIndicator { anchors.centerIn: parent; running: !!bridge.inputDocuments.preview.busy; visible: running }
+                            ColumnLayout {
+                                visible: !bridge.inputDocuments.preview.image && !bridge.inputDocuments.preview.busy
+                                anchors.centerIn: parent; width: parent.width - 70; spacing: 12
+                                Copy { text: bridge.inputDocuments.preview.error || "Ảnh slide chưa được tải."; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
+                                MainAction { objectName: "retryCreationSlidePreview"; text: "Tải lại slide"; Layout.alignment: Qt.AlignHCenter; onClicked: bridge.inputDocuments.retryPreview() }
+                            }
+                        }
+                        RowLayout {
+                            objectName: "creationSlideNavigation"; visible: !!root.selectedFile && root.creationPreviewExpanded; Layout.fillWidth: true
+                            Item { Layout.fillWidth: true }
+                            MainAction { objectName: "creationPreviousSlide"; text: "‹"; implicitHeight: 34; enabled: !bridge.inputDocuments.preview.busy && (bridge.inputDocuments.preview.slide || 1) > 1; onClicked: bridge.inputDocuments.showSlide(bridge.inputDocuments.preview.slide - 1) }
+                            Copy { objectName: "creationSlideCounter"; text: "Slide " + (bridge.inputDocuments.preview.slide || 1) + " / " + (bridge.inputDocuments.preview.total || 0); color: root.ink }
+                            MainAction { objectName: "creationNextSlide"; text: "›"; implicitHeight: 34; enabled: !bridge.inputDocuments.preview.busy && (bridge.inputDocuments.preview.slide || 1) < bridge.inputDocuments.preview.total; onClicked: bridge.inputDocuments.showSlide((bridge.inputDocuments.preview.slide || 1) + 1) }
+                            Item { Layout.fillWidth: true }
+                        }
                         Surface {
                             objectName: "creationConfiguration"; Layout.fillWidth: true; implicitHeight: config.height + (root.compactCreation ? 24 : 38)
                             ColumnLayout {
@@ -2080,13 +2108,6 @@ ApplicationWindow {
                 }
             }
         }
-    }
-    Dialog {
-        id: creationInputPreview; objectName: "creationInputPreviewDialog"
-        title: "Xem trước PowerPoint gốc"; modal: true; anchors.centerIn: parent
-        width: Math.min(1080, root.width - 48); height: Math.min(root.height - 64, width * 9 / 16 + 100)
-        standardButtons: Dialog.Close
-        contentItem: Image { source: bridge.inputDocuments.preview.image || ""; fillMode: Image.PreserveAspectFit; asynchronous: true; smooth: true }
     }
     Dialog {
         id: creationTemplatePreview; objectName: "creationTemplateImageDialog"

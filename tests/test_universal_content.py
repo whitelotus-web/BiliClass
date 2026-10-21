@@ -65,6 +65,21 @@ def test_equation_fraction_does_not_flatten_to_concatenated_digits():
     assert math_text(node) == '(T)/(4)'
 
 
+def test_ordinary_superscript_runs_keep_scientific_power():
+    from app.universal_content import paragraph_text
+    deck = Presentation()
+    page = deck.slides.add_slide(deck.slide_layouts[6])
+    shape = page.shapes.add_textbox(0, 0, Inches(8), Inches(1))
+    p = shape.text_frame.paragraphs[0]
+    p.add_run().text = 'A. 63,2 m/s'
+    power = p.add_run()
+    power.text = '2'
+    power._r.get_or_add_rPr().set('baseline', '30000')
+    assert paragraph_text(p._p) == 'A. 63,2 m/s²'
+    power._r.get_or_add_rPr().set('baseline', '0')
+    assert paragraph_text(p._p) == 'A. 63,2 m/s2'
+
+
 def test_formula_options_and_prose_remain_with_the_question():
     from app.universal_templates import formula
 
@@ -98,6 +113,61 @@ def test_only_exact_text_overlays_are_deduplicated():
     for top in (2, 2, 4):
         page.shapes.add_textbox(Inches(1), Inches(top), Inches(5), Inches(1)).text = 'Vận tốc'
     assert [text for _, text in source_blocks(deck)] == ['Vận tốc', 'Vận tốc']
+
+
+def test_source_rows_tolerate_import_rounding_and_keep_top_opaque_answer():
+    from pptx.enum.shapes import MSO_SHAPE
+    from pptx.dml.color import RGBColor
+    deck = Presentation()
+    page = deck.slides.add_slide(deck.slide_layouts[6])
+    for left, top, text in [(1, 2, 'A. 2'), (7, 2-1/12700, 'B. 3'),
+                            (1, 4, 'C. 4'), (7, 4, 'D. 6,31 m/s2'), (7, 4, 'D. 63,2 m/s2')]:
+        shape = page.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(left), Inches(top), Inches(4), Inches(1))
+        shape.fill.solid()
+        shape.fill.fore_color.rgb = RGBColor(255, 255, 255)
+        shape.text = text
+    assert [value for _, value in source_blocks(deck)] == ['A. 2', 'B. 3', 'C. 4', 'D. 63,2 m/s2']
+    # A transparent overlay does not establish that the original is invisible.
+    page.shapes[-1].fill.background()
+    assert [value for _, value in source_blocks(deck)][-2:] == ['D. 6,31 m/s2', 'D. 63,2 m/s2']
+
+
+def test_standalone_native_equation_keeps_units_outside_math_xml(tmp_path):
+    from app.universal_templates import _media
+    deck = Presentation()
+    page = deck.slides.add_slide(deck.slide_layouts[6])
+    shape = page.shapes.add_textbox(Inches(1), Inches(2), Inches(8), Inches(2))
+    p = shape.text_frame.paragraphs[0]
+    p._p.append(etree.fromstring(b'<m:oMath xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"><m:r><m:t>A=5</m:t></m:r></m:oMath>'))
+    p.add_run().text = ' (cm).'
+    native = _media(page)
+    assert len(native) == 1 and '(cm).' in native[0]['shape'].text
+
+
+def test_graph_and_standalone_equation_receive_readable_separate_pages(tmp_path):
+    deck = Presentation()
+    page = deck.slides.add_slide(deck.slide_layouts[6])
+    page.shapes.add_textbox(Inches(1), Inches(.3), Inches(9), Inches(.8)).text = 'Đồ thị'
+    stream = io.BytesIO()
+    Image.new('RGB', (400, 300), 'blue').save(stream, 'PNG')
+    page.shapes.add_picture(io.BytesIO(stream.getvalue()), Inches(1), Inches(2), width=Inches(5))
+    shape = page.shapes.add_textbox(Inches(8), Inches(2), Inches(4), Inches(1))
+    p = shape.text_frame.paragraphs[0]
+    p._p.append(etree.fromstring(b'<m:oMath xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"><m:r><m:t>x=5</m:t></m:r></m:oMath>'))
+    p.add_run().text = ' (cm)'
+    source = tmp_path/'source.pptx'
+    deck.save(source)
+    target = tmp_path/'out.pptx'
+    result = build(target, asset('practice'), {'title':'Đồ thị','english_title':'Graph',
+                   'preset':'practice','conversion_format':'parallel_columns'},
+                   [('Slide 1','Đồ thị','Graph')], Event(), source)
+    output = Presentation(target)
+    assert [p['layout'] for p in result['layout_plan']] == ['IMAGE_TEXT','FORMULA']
+    assert len(output.slides[0]._element.xpath('.//*[local-name()="oMath"]')) == 0
+    assert len(output.slides[1]._element.xpath('.//*[local-name()="oMath"]')) == 1
+    math_shape = next(s for s in output.slides[1].shapes if s.name.startswith('BCL_SOURCE'))
+    assert '(cm)' in math_shape.text
+    assert min(int(n)/100 for n in math_shape._element.xpath('.//@sz')) >= 18
 
 
 def test_table_translations_follow_reading_order_with_decorative_images(tmp_path):

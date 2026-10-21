@@ -25,6 +25,12 @@ MAX_CHARS = 4500
 MAX_ITEMS = 100
 DEFAULT_BUDGET = 500_000
 _LOCK = threading.RLock()
+# A value and its unit form one protected expression. In particular, an
+# exposed trailing s2 must not be translated as a word or lose its s.
+_UNIT = r'(?:kHz|Hz|cm|mm|km|ms|rad|kg|mol|mL|eV|Pa|m|s|h|g|N|J|W|V|A|Ω|K|°C|L)(?:[²³23]|\^\d+)?'
+_NUMBER = r'[+−-]?\d+(?:[.,]\d+)*(?:\s*%)?'
+_MEASUREMENT = _NUMBER + r'(?:\s*' + _UNIT + r'(?:/' + _UNIT + r')?(?!\w))?'
+_UNIT_EXPRESSION = r'(?<!\w)(?:' + _UNIT + '/' + _UNIT + r'|(?:cm|mm|km|m)[²³23])(?!\w)'
 
 
 class TranslationProblem(ValueError):
@@ -322,7 +328,8 @@ def protected_html(text, terms=None):
     # Protect arithmetic, LaTeX spans and native OOXML placeholder tokens.
     terms = terms or {}
     term_pattern = r'(?<!\w)(?:' + '|'.join(re.escape(t) for t in sorted(terms, key=len, reverse=True)) + r')(?!\w)' if terms else r'(?!)'
-    pattern = r'⟦BLC\d+⟧|\$[^$]+\$|' + term_pattern + r'|[+−-]?\d+(?:[.,]\d+)*(?:\s*%)?'
+    pattern = (r'⟦BLC\d+⟧|\$[^$]+\$|' + term_pattern + '|' + _MEASUREMENT + '|'
+               + _UNIT_EXPRESSION + r'|[⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾]+')
     locks = []
     parts, last = [], 0
     for match in re.finditer(pattern, text, re.I):
@@ -331,7 +338,15 @@ def protected_html(text, terms=None):
         from .translation_terms import normalized
 
         locks.append(terms.get(normalized(match.group()), match.group()))
-        parts.append('<span translate="no" class="notranslate">' + token + '</span>')
+        # Expose words/numbers to the model's sentence context. Opaque codes
+        # make e.g. velocity look like a person's name and can move a question
+        # number into the middle of the sentence. The HTML id still lets us
+        # verify and restore every protected value exactly. Native math keeps
+        # its opaque token because its XML representation is not prose.
+        contextual = normalized(match.group()) in terms or not match.group().startswith(('⟦', '$'))
+        parts.append(('<span translate="no" class="notranslate" id="' + token + '">' +
+                      html.escape(locks[-1]) + '</span>') if contextual else
+                     '<span translate="no" class="notranslate">' + token + '</span>')
         last = match.end()
     parts.append(html.escape(text[last:]))
     return ''.join(parts), locks
@@ -344,12 +359,29 @@ def unprotect(value, locks):
         def __init__(self):
             super().__init__(convert_charrefs=True)
             self.parts = []
+            self.lock_depth = 0
+
+        def handle_starttag(self, tag, attrs):
+            if self.lock_depth:
+                self.lock_depth += 1
+                return
+            token = dict(attrs).get('id', '')
+            if tag == 'span' and re.fullmatch(r'BCLLOCK\d+END', token):
+                self.parts.append(token)
+                self.lock_depth = 1
+
+        def handle_endtag(self, tag):
+            if self.lock_depth:
+                self.lock_depth -= 1
 
         def handle_data(self, data):
-            self.parts.append(data)
+            if not self.lock_depth:
+                self.parts.append(data)
 
     parser = Text()
     parser.feed(value)
+    if parser.lock_depth:
+        raise TranslationProblem('api_result', 'Vùng bảo vệ bản dịch chưa hợp lệ; chưa áp dụng kết quả này.')
     text = ''.join(parser.parts)
     expected = [f'BCLLOCK{i}END' for i in range(len(locks))]
     if sorted(re.findall(r'BCLLOCK\d+END', text)) != sorted(expected):
@@ -411,7 +443,7 @@ class Translator:
                 values[text] = whitespace[1] + exact + whitespace[3]
                 continue
             matches = policy.matches(text)
-            namespace = 'google-nmt-terms-v1|' + policy.fingerprint(matches) if matches else 'google-nmt-v1'
+            namespace = 'google-nmt-context-v3|' + policy.fingerprint(matches) if matches else 'google-nmt-context-v3'
             cache_id = _digest(namespace + '|' + source + '|' + target + '|' + text)
             cached = self.store.cached(cache_id)
             if cached is not None:

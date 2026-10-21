@@ -87,7 +87,13 @@ def paragraph_text(paragraph):
         elif local(child) == 'br':
             pieces.append('\n')
         else:
-            pieces.extend(xpath(child, './/a:t/text()'))
+            value = ''.join(xpath(child, './/a:t/text()'))
+            # Scientific powers can be ordinary superscript runs, not OMML.
+            # Flattening these runs turns m/s² into m/s2 and ω²A into ω2A.
+            baseline = xpath(child, './a:rPr/@baseline')
+            if baseline and int(baseline[0]) > 0 and re.fullmatch(r'[0-9+−=()]+', value):
+                value = value.translate(str.maketrans('0123456789+−=()', '⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾'))
+            pieces.append(value)
     return ''.join(pieces).strip()
 
 
@@ -146,16 +152,49 @@ def source_objects(slide):
     from .slide_speech import objects
 
     located = {obj['shape']._element: obj for obj in objects(slide)}
-    return sorted(located.values(), key=lambda obj: (obj['y'], obj['x']))
+    # Imported shapes on one visual row can differ by a few EMUs.
+    # Read those rows left to right instead of placing B before A.
+    ordered, row = [], []
+    for obj in sorted(located.values(), key=lambda obj: obj['y']):
+        if row and obj['y'] - row[0]['y'] > 4 * 12700:
+            ordered.extend(sorted(row, key=lambda item: item['x']))
+            row = []
+        row.append(obj)
+    return ordered + sorted(row, key=lambda obj: obj['x'])
+
+
+def covered_text(slide):
+    """Keep the text of an opaque top copy, as rendered by PowerPoint.
+
+    Answer highlights can correct a value over the original box. Never
+    infer a correct answer, or discard text under a transparent overlay.
+    """
+    from .slide_speech import objects
+
+    located = {obj['shape']._element: obj for obj in objects(slide)}
+    above, covered = [], set()
+    for obj in reversed(list(located.values())):
+        shape = obj['shape']
+        if obj['hidden'] or not shape.has_text_frame:
+            continue
+        if any(all(abs(obj[k] - other[k]) <= 12700 / 2 for k in ('x', 'y', 'w', 'h'))
+               for other in above):
+            covered.add(shape._element)
+        geometry = xpath(shape._element, './p:spPr/a:prstGeom/@prst')
+        fill = xpath(shape._element, './p:spPr/a:solidFill')
+        if geometry and geometry[0] in {'rect', 'roundRect'} and fill and not xpath(fill[0], './/a:alpha[@val!="100000"]'):
+            above.append(obj)
+    return covered
 
 
 def source_blocks(deck):
     result = []
     for number, slide in enumerate(deck.slides, 1):
         seen = set()
+        covered = covered_text(slide)
         for index, obj in enumerate(source_objects(slide), 1):
             shape = obj['shape']
-            if obj['hidden']:
+            if obj['hidden'] or shape._element in covered:
                 continue
             locator = f'Slide {number} · ý {index}'
             if shape.has_table:

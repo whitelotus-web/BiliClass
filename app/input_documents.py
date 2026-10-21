@@ -90,22 +90,31 @@ class InputDocuments(QObject):
 
     @Slot()
     def retryPreview(self):
+        self._request_preview(self.preview_state.get('slide', 1))
+
+    @Slot(int)
+    def showSlide(self, number):
+        if number < 1 or number > self.preview_state.get('total', 0):
+            return
+        self._request_preview(number)
+
+    def _request_preview(self, number):
         if not self.selected_url or self.closed:
             return
         self.preview_generation += 1
         self.preview_cancel.set()
-        self.preview_pending = (self.preview_generation, self.selected_url)
-        self.preview_state = {'busy': True, 'image': ''}
+        self.preview_pending = (self.preview_generation, self.selected_url, number)
+        self.preview_state = {**self.preview_state, 'busy': True, 'error': '', 'slide': number}
         self.previewChanged.emit()
         self._start_preview()
 
     def _start_preview(self):
         if self.closed or self.preview_worker or not self.preview_pending:
             return
-        generation, url = self.preview_pending
+        generation, url, number = self.preview_pending
         self.preview_pending = None
         cancel = self.preview_cancel = Event()
-        worker = Job(lambda: input_preview(url, self.directory, cancel), self)
+        worker = Job(lambda: input_preview(url, self.directory, cancel, number), self)
         worker.generation = generation
         self.preview_worker = worker
         worker.completed.connect(self._preview_completed)
@@ -115,7 +124,9 @@ class InputDocuments(QObject):
     @Slot(object, str)
     def _preview_completed(self, result, error):
         if not self.closed and self.preview_worker.generation == self.preview_generation:
-            self.preview_state = {**(result or {}), 'busy': False, 'error': error}
+            self.preview_state = {**self.preview_state, **(result or {}), 'busy': False, 'error': error}
+            if error:
+                self.preview_state['image'] = ''
             self.previewChanged.emit()
 
     @Slot()
@@ -133,17 +144,48 @@ class InputDocuments(QObject):
             self.preview_worker.wait()
 
 
-def input_preview(url, directory, cancel):
+def input_preview(url, directory, cancel, number=1):
+    import json
+    from datetime import date
+    from pathlib import Path
+
     from pptx import Presentation
 
     from .conversion_input import local_document
     from .powerpoint_review import render_preview_pages
+    from .slide_fingerprint import environment_key
+    from .slide_preview import stamp
 
     path = local_document(url)
+    before = stamp(path)
     with path.open('rb') as stream:
         digest = hashlib.file_digest(stream, 'sha256').hexdigest()
     total = len(Presentation(path).slides)
     if not total:
         raise ValueError('PowerPoint chưa có slide.')
-    folder, _ = render_preview_pages(path, [1], directory, digest, cancel)
-    return {'image': QUrl.fromLocalFile(str(folder/'slide-1.png')).toString(), 'total': total}
+    if not 1 <= number <= total:
+        raise ValueError('Slide xem trước không hợp lệ.')
+    if cancel.is_set():
+        raise InterruptedError('Đã dừng xem trước.')
+    folder = Path(directory)/'temp/lesson-preview-images'/digest[:24]
+    image = folder/f'slide-{number}.png'
+    reusable = False
+    try:
+        index = json.loads((folder/'preview-cache.json').read_text(encoding='utf-8'))
+        row = index['slides'][str(number)]
+        content = image.read_bytes()
+        reusable = (index.get('version') == 3 and index.get('sha256') == digest
+                    and row.get('environment') == environment_key()
+                    and (not row.get('date_sensitive', True) or row.get('rendered_date') == date.today().isoformat())
+                    and content.startswith(b'\x89PNG\r\n\x1a\n')
+                    and hashlib.sha256(content).hexdigest() == row.get('image_sha256'))
+    except (OSError, ValueError, KeyError, TypeError):
+        pass
+    if not reusable:
+        pages = [number] + [n for n in (number+1, number-1) if 1 <= n <= total]
+        folder, _ = render_preview_pages(path, pages, directory, digest, cancel)
+    if cancel.is_set():
+        raise InterruptedError('Đã dừng xem trước.')
+    if stamp(path) != before:
+        raise ValueError('PowerPoint vừa thay đổi. Chọn lại tệp để xem bản mới.')
+    return {'image': QUrl.fromLocalFile(str(folder/f'slide-{number}.png')).toString(), 'total': total, 'slide': number}

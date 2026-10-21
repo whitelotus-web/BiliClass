@@ -197,6 +197,17 @@ def test_bookends_are_explicit_and_names_do_not_enter_english_slide(tmp_path):
     assert "Vật lý" not in text(deck) and "Thank you!" in text(deck)
 
 
+def test_existing_source_thanks_does_not_receive_a_second_ending(tmp_path):
+    settings = {**config(), 'template_bookends': True}
+    pairs = [('Slide 1', 'Bài học', 'Lesson'),
+             ('Slide 2', 'Cảm ơn các em đã theo dõi bài học hôm nay', 'Thank you for watching the lesson')]
+    info = build(tmp_path/'out.pptx', asset('standard'), settings, pairs, Event())
+    deck = Presentation(tmp_path/'out.pptx')
+    assert len(deck.slides) == 3
+    assert 'Thank you!' not in text(deck)
+    assert 'Thank you for watching the lesson' in text(deck)
+
+
 def test_native_equation_is_not_duplicated_for_its_paragraphs(tmp_path):
     from lxml import etree
 
