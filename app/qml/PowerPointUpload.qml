@@ -13,6 +13,8 @@ Rectangle {
     property string workingDetail: "Theo dõi tiến độ; các phần đã xong được lưu lại."
     property string progressLabel: "Xem tiến độ"
     property bool illustrated: false
+    property url illustrationSource: "../assets/powerpoint-convert.png"
+    property rect illustrationClipRect: Qt.rect(70, 150, 1350, 790)
     property bool compact: false
     property bool condensed: false
     property bool previewEnabled: false
@@ -45,11 +47,11 @@ Rectangle {
         Image {
             objectName: upload.condensed ? "" : upload.chooseObjectName + "Illustration"
             visible: upload.illustrated
-            source: "../assets/powerpoint-upload.png"
+            source: upload.illustrationSource
             // Trim transparent canvas margins for optical balance; retain the original asset.
-            sourceClipRect: Qt.rect(248, 120, 1040, 830)
+            sourceClipRect: upload.illustrationClipRect
             fillMode: Image.PreserveAspectFit; smooth: true; mipmap: true
-            Layout.preferredWidth: upload.compact ? 140 : upload.width >= 1000 ? 200 : 160
+            Layout.preferredWidth: upload.compact ? 220 : upload.width >= 1000 ? 270 : 230
             Layout.preferredHeight: upload.compact ? 110 : upload.width >= 1000 ? 160 : 128
             Layout.alignment: Qt.AlignVCenter
             Accessible.ignored: true
@@ -144,10 +146,10 @@ Rectangle {
         anchors.margins: 10; spacing: 14
         Image {
             objectName: upload.condensed ? upload.chooseObjectName + "Illustration" : ""
-            visible: upload.illustrated && !upload.previewEnabled; source: "../assets/powerpoint-upload.png"
-            sourceClipRect: Qt.rect(248, 120, 1040, 830)
+            visible: upload.illustrated && !upload.previewEnabled; source: upload.illustrationSource
+            sourceClipRect: upload.illustrationClipRect
             fillMode: Image.PreserveAspectFit; smooth: true; mipmap: true
-            Layout.preferredWidth: 80; Layout.preferredHeight: 64
+            Layout.preferredWidth: 110; Layout.preferredHeight: 64
             Accessible.ignored: true
         }
         ColumnLayout {

@@ -75,6 +75,9 @@ ApplicationWindow {
     }
     MouseArea {
         objectName: "lessonMouseBack"; anchors.fill: parent; z: 1000
+        // Reset MouseArea's implicit arrow so text controls and buttons below
+        // keep their own pointer, including when this back-button layer is off.
+        cursorShape: undefined
         acceptedButtons: Qt.BackButton; enabled: root.page === "result"
         onClicked: root.backFromLesson()
     }
@@ -1527,6 +1530,7 @@ ApplicationWindow {
                             }
                             Copy { objectName: "voiceWorkflowGuide"; text: "Chọn PowerPoint có sẵn hoặc bài trong thư viện → Chọn cấu hình giọng đọc và ngôn ngữ → Tạo giọng đọc"; Layout.fillWidth: true; font.pixelSize: 12 }
                             PowerPointUpload { objectName: "voiceSourceArea"; visible: !bridge.quickResult.path || root.voiceSourceExpanded; illustrated: true; compact: true; Layout.fillWidth: true; chooseObjectName: "chooseVoicePresentation"; dropObjectName: "voicePresentationDrop"; busy: bridge.busy || bridge.narrationBusy; loadingFileName: bridge.narrationImportName
+                                illustrationSource: "../assets/powerpoint-narration.png"; illustrationClipRect: Qt.rect(40, 200, 1408, 750)
                                 onChooseFile: voicePresentationOpen.open()
                                 onFilesDropped: function(urls) { if (urls.length === 1) bridge.importNarrationPresentation(urls[0]) }
                             }

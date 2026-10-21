@@ -66,6 +66,8 @@ def main():
             else:
                 icon = c('chooseInputDocumentButtonIllustration')
                 assert icon.width() >= 139 and icon.height() >= 109
+                assert icon.property('source').toString().endswith('/powerpoint-convert.png')
+                assert QQmlExpression(engine.rootContext(), icon, 'status === 1').evaluate()[0]
                 assert button.mapToScene(QPointF(0, 0)).x() > icon.mapToScene(QPointF(icon.width(), 0)).x()
             entry['requires_scroll'] = entry['content'] > entry['viewport'] + .5
             if entry['requires_scroll']:
@@ -225,6 +227,9 @@ def main():
                 voice = c('voiceSourceArea')
                 assert abs(voice.height() - creation_height) <= 1, (voice.height(), creation_height)
                 assert voice.property('compact') and not voice.property('condensed')
+                voice_art = c('chooseVoicePresentationIllustration')
+                assert voice_art.property('source').toString().endswith('/powerpoint-narration.png')
+                assert QQmlExpression(engine.rootContext(), voice_art, 'status === 1').evaluate()[0]
                 footer = c('creationFooter')
                 generate = c('createLessonNarrationButton')
                 right = generate.mapToItem(footer, QPointF(generate.width(), 0)).x()

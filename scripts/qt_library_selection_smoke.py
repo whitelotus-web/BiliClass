@@ -192,7 +192,7 @@ def main():
                      ({'ready': True, 'mode': 'both'}, 'VI · EN'),
                      ({'ready': True, 'mode': 'vi', 'variants': [{'ready': True, 'mode': 'en'}, {'ready': False, 'mode': 'vi'}]}, 'EN'),
                      ({'variants': [{'ready': True, 'mode': 'vi'}, {'ready': True, 'mode': 'en'}]}, 'VI · EN'),
-                     ({'status': 'partial', 'mode': 'both', 'ready_languages': ['vi']}, 'Giọng chưa đủ')]
+                     ({'status': 'partial', 'mode': 'both', 'ready_languages': ['vi']}, 'Chưa có giọng')]
             for audio, expected in cases:
                 badge.setProperty('audio', audio)
                 assert badge.property('text') == expected

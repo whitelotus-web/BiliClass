@@ -199,7 +199,7 @@ def main():
                 click(companion, c('collapseCompanionPanel'))
                 until(lambda: not c('companionMenu').isVisible())
                 assert companion.property('collapsed') and not c('companionMenu').isVisible()
-                assert abs(companion.x() - anchor['x']) <= 1 and abs(companion.y() - anchor['y']) <= 1
+                assert abs(companion.x() + mascot.x() - anchor['x']) <= 1 and abs(companion.y() + mascot.y() - anchor['y']) <= 1
                 click(companion, mascot)
                 pump(120)
                 assert not companion.property('collapsed')

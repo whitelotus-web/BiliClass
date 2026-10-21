@@ -49,6 +49,7 @@ def main():
             point = mascot.mapToGlobal(QPointF())
             frames.append(dict(time=time.perf_counter(), x=point.x(), y=point.y(),
                                visible=win32gui.IsWindowVisible(int(companion.winId())),
+                               native_rect=win32gui.GetWindowRect(int(companion.winId())),
                                size=[companion.width(), companion.height()]))
 
         companion.afterAnimating.connect(capture)
@@ -73,6 +74,7 @@ def main():
                         bridge.showCompanion(companion)
                         pump(180)
                         handle = int(companion.winId())
+                        native_rect = win32gui.GetWindowRect(handle)
                         frames.clear()
                         recording = True
                         for delay in (20, 45, 90):
@@ -88,14 +90,24 @@ def main():
                         samples.extend(dict(scenario=len(scenarios)-1, **frame) for frame in frames)
                         (reports / 'samples.json').write_text(json.dumps(samples), encoding='utf-8')
                         assert drift <= 2, scenarios[-1]
-                        assert companion.width() == extent and companion.height() == extent
+                        assert all(tuple(frame['native_rect']) == native_rect for frame in frames), 'Toggling must not move/resize the native surface and expose its old texture'
+                        assert companion.mask().boundingRect().width() == extent
+                        assert companion.mask().boundingRect().height() == extent
+                        origin = win32gui.ClientToScreen(handle, (0, 0))
+                        ratio = companion.devicePixelRatio()
+                        def native_hit(item):
+                            point = item.mapToScene(QPointF(item.width()/2, item.height()/2))
+                            return win32gui.WindowFromPoint((origin[0] + round(point.x()*ratio), origin[1] + round(point.y()*ratio)))
+                        assert native_hit(mascot) == handle, 'The mini mascot must still receive native input'
+                        assert native_hit(control(root, 'companionMenu')) != handle, 'The hidden panel must let native input through'
                         tap()
                         pump(180)
                         assert control(root, 'companionMenu').isVisible()
+                        assert native_hit(control(root, 'companionMenu')) == handle
                         assert companion.grabWindow().save(str(reports / f'{theme}-{side}-{vertical}.png'))
                         control(root, 'collapseCompanionPanel').clicked.emit()
                         pump(180)
-                        assert companion.property('collapsed') and companion.width() == extent
+                        assert companion.property('collapsed') and companion.mask().boundingRect().width() == extent
             companion.setProperty('collapsed', False)
             pump(180)
             companion.hide()
@@ -104,11 +116,12 @@ def main():
             assert companion.property('panelOpacity') == 0
             bridge.showCompanion(companion)
             pump(80)
-            assert companion.width() == companion.property('mascotExtent')
+            assert companion.mask().boundingRect().width() == companion.property('mascotExtent')
             assert not control(root, 'companionMenu').isVisible(), 'Reopening the mini mascot must not flash the hidden panel'
             assert not warnings, warnings
             result = dict(status='passed', scenarios=scenarios, qml_warnings=warnings,
                           rapid_clicks=24*len(scenarios), native_window_retained=True,
+                          native_surface_unchanged=True, collapsed_panel_input_passes_through=True,
                           scope='Current Windows screens; Qt mouse input targets only the disposable mascot')
             (reports / 'result.json').write_text(json.dumps(result, indent=2), encoding='utf-8')
             print(json.dumps(result), flush=True)

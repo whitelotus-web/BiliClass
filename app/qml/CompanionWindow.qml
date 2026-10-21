@@ -39,8 +39,12 @@ Window {
     property real panelOpacity: collapsed ? 0 : 1
     Behavior on panelOpacity { enabled: companion.visible; NumberAnimation { id: panelFade; duration: 110; easing.type: Easing.OutCubic } }
     readonly property bool panelExpanded: !collapsed || panelOpacity > 0
-    readonly property size layoutSize: Qt.size(panelExpanded ? expandedWidth : mascotExtent, panelExpanded ? expandedHeight : mascotExtent)
+    // Keep the native surface stable. Resizing a transparent window can make
+    // Windows display its old small texture at the new panel origin for a frame.
+    // The collapsed input region is restricted to the mascot by the bridge.
+    readonly property size layoutSize: Qt.size(expandedWidth, expandedHeight)
     onLayoutSizeChanged: resizeToContent()
+    onPanelExpandedChanged: resizeToContent()
 
     function saveLocation() {
         bridge.saveMascotLocation(companion.x + mascotButton.x, companion.y + mascotButton.y)

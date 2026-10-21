@@ -17,7 +17,7 @@ from PySide6.QtCore import (
     Signal,
     Slot,
 )
-from PySide6.QtGui import QDesktopServices, QGuiApplication
+from PySide6.QtGui import QDesktopServices, QGuiApplication, QRegion
 
 from . import library_actions, speech
 from .browser_web_ui import WebBrowserAI
@@ -2195,6 +2195,12 @@ class Bridge(QObject):
         # old coordinates before a queued reposition catches up.
         window.setGeometry(QRect(max(area.left(), min(x, right_edge - width)),
                                  max(area.top(), min(y, bottom_edge - height)), width, height))
+        # Keep the same backing surface across panel toggles. The native mask
+        # lets clicks through the hidden panel instead of covering the teacher's
+        # other windows with an invisible expanded rectangle.
+        window.setMask(QRegion() if window.property('panelExpanded') else QRegion(QRect(
+            width - extent if menu_on_left else 0,
+            height - extent if menu_above else 0, extent, extent)))
 
     @Slot(int, int)
     def saveMascotLocation(self, x, y):
