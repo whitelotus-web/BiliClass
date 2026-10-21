@@ -13,6 +13,9 @@ Chưa triển khai đồng bộ sửa/lưu PowerPoint bên ngoài hay tự lưu 
 nguồn; phiên dạy vẫn dùng bản sao. Không thêm hàng đợi trước đợt nộp.
 Nghĩa chuyên môn, chữ/công thức trong ảnh và hiệu ứng cần đối chiếu;
 0 FAIL không phải chứng nhận toàn bộ nội dung bài.
+RC139 đã đóng gói từ `95eb7cd`, phát hành GitHub, cài vào thư mục
+ứng dụng và mở Home từ Explorer. ZIP/digest/tag và kiểm cập nhật
+từ RC118 đạt; hồ sơ, API key và thư viện/giọng trước–sau cài khớp.
 
 Ngày 19/10/2026 — RC83 sửa trả focus về PowerPoint, nút Trước/Sau chuyển
 slide ngay và bộ đếm theo Office. Loa Mascot theo giọng trên slide; dấu ?

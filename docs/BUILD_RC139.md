@@ -34,8 +34,9 @@ bấm cấu hình và thư viện bản dở/sản phẩm. Gói dùng runtime đ
 minh của RC138; không đưa dữ liệu cá nhân, model hoặc EXE vào Git.
 
 Đã dựng lại bài Toán thực tế 38 slide trên bản sao bằng bản dịch
-đã lưu: 0 yêu cầu dịch mới, đủ 38 slide, nguồn giữ nguyên. Dựng ảnh
-bằng PowerPoint cho tất cả trang; kết quả 0 FAIL / 38 CHECK. Đã xem
+đã lưu: 0 yêu cầu dịch mới, đủ 38 slide, nguồn giữ nguyên. Có ảnh
+PowerPoint cho tất cả trang, gồm 11 ảnh dựng mới và 27 ảnh đã kiểm
+chứng có XML trang không đổi; kết quả 0 FAIL / 38 CHECK. Đã xem
 riêng trang bìa, mục lục và slide 33 có nhãn câu/lời giải; xác nhận
 phần lời giải nằm trong nền sau sửa. Ngữ pháp và các từ viết tắt
 trong lời giải vẫn cần rà soát, chẳng hạn dịch “mặt” thành “surface”
@@ -45,3 +46,35 @@ Chưa có đồng bộ hai chiều khi sửa/lưu PowerPoint bên ngoài. Cảnh
 báo về công thức, nội dung trong ảnh, hiệu ứng hoặc nghĩa chuyên
 môn vẫn cần đối chiếu; không coi phép đo không còn FAIL là đã
 chứng nhận toàn bộ bài. Chưa thêm hàng đợi hay xử lý nhiều bài.
+
+Gói Windows 1.0.0rc139 dựng từ nguồn
+`95eb7cde02e9d4f4b66a3a855b90fcf3f586cf5e`, dùng runtime RC138 đã
+đối chiếu. 4.676 tệp ứng dụng và 56 tệp QML khớp nguồn; bytecode
+các module thay đổi, nội dung từng tệp trong ZIP và SHA-256 đạt.
+`BiliClass-RC139-Windows.zip`: 1.258.057.362 byte; SHA-256
+`87b057aba03c7b0dcae219ae37e1af6ef8b39af5082a68fc9f9dddec3d1a2c09`.
+
+Thử EXE ở dữ liệu cô lập, bỏ PYTHONPATH/PYTHONHOME và đường dẫn
+model phát triển: mở đúng Home, lưu ảnh 1366 × 850, không cảnh báo
+QML. Đỉnh cây tiến trình 486,1 MB RSS / 789,1 MB private ở mẫu
+khởi động này trên i7-8700/RAM 32 GB; không phải phép đo tạo giọng,
+PowerPoint hoặc chứng nhận máy cấu hình yếu.
+
+Đã cập nhật cùng ID bài Toán 38 slide vừa khôi phục lên revision 2
+với bố cục đã kiểm tra. Giữ nguyên tệp nguồn bản trước và lịch sử,
+toàn bộ bài khác và 2.986 tệp WAV; bài này chưa có giọng. Bài 18
+slide đã đủ 180/180 giọng của RC138 không bị thay bố cục/lời đọc.
+
+Đã cài tại `F:/Applications/BiliClass/1.0.0rc139` và mở từ Explorer
+vào Home, độc lập Codex. Cửa sổ hiện, không thu nhỏ, phản hồi tốt;
+Mascot nổi ẩn ở khởi động. Shortcut Desktop/Start menu và nhóm
+taskbar cùng định danh ứng dụng, icon trỏ đúng EXE mới. Đối chiếu
+trước/sau cài giữ hồ sơ, logo, hash API key, tùy chọn giọng, tất cả
+bài và 1.533 WAV đang được bản ghi bài tham chiếu.
+
+Đã phát hành [v1.0.0rc139](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc139).
+Digest và số byte asset GitHub khớp ZIP cục bộ; tag trỏ đúng commit
+dựng gói. Kiểm đường cập nhật công khai từ RC118 chọn đúng RC139
+với cùng digest/kích thước. Lượt gọi ngay sau công bố còn đọc danh
+sách cũ; kiểm lại sau khi GitHub cập nhật đã đạt, không đổi logic
+updater để lách dữ liệu phát hành chưa lan truyền.
