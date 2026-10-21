@@ -55,11 +55,32 @@ def main():
             window.setProperty('page', 'settings')
             page = c('settingsPage')
             pump(150)
+            assert not c('saveProfile').isEnabled(), 'Unchanged profile must not offer a redundant save'
+            original_teacher = bridge.settings['teacher']
+            click(window, c('settingsTeacher'))
+            QTest.keyClick(window, Qt.Key_End)
+            QTest.keyClick(window, Qt.Key_X)
+            pump(30)
+            assert c('saveProfile').isEnabled() and bridge.settings['teacher'] == original_teacher
+            c('settingsTeacher').setProperty('text', original_teacher)
+            assert not c('saveProfile').isEnabled(), 'Reverting the edit leaves no unsaved change'
             c('settingsTeacher').setProperty('text', 'Cô Minh')
             c('settingsSchool').setProperty('text', 'THPT Bình Minh')
+            assert c('saveProfile').isEnabled()
             show_profile_before = bridge.settings['show_profile']
             click(window, c('saveProfile'))
             assert bridge.settings['teacher'] == 'Cô Minh'
+            assert not c('saveProfile').isEnabled(), 'Successful save must disable the profile button'
+            c('settingsSchool').setProperty('text', 'THPT Mới')
+            assert c('saveProfile').isEnabled()
+            c('settingsSchool').setProperty('text', bridge.settings['school'])
+            assert not c('saveProfile').isEnabled()
+            subject = c('settingsSubjects')
+            old_index = subject.property('currentIndex')
+            subject.setProperty('currentIndex', 0 if old_index != 0 else 1)
+            assert c('saveProfile').isEnabled()
+            subject.setProperty('currentIndex', old_index)
+            assert not c('saveProfile').isEnabled()
             assert bridge.settings['show_profile'] == show_profile_before
             assert c('sidebarTeacherName').property('text') == 'Cô Minh'
             assert c('uploadSchoolLogo').property('text') == 'Tải logo trường (PNG/JPG)'
@@ -70,6 +91,7 @@ def main():
             Image.new('RGBA', (90, 90), '#0869f9').save(logo)
             bridge.saveSchoolLogo(QUrl.fromLocalFile(str(logo)).toString())
             pump(150)
+            assert not c('saveProfile').isEnabled(), 'Logo already saves itself and must not dirty profile fields'
             assert c('settingsCurrentLogo').isVisible() and c('removeSchoolLogo').isVisible()
             assert c('uploadSchoolLogo').property('text') == 'Thay logo'
             original_logo = (library.directory/'assets/school-logo.png').read_bytes()

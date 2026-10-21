@@ -29,5 +29,12 @@ Kiểm cửa sổ Windows thật đạt: luôn nổi, không có owner, thu nh�
 phục cửa sổ chính không giấu Mascot, ẩn rõ ràng không bị mở lại, đóng
 app thoát cả bảng. Không có cảnh báo QML trong các smoke đạt.
 
-Nguồn `1.0.0rc127`. Dựng một lần sau commit đã kiểm, dùng runtime
-RC126 có manifest SHA256. Thông tin gói/cài đặt bổ sung sau xác minh.
+Nguồn `1.0.0rc127`, commit
+`db74d9d4ef6072cc2bc2ba998806a8f6d4705067`. Dựng một lần sau kiểm,
+dùng runtime RC126 có manifest SHA256. Gói
+`dist/rc127-mascot-toggle/BiliClass-RC127-Windows.zip`, 1.255.961.451
+byte, SHA256
+`4eb31912fbf1ca65270128ccdffe9a2a2f27b5c381d3820544528f3dfda8b229`.
+Đối chiếu 4.667 file và 54 QML/qmldir khớp nguồn. Smoke bản đóng gói
+tab Tạo giọng 1366×850 đạt, không cảnh báo QML. Chưa cài RC127;
+dùng làm nền cho RC128 để gộp thay đổi nút Lưu thông tin vừa được yêu cầu.

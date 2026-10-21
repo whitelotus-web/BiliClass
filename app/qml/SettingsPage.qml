@@ -22,6 +22,9 @@ Item {
     function pairPreviewText() { return [vietnameseSample.text.trim(), englishSample.text.trim()].filter(function(value) { return !!value }).join("\n") }
     function chooseVoicePair(vi, en) { bridge.stopSpeech(); draftVoice = bridge.composeVoicePair(vi, en) }
     readonly property bool voiceDirty: draftVoice !== bridge.voiceSettings.voice || draftRate !== bridge.voiceSettings.rate
+    readonly property string draftTeachingSubject: (teachingSubjects.currentText === "Khác" ? otherTeachingSubject.text : teachingSubjects.currentText).trim()
+    readonly property bool profileDirty: (teacherName.text.trim() || "Thầy cô") !== bridge.settings.teacher
+        || schoolName.text.trim() !== bridge.settings.school || draftTeachingSubject !== bridge.defaultTeachingSubject
     function previewActive(kind) { return bridge.voiceUiState.kind === kind && ["preparing", "playing"].indexOf(bridge.voiceUiState.phase) >= 0 }
     Connections {
         target: page.bridge
@@ -94,8 +97,8 @@ Item {
         id: saveButton
         implicitHeight: 44; leftPadding: 22; rightPadding: 22
         font.pixelSize: 13; font.weight: Font.DemiBold
-        contentItem: Label { text: saveButton.text; color: AppTheme.accentText; font: saveButton.font; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-        background: Rectangle { radius: 9; color: saveButton.down ? AppTheme.adapt("#0053d2") : saveButton.hovered ? AppTheme.adapt("#147aff") : AppTheme.accent }
+        contentItem: Label { text: saveButton.text; color: saveButton.enabled ? AppTheme.accentText : AppTheme.disabled; font: saveButton.font; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+        background: Rectangle { radius: 9; color: !saveButton.enabled ? AppTheme.adapt("#edf1f7") : saveButton.down ? AppTheme.adapt("#0053d2") : saveButton.hovered ? AppTheme.adapt("#147aff") : AppTheme.accent }
     }
     component SoftButton: Button {
         id: softButton
@@ -236,7 +239,7 @@ Item {
                         Item { visible: !bridge.schoolLogoUrl; Layout.fillWidth: true }
                     }
                     Hint { text: "Logo tối đa 5 MB, tự lưu vào thư viện khi chọn và đi cùng bản sao lưu."; Layout.fillWidth: true }
-                    RowLayout { Layout.fillWidth: true; Item { Layout.fillWidth: true } SaveButton { objectName: "saveProfile"; text: "Lưu thông tin"; enabled: teachingSubjects.currentText !== "Khác" || !!otherTeachingSubject.text.trim(); onClicked: bridge.savePrimaryTeachingProfile(teacherName.text, schoolName.text, teachingSubjects.currentText === "Khác" ? otherTeachingSubject.text : teachingSubjects.currentText, bridge.settings.show_profile) } }
+                    RowLayout { Layout.fillWidth: true; Item { Layout.fillWidth: true } SaveButton { objectName: "saveProfile"; text: "Lưu thông tin"; enabled: page.profileDirty && (teachingSubjects.currentText !== "Khác" || !!otherTeachingSubject.text.trim()); onClicked: bridge.savePrimaryTeachingProfile(teacherName.text, schoolName.text, page.draftTeachingSubject, bridge.settings.show_profile) } }
                 }
             }
             AppearancePicker {
