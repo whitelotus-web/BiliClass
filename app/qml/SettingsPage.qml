@@ -455,7 +455,7 @@ Item {
                             Rectangle { visible: page.mascotPreviewVisible; width: Math.max(110, Math.min(parent.width - mascotPreview.width - 36, 225)); height: Math.max(53, previewBubbleText.implicitHeight + 16); radius: 14; color: AppTheme.surface; border.color: AppTheme.adapt("#bed5f4"); anchors.top: parent.top; anchors.topMargin: 82; x: 18
                                 Label { id: previewBubbleText; width: parent.width - 16; anchors.centerIn: parent; text: page.mascotPreviewText; color: page.ink; font.pixelSize: 11; font.bold: true; wrapMode: Text.WordWrap; verticalAlignment: Text.AlignVCenter; textFormat: Text.PlainText }
                             }
-                            Mascot { id: mascotPreview; objectName: "mascotPreview"; visible: page.mascotPreviewVisible; character: page.selectedMascot; expression: page.mascotPreviewMode === 1 ? "thinking" : page.mascotPreviewMode === 2 ? "celebrate" : "speaking"; subject: page.previewSubject; showSubjectBadge: false; accessories: mascotAccessories.checked; reducedMotion: reducedMotion.checked; width: Math.max(85, Math.min(120, mascotSize.value * .82)); height: width + 25; anchors.bottom: parent.bottom; anchors.bottomMargin: 5; x: parent.width - width - 16 }
+                            Mascot { id: mascotPreview; objectName: "mascotPreview"; visible: page.mascotPreviewVisible; character: page.selectedMascot; expression: page.mascotPreviewMode === 1 ? "thinking" : page.mascotPreviewMode === 2 ? "celebrate" : "speaking"; subject: page.previewSubject; showSubjectBadge: false; accessories: mascotAccessories.checked; reducedMotion: false; width: Math.max(85, Math.min(120, mascotSize.value * .82)); height: width + 25; anchors.bottom: parent.bottom; anchors.bottomMargin: 5; x: parent.width - width - 16 }
                         }
                         RowLayout { Layout.fillWidth: true; spacing: 5
                             Repeater { model: bridge.experimentalTeaching ? ["Slide", "Giải thích", "Quiz"] : ["Slide"]
@@ -471,19 +471,17 @@ Item {
             }
             Card { Layout.fillWidth: true
                 ColumnLayout { width: parent.width; spacing: 13
-                    Title { text: "Cách hiển thị trong lớp" }
+                    Title { text: "Cấu hình cho Mascot" }
                     Hint { text: "Chọn phụ kiện và cách hiển thị. Xem trước thay đổi ngay; bấm Lưu để áp dụng."; Layout.fillWidth: true }
-                    GridLayout { Layout.fillWidth: true; columns: page.width >= 800 ? 2 : 1; columnSpacing: 20; rowSpacing: 12
-                    RowLayout { Layout.fillWidth: true; Layout.preferredWidth: 500; Layout.alignment: Qt.AlignVCenter; spacing: 10
-                        CheckBox { id: mascotAccessories; objectName: "mascotAccessories"; text: "Hiện phụ kiện"; checked: bridge.mascotSettings.accessories }
-                        CheckBox { id: reducedMotion; objectName: "mascotReducedMotion"; text: "Giảm chuyển động"; checked: bridge.mascotSettings.reduced_motion }
-                        CheckBox { id: mascotOnTop; objectName: "mascotAlwaysOnTop"; text: "Luôn nổi trên cùng"; checked: bridge.mascotSettings.always_on_top }
-                    }
-                    ColumnLayout { objectName: "mascotAccessorySummary"; Layout.fillWidth: true; Layout.preferredWidth: 280; Layout.alignment: Qt.AlignVCenter; spacing: 5
-                        Label { text: "Chọn phụ kiện theo môn"; color: page.ink; font.bold: true; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                    GridLayout { Layout.fillWidth: true; columns: page.width >= 800 ? 3 : 1; columnSpacing: 20; rowSpacing: 12
+                    CheckBox { id: mascotAccessories; objectName: "mascotAccessories"; text: "Hiện phụ kiện theo môn"; checked: bridge.mascotSettings.accessories; Layout.alignment: Qt.AlignVCenter }
+                    ColumnLayout { objectName: "mascotAccessorySummary"; visible: mascotAccessories.checked; enabled: visible; Layout.fillWidth: true; Layout.preferredWidth: 360; Layout.minimumWidth: 0; Layout.alignment: Qt.AlignVCenter; spacing: 5
+                        Label { text: "Môn học"; color: page.ink; font.bold: true; Layout.fillWidth: true; wrapMode: Text.WordWrap }
                         Choice { id: accessorySubjectChoice; objectName: "mascotAccessorySubject"; Layout.fillWidth: true; model: page.accessorySubjects; currentIndex: Math.max(0, model.indexOf(page.selectedAccessorySubject)); onActivated: { page.selectedAccessorySubject = currentText; page.accessorySubjectOverridden = true } }
                         Hint { objectName: "mascotThemeDescription"; text: mascotAccessories.checked ? mascotPreview.theme.label : "Phụ kiện đang tắt"; Layout.fillWidth: true; font.pixelSize: 11 }
                     }
+                    Item { visible: !mascotAccessories.checked && page.width >= 800; Layout.fillWidth: true }
+                    CheckBox { id: mascotOnTop; objectName: "mascotAlwaysOnTop"; text: "Luôn nổi trên cùng"; checked: bridge.mascotSettings.always_on_top; Layout.alignment: Qt.AlignVCenter }
                     }
                     Rectangle { Layout.fillWidth: true; height: 1; color: page.line }
                     ColumnLayout { Layout.fillWidth: true; spacing: 5
@@ -507,7 +505,7 @@ Item {
                         Slider { objectName: "companionPanelTransparency"; from: 0; to: 70; stepSize: 1; value: 100 - bridge.companionPanelOpacity; Layout.fillWidth: true; onMoved: bridge.setCompanionPanelOpacity(100 - Math.round(value)); onPressedChanged: if (!pressed) bridge.flushCompanionAppearance() }
                         Hint { text: "Chỉ làm trong nền, chữ và nút vẫn rõ và bấm như cũ. Thay đổi tự lưu."; Layout.fillWidth: true }
                     }
-                    RowLayout { Layout.fillWidth: true; Hint { text: "Kéo Mascot hoặc bảng để di chuyển; bấm ↓ để thu bảng. Đóng BiliClass sẽ tắt Mascot."; Layout.fillWidth: true } SaveButton { objectName: "saveMascot"; text: bridge.mascotSaving ? "Đang lưu…" : "Lưu cài đặt Mascot"; enabled: !bridge.mascotSaving; onClicked: bridge.saveMascotPreferences(page.selectedMascot, true, Math.round(mascotSize.value), "right", reducedMotion.checked, mascotAccessories.checked, true, true, page.accessorySubjectOverridden || bridge.mascotSettings.subject_mode === "fixed" ? "fixed" : "auto", accessorySubjectChoice.currentText, mascotOnTop.checked) } }
+                    RowLayout { Layout.fillWidth: true; Hint { text: "Kéo Mascot hoặc bảng để di chuyển; bấm ↓ để thu bảng. Đóng BiliClass sẽ tắt Mascot."; Layout.fillWidth: true } SaveButton { objectName: "saveMascot"; text: bridge.mascotSaving ? "Đang lưu…" : "Lưu cài đặt Mascot"; enabled: !bridge.mascotSaving; onClicked: bridge.saveMascotPreferences(page.selectedMascot, true, Math.round(mascotSize.value), "right", false, mascotAccessories.checked, true, true, page.accessorySubjectOverridden || bridge.mascotSettings.subject_mode === "fixed" ? "fixed" : "auto", accessorySubjectChoice.currentText, mascotOnTop.checked) } }
                 }
             }
             Card { Layout.fillWidth: true

@@ -97,6 +97,7 @@ def main():
             pump(100)
             status = c('lessonStatus_' + lesson['id'])
             original_row = next(row for row in bridge.lessons if row['id'] == lesson['id'])
+            seen_fills = {}
             for audio, label in [
                 ({'status': 'none'}, 'Chưa có giọng'),
                 ({'status': 'none', 'variants': [{'status': 'partial', 'ready': False}]}, 'Giọng chưa đủ'),
@@ -105,11 +106,19 @@ def main():
                 ({'status': 'unknown'}, 'Chưa kiểm tra giọng'),
                 ({'status': 'checking'}, 'Đang kiểm tra giọng…'),
             ]:
-                status.setProperty('lessonRow', {**original_row, 'narration': audio})
-                pump(40)
-                assert status.property('text') == label
-                text = status.findChild(QObject, 'libraryVoicePillText')
-                assert not text.property('truncated'), (label, text.width(), text.property('contentWidth'))
+                for mode in ('light', 'dark'):
+                    bridge.setApplicationTheme(mode)
+                    status.setProperty('lessonRow', {**original_row, 'narration': audio})
+                    pump(40)
+                    assert status.property('text') == label
+                    text = status.findChild(QObject, 'libraryVoicePillText')
+                    assert not text.property('truncated'), (label, text.width(), text.property('contentWidth'))
+                    fill = evaluate(status, 'background.color.toString()')
+                    ink = text.property('color').name()
+                    assert fill != ink
+                    seen_fills.setdefault(mode, {})[label] = fill
+            for fills in seen_fills.values():
+                assert len({fills[label] for label in ('Chưa có giọng', 'Giọng chưa đủ', 'Có giọng Anh', 'Đang kiểm tra giọng…')}) == 4
             status.setProperty('lessonRow', original_row)
             root.grabWindow().save(str(reports/'clear-library-status.png'))
             root.setProperty('page', 'settings')

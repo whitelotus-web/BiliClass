@@ -127,6 +127,7 @@ ApplicationWindow {
         narrationVoice = bridge.lessonNarration.voice
         narrationRate = bridge.lessonNarration.rate || 0
         if (!voiceResultDismissed) voiceResultShown = true
+        bridge.rememberNarrationResult()
         voicePreviewExpanded = true
         if (!bridge.quickResult.image && !bridge.previewBusy)
             bridge.previewConvertedSlide(bridge.quickResult.slide || 1)
@@ -497,6 +498,13 @@ ApplicationWindow {
     Connections {
         target: bridge
         function onBrowserStateChanged() { if (!bridge.browserState.running) cancelConversionDialog.close() }
+        function onNarrationResultRequested() {
+            const recent = bridge.recentNarrationResult
+            root.narrationMode = recent.mode; root.narrationVoice = recent.voice; root.narrationRate = recent.rate
+            root.narrationOptionsPinned = false; root.voiceResultDismissed = false
+            root.voiceResultShown = true; root.voicePreviewExpanded = true
+            Qt.callLater(root.revealCompletedNarration)
+        }
         function onQuickResultChanged() { Qt.callLater(root.ensureVoiceThumbnail) }
         function onNarrationChanged() {
             const job = bridge.narrationPreparation
@@ -728,8 +736,8 @@ ApplicationWindow {
         Accessible.name: text + ". Chọn hoặc tạo giọng đọc."
         ToolTip.visible: hovered; ToolTip.delay: 500
         ToolTip.text: ((lessonRow.narration || {}).label || "Chưa có giọng đọc") + "\nBấm để chọn hoặc tạo giọng đọc."
-        contentItem: Label { objectName: "libraryVoicePillText"; text: statusButton.text; color: statusBadge.languages.length ? AppTheme.blue : AppTheme.muted; font.pixelSize: 11; font.weight: Font.DemiBold; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-        background: Rectangle { radius: 14; color: statusButton.hovered ? AppTheme.hover : AppTheme.raised; border.color: statusButton.visualFocus ? root.blue : "transparent" }
+        contentItem: Label { objectName: "libraryVoicePillText"; text: statusButton.text; color: statusBadge.foreground; font.pixelSize: 11; font.weight: Font.DemiBold; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+        background: Rectangle { radius: 14; color: statusButton.hovered ? (AppTheme.dark ? Qt.lighter(statusBadge.fill, 1.1) : Qt.darker(statusBadge.fill, 1.04)) : statusBadge.fill; border.color: statusButton.visualFocus ? root.blue : statusBadge.outline }
         onClicked: bridge.openLessonNarration(lessonRow.id)
     }
 
@@ -970,7 +978,7 @@ ApplicationWindow {
                                             Label { objectName: "lessonTitle_" + modelData.id; text: modelData.title; color: root.ink; font.pixelSize: 15; font.weight: Font.DemiBold; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight; Layout.fillWidth: true; Layout.minimumWidth: 0 }
                                             Copy { Layout.fillWidth: true; text: modelData.subject + "  ·  " + modelData.education_level + " " + modelData.grade + "  ·  " + (modelData.slides_count ? modelData.slides_count + " slide" : modelData.segments_count + " phần"); font.pixelSize: 12 }
                                             RowLayout { Layout.fillWidth: true; spacing: 10
-                                                LibraryContentWarning { id: rowContentWarning; objectName: "lessonContentWarning_" + modelData.id; review: modelData.review || ({}); enabled: !bridge.busy; onRequestInspect: { root.libraryReviewTarget = modelData.id; bridge.openLesson(modelData.id) } Layout.fillWidth: true; Layout.minimumWidth: 0 }
+                                                LibraryContentWarning { id: rowContentWarning; objectName: "lessonContentWarning_" + modelData.id; showWarnings: bridge.experimentalTeaching; review: modelData.review || ({}); enabled: !bridge.busy; onRequestInspect: { root.libraryReviewTarget = modelData.id; bridge.openLesson(modelData.id) } Layout.fillWidth: true; Layout.minimumWidth: 0 }
                                                 Item { Layout.fillWidth: true }
                                                 Copy { objectName: "lessonCreated_" + modelData.id; text: (modelData.created_at_estimated ? "Lưu: " : "Tạo: ") + bridge.lessonDateLabel(modelData.created_at); font.pixelSize: 10; Layout.minimumWidth: 145; Layout.preferredWidth: 145; Layout.maximumWidth: 145 }
                                             }
@@ -1031,8 +1039,9 @@ ApplicationWindow {
                                         Label { objectName: "lessonTitle_" + modelData.id; text: modelData.title; color: root.ink; font.pixelSize: 15; font.weight: Font.DemiBold; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.preferredHeight: 40; verticalAlignment: Text.AlignTop }
                                         Copy { Layout.fillWidth: true; font.pixelSize: 12; text: modelData.subject + " · " + modelData.education_level + " " + modelData.grade + " · " + (modelData.slides_count ? modelData.slides_count + " slide" : modelData.segments_count + " phần") }
                                         RowLayout { Layout.fillWidth: true
-                                            LibraryContentWarning { id: cardContentWarning; objectName: "lessonContentWarning_" + modelData.id; review: modelData.review || ({}); enabled: !bridge.busy; onRequestInspect: { root.libraryReviewTarget = modelData.id; bridge.openLesson(modelData.id) } Layout.fillWidth: true; Layout.minimumWidth: 0 }
-                                            Copy { font.pixelSize: 10; text: bridge.lessonDateLabel(modelData.created_at).split(" · ").pop() }
+                                            LibraryContentWarning { id: cardContentWarning; objectName: "lessonContentWarning_" + modelData.id; showWarnings: bridge.experimentalTeaching; review: modelData.review || ({}); enabled: !bridge.busy; onRequestInspect: { root.libraryReviewTarget = modelData.id; bridge.openLesson(modelData.id) } Layout.fillWidth: true; Layout.minimumWidth: 0 }
+                                            Item { Layout.fillWidth: true }
+                                            Copy { objectName: "lessonCardCreated_" + modelData.id; font.pixelSize: 10; text: bridge.lessonDateLabel(modelData.created_at).split(" · ").pop(); Layout.alignment: Qt.AlignRight }
                                         }
                                         MainAction { id: cardOpen; objectName: "lessonOpen_" + modelData.id; text: bridge.openingTeachingLesson === modelData.id ? "Đang mở…" : "Mở PowerPoint"; primary: true; Layout.fillWidth: true; onClicked: bridge.openTeachingLibraryLesson(modelData.id); enabled: !bridge.busy && !bridge.narrationBusy && !bridge.teachingTransitioning }
                                         RowLayout { Layout.fillWidth: true; spacing: 6
@@ -1167,7 +1176,7 @@ ApplicationWindow {
                                         placeholderText: "Tên bài giảng"; maximumLength: 180
                                         onTextChanged: if (!activeFocus) cursorPosition = 0
                                         onActiveFocusChanged: if (!activeFocus) cursorPosition = 0
-                                        ToolTip.visible: titleInputHover.hovered && contentWidth > availableWidth
+                                        ToolTip.visible: titleInputHover.hovered && titleInput.contentWidth > titleInput.width - titleInput.leftPadding - titleInput.rightPadding
                                         ToolTip.text: text; ToolTip.delay: 500
                                         HoverHandler { id: titleInputHover }
                                     }
@@ -1319,7 +1328,7 @@ ApplicationWindow {
                 }
                 Rectangle {
                     id: creationFooter; objectName: "creationFooter"
-                    visible: root.page === "new" || (root.page === "voice" && !root.narrationComplete && !root.voiceResultShown); anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                    visible: root.page === "new" || (root.page === "voice" && !root.voiceResultShown); anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
                     height: visible ? creationFooterContent.implicitHeight + 24 : 0; color: AppTheme.adapt("#f3f7fc")
                     Rectangle { anchors.top: parent.top; height: 1; width: parent.width; color: root.line }
                     RowLayout {
@@ -1349,9 +1358,10 @@ ApplicationWindow {
                             RowLayout { visible: root.page === "new" && !!bridge.chatgptRequest.folder && !bridge.narrationBusy; Layout.fillWidth: true; spacing: 6
                                 MainAction { objectName: "resumeCreationTask"; text: bridge.browserState.phase === "completed" ? "Mở bài vừa chuyển đổi" : "Tiếp tục bài đang chuẩn bị"; visible: !!bridge.chatgptRequest.folder && !bridge.narrationBusy; attention: bridge.browserState.phase === "completed"; subtle: !attention; implicitHeight: attention ? 36 : 28; font.pixelSize: 11; onClicked: root.go("chatgpt") }
                             }
+                            MainAction { objectName: "resumeNarrationTask"; text: "Mở bài vừa tạo giọng"; attention: true; implicitHeight: 36; font.pixelSize: 11; visible: !!bridge.recentNarrationResult.lesson_id && !bridge.narrationBusy; enabled: !bridge.busy; onClicked: bridge.openRecentNarrationResult() }
                         }
                         MainAction { objectName: "createLessonButton"; visible: root.page === "new"; text: bridge.busy ? "Đang chuẩn bị…" : "Chuyển đổi bài giảng"; primary: true; enabled: !bridge.busy && !bridge.inputDocuments.busy && !bridge.narrationBusy && !root.inputDocumentError && root.creationPrompt.ready; onClicked: bridge.convertDocument(titleInput.text, root.creationSubject, educationInput.currentText, gradeInput.currentText, pasteInput.text, root.selectedFile, root.selectedConversionFormat.id, ["standard", "visual", "practice"][creationPreset.currentIndex], root.creationKeepSource ? "source" : "template", teacherNotesInput.text) }
-                        MainAction { objectName: "createLessonNarrationButton"; visible: root.page === "voice"; primary: !root.narrationComplete; text: bridge.narrationBusy ? "Đang tạo giọng…" : root.narrationDraft.ready ? "Đã có giọng đọc" : "Tạo giọng đọc"; enabled: !!bridge.quickResult.path && !!root.narrationDraft.total && !!root.narrationVoice && !root.narrationDraft.ready && !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !bridge.teachingTransitioning; onClicked: bridge.createLessonNarrationWithVoice(root.narrationMode, root.narrationVoice, root.narrationRate) }
+                        MainAction { objectName: "createLessonNarrationButton"; visible: root.page === "voice" && !root.narrationComplete; primary: true; text: bridge.narrationBusy ? "Đang tạo giọng…" : "Tạo giọng đọc"; enabled: !!bridge.quickResult.path && !!root.narrationDraft.total && !!root.narrationVoice && !root.narrationDraft.ready && !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !bridge.teachingTransitioning; onClicked: bridge.createLessonNarrationWithVoice(root.narrationMode, root.narrationVoice, root.narrationRate) }
                         MainAction { objectName: "cancelLessonNarrationButton"; danger: true; symbol: "■"; text: bridge.lessonNarration.stopping ? "Đang dừng…" : "Dừng"; enabled: !bridge.lessonNarration.stopping; visible: (root.page === "voice" || root.page === "result") && !!bridge.lessonNarration.running; onClicked: bridge.cancelLessonNarration() }
                     }
                 }
@@ -1729,7 +1739,7 @@ ApplicationWindow {
                                         : "Bài hiện có lời tiếng Anh. Muốn tạo cả hai giọng, cần có thêm lời tiếng Việt."
                                 }
                                 NarrationConfiguration {
-                                    objectName: "completedNarrationConfiguration"; visible: root.narrationComplete; Layout.fillWidth: true
+                                    objectName: "completedNarrationConfiguration"; visible: root.narrationComplete && root.page !== "voice"; Layout.fillWidth: true
                                     mode: root.narrationMode
                                     voiceName: (bridge.multilingualVoices.find(function(v) { return v.id === root.narrationVoice }) || {}).name || ""
                                     pairLabel: bridge.voicePairDetails(root.narrationVoice).label || ""

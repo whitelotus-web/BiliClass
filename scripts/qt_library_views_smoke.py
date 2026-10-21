@@ -186,6 +186,12 @@ def main():
                 assert pos.x() > sort.mapToScene(QPointF()).x() + sort.width()
                 assert pos.x() + view.width() < width
                 assert abs(pos.y() - sort.mapToScene(QPointF()).y()) < 3
+                for row in bridge.lessons:
+                    lesson_card = c('lessonCard_' + row['id'])
+                    created = c('lessonCardCreated_' + row['id'])
+                    created_right = created.mapToItem(lesson_card, QPointF()).x() + created.width()
+                    assert abs(created_right - (lesson_card.width() - 14)) < 2, (width, created_right, lesson_card.width())
+                    assert not c('lessonContentWarning_' + row['id']).isVisible()
                 assert window.grabWindow().save(str(report / f"cards-{width}.png"))
                 normal_width = c('lessonCard_' + identity).width()
                 search = c('librarySearch')
@@ -319,6 +325,7 @@ def main():
                     "home local-budget warning at 80%; rename dialog preserves usage",
                     "mascot sidebar toggle and menu Hide synchronize visibility and label",
                     "Open stays in Library; separate narration button opens configuration without starting voice or rebinding Office",
+                    "creation dates stay right aligned in every card; routine manual-review banners stay hidden",
                 ],
             }
             result["checks"].append(

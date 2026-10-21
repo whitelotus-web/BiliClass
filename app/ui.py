@@ -59,6 +59,8 @@ class Bridge(QObject):
     updateChanged = Signal()
     updateAvailable = Signal()
     narrationChanged = Signal()
+    recentNarrationChanged = Signal()
+    narrationResultRequested = Signal()
     lessonsChanged = Signal()
     libraryViewChanged = Signal()
     statusChanged = Signal()
@@ -115,6 +117,7 @@ class Bridge(QObject):
         self._application_theme = saved_mode(library)
         apply_color_scheme(self._application_theme)
         self._automatic_narration_repairs = set()
+        self._recent_narration_result = {}
         from .storage_controls import StorageControls
 
         self.storage = StorageControls(self)
@@ -1175,6 +1178,53 @@ class Bridge(QObject):
     def narrationBusy(self):
         return self.narration_preparation.worker is not None
 
+    @Property('QVariantMap', notify=recentNarrationChanged)
+    def recentNarrationResult(self):
+        return self._recent_narration_result
+
+    def _remember_narration_result(self, lesson, record):
+        from .lesson_narration import variant_id
+
+        identity = variant_id(record)
+        if not identity:
+            return
+        value = dict(lesson_id=lesson['id'], variant_id=identity, title=lesson['title'],
+                     mode=record['mode'], voice=record['voice'], rate=record.get('rate', 0))
+        if value != self._recent_narration_result:
+            self._recent_narration_result = value
+            self.recentNarrationChanged.emit()
+
+    @Slot()
+    def rememberNarrationResult(self):
+        if self._lesson and self.lessonNarration.get('ready') and not self.narrationBusy:
+            self._remember_narration_result(self._lesson, self._lesson['narration'])
+
+    @Slot()
+    def openRecentNarrationResult(self):
+        from .lesson_narration import audio_status, records
+        from .voice_import import prepare_library_lesson
+
+        recent = dict(self._recent_narration_result)
+        if not recent or self._busy or self.narrationBusy:
+            return
+        directory = self.library.directory
+
+        def prepare():
+            lesson, preview = prepare_library_lesson(directory, recent['lesson_id'])
+            record = records(lesson).get(recent['variant_id'])
+            if not record:
+                raise ValueError('Bản giọng vừa tạo không còn trong bài giảng.')
+            lesson['narration'] = dict(record)
+            if not audio_status(lesson, directory).get('ready'):
+                raise ValueError('Bản giọng vừa tạo đã thay đổi hoặc thiếu âm thanh. Mở bài để tạo tiếp.')
+            return lesson, preview
+
+        def show(result):
+            self._show_lesson(*result, auto_repair=False, destination='voice', load_preview=False)
+            self.narrationResultRequested.emit()
+
+        self.launch(prepare, show, message='Đang mở bài vừa tạo giọng…')
+
     @Property("QVariantMap", notify=narrationChanged)
     def lessonNarration(self):
         from .lesson_narration import LABELS
@@ -1395,6 +1445,10 @@ class Bridge(QObject):
                     if self._lesson.get("id") == lesson["id"]:
                         self._lesson.update(narration=lesson['narration'], narration_variants=lesson.get('narration_variants', {}))
                     self._catalog.refresh()
+                    if (not state.get('running') and state.get('total', 0) > 0
+                            and state.get('complete') == state['total']
+                            and not state.get('failed') and not state.get('cancelled')):
+                        self._remember_narration_result(lesson, lesson['narration'])
                 except (ValueError, KeyError):
                     pass  # A deleted/edited lesson cannot receive stale audio metadata.
                 if not state.get('running') and state.get('message'):
@@ -1935,7 +1989,7 @@ class Bridge(QObject):
             'subject_mode': 'auto', 'subject': '',
         }
         saved = self.library.setting("mascot_options", {})
-        return {**defaults, **saved, 'position': 'right', 'visible': True,
+        return {**defaults, **saved, 'position': 'right', 'visible': True, 'reduced_motion': False,
                 'show_explanation': True, 'show_quiz': True} if isinstance(saved, dict) else defaults
 
     @Property(str, notify=changed)
@@ -2808,6 +2862,8 @@ class Bridge(QObject):
 
     def _show_lesson(self, lesson, preview=None, *, auto_repair=True, destination='result', load_preview=True):
         """Apply prepared UI data; file integrity checks belong to the worker."""
+        from .lesson_completion import completion_current
+
         if not self.teaching_session.bound:
             self.stopSpeech()
         self._conversion_report = []
@@ -2826,7 +2882,7 @@ class Bridge(QObject):
         self.selectionChanged.emit()
         if destination is not None:
             self.navigate.emit(destination)
-        if (auto_repair and not lesson.get('voice_only') and lesson.get('external_deck') and lesson.get('slide_quality',{}).get('counts',{}).get('FAIL')
+        if (auto_repair and not completion_current(lesson) and not lesson.get('voice_only') and lesson.get('external_deck') and lesson.get('slide_quality',{}).get('counts',{}).get('FAIL')
                 and 'local_repairs' not in lesson.get('slide_quality',{})
                 and lesson['id'] not in getattr(self,'_auto_reviewed',set())):
             if not hasattr(self,'_auto_reviewed'):
@@ -3593,7 +3649,7 @@ class Bridge(QObject):
         self._companion_preferences.save_settings({'mascot': mascot, 'mascot_options': {
             "visible": True, "size": max(60, min(160, size)),
             "position": "right",
-            "reduced_motion": reduced_motion, "accessories": accessories,
+            "reduced_motion": False, "accessories": accessories,
             "show_explanation": True, "show_quiz": True,
             'subject_mode': subject_mode, 'subject': subject.strip() if subject_mode == 'fixed' else '',
             'always_on_top': self.mascotSettings['always_on_top'] if always_on_top is None else always_on_top,

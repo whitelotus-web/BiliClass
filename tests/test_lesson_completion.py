@@ -200,6 +200,34 @@ def test_open_and_narration_are_separate_entry_points(tmp_path, monkeypatch):
         library.close()
 
 
+def test_showing_a_completed_product_does_not_restart_the_layout_repair(tmp_path, monkeypatch):
+    from PySide6.QtCore import QCoreApplication
+
+    from app.lesson_completion import VERSION
+    from app.ui import Bridge
+
+    app = QCoreApplication.instance() or QCoreApplication([])
+    library, lesson, _ = converted(tmp_path)
+    lesson['slide_quality'].update(completion_version=VERSION, completion_sha256=lesson['source']['sha256'])
+    bridge = Bridge(library)
+    calls = []
+    monkeypatch.setattr(bridge, 'repairConvertedLesson', lambda: calls.append(True))
+    try:
+        bridge._show_lesson(lesson, load_preview=False)
+        app.processEvents()
+        assert not calls and bridge.lesson['slide_quality']['counts']['FAIL'] == 1
+        lesson['slide_quality']['completion_version'] = VERSION - 1
+        bridge._show_lesson(lesson, load_preview=False)
+        app.processEvents()
+        assert calls == [True]
+    finally:
+        for worker in (bridge._catalog, bridge.browserAI, bridge.slidePreview, bridge.libraryThumbnails,
+                       bridge.narrationPreferences, bridge.narration_preparation, bridge.english_reader,
+                       bridge.voice_controls, bridge._companion_preferences, bridge.classroom):
+            worker.shutdown()
+        library.close()
+
+
 def test_new_spoken_tasks_never_reuse_old_voice_signature(tmp_path):
     from app.lesson_completion import _retain_unchanged_audio
 

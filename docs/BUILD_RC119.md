@@ -54,4 +54,14 @@ xác nhận dịch hết mọi chữ/công thức nằm trong ảnh.
 Dựng một lần từ commit đã kiểm tra, dùng runtime/model RC118 có manifest
 SHA256. Commit, phiên bản và baseline ghi trong BUILD_INFO.json của gói.
 Dữ liệu thư viện, audio, khóa, model tải riêng và executable không đưa
-vào commit nguồn. Kết quả xác minh gói/cài đặt ghi bổ sung sau khi dựng.
+vào commit nguồn.
+
+Gói đã dựng từ `be06b943ceaa860974e36a564f12be6be8942bc2`, phiên bản
+`1.0.0rc119`. ZIP có 1.249.986.372 byte, SHA256
+`e007af5e2ab74e8860e43eca22aaddfea3ac844c6b31b02eccb28421a5a620c9`.
+4662 tệp ứng dụng và 54 tệp QML/qmldir đã được đối chiếu với manifest/commit.
+Gói đã chạy kiểm tra Qt riêng, cài vào `F:/Applications/BiliClass/1.0.0rc119`
+và mở qua Explorer. Cửa sổ chính/Mascot phản hồi; icon, taskbar và shortcut
+đúng phiên bản. So sánh trước/sau cài xác nhận nguồn, nội dung thư viện,
+1066 WAV được tham chiếu, logo, khóa mã hóa và tùy chọn giọng giữ nguyên.
+Gói RC119 được dùng để test tại máy, chưa phát hành GitHub Release.

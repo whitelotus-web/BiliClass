@@ -256,7 +256,10 @@ def embed_audio(source, destination, lesson, directory, *, scope='full_slide', m
     entries["[Content_Types].xml"] = _bytes(types)
     with zipfile.ZipFile(destination, "w", zipfile.ZIP_DEFLATED, compresslevel=1) as archive:
         for name, data in entries.items():
-            archive.writestr(name, data)
+            # Raster/video assets are already compressed. Re-deflating them
+            # costs seconds on large teaching decks without useful savings.
+            compressed_media = Path(name).suffix.lower() in {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.mp3', '.mp4', '.wmv', '.avi'}
+            archive.writestr(name, data, compress_type=zipfile.ZIP_STORED if compressed_media else zipfile.ZIP_DEFLATED)
     # Every original resource remains in the output byte-for-byte.
     with zipfile.ZipFile(source) as original, zipfile.ZipFile(destination) as exported:
         for name in original_parts:

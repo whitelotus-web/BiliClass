@@ -309,15 +309,17 @@ def test_accessory_subject_is_independent_of_the_lesson_and_visibility_is_always
     try:
         bridge._lesson = lesson
         library.set_setting('mascot_options', {'subject_mode': 'fixed', 'subject': 'Mĩ thuật',
-                                              'visible': False, 'show_explanation': False, 'show_quiz': False})
+                                              'visible': False, 'show_explanation': False, 'show_quiz': False, 'reduced_motion': True})
         assert bridge.mascotSubject == 'Vật lý'
         assert bridge.mascotAccessorySubject == 'Mĩ thuật'
+        assert bridge.mascotSettings['reduced_motion'] is False
         assert all(bridge.mascotSettings[name] for name in ('visible', 'show_explanation', 'show_quiz'))
-        bridge.saveMascotPreferences("Lumi", False, 110, "right", False, True, False, False, "fixed", "Mĩ thuật")
+        bridge.saveMascotPreferences("Lumi", False, 110, "right", True, True, False, False, "fixed", "Mĩ thuật")
         saved_preferences()
         assert bridge.mascotSubject == "Vật lý"
         assert bridge.mascotAccessorySubject == 'Mĩ thuật'
         assert all(library.setting('mascot_options', {})[name] for name in ('visible', 'show_explanation', 'show_quiz'))
+        assert library.setting('mascot_options', {})['reduced_motion'] is False
         bridge._lesson = {**lesson, "subject": "Tin học"}
         assert bridge.mascotSubject == "Tin học"
         assert bridge.mascotAccessorySubject == 'Mĩ thuật'

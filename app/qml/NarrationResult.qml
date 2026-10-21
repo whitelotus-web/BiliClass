@@ -31,10 +31,11 @@ ContentScrollView {
                 Label { text: (result.coverage.total || 0) + " slide · " + (result.coverage.readable || 0) + " slide có lời đọc" + ((result.coverage.total || 0) > (result.coverage.readable || 0) ? " · Slide không có lời giữ im lặng" : ""); color: AppTheme.muted; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap }
             }
         }
-        Flow { Layout.fillWidth: true; spacing: 10
-            ActionButton { objectName: "narrationResultOpen"; text: "Mở PowerPoint"; primary: true; enabled: !result.bridge.busy && !result.bridge.narrationBusy && !result.bridge.teachingTransitioning; onClicked: result.requestPowerPoint() }
-            ActionButton { objectName: "narrationResultDownload"; text: "Tải PowerPoint"; iconName: "download"; enabled: !result.bridge.busy; onClicked: result.requestDownload() }
-            ActionButton { objectName: "narrationResultAudio"; text: "Tải audio (.zip)"; enabled: !result.bridge.busy; onClicked: result.requestAudio() }
+        Flow { objectName: "narrationResultActions"; Layout.alignment: Qt.AlignHCenter; Layout.minimumWidth: 0; Layout.maximumWidth: result.availableWidth
+            Layout.preferredWidth: openButton.implicitWidth + downloadButton.implicitWidth + audioButton.implicitWidth + 20; spacing: 10
+            ActionButton { id: openButton; objectName: "narrationResultOpen"; text: "Mở PowerPoint"; primary: true; enabled: !result.bridge.busy && !result.bridge.narrationBusy && !result.bridge.teachingTransitioning; onClicked: result.requestPowerPoint() }
+            ActionButton { id: downloadButton; objectName: "narrationResultDownload"; text: "Tải PowerPoint"; iconName: "download"; enabled: !result.bridge.busy; onClicked: result.requestDownload() }
+            ActionButton { id: audioButton; objectName: "narrationResultAudio"; text: "Tải audio (.zip)"; enabled: !result.bridge.busy; onClicked: result.requestAudio() }
         }
         Rectangle {
             objectName: "narrationResultPreview"; Layout.fillWidth: true

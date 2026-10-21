@@ -4,8 +4,9 @@ import QtQuick.Controls
 ToolButton {
     id: warning
     property var review: ({})
+    property bool showWarnings: false
     signal requestInspect()
-    visible: ["repair", "incomplete"].indexOf(review.kind) >= 0
+    visible: showWarnings && ["repair", "incomplete"].indexOf(review.kind) >= 0
     text: review.kind === "repair" ? "Cần kiểm tra bố cục" : review.label || "Cần kiểm tra nội dung"
     padding: 0; implicitHeight: 18
     ToolTip.visible: hovered; ToolTip.delay: 500; ToolTip.text: review.detail || ""

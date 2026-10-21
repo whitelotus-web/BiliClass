@@ -5,6 +5,12 @@ from pathlib import Path
 VERSION = 4
 
 
+def completion_current(lesson):
+    quality = lesson.get('slide_quality', {})
+    return (quality.get('completion_version') == VERSION
+            and quality.get('completion_sha256') == lesson.get('source', {}).get('sha256'))
+
+
 def complete_existing(library, lesson, cancel=None):
     from .google_conversion import original_source
     from .library import RevisionConflict
@@ -15,7 +21,7 @@ def complete_existing(library, lesson, cancel=None):
     if lesson.get('voice_only') or not lesson.get('external_deck'):
         return lesson
     stamp = lesson['source']['sha256']
-    if quality.get('completion_version') == VERSION and quality.get('completion_sha256') == stamp:
+    if completion_current(lesson):
         return lesson
     if not quality.get('counts', {}).get('FAIL'):
         # Earlier checks could approve an oversized box while its text escaped

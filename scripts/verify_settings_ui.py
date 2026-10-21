@@ -205,7 +205,7 @@ def main():
         assert window.findChild(QObject, "mascotPosition") is None
         assert window.findChild(QObject, "companionPanelSize") is None
         control("mascotAccessories").setProperty("checked", False)
-        control("mascotReducedMotion").setProperty("checked", False)
+        assert window.findChild(QObject, "mascotReducedMotion") is None
         click("mascotPreviewMode1")
         assert control("mascotPreview").property("visible")
         click("mascotPreviewMode2")

@@ -92,7 +92,7 @@ def main():
             until(lambda: not bridge.mascotSaving)
             bridge._powerpoint_state = {'active': True, 'opened': True, 'slide': 2, 'total': 7, 'message': ''}
             native_commands = []
-            lesson['narration'] = {'keys': {'en': []}}
+            lesson['narration'] = {'keys': {}}
             bridge.powerpoint_worker = SimpleNamespace(navigate=lambda *args: native_commands.append(args))
             bridge.teachingSession.bind({'lesson': lesson, 'path': '', 'preview': {}, 'media': {2: ['en', 'vi']}})
             bridge.changed.emit()
@@ -107,7 +107,7 @@ def main():
                 bridge.saveMascotPreferences('Milo', True, pixels, 'right', False, True, True, True)
                 until(lambda: not bridge.mascotSaving)
                 pump(100)
-                bridge.teachingSession.setReadingScope('full_slide')
+                assert bridge.teachingSession.reading_scope == 'full_slide'
                 before = [(item.x(), item.y(), item.width(), item.height()) for item in audio]
                 height = companion.height()
                 for languages in (['en'], [], ['vi'], ['en', 'vi']):
@@ -117,21 +117,15 @@ def main():
                     assert all(item.isVisible() for item in audio)
                     assert [item.isEnabled() for item in audio] == [lang in languages for lang in ('en', 'vi')]
                     assert before == [(item.x(), item.y(), item.width(), item.height()) for item in audio]
-                    assert c('companionAudioHint').isVisible()
+                    assert c('companionAudioHint').isVisible() == (not languages)
                     assert bool(c('companionAudioHint').property('text')) == (not languages)
-                    assert companion.height() == height
+                    if languages:
+                        assert companion.height() == height
+                    else:
+                        assert height < companion.height() <= height + 40, 'Only the missing-audio hint may add height'
                     assert all(item.property('iconName') == 'speaker' for item in audio)
-                choices = [c('companionReading' + name) for name in ('Auto', 'Visible', 'Full')]
-                assert all(item.isVisible() for item in choices)
-                assert max(item.mapToScene(QPointF()).y() for item in choices) - min(item.mapToScene(QPointF()).y() for item in choices) < 1
-                for selected, mode in zip(choices, ('auto', 'visible', 'full_slide'), strict=True):
-                    click(companion, selected)
-                    assert bridge.teachingSession.state['reading_mode'] == mode
-                    assert [item.property('checked') for item in choices] == [item == selected for item in choices]
-                    assert all(item.width() >= item.property('contentItem').property('implicitWidth') + 6 for item in choices)
-                click(companion, choices[0])
-                click(companion, choices[0])
-                assert choices[0].property('checked'), 'Current reading mode cannot be unchecked'
+                for suffix in ('Auto', 'Visible', 'Full', 'Options'):
+                    assert root.findChild(QObject, 'companionReading' + suffix) is None
                 assert companion.grabWindow().save(str(report / f'stable-speakers-{pixels}.png'))
                 assert c('companionReadEnglish').mapToScene(QPointF()).y() > c('companionVolume').mapToScene(QPointF()).y()
                 assert c('companionPrevious').mapToScene(QPointF()).y() > c('companionReadEnglish').mapToScene(QPointF()).y()
@@ -145,7 +139,7 @@ def main():
                     assert geometry == (companion.x(), companion.y(), companion.height(),
                                         audio[0].mapToGlobal(QPointF()).y(), audio[0].width(), audio[0].height()), (pixels, state, geometry, companion.x(), companion.y(), companion.height(), audio[0].mapToGlobal(QPointF()).y(), audio[0].width(), audio[0].height())
             if args.layout_only:
-                bridge.teachingSession.setReadingScope('full_slide')
+                assert bridge.teachingSession.reading_scope == 'full_slide'
                 pump(100)
                 for name in ('companionPrevious', 'companionNext', 'companionReadEnglish', 'companionReadVietnamese'):
                     click(companion, c(name))
@@ -161,11 +155,8 @@ def main():
             until(lambda: not bridge.mascotSaving)
             assert c('companionEndShow').property('danger')
             assert c('companionStartShow').property('iconName') == 'presentation'
-            assert c('companionReadingOptions').isVisible()
-            click(companion, c('companionReadingFull'))
-            assert bridge.teachingSession.state['reading_mode'] == 'full_slide'
-            click(companion, c('companionReadingAuto'))
-            assert bridge.teachingSession.state['reading_mode'] == 'auto'
+            assert bridge.teachingSession.reading_scope == 'full_slide'
+            assert root.findChild(QObject, 'companionReadingOptions') is None
             assert root.findChild(QObject, 'companionReadingMenu') is None
             assert root.findChild(QObject, 'companionReadingScope') is None
             for opacity in (100, 30):
@@ -277,17 +268,20 @@ def main():
             bridge.teachingSession.response = {'untouched': False, 'text': '\n'.join(['Selectable response text.'] * 30)}
             bridge.teachingSession.changed.emit()
             pump(150)
-            text = c('companionResponseText')
-            click(companion, c('companionResponseScroll'))  # Scroll its viewport into view first.
-            origin = QPoint(companion.x(), companion.y())
-            center = text.mapToScene(QPointF(12, 15)).toPoint()
-            QTest.mousePress(companion, Qt.LeftButton, pos=center)
-            QTest.mouseMove(companion, center + QPoint(60, 0))
-            QTest.mouseRelease(companion, Qt.LeftButton, pos=center + QPoint(60, 0))
-            assert QPoint(companion.x(), companion.y()) == origin
+            if bridge.experimentalTeaching:
+                text = c('companionResponseText')
+                click(companion, c('companionResponseScroll'))
+                origin = QPoint(companion.x(), companion.y())
+                center = text.mapToScene(QPointF(12, 15)).toPoint()
+                QTest.mousePress(companion, Qt.LeftButton, pos=center)
+                QTest.mouseMove(companion, center + QPoint(60, 0))
+                QTest.mouseRelease(companion, Qt.LeftButton, pos=center + QPoint(60, 0))
+                assert QPoint(companion.x(), companion.y()) == origin
+            else:
+                assert not c('companionResponseScroll').isVisible()
             viewport = c('companionControlsScroll').property('contentItem')
             original_height = companion.height()
-            companion.setHeight(430)
+            companion.setHeight(min(430, original_height - 60))
             pump(150)
             viewport.setProperty('contentY', 0)
             center = c('companionPanelMoveArea').mapToScene(QPointF(35, 65))
@@ -322,9 +316,11 @@ def main():
                 summary_left = summary.mapToScene(QPointF()).x()
                 toggles_right = toggles.mapToScene(QPointF(toggles.width(), 0)).x()
                 if c('settingsPage').width() >= 800:
-                    assert summary_left > toggles_right, 'Accessory details belong beside display choices'
+                    accessory = c('mascotAccessories')
+                    assert summary_left > accessory.mapToScene(QPointF(accessory.width(), 0)).x()
+                    assert summary.mapToScene(QPointF(summary.width(), 0)).x() < toggles.mapToScene(QPointF()).x()
                 else:
-                    assert summary.mapToScene(QPointF()).y() > toggles.mapToScene(QPointF(0, toggles.height())).y()
+                    assert summary.mapToScene(QPointF(0, summary.height())).y() < toggles.mapToScene(QPointF()).y()
                 viewport = c('settingsContentScroll').property('contentItem')
                 offset = summary.mapToItem(viewport, QPointF()).y()
                 viewport.setProperty('contentY', max(0, min(viewport.property('contentHeight') - viewport.height(),

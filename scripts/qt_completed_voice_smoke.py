@@ -98,6 +98,9 @@ def main():
                     assert item.mapToScene(QPointF()).x() >= 0
                     assert item.mapToScene(QPointF(item.width(), 0)).x() <= width
                 counter = c('narrationResultCounter')
+                actions = c('narrationResultActions')
+                parent = actions.parentItem()
+                assert abs(actions.mapToItem(parent, QPointF()).x()+actions.width()/2-parent.width()/2) < 2
                 viewport = c('narrationResultPage').property('contentItem')
                 assert abs(counter.mapToScene(QPointF(counter.width()/2, 0)).x()
                            - c('narrationResultPage').mapToScene(QPointF(c('narrationResultPage').width()/2, 0)).x()) < 5
@@ -161,8 +164,27 @@ def main():
             c('navigationvoice').clicked.emit()
             pump(100)
             assert window.property('page') == 'voice' and not c('narrationResultPage').isVisible()
+            assert c('resumeNarrationTask').isVisible() and c('resumeNarrationTask').property('attention')
+            recent = dict(bridge.recentNarrationResult)
+            assert recent['lesson_id'] == lesson['id']
+            actions = c('narrationReadyActions')
+            parent = actions.parentItem()
+            assert abs(actions.mapToItem(parent, QPointF()).x()+actions.width()/2-parent.width()/2) < 2
+            window.setProperty('narrationMode', 'en')
+            window.setProperty('narrationRate', 1)
+            c('resumeNarrationTask').clicked.emit()
+            until(lambda: not bridge.busy and c('narrationResultPage').isVisible() and bridge.lessonNarration.get('ready'), timeout=60)
+            assert window.property('narrationMode') == recent['mode'] and window.property('narrationRate') == recent['rate']
+            assert bridge.selectedNarrationVariant == recent['variant_id']
+            bridge._clear_narration_selection()
+            pump(150)
+            assert c('resumeNarrationTask').isVisible() and not bridge.lesson.get('id')
+            c('resumeNarrationTask').clicked.emit()
+            until(lambda: not bridge.busy and c('narrationResultPage').isVisible() and bridge.lesson.get('id') == lesson['id'], timeout=60)
+            assert bridge.selectedNarrationVariant == recent['variant_id']
             assert not warnings, warnings
             (reports / 'result.json').write_text(json.dumps({'status': 'passed', 'automatic_preview': True,
+                'resume_exact_completed_variant_after_configuration_or_clear': True, 'centered_actions': True,
                 'preview_while_powerpoint_active': True, 'sizes': [[1080, 700], [1366, 850]], 'qml_warnings': warnings}), encoding='utf-8')
             print('Completed narration Qt flow passed.', flush=True)
         finally:

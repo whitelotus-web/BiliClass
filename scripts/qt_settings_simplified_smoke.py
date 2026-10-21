@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from PIL import Image
-from PySide6.QtCore import QCoreApplication, QEvent, QPointF, QUrl
+from PySide6.QtCore import QCoreApplication, QEvent, QObject, QPointF, QUrl
 from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
@@ -127,6 +127,18 @@ def main():
                         assert point.y() >= 0 and point.y()+button.height() <= viewport.height()+1
                     window.grabWindow().save(str(reports/f'{mode}-voice-{width}.png'))
                     page.setProperty('activeTab', 3)
+                    pump(80)
+                    assert window.findChild(QObject, 'mascotReducedMotion') is None
+                    assert not c('mascotPreview').property('reducedMotion')
+                    assert c('mascotAccessories').property('text') == 'Hiện phụ kiện theo môn'
+                    c('mascotAccessories').setProperty('checked', False)
+                    pump(60)
+                    assert not c('mascotAccessorySummary').isVisible()
+                    assert not c('mascotAccessorySubject').isVisible() and not c('mascotAccessorySubject').isEnabled()
+                    assert not c('mascotPreview').property('accessories')
+                    c('mascotAccessories').setProperty('checked', True)
+                    pump(60)
+                    assert c('mascotAccessorySummary').isVisible() and c('mascotAccessorySubject').isEnabled()
                     pump(150)
                     mascot = c('mascotSettingsContent')
                     assert mascot.width() <= 1180 and abs(center(mascot)-center(page)) < 2

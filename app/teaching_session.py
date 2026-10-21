@@ -25,7 +25,7 @@ def prepare_teaching(lesson, preview, directory):
     lesson, preview = copy.deepcopy(lesson), dict(preview)
     path = verify_preview(lesson, preview, directory)
     data = lesson.get('slide_speech', {})
-    if not lesson.get('voice_only'):
+    if not lesson.get('voice_only') and data.get('sha256') != preview.get('sha256'):
         data = deck_speech(path, Presentation(path), lesson.get('conversion_format', ''))
     return _prepare_verified_teaching(lesson, preview, directory, path, data)
 
@@ -55,13 +55,25 @@ def _prepare_verified_teaching(lesson, preview, directory, path, data):
 
     warning = ''
     owned_path = ''
+    managed_key = None
     if (lesson.get('narration') or {}).get('mode') in MODES:
         if not audio_status(lesson, directory).get('ready'):
             raise ValueError('Bản giọng chưa hoàn tất. Tạo tiếp hoặc chọn Không kèm giọng đọc.')
         from .presentation_audio import embed_audio
+        from . import teaching_cache
 
         target = Path(directory) / 'temp/teaching' / (uuid4().hex + '.pptx')
         target.parent.mkdir(parents=True, exist_ok=True)
+        managed_key = teaching_cache.cache_key(lesson, preview['sha256'], directory)
+        cached = teaching_cache.load(directory, managed_key)
+        if cached:
+            try:
+                shutil.copyfile(cached['path'], target)
+            except OSError:
+                target.unlink(missing_ok=True)
+                raise
+            return dict(lesson=lesson, preview=preview, path=str(target), speech=data,
+                        media=cached['media'], sha256=cached['sha256'], owned_path=str(target), warning=cached['warning'])
         try:
             coverage = embed_audio(path, target, lesson, directory, managed=True)
             path = target
@@ -69,6 +81,7 @@ def _prepare_verified_teaching(lesson, preview, directory, path, data):
             if coverage.get('unplaced_pages'):
                 warning = f"{len(coverage['unplaced_pages'])} slide chưa đủ chỗ đặt loa; Mascot dùng giọng đã lưu."
         except ValueError as exc:
+            managed_key = None
             target.unlink(missing_ok=True)
             warning = str(exc) + ' Mascot vẫn dùng giọng đã lưu; bản gốc không thay đổi.'
     if not owned_path:
@@ -88,9 +101,15 @@ def _prepare_verified_teaching(lesson, preview, directory, path, data):
         languages = [shape.name.rsplit(' ', 1)[-1].lower() for shape in slide.shapes
                      if shape.name.startswith('BiliClass audio ') and shape.element.xpath('.//a:audioFile')]
         media[index] = [lang for lang in languages if lang in {'vi', 'en', 'both'}]
-    return {'lesson': lesson, 'preview': preview, 'path': str(path), 'speech': data,
+    prepared = {'lesson': lesson, 'preview': preview, 'path': str(path), 'speech': data,
             'media': media, 'sha256': hashlib.sha256(path.read_bytes()).hexdigest(),
             'owned_path': owned_path, 'warning': warning}
+    if managed_key:
+        try:
+            teaching_cache.store(directory, managed_key, prepared)
+        except OSError:
+            pass  # A valid current session does not depend on cache storage.
+    return prepared
 
 
 class TeachingSession(QObject):
