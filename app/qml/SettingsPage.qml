@@ -268,6 +268,7 @@ Item {
                         Hint { text: "BẢN QUYỀN"; font.pixelSize: 10; font.letterSpacing: 1; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
                         Title { objectName: "aboutBiliClassCopyright"; text: "Copyright © 2026 Nguyễn Diệu Linh"; font.pixelSize: 17; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
                         Hint { text: "Giáo viên Tin học · Trường THPT Vân\u00a0Cốc"; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
+                        Hint { objectName: "aboutBiliClassContact"; text: "Liên hệ tác giả: 0972.360.036"; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
                         Hint { text: "All rights reserved."; font.pixelSize: 11; Layout.topMargin: 4; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
                     }
                     Hint { text: "Chuyển tài liệu thành bài giảng Việt–Anh, trình chiếu và đồng hành cùng thầy cô với giọng đọc, mascot trợ giảng.\nThư viện bài giảng được lưu trên máy."; Layout.fillWidth: true; Layout.maximumWidth: 820; Layout.alignment: Qt.AlignHCenter; horizontalAlignment: Text.AlignHCenter }
