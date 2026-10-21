@@ -23,3 +23,20 @@ Xác minh trong `.venv`: 189 pytest đạt, gồm lưu/hủy tác vụ ở trạ
 Qt chuyển đổi chạy/dừng/tiếp tục rồi hủy/chọn lại, Qt tạo giọng lỗi rồi
 hủy, Qt vòng đời Mascot và luồng Office thật. Kiểm tra dùng dữ liệu
 thử; không xóa bài hay âm thanh của thầy cô.
+
+Gói được dựng một lần từ `4475211b21142bb4d9f1a927348aa0303c7886cf`:
+`BiliClass-RC137-Windows.zip`, 1.258.042.513 byte, SHA-256
+`0fdd4d4ac5e0f7ddae4f3f25da732776a8fbd8841eb4dbef9b2f4f7d4ec4a789`.
+55 QML khớp commit; bytecode UI, desktop, chuyển đổi Google, thuật
+ngữ và giọng trong EXE khớp nguồn. ZIP và 4.675 tệp ứng dụng được
+đối chiếu; smoke bản đóng gói ở hai màn chuyển đổi/tạo giọng đạt.
+
+Cài tại `F:/Applications/BiliClass/1.0.0rc137`, mở qua Explorer độc
+lập với Codex. Cửa sổ chính phản hồi, Mascot ẩn lúc khởi động,
+shortcut Desktop/Start và icon/taskbar đúng phiên bản. Đối chiếu
+trước/sau xác nhận bài, nguồn, 1.355 WAV, hồ sơ/logo, khóa API mã
+hóa và tùy chọn giọng được giữ nguyên. Bỏ khỏi tác vụ chờ đúng
+lượt Toán mà người dùng đã bấm Hủy; giữ nguồn và cache đã dịch.
+
+Đã phát hành [v1.0.0rc137](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc137)
+với ZIP và checksum riêng. Digest/size từ GitHub khớp gói đã kiểm tra.
