@@ -146,8 +146,8 @@ def main():
                 version, copyright = c('aboutBiliClassVersion'), c('aboutBiliClassCopyright')
                 update = c('aboutCheckUpdate')
                 assert all(abs(center(item)-center(card)) < 2 for item in (version, copyright, update))
-                assert brand.mapToScene(QPointF()).y()+brand.height() < copyright.mapToScene(QPointF()).y()
-                assert copyright.mapToScene(QPointF()).y()+copyright.height() < version.mapToScene(QPointF()).y()
+                assert brand.mapToScene(QPointF()).y()+brand.height() < version.mapToScene(QPointF()).y()
+                assert update.mapToScene(QPointF()).y()+update.height() < copyright.mapToScene(QPointF()).y()
                 assert version.mapToScene(QPointF()).y()+version.height() < update.mapToScene(QPointF()).y()
                 assert copyright.width() >= 300
                 assert window.grabWindow().save(str(reports/f'about-{width}.png'))
@@ -197,7 +197,7 @@ def main():
                 'General profile/theme columns stack on narrow windows; preview card removed',
                 'Logo add/replace/remove updates image, buttons and saved asset',
                 'Voice actions remain next to rate controls at 1080/1366/1920, light/dark',
-                'Centered brand, copyright, version and update in that vertical order',
+                'Centered brand, version, update action and copyright in that vertical order',
                 'Mascot settings stay centered and bounded; shortcut columns remain adjacent',
                 'Three main storage actions; advanced actions collapsed and reachable',
                 'Profile fields still save; redundant voice hint hidden at rest',
