@@ -505,7 +505,7 @@ def prepared():
         QTimer.singleShot(100, safe(prepared))
         return
     assert not bridge.error, bridge.message
-    assert window.property("page") == "chatgpt"
+    assert window.property("page") == "new"
     request = bridge.chatgptRequest
     assert request["config"]["conversion_format"] == "parallel_columns"
     assert request["config"]["layout"] == "split_view" and request["config"]["level"] == 3

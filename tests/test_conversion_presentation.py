@@ -38,3 +38,10 @@ def test_cancel_requested_and_discarded_states_do_not_claim_creation_or_resume()
     assert 'Đang hủy' in stopping['displayStage'] and stopping['percent'] == 40
     discarded = display_state({'running': False, 'phase': 'discarded', 'stage': 'save'})
     assert 'Đã hủy' in discarded['displayStage'] and 'bài giảng mới' in discarded['displayMessage']
+
+
+def test_stop_keeps_progress_and_does_not_describe_deleting_the_work():
+    stopping = display_state({'running': True, 'stopping': True, 'stopRequested': True,
+                              'stage': 'translate', 'percent': 40})
+    assert stopping['displayStage'] == 'Đang dừng chuyển đổi' and stopping['percent'] == 40
+    assert 'giữ lại' in stopping['displayMessage'] and 'xóa' not in stopping['displayMessage']

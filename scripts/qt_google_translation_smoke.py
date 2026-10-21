@@ -10,6 +10,7 @@ from pptx import Presentation
 from pptx.dml.color import RGBColor
 from pptx.util import Inches, Pt
 from PySide6.QtCore import (
+    Q_ARG,
     QCoreApplication,
     QEvent,
     QEventLoop,
@@ -143,10 +144,47 @@ with tempfile.TemporaryDirectory(prefix='biliclass-google-ui-', ignore_cleanup_e
     timer.setInterval(50)
     timer.timeout.connect(lambda: beats.append(time.monotonic()))
     timer.start()
-    bridge.convertDocument('Cơ năng', 'Vật lý', 'THPT', '11', '', QUrl.fromLocalFile(str(source)).toString(),
-                           'parallel_columns', 'standard', 'source')
+    window.setProperty('page', 'new')
+    QMetaObject.invokeMethod(window, 'acceptInputDocuments', Qt.DirectConnection,
+                             Q_ARG('QVariant', [source.as_uri()]))
+    until(lambda: not bridge.inputDocuments.busy)
+    control('lessonTitle').setProperty('text', 'Cơ năng')
+    control('lessonSubject').setProperty('currentIndex', bridge.conversionSubjects.index('Vật lý'))
+    control('creationGrade').setProperty('currentIndex', bridge.educationGrades('THPT').index('11'))
+    selected_file = window.property('selectedFile')
+    click('createLessonButton')
     until(lambda: calls)
+    first_calls = calls.copy()
     assert bridge.browserState['running']
+    assert window.property('page') == 'new', 'Conversion must stay in its configuration workspace'
+    assert window.property('selectedFile') == selected_file
+    assert control('lessonTitle').property('text') == 'Cơ năng', 'Starting work must preserve the entered fields'
+    assert control('creationConfiguration').isVisible() and not control('conversionConfigurationFields').isEnabled()
+    assert not control('chooseInputDocumentButton').isEnabled()
+    assert not control('createLessonButton').isEnabled()
+    for width, height in ((1080, 700), (1366, 850), (1920, 1080)):
+        window.resize(width, height)
+        pump(150)
+        pump(100)
+        bar = control('browserConversionProgressBar')
+        y = bar.mapToScene(QPointF(0, 0)).y()
+        footer_y = control('creationFooter').mapToScene(QPointF(0, 0)).y()
+        assert 0 <= y < footer_y - bar.height(), (width, height, y, footer_y)
+        cancel = control('browserConversionCancel')
+        point = cancel.mapToScene(QPointF(cancel.width()/2, cancel.height()/2))
+        assert footer_y <= point.y() < window.height() and 0 <= point.x() < window.width()
+        assert window.grabWindow().save(str(reports / f'inline-{width}.png'))
+    window.resize(1366, 850)
+    bridge.setApplicationTheme('dark')
+    pump(150)
+    assert window.grabWindow().save(str(reports / 'inline-dark.png'))
+    window.setProperty('page', 'library')
+    pump(80)
+    assert control('applicationStatusMessage').property('returnable')
+    control('applicationStatusMessage').clicked.emit()
+    pump(120)
+    assert window.property('page') == 'new' and not control('applicationStatusMessage').property('returnable')
+    assert window.property('selectedFile') == selected_file and control('lessonTitle').property('text') == 'Cơ năng'
     pump(1100)
     assert bridge.conversionClock['seconds'] >= 1
     assert control('browserConversionPercent').property('text').endswith('%')
@@ -154,32 +192,23 @@ with tempfile.TemporaryDirectory(prefix='biliclass-google-ui-', ignore_cleanup_e
     assert window.grabWindow().save(str(reports / 'loading.png'))
     folder = bridge.chatgptRequest['folder']
     conversion_id = bridge.browserState['conversionId']
+    assert control('browserConversionCancel').property('text') == 'Dừng'
+    assert control('browserConversionCancel').property('symbol') == '■'
     click('browserConversionCancel')
-    assert not bridge.cancel_event.is_set(), 'Opening confirmation must not stop work'
-    click('keepConvertingButton')
-    assert not bridge.cancel_event.is_set()
-    click('browserConversionCancel')
-    assert window.grabWindow().save(str(reports / 'cancel-confirmation.png'))
-    click('confirmCancelConversionButton')
     assert bridge.browserState['stopping'] and bridge.cancel_event.is_set()
     assert not control('browserConversionCancel').isEnabled()
-    assert bridge.conversionClock['status'] == 'Đang hủy…'
+    assert bridge.conversionClock['status'] == 'Đang dừng…'
+    assert window.grabWindow().save(str(reports / 'stopping.png'))
     release_response.set()
     until(lambda: not bridge._busy)
-    assert bridge.browserState['phase'] == 'discarded' and not bridge.chatgptRequest
+    assert bridge.browserState['phase'] == 'cancelled' and bridge.chatgptRequest['folder'] == folder
     assert window.property('page') == 'new' and not library.list_lessons()
-    assert not library.setting('google_request_folder', '')
-    assert (Path(folder) / 'conversion-discarded').is_file()
-    try:
-        google_conversion.load(library.directory, folder)
-        raise AssertionError('Discarded work must not resume')
-    except google_conversion.ConversionDiscarded:
-        pass
-    # Late confirmation from a previous run cannot cancel a subsequent run.
-    bridge.convertDocument('Cơ năng', 'Vật lý', 'THPT', '11', '', QUrl.fromLocalFile(str(source)).toString(),
-                           'parallel_columns', 'standard', 'source')
-    bridge.discardConversion(conversion_id)
-    assert not bridge.cancel_event.is_set()
+    assert library.setting('google_request_folder', '') == folder
+    assert not (Path(folder) / 'conversion-discarded').exists()
+    assert google_conversion.load(library.directory, folder)['folder'] == folder
+    assert control('conversionConfigurationFields').isEnabled() and control('browserConversionResume').isEnabled()
+    assert window.grabWindow().save(str(reports / 'paused.png'))
+    click('browserConversionResume')
     until(lambda: bridge._lesson and not bridge._busy)
     lesson = bridge._lesson
     assert lesson['external_deck']['provider'] == 'google_translate'
@@ -201,7 +230,7 @@ with tempfile.TemporaryDirectory(prefix='biliclass-google-ui-', ignore_cleanup_e
     until(lambda: not bridge.previewBusy and bridge.quickResult['slide'] == 2 and bridge.quickResult['image'] != first_image)
     assert control('conversionCompletionCounter').property('text') == 'Slide 2 / 2'
     assert not control('conversionCompletionNext').isEnabled()
-    assert window.property('page') == 'chatgpt' and calls == [2]
+    assert window.property('page') == 'chatgpt' and calls == first_calls, (window.property('page'), calls, first_calls)
     click('conversionCompletionPrevious')
     until(lambda: not bridge.previewBusy and bridge.quickResult['slide'] == 1 and bridge.quickResult['image'] == first_image)
     assert not any(row['approved'] for row in library.get(lesson['id'])['segments'])
@@ -246,7 +275,7 @@ with tempfile.TemporaryDirectory(prefix='biliclass-google-ui-', ignore_cleanup_e
     assert window.property('page') == 'voice' and bridge.lesson['id'] == completed_id
     guide = control('voiceWorkflowGuide')
     heading = control('voicePageHeading')
-    assert guide.isVisible() and 'Chọn giọng đọc và ngôn ngữ' in guide.property('text')
+    assert guide.isVisible() and 'giọng đọc và ngôn ngữ' in guide.property('text')
     assert guide.mapToScene(QPointF()).y() >= heading.mapToScene(QPointF()).y() + heading.height()
     assert window.grabWindow().save(str(reports / 'voice-instructions.png'))
     # A worker may remain attached after Office stops presenting; preview still works.
@@ -263,19 +292,19 @@ with tempfile.TemporaryDirectory(prefix='biliclass-google-ui-', ignore_cleanup_e
     QMetaObject.invokeMethod(save, 'openSuggested')
     pump(250)
     suggested = Path(save.property('selectedFile').toLocalFile()).name
-    assert bridge.lesson['title'] in suggested and '(Song ngữ VI-EN)' in suggested, suggested
+    assert source.stem in suggested and '(Song ngữ VI-EN)' in suggested, suggested
     save.setProperty('visible', False)
     window.setProperty('page', 'new')
     pump(100)
     assert control('resumeCreationTask').property('text') == 'Mở bài vừa chuyển đổi'
     click('resumeCreationTask')
-    assert window.property('page') == 'chatgpt' and calls == [2], 'Reopening must never translate again or start the voice step'
+    assert window.property('page') == 'chatgpt' and calls == first_calls, 'Reopening must never translate again or start the voice step'
     until(lambda: not bridge._busy)
     output = directory / 'download.pptx'
     bridge.exportPowerPoint(QUrl.fromLocalFile(str(output)).toString())
     until(lambda: not bridge._busy)
     assert output.is_file() and len(Presentation(output).slides) == 2
-    assert calls == [2]
+    assert calls == first_calls
     assert all('key' not in row for row in bridge.googleSettings.state['keys'])
     for size in [(1366, 850), (1080, 700)]:
         window.resize(*size)
@@ -292,15 +321,17 @@ with tempfile.TemporaryDirectory(prefix='biliclass-google-ui-', ignore_cleanup_e
         return result
 
     google_conversion.prepare = held_prepare
-    bridge.convertDocument('Chuẩn bị rồi hủy', 'Vật lý', 'THPT', '11', '', QUrl.fromLocalFile(str(source)).toString(),
+    bridge.convertDocument('Chuẩn bị rồi dừng', 'Vật lý', 'THPT', '11', '', QUrl.fromLocalFile(str(source)).toString(),
                            'parallel_columns', 'standard', 'source')
     until(preparing.is_set)
+    bridge.discardConversion(conversion_id)
+    assert not bridge.cancel_event.is_set(), 'A stale discard request must not stop a different conversion'
     click('browserConversionCancel')
-    click('confirmCancelConversionButton')
     release_preparation.set()
     until(lambda: not bridge._busy)
-    assert bridge.browserState['phase'] == 'discarded' and not bridge.chatgptRequest
-    assert not library.setting('google_request_folder', '')
+    assert bridge.browserState['phase'] == 'cancelled' and bridge.chatgptRequest['folder']
+    assert library.setting('google_request_folder', '') == bridge.chatgptRequest['folder']
+    assert google_conversion.load(library.directory, bridge.chatgptRequest['folder'])['config']['title'] == 'Chuẩn bị rồi dừng'
     assert {row['id'] for row in library.list_lessons(verify_audio=False)} == {completed_id, other['id']}
     assert library.get(completed_id)['id'] == completed_id
     google_conversion.prepare = original_prepare
@@ -310,12 +341,13 @@ with tempfile.TemporaryDirectory(prefix='biliclass-google-ui-', ignore_cleanup_e
     result = {'status': 'passed', 'api': 'fixture; not a live Google benchmark', 'api_calls': len(calls),
               'checks': ['multi-key save and clear', 'browser controls hidden; no startup browser job',
                          'native source → text API → local editable PPTX', 'clock and percentage during request',
-                         'cancel confirmation, keep working, confirmed discard, stale-confirmation guard',
-                         'discard cannot resume; cached response and usage retained; new run succeeds',
-                         'cancel during preparation before UI knows folder; earlier completed lesson retained',
+                         'inline conversion retains configuration and input; progress/cancel visible at 1080/1366/1920; task return stays inline',
+                         'Stop uses square icon, disables while stopping, preserves work, resumes without another API call',
+                         'stale discard guard; cached response and usage retained',
+                         'stop during preparation before UI knows folder; prepared request and earlier completed lessons retained',
                          'completion immediately shows real slides; previous/next without leaving completion',
                          'four balanced actions at 1080/1366/1920; restore exact completed lesson',
-                         'voice preview works with inactive attached Office worker; fresh native filename uses current title',
+                         'voice preview works with inactive attached Office worker; download keeps original filename',
                          'separate voice step; download without voice', 'no QML warnings'],
               'qml_warnings': warnings, 'max_ui_gap_seconds': round(max(b-a for a,b in zip(beats, beats[1:])), 3)}
     (reports / 'qt-flow.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')

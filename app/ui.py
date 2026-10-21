@@ -793,7 +793,7 @@ class Bridge(QObject):
         hours, rest = divmod(int(seconds), 3600)
         minutes, seconds = divmod(rest, 60)
         label = f'{hours:02d}:{minutes:02d}:{seconds:02d}'
-        status = ('Đang hủy…' if self._browser_state.get('stopping') else 'Đang xử lý') if self._browser_state.get('running') else 'Đã hoàn tất' if self._browser_state.get('phase') == 'completed' else 'Đã hủy' if self._browser_state.get('phase') == 'discarded' else 'Đã tạm dừng'
+        status = ('Đang dừng…' if self._browser_state.get('stopRequested') else 'Đang hủy…' if self._browser_state.get('stopping') else 'Đang xử lý') if self._browser_state.get('running') else 'Đã hoàn tất' if self._browser_state.get('phase') == 'completed' else 'Đã hủy' if self._browser_state.get('phase') == 'discarded' else 'Đã tạm dừng'
         return {'seconds': hours * 3600 + minutes * 60 + seconds, 'label': label, 'status': status,
                 'longWait': bool(self._browser_state.get('running') and self._browser_state.get('waiting')
                                  and hours * 3600 + minutes * 60 + seconds >= 300)}
@@ -2388,11 +2388,18 @@ class Bridge(QObject):
                     self.inform('Đã hủy và xóa bài đang tạo. File gốc và các bài khác được giữ nguyên.')
                     return
                 if self._browser_running:
+                    # Preparation can finish after Stop, before its folder was
+                    # known to the UI. Keep the prepared request for Resume.
+                    if self.googleTranslation and isinstance(result, dict) and result.get('folder'):
+                        self._chatgpt_request = result
                     self._freeze_conversion_clock()
                     self._browser_running = False
-                    self._browser_state.update(running=False, phase="cancelled", waiting=False,
+                    self._browser_state.update(running=False, phase="cancelled", stopping=False, stopRequested=False, waiting=False,
                                                message="Đã dừng; có thể tiếp tục yêu cầu đã gửi.")
+                    self.browserStateChanged.emit()
                     self.conversionClockChanged.emit()
+                    self.inform('Đã dừng chuyển đổi. Các phần đã xử lý được giữ lại; bấm Tiếp tục chuyển đổi khi sẵn sàng.', refresh=False)
+                    return
                 if self.classroom.runtime and not self.classroom.joinUrl:
                     self.classroom.disconnect()
                 self.inform(
@@ -2450,6 +2457,10 @@ class Bridge(QObject):
             (Path(self._chatgpt_request["folder"]) / "conversion-stopped").touch()
         if self._busy:
             self.cancel_event.set()
+            if self._browser_running:
+                self._browser_state.update(stopping=True, stopRequested=True, waiting=False)
+                self.browserStateChanged.emit()
+                self.conversionClockChanged.emit()
             self.inform("Đang dừng sau bước xử lý hiện tại…")
 
     @Slot()

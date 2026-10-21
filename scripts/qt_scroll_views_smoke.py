@@ -77,7 +77,7 @@ def main():
             for width, height in ((1080, 700), (1366, 850), (1680, 960)):
                 window.resize(width, height)
                 for page, name in [('library', 'libraryHomeScroll'), ('new', 'creationScroll'),
-                                   ('chatgpt', 'conversionProgressScroll'), ('result', 'resultScroll'),
+                                   ('result', 'resultScroll'),
                                    ('settings', 'settingsContentScroll'), ('classroom', 'classroomPage'),
                                    ('reports', 'reportContentScroll'), ('reference', 'termsScroll')]:
                     window.setProperty('page', page)

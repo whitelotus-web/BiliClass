@@ -407,7 +407,7 @@ def main():
             assert status.property('returnable')
             status.clicked.emit()
             pump(60)
-            assert root.property('page') == 'chatgpt' and not status.property('returnable')
+            assert root.property('page') == 'new' and not status.property('returnable')
             bridge._browser_state['running'] = False
             bridge.browserStateChanged.emit()
             # Update downloads are a distinct task, with an explicit destination.

@@ -61,7 +61,10 @@ def display_state(state):
     """Do not suggest work is running after retries have stopped."""
     label, message = STAGE_COPY.get(state.get("stage"), STAGE_COPY["session"])
     if state.get("running") and state.get("stopping"):
-        label, message = "Đang hủy chuyển đổi", "Đang dừng bước hiện tại trước khi xóa bài đang tạo."
+        if state.get('stopRequested'):
+            label, message = "Đang dừng chuyển đổi", "Đang dừng bước hiện tại. Các phần đã xử lý được giữ lại để tiếp tục."
+        else:
+            label, message = "Đang hủy chuyển đổi", "Đang dừng bước hiện tại trước khi xóa bài đang tạo."
     elif state.get("phase") == "discarded":
         label, message = "Đã hủy bài đang tạo", "Chọn tài liệu để bắt đầu một bài giảng mới."
     elif state.get("phase") == "cancelled":

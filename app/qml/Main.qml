@@ -83,6 +83,8 @@ ApplicationWindow {
     }
     onPageChanged: {
         if (!bridge.experimentalTeaching && (page === "classroom" || page === "reports")) { page = "home"; return }
+        if (page === "chatgpt" && root.inlineConversion && bridge.browserState.phase !== "completed") { page = "new"; return }
+        if (page === "new" && root.inlineConversionVisible) Qt.callLater(root.revealConversionProgress)
         if (page !== "library") root.endLibraryDrag()
         if (page === "voice") { Qt.callLater(root.ensureVoiceThumbnail); Qt.callLater(function() { bridge.completeLegacyNarration() }) }
         if (page === "result") Qt.callLater(function() { if (root.page === "result") backToLibraryAction.forceActiveFocus(Qt.OtherFocusReason) })
@@ -194,6 +196,17 @@ ApplicationWindow {
     readonly property bool narrationPreviewActive: bridge.voiceUiState.phase === "preparing" || bridge.voiceUiState.phase === "playing"
     readonly property int lessonLayoutFailures: root.lessonData.voice_only ? 0 : ((((root.lessonData.slide_quality || {}).counts || {}).FAIL) || 0)
     readonly property bool taskRunning: bridge.busy || bridge.narrationBusy || !!bridge.browserState.running || bridge.inputDocuments.busy || !!bridge.updateState.downloading
+    readonly property bool inlineConversion: bridge.googleTranslation || (bridge.browserAI.automatic
+        && (bridge.chatgptRequest.config || {}).provider !== "manual_web" && bridge.browserState.phase !== "manual")
+    readonly property bool inlineConversionVisible: inlineConversion && bridge.browserState.phase !== "completed"
+        && (!!bridge.browserState.running || !!bridge.chatgptRequest.folder)
+    onHeightChanged: if (root.inlineConversionVisible) Qt.callLater(root.revealConversionProgress)
+    function revealConversionProgress() {
+        if (root.page !== "new" || !root.inlineConversionVisible) return
+        const flick = creationScroll.contentItem
+        const bottom = creationConversionProgress.mapToItem(flick.contentItem, 0, 0).y + creationConversionProgress.height
+        flick.contentY = Math.max(0, Math.min(Math.max(0, flick.contentHeight - flick.height), Math.max(flick.contentY, bottom - flick.height + 16)))
+    }
     readonly property string idleActivity: bridge.teachingTransitioning ? "PowerPoint đang mở, đóng hoặc chuyển chế độ…"
         : bridge.powerpointState.active ? "PowerPoint đang trình chiếu"
         : narrationPreviewActive ? (bridge.voiceUiState.phase === "preparing" ? "Đang chuẩn bị câu nghe thử…" : "Đang nghe thử giọng đọc")
@@ -208,7 +221,7 @@ ApplicationWindow {
         jobObserved = bridge.busy
     }
     readonly property var activeTaskLocation: bridge.narrationBusy ? {page: "voice", tab: -1}
-        : bridge.browserState.running ? {page: "chatgpt", tab: -1}
+        : bridge.browserState.running ? {page: root.inlineConversion ? "new" : "chatgpt", tab: -1}
         : bridge.inputDocuments.busy ? inputOrigin : bridge.busy ? jobOrigin
         : bridge.updateState.downloading ? {page: "settings", tab: 1} : {page: "", tab: -1}
     readonly property bool taskElsewhere: taskRunning && !!activeTaskLocation.page &&
@@ -222,6 +235,7 @@ ApplicationWindow {
             if (location.page === "voice") Qt.callLater(function() {
                 resultScroll.contentItem.contentY = Math.max(0, lessonNarrationPanel.y - 16)
             })
+            if (location.page === "new") Qt.callLater(root.revealConversionProgress)
         })
     }
     property string lastReportedError: ""
@@ -550,6 +564,12 @@ ApplicationWindow {
             root.requestAction(function() { root.prepareTeaching() })
         }
         function onNavigate(destination) {
+            if (destination === "chatgpt" && root.inlineConversion && bridge.browserState.phase !== "completed") {
+                root.page = "new"
+                if (bridge.busy) root.jobOrigin = {page: "new", tab: -1}
+                Qt.callLater(root.revealConversionProgress)
+                return
+            }
             const showReview = destination === "result" && root.libraryReviewTarget === root.lessonData.id;
             const keepNarrationOptions = root.page === "voice" && root.narrationOptionsPinned;
             root.page = destination === "browser-settings" ? "settings" : destination;
@@ -1160,8 +1180,8 @@ ApplicationWindow {
                                     }
                                     Copy { Layout.fillWidth: true; text: [root.creationSubject, educationInput.currentText + " " + gradeInput.currentText, "PowerPoint gốc"].filter(function(value) { return !!value }).join(" · ") }
                                 }
-                                Copy { text: "✓ Đã chọn tệp · Chưa chuyển đổi"; color: AppTheme.success; font.pixelSize: 12; Layout.fillWidth: true }
-                                Copy { objectName: "creationSelectedSlideCount"; text: (bridge.inputDocuments.preview.total ? bridge.inputDocuments.preview.total + " slide · " : "") + "Chọn cấu hình chuyển đổi ở bên dưới"; color: root.ink; Layout.fillWidth: true }
+                                Copy { text: bridge.browserState.running ? "✓ Đã chọn tệp · Đang chuyển đổi" : "✓ Đã chọn tệp · Chưa chuyển đổi"; color: AppTheme.success; font.pixelSize: 12; Layout.fillWidth: true }
+                                Copy { objectName: "creationSelectedSlideCount"; text: (bridge.inputDocuments.preview.total ? bridge.inputDocuments.preview.total + " slide · " : "") + (bridge.browserState.running ? "Xem tiến độ chuyển đổi ở bên dưới" : "Chọn cấu hình chuyển đổi ở bên dưới"); color: root.ink; Layout.fillWidth: true }
                                 MainAction { objectName: "creationOpenPowerPoint"; text: "Mở PowerPoint"; Layout.alignment: Qt.AlignLeft; enabled: root.creationPowerPoint && !bridge.busy && !bridge.inputDocuments.busy && !bridge.narrationBusy && !bridge.teachingTransitioning; onClicked: bridge.openInputPowerPoint(root.selectedFile) }
                                 Copy { visible: !!root.inputDocumentError; text: root.inputDocumentError; color: AppTheme.warning; Layout.fillWidth: true }
                             }
@@ -1210,144 +1230,193 @@ ApplicationWindow {
                         Surface {
                             objectName: "creationConfiguration"; Layout.fillWidth: true; implicitHeight: config.height + (root.compactCreation ? 24 : 38)
                             ColumnLayout {
-                                id: config; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: root.compactCreation ? 12 : 19; spacing: root.compactCreation ? 6 : 12; enabled: !bridge.busy
-                                Caption { visible: !root.tightCreation; text: "Cấu hình bài giảng"; font.pixelSize: 15 }
-                                GridLayout {
-                                    Layout.fillWidth: true; columns: 12; columnSpacing: 12; rowSpacing: root.compactCreation ? 4 : 7
-                                    Caption { text: "Tên bài học"; Layout.columnSpan: 4 } Caption { text: "Môn học"; Layout.columnSpan: 4 }
-                                    Caption { text: "Cấp học"; Layout.columnSpan: 2 } Caption { text: "Khối lớp"; Layout.columnSpan: 2 }
-                                    Field {
-                                        id: titleInput; objectName: "lessonTitle"; implicitHeight: root.compactCreation ? 36 : 43
-                                        Layout.fillWidth: true; Layout.columnSpan: 4; Layout.preferredWidth: 320; Layout.minimumWidth: 120; Layout.alignment: Qt.AlignTop
-                                        placeholderText: "Tên bài giảng"; maximumLength: 180
-                                        onTextChanged: if (!activeFocus) cursorPosition = 0
-                                        onActiveFocusChanged: if (!activeFocus) cursorPosition = 0
-                                        ToolTip.visible: titleInputHover.hovered && titleInput.contentWidth > titleInput.width - titleInput.leftPadding - titleInput.rightPadding
-                                        ToolTip.text: text; ToolTip.delay: 500
-                                        HoverHandler { id: titleInputHover }
-                                    }
-                                    ColumnLayout {
-                                        Layout.fillWidth: true; Layout.columnSpan: 4; Layout.preferredWidth: 320; Layout.minimumWidth: 120; Layout.alignment: Qt.AlignTop; spacing: 7
-                                        Choice {
-                                            id: subjectInput; objectName: "lessonSubject"; implicitHeight: root.compactCreation ? 36 : 43; Layout.fillWidth: true
-                                            model: bridge.conversionSubjects; currentIndex: -1; leftPadding: 12; rightPadding: 36
-                                            onActivated: { root.creationSubjectOverridden = true; if (currentText !== "Khác") bridge.rememberConversionSubject(currentText) }
-                                            displayText: currentIndex < 0 ? "Chọn môn học" : currentText
-                                            Accessible.name: "Môn học"
-                                            contentItem: Text {
-                                                text: subjectInput.displayText; font: subjectInput.font
-                                                color: subjectInput.currentIndex < 0 ? root.muted : root.ink
-                                                verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight
-                                            }
-                                            delegate: ItemDelegate {
-                                                required property string modelData
-                                                required property int index
-                                                width: subjectList.width - 16; height: 38
-                                                text: modelData; font: subjectInput.font
-                                                highlighted: subjectInput.highlightedIndex === index
-                                                contentItem: Text { text: parent.text; font: parent.font; color: root.ink; verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight }
-                                                background: Rectangle { radius: 5; color: parent.highlighted || parent.hovered ? AppTheme.adapt("#e8f1ff") : "transparent" }
-                                            }
-                                            popup: Popup {
-                                                id: subjectPopup; objectName: "creationSubjectPopup"
-                                                y: subjectInput.height + 4; width: Math.min(root.width - 32, Math.max(subjectInput.width, 400)); padding: 6
-                                                implicitHeight: Math.min(contentItem.implicitHeight + 12, 400, root.height - 60)
-                                                contentItem: ListView {
-                                                    id: subjectList; objectName: "creationSubjectList"; clip: true
-                                                    implicitHeight: contentHeight; model: subjectPopup.visible ? subjectInput.delegateModel : null
-                                                    currentIndex: subjectInput.highlightedIndex; highlightMoveDuration: 0
-                                                    ScrollBar.vertical: SlimScrollBar { }
+                                id: config; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: root.compactCreation ? 12 : 19; spacing: root.compactCreation ? 6 : 12
+                                ColumnLayout {
+                                    objectName: "conversionConfigurationFields"; Layout.fillWidth: true
+                                    spacing: root.compactCreation ? 6 : 12; enabled: !bridge.busy && !bridge.browserState.running
+                                    Caption { visible: !root.tightCreation; text: "Cấu hình bài giảng"; font.pixelSize: 15 }
+                                    GridLayout {
+                                        Layout.fillWidth: true; columns: 12; columnSpacing: 12; rowSpacing: root.compactCreation ? 4 : 7
+                                        Caption { text: "Tên bài học"; Layout.columnSpan: 4 } Caption { text: "Môn học"; Layout.columnSpan: 4 }
+                                        Caption { text: "Cấp học"; Layout.columnSpan: 2 } Caption { text: "Khối lớp"; Layout.columnSpan: 2 }
+                                        Field {
+                                            id: titleInput; objectName: "lessonTitle"; implicitHeight: root.compactCreation ? 36 : 43
+                                            Layout.fillWidth: true; Layout.columnSpan: 4; Layout.preferredWidth: 320; Layout.minimumWidth: 120; Layout.alignment: Qt.AlignTop
+                                            placeholderText: "Tên bài giảng"; maximumLength: 180
+                                            onTextChanged: if (!activeFocus) cursorPosition = 0
+                                            onActiveFocusChanged: if (!activeFocus) cursorPosition = 0
+                                            ToolTip.visible: titleInputHover.hovered && titleInput.contentWidth > titleInput.width - titleInput.leftPadding - titleInput.rightPadding
+                                            ToolTip.text: text; ToolTip.delay: 500
+                                            HoverHandler { id: titleInputHover }
+                                        }
+                                        ColumnLayout {
+                                            Layout.fillWidth: true; Layout.columnSpan: 4; Layout.preferredWidth: 320; Layout.minimumWidth: 120; Layout.alignment: Qt.AlignTop; spacing: 7
+                                            Choice {
+                                                id: subjectInput; objectName: "lessonSubject"; implicitHeight: root.compactCreation ? 36 : 43; Layout.fillWidth: true
+                                                model: bridge.conversionSubjects; currentIndex: -1; leftPadding: 12; rightPadding: 36
+                                                onActivated: { root.creationSubjectOverridden = true; if (currentText !== "Khác") bridge.rememberConversionSubject(currentText) }
+                                                displayText: currentIndex < 0 ? "Chọn môn học" : currentText
+                                                Accessible.name: "Môn học"
+                                                contentItem: Text {
+                                                    text: subjectInput.displayText; font: subjectInput.font
+                                                    color: subjectInput.currentIndex < 0 ? root.muted : root.ink
+                                                    verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight
                                                 }
-                                                background: Rectangle { color: AppTheme.surface; radius: 8; border.color: root.line }
+                                                delegate: ItemDelegate {
+                                                    required property string modelData
+                                                    required property int index
+                                                    width: subjectList.width - 16; height: 38
+                                                    text: modelData; font: subjectInput.font
+                                                    highlighted: subjectInput.highlightedIndex === index
+                                                    contentItem: Text { text: parent.text; font: parent.font; color: root.ink; verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight }
+                                                    background: Rectangle { radius: 5; color: parent.highlighted || parent.hovered ? AppTheme.adapt("#e8f1ff") : "transparent" }
+                                                }
+                                                popup: Popup {
+                                                    id: subjectPopup; objectName: "creationSubjectPopup"
+                                                    y: subjectInput.height + 4; width: Math.min(root.width - 32, Math.max(subjectInput.width, 400)); padding: 6
+                                                    implicitHeight: Math.min(contentItem.implicitHeight + 12, 400, root.height - 60)
+                                                    contentItem: ListView {
+                                                        id: subjectList; objectName: "creationSubjectList"; clip: true
+                                                        implicitHeight: contentHeight; model: subjectPopup.visible ? subjectInput.delegateModel : null
+                                                        currentIndex: subjectInput.highlightedIndex; highlightMoveDuration: 0
+                                                        ScrollBar.vertical: SlimScrollBar { }
+                                                    }
+                                                    background: Rectangle { color: AppTheme.surface; radius: 8; border.color: root.line }
+                                                }
+                                            }
+                                            Field { id: customSubjectInput; objectName: "creationCustomSubject"; implicitHeight: root.compactCreation ? 36 : 43; visible: subjectInput.currentText === "Khác"; Layout.fillWidth: true; placeholderText: "Nhập tên môn học khác"; maximumLength: 100; Accessible.name: "Tên môn học khác"; onTextEdited: root.creationSubjectOverridden = true; onEditingFinished: bridge.rememberConversionSubject(text) }
+                                        }
+                                        Choice {
+                                            id: educationInput; objectName: "creationEducation"; implicitHeight: root.compactCreation ? 36 : 43
+                                            model: ["THPT", "THCS", "Tiểu học"]; currentIndex: model.indexOf(bridge.conversionClassSelection.education)
+                                            onActivated: { gradeInput.currentIndex = 0; bridge.rememberConversionClass(currentText, bridge.educationGrades(currentText)[0]) }
+                                            Layout.columnSpan: 2; Layout.preferredWidth: 160; Layout.minimumWidth: 115; Layout.fillWidth: true; Layout.alignment: Qt.AlignTop
+                                        }
+                                        Choice {
+                                            id: gradeInput; objectName: "creationGrade"; implicitHeight: root.compactCreation ? 36 : 43
+                                            model: bridge.educationGrades(educationInput.currentText)
+                                            currentIndex: { const saved = bridge.conversionClassSelection; const index = model.indexOf(saved.grade); return saved.education === educationInput.currentText && index >= 0 ? index : 0 }
+                                            onModelChanged: { const saved = bridge.conversionClassSelection; const index = model.indexOf(saved.grade); currentIndex = saved.education === educationInput.currentText && index >= 0 ? index : 0 }
+                                            onActivated: bridge.rememberConversionClass(educationInput.currentText, currentText)
+                                            Layout.columnSpan: 2; Layout.preferredWidth: 130; Layout.minimumWidth: 80; Layout.fillWidth: true; Layout.alignment: Qt.AlignTop
+                                        }
+                                    }
+                                    Caption { objectName: "conversionFormatTitle"; text: "Kiểu chuyển đổi" }
+                                    GridLayout {
+                                        id: creationFormat; objectName: "creationFormat"
+                                        property int currentIndex: 0
+                                        readonly property int count: root.conversionFormats.length
+                                        ButtonGroup { id: conversionChoices }
+                                        columns: width >= 960 ? 4 : 2; columnSpacing: 10; rowSpacing: 10; Layout.fillWidth: true
+                                        Repeater {
+                                            model: root.conversionFormats
+                                            ConversionChoice {
+                                                required property var modelData
+                                                required property int index
+                                                choiceName: "formatChoice_" + modelData.id
+                                                choiceGroup: conversionChoices
+                                                label: modelData.label; detail: modelData.detail
+                                                selected: creationFormat.currentIndex === index; showPreview: true; compact: root.compactCreation; tight: root.tightCreation
+                                                Layout.fillWidth: true; Layout.preferredWidth: 1
+                                                onChosen: creationFormat.currentIndex = index
+                                                onPreviewRequested: root.showConversionExample(index)
                                             }
                                         }
-                                        Field { id: customSubjectInput; objectName: "creationCustomSubject"; implicitHeight: root.compactCreation ? 36 : 43; visible: subjectInput.currentText === "Khác"; Layout.fillWidth: true; placeholderText: "Nhập tên môn học khác"; maximumLength: 100; Accessible.name: "Tên môn học khác"; onTextEdited: root.creationSubjectOverridden = true; onEditingFinished: bridge.rememberConversionSubject(text) }
                                     }
-                                    Choice {
-                                        id: educationInput; objectName: "creationEducation"; implicitHeight: root.compactCreation ? 36 : 43
-                                        model: ["THPT", "THCS", "Tiểu học"]; currentIndex: model.indexOf(bridge.conversionClassSelection.education)
-                                        onActivated: { gradeInput.currentIndex = 0; bridge.rememberConversionClass(currentText, bridge.educationGrades(currentText)[0]) }
-                                        Layout.columnSpan: 2; Layout.preferredWidth: 160; Layout.minimumWidth: 115; Layout.fillWidth: true; Layout.alignment: Qt.AlignTop
-                                    }
-                                    Choice {
-                                        id: gradeInput; objectName: "creationGrade"; implicitHeight: root.compactCreation ? 36 : 43
-                                        model: bridge.educationGrades(educationInput.currentText)
-                                        currentIndex: { const saved = bridge.conversionClassSelection; const index = model.indexOf(saved.grade); return saved.education === educationInput.currentText && index >= 0 ? index : 0 }
-                                        onModelChanged: { const saved = bridge.conversionClassSelection; const index = model.indexOf(saved.grade); currentIndex = saved.education === educationInput.currentText && index >= 0 ? index : 0 }
-                                        onActivated: bridge.rememberConversionClass(educationInput.currentText, currentText)
-                                        Layout.columnSpan: 2; Layout.preferredWidth: 130; Layout.minimumWidth: 80; Layout.fillWidth: true; Layout.alignment: Qt.AlignTop
-                                    }
-                                }
-                                Caption { objectName: "conversionFormatTitle"; text: "Kiểu chuyển đổi" }
-                                GridLayout {
-                                    id: creationFormat; objectName: "creationFormat"
-                                    property int currentIndex: 0
-                                    readonly property int count: root.conversionFormats.length
-                                    ButtonGroup { id: conversionChoices }
-                                    columns: width >= 960 ? 4 : 2; columnSpacing: 10; rowSpacing: 10; Layout.fillWidth: true
-                                    Repeater {
-                                        model: root.conversionFormats
+                                    Copy { objectName: "creationFormatDescription"; visible: false; text: root.selectedConversionFormat.detail }
+                                    Caption { text: "Thiết kế bài giảng" }
+                                    GridLayout {
+                                        id: creationWorkflow; objectName: "creationWorkflow"
+                                        property int currentIndex: 0
+                                        ButtonGroup { id: designChoices }
+                                        columns: 2; columnSpacing: 10; Layout.fillWidth: true
                                         ConversionChoice {
-                                            required property var modelData
-                                            required property int index
-                                            choiceName: "formatChoice_" + modelData.id
-                                            choiceGroup: conversionChoices
-                                            label: modelData.label; detail: modelData.detail
-                                            selected: creationFormat.currentIndex === index; showPreview: true; compact: root.compactCreation; tight: root.tightCreation
+                                            choiceName: "creationKeepOriginal"
+                                            compact: root.compactCreation; tight: root.tightCreation
+                                            choiceGroup: designChoices
+                                            label: "Giữ thiết kế PowerPoint gốc"
+                                            detail: bridge.googleTranslation ? "Giữ nền, hình và công thức. Song ngữ tự căn từng vùng; tiếng Anh 100% thay chữ tại vị trí gốc. Vùng quá chật có trang tiếp nối song ngữ. Chữ trong ảnh và hiệu ứng cần đối chiếu." : root.creationPowerPoint ? "Dùng đúng PowerPoint đầu vào: giữ thiết kế, hình, thứ tự slide và hiệu ứng; chuyển ngôn ngữ theo kiểu đã chọn." : root.creationCanKeepSource ? "Chọn tệp PPTX để giữ thiết kế, hình, thứ tự slide và hiệu ứng của PowerPoint đầu vào." : "Word/PDF/ảnh hoặc nội dung dán không có thiết kế PowerPoint gốc; dùng mẫu mới."
+                                            selected: creationWorkflow.currentIndex === 0
+                                            enabled: root.creationCanKeepSource; Layout.fillWidth: true; Layout.preferredWidth: 1
+                                            onChosen: { root.preferredCreationDesign = 0; creationWorkflow.currentIndex = 0 }
+                                        }
+                                        ConversionChoice {
+                                            choiceName: "creationUseTemplate"
+                                            compact: root.compactCreation; tight: root.tightCreation
+                                            choiceGroup: designChoices
+                                            label: "Tạo theo mẫu mới"
+                                            detail: "Dùng bộ mẫu BiliClass, tự chọn bố cục và chia trang khi dài. Giữ hình cùng nội dung; hiệu ứng gốc không được tái dựng."
+                                            selected: creationWorkflow.currentIndex === 1
                                             Layout.fillWidth: true; Layout.preferredWidth: 1
-                                            onChosen: creationFormat.currentIndex = index
-                                            onPreviewRequested: root.showConversionExample(index)
+                                            onChosen: { root.preferredCreationDesign = 1; creationWorkflow.currentIndex = 1 }
+                                        }
+                                    }
+                                    Caption { visible: !root.creationKeepSource; text: "Chọn mẫu BiliClass" }
+                                    TemplatePresetPicker {
+                                        id: creationPreset; objectName: "creationPreset"; visible: !root.creationKeepSource; Layout.fillWidth: true
+                                        onPreviewRequested: function(preset) { creationTemplatePreview.preset = preset; creationTemplatePreview.open() }
+                                    }
+                                    RowLayout {
+                                        visible: !bridge.googleTranslation
+                                        Layout.fillWidth: true
+                                        Caption { text: "Ghi chú thêm · không bắt buộc"; Layout.fillWidth: true }
+                                        Copy { text: teacherNotesInput.text.trim().length + " / 6.000"; color: teacherNotesInput.text.trim().length > 6000 ? AppTheme.adapt("#ab5b20") : root.muted; font.pixelSize: 11 }
+                                    }
+                                    ContentScrollView {
+                                        visible: !bridge.googleTranslation
+                                        Layout.fillWidth: true; Layout.preferredHeight: 90;
+                                        TextArea {
+                                            id: teacherNotesInput; objectName: "creationTeacherNotes"
+                                            enabled: !bridge.busy; wrapMode: TextEdit.Wrap; selectByMouse: true
+                                            placeholderText: "Ví dụ: giữ các bước giải; dùng thuật ngữ dễ hiểu cho học sinh lớp 7; chú ý phần chữ trong hình…"
+                                            color: root.ink; font.pixelSize: 13
+                                            background: Rectangle { radius: 8; color: AppTheme.adapt("#fafcff"); border.color: root.line }
                                         }
                                     }
                                 }
-                                Copy { objectName: "creationFormatDescription"; visible: false; text: root.selectedConversionFormat.detail }
-                                Caption { text: "Thiết kế bài giảng" }
-                                GridLayout {
-                                    id: creationWorkflow; objectName: "creationWorkflow"
-                                    property int currentIndex: 0
-                                    ButtonGroup { id: designChoices }
-                                    columns: 2; columnSpacing: 10; Layout.fillWidth: true
-                                    ConversionChoice {
-                                        choiceName: "creationKeepOriginal"
-                                        compact: root.compactCreation; tight: root.tightCreation
-                                        choiceGroup: designChoices
-                                        label: "Giữ thiết kế PowerPoint gốc"
-                                        detail: bridge.googleTranslation ? "Giữ nền, hình và công thức. Song ngữ tự căn từng vùng; tiếng Anh 100% thay chữ tại vị trí gốc. Vùng quá chật có trang tiếp nối song ngữ. Chữ trong ảnh và hiệu ứng cần đối chiếu." : root.creationPowerPoint ? "Dùng đúng PowerPoint đầu vào: giữ thiết kế, hình, thứ tự slide và hiệu ứng; chuyển ngôn ngữ theo kiểu đã chọn." : root.creationCanKeepSource ? "Chọn tệp PPTX để giữ thiết kế, hình, thứ tự slide và hiệu ứng của PowerPoint đầu vào." : "Word/PDF/ảnh hoặc nội dung dán không có thiết kế PowerPoint gốc; dùng mẫu mới."
-                                        selected: creationWorkflow.currentIndex === 0
-                                        enabled: root.creationCanKeepSource; Layout.fillWidth: true; Layout.preferredWidth: 1
-                                        onChosen: { root.preferredCreationDesign = 0; creationWorkflow.currentIndex = 0 }
+                                ColumnLayout {
+                                    id: creationConversionProgress; objectName: "creationConversionProgress"
+                                    visible: root.inlineConversionVisible; Layout.fillWidth: true; spacing: 10
+                                    onVisibleChanged: if (visible) Qt.callLater(root.revealConversionProgress)
+                                    onYChanged: if (visible) Qt.callLater(root.revealConversionProgress)
+                                    onHeightChanged: if (visible) Qt.callLater(root.revealConversionProgress)
+                                    Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: root.line; Layout.topMargin: 6; Layout.bottomMargin: 4 }
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        Copy { objectName: "browserConversionStage"; text: bridge.browserState.displayStage; Layout.fillWidth: true; color: root.ink }
+                                        Caption { objectName: "browserConversionPercent"; text: (bridge.browserState.percent || 0) + "%"; font.pixelSize: 14 }
                                     }
-                                    ConversionChoice {
-                                        choiceName: "creationUseTemplate"
-                                        compact: root.compactCreation; tight: root.tightCreation
-                                        choiceGroup: designChoices
-                                        label: "Tạo theo mẫu mới"
-                                        detail: "Dùng bộ mẫu BiliClass, tự chọn bố cục và chia trang khi dài. Giữ hình cùng nội dung; hiệu ứng gốc không được tái dựng."
-                                        selected: creationWorkflow.currentIndex === 1
-                                        Layout.fillWidth: true; Layout.preferredWidth: 1
-                                        onChosen: { root.preferredCreationDesign = 1; creationWorkflow.currentIndex = 1 }
+                                    ProgressBar {
+                                        id: conversionBar; objectName: "browserConversionProgressBar"; Layout.fillWidth: true
+                                        from: 0; to: 100; value: bridge.browserState.percent || 0
+                                        indeterminate: false
+                                        background: Rectangle { implicitHeight: 6; radius: 3; color: AppTheme.adapt("#e8eff9") }
+                                        contentItem: Item {
+                                            implicitHeight: 6; clip: true
+                                            Rectangle {
+                                                id: conversionCompletedFill; objectName: "browserConversionCompletedFill"
+                                                width: parent.width * conversionBar.visualPosition; height: parent.height; radius: 3; color: root.blue; clip: true
+                                                Rectangle {
+                                                    id: conversionPulse; objectName: "browserConversionPulse"
+                                                    visible: !!bridge.browserState.running && !!bridge.browserState.waiting
+                                                    width: parent.width * 0.32; height: parent.height; radius: 3; color: AppTheme.adapt("#ffffff"); opacity: 0.32
+                                                    NumberAnimation on x { from: -conversionPulse.width; to: conversionPulse.parent.width; duration: 1500; loops: Animation.Infinite; running: conversionPulse.visible && conversionBar.visible && root.visible }
+                                                }
+                                            }
+                                        }
                                     }
-                                }
-                                Caption { visible: !root.creationKeepSource; text: "Chọn mẫu BiliClass" }
-                                TemplatePresetPicker {
-                                    id: creationPreset; objectName: "creationPreset"; visible: !root.creationKeepSource; Layout.fillWidth: true
-                                    onPreviewRequested: function(preset) { creationTemplatePreview.preset = preset; creationTemplatePreview.open() }
-                                }
-                                RowLayout {
-                                    visible: !bridge.googleTranslation
-                                    Layout.fillWidth: true
-                                    Caption { text: "Ghi chú thêm · không bắt buộc"; Layout.fillWidth: true }
-                                    Copy { text: teacherNotesInput.text.trim().length + " / 6.000"; color: teacherNotesInput.text.trim().length > 6000 ? AppTheme.adapt("#ab5b20") : root.muted; font.pixelSize: 11 }
-                                }
-                                ContentScrollView {
-                                    visible: !bridge.googleTranslation
-                                    Layout.fillWidth: true; Layout.preferredHeight: 90;
-                                    TextArea {
-                                        id: teacherNotesInput; objectName: "creationTeacherNotes"
-                                        enabled: !bridge.busy; wrapMode: TextEdit.Wrap; selectByMouse: true
-                                        placeholderText: "Ví dụ: giữ các bước giải; dùng thuật ngữ dễ hiểu cho học sinh lớp 7; chú ý phần chữ trong hình…"
-                                        color: root.ink; font.pixelSize: 13
-                                        background: Rectangle { radius: 8; color: AppTheme.adapt("#fafcff"); border.color: root.line }
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        Copy { objectName: "browserConversionElapsed"; text: "Thời gian xử lý: " + bridge.conversionClock.label; color: root.ink }
+                                        Item { Layout.fillWidth: true }
+                                        Copy { objectName: "browserConversionClockState"; text: bridge.conversionClock.status; color: bridge.browserState.running ? root.blue : root.muted }
+                                    }
+                                    Copy { objectName: "browserConversionStatus"; text: bridge.browserState.displayMessage; Layout.fillWidth: true; font.pixelSize: 12; color: root.ink }
+                                    Copy { objectName: "browserConversionLongWait"; Layout.fillWidth: true; visible: !!bridge.conversionClock.longWait && !bridge.browserState.stopping; text: "Bài đang mất nhiều thời gian hơn thường lệ. BiliClass vẫn theo dõi kết quả và sẽ báo ngay nếu cần bạn xử lý."; color: AppTheme.adapt("#a66318"); font.pixelSize: 12 }
+                                    RowLayout { Layout.fillWidth: true; visible: !bridge.browserState.running
+                                        MainAction { objectName: "browserConversionResume"; text: !bridge.googleTranslation && bridge.browserAI.webMode && bridge.browserState.needsLogin ? "Kết nối và tiếp tục" : bridge.browserState.errorCode === "submission" ? "Kiểm tra và tiếp tục" : "Tiếp tục chuyển đổi"; primary: true; visible: !bridge.browserState.running && bridge.browserState.phase !== "completed" && !!bridge.chatgptRequest.folder; enabled: !bridge.busy && (bridge.googleTranslation || !bridge.browserAI.loginBusy); onClicked: { if (!bridge.googleTranslation && bridge.browserAI.webMode && (bridge.browserState.needsLogin || bridge.browserState.errorCode === "submission")) bridge.reconnectBrowserAI(); else bridge.runBrowserAI() } }
+                                        MainAction { objectName: "browserConversionSettings"; text: bridge.googleTranslation ? "Kiểm tra Google Dịch" : "Đăng nhập / Browser AI"; visible: !bridge.browserState.running && bridge.browserState.phase === "error" && (bridge.googleTranslation ? ["api_settings", "api_key", "api_budget", "api_quota", "api_request"].indexOf(bridge.browserState.errorCode) >= 0 : !!bridge.browserState.needsLogin); enabled: !bridge.busy; onClicked: { root.go("settings"); settingsPanel.activeTab = 6 } }
+                                        Item { Layout.fillWidth: true }
                                     }
                                 }
                             }
@@ -1400,12 +1469,13 @@ ApplicationWindow {
                                 hasLesson: !!bridge.quickResult.path
                                 positionLabel: speakerPositionChoice.currentText
                             }
-                            MainAction { objectName: "createLessonButton"; visible: root.page === "new"; text: bridge.busy ? "Đang chuẩn bị…" : "Chuyển đổi bài giảng"; primary: true; enabled: !bridge.busy && !bridge.inputDocuments.busy && !bridge.narrationBusy && !root.inputDocumentError && root.creationPrompt.ready; onClicked: bridge.convertDocument(titleInput.text, root.creationSubject, educationInput.currentText, gradeInput.currentText, pasteInput.text, root.selectedFile, root.selectedConversionFormat.id, ["standard", "visual", "practice"][creationPreset.currentIndex], root.creationKeepSource ? "source" : "template", teacherNotesInput.text) }
+                            MainAction { objectName: "createLessonButton"; visible: root.page === "new"; text: bridge.browserState.running ? "Đang chuyển đổi…" : bridge.busy ? "Đang chuẩn bị…" : "Chuyển đổi bài giảng"; primary: true; enabled: !bridge.browserState.running && !bridge.busy && !bridge.inputDocuments.busy && !bridge.narrationBusy && !root.inputDocumentError && root.creationPrompt.ready; onClicked: bridge.convertDocument(titleInput.text, root.creationSubject, educationInput.currentText, gradeInput.currentText, pasteInput.text, root.selectedFile, root.selectedConversionFormat.id, ["standard", "visual", "practice"][creationPreset.currentIndex], root.creationKeepSource ? "source" : "template", teacherNotesInput.text) }
+                            MainAction { id: conversionCancel; objectName: "browserConversionCancel"; danger: true; symbol: "■"; text: bridge.browserState.stopping ? "Đang dừng…" : "Dừng"; visible: root.page === "new" && !!bridge.browserState.running; enabled: !bridge.browserState.stopping; onClicked: bridge.cancelJob() }
                             MainAction { objectName: "createLessonNarrationButton"; visible: root.page === "voice" && !root.narrationComplete; primary: true; text: bridge.narrationBusy ? "Đang tạo giọng…" : "Tạo giọng đọc"; enabled: !!bridge.quickResult.path && !!root.narrationDraft.total && !!root.narrationVoice && !root.narrationDraft.ready && bridge.narrationWorkspace.configurationEnabled; onClicked: bridge.createLessonNarrationWithVoice(root.narrationMode, root.narrationVoice, root.narrationRate) }
                             MainAction { objectName: "cancelLessonNarrationButton"; danger: true; symbol: "■"; text: bridge.lessonNarration.stopping ? "Đang dừng…" : "Dừng"; enabled: !bridge.lessonNarration.stopping; visible: (root.page === "voice" || root.page === "result") && !!bridge.lessonNarration.running; onClicked: bridge.cancelLessonNarration() }
                         }
                         Copy { visible: root.page === "new" && bridge.narrationBusy; text: "Đang tạo giọng đọc · Chờ hoàn tất hoặc dừng trước khi chuyển đổi bài mới."; Layout.fillWidth: true; font.pixelSize: 12 }
-                        MainAction { objectName: "resumeCreationTask"; text: bridge.browserState.phase === "completed" ? "Mở bài vừa chuyển đổi" : "Tiếp tục bài đang chuẩn bị"; visible: root.page === "new" && !!bridge.chatgptRequest.folder && !bridge.narrationBusy; attention: bridge.browserState.phase === "completed"; subtle: !attention; implicitHeight: attention ? 36 : 28; font.pixelSize: 11; onClicked: root.go("chatgpt") }
+                        MainAction { objectName: "resumeCreationTask"; text: bridge.browserState.phase === "completed" ? "Mở bài vừa chuyển đổi" : "Tiếp tục bài đang chuẩn bị"; visible: root.page === "new" && !!bridge.chatgptRequest.folder && !root.inlineConversionVisible && !bridge.narrationBusy; attention: bridge.browserState.phase === "completed"; subtle: !attention; implicitHeight: attention ? 36 : 28; font.pixelSize: 11; onClicked: root.go("chatgpt") }
                         MainAction { objectName: "resumeNarrationTask"; text: "Mở bài vừa tạo giọng"; attention: true; implicitHeight: 36; font.pixelSize: 11; visible: root.page === "voice" && !!bridge.recentNarrationResult.lesson_id && !bridge.narrationBusy; enabled: !bridge.busy; onClicked: bridge.openRecentNarrationResult() }
                     }
                 }
@@ -1416,55 +1486,6 @@ ApplicationWindow {
                         width: parent.width; spacing: 18
                         RowLayout { Heading { text: "Tạo bài giảng song ngữ"; font.pixelSize: 28 } Item { Layout.fillWidth: true } MainAction { text: "Đổi cấu hình"; subtle: true; enabled: !bridge.browserState.running; onClicked: root.go("new") } }
                         Copy { Layout.fillWidth: true; text: (bridge.chatgptRequest.config || {}).title || "Chuẩn bị tài liệu trước khi gửi"; color: root.ink; font.pixelSize: 17 }
-                        Surface {
-                            visible: bridge.browserState.phase !== "completed" && (bridge.googleTranslation || bridge.browserAI.automatic && bridge.browserState.phase !== "manual")
-                            Layout.fillWidth: true; implicitHeight: autoBrowserSteps.height + 42
-                            ColumnLayout {
-                                id: autoBrowserSteps; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 21; spacing: 14
-                                RowLayout { Layout.fillWidth: true
-                                    BusyIndicator { running: !!bridge.browserState.running; visible: running; implicitWidth: 34; implicitHeight: 34 }
-                                    Caption { text: bridge.browserState.running ? "Đang tạo bài giảng" : bridge.browserState.phase === "error" ? "Chuyển đổi tạm dừng" : "Bài giảng song ngữ"; font.pixelSize: 18; Layout.fillWidth: true }
-                                }
-                                Copy { objectName: "browserConversionStatus"; text: bridge.browserState.displayMessage; Layout.fillWidth: true; font.pixelSize: 15; color: root.ink }
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    Copy { objectName: "browserConversionStage"; text: bridge.browserState.displayStage; Layout.fillWidth: true; color: root.ink }
-                                    Caption { objectName: "browserConversionPercent"; text: (bridge.browserState.percent || 0) + "%"; font.pixelSize: 22 }
-                                }
-                                ProgressBar {
-                                    id: conversionBar; objectName: "browserConversionProgressBar"; Layout.fillWidth: true
-                                    from: 0; to: 100; value: bridge.browserState.percent || 0
-                                    indeterminate: false
-                                    background: Rectangle { implicitHeight: 9; radius: 4.5; color: AppTheme.adapt("#e8eff9") }
-                                    contentItem: Item {
-                                        implicitHeight: 9; clip: true
-                                        Rectangle {
-                                            id: conversionCompletedFill; objectName: "browserConversionCompletedFill"
-                                            width: parent.width * conversionBar.visualPosition; height: parent.height; radius: 4.5; color: root.blue; clip: true
-                                            Rectangle {
-                                                id: conversionPulse; objectName: "browserConversionPulse"
-                                                visible: !!bridge.browserState.running && !!bridge.browserState.waiting
-                                                width: parent.width * 0.32; height: parent.height; radius: 4.5; color: AppTheme.adapt("#ffffff"); opacity: 0.32
-                                                NumberAnimation on x { from: -conversionPulse.width; to: conversionPulse.parent.width; duration: 1500; loops: Animation.Infinite; running: conversionPulse.visible && conversionBar.visible && root.visible }
-                                            }
-                                        }
-                                    }
-                                }
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    Copy { objectName: "browserConversionElapsed"; text: "Thời gian xử lý: " + bridge.conversionClock.label; color: root.ink }
-                                    Item { Layout.fillWidth: true }
-                                    Copy { objectName: "browserConversionClockState"; text: bridge.conversionClock.status; color: bridge.browserState.running ? root.blue : root.muted }
-                                }
-                                Copy { objectName: "browserConversionLongWait"; Layout.fillWidth: true; visible: !!bridge.conversionClock.longWait && !bridge.browserState.stopping; text: "Bài đang mất nhiều thời gian hơn thường lệ. BiliClass vẫn theo dõi kết quả và sẽ báo ngay nếu cần bạn xử lý."; color: AppTheme.adapt("#a66318"); font.pixelSize: 12 }
-                                RowLayout { Layout.fillWidth: true
-                                    MainAction { objectName: "browserConversionResume"; text: !bridge.googleTranslation && bridge.browserAI.webMode && bridge.browserState.needsLogin ? "Kết nối và tiếp tục" : bridge.browserState.errorCode === "submission" ? "Kiểm tra và tiếp tục" : "Tiếp tục chuyển đổi"; primary: true; visible: !bridge.browserState.running && bridge.browserState.phase !== "completed" && !!bridge.chatgptRequest.folder; enabled: !bridge.busy && (bridge.googleTranslation || !bridge.browserAI.loginBusy); onClicked: { if (!bridge.googleTranslation && bridge.browserAI.webMode && (bridge.browserState.needsLogin || bridge.browserState.errorCode === "submission")) bridge.reconnectBrowserAI(); else bridge.runBrowserAI() } }
-                                    MainAction { objectName: "browserConversionSettings"; text: bridge.googleTranslation ? "Kiểm tra Google Dịch" : "Đăng nhập / Browser AI"; visible: !bridge.browserState.running && bridge.browserState.phase === "error" && (bridge.googleTranslation ? ["api_settings", "api_key", "api_budget", "api_quota", "api_request"].indexOf(bridge.browserState.errorCode) >= 0 : !!bridge.browserState.needsLogin); enabled: !bridge.busy; onClicked: { root.go("settings"); settingsPanel.activeTab = 6 } }
-                                    Item { Layout.fillWidth: true }
-                                    MainAction { id: conversionCancel; objectName: "browserConversionCancel"; danger: true; symbol: "×"; text: bridge.browserState.stopping ? "Đang hủy…" : "Hủy chuyển đổi"; visible: !!bridge.browserState.running; enabled: !bridge.browserState.stopping; onClicked: { if (bridge.googleTranslation) { cancelConversionDialog.conversionId = bridge.browserState.conversionId || ""; cancelConversionDialog.open() } else bridge.cancelJob() } }
-                                }
-                            }
-                        }
                         Surface {
                             objectName: "conversionCompletion"
                             visible: bridge.browserState.phase === "completed" && !bridge.browserState.running
