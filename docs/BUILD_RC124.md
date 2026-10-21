@@ -21,5 +21,11 @@ nhau, từng nhóm căn giữa, mô tả hiện đủ, các hàng không đè nh
 ảnh slide hay chạy tác vụ tạo giọng. Không có cảnh báo QML. Ảnh fixture,
 thư viện thử và báo cáo giữ ngoài Git.
 
-Nguồn `1.0.0rc124`. Dựng một lần sau commit đã kiểm, dùng runtime RC123
-có manifest SHA256. Thông tin gói/cài đặt bổ sung sau xác minh.
+Nguồn `1.0.0rc124`, commit
+`061ac7e845a288a8d354f8e72d6534cfd35a92f9`. Dựng một lần sau kiểm,
+dùng runtime RC123 có manifest SHA256. Gói
+`dist/rc124-voice-layout/BiliClass-RC124-Windows.zip`, 1.255.959.758 byte,
+SHA256 `315371975d2634d07ca9afebacb2e8d6547ca63aed4cf558d8dec65ae341f2d2`.
+Xác minh 4.667 file và 54 QML/qmldir khớp commit. Smoke bản đóng gói
+tab Tạo giọng 1366×850 đạt, không cảnh báo QML. Không cài RC124;
+dùng làm runtime nền cho RC125 để gộp chỉnh sửa tiếp theo của người dùng.

@@ -41,7 +41,7 @@ Rectangle {
             objectName: "narrationReadyActions"; Layout.alignment: Qt.AlignHCenter; Layout.minimumWidth: 0; Layout.maximumWidth: content.width
             Layout.preferredWidth: openButton.implicitWidth + downloadButton.implicitWidth + audioButton.implicitWidth + libraryButton.implicitWidth + 30; spacing: 10
             ActionButton { id: openButton; objectName: "continueAfterNarrationButton"; text: card.opening ? "PowerPoint đang mở" : "Mở PowerPoint"; implicitHeight: 36; primary: true; enabled: !card.busy && !card.opening; onClicked: card.openPowerPoint() }
-            ActionButton { id: downloadButton; objectName: "downloadAfterNarrationButton"; text: "Tải PowerPoint"; implicitHeight: 36; iconName: "download"; enabled: !card.busy; onClicked: card.downloadPresentation() }
+            ActionButton { id: downloadButton; objectName: "downloadAfterNarrationButton"; text: "Tải PowerPoint có giọng"; implicitHeight: 36; iconName: "download"; enabled: !card.busy; onClicked: card.downloadPresentation() }
             ActionButton { id: audioButton; objectName: "downloadNarrationAudioButton"; text: "Tải audio (.zip)"; implicitHeight: 36; enabled: !card.busy; onClicked: card.downloadAudio() }
             ActionButton { id: libraryButton; objectName: "viewCompletedNarrationInLibrary"; text: "Xem trong Bài giảng"; implicitHeight: 36; enabled: !card.busy; onClicked: card.showInLibrary() }
         }

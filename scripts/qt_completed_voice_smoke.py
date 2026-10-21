@@ -75,6 +75,11 @@ def main():
 
         try:
             window.show()
+            for page in ('new', 'voice'):
+                window.setProperty('page', page)
+                pump(60)
+                assert not c('resumeNarrationTask').isVisible()
+                assert not c('resumeCreationTask').isVisible()
             bridge._show_lesson(lesson, preview, destination='voice', auto_repair=False, load_preview=False)
             until(lambda: window.property('narrationComplete'), timeout=30)
             until(lambda: bool(bridge.quickResult.get('image')) and not bridge.previewBusy, timeout=90)
@@ -88,7 +93,26 @@ def main():
             assert not c('resultScroll').isVisible()
             assert window.findChild(QObject, 'checkCompletedNarrationButton') is None
             assert 'Kiểm tra slide và giọng' not in (RESOURCE_ROOT / 'qml/NarrationReadyCard.qml').read_text(encoding='utf-8')
-            for width, height in ((1080, 700), (1366, 850)):
+            sizes = ((1080, 700), (1366, 850), (1920, 1080))
+            def check_listening_alignment(english=True, vietnamese=True):
+                # Exercise the existing visibility cases without creating audio jobs.
+                c('narrationResultListenEnglish').setVisible(english)
+                c('narrationResultListenVietnamese').setVisible(vietnamese)
+                pump(80)
+                listening = c('narrationResultListening')
+                parent = listening.parentItem()
+                assert abs(listening.mapToItem(parent, QPointF()).x() + listening.width()/2 - parent.width()/2) < 2
+                buttons = [c(name) for name in ('narrationResultListenEnglish',
+                           'narrationResultListenVietnamese', 'narrationResultStop') if c(name).isVisible()]
+                bounds = [(button.mapToItem(parent, QPointF()).x(),
+                           button.mapToItem(parent, QPointF(button.width(), 0)).x()) for button in buttons]
+                assert abs((bounds[0][0] + bounds[-1][1])/2 - parent.width()/2) < 2
+                assert bounds[0][0] >= 0 and bounds[-1][1] <= parent.width()
+                assert all(right + 8 <= following for (_, right), (following, _) in zip(bounds, bounds[1:]))
+                assert all(button.width() >= button.implicitWidth() for button in buttons)
+
+            assert c('narrationResultDownload').property('text') == 'Tải PowerPoint có giọng'
+            for width, height in sizes:
                 window.resize(width, height)
                 pump(150)
                 for name in ('narrationResultPrevious', 'narrationResultCounter', 'narrationResultNext',
@@ -106,10 +130,14 @@ def main():
                            - c('narrationResultPage').mapToScene(QPointF(c('narrationResultPage').width()/2, 0)).x()) < 5
                 viewport.setProperty('contentY', max(0, viewport.property('contentHeight') - viewport.height()))
                 pump(180)
+                for english, vietnamese in ((True, True), (True, False), (False, True)):
+                    check_listening_alignment(english, vietnamese)
+                    assert window.grabWindow().save(str(reports / f'listening-{width}-{english}-{vietnamese}.png'))
+                check_listening_alignment()
                 assert window.grabWindow().save(str(reports / f'completed-{width}.png'))
             bridge.setApplicationTheme('dark')
-            viewport.setProperty('contentY', 0)
             pump(120)
+            check_listening_alignment()
             assert window.grabWindow().save(str(reports / 'completed-dark.png'))
             bridge.setApplicationTheme('light')
             bridge._powerpoint_state = {**initial_powerpoint_state, 'active': True, 'starting': False}
@@ -126,6 +154,7 @@ def main():
             bridge.powerpointStateChanged.emit()
             c('narrationResultChange').clicked.emit()
             pump(100)
+            assert c('downloadAfterNarrationButton').property('text') == 'Tải PowerPoint có giọng'
             assert c('voiceSlideThumbnail').isVisible()
             assert abs(c('voiceSlideThumbnail').width() / c('voiceSlideThumbnail').height() - 16/9) < .01
             c('toggleVoiceSlidePreview').clicked.emit()
@@ -167,6 +196,12 @@ def main():
             assert c('resumeNarrationTask').isVisible() and c('resumeNarrationTask').property('attention')
             recent = dict(bridge.recentNarrationResult)
             assert recent['lesson_id'] == lesson['id']
+            window.setProperty('page', 'new')
+            pump(60)
+            assert not c('resumeNarrationTask').isVisible(), 'Narration link belongs only to Voice'
+            assert not c('resumeCreationTask').isVisible(), 'Narration must not invent a converted result'
+            window.setProperty('page', 'voice')
+            pump(60)
             actions = c('narrationReadyActions')
             parent = actions.parentItem()
             assert abs(actions.mapToItem(parent, QPointF()).x()+actions.width()/2-parent.width()/2) < 2
@@ -182,10 +217,45 @@ def main():
             c('resumeNarrationTask').clicked.emit()
             until(lambda: not bridge.busy and c('narrationResultPage').isVisible() and bridge.lesson.get('id') == lesson['id'], timeout=60)
             assert bridge.selectedNarrationVariant == recent['variant_id']
+            # Keep two different completed lessons: each tab must reopen its own result.
+            converted_source = folder / 'Bài 5 – Kết quả chuyển đổi.pptx'
+            presentation.slides[0].shapes[0].text = 'Bài 5: Kết quả chuyển đổi\nLesson 5: Converted result'
+            presentation.save(converted_source)
+            converted, _ = import_presentation(folder / 'data', converted_source)
+            assert converted['id'] != lesson['id']
+            bridge._chatgpt_request = dict(folder=str(folder), config=dict(title=converted['title']))
+            bridge._browser_state = dict(phase='completed', running=False, percent=100, lessonId=converted['id'])
+            bridge.changed.emit()
+            bridge.browserStateChanged.emit()
+            window.setProperty('page', 'new')
+            pump(80)
+            assert not c('resumeNarrationTask').isVisible()
+            assert c('resumeCreationTask').isVisible() and c('resumeCreationTask').property('attention')
+            assert c('resumeCreationTask').property('text') == 'Mở bài vừa chuyển đổi'
+            c('resumeCreationTask').clicked.emit()
+            until(lambda: not bridge.busy and bridge.lesson.get('id') == converted['id'], timeout=60)
+            assert window.property('page') == 'chatgpt'
+            assert bridge.recentNarrationResult == recent
+            c('navigationvoice').clicked.emit()
+            pump(80)
+            assert c('resumeNarrationTask').isVisible() and c('resumeNarrationTask').property('attention')
+            assert not c('resumeCreationTask').isVisible()
+            c('resumeNarrationTask').clicked.emit()
+            until(lambda: not bridge.busy and c('narrationResultPage').isVisible() and bridge.lesson.get('id') == lesson['id'], timeout=60)
+            assert bridge.selectedNarrationVariant == recent['variant_id']
+            assert bridge.browserState['lessonId'] == converted['id']
+            c('narrationResultChange').clicked.emit()
+            pump(80)
+            assert window.grabWindow().save(str(reports / 'voice-only-recent-link.png'))
+            window.setProperty('page', 'new')
+            pump(80)
+            assert window.grabWindow().save(str(reports / 'conversion-only-recent-link.png'))
             assert not warnings, warnings
             (reports / 'result.json').write_text(json.dumps({'status': 'passed', 'automatic_preview': True,
                 'resume_exact_completed_variant_after_configuration_or_clear': True, 'centered_actions': True,
-                'preview_while_powerpoint_active': True, 'sizes': [[1080, 700], [1366, 850]], 'qml_warnings': warnings}), encoding='utf-8')
+                'centered_listening_all_language_modes': True, 'voiced_download_label': True,
+                'tab_specific_recent_results_reopen_distinct_lessons': True,
+                'preview_while_powerpoint_active': True, 'sizes': sizes, 'qml_warnings': warnings}), encoding='utf-8')
             print('Completed narration Qt flow passed.', flush=True)
         finally:
             bridge._powerpoint_state = dict(initial_powerpoint_state)

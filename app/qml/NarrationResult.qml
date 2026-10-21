@@ -34,7 +34,7 @@ ContentScrollView {
         Flow { objectName: "narrationResultActions"; Layout.alignment: Qt.AlignHCenter; Layout.minimumWidth: 0; Layout.maximumWidth: result.availableWidth
             Layout.preferredWidth: openButton.implicitWidth + downloadButton.implicitWidth + audioButton.implicitWidth + 20; spacing: 10
             ActionButton { id: openButton; objectName: "narrationResultOpen"; text: "Mở PowerPoint"; primary: true; enabled: !result.bridge.busy && !result.bridge.narrationBusy && !result.bridge.teachingTransitioning; onClicked: result.requestPowerPoint() }
-            ActionButton { id: downloadButton; objectName: "narrationResultDownload"; text: "Tải PowerPoint"; iconName: "download"; enabled: !result.bridge.busy; onClicked: result.requestDownload() }
+            ActionButton { id: downloadButton; objectName: "narrationResultDownload"; text: "Tải PowerPoint có giọng"; iconName: "download"; enabled: !result.bridge.busy; onClicked: result.requestDownload() }
             ActionButton { id: audioButton; objectName: "narrationResultAudio"; text: "Tải audio (.zip)"; enabled: !result.bridge.busy; onClicked: result.requestAudio() }
         }
         Rectangle {
@@ -50,10 +50,11 @@ ContentScrollView {
             Label { objectName: "narrationResultCounter"; text: "Slide " + (result.bridge.quickResult.slide || 1) + " / " + (result.bridge.quickResult.total || 0); color: AppTheme.ink; font.pixelSize: 13 }
             ActionButton { objectName: "narrationResultNext"; text: "›"; implicitHeight: 34; enabled: !result.bridge.busy && (result.bridge.quickResult.slide || 1) < result.bridge.quickResult.total; onClicked: result.bridge.previewConvertedSlide(result.bridge.quickResult.slide + 1) }
         }
-        Flow { Layout.fillWidth: true; spacing: 10
-            ActionButton { objectName: "narrationResultListenEnglish"; text: "Nghe giọng Anh"; iconName: "play"; visible: result.record.mode !== "vi"; enabled: !result.bridge.busy; onClicked: result.bridge.narrationWorkspace.listenCreated(result.bridge.quickResult.slide || 1, "en", result.record.id) }
-            ActionButton { objectName: "narrationResultListenVietnamese"; text: "Nghe giọng Việt"; iconName: "play"; visible: result.record.mode !== "en"; enabled: !result.bridge.busy; onClicked: result.bridge.narrationWorkspace.listenCreated(result.bridge.quickResult.slide || 1, "vi", result.record.id) }
-            ActionButton { text: "Dừng nghe"; danger: true; onClicked: result.bridge.stopSpeech() }
+        Flow { objectName: "narrationResultListening"; Layout.fillWidth: false; Layout.alignment: Qt.AlignHCenter; Layout.minimumWidth: 0; Layout.maximumWidth: result.availableWidth; spacing: 10
+            Layout.preferredWidth: (listenEnglish.visible ? listenEnglish.implicitWidth + spacing : 0) + (listenVietnamese.visible ? listenVietnamese.implicitWidth + spacing : 0) + stopButton.implicitWidth
+            ActionButton { id: listenEnglish; objectName: "narrationResultListenEnglish"; text: "Nghe giọng Anh"; iconName: "play"; visible: result.record.mode !== "vi"; enabled: !result.bridge.busy; onClicked: result.bridge.narrationWorkspace.listenCreated(result.bridge.quickResult.slide || 1, "en", result.record.id) }
+            ActionButton { id: listenVietnamese; objectName: "narrationResultListenVietnamese"; text: "Nghe giọng Việt"; iconName: "play"; visible: result.record.mode !== "en"; enabled: !result.bridge.busy; onClicked: result.bridge.narrationWorkspace.listenCreated(result.bridge.quickResult.slide || 1, "vi", result.record.id) }
+            ActionButton { id: stopButton; objectName: "narrationResultStop"; text: "Dừng nghe"; danger: true; onClicked: result.bridge.stopSpeech() }
         }
     }
 }
