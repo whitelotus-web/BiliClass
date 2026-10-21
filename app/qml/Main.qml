@@ -1114,10 +1114,16 @@ ApplicationWindow {
                             ColumnLayout {
                                 objectName: "creationLessonDetails"; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.alignment: Qt.AlignTop; spacing: 12
                                 ColumnLayout { Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 6
-                                    Heading { objectName: "creationSelectedLessonTitle"; text: titleInput.text || root.selectedFileName.replace(/\.[^.]+$/, ""); font.pixelSize: 20; Layout.fillWidth: true; Layout.minimumWidth: 0; wrapMode: Text.Wrap }
+                                    Heading {
+                                        objectName: "creationSelectedLessonTitle"
+                                        text: titleInput.text || root.selectedFileName.replace(/\.[^.]+$/, "")
+                                        font.pixelSize: 20; Layout.fillWidth: true; Layout.minimumWidth: 0; wrapMode: Text.Wrap
+                                        ToolTip.visible: creationTitleHover.hovered
+                                        ToolTip.text: root.selectedFileName; ToolTip.delay: 500
+                                        HoverHandler { id: creationTitleHover }
+                                    }
                                     Copy { Layout.fillWidth: true; text: [root.creationSubject, educationInput.currentText + " " + gradeInput.currentText, "PowerPoint gốc"].filter(function(value) { return !!value }).join(" · ") }
                                 }
-                                Copy { objectName: "creationSelectedFilename"; text: root.selectedFileName; Layout.fillWidth: true; wrapMode: Text.WrapAnywhere; font.pixelSize: 12 }
                                 Copy { text: "✓ Đã chọn tệp · Chưa chuyển đổi"; color: AppTheme.success; font.pixelSize: 12; Layout.fillWidth: true }
                                 Copy { objectName: "creationSelectedSlideCount"; text: (bridge.inputDocuments.preview.total ? bridge.inputDocuments.preview.total + " slide · " : "") + "Chọn cấu hình chuyển đổi ở bên dưới"; color: root.ink; Layout.fillWidth: true }
                                 Copy { visible: !!root.inputDocumentError; text: root.inputDocumentError; color: AppTheme.warning; Layout.fillWidth: true }
