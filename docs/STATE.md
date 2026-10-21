@@ -1,5 +1,19 @@
 # Trạng thái BiliClass
 
+Ngày 22/10/2026 — nguồn RC139 kế thừa RC138, sửa căn hàng trong
+khung nền lớn, tỉ lệ chữ theo kích thước slide, khung nhãn Câu/Question
+và nền kế thừa từ nhóm cha. 77 kiểm thử liên quan và Qt chẩn đoán
+hai công cụ đạt. Bài Toán 38 slide từng dừng khi thiếu thân ghi chú
+đã dựng lại trên bản sao bằng bản dịch lưu sẵn, 0 API mới; 38 ảnh
+PowerPoint, 0 FAIL / 38 CHECK. RC138 đạt 402 pytest, sửa giọng 175/180
+thành 180/180 và giữ 175 WAV cũ, cùng các sửa UI và thông báo lỗi
+theo vị trí slide. Chi tiết, giới hạn và tình trạng gói ở
+[BUILD_RC139](BUILD_RC139.md) và [BUILD_RC138](BUILD_RC138.md).
+Chưa triển khai đồng bộ sửa/lưu PowerPoint bên ngoài hay tự lưu cạnh
+nguồn; phiên dạy vẫn dùng bản sao. Không thêm hàng đợi trước đợt nộp.
+Nghĩa chuyên môn, chữ/công thức trong ảnh và hiệu ứng cần đối chiếu;
+0 FAIL không phải chứng nhận toàn bộ nội dung bài.
+
 Ngày 19/10/2026 — RC83 sửa trả focus về PowerPoint, nút Trước/Sau chuyển
 slide ngay và bộ đếm theo Office. Loa Mascot theo giọng trên slide; dấu ?
 hiện tooltip phím có ký hiệu. Lệnh không qua vòng chờ GUI/helper trung gian,

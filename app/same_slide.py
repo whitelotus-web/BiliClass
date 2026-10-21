@@ -38,7 +38,7 @@ def _paragraph_style(paragraph):
     return props
 
 
-def style_paragraph(paragraph, source_size, *, english=False, title=False, label=False):
+def style_paragraph(paragraph, source_size, *, english=False, title=False, label=False, canvas_scale=1):
     """Keep font family, symbols, alpha and emphasis; scale math with the prose."""
     props = _paragraph_style(paragraph)
     tabs = props.find("a:tabLst", NS)
@@ -48,8 +48,9 @@ def style_paragraph(paragraph, source_size, *, english=False, title=False, label
         if node.text:
             node.text = node.text.replace("\t", " ")
     visible = bool(text_of(paragraph).strip())
-    size = min(max(source_size / 100, 18), 32 if title else 18 if label else 24)
-    target = max(18, size * (0.82 if english else 1))
+    minimum = 18 * canvas_scale
+    size = min(max(source_size / 100, minimum), (32 if title else 18 if label else 24) * canvas_scale)
+    target = max(minimum, size * (0.82 if english else 1))
     scale = target / max(1, source_size / 100)
     default = props.find("a:defRPr", NS)
     if default is None:
@@ -85,6 +86,7 @@ def prepare(source, manifest):
     from .slide_speech import normalized, objects
 
     deck = Presentation(source)
+    canvas_scale = max(.5, min(4, deck.slide_height / (540 * 12700)))
     manifest['font_fallbacks'] = missing_embedded_fonts(source)
     units_by_slide = {}
     for unit in manifest["units"]:
@@ -153,6 +155,12 @@ def prepare(source, manifest):
                 if ox > x0 + w * 0.5 and oy < y + h and oy + oh > y + min(h, deck.slide_height * 0.1):
                     right = min(right, ox - 12700)
                 horizontal = min(x + w, ox + ow) - max(x, ox)
+                if (re.match(r'^\s*(?:Câu|Question)\s*\d+\s*$', other['text'], re.I)
+                        and ox < x + w * .25 and ox + ow > x0 and ox + ow < right
+                        and min(y+h, oy+oh)-max(y, oy) > min(h, oh)*.3):
+                    # A centered stem's source box can sit behind its numbered
+                    # badge. Two language columns need their own clear left edge.
+                    x0 = max(x0, ox + ow + 6 * 12700)
                 if (
                     length > 100
                     and other["text"]
@@ -191,16 +199,22 @@ def prepare(source, manifest):
                 "w": round(width * sx),
                 "h": round(height * sy),
             }
+            label = length < 25 and not title and h < 55 * 12700 * canvas_scale
+            if label:
+                # Question numbers and solution badges own small frames. The
+                # surrounding question band is not their shared text container.
+                geometry = dict(x=shape.left, y=shape.top, w=shape.width, h=shape.height)
             for unit in units:
                 unit.update(
                     title=title,
+                    canvas_scale=canvas_scale,
                     same_slide_box=geometry,
                     suppressed=key in duplicates,
-                    inline_pair=width < 200 * 12700
+                    inline_pair=label or width < 200 * 12700
                     or bool(shape._element.xpath('.//*[local-name()="oMath"]'))
                     and width < deck.slide_width * 0.52
                     and height > deck.slide_height * 0.4,
-                    label=length < 25 and not title and h < 55 * 12700,
+                    label=label,
                     question=bool(re.match(r"^\s*(?:Câu|Question)\s*\d", units[0]["raw"], re.I)),
                 )
     manifest["suppressed_duplicates"] = suppressed

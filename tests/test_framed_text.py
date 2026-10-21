@@ -90,3 +90,88 @@ def test_panel_repair_does_not_move_motion_targets_or_original_frames(tmp_path):
     original = Presentation(source)
     tree = etree.fromstring(etree.tostring(original.slides[0]._element))
     assert constrain_generated(tree, original.slides[0], original.slide_width, original.slide_height) == []
+
+
+def test_body_in_shared_large_panel_never_moves_above_its_original_row(tmp_path):
+    deck = Presentation()
+    deck.slide_width, deck.slide_height = Inches(13.333), Inches(7.5)
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    panel = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(5), Inches(.7), Inches(8), Inches(6.5))
+    panel.fill.solid()
+    panel.fill.fore_color.rgb = RGBColor.from_string('E6F2D8')
+    heading = slide.shapes.add_textbox(Inches(6), Inches(1), Inches(6), Inches(1))
+    heading.text = 'QUAN HỆ SONG SONG TRONG KHÔNG GIAN'
+    body = slide.shapes.add_textbox(Inches(5.2), Inches(2.6), Inches(7.5), Inches(3.8))
+    body.text = 'Đường thẳng và mặt phẳng trong không gian\nHai đường thẳng song song\nPhép chiếu song song'
+    body.text_frame.paragraphs[0].font.size = Pt(26)
+    source, target = tmp_path/'shared-panel.pptx', tmp_path/'paired.pptx'
+    deck.save(source)
+    original = source.read_bytes()
+    manifest = extract(source, 'parallel_columns', same_slide=True)
+    values = {u['id']: {'en': 'Lines and planes in space' if u['shape_id'] == heading.shape_id else 'Parallel lines and parallel projection'} for u in manifest['units']}
+    assemble(source, target, manifest, values, 'parallel_columns')
+    converted = Presentation(target)
+    result = converted.slides[0]
+    tree = etree.fromstring(etree.tostring(result._element))
+    constrain_generated(tree, result, converted.slide_width, converted.slide_height)
+    # Test both VI and EN columns, including the post-assembly repair pass.
+    rows = tree.xpath('.//p:sp[starts-with(p:nvSpPr/p:cNvPr/@name,"BCL_BODY ")]/p:spPr/a:xfrm/a:off/@y', namespaces=NS)
+    assert rows and all(int(y) >= body.top for y in rows)
+    assert source.read_bytes() == original
+
+
+def test_inherited_group_fill_constrains_the_solution_inside_its_panel(tmp_path):
+    deck = Presentation()
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    group = slide.shapes.add_group_shape()
+    panel = group.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(.3), Inches(4.5), Inches(9), Inches(2))
+    properties = panel._element.find('p:spPr', NS)
+    properties.append(etree.Element('{' + NS['a'] + '}grpFill'))
+    inherited = etree.SubElement(group._element.find('p:grpSpPr', NS), '{' + NS['a'] + '}solidFill')
+    etree.SubElement(inherited, '{' + NS['a'] + '}srgbClr', val='E6F2FF')
+    body = group.shapes.add_textbox(Inches(1), Inches(4.7), Inches(7), Inches(1.2))
+    body.text = 'Ta có ba vị trí tương đối giữa đường thẳng và mặt phẳng.\nĐường thẳng nằm trong mặt phẳng.\nĐường thẳng cắt mặt phẳng tại một điểm.'
+    source, target = tmp_path/'group-fill.pptx', tmp_path/'paired.pptx'
+    deck.save(source)
+    assert any(row['shape_id'] == panel.shape_id for row in panels(slide, deck.slide_width, deck.slide_height))
+    manifest = extract(source, 'parallel_columns', same_slide=True)
+    values = {u['id']: {'en': 'A line lies in a plane or intersects the plane at a single point.'} for u in manifest['units']}
+    assemble(source, target, manifest, values, 'parallel_columns')
+    result = Presentation(target)
+    from app.slide_speech import objects
+
+    panel_box = next(row for row in panels(result.slides[0], result.slide_width, result.slide_height) if row['shape_id'] == panel.shape_id)
+    columns = [row for row in objects(result.slides[0]) if row['name'].startswith('BCL_BODY ')]
+    assert columns and all(row['y'] + row['h'] < panel_box['y'] + panel_box['h'] for row in columns)
+    # An unpainted/transparent group cannot invent a usable panel.
+    group._element.find('p:grpSpPr', NS).remove(inherited)
+    assert not panels(slide, deck.slide_width, deck.slide_height)
+
+
+def test_small_question_badge_keeps_its_frame_instead_of_expanding_into_question(tmp_path):
+    deck = Presentation()
+    deck.slide_width, deck.slide_height = Inches(26.666), Inches(15)
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    panel = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(.2), Inches(2), Inches(26), Inches(1))
+    panel.fill.solid()
+    panel.fill.fore_color.rgb = RGBColor.from_string('FFF8C4')
+    badge = slide.shapes.add_textbox(Inches(.5), Inches(2.1), Inches(2), Inches(.7))
+    badge.text = 'Câu 10'
+    badge.text_frame.paragraphs[0].font.size = Pt(36)
+    question = slide.shapes.add_textbox(Inches(1.1), Inches(2.1), Inches(24), Inches(.7))
+    question.text = 'Giao điểm của đường thẳng và mặt phẳng không thể là'
+    source, target = tmp_path/'question.pptx', tmp_path/'paired.pptx'
+    deck.save(source)
+    manifest = extract(source, 'parallel_columns', same_slide=True)
+    values = {u['id']: {'en': u['text'].replace('Câu', 'Question') if u['shape_id'] == badge.shape_id else 'The intersection of a line and a plane cannot be'} for u in manifest['units']}
+    assemble(source, target, manifest, values, 'parallel_columns')
+    result = Presentation(target)
+    converted = next(s for s in result.slides[0].shapes if s.shape_id == badge.shape_id)
+    assert converted.name.startswith('BCL_LABEL ')
+    assert (converted.left, converted.top, converted.width, converted.height) == (badge.left, badge.top, badge.width, badge.height)
+    stem = next(s for s in result.slides[0].shapes if s.shape_id == question.shape_id)
+    assert stem.left >= badge.left + badge.width
+    tree = etree.fromstring(etree.tostring(result.slides[0]._element))
+    constrain_generated(tree, result.slides[0], result.slide_width, result.slide_height)
+    node = tree.xpath('.//p:sp[p:nvSpPr/p:cNvPr[@id=$id]]', namespaces=NS, id=str(badge.shape_id))[0]
+    assert int(node.find('p:spPr/a:xfrm/a:off', NS).get('x')) == badge.left

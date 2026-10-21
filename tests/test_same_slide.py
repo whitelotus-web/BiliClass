@@ -60,6 +60,24 @@ def test_bilingual_title_retains_top_anchor_in_oversized_source_textbox(tmp_path
     assert 'LINES AND PLANES' in converted.text
 
 
+def test_typography_scales_with_canvas_instead_of_halving_large_deck_text(tmp_path):
+    results = []
+    for scale in (1, 2):
+        deck = Presentation()
+        deck.slide_width, deck.slide_height = Inches(13.333 * scale), Inches(7.5 * scale)
+        slide = deck.slides.add_slide(deck.slide_layouts[6])
+        title = slide.shapes.add_textbox(Inches(scale), Inches(scale), Inches(10 * scale), Inches(scale))
+        title.text = 'Cơ năng'
+        title.text_frame.paragraphs[0].font.size = Pt(32 * scale)
+        source = tmp_path/f'canvas-{scale}.pptx'
+        deck.save(source)
+        manifest = extract(source, 'parallel_columns', same_slide=True)
+        values = {u['id']: {'en': 'Mechanical energy'} for u in manifest['units']}
+        output = assemble(source, tmp_path/f'result-{scale}.pptx', manifest, values, 'parallel_columns')
+        results.append(Presentation(output).slides[0].shapes[0].text_frame.paragraphs[0].font.size)
+    assert results[1] == results[0] * 2
+
+
 def test_native_measurement_visits_group_children_but_does_not_fit_rotated_groups():
     from types import SimpleNamespace as Shape
 

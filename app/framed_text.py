@@ -43,7 +43,18 @@ def panels(slide, width, height):
         if (w < width*.15 or h < height*.035 or w*h > width*height*.6
                 or x < 0 or y < 0 or x+w > width*1.01 or y+h > height*1.01):
             continue
-        fill = root.find('p:spPr/a:blipFill', NS)
+        properties = root.find('p:spPr', NS)
+        painted_properties = properties
+        if properties is not None and properties.find('a:grpFill', NS) is not None:
+            # Many publisher decks put a panel's color on its parent group.
+            # Follow only explicit group inheritance; no theme/color guessing.
+            for parent in root.iterancestors():
+                if parent.tag != '{' + NS['p'] + '}grpSp':
+                    continue
+                painted_properties = parent.find('p:grpSpPr', NS)
+                if painted_properties is None or painted_properties.find('a:grpFill', NS) is None:
+                    break
+        fill = painted_properties.find('a:blipFill', NS) if painted_properties is not None else None
         if fill is not None:
             blip = fill.find('a:blip', NS)
             crop = fill.find('a:srcRect', NS)
@@ -62,7 +73,8 @@ def panels(slide, width, height):
         else:
             geometry = root.find('p:spPr/a:prstGeom', NS)
             if (geometry is None or geometry.get('prst') not in {'rect', 'roundRect', 'round1Rect', 'round2SameRect'}
-                    or not any(root.find('p:spPr/a:' + kind, NS) is not None for kind in ('solidFill', 'gradFill'))):
+                    or painted_properties is None
+                    or not any(painted_properties.find('a:' + kind, NS) is not None for kind in ('solidFill', 'gradFill'))):
                 continue
         result.append({'shape_id': item['shape_id'], 'order': order,
                        'x': round(x), 'y': round(y), 'w': round(w), 'h': round(h)})
@@ -94,7 +106,9 @@ def fit_box(box, panel):
     """Use the panel's real interior; align every VI/EN row to its same left edge."""
     inset = max(4*12700, min(panel['w'], panel['h'])*.045)
     left = max(box['x'], panel['x']+inset)
-    top = panel['y']+inset
+    # A large panel can contain a heading and several body rows. Empty area
+    # above this row belongs to that content, not to the new translation.
+    top = max(box['y'], panel['y']+inset)
     right = panel['x']+panel['w']-inset
     bottom = panel['y']+panel['h']-inset
     return {'x': round(left), 'y': round(top), 'w': round(max(127000, right-left)),
@@ -147,7 +161,7 @@ def constrain_generated(tree, slide, width, height):
         inset = max(4*12700, min(panel['w'], panel['h'])*.045)
         # Keep already separated columns and their gap; only pull the pair into
         # its common vertical band and trim columns that cross the right edge.
-        top, bottom = panel['y']+inset, panel['y']+panel['h']-inset
+        top, bottom = max(item['y'], panel['y']+inset), panel['y']+panel['h']-inset
         right = min(item['x']+item['w'], panel['x']+panel['w']-inset)
         for decoration in decorations:
             if (item['x'] < decoration['x'] < right and min(bottom, decoration['y']+decoration['h'])

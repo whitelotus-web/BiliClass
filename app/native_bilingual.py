@@ -400,7 +400,7 @@ def assemble(source, destination, manifest, translations, mode):
             if together:
                 same_slide.apply_geometry(shape,units[0])
                 if not any(u['title'] for u in units):
-                    nodes[0].set('name','BCL_BODY '+nodes[0].get('name',''))
+                    nodes[0].set('name',('BCL_LABEL ' if units[0].get('label') else 'BCL_BODY ')+nodes[0].get('name',''))
             if manifest.get('version', 1) >= 2 and not paired and not together:
                 height=max((u.get('layout_height') or 0 for u in units),default=0)
                 extent=shape.find('p:spPr/a:xfrm/a:ext',NS)
@@ -430,7 +430,8 @@ def assemble(source, destination, manifest, translations, mode):
                     unit = selected.get(paragraph_index)
                     if unit is None:
                         if together:
-                            original = same_slide.style_paragraph(copy.deepcopy(original),units[0]['font_size'],title=title)
+                            original = same_slide.style_paragraph(copy.deepcopy(original),units[0]['font_size'],title=title,
+                                canvas_scale=units[0].get('canvas_scale', 1))
                         body.append(copy.deepcopy(original))
                         en_body.append(copy.deepcopy(original))
                         if together:
@@ -441,8 +442,10 @@ def assemble(source, destination, manifest, translations, mode):
                         smaller=not together and (effective_mode=='sentence_pairs' or title and
                         (effective_mode!='english_only' or not manifest.get('preserve_design'))))
                     if together:
-                        original = same_slide.style_paragraph(copy.deepcopy(original),unit['font_size'],title=title,label=unit.get('label',False))
-                        english = same_slide.style_paragraph(english,unit['font_size'],english=True,title=title,label=unit.get('label',False))
+                        original = same_slide.style_paragraph(copy.deepcopy(original),unit['font_size'],title=title,label=unit.get('label',False),
+                            canvas_scale=unit.get('canvas_scale', 1))
+                        english = same_slide.style_paragraph(english,unit['font_size'],english=True,title=title,label=unit.get('label',False),
+                            canvas_scale=unit.get('canvas_scale', 1))
                     if effective_mode == 'english_only':
                         body.append(english)
                     elif effective_mode == 'sentence_pairs' or title:
