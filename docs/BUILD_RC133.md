@@ -17,3 +17,9 @@ Xác minh bằng `.venv`: 14 pytest thư viện/giao diện đạt. Qt danh sác
 và thẻ, chọn/kéo chọn, bộ lọc, tải đúng bài và điều hướng đạt tại
 1080/1366/1920, không cảnh báo QML. Đã xem cả bốn trạng thái trên
 nền sáng/tối; icon VI/EN đúng ảnh, không có chữ bên ngoài lặp lại.
+
+Đã đóng gói một lần từ `469f323fcbd16b69e2e6d4c94909017aa6aa9d3f`:
+`BiliClass-RC133-Windows.zip`, 1.258.028.748 byte, SHA-256
+`b5248b2e2f4194ce3806dbcb5743600d81239ac392b3d1420b9103268e54a5d0`.
+55 tệp QML và hai ảnh nguồn khớp commit; toàn bộ ZIP được xác minh.
+Chưa cài bản này: yêu cầu thu nhỏ icon tiếp theo được xử lý ở RC134.

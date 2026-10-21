@@ -32,7 +32,7 @@ RowLayout {
         : audio.status === "checking" ? "Đang kiểm tra giọng…"
         : "Chưa có giọng"
     readonly property string text: languages.length && !expanded ? languages.map(function(v) { return v.toUpperCase() }).join(" + ") : description
-    spacing: 5
+    spacing: 4
     Accessible.role: Accessible.StaticText
     Accessible.name: description
     ThemedImage {
@@ -41,7 +41,7 @@ RowLayout {
         darkTint: badge.foreground
         source: badge.tone === "checking" ? "../assets/actions/refresh.png" : "../assets/actions/speaker-off.svg"
         sourceSize.width: 48; sourceSize.height: 48; fillMode: Image.PreserveAspectFit
-        Layout.preferredWidth: 24; Layout.preferredHeight: 24
+        Layout.preferredWidth: 18; Layout.preferredHeight: 18
         Accessible.ignored: true
     }
     Repeater {
@@ -56,7 +56,7 @@ RowLayout {
             tintEnabled: true
             darkTint: modelData === "en" ? AppTheme.blue : AppTheme.dark ? "#c4a7ff" : "#7c3aed"
             fillMode: Image.PreserveAspectFit; smooth: true; mipmap: true
-            Layout.preferredWidth: 34; Layout.preferredHeight: 30
+            Layout.preferredWidth: 24; Layout.preferredHeight: 22
             Accessible.ignored: true
         }
     }
