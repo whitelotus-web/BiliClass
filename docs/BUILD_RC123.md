@@ -46,8 +46,23 @@ và [quy tắc không dịch](https://cloud.google.com/translate/faq).
   thử qua API thật trước đó. Không dịch lại toàn bộ bài chỉ để thử bố cục.
 - Hash tệp nguồn và bài cá nhân sau thử vẫn khớp trước thử. Bài giảng,
   API key, kết quả kiểm/ảnh và dữ liệu giọng cá nhân không vào Git.
+  Đối chiếu đủ 62 biểu thức công thức native từ nguồn trong bản dựng.
 
 ## Đóng gói
 
-Nguồn `1.0.0rc123`; dựng một lần sau commit đã kiểm, dùng runtime RC122
-có manifest SHA256. Thông tin gói/cài đặt bổ sung sau khi xác minh.
+Nguồn `1.0.0rc123`, commit
+`0ec9d6927b2583eb4b651c0dbb69cb7a3d09aaf3`; dựng một lần sau kiểm tra,
+dùng runtime RC122 có manifest SHA256.
+
+Gói `dist/rc123-source-preview/BiliClass-RC123-Windows.zip`,
+1.255.959.481 byte, SHA256
+`c98612e547fbd27a9a596c51cfb97f9da29feea62dd6d66ff6a2c26248cbcc16`.
+Manifest xác minh 4.667 file và 54 file QML/qmldir khớp commit nguồn.
+Mô-đun đóng gói có `InputDocuments.showSlide`/`input_preview` mới.
+Smoke bản đóng gói tab Chuyển đổi 1366×850 đạt, không cảnh báo QML.
+
+Cài tại `F:/Applications/BiliClass/1.0.0rc123`; mở từ Explorer vào tab
+Chuyển đổi. Cửa sổ chính/Mascot hoạt động độc lập với Codex, kiểm tra
+phản hồi, icon và shortcut đạt. Đối chiếu sau cài giữ nguyên bài/nguồn,
+1.066 WAV cá nhân, logo, API key mã hóa và cấu hình giọng. Phiên RC122
+đóng bình thường; không đóng PowerPoint và phiên RC80 độc lập.
