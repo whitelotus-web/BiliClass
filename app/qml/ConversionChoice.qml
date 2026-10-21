@@ -10,12 +10,13 @@ Rectangle {
     property bool showPreview: false
     property bool compact: false
     property bool tight: false
+    property bool fitContent: false
     property string choiceName: ""
     objectName: choiceName + "Card"
     property var choiceGroup: null
     signal chosen()
     signal previewRequested()
-    implicitHeight: compact ? (tight ? 64 : 78) : showPreview ? 138 : 90
+    implicitHeight: fitContent ? Math.max(78, choiceContent.implicitHeight + 24) : compact ? (tight ? 64 : 78) : showPreview ? 138 : 90
     radius: 10
     color: selected ? AppTheme.adapt("#f2f7ff") : "transparent"
     border.width: 1
@@ -26,6 +27,7 @@ Rectangle {
     ToolTip.delay: 600
     ToolTip.text: card.detail
     ColumnLayout {
+        id: choiceContent
         anchors.fill: parent; anchors.margins: card.compact ? 8 : 12; spacing: card.compact ? 3 : 5
         RowLayout {
           Layout.fillWidth: true; spacing: 6

@@ -109,6 +109,8 @@ def main():
                 card = c(button.objectName()+'Card')
                 assert detail.isVisible() and detail.property('text') and not detail.property('truncated')
                 assert detail.property('contentHeight') <= detail.height()+1
+                assert detail.height()-detail.property('contentHeight') <= 20, 'Language cards reserve unnecessary empty space'
+                assert abs(card.height()-languages.height()) < 1, 'Language cards must keep equal heights'
                 assert detail.mapToItem(card,QPointF(0,detail.height())).y() <= card.height()-11
                 assert button.mapToItem(card,QPointF(0,button.height())).y()+4 <= detail.mapToItem(card,QPointF()).y()
             assert c('narrationPositionDescription').isVisible()
