@@ -45,6 +45,10 @@ Window {
         const point = area.mapToItem(item, Qt.point(area.mouseX, area.mouseY))
         return point.x >= 0 && point.y >= 0 && point.x < item.width && point.y < item.height
     }
+    function helpPanelRect() {
+        const point = menu.mapToGlobal(Qt.point(0, 0))
+        return {x: point.x, y: point.y, width: menu.width, height: menu.height}
+    }
     component MoveArea: MouseArea {
         property bool dragged: false
         property bool toggleOnClick: false

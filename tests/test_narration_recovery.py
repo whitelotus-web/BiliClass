@@ -20,6 +20,24 @@ def item():
     return lesson
 
 
+def test_missing_audio_of_finished_voice_recovers_only_after_verified_status():
+    from app.lesson_narration import variant_id
+
+    lesson = item()
+    lesson['segments'] = lesson['segments'][:1]
+    plan, _ = make_plan(lesson, 'vi', {'voice': 'vieneu:Mai Anh', 'rate': 0})
+    plan.update(complete=plan['total'], failed=0, cancelled=False)
+    lesson['narration'] = plan
+    status = dict(id=variant_id(plan), status='partial', total=plan['total'])
+    expected = {'mode': 'vi', 'voice': 'vieneu:Mai Anh', 'rate': 0}
+    assert automatic_repair_choice(lesson, status) == expected
+    assert automatic_repair_choice(lesson) is None
+    assert automatic_repair_choice(lesson, {**status, 'id': 'another-recording'}) is None
+    assert automatic_repair_choice(lesson, {**status, 'status': 'ready'}) is None
+    plan['cancelled'] = True
+    assert automatic_repair_choice(lesson, status) is None
+
+
 def test_known_stamps_preserve_valid_sentences_and_unaffected_cache_text():
     text = 'Năng lượng.\r\nĐộng năng.'
     assert clean_artifacts(text) == text

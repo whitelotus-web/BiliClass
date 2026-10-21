@@ -28,7 +28,7 @@ def wav(path):
 
 def test_suggested_pairs_preserve_regional_order_and_include_extra_speakers():
     assert len(PAIRS) == 9 and len({v['id'] for v in PAIRS}) == 9
-    assert len(ALL_PAIRS) == 27 and {row['en'] for row in ALL_PAIRS} == set(speech.ENGLISH_VOICES)
+    assert len(ALL_PAIRS) == 9 * len(speech.ENGLISH_VOICES) and {row['en'] for row in ALL_PAIRS} == set(speech.ENGLISH_VOICES)
     assert [(v['gender'], v['region']) for v in PAIRS[:6]] == [
         (gender, region) for gender in ('Nữ', 'Nam') for region in ('Bắc', 'Trung', 'Nam')]
     assert {(v['region'], v['gender']) for v in PAIRS} == {
@@ -40,7 +40,11 @@ def test_suggested_pairs_preserve_regional_order_and_include_extra_speakers():
         ('vieneu:Trúc Ly', 'kokoro-us:af_bella'),
         ('vieneu:Đoan Trang', 'kokoro-us:af_heart'),
         ('vieneu:Phạm Tuyên', 'kokoro-us:am_michael')]
-    assert len({(v['vi'], v['en']) for v in ALL_PAIRS}) == 27
+    assert len({(v['vi'], v['en']) for v in ALL_PAIRS}) == 9 * len(speech.ENGLISH_VOICES)
+    from app.voice_pairs import RECOMMENDED_PAIRS
+    assert len(RECOMMENDED_PAIRS) == 9
+    assert len({v['en'] for v in RECOMMENDED_PAIRS}) == 8
+    assert {v['vi'] for v in RECOMMENDED_PAIRS} == {v['id'] for v in speech.VIENEU_VOICES}
 
 
 @pytest.mark.parametrize('pair', ALL_PAIRS, ids=lambda row: row['id'])

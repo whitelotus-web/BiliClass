@@ -2,7 +2,9 @@
 
 ENGLISH_VERSION = 'kokoro-v1_0-sherpa-1.13.8-us-weak-article-v1'
 ENGLISH_VOICES = {'kokoro-us:af_heart': ('Heart', 3), 'kokoro-us:af_bella': ('Bella', 2),
-                  'kokoro-us:am_michael': ('Michael', 16)}
+                  'kokoro-us:af_nicole': ('Nicole', 6), 'kokoro-us:af_sarah': ('Sarah', 9),
+                  'kokoro-us:af_kore': ('Kore', 5), 'kokoro-us:am_michael': ('Michael', 16),
+                  'kokoro-us:am_fenrir': ('Fenrir', 14), 'kokoro-us:am_puck': ('Puck', 18)}
 PAIRS = tuple(
     {'id': 'pair:' + identity, 'name': f'{vi} + {en} · {gender} {region}–Mỹ',
      'label': f'{vi} – {en}', 'subtitle': f'{gender} {region} – Mỹ',
@@ -36,6 +38,13 @@ BY_ID = {row['id']: row for row in ALL_PAIRS}
 
 def compose(vi, en):
     return next((row['id'] for row in ALL_PAIRS if row['vi'] == vi and row['en'] == en), '')
+
+
+# Suggestions can evolve without changing the speaker behind a saved pair ID.
+RECOMMENDED_PAIRS = tuple(BY_ID[compose(row['vi'], 'kokoro-us:' + english)]
+                          for row, english in zip(PAIRS, (
+                              'af_heart', 'af_sarah', 'af_kore', 'am_michael', 'am_fenrir',
+                              'am_puck', 'af_bella', 'af_nicole', 'am_michael'), strict=True))
 
 
 def voice_for(selection, language):

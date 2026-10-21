@@ -7,10 +7,11 @@ from pathlib import Path
 from unittest.mock import patch
 
 from PIL import Image
-from PySide6.QtCore import QCoreApplication, QEvent, QObject, QPointF, QUrl
+from PySide6.QtCore import QCoreApplication, QEvent, QObject, QPointF, Qt, QUrl
 from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
+from PySide6.QtTest import QTest
 
 from app.branding import configure_application
 from app.library import Library
@@ -120,7 +121,8 @@ def main():
                     # reachable without horizontal overflow or changing drafts.
                     viewport.setProperty('contentY', max(0, viewport.property('contentHeight')-viewport.height()))
                     pump(100)
-                    for name in ('previewMultilingualVoice', 'stopVoicePreview', 'saveMultilingualVoice'):
+                    assert window.findChild(QObject, 'stopVoicePreview') is None
+                    for name in ('previewMultilingualVoice', 'saveMultilingualVoice'):
                         button = c(name)
                         point = button.mapToItem(viewport, QPointF())
                         assert point.x() >= 0 and point.x()+button.width() <= viewport.width()+1
@@ -128,6 +130,7 @@ def main():
                     window.grabWindow().save(str(reports/f'{mode}-voice-{width}.png'))
                     page.setProperty('activeTab', 3)
                     pump(80)
+                    assert c('mascotShortcutsTitle').property('text') == 'Phím tắt Mascot'
                     assert window.findChild(QObject, 'mascotReducedMotion') is None
                     assert not c('mascotPreview').property('reducedMotion')
                     assert c('mascotAccessories').property('text') == 'Hiện phụ kiện theo môn'
@@ -149,7 +152,20 @@ def main():
                     guide, bindings, navigation = c('shortcutGuideLayout'), c('shortcutBindings'), c('shortcutNavigationGuide')
                     if guide.property('columns') == 2:
                         gap = navigation.mapToScene(QPointF()).x()-(bindings.mapToScene(QPointF()).x()+bindings.width())
-                        assert 31 <= gap <= 33, gap
+                        assert 39 <= gap <= 41, gap
+                        assert abs(bindings.width()-navigation.width()) < 2
+                        assert abs(bindings.mapToScene(QPointF()).y()-navigation.mapToScene(QPointF()).y()) < 2
+                    else:
+                        assert navigation.mapToScene(QPointF()).y() >= bindings.mapToScene(QPointF(0, bindings.height())).y()+23
+                    reset, save = c('resetMascotShortcuts'), c('saveMascotShortcuts')
+                    action_gap = save.mapToScene(QPointF()).x()-reset.mapToScene(QPointF(reset.width(), 0)).x()
+                    assert 9 <= action_gap <= 11
+                    panel = c('mascotShortcutPanel')
+                    assert abs(save.mapToItem(panel, QPointF(save.width(), 0)).x()-panel.width()) < 2
+                    for name in ('shortcutBinden', 'shortcutBindvi', 'shortcutArrowCluster'):
+                        item = c(name)
+                        point = item.mapToItem(panel, QPointF())
+                        assert point.x() >= 0 and point.x()+item.width() <= panel.width()+1
                     assert window.grabWindow().save(str(reports/f'{mode}-mascot-shortcuts-{width}.png'))
             page.setProperty('activeTab', 3)
             window.showMaximized()
@@ -163,6 +179,16 @@ def main():
             pump(150)
             assert abs(mascot.width()-mascot.parentItem().width()) < 2
             assert c('settingsContentScroll').property('contentItem').property('contentWidth') <= c('settingsContentScroll').width()+1
+            click(window, c('shortcutBinden'))
+            QTest.keyClick(window, Qt.Key_A)
+            pump(80)
+            assert c('saveMascotShortcuts').isEnabled()
+            click(window, c('saveMascotShortcuts'))
+            assert bridge.mascotShortcuts.state['bindings']['en'] == 'A'
+            assert library.setting('mascot_shortcuts', {})['en'] == 'A'
+            click(window, c('resetMascotShortcuts'))
+            assert bridge.mascotShortcuts.state['bindings']['en'] == 'Space'
+            assert not c('saveMascotShortcuts').isEnabled()
             for width, height in ((1080, 700), (1366, 850), (1920, 1080)):
                 window.resize(width, height)
                 page.setProperty('activeTab', 1)
@@ -224,7 +250,7 @@ def main():
                 'Logo add/replace/remove updates image, buttons and saved asset',
                 'Voice actions remain next to rate controls at 1080/1366/1920, light/dark',
                 'Centered brand, version, update action and copyright in that vertical order',
-                'Mascot fills the content width at 1080/1366/1920 and maximized; shrinking has no horizontal overflow; shortcut columns remain adjacent',
+                'Mascot fills the content width; shortcut groups have equal columns on wide windows, stack on narrow windows and keep actions together at the right',
                 'Three main storage actions; advanced actions collapsed and reachable',
                 'Profile fields still save; redundant voice hint hidden at rest',
                 'Real backup/restore preserves original library, profile and audio',

@@ -29,9 +29,11 @@ def voice_matches(row, voice):
     if not variants and audio.get('mode') in {'en', 'vi', 'both'}:
         variants = [audio]  # Single recording from an older version.
     if voice in {'en', 'vi', 'both'}:
-        return any(v.get('ready') and v.get('mode') == voice for v in variants)
+        languages = {language for variant in variants if variant.get('ready')
+                     for language in (('vi', 'en') if variant.get('mode') == 'both' else (variant.get('mode'),))}
+        return {'vi', 'en'} <= languages if voice == 'both' else voice in languages
     if voice == 'none':
-        return not variants and audio.get('status') not in {'checking', 'unknown'}
+        return not any(v.get('ready') for v in variants) and audio.get('status') != 'checking'
     if voice == 'partial':
         return any(not v.get('ready') for v in variants)
     return True

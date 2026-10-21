@@ -252,16 +252,51 @@ def main():
                 hint = QQmlExpression(QQmlEngine.contextForObject(target), target, 'ToolTip.visible')
                 assert hint.evaluate() == (False, False) and not hint.hasError()
             help_button = c('companionShortcutGuideToggle')
+            screen_area = app.primaryScreen().availableGeometry()
+            companion.setPosition(screen_area.right()-companion.width()-12, screen_area.bottom()-companion.height()-12)
+            pump(100)
             QTest.mouseMove(companion, QPoint(12, 12))
             pump(100)
             height_without_guide = companion.height()
             QTest.mouseMove(companion, help_button.mapToScene(QPointF(15, 15)).toPoint())
             pump(300)
-            until(lambda: c('companionShortcutTooltip').property('visible'))
+            until(lambda: c('companionShortcutTooltip').property('opened'))
+            pump(100)
+            tooltip = c('companionShortcutTooltip')
+            geometry_expression = QQmlExpression(QQmlEngine.contextForObject(tooltip), tooltip,
+                'JSON.stringify({native: contentItem.Window.window !== parent.Window.window, visible: contentItem.Window.window.visible, x: contentItem.Window.window.x, y: contentItem.Window.window.y, width: contentItem.Window.window.width, height: contentItem.Window.window.height})')
+            geometry, error = geometry_expression.evaluate()
+            assert not error
+            native_tip = json.loads(geometry)
+            assert native_tip['native'] and native_tip['visible']
+            panel_top = c('companionMenu').mapToGlobal(QPointF()).y()
+            panel_left = c('companionMenu').mapToGlobal(QPointF()).x()
+            if panel_top-screen_area.top() >= native_tip['height']+16:
+                assert native_tip['y']+native_tip['height'] <= panel_top-4, (native_tip, panel_top)
+            else:
+                assert (native_tip['x']+native_tip['width'] <= panel_left-4
+                        or native_tip['x'] >= panel_left+c('companionMenu').width()+4), (native_tip, panel_top)
             assert companion.height() == height_without_guide, 'Hover help must not resize the panel'
             assert companion.grabWindow().save(str(report / 'shortcut-tooltip.png'))
             QTest.mouseMove(companion, QPoint(10, 10))
             until(lambda: not c('companionShortcutTooltip').property('visible'))
+            bottom_position = companion.position()
+            companion.setPosition(screen_area.left()+12, screen_area.top()+12)
+            companion.raise_()
+            pump(150)
+            QTest.mouseMove(companion, QPoint(10, 10))
+            pump(80)
+            QTest.mouseMove(companion, help_button.mapToScene(QPointF(15, 15)).toPoint())
+            until(lambda: tooltip.property('opened'), timeout=5)
+            pump(100)
+            geometry, error = geometry_expression.evaluate()
+            assert not error
+            edge_tip = json.loads(geometry)
+            panel_left = c('companionMenu').mapToGlobal(QPointF()).x()
+            assert edge_tip['x'] >= panel_left+c('companionMenu').width()+4, edge_tip
+            QTest.mouseMove(companion, QPoint(10, 10))
+            until(lambda: not tooltip.property('visible'))
+            companion.setPosition(bottom_position)
             assert bridge.mascotShortcuts.state['labels']['en'] == 'Space ␣'
             assert bridge.mascotShortcuts.state['labels']['vi'] == 'Enter ↵'
             assert 'both' not in bridge.mascotShortcuts.state['labels']
@@ -364,6 +399,7 @@ def main():
             result = dict(status='passed', sizes=3, opacity_clicks=2, settings_preserves_binding=True,
                           subject_badge_hidden=True, fixed_two_speakers=True, availability_geometry_stable=True, plain_speaker_icons=True, qml_warnings=warnings,
                           panel_drag_and_down_arrow=True,
+                          shortcut_tooltip_above_panel=True, shortcut_tooltip_edge_fallback_without_overlap=True,
                           wheel_volume_5_percent=True, system_volume_two_way=True, navigation_tooltips_removed=True,
                           transparency_max_ui_gap_seconds=round(max_gap, 3), transparency_broad_refreshes=len(broad_refreshes),
                           scope='Qt hit targets/geometry with intercepted commands; native Office verified separately')

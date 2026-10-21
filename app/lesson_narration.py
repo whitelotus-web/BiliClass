@@ -164,15 +164,23 @@ def valid_key(directory, key):
         return False
 
 
-def automatic_repair_choice(lesson):
-    """Recover a previously finished voice affected only by known source stamps."""
+def automatic_repair_choice(lesson, status=None):
+    """Recover finished voice after lost WAVs or known source stamps."""
     from .narration_text import clean_artifacts
 
     record = lesson.get('narration') or {}
     if (not isinstance(record, dict) or type(record.get('total')) is not int or record['total'] <= 0
             or record.get('complete') != record['total']
-            or record.get('failed') or record.get('cancelled') or not record.get('skipped')
+            or record.get('failed') or record.get('cancelled')
             or not variant_id(record) or record.get('signature') != signature(lesson)):
+        return None
+    if not record.get('skipped'):
+        # Background verification found lost WAVs in a previously finished
+        # recording. Reuse the exact saved plan, never an interrupted job or
+        # stale content, and let the normal worker create only missing keys.
+        if (status and status.get('id') == variant_id(record)
+                and status.get('status') in {'partial', 'pending'} and status.get('total', 0) > 0):
+            return {'mode': record['mode'], 'voice': record['voice'], 'rate': record['rate']}
         return None
     if not any(clean_artifacts(row[lang]) != row[lang]
                for row in narration_segments(lesson) for lang in MODES[record['mode']]):

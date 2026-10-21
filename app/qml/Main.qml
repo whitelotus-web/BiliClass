@@ -507,6 +507,7 @@ ApplicationWindow {
         }
         function onQuickResultChanged() { Qt.callLater(root.ensureVoiceThumbnail) }
         function onNarrationChanged() {
+            if (root.page === "voice") Qt.callLater(function() { bridge.completeLegacyNarration() })
             const job = bridge.narrationPreparation
             if (bridge.lessonNarration.ready && !job.running && !root.voiceResultDismissed) Qt.callLater(root.revealCompletedNarration)
             if (job.lesson_id !== root.lessonData.id) return
@@ -735,7 +736,7 @@ ApplicationWindow {
         LibraryVoiceBadge { id: statusBadge; objectName: "lessonNarrationBadge_" + statusButton.lessonRow.id; visible: false; expanded: true; audio: statusButton.lessonRow.narration || ({}) }
         Accessible.name: text + ". Chọn hoặc tạo giọng đọc."
         ToolTip.visible: hovered; ToolTip.delay: 500
-        ToolTip.text: ((lessonRow.narration || {}).label || "Chưa có giọng đọc") + "\nBấm để chọn hoặc tạo giọng đọc."
+        ToolTip.text: statusButton.text + "\nBấm để chọn hoặc tạo giọng đọc."
         contentItem: Label { objectName: "libraryVoicePillText"; text: statusButton.text; color: statusBadge.foreground; font.pixelSize: 11; font.weight: Font.DemiBold; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
         background: Rectangle { radius: 14; color: statusButton.hovered ? (AppTheme.dark ? Qt.lighter(statusBadge.fill, 1.1) : Qt.darker(statusBadge.fill, 1.04)) : statusBadge.fill; border.color: statusButton.visualFocus ? root.blue : statusBadge.outline }
         onClicked: bridge.openLessonNarration(lessonRow.id)
@@ -889,7 +890,7 @@ ApplicationWindow {
                                 LibraryFilter { id: subjectFilter; objectName: "librarySubjectFilter"; emptyLabel: "Môn học"; Layout.fillWidth: true; Layout.minimumWidth: 78; Layout.preferredWidth: 94; Layout.maximumWidth: 170; model: bridge.librarySubjects; textRole: "label"; valueRole: "id"; onActivated: root.libraryPage = 1 }
                                 LibraryFilter { id: gradeFilter; objectName: "libraryGradeFilter"; emptyLabel: "Khối lớp"; Layout.fillWidth: true; Layout.minimumWidth: 72; Layout.preferredWidth: 80; Layout.maximumWidth: 150; model: bridge.libraryGrades; textRole: "label"; valueRole: "id"; onActivated: root.libraryPage = 1 }
                                 LibraryFilter { id: stateFilter; objectName: "libraryStateFilter"; emptyLabel: "Trạng thái"; Layout.fillWidth: true; Layout.minimumWidth: 80; Layout.preferredWidth: 90; Layout.maximumWidth: 170; textRole: "label"; valueRole: "id"; model: [{id:"",label:"Tất cả trạng thái"},{id:"ready",label:"Đã duyệt nội dung"},{id:"review",label:"Cần xử lý"},{id:"draft",label:"Bản nháp"}]; onActivated: root.libraryPage = 1 }
-                                LibraryFilter { id: voiceFilter; objectName: "libraryVoiceFilter"; emptyLabel: "Giọng đọc"; Layout.fillWidth: true; Layout.minimumWidth: 78; Layout.preferredWidth: 92; Layout.maximumWidth: 170; textRole: "label"; valueRole: "id"; model: [{id:"",label:"Tất cả giọng đọc"},{id:"en",label:"Có bản giọng Anh"},{id:"vi",label:"Có bản giọng Việt"},{id:"both",label:"Có bản giọng Việt–Anh"},{id:"none",label:"Chưa tạo giọng"},{id:"partial",label:"Giọng chưa hoàn tất"}]; onActivated: root.libraryPage = 1 }
+                                LibraryFilter { id: voiceFilter; objectName: "libraryVoiceFilter"; emptyLabel: "Giọng đọc"; Layout.fillWidth: true; Layout.minimumWidth: 78; Layout.preferredWidth: 92; Layout.maximumWidth: 170; textRole: "label"; valueRole: "id"; model: [{id:"",label:"Tất cả giọng đọc"},{id:"en",label:"Có bản giọng Anh"},{id:"vi",label:"Có bản giọng Việt"},{id:"both",label:"Có bản giọng Việt–Anh"},{id:"none",label:"Chưa có giọng"}]; onActivated: root.libraryPage = 1 }
                             }
                             LibraryAction { objectName: "libraryClearFilters"; text: "↺"; font.pixelSize: 18; Layout.preferredWidth: 30; Accessible.name: "Xóa bộ lọc"; ToolTip.visible: hovered; ToolTip.text: "Xóa bộ lọc"; onClicked: { search.clear(); subjectFilter.currentIndex = 0; gradeFilter.currentIndex = 0; stateFilter.currentIndex = 0; voiceFilter.currentIndex = 0; root.libraryPage = 1 } }
                             LibraryCheck { objectName: "librarySelectAll"; text: "Chọn tất cả"; ToolTip.visible: hovered; ToolTip.delay: 600; ToolTip.text: "Chọn toàn bộ " + root.libraryResult.total + " bài khớp bộ lọc, kể cả các trang khác.\nĐổi bộ lọc sẽ bỏ chọn."; Accessible.description: ToolTip.text; checkState: !root.selectedLessons.length ? Qt.Unchecked : root.selectedLessons.length === root.libraryResult.total ? Qt.Checked : Qt.PartiallyChecked; nextCheckState: function() { return checkState === Qt.Checked ? Qt.Unchecked : Qt.Checked }; enabled: root.libraryResult.total > 0; onClicked: root.selectedLessons = checked ? root.libraryResult.ids.slice() : [] }
@@ -1232,7 +1233,7 @@ ApplicationWindow {
                                         Layout.columnSpan: 2; Layout.preferredWidth: 130; Layout.minimumWidth: 80; Layout.fillWidth: true; Layout.alignment: Qt.AlignTop
                                     }
                                 }
-                                Caption { text: "Kiểu chuyển đổi · chọn một" }
+                                Caption { objectName: "conversionFormatTitle"; text: "Kiểu chuyển đổi" }
                                 GridLayout {
                                     id: creationFormat; objectName: "creationFormat"
                                     property int currentIndex: 0
@@ -1646,6 +1647,7 @@ ApplicationWindow {
                             Layout.fillWidth: true; implicitHeight: narrationForm.height + 28
                             ColumnLayout {
                                 id: narrationForm; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 14; spacing: root.compactVoice ? 6 : 8
+                                Caption { objectName: "narrationConfigurationTitle"; text: "Cấu hình tạo giọng đọc"; font.pixelSize: 15; Layout.fillWidth: true }
                                 RowLayout { Layout.fillWidth: true
                                     Caption { Layout.fillWidth: true; Layout.minimumWidth: 0; wrapMode: Text.WordWrap; text: root.narrationComplete ? "Hoàn tất giọng đọc" : root.page === "voice" ? "Giọng đọc và ngôn ngữ" : "Tạo giọng đọc · không bắt buộc" }
                                     Item { Layout.fillWidth: true }
@@ -1670,7 +1672,7 @@ ApplicationWindow {
                                         currentIndex: root.narrationRate + 3; enabled: !bridge.busy && !bridge.narrationBusy
                                         onActivated: { bridge.stopSpeech(); root.narrationRate = currentIndex - 3; bridge.saveMultilingualVoice(root.narrationVoice, root.narrationRate); if (root.page === "voice") root.narrationOptionsPinned = true }
                                     }
-                                    MainAction { objectName: "previewLessonNarrationVoice"; text: root.narrationPreviewActive ? (bridge.voiceUiState.phase === "preparing" ? "Dừng chuẩn bị" : "Dừng nghe") : "Nghe thử"; iconName: root.narrationPreviewActive ? "" : "play"; enabled: !!root.narrationVoice && !bridge.narrationBusy
+                                    MainAction { objectName: "previewLessonNarrationVoice"; text: root.narrationPreviewActive ? "Dừng" : "Nghe thử"; iconName: root.narrationPreviewActive ? "pause" : "play"; enabled: !!root.narrationVoice && !bridge.narrationBusy
                                         ToolTip.visible: hovered
                                         ToolTip.text: root.narrationMode === "both" ? "Nghe mẫu dài giọng Việt, rồi giọng Anh–Mỹ trong cặp đã chọn." : "Nghe mẫu dài tiếng " + (root.narrationMode === "vi" ? "Việt" : "Anh–Mỹ") + " bằng giọng và tốc độ đã chọn."
                                         onClicked: {
@@ -1681,14 +1683,17 @@ ApplicationWindow {
                                         }
                                     }
                                 }
-                                GridLayout { objectName: "narrationLanguagePositionRow"; Layout.fillWidth: true; columns: width >= 700 ? 2 : 1; columnSpacing: 24; rowSpacing: 8
-                                Flow { objectName: "narrationLanguageChoices"; Layout.fillWidth: true; spacing: 10
+                                GridLayout { objectName: "narrationLanguagePositionRow"; Layout.fillWidth: false; Layout.alignment: Qt.AlignHCenter; Layout.maximumWidth: parent.width
+                                Layout.preferredWidth: columns === 2 ? narrationLanguageChoices.naturalWidth + narrationPositionRow.implicitWidth + columnSpacing : Math.max(narrationLanguageChoices.naturalWidth, narrationPositionRow.implicitWidth)
+                                columns: parent.width >= narrationLanguageChoices.naturalWidth + narrationPositionRow.implicitWidth + columnSpacing ? 2 : 1; columnSpacing: 24; rowSpacing: 8
+                                Flow { id: narrationLanguageChoices; objectName: "narrationLanguageChoices"; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.preferredWidth: naturalWidth; spacing: 10
+                                    readonly property real naturalWidth: narrationEnglish.implicitWidth + narrationVietnamese.implicitWidth + narrationBoth.implicitWidth + spacing * 2
                                     ButtonGroup { id: narrationLanguages }
-                                    ChoiceRadioButton { highlightSelection: true; objectName: "narrationEnglish"; text: "Tiếng Anh"; ButtonGroup.group: narrationLanguages; checked: root.narrationMode === "en"; enabled: !bridge.busy && !bridge.narrationBusy && (!bridge.quickResult.path || bridge.narrationInputLanguages.en); onClicked: root.chooseNarrationMode("en") }
-                                    ChoiceRadioButton { highlightSelection: true; objectName: "narrationVietnamese"; text: "Tiếng Việt"; ButtonGroup.group: narrationLanguages; checked: root.narrationMode === "vi"; enabled: !bridge.busy && !bridge.narrationBusy && (!bridge.quickResult.path || bridge.narrationInputLanguages.vi); onClicked: root.chooseNarrationMode("vi") }
-                                    ChoiceRadioButton { highlightSelection: true; objectName: "narrationBoth"; text: "Cả Anh và Việt · 2 loa riêng"; ButtonGroup.group: narrationLanguages; checked: root.narrationMode === "both"; enabled: !bridge.busy && !bridge.narrationBusy && (!bridge.quickResult.path || bridge.narrationInputLanguages.vi && bridge.narrationInputLanguages.en); onClicked: root.chooseNarrationMode("both") }
+                                    ChoiceRadioButton { id: narrationEnglish; highlightSelection: true; objectName: "narrationEnglish"; text: "Tiếng Anh"; ButtonGroup.group: narrationLanguages; checked: root.narrationMode === "en"; enabled: !bridge.busy && !bridge.narrationBusy && (!bridge.quickResult.path || bridge.narrationInputLanguages.en); onClicked: root.chooseNarrationMode("en") }
+                                    ChoiceRadioButton { id: narrationVietnamese; highlightSelection: true; objectName: "narrationVietnamese"; text: "Tiếng Việt"; ButtonGroup.group: narrationLanguages; checked: root.narrationMode === "vi"; enabled: !bridge.busy && !bridge.narrationBusy && (!bridge.quickResult.path || bridge.narrationInputLanguages.vi); onClicked: root.chooseNarrationMode("vi") }
+                                    ChoiceRadioButton { id: narrationBoth; highlightSelection: true; objectName: "narrationBoth"; text: "Cả Anh và Việt · 2 loa riêng"; ButtonGroup.group: narrationLanguages; checked: root.narrationMode === "both"; enabled: !bridge.busy && !bridge.narrationBusy && (!bridge.quickResult.path || bridge.narrationInputLanguages.vi && bridge.narrationInputLanguages.en); onClicked: root.chooseNarrationMode("both") }
                                 }
-                                RowLayout { Layout.alignment: Qt.AlignRight; spacing: 10
+                                RowLayout { id: narrationPositionRow; Layout.alignment: Qt.AlignHCenter; spacing: 10
                                     Caption { text: "Vị trí loa" }
                                     Choice { objectName: "narrationSpeakerPosition"; Layout.preferredWidth: 170
                                         id: speakerPositionChoice; Accessible.name: "Vị trí loa trên slide"; hoverEnabled: true

@@ -28,8 +28,18 @@ def test_readiness_filter_never_calls_a_failed_layout_ready():
 def test_voice_filter_distinguishes_ready_languages_partial_and_absent():
     assert [r['id'] for r in query(rows(), voice='en')['rows']] == ['physics']
     assert [r['id'] for r in query(rows(), voice='partial')['rows']] == ['unfinished']
-    assert not query(rows(), voice='vi')['rows']
-    assert [r['id'] for r in query(rows(), voice='none')['rows']] == ['it', 'fail']
+    assert [r['id'] for r in query(rows(), voice='vi')['rows']] == ['physics']
+    assert [r['id'] for r in query(rows(), voice='none')['rows']] == ['it', 'unfinished', 'fail']
+
+
+def test_voice_filter_matches_the_same_ready_language_union_as_the_badge():
+    from app.library_view import voice_matches
+
+    row = {'narration': {'variants': [{'mode': 'en', 'ready': True}, {'mode': 'vi', 'ready': True}]}}
+    assert all(voice_matches(row, mode) for mode in ('en', 'vi', 'both'))
+    assert not voice_matches(row, 'none')
+    row['narration']['variants'] = [{'mode': 'both', 'ready': True}]
+    assert all(voice_matches(row, mode) for mode in ('en', 'vi', 'both'))
 
 
 def test_pagination_limits_created_rows_and_clamps_after_filtering():

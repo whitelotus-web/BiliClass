@@ -22,6 +22,7 @@ Item {
     function pairPreviewText() { return [vietnameseSample.text.trim(), englishSample.text.trim()].filter(function(value) { return !!value }).join("\n") }
     function chooseVoicePair(vi, en) { bridge.stopSpeech(); draftVoice = bridge.composeVoicePair(vi, en) }
     readonly property bool voiceDirty: draftVoice !== bridge.voiceSettings.voice || draftRate !== bridge.voiceSettings.rate
+    function previewActive(kind) { return bridge.voiceUiState.kind === kind && ["preparing", "playing"].indexOf(bridge.voiceUiState.phase) >= 0 }
     Connections {
         target: page.bridge
         function onVoiceSettingsChanged() { page.draftVoice = page.bridge.voiceSettings.voice; page.draftRate = page.bridge.voiceSettings.rate }
@@ -337,9 +338,10 @@ Item {
                                     onActivated: page.chooseVoicePair(currentValue, page.selectedVoicePair.en || bridge.englishVoices[0].id)
                                     Accessible.name: "Chọn giọng tiếng Việt để tự ghép cặp"
                                 }
-                                SoftButton { objectName: "previewVietnameseVoice"; text: "Nghe thử"; iconName: "play"; implicitHeight: 44
-                                    enabled: !!page.selectedVoicePair.vi && !!vietnameseSample.text.trim()
-                                    onClicked: bridge.previewNarrationLanguage("vi", page.draftVoice, page.draftRate, vietnameseSample.text)
+                                SoftButton { objectName: "previewVietnameseVoice"; text: page.previewActive("vi") ? "Dừng" : "Nghe thử"; iconName: page.previewActive("vi") ? "pause" : "play"; implicitHeight: 44
+                                    Layout.preferredWidth: 120; Layout.minimumWidth: 120
+                                    enabled: page.previewActive("vi") || !!page.selectedVoicePair.vi && !!vietnameseSample.text.trim()
+                                    onClicked: page.previewActive("vi") ? bridge.stopSpeech() : bridge.previewNarrationLanguage("vi", page.draftVoice, page.draftRate, vietnameseSample.text)
                                 }
                             }
                             TextArea {
@@ -361,9 +363,10 @@ Item {
                                     onActivated: page.chooseVoicePair(page.selectedVoicePair.vi || bridge.vietnameseVoices[0].id, currentValue)
                                     Accessible.name: "Chọn giọng tiếng Anh để tự ghép cặp"
                                 }
-                                SoftButton { objectName: "previewEnglishVoice"; text: "Nghe thử"; iconName: "play"; implicitHeight: 44
-                                    enabled: !!page.selectedVoicePair.en && !!englishSample.text.trim()
-                                    onClicked: bridge.previewNarrationLanguage("en", page.draftVoice, page.draftRate, englishSample.text)
+                                SoftButton { objectName: "previewEnglishVoice"; text: page.previewActive("en") ? "Dừng" : "Nghe thử"; iconName: page.previewActive("en") ? "pause" : "play"; implicitHeight: 44
+                                    Layout.preferredWidth: 120; Layout.minimumWidth: 120
+                                    enabled: page.previewActive("en") || !!page.selectedVoicePair.en && !!englishSample.text.trim()
+                                    onClicked: page.previewActive("en") ? bridge.stopSpeech() : bridge.previewNarrationLanguage("en", page.draftVoice, page.draftRate, englishSample.text)
                                 }
                             }
                             TextArea {
@@ -389,8 +392,7 @@ Item {
                     RowLayout {
                         objectName: "settingsVoiceActions"
                         Layout.fillWidth: true; spacing: 10
-                        SoftButton { objectName: "previewMultilingualVoice"; text: bridge.voiceUiState.phase === "preparing" ? "Đang chuẩn bị…" : "Nghe cả cặp"; iconName: "play"; enabled: !!page.draftVoice && !!page.pairPreviewText(); onClicked: bridge.previewMultilingualVoice(page.draftVoice, page.draftRate, page.pairPreviewText()) }
-                        SoftButton { objectName: "stopVoicePreview"; text: "Dừng nghe"; onClicked: bridge.stopSpeech() }
+                        SoftButton { objectName: "previewMultilingualVoice"; text: page.previewActive("pair") ? "Dừng" : "Nghe cả cặp"; iconName: page.previewActive("pair") ? "pause" : "play"; Layout.preferredWidth: 140; Layout.minimumWidth: 140; enabled: page.previewActive("pair") || !!page.draftVoice && !!page.pairPreviewText(); onClicked: page.previewActive("pair") ? bridge.stopSpeech() : bridge.previewMultilingualVoice(page.draftVoice, page.draftRate, page.pairPreviewText()) }
                         Item { Layout.fillWidth: true }
                         SaveButton { objectName: "saveMultilingualVoice"; text: bridge.voiceUiState.saving ? "Đang lưu…" : "Lưu cặp giọng và tốc độ"; enabled: !bridge.voiceUiState.saving && !!page.draftVoice; onClicked: bridge.saveMultilingualVoice(page.draftVoice, page.draftRate) }
                     }

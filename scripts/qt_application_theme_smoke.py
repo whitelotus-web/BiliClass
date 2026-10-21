@@ -100,10 +100,10 @@ def main():
             seen_fills = {}
             for audio, label in [
                 ({'status': 'none'}, 'Chưa có giọng'),
-                ({'status': 'none', 'variants': [{'status': 'partial', 'ready': False}]}, 'Giọng chưa đủ'),
+                ({'status': 'none', 'variants': [{'status': 'partial', 'ready': False}]}, 'Chưa có giọng'),
                 ({'status': 'stale', 'variants': [{'mode': 'en', 'ready': True}]}, 'Có giọng Anh'),
                 ({'status': 'ready', 'variants': [{'mode': 'en', 'ready': True}, {'mode': 'vi', 'ready': True}]}, 'Có giọng Việt + Anh'),
-                ({'status': 'unknown'}, 'Chưa kiểm tra giọng'),
+                ({'status': 'unknown'}, 'Chưa có giọng'),
                 ({'status': 'checking'}, 'Đang kiểm tra giọng…'),
             ]:
                 for mode in ('light', 'dark'):
@@ -118,7 +118,7 @@ def main():
                     assert fill != ink
                     seen_fills.setdefault(mode, {})[label] = fill
             for fills in seen_fills.values():
-                assert len({fills[label] for label in ('Chưa có giọng', 'Giọng chưa đủ', 'Có giọng Anh', 'Đang kiểm tra giọng…')}) == 4
+                assert len({fills[label] for label in ('Chưa có giọng', 'Có giọng Anh', 'Đang kiểm tra giọng…')}) == 3
             status.setProperty('lessonRow', original_row)
             root.grabWindow().save(str(reports/'clear-library-status.png'))
             root.setProperty('page', 'settings')
@@ -184,6 +184,10 @@ def main():
                 assert overview.height() < 290
                 assert abs(thumbnail.width()/thumbnail.height()-16/9) < .01
                 summary, footer, create = c('narrationConfiguration'), c('creationFooter'), c('createLessonNarrationButton')
+                assert c('narrationConfigurationTitle').property('text') == 'Cấu hình tạo giọng đọc'
+                language_row, panel = c('narrationLanguagePositionRow'), c('lessonNarrationPanel')
+                assert abs(language_row.mapToItem(panel, QPointF(language_row.width()/2, 0)).x()-panel.width()/2) < 2
+                assert language_row.width() < 850, 'Language and position must form one compact centered group'
                 assert summary.isVisible()
                 centered(summary, ('language', 'voice', 'rate', 'speakers', 'coverage'))
                 point = summary.mapToItem(footer, QPointF())

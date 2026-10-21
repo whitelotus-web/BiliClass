@@ -57,13 +57,19 @@ def main():
             root.setProperty('page', 'settings')
             settings = control(root, 'settingsPage')
             settings.setProperty('activeTab', 2)
-            for index, pair in enumerate(speech.PAIRS):
+            assert len(bridge.englishVoices) == 8
+            assert root.findChild(QObject, 'stopVoicePreview') is None
+            for index, pair in enumerate(bridge.suggestedVoicePairs):
                 control(root, 'selectMultilingualVoice'+str(index)).clicked.emit()
                 assert settings.property('draftVoice') == pair['id']
                 control(root, 'previewMultilingualVoice').clicked.emit()
                 until(lambda: len(played) == index+1)
                 assert speech.valid_audio(played[-1])
-                bridge.stopSpeech()
+                assert control(root, 'previewMultilingualVoice').property('text') == 'Dừng'
+                assert control(root, 'previewMultilingualVoice').property('iconName') == 'pause'
+                control(root, 'previewMultilingualVoice').clicked.emit()
+                assert bridge.voiceUiState['phase'] == 'idle'
+                assert control(root, 'previewMultilingualVoice').property('text') == 'Nghe cả cặp'
             for size in ((1080, 700), (1366, 850)):
                 root.resize(*size)
                 pump(120)
@@ -83,7 +89,15 @@ def main():
                 control(root, name).clicked.emit()
                 until(lambda: len(played) == before + 1)
                 assert speech.valid_audio(played[-1])
-                bridge.stopSpeech()
+                assert control(root, name).property('text') == 'Dừng'
+                assert control(root, name).property('iconName') == 'pause'
+                control(root, name).clicked.emit()
+                assert bridge.voiceUiState['phase'] == 'idle'
+                assert control(root, name).property('text') == 'Nghe thử'
+            control(root, 'previewEnglishVoice').clicked.emit()
+            until(lambda: bridge.voiceUiState['phase'] == 'playing')
+            bridge._speech_timer.timeout.emit()
+            assert control(root, 'previewEnglishVoice').property('text') == 'Nghe thử'
             for size in ((1080, 700), (1366, 850)):
                 root.resize(*size)
                 pump(120)
@@ -93,11 +107,23 @@ def main():
             assert library.setting('voice_options', {})['voice'] == custom
             assert bridge.voiceSettings['voice'] == custom
             assert custom in {row['id'] for row in bridge.multilingualVoices}
+            if '--preview-only' in sys.argv:
+                assert original.read_bytes() == source and not warnings, warnings
+                result = dict(status='passed', english_voices=len(bridge.englishVoices),
+                              suggestions=len(bridge.suggestedVoicePairs), play_stop_toggle=True,
+                              reset_after_playback_ends=True, separate_stop_removed=True,
+                              custom_pair_saved=True, source_preserved=True, warnings=warnings,
+                              scope='Settings preview controls and saved pair; no narration job or model inference')
+                (report/'result.json').write_text(json.dumps(result,indent=2),encoding='utf-8')
+                print(json.dumps(result),flush=True)
+                return
             bridge._show_lesson(lesson, preview, destination='voice', auto_repair=False, load_preview=False)
             until(lambda: root.property('narrationComplete'))
             assert not control(root, 'createLessonNarrationButton').isEnabled()
             assert root.findChild(QObject, 'resultReadBoth') is None
             assert companion.findChild(QObject, 'companionReadBoth') is None
+            if root.property('voiceConfigurationExpanded'):
+                control(root, 'toggleCompletedNarrationConfiguration').clicked.emit()
             control(root, 'toggleCompletedNarrationConfiguration').clicked.emit()
             pump(80)
             assert root.property('narrationOptionsPinned')

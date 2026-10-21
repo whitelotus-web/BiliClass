@@ -1353,7 +1353,7 @@ class Bridge(QObject):
         attempt = self._lesson['id'], self._lesson['revision'], variant_id(record)
         if attempt in self._automatic_narration_repairs or not self._available_voice(record.get('voice', '')):
             return
-        choice = automatic_repair_choice(self._lesson)
+        choice = automatic_repair_choice(self._lesson, self.lessonNarration)
         if not choice:
             return
         self._automatic_narration_repairs.add(attempt)
@@ -1835,6 +1835,12 @@ class Bridge(QObject):
         return [{"name": f"Màn hình {index + 1} · {screen.name()}", "index": index}
                 for index, screen in enumerate(QGuiApplication.screens())]
 
+    @Slot(QObject, result='QVariantMap')
+    def availableScreenBounds(self, window):
+        screen = window.screen() if window is not None else QGuiApplication.primaryScreen()
+        rect = screen.availableGeometry()
+        return dict(x=rect.x(), y=rect.y(), width=rect.width(), height=rect.height())
+
     @Slot(QObject, int)
     def showProjector(self, window, index):
         screens = QGuiApplication.screens()
@@ -1868,7 +1874,9 @@ class Bridge(QObject):
 
     @Property('QVariantList', notify=changed)
     def suggestedVoicePairs(self):
-        return self._voices
+        from .voice_pairs import RECOMMENDED_PAIRS
+
+        return list(RECOMMENDED_PAIRS) if self._voices else []
 
     @Property('QVariantList', notify=changed)
     def vietnameseVoices(self):
@@ -2472,7 +2480,7 @@ class Bridge(QObject):
             self.inform("Câu nghe thử cần từ 1 đến 1000 ký tự.", True, refresh=False)
             return
         self.stopSpeech()
-        self.voice_controls.preview(sample, voice, rate)
+        self.voice_controls.preview(sample, voice, rate, kind='pair')
 
     @Slot(str, str, int, str)
     def previewNarrationLanguage(self, language, voice, rate, sample):
@@ -2481,7 +2489,7 @@ class Bridge(QObject):
         if type(rate) is not int or not -3 <= rate <= 3 or not 1 <= len(sample.strip()) <= 1000:
             return
         self.stopSpeech()
-        self.voice_controls.preview(sample, speech.voice_for(voice, language), rate)
+        self.voice_controls.preview(sample, speech.voice_for(voice, language), rate, kind=language)
 
     @Slot(str, str, result="QVariantList")
     def inspectPair(self, vi, en):

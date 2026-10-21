@@ -40,17 +40,21 @@ def test_preferences_save_during_slow_preview_and_ignore_cancelled_audio(qt, tmp
     monkeypatch.setattr('app.voice_preview.preview', preview)
     played = []
     control.ready.connect(played.append)
-    control.preview('slow', 'vieneu:Mai Anh', 0)
+    control.preview('slow', 'vieneu:Mai Anh', 0, kind='vi')
     wait(qt, started.is_set)
     control.save('vieneu:Hải Đăng', 2)
     wait(qt, lambda: control.save_worker is None)
     assert library.setting('voice_options', {}) == {'voice':'vieneu:Hải Đăng', 'rate':2}
     assert control.phase == 'preparing' and not control.save_error
-    control.preview('latest', 'vieneu:Hải Đăng', 2)
+    assert control.summary()['kind'] == 'vi'
+    control.preview('latest', 'vieneu:Hải Đăng', 2, kind='en')
     wait(qt, lambda: len(played) == 1)
     release.set()
     wait(qt, lambda: not control.preview_workers)
     assert [row['path'] for row in played] == ['latest']
+    assert control.summary()['kind'] == 'en'
+    control.stop()
+    assert control.summary()['kind'] == '' and control.phase == 'idle'
     control.shutdown()
     control.deleteLater()
     QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)

@@ -66,23 +66,20 @@ ColumnLayout {
         capturing = ""; feedback = "Bấm Lưu phím để áp dụng."; invalid = false
     }
 
-    Label { text: "Phím đọc khi trình chiếu"; color: AppTheme.adapt("#102e54"); font.pixelSize: 17; font.bold: true }
-    Label {
-        text: "Bấm lần đầu: phát  →  Bấm lần nữa: tạm dừng  →  Bấm tiếp: đọc tiếp."
-        Layout.fillWidth: true; wrapMode: Text.WordWrap; color: AppTheme.adapt("#667997"); font.pixelSize: 13
-    }
+    Label { objectName: "mascotShortcutsTitle"; text: "Phím tắt Mascot"; color: AppTheme.adapt("#102e54"); font.pixelSize: 17; font.bold: true }
     GridLayout {
         objectName: "shortcutGuideLayout"; Layout.fillWidth: true
-        columns: panel.wideGuide ? 2 : 1; columnSpacing: 32; rowSpacing: 22
+        columns: panel.wideGuide ? 2 : 1; columnSpacing: 40; rowSpacing: 24
         ColumnLayout {
-        objectName: "shortcutBindings"; Layout.fillWidth: true; Layout.preferredWidth: 400; Layout.maximumWidth: panel.wideGuide ? 420 : Infinity; spacing: 12
+        objectName: "shortcutBindings"; Layout.fillWidth: true; Layout.fillHeight: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; spacing: 12
+        Label { text: "Giọng đọc"; color: AppTheme.adapt("#102e54"); font.pixelSize: 15; font.bold: true }
         Repeater {
         model: [{language: "en", label: "Đọc tiếng Anh", detail: "Một phím"}, {language: "vi", label: "Đọc tiếng Việt", detail: "Một phím"}]
         RowLayout {
             required property var modelData
-            Layout.fillWidth: true; spacing: 12
+            Layout.fillWidth: true; Layout.maximumWidth: 472; Layout.alignment: Qt.AlignLeft; spacing: 12
             ColumnLayout {
-                Layout.fillWidth: true; spacing: 3
+                Layout.preferredWidth: 140; Layout.minimumWidth: 110; spacing: 3
                 Label { text: modelData.label; color: AppTheme.adapt("#102e54"); font.pixelSize: 14; font.bold: true }
                 Label { text: modelData.detail; color: AppTheme.adapt("#667997"); font.pixelSize: 11 }
             }
@@ -90,7 +87,7 @@ ColumnLayout {
                 id: bindingButton
                 objectName: "shortcutBind" + modelData.language
                 text: panel.capturing === modelData.language ? "Nhấn phím… (Esc hủy)" : panel.draft[modelData.language].replace("Space", "Space ␣").replace("Enter", "Enter ↵").replace("+", " + ") + "   ·   Đổi phím"
-                Layout.preferredWidth: 220; implicitHeight: 46
+                Layout.fillWidth: true; Layout.preferredWidth: 220; Layout.minimumWidth: 220; Layout.maximumWidth: 320; implicitHeight: 46
                 background: Rectangle { radius: 8; color: panel.capturing === modelData.language ? AppTheme.adapt("#eaf3ff") : bindingButton.hovered ? AppTheme.adapt("#f4f8ff") : AppTheme.surface; border.color: bindingButton.activeFocus || panel.capturing === modelData.language ? AppTheme.adapt("#0869f9") : AppTheme.adapt("#cbdcf4"); border.width: bindingButton.visualFocus ? 2 : 1 }
                 contentItem: Label { text: bindingButton.text; color: AppTheme.adapt("#0869f9"); font.pixelSize: 13; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                 onClicked: { panel.capturing = modelData.language; panel.feedback = "Nhấn phím muốn gán; Esc để hủy."; panel.invalid = false; forceActiveFocus() }
@@ -102,9 +99,14 @@ ColumnLayout {
             }
         }
         }
+        Item { Layout.fillHeight: true }
+        Label {
+            text: "Bấm lần đầu: phát → Bấm lần nữa: tạm dừng → Bấm tiếp: đọc tiếp."
+            Layout.fillWidth: true; wrapMode: Text.WordWrap; color: AppTheme.adapt("#667997"); font.pixelSize: 12
+        }
         }
         ColumnLayout {
-            objectName: "shortcutNavigationGuide"; Layout.fillWidth: true; spacing: 12
+            objectName: "shortcutNavigationGuide"; Layout.fillWidth: true; Layout.fillHeight: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; spacing: 12
             Label { text: "Di chuyển và âm lượng"; color: AppTheme.adapt("#102e54"); font.pixelSize: 15; font.bold: true }
             RowLayout {
                 Layout.fillWidth: true; spacing: 22
@@ -122,6 +124,7 @@ ColumnLayout {
                     Label { text: panel.keyLabel("volume_up") + "  Tăng âm lượng 5%\n" + panel.keyLabel("volume_down") + "  Giảm âm lượng 5%"; color: AppTheme.adapt("#667997"); font.pixelSize: 14; lineHeight: 1.3; Layout.fillWidth: true; wrapMode: Text.WordWrap }
                 }
             }
+            Item { Layout.fillHeight: true }
             Label { text: "Bấm nút để đổi phím. Hết hiệu ứng mới chuyển slide. Esc: thoát trình chiếu."; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: AppTheme.adapt("#667997"); font.pixelSize: 12 }
         }
     }
@@ -133,9 +136,8 @@ ColumnLayout {
         Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 12
     }
     RowLayout {
-        Layout.fillWidth: true
+        objectName: "shortcutActions"; Layout.alignment: Qt.AlignRight; spacing: 10
         ActionButton { objectName: "resetMascotShortcuts"; text: "Khôi phục phím mặc định"; onClicked: { panel.capturing = ""; panel.settings.reset(); panel.draft = Object.assign({}, panel.settings.state.bindings); panel.feedback = "" } }
-        Item { Layout.fillWidth: true }
         ActionButton { objectName: "saveMascotShortcuts"; text: "Lưu phím"; primary: true; enabled: panel.dirty && !panel.capturing; onClicked: { if (panel.settings.save(panel.draft)) panel.draft = Object.assign({}, panel.settings.state.bindings); panel.feedback = ""; panel.invalid = false } }
     }
 }

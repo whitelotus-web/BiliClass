@@ -1,4 +1,4 @@
-"""Two US English speakers using one offline, CPU-only Kokoro model."""
+"""US English speakers using one offline, CPU-only Kokoro model."""
 
 import os
 import sys

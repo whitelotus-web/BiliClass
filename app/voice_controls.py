@@ -51,6 +51,7 @@ class VoiceControls(QObject):
         self.generation = 0
         self.pending = None
         self.phase = 'idle'
+        self.kind = ''
         self.message = ''
         self.save_message = ''
         self.save_error = False
@@ -60,7 +61,7 @@ class VoiceControls(QObject):
     def summary(self):
         return {'saving': self.save_worker is not None, 'saveMessage': self.save_message,
                 'saveError': self.save_error, 'phase': self.phase, 'message': self.message,
-                'previewSeconds': self.preview_seconds, 'saveSeconds': self.save_seconds}
+                'previewSeconds': self.preview_seconds, 'saveSeconds': self.save_seconds, 'kind': self.kind}
 
     def save(self, voice, rate):
         self.pending_save = {'voice': voice, 'rate': rate}
@@ -96,8 +97,9 @@ class VoiceControls(QObject):
             self.saved.emit()
         task.deleteLater()
 
-    def preview(self, text, voice, rate):
+    def preview(self, text, voice, rate, *, kind='pair'):
         self.stop()
+        self.kind = kind
         self.phase, self.message = 'preparing', 'Đang chuẩn bị câu nghe thử…'
         request = self.generation, text, voice, rate
         self.changed.emit()
@@ -142,6 +144,7 @@ class VoiceControls(QObject):
         for task in self.preview_workers:
             task.cancel.set()
         self.phase, self.message = 'idle', ''
+        self.kind = ''
         self.changed.emit()
 
     def shutdown(self):

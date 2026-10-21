@@ -113,6 +113,8 @@ def main():
                 if name.startswith('formatChoice_'):
                     preview = c(name + 'Preview')
                     local = preview.mapToItem(card, QPointF())
+                    assert preview.property('text') == 'Xem mẫu'
+                    assert abs(local.x()+preview.width()-(card.width()-(8 if card.property('compact') else 12))) < 2
                     dimensions.extend((local.x(), local.y(), preview.width(), preview.height()))
                     previews.append(preview.property('text'))
             return dimensions, previews
@@ -123,6 +125,7 @@ def main():
             assert all(abs(a - b) <= 1 for a, b in zip(actual[0], expected[0], strict=True)), (expected, actual)
         try:
             window.setProperty("page", "new")
+            assert c('conversionFormatTitle').property('text') == 'Kiểu chuyển đổi'
             path = temp / "Bài giảng PowerPoint có tên dài để kiểm tra bố cục.pptx"
             deck = Presentation()
             deck.slides.add_slide(deck.slide_layouts[6])

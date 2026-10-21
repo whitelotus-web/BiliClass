@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Window
 
 ColumnLayout {
     id: controls
@@ -40,10 +41,26 @@ ColumnLayout {
         HeaderAction {
             id: shortcutHelp; objectName: "companionShortcutGuideToggle"; iconName: "keyboard-help"; hint: "Rê chuột để xem hướng dẫn phím"; standardHint: false
             ToolTip {
+                id: shortcutTooltip
                 objectName: "companionShortcutTooltip"
-                visible: shortcutHelp.pointerHovered; delay: 250; timeout: -1
+                popupType: Popup.Window
+                visible: controls.companion.visible && !controls.companion.collapsed && shortcutHelp.pointerHovered; delay: 250; timeout: -1
                 width: Math.min(370, controls.companion.width - 20)
-                x: -width + shortcutHelp.width; y: shortcutHelp.height + 6
+                onAboutToShow: {
+                    const bounds = controls.bridge.availableScreenBounds(controls.companion)
+                    const panel = controls.companion.helpPanelRect()
+                    const anchor = shortcutHelp.mapToGlobal(Qt.point(0, 0))
+                    const clamp = function(value, lower, upper) { return Math.max(lower, Math.min(upper, value)) }
+                    let left = clamp(panel.x + panel.width - width, bounds.x + 8, bounds.x + bounds.width - width - 8)
+                    let top = panel.y - height - 8
+                    if (top < bounds.y + 8) {
+                        top = clamp(panel.y, bounds.y + 8, bounds.y + bounds.height - height - 8)
+                        if (panel.x - width - 8 >= bounds.x + 8) left = panel.x - width - 8
+                        else if (panel.x + panel.width + width + 16 <= bounds.x + bounds.width) left = panel.x + panel.width + 8
+                        else top = panel.y + panel.height + 8
+                    }
+                    x = left - anchor.x; y = top - anchor.y
+                }
                 padding: 12
                 background: Rectangle { color: AppTheme.adapt("#ffffff"); border.color: AppTheme.adapt("#cbdcf4"); radius: 10 }
                 contentItem: ShortcutGuide { settings: controls.bridge.mascotShortcuts }

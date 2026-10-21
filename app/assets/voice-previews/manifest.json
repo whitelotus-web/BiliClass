@@ -97,6 +97,36 @@
       "text": "Hello everyone. Today, we are going to explore a new lesson together. First, look carefully at the example and think about what you already know. Take your time, explain your ideas in your own words, and remember that asking a good question is an important part of learning.",
       "engine": "kokoro-v1_0-sherpa-1.13.8-us-weak-article-v1",
       "sha256": "d8e9f136989ba9ebe671cb17894f4c3737d8b3f07ef56f03beaa220af61912cd"
+    },
+    "8af37956bcfec7c88241a979fb6bdb4a7e40bb61a2b55f1c0f375a8b844e1bae.wav": {
+      "voice": "kokoro-us:af_nicole",
+      "text": "Hello everyone. Today, we are going to explore a new lesson together. First, look carefully at the example and think about what you already know. Take your time, explain your ideas in your own words, and remember that asking a good question is an important part of learning.",
+      "engine": "kokoro-v1_0-sherpa-1.13.8-us-weak-article-v1",
+      "sha256": "863ffaa62c2d7dd6d067b15d440fe4b47c5ac5d075d9ed97c704f3579c47df55"
+    },
+    "8bc654c7568e367f13495d4b7dc6619d0df10e6ab24e52432896042aab73bfe8.wav": {
+      "voice": "kokoro-us:af_sarah",
+      "text": "Hello everyone. Today, we are going to explore a new lesson together. First, look carefully at the example and think about what you already know. Take your time, explain your ideas in your own words, and remember that asking a good question is an important part of learning.",
+      "engine": "kokoro-v1_0-sherpa-1.13.8-us-weak-article-v1",
+      "sha256": "88102f8d8286c4c350954b35438cf3feffc263edac5963c35e51c42a91aab102"
+    },
+    "b6690a6d8dcc544a4be9e168b48573c7e63f9f6101d2e2bbe79554c6eb43ebd2.wav": {
+      "voice": "kokoro-us:af_kore",
+      "text": "Hello everyone. Today, we are going to explore a new lesson together. First, look carefully at the example and think about what you already know. Take your time, explain your ideas in your own words, and remember that asking a good question is an important part of learning.",
+      "engine": "kokoro-v1_0-sherpa-1.13.8-us-weak-article-v1",
+      "sha256": "60d0f20cc993c670b74703b939c513f796d088067ecbdd78b141aa5b890c95bf"
+    },
+    "ef9e3b3bc951c99423c438ce6e75e6f4b3b542e99ec5c8c68aae1e3184e4f203.wav": {
+      "voice": "kokoro-us:am_fenrir",
+      "text": "Hello everyone. Today, we are going to explore a new lesson together. First, look carefully at the example and think about what you already know. Take your time, explain your ideas in your own words, and remember that asking a good question is an important part of learning.",
+      "engine": "kokoro-v1_0-sherpa-1.13.8-us-weak-article-v1",
+      "sha256": "4367e982ce3612a5f35b560d943b65af787a9344ae9c10ea4e45cd8c43c69e2e"
+    },
+    "fa872d2614ff260fd29b5af5fc31c9d82da6722199ca4baa0a3c0ab1a56b0e5f.wav": {
+      "voice": "kokoro-us:am_puck",
+      "text": "Hello everyone. Today, we are going to explore a new lesson together. First, look carefully at the example and think about what you already know. Take your time, explain your ideas in your own words, and remember that asking a good question is an important part of learning.",
+      "engine": "kokoro-v1_0-sherpa-1.13.8-us-weak-article-v1",
+      "sha256": "bf1fc74cbd6610eeb03fb5d59a14099a807b29c70440d259c56b1a430a92aee0"
     }
   }
 }
