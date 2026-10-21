@@ -36,7 +36,8 @@ def records(lesson):
 
 
 def variant_title(record):
-    voice = next((v['name'] for v in (*speech.VIENEU_VOICES, *speech.ALL_PAIRS) if v['id'] == record.get('voice')), record.get('voice', ''))
+    voice = next((v['name'] for v in (*speech.VIENEU_VOICES, *speech.ALL_PAIRS) if v['id'] == record.get('voice')),
+                 speech.ENGLISH_VOICES.get(record.get('voice'), ('Giọng đọc đã lưu',))[0])
     mode = 'Việt + Anh · hai loa riêng' if record.get('mode') == 'both' else LABELS.get(record.get('mode'), '')
     rate = record.get('rate', 0)
     speed = round(speech._SPEEDS[rate + 3] * 100) if type(rate) is int and -3 <= rate <= 3 else 100

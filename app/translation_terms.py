@@ -14,6 +14,16 @@ HEADINGS = {
     'phiếu học tập': 'Worksheet', 'hướng dẫn về nhà': 'Homework',
     'hướng dẫn vẽ đồ thị': 'Graphing instructions',
 }
+# Whole headings only: sentence translations still keep their own grammar.
+# Geometry assumptions are axioms/postulates, not "recognizational properties".
+MATH_HEADINGS = {
+    'khái niệm mở đầu': 'Introductory concepts',
+    'các tính chất thừa nhận': 'Basic axioms',
+    'cách xác định một mặt phẳng': 'Determining a plane',
+    'hình chóp và hình tứ diện': 'Pyramids and tetrahedra',
+    'các ví dụ minh họa': 'Illustrative examples',
+    'bài tập': 'Exercises',
+}
 _NUMBERED = re.compile(r'^(bài|bai|chương|chuong|câu|cau|mục|muc)\s*(\d+(?:\.\d+)*|[IVXLCDM]+|⟦BLC\d+⟧)(?!\w)', re.I)
 _LABELS = {'bài':'Lesson', 'bai':'Lesson', 'chương':'Chapter', 'chuong':'Chapter',
            'câu':'Question', 'cau':'Question', 'mục':'Section', 'muc':'Section'}
@@ -66,6 +76,8 @@ class TermPolicy:
         key = normalized(text)
         if key in self.terms:
             return text.strip() if key in self.identity_terms else self.terms[key]
+        if self.subject == 'toan' and key in MATH_HEADINGS:
+            return MATH_HEADINGS[key]
         if key in HEADINGS:
             return HEADINGS[key]
         heading = numbered_heading(text)

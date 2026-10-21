@@ -73,6 +73,11 @@ def display_state(state):
         message = ERROR_COPY.get(state.get("errorCode"),
                                  "Chuyển đổi đang tạm dừng do kết nối gián đoạn. Bài đang làm đã được giữ để tiếp tục.")
         label = "Cần xác minh tài khoản" if state.get("needsLogin") else "Chuyển đổi tạm dừng"
+        context = state.get('issueContext') or {}
+        if context.get('source_slides'):
+            message += ' Slide nguồn: ' + ', '.join(map(str, context['source_slides'])) + '.'
+        if context.get('excerpt'):
+            message += ' Vùng nội dung: “' + context['excerpt'] + '”.'
     elif state.get("phase") == "completed":
         label, message = STAGE_COPY["completed"]
     elif not state.get("running"):

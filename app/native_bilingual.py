@@ -9,6 +9,7 @@ from pathlib import Path
 from lxml import etree
 
 from .native_layout import can_fit, fit_body
+from .powerpoint_notes import text_frame as notes_text_frame
 from .source_deck import NS, _bytes, _part_relative, _rels_path, _size, _xml, source_slide_parts
 from .translation_batches import TOKEN, lock_numbers, restore
 
@@ -491,7 +492,7 @@ def assemble(source, destination, manifest, translations, mode):
                 elif manifest.get('version', 1) >= 2:
                     fit_body(clone, max(u['font_size'] for u in units))
             if together:
-                same_slide.fit(shape,max(u['font_size'] for u in units))
+                same_slide.fit(shape,max(u['font_size'] for u in units),title=title)
             elif manifest.get('version', 1) >= 2:
                 fit_body(shape, max(u['font_size'] for u in units), minimum=14 if paired else 18)
         from .slide_typography import protect_tree
@@ -512,7 +513,7 @@ def assemble(source, destination, manifest, translations, mode):
     original_parts = source_slide_parts(source)
     normalized = {str(slide.part.partname)[1:]:part for slide,part in zip(deck.slides,original_parts,strict=True)}
     for index,pair in notes.items():
-        frame = deck.slides[index-1].notes_slide.notes_text_frame
+        frame = notes_text_frame(deck.slides[index-1])
         original = frame.text.split('BILICLASS_NOTES:')[0].rstrip()
         frame.text = original + '\nBILICLASS_NOTES:\nVI: ' + '\n'.join(pair['vi']) + '\nEN: ' + '\n'.join(pair['en'])
     notes_copy = destination.with_suffix('.notes.pptx')

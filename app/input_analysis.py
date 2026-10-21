@@ -13,7 +13,8 @@ LABELS = {"vi": "Tiếng Việt", "en": "Tiếng Anh", "bilingual": "Có cặp V
 
 @lru_cache(maxsize=4096)
 def language_of(text):
-    words = re.findall(r"[^\W\d_]+", text.casefold(), re.UNICODE)
+    words = [word for word in re.findall(r"[^\W\d_]+", text.casefold(), re.UNICODE)
+             if any(char.isalpha() for char in word)]
     if not words:
         return "neutral"
     accents = sum(any(ord(char) > 127 and char in "ăâđêôơưáàảãạắằẳẵặấầẩẫậéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ" for char in word) for word in words)

@@ -161,16 +161,19 @@ def import_presentation(directory, path):
     with closing(Library(directory)) as library:
         # Check exact bytes before parsing. Reopening a known presentation keeps
         # its edited scripts and recordings, without inspecting every slide again.
-        for row in library.db.execute('SELECT content FROM lessons'):
-            lesson = json.loads(row[0])
-            if lesson.get('voice_only') and (lesson.get('source') or {}).get('sha256') == digest and not lesson.get('deleted_at'):
-                source = library.store_source(path)
-                if source['sha256'] != digest:
-                    raise ValueError('PowerPoint đã thay đổi trong lúc đọc. Chọn lại file trước khi tạo giọng.')
-                lesson = prepare(library, prepare_script(library, lesson))
-                remember_source(library, path, digest)
-                bind_lesson(library, lesson, digest)
-                return lesson, external_preview(lesson, directory)
+        matches = [lesson for row in library.db.execute('SELECT content FROM lessons')
+                   if (lesson := json.loads(row[0])).get('source', {}).get('sha256') == digest
+                   and not lesson.get('deleted_at')]
+        # Reuse the converted product before any older source-only draft.
+        matches.sort(key=lambda lesson: bool(lesson.get('voice_only')))
+        for lesson in matches:
+            source = library.store_source(path)
+            if source['sha256'] != digest:
+                raise ValueError('PowerPoint đã thay đổi trong lúc đọc. Chọn lại file trước khi tạo giọng.')
+            lesson = prepare(library, prepare_script(library, lesson))
+            remember_source(library, path, digest)
+            bind_lesson(library, lesson, digest)
+            return lesson, external_preview(lesson, directory)
         inspection = inspect_returned_deck(path, narration_only=True)
         source = library.store_source(path)
         if source['sha256'] != digest or source['sha256'] != inspection['slide_speech']['sha256']:

@@ -14,6 +14,11 @@ Frame {
     background: Rectangle { radius: 12; color: AppTheme.adapt("#f7faff"); border.color: AppTheme.adapt("#dce8f8") }
     contentItem: ColumnLayout {
         spacing: 10
+        LessonChecks {
+            objectName: "completionChecks"; Layout.fillWidth: true
+            bridge: preview.bridge; visible: preview.current && !!report.remaining
+            onViewRequested: function(slide) { preview.bridge.previewConvertedSlide(slide) }
+        }
         Label {
             Layout.fillWidth: true
             text: (preview.current && preview.bridge.lesson.external_deck

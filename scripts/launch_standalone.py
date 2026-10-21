@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 
 
-def launch(executable, page='new', timeout=25, lesson_id=None):
+def launch(executable, page='home', timeout=25, lesson_id=None):
     import psutil
     import pythoncom
     import win32com.client
@@ -93,7 +93,7 @@ def launch(executable, page='new', timeout=25, lesson_id=None):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('executable',type=Path)
-    parser.add_argument('--page',choices=('new','home','library','settings','result'),default='new')
+    parser.add_argument('--page',choices=('new','home','library','settings','result'),default='home')
     parser.add_argument('--lesson-id',help='Open an existing saved lesson without regenerating it.')
     parser.add_argument('--report',type=Path)
     args=parser.parse_args()

@@ -11,6 +11,7 @@ from pathlib import Path
 from lxml import etree
 
 from .input_analysis import EN_WORDS, language_of
+from .powerpoint_notes import read_text as read_notes
 
 SCHEMA = 1
 EXTRACTION_VERSION = 2
@@ -308,7 +309,7 @@ def _notes_metadata(notes):
 def inspect_slide(slide, number, mode="", notes_en="", bounds=None):
     from .picture_narration import image_text, without_image_suffix
 
-    notes = slide.notes_slide.notes_text_frame.text if slide.has_notes_slide else ""
+    notes = read_notes(slide)
     metadata, malformed = _notes_metadata(notes)
     items = objects(slide)
     captions = image_text(items, notes)

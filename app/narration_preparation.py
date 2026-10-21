@@ -87,6 +87,7 @@ class NarrationJob(QThread):
         complete = cached = self.initial_cached
         failed = consecutive = 0
         last_error = ''
+        failed_tasks = []
         tasks=deque(self.tasks)
         futures={}
         retries = {}
@@ -140,6 +141,7 @@ class NarrationJob(QThread):
                                 else:
                                     failed+=1
                                     consecutive+=1
+                                    failed_tasks.append(task)
                         self.result={'complete':complete,'cached':cached,'failed':failed,
                                      'total':self.total,'skipped':self.skipped,
                                      'duplicates':self.duplicates,'workers':2 if second_enabled else 1}
@@ -174,6 +176,10 @@ class NarrationJob(QThread):
                            "total": self.total, "skipped": self.skipped,
                            "duplicates": self.duplicates, "cancelled": self.cancel.is_set(),
                            "workers": self.parallelism, 'last_error': last_error}
+            if failed_tasks:
+                from .lesson_diagnostics import failed_speech
+
+                self.result['failed_segments'] = failed_speech(self.inspection, self.voices, failed_tasks)
 
 
 class NarrationPreparation(QObject):
@@ -272,12 +278,14 @@ class NarrationPreparation(QObject):
 
     @staticmethod
     def _completion_message(result):
+        from .voice_errors import public_message
+
         if result.get("cancelled"):
             return "Đã dừng tạo giọng. Các đoạn đã tạo được giữ lại để tiếp tục."
         if result.get('failed'):
             return (f"Chưa tạo đủ giọng ({result.get('complete', 0)}/{result.get('total', 0)} đoạn). "
-                    + (result.get('last_error') or 'Bộ giọng chưa sẵn sàng.')
-                    + ' Kiểm tra bộ giọng và dung lượng ổ đĩa, rồi bấm Tiếp tục tạo giọng.')
+                    + (public_message(result.get('last_error')) or 'Bộ giọng chưa sẵn sàng.')
+                    + ' Các đoạn đã tạo được giữ lại. Bấm Tiếp tục tạo giọng để tạo phần còn thiếu.')
         if result.get("skipped"):
             return "Đã lưu giọng đọc cho phần nội dung có thể đọc."
         if not result.get("total"):

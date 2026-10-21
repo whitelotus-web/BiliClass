@@ -345,6 +345,12 @@ class Bridge(QObject):
     def lessons(self):
         return self._catalog.rows(self.lessonOrder)
 
+    @Property('QVariantList', notify=lessonsChanged)
+    def narrationSources(self):
+        return [{**row, 'title': row['title'] if row.get('library_product', True)
+                 else 'Đang chuẩn bị · ' + row['title']}
+                for row in self._catalog.rows(self.lessonOrder, include_sources=True)]
+
     @Property(str, constant=True)
     def appSubtitle(self):
         from .branding import APP_SUBTITLE
@@ -1046,6 +1052,13 @@ class Bridge(QObject):
                 pass
         self._browser_state.update(running=False, phase="error", message=message, errorCode=code,
                                    waiting=False, needsLogin=code in {"login", "verification", "auth_response"})
+        if self.googleTranslation and self._chatgpt_request.get('folder'):
+            try:
+                context = json.loads((Path(self._chatgpt_request['folder'])/'conversion-issue.json').read_text(encoding='utf-8'))
+                if context.get('code') == code:
+                    self._browser_state['issueContext'] = context
+            except (OSError, ValueError):
+                pass
         self.conversionClockChanged.emit()
         self.changed.emit()
 
@@ -2276,7 +2289,9 @@ class Bridge(QObject):
         return str(self.library.directory)
 
     def inform(self, message, error=False, *, refresh=True):
-        self._message, self._error = message, error
+        from .voice_errors import public_message
+
+        self._message, self._error = public_message(message), error
         if error:
             self.logger.warning("Operation reported an error")
         if refresh:
@@ -2723,7 +2738,7 @@ class Bridge(QObject):
             self.inform("Bài này chưa chọn giọng tiếng Anh. Chọn Tạo giọng đọc ở màn bài giảng.", True)
             return
         if not any(v["id"] == voice and "en" in v.get("languages", []) for v in self._voices):
-            self.inform("Chọn giọng đa ngôn ngữ VieNeu trong Cài đặt → Giọng đọc.", True)
+            self.inform("Chọn cặp giọng Việt–Mỹ trong Cài đặt → Giọng đọc.", True)
             return
         slide_number = self._powerpoint_state["slide"]
         slide = next((s for s in data["slides"] if s["slide"] == slide_number), {})
@@ -2792,6 +2807,12 @@ class Bridge(QObject):
                                         if "CHECK:" in n and " · CHECK:" not in n))
             messages = ["Cần rà soát · " + n for n in bodies]
         return "\n\n".join(messages)
+
+    @Property('QVariantMap', notify=changed)
+    def lessonDiagnostics(self):
+        from .lesson_diagnostics import layout
+
+        return layout(self._lesson)
 
     @Property("QVariantMap", notify=changed)
     def lessonReview(self):

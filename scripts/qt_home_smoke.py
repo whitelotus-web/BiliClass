@@ -122,6 +122,13 @@ def main():
             assert window.property('page') == 'new' and c('navigationnew').property('selected')
             assert not c('navigationlibrary').property('selected')
             QMetaObject.invokeMethod(c('creationFileDialog'), 'reject', Qt.DirectConnection)
+            assert c('creationSourceArea').isVisible()
+            art = c('chooseInputDocumentButtonIllustration')
+            heading = control(c('creationSourceArea'), 'powerpointUploadHeading')
+            button = c('chooseInputDocumentButton')
+            assert art.isVisible() and art.property('paintedWidth') > 100 and art.property('paintedHeight') > 100
+            assert abs(button.mapToScene(QPointF(button.width()/2, 0)).x()
+                       - heading.mapToScene(QPointF(heading.width()/2, 0)).x()) < 1
             wrong = Path(folder)/'Tài liệu khác.txt'
             wrong.write_text('Năng lượng được bảo toàn.', encoding='utf-8')
             window.setProperty('page', 'home')
@@ -144,17 +151,14 @@ def main():
                 c('creationScroll').property('contentItem').setProperty('contentY', 0)
                 pump(150)
                 button = c('chooseInputDocumentButton')
-                button_center = button.mapToScene(QPointF(button.width()/2, 0)).x()
-                heading = control(c('creationSourceArea'), 'powerpointUploadHeading')
-                heading_center = heading.mapToScene(QPointF(heading.width() / 2, 0)).x()
-                art = c('chooseInputDocumentButtonIllustration')
-                if c('creationSourceArea').property('condensed'):
-                    assert button.mapToScene(QPointF()).x() >= heading.mapToScene(QPointF(heading.width(), 0)).x()
-                    assert art.isVisible() and art.property('paintedWidth') > 60 and art.property('paintedHeight') > 50
-                else:
-                    assert abs(heading_center-button_center) < 1, 'Upload button must center with the upload text'
-                    assert art.isVisible() and art.property('paintedWidth') > 100 and art.property('paintedHeight') > 100
-                assert art.mapToScene(QPointF(art.width(), 0)).x() < heading.mapToScene(QPointF()).x()
+                assert button.isVisible() and button.property('text') == 'Chọn bài khác'
+                assert not c('creationSourceArea').isVisible()
+                assert c('creationLessonOverview').isVisible()
+                assert c('creationSelectedLessonTitle').property('text') == fixture.stem
+                preview = c('creationSelectedSlidePreview')
+                details = c('creationLessonDetails')
+                assert preview.isVisible() and abs(preview.width()/preview.height()-16/9) < .01
+                assert preview.mapToScene(QPointF()).x() >= details.mapToScene(QPointF(details.width(), 0)).x()+23
                 assert window.grabWindow().save(str(report/f'conversion-{width}.png'))
             # The file-size limit is real; a sparse fixture avoids allocating 200 MB.
             oversized = Path(folder)/'Quá lớn.pptx'

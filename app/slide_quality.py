@@ -4,6 +4,7 @@ import json
 import re
 from pathlib import Path
 
+from .powerpoint_notes import read_text as read_notes
 from .slide_speech import native_shapes, objects, speech_problem
 
 MESSAGES = {
@@ -190,7 +191,7 @@ def inspect_quality(deck, speech, mode="", source_total=None, *, source_deck=Non
                     # A broad bounding box can contain intentionally aligned text,
                     # so overlap is a review hint, never an automatic deletion.
                     issues.append({"code": "possible_overlap", "severity": "CHECK", "shape_id": item["shape_id"]})
-        notes = slide.notes_slide.notes_text_frame.text if slide.has_notes_slide else ""
+        notes = read_notes(slide)
         ticks = {m[1] for item in shapes for m in re.finditer(r"(?:[✓✔☑]\s*([A-D])[.)]|([A-D])[.)][^\n]*[✓✔☑])", item["text"])
                  if m[1]}
         ticks |= {m[1] for item in shapes for m in re.finditer(r"([A-D])[.)][^\n]*[✓✔☑]", item["text"])}
@@ -204,6 +205,10 @@ def inspect_quality(deck, speech, mode="", source_total=None, *, source_deck=Non
                     pass
         if source_total is not None and source_total != len(deck.slides) and not layout_plan:
             issues.append({"code": "slide_count", "severity": "FAIL"})
+        excerpts = {item['shape_id']: item['text'].strip()[:120] for item in shapes if item['text'].strip()}
+        for issue in issues:
+            if issue.get('shape_id') in excerpts:
+                issue['excerpt'] = excerpts[issue['shape_id']]
         unique = {json.dumps(issue, sort_keys=True): issue for issue in issues}
         rows.append({"slide": index, "slide_id": slide.slide_id, "issues": list(unique.values()),
                      'source_slide_unchanged':bool(source_deck is not None
@@ -393,7 +398,8 @@ def render_quality(path, directory, report, cancel=None, progress=None, *, reuse
                         continue
                     text = shape.TextFrame2.TextRange
                     if text.BoundHeight > shape.Height + 3 or text.BoundWidth > shape.Width + 3:
-                        row["issues"].append({"code": "text_overflow", "severity": "FAIL", "shape_id": shape.Id})
+                        row["issues"].append({"code": "text_overflow", "severity": "FAIL", "shape_id": shape.Id,
+                                              "excerpt": str(text.Text).strip()[:120]})
                     if shape.Fill.Visible and shape.Fill.Type == 1:
                         foreground, background = int(text.Font.Fill.ForeColor.RGB), int(shape.Fill.ForeColor.RGB)
                         if foreground < 0 or background < 0:

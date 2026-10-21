@@ -294,6 +294,7 @@ def convert(directory, job, cancel, progress, *, budget=500_000, translator=None
         except OSError:
             raise TranslationProblem('api_busy', 'Bài đang được xử lý trong một cửa sổ BiliClass khác.') from None
         try:
+            (Path(job['folder'])/'conversion-issue.json').unlink(missing_ok=True)
             return _convert(directory, job, cancel, progress, budget=budget, translator=translator)
         except (AttributeError, KeyError, TypeError, ValueError) as exc:
             from .storage_space import StorageProblem
@@ -400,8 +401,21 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
         units = manifest['units']
         manifest['note_slides'] = sorted({row['slide'] for row in picture_data['rows']})
         pending = [u for u in units if u['language'] not in {'en', 'neutral'}]
-        translated = translator.translate([u['text'] for u in pending] +
-                                         [row['text'] for row in picture_data['rows']], cancel, notify)
+        try:
+            translated = translator.translate([u['text'] for u in pending] +
+                                             [row['text'] for row in picture_data['rows']], cancel, notify)
+        except TranslationProblem as exc:
+            from .lesson_diagnostics import translation_context
+
+            context = translation_context(exc, pending + picture_data['rows'])
+            if context:
+                from .library_location import write_record
+
+                write_record(folder/'conversion-issue.json', dict(stage='translate', code=exc.code, **context))
+                slides = ', '.join(map(str, context['source_slides']))
+                location = f'Slide nguồn {slides}' if slides else 'Một đoạn nội dung'
+                raise TranslationProblem(exc.code, f'{location}: {exc} Vùng nội dung: “{context["excerpt"]}”') from exc
+            raise
         values = {u['id']: {'en': u['text']} for u in units if u['language'] in {'en', 'neutral'}}
         values.update({u['id']: {'en': en} for u, en in zip(pending, translated[:len(pending)], strict=True)})
         progress.stage('assemble', 'Đang sắp xếp nội dung bài giảng.')

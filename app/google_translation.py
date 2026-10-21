@@ -472,7 +472,8 @@ class Translator:
                 continue
             chemistry = policy.subject == 'hoa hoc'
             if chemistry:
-                from .chemical_notation import VERSION as notation_version, formula_spans, only_notation
+                from .chemical_notation import VERSION as notation_version
+                from .chemical_notation import formula_spans, only_notation
 
                 if only_notation(text):
                     values[text] = text
@@ -552,6 +553,7 @@ class Translator:
                                 raise TranslationProblem('api_result', 'Bản dịch làm thay đổi công thức hóa học; chưa áp dụng kết quả này. Phần đã dịch đúng được giữ để tiếp tục.')
                         translated.append((item, result))
                     except TranslationProblem as exc:
+                        exc.failed_text = item[0]
                         invalid.append((item, exc))
                 self.store.cache_many([(item[3], value) for item, value in translated])
                 if invalid:

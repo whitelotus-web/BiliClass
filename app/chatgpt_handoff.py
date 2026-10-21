@@ -266,7 +266,9 @@ def inspect_returned_deck(path, source_path=None, conversion_format="", requeste
                                 "Chưa đạt yêu cầu giữ đúng số slide; cần kiểm tra hoặc chuyển đổi lại.")
     for index, slide in enumerate(deck.slides, 1):
         locator = f"Slide {index}"
-        notes = slide.notes_slide.notes_text_frame.text if slide.has_notes_slide else ""
+        from .powerpoint_notes import read_text as read_notes
+
+        notes = read_notes(slide)
         assistant_notes = re.split(r"(?im)^\s*BILICLASS_NOTES\s*[:：]", notes)[-1]
         for line in assistant_notes.splitlines():
             if re.match(r"^\s*CHECK\s*[:：]", line, re.I):

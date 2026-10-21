@@ -71,6 +71,7 @@ if (-not $NoShortcuts) {
     foreach ($ownedShortcutPath in @($shortcutPath, $desktopShortcutPath)) {
         $shortcut = $shell.CreateShortcut($ownedShortcutPath)
         $shortcut.TargetPath = Join-Path $versionPath 'BiliClass.exe'
+        $shortcut.Arguments = ''
         $shortcut.WorkingDirectory = $versionPath
         $shortcut.Description = 'BiliClass - English Vietnamese teaching workspace'
         $shortcut.IconLocation = (Join-Path $versionPath 'BiliClass.exe') + ',0'

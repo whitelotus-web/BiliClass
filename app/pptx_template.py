@@ -16,6 +16,7 @@ from pptx import Presentation
 from pptx.slide import Slide
 from pptx.util import Pt
 
+from .powerpoint_notes import text_frame as notes_text_frame
 from .source_deck import NS, _append_slide, _bytes, _xml, source_slide_parts
 
 
@@ -273,7 +274,7 @@ def build(target, template, config, pairs, cancel, source=None, roles=None):
     visuals = _visual_pages(deck, source, roles['content'])
     # Ensure each cloned page has independent narration notes before ZIP edits.
     for slide in deck.slides:
-        slide.notes_slide.notes_text_frame.text = ''
+        notes_text_frame(slide).text = ''
     buffer = io.BytesIO()
     deck.save(buffer)
     buffer.seek(0)

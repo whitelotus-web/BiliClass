@@ -14,8 +14,17 @@ $taskChecks = [System.Collections.Generic.List[string]]::new()
 $taskFailed = ''
 function Invoke-Check([string]$Name, [string]$Program, [string[]]$Parameters) {
     Write-Output ('Checking ' + $Name + '...')
-    & $Program @Parameters *> (Join-Path $taskReport ($Name + '.log'))
-    if ($LASTEXITCODE -ne 0) {
+    $taskPreviousErrorAction = $ErrorActionPreference
+    try {
+        # Qt can write platform geometry notices to stderr while its assertions
+        # pass. Preserve stderr in the log and decide by the native exit code.
+        $ErrorActionPreference = 'Continue'
+        & $Program @Parameters *> (Join-Path $taskReport ($Name + '.log'))
+        $taskExitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $taskPreviousErrorAction
+    }
+    if ($taskExitCode -ne 0) {
         $script:taskFailed = $Name
         throw ('Failed ' + $Name + '; inspect ' + $taskReport)
     }
@@ -40,10 +49,10 @@ if ($Quick) {
 }
 }
 if ($Qt) {
-    foreach ($taskFlow in @('qt_conversion_layout_smoke', 'qt_input_selection_smoke', 'qt_narration_workspace_smoke',
+    foreach ($taskFlow in @('qt_choice_cards_smoke', 'qt_library_products_smoke', 'qt_lesson_diagnostics_smoke', 'qt_conversion_layout_smoke', 'qt_input_selection_smoke', 'qt_narration_workspace_smoke',
         'qt_voice_stability_smoke',
         'qt_save_dialog_smoke', 'qt_result_preview_mascot_smoke',
-        'qt_storage_voice_smoke', 'qt_home_smoke', 'qt_google_translation_smoke', 'qt_review_usage_smoke', 'qt_library_views_smoke', 'qt_companion_controls_smoke',
+        'qt_storage_voice_smoke', 'qt_home_smoke', 'qt_google_translation_smoke', 'qt_narration_preparation_smoke', 'qt_review_usage_smoke', 'qt_library_views_smoke', 'qt_companion_controls_smoke',
         'qt_companion_lifecycle_smoke', 'qt_teaching_session_smoke', 'qt_slideshow_shortcuts_smoke', 'qt_classroom_flow_smoke', 'qt_conversion_responsiveness_smoke', 'qt_universal_templates_smoke')) {
         $taskPreviousPlatform = $env:QT_QPA_PLATFORM
         try {

@@ -87,6 +87,8 @@ def test_missing_engine_stops_after_three_failures_not_every_slide(monkeypatch, 
     job.run()
     assert job.result["failed"] == 3 and job.result["total"] == 50
     assert not job.result["cancelled"]
+    assert [row['slides'] for row in job.result['failed_segments']] == [[1], [2], [3]]
+    assert all(row['languages'] == ['vi'] for row in job.result['failed_segments'])
 
 
 def test_foreground_takes_next_engine_turn_and_same_chunk_is_not_generated_twice(monkeypatch, tmp_path):

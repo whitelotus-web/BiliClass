@@ -244,7 +244,7 @@ def prefer_inline(units, translations):
     return stacked <= height*.95 and stacked < max(vi,en)*.9
 
 
-def fit(shape, fallback_size):
+def fit(shape, fallback_size, *, title=False):
     """Uniform type scaling keeps VI/EN hierarchy and native equation proportions."""
     from .native_layout import text_height
 
@@ -257,9 +257,11 @@ def fit(shape, fallback_size):
         return
     props.set("wrap", "square")
     paragraphs = body.findall("a:p", NS)
+    # Decorative headers often have an oversized invisible textbox. Centering
+    # a new VI/EN pair in it can push white text below its painted title band.
     props.set(
         "anchor",
-        "t"
+        props.get('anchor', 't') if title else "t"
         if shape.find('p:nvSpPr/p:cNvPr', NS).get('name', '').startswith('BCL_BODY ')
         or sum(bool(text_of(p).strip()) for p in paragraphs) > 2
         or sum(len(text_of(p)) for p in paragraphs) > 180

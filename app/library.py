@@ -152,6 +152,8 @@ class Library:
         self.db.close()
 
     def list_lessons(self, order="updated_desc", *, trash=False, verify_audio=True):
+        from .library_products import is_product
+
         rows = self.db.execute("SELECT * FROM lessons ORDER BY updated_at DESC").fetchall()
         result = []
         voices = voice_settings(self)
@@ -165,6 +167,7 @@ class Library:
                 {
                     **dict(row),
                     "content": None,
+                    "library_product": is_product(lesson),
                     "segments_count": len(lesson["segments"]),
                     "approved_count": sum(bool(s["approved"]) for s in lesson["segments"]),
                     "status": ('READY_TO_TEACH' if lesson.get('voice_only') and readable
@@ -658,6 +661,10 @@ class Library:
             variants[identity] = dict(record)
         lesson['narration_variants'] = variants
         lesson["narration"] = dict(record)
+        if (lesson.get('voice_only') and type(record.get('total')) is int and record['total'] > 0
+                and record.get('complete') == record['total'] and not record.get('failed')
+                and not record.get('cancelled')):
+            lesson['voice_published'] = True
         with self.db:
             self.db.execute("UPDATE lessons SET content=? WHERE id=?",
                             (json.dumps(lesson, ensure_ascii=False), lesson_id))

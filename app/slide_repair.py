@@ -506,12 +506,17 @@ def repair_and_inspect(path, directory, *, source=None, mode="", style="source",
                     and all(r["rendered"] for r in titled["slide_quality"]["slides"])):
                 current, inspection = Path(title_result["path"]), titled
                 history.extend(title_result["changes"])
-    for _ in range(3):
+    for attempt in range(3):
         if cancel and cancel.is_set():
             break
         before = failure_keys(inspection["slide_quality"])
         if not before:
             break
+        from .conversion_progress import emit_progress
+
+        numbers = sorted({key[0] for key in before})
+        pages = ', '.join(map(str, numbers[:12])) + ('…' if len(numbers) > 12 else '')
+        emit_progress(progress, 'quality', f'Đang tự sửa bố cục slide {pages} · lượt {attempt + 1}/3…')
         result = repair_layout(current, directory, inspection["slide_quality"], cancel, progress, layout_plan=layout_plan)
         candidate = Path(result["path"])
         if candidate == current:

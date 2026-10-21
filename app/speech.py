@@ -102,7 +102,8 @@ def audio_key(text, voice_id, rate):
 
         if english(text) != text:
             provider += '|' + VERSION
-        from .spoken_chemistry import VERSION as chemical_version, english as chemistry
+        from .spoken_chemistry import VERSION as chemical_version
+        from .spoken_chemistry import english as chemistry
 
         if chemistry(english(text)) != english(text):
             provider += '|' + chemical_version
@@ -127,7 +128,7 @@ def _vieneu_engine(root):
 @lru_cache(maxsize=1)
 def _cached_vieneu_engine(root):
     if not vieneu_ready():
-        raise RuntimeError("Chưa có model VieNeu ngoại tuyến. Hãy cài bản BiliClass đầy đủ.")
+        raise RuntimeError("Chưa có bộ giọng Việt ngoại tuyến. Hãy cài bản BiliClass đầy đủ.")
     # The SDK reads HF_HOME at import time. The bundled cache is complete, and
     # offline mode prevents accidental lesson text or model requests over the network.
     os.environ["HF_HOME"] = root
@@ -182,6 +183,7 @@ def _synthesize_vieneu_local(text, voice_id, rate, temporary):
         return render(text, voice_id, rate, temporary)
     import numpy as np
 
+    from .spoken_vietnamese import vietnamese
     from .voice_threads import blas_budget
 
     factory=_secondary_vieneu_engine if getattr(_SYNTHESIS_CONTEXT,'secondary',False) else _vieneu_engine
@@ -191,9 +193,9 @@ def _synthesize_vieneu_local(text, voice_id, rate, temporary):
     # measured faster without changing the model, precision or audio cache.
     # All inference callers share synthesis_turn(), including the reader.
     with blas_budget():
-        samples = np.asarray(engine.infer(text, voice=voice_id.split(":", 1)[1]), dtype=np.float32)
+        samples = np.asarray(engine.infer(vietnamese(text), voice=voice_id.split(":", 1)[1]), dtype=np.float32)
     if not samples.size or samples.ndim != 1 or not np.isfinite(samples).all():
-        raise RuntimeError("VieNeu không tạo được âm thanh cho đoạn này.")
+        raise RuntimeError("Chưa tạo được âm thanh cho đoạn này.")
     if rate:
         from .voice_speed import time_stretch_audio
 
@@ -280,7 +282,7 @@ def synthesize(text, voice_id, rate, directory):
     if type(rate) is not int or not -3 <= rate <= 3:
         raise ValueError("Tốc độ giọng đọc không hợp lệ.")
     if voice_id not in _VIENEU_BY_ID and voice_id not in ENGLISH_VOICES:
-        raise ValueError("Chọn cặp giọng Việt–Mỹ trong Cài đặt → Giọng đọc (giọng Việt dùng VieNeu).")
+        raise ValueError("Chọn cặp giọng Việt–Mỹ trong Cài đặt → Giọng đọc.")
     root = Path(directory)
     root.mkdir(parents=True, exist_ok=True)
     destination = root / (audio_key(text, voice_id, rate) + ".wav")
@@ -332,7 +334,7 @@ def _speed_variant(original, rate, destination):
 
     with wave.open(str(original), "rb") as reader:
         if (reader.getnchannels(), reader.getsampwidth(), reader.getframerate()) != (1, 2, 48000):
-            raise ValueError("Âm thanh gốc chưa đúng định dạng VieNeu.")
+            raise ValueError("Âm thanh gốc chưa đúng định dạng giọng đọc.")
         samples = np.frombuffer(reader.readframes(reader.getnframes()), dtype="<i2").astype(np.float32) / 32768
     adjusted = time_stretch_audio(samples, _SPEEDS[rate + 3])
     pcm = (np.clip(adjusted, -1.0, 1.0) * 32767).astype("<i2")

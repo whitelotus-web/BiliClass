@@ -117,6 +117,9 @@ def main():
                     local = preview.mapToItem(card, QPointF())
                     assert preview.property('text') == 'Xem mẫu'
                     assert abs(local.x()+preview.width()-(card.width()-(8 if card.property('compact') else 12))) < 2
+                    detail = c(name + 'Detail')
+                    assert abs(preview.mapToScene(QPointF(0, preview.height()/2)).y()
+                               - detail.mapToScene(QPointF(0, detail.height()/2)).y()) <= 1
                     dimensions.extend((local.x(), local.y(), preview.width(), preview.height()))
                     previews.append(preview.property('text'))
             return dimensions, previews
@@ -149,10 +152,8 @@ def main():
                         )
                     else:
                         QMetaObject.invokeMethod(window, "removeInputDocument", Qt.DirectConnection)
-                    # A restored task exposes the left-hand resume action. It
-                    # must not shift the primary conversion action inward.
-                    bridge._chatgpt_request = {'folder': str(temp / 'disposable-request')} if selected else {}
-                    bridge.changed.emit()
+                    # Real paused/resumed tasks are covered by the Google flow;
+                    # a nonexistent job folder would correctly block dismissal.
                     geometry = None
                     for template in (False, True, False):
                         click(window, c("creationUseTemplate" if template else "creationKeepOriginal"))

@@ -14,6 +14,52 @@ from app.native_bilingual import assemble, extract
 from app.source_deck import NS, source_slide_parts
 
 
+@pytest.mark.parametrize('label', ['❶', '❷', '❸', '❹', '❺', '①', '⓿', '½', 'Ⅲ'])
+def test_shared_numeric_badges_keep_one_source_copy_and_its_size(tmp_path, label):
+    from pptx.enum.shapes import MSO_AUTO_SHAPE_TYPE
+
+    deck = Presentation()
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    badge = slide.shapes.add_shape(MSO_AUTO_SHAPE_TYPE.OVAL, Inches(1), Inches(1), Inches(.4), Inches(.5))
+    badge.text = label
+    badge.text_frame.paragraphs[0].font.size = Pt(18)
+    caption = slide.shapes.add_textbox(Inches(2), Inches(1), Inches(6), Inches(1))
+    caption.text = 'Khái niệm mở đầu'
+    source = tmp_path/'badges.pptx'
+    deck.save(source)
+    manifest = extract(source, 'parallel_columns', same_slide=True)
+    unit = next(u for u in manifest['units'] if u['raw'] == label)
+    assert unit['language'] == 'neutral'
+    values = {u['id']: {'en': u['text'] if u['language'] == 'neutral' else 'Introduction'}
+              for u in manifest['units']}
+    output = assemble(source, tmp_path/'paired.pptx', manifest, values, 'parallel_columns')
+    converted = Presentation(output)
+    result = next(shape for shape in converted.slides[0].shapes if shape.shape_id == badge.shape_id)
+    assert result.text == label
+    assert (result.left, result.top, result.width, result.height) == (badge.left, badge.top, badge.width, badge.height)
+    assert result.text_frame.paragraphs[0].font.size == Pt(18)
+
+
+def test_bilingual_title_retains_top_anchor_in_oversized_source_textbox(tmp_path):
+    from pptx.enum.text import MSO_ANCHOR
+
+    deck = Presentation()
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    title = slide.shapes.add_textbox(Inches(1), Inches(.5), Inches(7), Inches(2))
+    title.text = 'ĐƯỜNG THẲNG VÀ MẶT PHẲNG TRONG KHÔNG GIAN'
+    title.text_frame.vertical_anchor = MSO_ANCHOR.TOP
+    title.text_frame.paragraphs[0].font.size = Pt(32)
+    source = tmp_path/'banner.pptx'
+    deck.save(source)
+    manifest = extract(source, 'parallel_columns', same_slide=True)
+    assert manifest['units'][0]['title']
+    values = {u['id']: {'en': 'LINES AND PLANES IN SPACE'} for u in manifest['units']}
+    result = assemble(source, tmp_path/'result.pptx', manifest, values, 'parallel_columns')
+    converted = Presentation(result).slides[0].shapes[0]
+    assert converted.text_frame.vertical_anchor == MSO_ANCHOR.TOP
+    assert 'LINES AND PLANES' in converted.text
+
+
 def test_native_measurement_visits_group_children_but_does_not_fit_rotated_groups():
     from types import SimpleNamespace as Shape
 

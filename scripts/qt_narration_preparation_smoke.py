@@ -10,11 +10,11 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from pptx import Presentation
-from PySide6.QtCore import QCoreApplication, QEvent, QTimer
+from PySide6.QtCore import QCoreApplication, QEvent, QObject, QPointF, QTimer
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
-from qt_result_preview_mascot_smoke import pump, until
+from qt_result_preview_mascot_smoke import control, pump, until
 
 from app import speech
 from app.chatgpt_handoff import inspect_returned_deck
@@ -39,7 +39,7 @@ def main():
     def render(*_args):
         synthesis.set()
         assert allow_voice.wait(10), 'GUI did not release synthesis'
-        raise RuntimeError('Deliberate local voice failure')
+        raise RuntimeError('VieNeu deliberate local voice failure')
 
     with tempfile.TemporaryDirectory(prefix='bcl-qt-audio-', ignore_cleanup_errors=True) as temporary:
         root = Path(temporary)
@@ -92,6 +92,26 @@ def main():
                 assert not any(row['approved'] for row in saved['segments'])
                 assert source.read_bytes() == (library.directory / 'sources' / saved['source']['file']).read_bytes()
                 assert bridge.error
+                assert 'vieneu' not in bridge.message.casefold()
+                window = engine.rootObjects()[0]
+                window.setProperty('page', 'voice')
+                until(lambda: window.property('narrationDraft').get('phase') == 'partial')
+                button = window.findChild(QObject, 'createLessonNarrationButton')
+                assert button.isVisible() and button.isEnabled()
+                assert button.property('text') == 'Tiếp tục tạo giọng'
+                failures = bridge.narrationPreparation['failed_segments']
+                assert failures[0]['slides'] == [1] and failures[0]['languages'] == ['en']
+                pump(50)
+                location = control(window, 'failedNarrationLocation')
+                assert location is not None and 'Slide 1' in location.property('text')
+                assert 'Energy is conserved.' in location.property('text')
+                assert 'VieNeu' not in location.property('text')
+                for width, height in ((1080, 700), (1366, 850)):
+                    window.resize(width, height)
+                    pump(100)
+                    summary = window.findChild(QObject, 'narrationConfiguration')
+                    assert summary.mapToScene(QPointF(summary.width(), 0)).x() + 15 <= button.mapToScene(QPointF()).x()
+                    assert button.mapToScene(QPointF(button.width(), 0)).x() <= window.width()-28
                 bridge.dismissNarrationLesson()
                 pump(100)
                 assert not bridge.lesson and not bridge.quickResult and not bridge.narrationPreparation
@@ -103,7 +123,8 @@ def main():
                           'cache_heartbeat_ticks': cache_ticks, 'synthesis_heartbeat_ticks': voice_ticks,
                           'qml_warnings': warnings, 'checks': ['no automatic voice on open',
                           'Qt responsive during cache validation and synthesis',
-                          'voice failure preserves deck and never approves lesson']}
+                          'voice failure preserves deck and never approves lesson',
+                          'failure text hides engine details and partial job offers Continue at both widths']}
                 output = ROOT / 'reports/rc58/narration-qt.json'
                 output.parent.mkdir(parents=True, exist_ok=True)
                 output.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')

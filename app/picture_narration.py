@@ -5,6 +5,8 @@ import json
 import re
 from functools import lru_cache
 
+from .powerpoint_notes import read_text as read_notes
+
 PREFIX = 'BILICLASS_IMAGE_TEXT:'
 
 
@@ -94,7 +96,7 @@ def _legacy_pages(path, size, modified, digest):
     from .slide_speech import objects
 
     return {str(index): rows for index, slide in enumerate(Presentation(path).slides, 1)
-            if (rows := image_text(objects(slide), slide.notes_slide.notes_text_frame.text if slide.has_notes_slide else ''))}
+            if (rows := image_text(objects(slide), read_notes(slide)))}
 
 
 def prepare(lesson, library, *, freshly_extracted=False):

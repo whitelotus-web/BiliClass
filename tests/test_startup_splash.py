@@ -58,6 +58,7 @@ def test_smoke_route_disables_splash_and_closes_it_even_on_failure(monkeypatch):
 
     def fail(args):
         assert args.startup_screen is screen
+        assert args.page == 'home'
         raise ValueError('Fixture failure')
 
     monkeypatch.setitem(sys.modules, 'app.ui', SimpleNamespace(run=fail))

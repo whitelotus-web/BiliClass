@@ -35,7 +35,8 @@ class CatalogJob(QThread):
                         return
                     lesson = library.get(row['id'])
                     status = audio_status(lesson, library.directory, voices, cancel=self.cancel)
-                    verified.append({**row, 'narration': status, 'workflow': summarize_state(lesson, status)})
+                    verified.append({**row, 'narration': status, 'workflow': summarize_state(lesson, status),
+                                     'library_product': row.get('library_product', True) or status.get('ready', False)})
                 self.result = verified, trash
         except InterruptedError:
             pass
@@ -67,8 +68,10 @@ class LibraryCatalog(QObject):
         parent.destroyed.connect(self.shutdown)
         QTimer.singleShot(0, self.refresh)
 
-    def rows(self, order='updated_desc', *, trash=False):
+    def rows(self, order='updated_desc', *, trash=False, include_sources=False):
         rows = self._trash if trash else self._active
+        if not trash and not include_sources:
+            rows = [row for row in rows if row.get('library_product', True)]
         if order == 'title_asc':
             from .library_view import folded
             return sorted(rows, key=lambda row: (folded(row['title']), row['id']))

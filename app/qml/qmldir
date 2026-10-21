@@ -19,6 +19,7 @@ HelpDialog 1.0 HelpDialog.qml
 HomeLibraryOverview 1.0 HomeLibraryOverview.qml
 HomeWelcome 1.0 HomeWelcome.qml
 LessonInformation 1.0 LessonInformation.qml
+LessonChecks 1.0 LessonChecks.qml
 LessonStateStrip 1.0 LessonStateStrip.qml
 LibraryVoiceBadge 1.0 LibraryVoiceBadge.qml
 Mascot 1.0 Mascot.qml

@@ -27,6 +27,13 @@ GridLayout {
             color: picker.currentIndex === card.index ? AppTheme.adapt("#f2f7ff") : "transparent"
             border.width: 1
             border.color: picker.currentIndex === card.index ? AppTheme.adapt("#dce8f8") : AppTheme.line
+            MouseArea {
+                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                onClicked: {
+                    radio.forceActiveFocus(Qt.MouseFocusReason)
+                    picker.currentIndex = card.index
+                }
+            }
             ColumnLayout {
                 id: contents; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 10; spacing: 6
                 Image {
@@ -37,16 +44,20 @@ GridLayout {
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: picker.currentIndex = card.index }
                 }
                 ChoiceRadioButton {
+                    id: radio
                     objectName: "creationPresetSelect_" + card.modelData.id
                     ButtonGroup.group: choices; checked: picker.currentIndex === card.index
                     text: card.modelData.name; font.pixelSize: 13; font.bold: true
                     Layout.fillWidth: true; onClicked: picker.currentIndex = card.index
                 }
-                Label { text: card.modelData.detail; color: AppTheme.adapt("#667997"); font.pixelSize: 11; Layout.fillWidth: true; wrapMode: Text.WordWrap }
-                PreviewButton {
-                    objectName: "creationPresetView_" + card.modelData.id
-                    Layout.alignment: Qt.AlignRight
-                    onClicked: picker.previewRequested(card.modelData.id)
+                RowLayout {
+                    Layout.fillWidth: true; spacing: 10
+                    Label { objectName: "creationPresetDetail_" + card.modelData.id; text: card.modelData.detail; color: AppTheme.adapt("#667997"); font.pixelSize: 11; Layout.fillWidth: true; Layout.minimumWidth: 0; wrapMode: Text.WordWrap }
+                    PreviewButton {
+                        objectName: "creationPresetView_" + card.modelData.id
+                        Layout.alignment: Qt.AlignVCenter
+                        onClicked: picker.previewRequested(card.modelData.id)
+                    }
                 }
             }
         }

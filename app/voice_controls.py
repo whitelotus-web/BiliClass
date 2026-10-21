@@ -120,13 +120,15 @@ class VoiceControls(QObject):
 
     @Slot()
     def _preview_finished(self):
+        from .voice_errors import public_message
+
         task = self.sender()
         task.wait()
         self.preview_workers.remove(task)
         if task.generation == self.generation and not task.cancel.is_set():
             self.preview_seconds = time.monotonic() - task.started_at
             self.phase = 'error' if task.error or not task.value else 'playing'
-            self.message = task.error or ('Đang nghe thử · cấu hình chỉ đổi khi bấm Lưu.' if task.value else 'Đã dừng nghe thử.')
+            self.message = public_message(task.error) or ('Đang nghe thử · cấu hình chỉ đổi khi bấm Lưu.' if task.value else 'Đã dừng nghe thử.')
             self.changed.emit()
             if task.error:
                 self.failed.emit(self.message)
