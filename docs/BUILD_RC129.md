@@ -40,3 +40,17 @@ Không coi kết quả này là chứng nhận mọi bản dịch/công thức h
 
 Bài giảng, snapshot thư viện, ảnh đối chiếu, âm thanh và báo cáo thử
 giữ trong thư mục bỏ qua Git. Việc kiểm thử không sửa thư viện cá nhân.
+
+Nguồn `1.0.0rc129`, commit
+`65739b8b2bbc0d7ee08b21d0796548753644a5c9`. Dựng một lần từ runtime
+RC128 đã xác minh. Gói `dist/rc129-preview-buttons/BiliClass-RC129-Windows.zip`,
+1.255.962.582 byte, SHA256
+`1a9731f818c8d6ca328cf0b8e23011ad571ab0d423d123e58f934d9951a7be22`.
+Manifest xác minh 4.668 file, 55 QML/qmldir khớp commit nguồn. Smoke
+bản đóng gói tab Chuyển đổi 1366×850 thoát thành công, không cảnh báo.
+
+Cài tại `F:/Applications/BiliClass/1.0.0rc129`, mở từ Explorer vào tab
+Chuyển đổi. Cửa sổ chính/Mascot phản hồi, icon/shortcut đúng phiên bản.
+Đối chiếu sau cài/mở giữ nguyên toàn bộ 10 bài/tệp nguồn, 1.183 WAV,
+hồ sơ, logo, API key mã hóa và cấu hình giọng. RC128 đóng bình thường;
+không đóng PowerPoint hoặc RC80 độc lập.
