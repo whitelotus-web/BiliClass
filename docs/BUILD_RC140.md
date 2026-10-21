@@ -20,3 +20,23 @@ và 1366 × 850. Màu chữ thực tế so với nền đạt tương phản t�
 
 Đây là sửa cách hiển thị kết quả kiểm tra; không tự duyệt các cảnh
 báo hay cam kết mọi chữ/công thức trong ảnh đã được kiểm chứng.
+
+Gói 1.0.0rc140 dựng một lần từ commit
+`13eda924d2e204c4b21f48917c04a0aed30b7bc1`, dùng runtime RC139 đã
+đối chiếu; 4.676 tệp ứng dụng và 56 tệp QML khớp nguồn. Bytecode
+module chẩn đoán và các module trọng yếu khớp commit. Kiểm từng
+tệp trong ZIP và checksum đạt. ZIP 1.258.058.085 byte; SHA-256
+`b40691f23561a3dc7872f1feb1b081df8eee2211c1ec2df32fdb09d959f51fbc`.
+EXE thử ở dữ liệu cô lập, không PYTHONPATH/PYTHONHOME hay đường dẫn
+model phát triển: mở đúng Home, lưu ảnh và không cảnh báo QML.
+
+Đã cài tại `F:/Applications/BiliClass/1.0.0rc140`, cập nhật shortcut
+Desktop/Start menu và mở Home từ Explorer. Cửa sổ hiện, không thu
+nhỏ, phản hồi tốt; Mascot ẩn khi khởi động, icon/định danh taskbar
+đúng. Đối chiếu giữ hồ sơ, logo, API key, tùy chọn giọng, bài giảng
+và 1.533 WAV được bản ghi bài tham chiếu.
+
+Đã phát hành [v1.0.0rc140](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc140).
+Digest và số byte asset GitHub khớp gói cục bộ, tag trỏ đúng commit
+dựng gói. Đường cập nhật công khai kiểm từ RC118 nhận RC140 với
+cùng digest/kích thước. Mẫu dữ liệu, ảnh kiểm thử và gói cài ở ngoài Git.
