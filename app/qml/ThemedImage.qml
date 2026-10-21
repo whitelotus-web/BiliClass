@@ -4,6 +4,7 @@ import QtQuick.Effects
 Item {
     id: image
     property color darkTint: AppTheme.icon
+    property bool tintEnabled: AppTheme.dark
     property alias source: original.source
     property alias sourceSize: original.sourceSize
     property alias sourceClipRect: original.sourceClipRect
@@ -19,15 +20,15 @@ Item {
     ShaderEffectSource {
         id: mask
         sourceItem: original
-        hideSource: AppTheme.dark
-        live: AppTheme.dark
+        hideSource: image.tintEnabled
+        live: image.tintEnabled
         visible: false
     }
     // Use the artwork's alpha, rather than its original dark luminance, for an
     // even foreground tint. The source crop and aspect ratio are preserved.
     Rectangle {
-        anchors.fill: parent; color: image.darkTint; visible: AppTheme.dark
-        layer.enabled: AppTheme.dark
+        anchors.fill: parent; color: image.darkTint; visible: image.tintEnabled
+        layer.enabled: image.tintEnabled
         layer.effect: MultiEffect {
             maskEnabled: true; maskSource: mask
             maskThresholdMin: 0.5; maskSpreadAtMin: 1

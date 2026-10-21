@@ -15,11 +15,18 @@ RowLayout {
         return result
     }
     readonly property string tone: languages.length ? "ready" : audio.status === "checking" ? "checking" : "none"
-    readonly property color foreground: tone === "ready" ? (AppTheme.dark ? AppTheme.success : "#126746") : tone === "checking" ? (AppTheme.dark ? AppTheme.blue : "#145bb5") : (AppTheme.dark ? AppTheme.muted : "#526278")
-    readonly property color fill: tone === "ready" ? (AppTheme.dark ? "#173c32" : "#e7f6ec")
+    readonly property string languageMode: languages.length === 2 ? "both" : languages[0] || ""
+    readonly property color foreground: languageMode === "vi" ? (AppTheme.dark ? "#c4a7ff" : "#7c3aed")
+        : languageMode === "en" || tone === "checking" ? AppTheme.blue
+        : languageMode === "both" ? AppTheme.success : (AppTheme.dark ? AppTheme.muted : "#526278")
+    readonly property color fill: languageMode === "vi" ? (AppTheme.dark ? "#35284d" : "#f3edff")
+        : languageMode === "en" ? (AppTheme.dark ? "#203b60" : "#e7f0ff")
+        : languageMode === "both" ? (AppTheme.dark ? "#173c32" : "#e7f6ec")
         : tone === "checking" ? (AppTheme.dark ? "#203b60" : "#e7f0ff")
         : (AppTheme.dark ? "#263246" : "#edf1f6")
-    readonly property color outline: tone === "ready" ? (AppTheme.dark ? "#35634f" : "#b7dfc7")
+    readonly property color outline: languageMode === "vi" ? (AppTheme.dark ? "#69508c" : "#d9c5fa")
+        : languageMode === "en" ? (AppTheme.dark ? "#3c5e88" : "#c3d6f3")
+        : languageMode === "both" ? (AppTheme.dark ? "#35634f" : "#b7dfc7")
         : tone === "checking" ? (AppTheme.dark ? "#3c5e88" : "#c3d6f3") : AppTheme.line
     readonly property string description: languages.length ? "Có giọng " + languages.map(function(v) { return v === "vi" ? "Việt" : "Anh" }).join(" + ")
         : audio.status === "checking" ? "Đang kiểm tra giọng…"
@@ -30,18 +37,27 @@ RowLayout {
     Accessible.name: description
     ThemedImage {
         objectName: "libraryVoiceSpeakerIcon"
+        visible: !badge.languages.length
         darkTint: badge.foreground
-        source: badge.tone === "checking" ? "../assets/actions/refresh.png" : badge.languages.length ? "../assets/actions/speaker-ready.svg" : "../assets/actions/speaker-off.svg"
+        source: badge.tone === "checking" ? "../assets/actions/refresh.png" : "../assets/actions/speaker-off.svg"
         sourceSize.width: 48; sourceSize.height: 48; fillMode: Image.PreserveAspectFit
-        Layout.preferredWidth: 18; Layout.preferredHeight: 18
+        Layout.preferredWidth: 24; Layout.preferredHeight: 24
         Accessible.ignored: true
     }
-    Label {
-        objectName: "libraryVoiceStatusText"
-        visible: badge.languages.length > 0
-        text: badge.text; color: badge.foreground
-        font.pixelSize: 11; font.weight: badge.expanded || badge.languages.length ? Font.DemiBold : Font.Normal
-        Layout.fillWidth: true; Layout.minimumWidth: 0; elide: Text.ElideRight
-        Accessible.ignored: true
+    Repeater {
+        model: badge.languages
+        ThemedImage {
+            required property string modelData
+            objectName: "libraryVoiceIcon_" + modelData
+            source: "../assets/library-speakers/speaker-" + modelData + ".png"
+            // The teacher's original PNGs stay untouched. Crop only their empty
+            // canvas while displaying the language letters already in the art.
+            sourceClipRect: modelData === "en" ? Qt.rect(386, 401, 526, 471) : Qt.rect(338, 422, 577, 457)
+            tintEnabled: true
+            darkTint: modelData === "en" ? AppTheme.blue : AppTheme.dark ? "#c4a7ff" : "#7c3aed"
+            fillMode: Image.PreserveAspectFit; smooth: true; mipmap: true
+            Layout.preferredWidth: 34; Layout.preferredHeight: 30
+            Accessible.ignored: true
+        }
     }
 }

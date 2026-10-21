@@ -754,7 +754,7 @@ ApplicationWindow {
         required property var lessonRow
         objectName: "lessonStatus_" + lessonRow.id
         text: statusBadge.text
-        implicitWidth: 96; implicitHeight: 28; padding: 0
+        implicitWidth: 96; implicitHeight: 36; padding: 0
         enabled: !bridge.busy && !bridge.narrationBusy
         Accessible.name: statusBadge.description + ". Chọn hoặc tạo giọng đọc."
         ToolTip.visible: hovered; ToolTip.delay: 500
