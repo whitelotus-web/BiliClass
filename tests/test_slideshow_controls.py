@@ -140,3 +140,38 @@ def test_index_never_reads_binary_media_and_follows_presentation_order(tmp_path,
     index, other = speaker_index(path)
     assert list(index) == [slide.slide_id for slide in deck.slides]
     assert len(opened) == 4 and not other
+
+
+def test_teaching_languages_read_only_xml_and_keep_real_audio_in_slide_order(tmp_path, monkeypatch):
+    import wave
+    from zipfile import ZipFile
+
+    from app.paths import RESOURCE_ROOT
+    from app.slideshow_controls import speaker_languages
+
+    sound = tmp_path / 'voice.wav'
+    with wave.open(str(sound), 'wb') as audio:
+        audio.setparams((1, 2, 24000, 0, 'NONE', 'not compressed'))
+        audio.writeframes(b'\0\0' * 2400)
+    deck = Presentation()
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    slide.shapes.add_textbox(0, 0, Inches(1), Inches(1)).name = 'BiliClass audio VI'
+    movie = slide.shapes.add_movie(str(sound), 0, 0, Inches(1), Inches(1),
+                                  poster_frame_image=str(RESOURCE_ROOT / 'assets/actions/speaker-en.png'),
+                                  mime_type='audio/wav')
+    movie.name = 'BiliClass audio EN'
+    from pptx.oxml.ns import qn
+
+    movie.element.xpath('.//a:videoFile')[0].tag = qn('a:audioFile')
+    deck.slides.add_slide(deck.slide_layouts[6])
+    deck.slides._sldIdLst.insert(0, deck.slides._sldIdLst[-1])
+    path = tmp_path / 'Reordered audio.pptx'
+    deck.save(path)
+    read = ZipFile.read
+
+    def metadata_only(archive, name, *args, **kwargs):
+        assert '/media/' not in name, 'Opening a lesson must not decompress pictures/audio again'
+        return read(archive, name, *args, **kwargs)
+
+    monkeypatch.setattr(ZipFile, 'read', metadata_only)
+    assert speaker_languages(path) == {1: [], 2: ['en']}

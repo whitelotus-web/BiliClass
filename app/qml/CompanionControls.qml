@@ -45,13 +45,13 @@ ColumnLayout {
                 objectName: "companionShortcutTooltip"
                 popupType: Popup.Window
                 visible: controls.companion.visible && !controls.companion.collapsed && shortcutHelp.pointerHovered; delay: 250; timeout: -1
-                width: Math.min(370, controls.companion.width - 20)
+                width: controls.companion.helpPanelRect().width
                 onAboutToShow: {
                     const bounds = controls.bridge.availableScreenBounds(controls.companion)
                     const panel = controls.companion.helpPanelRect()
                     const anchor = shortcutHelp.mapToGlobal(Qt.point(0, 0))
                     const clamp = function(value, lower, upper) { return Math.max(lower, Math.min(upper, value)) }
-                    let left = clamp(panel.x + panel.width - width, bounds.x + 8, bounds.x + bounds.width - width - 8)
+                    let left = clamp(panel.x, bounds.x + 8, bounds.x + bounds.width - width - 8)
                     let top = panel.y - height - 8
                     if (top < bounds.y + 8) {
                         top = clamp(panel.y, bounds.y + 8, bounds.y + bounds.height - height - 8)
@@ -74,10 +74,15 @@ ColumnLayout {
         text: companion.session.bound ? companion.session.title : bridge.companionCanRead ? bridge.lesson.title : "Chưa gắn với bài giảng"
         color: companion.session.bound ? AppTheme.adapt("#112650") : AppTheme.adapt("#667997"); font.pixelSize: companion.controlFont
         font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight; textFormat: Text.PlainText
+        horizontalAlignment: !companion.session.bound && !bridge.companionCanRead ? Text.AlignHCenter : Text.AlignLeft
         ToolTip.visible: lessonHover.hovered; ToolTip.text: text
         HoverHandler { id: lessonHover }
     }
-    Label { visible: !!companion.session.bound; text: bridge.mascotSubject; color: AppTheme.adapt("#667997"); font.pixelSize: 11; Layout.fillWidth: true; elide: Text.ElideRight }
+    RowLayout {
+        visible: !!companion.session.bound; Layout.fillWidth: true; spacing: 8
+        Label { text: bridge.mascotSubject; color: AppTheme.adapt("#667997"); font.pixelSize: 11; Layout.fillWidth: true; elide: Text.ElideRight }
+        HeaderAction { objectName: "companionCloseLesson"; iconName: "close-lesson"; hint: "Đóng bài giảng đang gắn với Mascot"; implicitWidth: 26; implicitHeight: 26; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.teachingTransitioning; onClicked: { companion.choosingLesson = false; bridge.stopPowerPoint() } }
+    }
     PanelAction { objectName: "companionChooseLesson"; text: companion.choosingLesson ? "Thu chọn bài" : companion.session.bound ? "Đổi bài giảng" : "Chọn bài giảng"; primary: !companion.session.bound; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.teachingTransitioning; onClicked: companion.choosingLesson = !companion.choosingLesson }
     ColumnLayout {
         visible: companion.choosingLesson; Layout.fillWidth: true; spacing: 6
@@ -87,16 +92,18 @@ ColumnLayout {
             PanelAction { objectName: "companionSelectFile"; text: "Chọn file…"; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.teachingTransitioning; onClicked: companion.choosePresentation() }
         }
     }
-    Label { visible: !companion.session.bound && !bridge.companionCanRead; text: "Chọn bài trong thư viện hoặc file PowerPoint để Mascot điều khiển."; color: AppTheme.adapt("#667997"); wrapMode: Text.WordWrap; Layout.fillWidth: true; font.pixelSize: 12 }
+    Label { visible: !companion.session.bound && !bridge.companionCanRead; text: "Chọn bài trong thư viện hoặc file PowerPoint để Mascot điều khiển."; color: AppTheme.adapt("#667997"); wrapMode: Text.WordWrap; horizontalAlignment: Text.AlignHCenter; Layout.fillWidth: true; font.pixelSize: 12 }
     RowLayout {
         visible: !!bridge.powerpointState.opened; Layout.fillWidth: true; spacing: 6
-        PanelAction { objectName: "companionStartShow"; text: bridge.powerpointState.show_pending === "start" ? "Đang bắt đầu…" : bridge.powerpointState.active ? "Đang chiếu" : controls.companion.compactPanel ? "Chiếu · F5" : "Trình chiếu · F5"; inactiveStatus: bridge.powerpointState.active; primary: !bridge.powerpointState.active; iconName: "presentation"; enabled: !bridge.powerpointState.active && !bridge.teachingTransitioning; ToolTip.visible: pointerHovered; ToolTip.text: bridge.powerpointState.active ? "PowerPoint đang trình chiếu" : "Bắt đầu trình chiếu PowerPoint · F5"; onClicked: bridge.startTeachingShow() }
+        PanelAction { objectName: "companionStartShow"; text: bridge.powerpointState.show_pending === "start" ? "Đang bắt đầu…" : bridge.powerpointState.active ? "Đang chiếu" : "Trình chiếu · F5"; inactiveStatus: bridge.powerpointState.active; primary: !bridge.powerpointState.active; iconName: "presentation"; enabled: !bridge.powerpointState.active && !bridge.teachingTransitioning; ToolTip.visible: pointerHovered; ToolTip.text: bridge.powerpointState.active ? "PowerPoint đang trình chiếu" : "Bắt đầu trình chiếu PowerPoint · F5"; onClicked: bridge.startTeachingShow() }
         PanelAction { objectName: "companionEndShow"; text: "Kết thúc"; danger: true; enabled: !bridge.teachingTransitioning; visible: !!bridge.powerpointState.active && !!companion.session.bound; onClicked: bridge.navigatePowerPoint("end_show") }
     }
     Label {
-        objectName: "companionAudioHint"; visible: !!companion.session.bound && text.length > 0
-        Layout.preferredHeight: Math.max(16, contentHeight)
-        text: !bridge.companionCanRead ? "Bấm Trình chiếu để đọc giọng đã tạo."
+        objectName: "companionAudioHint"; visible: text.length > 0
+        Layout.preferredHeight: Math.max(16, contentHeight); horizontalAlignment: Text.AlignHCenter
+        text: bridge.busy && bridge.openingTeachingLesson ? "Đang chuẩn bị bài giảng…"
+            : bridge.teachingTransitioning ? bridge.powerpointState.message || "Đang chuyển bài giảng…"
+            : !bridge.companionCanRead ? ""
             : companion.reader.state === "error" ? companion.reader.message || ""
             : companion.audioCount === 0 ? "Phần đang hiện chưa có giọng đọc."
             : ""

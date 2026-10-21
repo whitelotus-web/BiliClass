@@ -198,3 +198,16 @@ def test_failed_preparation_does_not_close_current_show(session, monkeypatch):
         actions[0]()
     assert bridge.teaching_session.state['lesson_id'] == lesson['id']
     assert worker.stops == 0 and bridge.powerpointState['active']
+
+
+def test_explicit_close_is_idempotent_and_clears_only_the_bound_session(session):
+    bridge, worker, lesson = session
+    before = bridge.library.get(lesson['id'])
+    worker.finished.connect(bridge._powerpoint_finished)
+    bridge.stopPowerPoint()
+    bridge.stopPowerPoint()
+    assert worker.stops == 1 and bridge.teachingTransitioning
+    worker.finished.emit()
+    assert not bridge.teaching_session.bound and bridge.powerpoint_worker is None
+    assert not bridge.teachingTransitioning
+    assert bridge.library.get(lesson['id']) == before

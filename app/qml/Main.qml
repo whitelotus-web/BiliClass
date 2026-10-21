@@ -654,6 +654,14 @@ ApplicationWindow {
     component LibraryRowAction: MainAction {
         implicitHeight: 34; leftPadding: 12; rightPadding: 12; font.pixelSize: 12
     }
+    component LibraryDownloadButton: Button {
+        id: downloadButton
+        implicitWidth: 34; implicitHeight: 34; padding: 6
+        Accessible.name: "Tải bài giảng"
+        ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Tải bài giảng"
+        contentItem: ThemedImage { darkTint: AppTheme.blue; source: "../assets/actions/download.png"; sourceSize.width: 48; sourceSize.height: 48; fillMode: Image.PreserveAspectFit; opacity: downloadButton.enabled ? 1 : .35; Accessible.ignored: true }
+        background: Rectangle { radius: 6; color: !downloadButton.enabled ? AppTheme.disabledSurface : downloadButton.down ? AppTheme.selected : downloadButton.hovered ? AppTheme.hover : AppTheme.surface; border.color: downloadButton.visualFocus ? root.blue : root.line; border.width: downloadButton.visualFocus ? 2 : 1 }
+    }
     component LibraryTrashButton: Button {
         id: trashButton
         implicitWidth: 34; implicitHeight: 34; padding: 7
@@ -746,14 +754,16 @@ ApplicationWindow {
         required property var lessonRow
         objectName: "lessonStatus_" + lessonRow.id
         text: statusBadge.text
-        implicitWidth: 168; implicitHeight: 28; padding: 8; topPadding: 3; bottomPadding: 3
+        implicitWidth: 96; implicitHeight: 28; padding: 0
         enabled: !bridge.busy && !bridge.narrationBusy
-        LibraryVoiceBadge { id: statusBadge; objectName: "lessonNarrationBadge_" + statusButton.lessonRow.id; visible: false; expanded: true; audio: statusButton.lessonRow.narration || ({}) }
-        Accessible.name: text + ". Chọn hoặc tạo giọng đọc."
+        Accessible.name: statusBadge.description + ". Chọn hoặc tạo giọng đọc."
         ToolTip.visible: hovered; ToolTip.delay: 500
-        ToolTip.text: statusButton.text + "\nBấm để chọn hoặc tạo giọng đọc."
-        contentItem: Label { objectName: "libraryVoicePillText"; text: statusButton.text; color: statusBadge.foreground; font.pixelSize: 11; font.weight: Font.DemiBold; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-        background: Rectangle { radius: 14; color: statusButton.hovered ? (AppTheme.dark ? Qt.lighter(statusBadge.fill, 1.1) : Qt.darker(statusBadge.fill, 1.04)) : statusBadge.fill; border.color: statusButton.visualFocus ? root.blue : statusBadge.outline }
+        ToolTip.text: statusBadge.description + "\nBấm để chọn hoặc tạo giọng đọc."
+        contentItem: Item {
+            implicitWidth: statusBadge.implicitWidth; implicitHeight: statusBadge.implicitHeight
+            LibraryVoiceBadge { id: statusBadge; objectName: "lessonNarrationBadge_" + statusButton.lessonRow.id; anchors.centerIn: parent; audio: statusButton.lessonRow.narration || ({}); Accessible.ignored: true }
+        }
+        background: Rectangle { anchors.horizontalCenter: parent.horizontalCenter; width: Math.max(36, statusBadge.implicitWidth + 20); radius: 14; color: statusButton.hovered ? (AppTheme.dark ? Qt.lighter(statusBadge.fill, 1.1) : Qt.darker(statusBadge.fill, 1.04)) : statusBadge.fill; border.color: statusButton.visualFocus ? root.blue : statusBadge.outline; border.width: statusButton.visualFocus ? 2 : 1 }
         onClicked: bridge.openLessonNarration(lessonRow.id)
     }
 
@@ -902,10 +912,10 @@ ApplicationWindow {
                         }
                         RowLayout { id: libraryToolbar; objectName: "libraryToolbar"; visible: root.page === "library"; Layout.fillWidth: true; spacing: 6
                             RowLayout { objectName: "libraryFilters"; Layout.fillWidth: true; spacing: 6
-                                LibraryFilter { id: subjectFilter; objectName: "librarySubjectFilter"; emptyLabel: "Môn học"; Layout.fillWidth: true; Layout.minimumWidth: 78; Layout.preferredWidth: 94; Layout.maximumWidth: 170; model: bridge.librarySubjects; textRole: "label"; valueRole: "id"; onActivated: root.libraryPage = 1 }
-                                LibraryFilter { id: gradeFilter; objectName: "libraryGradeFilter"; emptyLabel: "Khối lớp"; Layout.fillWidth: true; Layout.minimumWidth: 72; Layout.preferredWidth: 80; Layout.maximumWidth: 150; model: bridge.libraryGrades; textRole: "label"; valueRole: "id"; onActivated: root.libraryPage = 1 }
-                                LibraryFilter { id: stateFilter; objectName: "libraryStateFilter"; emptyLabel: "Trạng thái"; Layout.fillWidth: true; Layout.minimumWidth: 80; Layout.preferredWidth: 90; Layout.maximumWidth: 170; textRole: "label"; valueRole: "id"; model: [{id:"",label:"Tất cả trạng thái"},{id:"ready",label:"Đã duyệt nội dung"},{id:"review",label:"Cần xử lý"},{id:"draft",label:"Bản nháp"}]; onActivated: root.libraryPage = 1 }
-                                LibraryFilter { id: voiceFilter; objectName: "libraryVoiceFilter"; emptyLabel: "Giọng đọc"; Layout.fillWidth: true; Layout.minimumWidth: 78; Layout.preferredWidth: 92; Layout.maximumWidth: 170; textRole: "label"; valueRole: "id"; model: [{id:"",label:"Tất cả giọng đọc"},{id:"en",label:"Có bản giọng Anh"},{id:"vi",label:"Có bản giọng Việt"},{id:"both",label:"Có bản giọng Việt–Anh"},{id:"none",label:"Chưa có giọng"}]; onActivated: root.libraryPage = 1 }
+                                LibraryFilter { id: subjectFilter; objectName: "librarySubjectFilter"; emptyLabel: "Môn học"; Layout.fillWidth: true; Layout.minimumWidth: 78; Layout.preferredWidth: 94; model: bridge.librarySubjects; textRole: "label"; valueRole: "id"; onActivated: root.libraryPage = 1 }
+                                LibraryFilter { id: gradeFilter; objectName: "libraryGradeFilter"; emptyLabel: "Khối lớp"; Layout.fillWidth: true; Layout.minimumWidth: 72; Layout.preferredWidth: 80; model: bridge.libraryGrades; textRole: "label"; valueRole: "id"; onActivated: root.libraryPage = 1 }
+                                LibraryFilter { id: stateFilter; objectName: "libraryStateFilter"; emptyLabel: "Trạng thái"; Layout.fillWidth: true; Layout.minimumWidth: 80; Layout.preferredWidth: 90; textRole: "label"; valueRole: "id"; model: [{id:"",label:"Tất cả trạng thái"},{id:"ready",label:"Đã duyệt nội dung"},{id:"review",label:"Cần xử lý"},{id:"draft",label:"Bản nháp"}]; onActivated: root.libraryPage = 1 }
+                                LibraryFilter { id: voiceFilter; objectName: "libraryVoiceFilter"; emptyLabel: "Giọng đọc"; Layout.fillWidth: true; Layout.minimumWidth: 78; Layout.preferredWidth: 92; textRole: "label"; valueRole: "id"; model: [{id:"",label:"Tất cả giọng đọc"},{id:"en",label:"Có bản giọng Anh"},{id:"vi",label:"Có bản giọng Việt"},{id:"both",label:"Có bản giọng Việt–Anh"},{id:"none",label:"Chưa có giọng"}]; onActivated: root.libraryPage = 1 }
                             }
                             LibraryAction { objectName: "libraryClearFilters"; text: "↺"; font.pixelSize: 18; Layout.preferredWidth: 30; Accessible.name: "Xóa bộ lọc"; ToolTip.visible: hovered; ToolTip.text: "Xóa bộ lọc"; onClicked: { search.clear(); subjectFilter.currentIndex = 0; gradeFilter.currentIndex = 0; stateFilter.currentIndex = 0; voiceFilter.currentIndex = 0; root.libraryPage = 1 } }
                             LibraryCheck { objectName: "librarySelectAll"; text: "Chọn tất cả"; ToolTip.visible: hovered; ToolTip.delay: 600; ToolTip.text: "Chọn toàn bộ " + root.libraryResult.total + " bài khớp bộ lọc, kể cả các trang khác.\nĐổi bộ lọc sẽ bỏ chọn."; Accessible.description: ToolTip.text; checkState: !root.selectedLessons.length ? Qt.Unchecked : root.selectedLessons.length === root.libraryResult.total ? Qt.Checked : Qt.PartiallyChecked; nextCheckState: function() { return checkState === Qt.Checked ? Qt.Unchecked : Qt.Checked }; enabled: root.libraryResult.total > 0; onClicked: root.selectedLessons = checked ? root.libraryResult.ids.slice() : [] }
@@ -993,18 +1003,15 @@ ApplicationWindow {
                                         ColumnLayout { Layout.column: 2; Layout.row: 0; Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 3
                                             Label { objectName: "lessonTitle_" + modelData.id; text: modelData.title; color: root.ink; font.pixelSize: 15; font.weight: Font.DemiBold; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight; Layout.fillWidth: true; Layout.minimumWidth: 0 }
                                             Copy { Layout.fillWidth: true; text: modelData.subject + "  ·  " + modelData.education_level + " " + modelData.grade + "  ·  " + (modelData.slides_count ? modelData.slides_count + " slide" : modelData.segments_count + " phần"); font.pixelSize: 12 }
-                                            RowLayout { Layout.fillWidth: true; spacing: 10
-                                                LibraryContentWarning { id: rowContentWarning; objectName: "lessonContentWarning_" + modelData.id; showWarnings: bridge.experimentalTeaching; review: modelData.review || ({}); enabled: !bridge.busy; onRequestInspect: { root.libraryReviewTarget = modelData.id; bridge.openLesson(modelData.id) } Layout.fillWidth: true; Layout.minimumWidth: 0 }
-                                                Item { Layout.fillWidth: true }
-                                                Copy { objectName: "lessonCreated_" + modelData.id; text: (modelData.created_at_estimated ? "Lưu: " : "Tạo: ") + bridge.lessonDateLabel(modelData.created_at); font.pixelSize: 10; Layout.minimumWidth: 145; Layout.preferredWidth: 145; Layout.maximumWidth: 145 }
-                                            }
+                                            LibraryContentWarning { id: rowContentWarning; objectName: "lessonContentWarning_" + modelData.id; showWarnings: bridge.experimentalTeaching; review: modelData.review || ({}); enabled: !bridge.busy; onRequestInspect: { root.libraryReviewTarget = modelData.id; bridge.openLesson(modelData.id) } Layout.fillWidth: true; Layout.minimumWidth: 0 }
+                                            Copy { objectName: "lessonCreated_" + modelData.id; text: (modelData.created_at_estimated ? "Lưu: " : "Tạo: ") + bridge.lessonDateLabel(modelData.created_at); font.pixelSize: 10; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.topMargin: 8 }
                                         }
-                                        LessonStatus { id: rowStatus; lessonRow: modelData; Layout.column: 3; Layout.row: 0; Layout.minimumWidth: 168; Layout.preferredWidth: 168; Layout.maximumWidth: 168 }
+                                        LessonStatus { id: rowStatus; lessonRow: modelData; Layout.column: 3; Layout.row: 0; Layout.minimumWidth: 96; Layout.preferredWidth: 96; Layout.maximumWidth: 96 }
                                         RowLayout {
                                         Layout.column: lessonRow.wideActions ? 4 : 2; Layout.row: lessonRow.wideActions ? 0 : 1; Layout.columnSpan: lessonRow.wideActions ? 1 : 2; Layout.fillWidth: !lessonRow.wideActions; spacing: 8
                                         LibraryRowAction { id: rowOpen; objectName: "lessonOpen_" + modelData.id; text: bridge.openingTeachingLesson === modelData.id ? "Đang mở…" : "Mở PowerPoint"; Layout.minimumWidth: 128; Layout.preferredWidth: 128; Layout.maximumWidth: 128; primary: true; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.teachingTransitioning; ToolTip.visible: hovered; ToolTip.text: "Mở bài và gắn Mascot với bài này. Bấm F5 khi sẵn sàng trình chiếu."; onClicked: bridge.openTeachingLibraryLesson(modelData.id) }
                                         LibraryRowAction { id: rowVoice; objectName: "lessonNarrate_" + modelData.id; text: "Tạo giọng đọc"; enabled: !bridge.busy && !bridge.narrationBusy; ToolTip.visible: hovered; ToolTip.text: "Chọn ngôn ngữ, giọng và vị trí loa; không mở PowerPoint."; onClicked: bridge.openLessonNarration(modelData.id) }
-                                        LibraryRowAction { id: rowDownload; objectName: "lessonDownload_" + modelData.id; text: "Tải"; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: root.downloadLibraryLessons([modelData.id]) }
+                                        LibraryDownloadButton { id: rowDownload; objectName: "lessonDownload_" + modelData.id; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: root.downloadLibraryLessons([modelData.id]) }
                                         Item { visible: !lessonRow.wideActions; Layout.fillWidth: true }
                                         LibraryAction { id: rowMore; objectName: "lessonMore_" + modelData.id; text: "⋯"; font.pixelSize: 20; implicitHeight: 34; Accessible.name: "Thao tác với " + modelData.title; onClicked: rowMenu.popup() }
                                         Menu { id: rowMenu; parent: rowMore; x: parent.width - width; y: parent.height
@@ -1052,17 +1059,19 @@ ApplicationWindow {
                                                 Label { text: "Mở bài để xem nội dung"; visible: !largeCard.cover.loading; color: root.muted; font.pixelSize: 11; anchors.horizontalCenter: parent.horizontalCenter }
                                             }
                                         }
-                                        Label { objectName: "lessonTitle_" + modelData.id; text: modelData.title; color: root.ink; font.pixelSize: 15; font.weight: Font.DemiBold; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.preferredHeight: 40; verticalAlignment: Text.AlignTop }
-                                        Copy { Layout.fillWidth: true; font.pixelSize: 12; text: modelData.subject + " · " + modelData.education_level + " " + modelData.grade + " · " + (modelData.slides_count ? modelData.slides_count + " slide" : modelData.segments_count + " phần") }
-                                        RowLayout { Layout.fillWidth: true
-                                            LibraryContentWarning { id: cardContentWarning; objectName: "lessonContentWarning_" + modelData.id; showWarnings: bridge.experimentalTeaching; review: modelData.review || ({}); enabled: !bridge.busy; onRequestInspect: { root.libraryReviewTarget = modelData.id; bridge.openLesson(modelData.id) } Layout.fillWidth: true; Layout.minimumWidth: 0 }
-                                            Item { Layout.fillWidth: true }
-                                            Copy { objectName: "lessonCardCreated_" + modelData.id; font.pixelSize: 10; text: bridge.lessonDateLabel(modelData.created_at).split(" · ").pop(); Layout.alignment: Qt.AlignRight }
+                                        Label { objectName: "lessonTitle_" + modelData.id; text: modelData.title; color: root.ink; font.pixelSize: 15; font.weight: Font.DemiBold; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight; Layout.fillWidth: true; Layout.minimumWidth: 0 }
+                                        RowLayout { Layout.fillWidth: true; spacing: 10
+                                            Copy { objectName: "lessonCardMetadata_" + modelData.id; Layout.fillWidth: true; Layout.minimumWidth: 0; font.pixelSize: 12; wrapMode: Text.NoWrap; elide: Text.ElideRight; text: modelData.subject + " · " + modelData.education_level + " " + modelData.grade + " · " + (modelData.slides_count ? modelData.slides_count + " slide" : modelData.segments_count + " phần")
+                                                ToolTip.visible: metadataHover.hovered && truncated; ToolTip.text: text
+                                                HoverHandler { id: metadataHover }
+                                            }
+                                            Copy { objectName: "lessonCardCreated_" + modelData.id; font.pixelSize: 10; text: bridge.lessonDateLabel(modelData.created_at).split(" · ").pop(); Layout.minimumWidth: implicitWidth; Layout.alignment: Qt.AlignRight }
                                         }
+                                        LibraryContentWarning { id: cardContentWarning; objectName: "lessonContentWarning_" + modelData.id; showWarnings: bridge.experimentalTeaching; review: modelData.review || ({}); enabled: !bridge.busy; onRequestInspect: { root.libraryReviewTarget = modelData.id; bridge.openLesson(modelData.id) } Layout.fillWidth: true; Layout.minimumWidth: 0 }
                                         MainAction { id: cardOpen; objectName: "lessonOpen_" + modelData.id; text: bridge.openingTeachingLesson === modelData.id ? "Đang mở…" : "Mở PowerPoint"; primary: true; Layout.fillWidth: true; onClicked: bridge.openTeachingLibraryLesson(modelData.id); enabled: !bridge.busy && !bridge.narrationBusy && !bridge.teachingTransitioning }
                                         RowLayout { Layout.fillWidth: true; spacing: 6
                                             MainAction { id: cardVoice; objectName: "lessonNarrate_" + modelData.id; text: "Tạo giọng đọc"; Layout.fillWidth: true; onClicked: bridge.openLessonNarration(modelData.id); enabled: !bridge.busy && !bridge.narrationBusy }
-                                            MainAction { id: cardDownload; objectName: "lessonDownload_" + modelData.id; text: "Tải"; onClicked: root.downloadLibraryLessons([modelData.id]); enabled: !bridge.busy && !bridge.narrationBusy }
+                                            LibraryDownloadButton { id: cardDownload; objectName: "lessonDownload_" + modelData.id; implicitWidth: 40; implicitHeight: 40; onClicked: root.downloadLibraryLessons([modelData.id]); enabled: !bridge.busy && !bridge.narrationBusy }
                                             LibraryAction { id: largeCardMore; objectName: "lessonMore_" + modelData.id; text: "⋯"; font.pixelSize: 20; implicitHeight: 40; Accessible.name: "Thao tác với " + modelData.title; onClicked: largeCardMenu.popup() }
                                             Menu { id: largeCardMenu; parent: largeCardMore; x: parent.width - width; y: parent.height
                                                 MenuItem { objectName: "lessonPreview_" + modelData.id; text: "Xem bài giảng"; enabled: !bridge.busy && !bridge.narrationBusy; onTriggered: bridge.openLesson(modelData.id) }

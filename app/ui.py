@@ -414,7 +414,9 @@ class Bridge(QObject):
 
         try:
             date = datetime.fromtimestamp(value) if isinstance(value, (int, float)) else datetime.fromisoformat(value)
-            return date.astimezone().strftime("%H:%M · %d/%m/%Y")
+            date = date.astimezone()
+            weekday = ("Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ Nhật")[date.weekday()]
+            return date.strftime("%H:%M · ") + weekday + date.strftime(", %d/%m/%Y")
         except (ValueError, TypeError, OSError, OverflowError):
             return "Chưa có ngày lưu"
 

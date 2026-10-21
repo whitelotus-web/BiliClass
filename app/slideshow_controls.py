@@ -3,16 +3,18 @@
 from .paths import RESOURCE_ROOT
 
 
-def speaker_index(path):
-    """Read only XML metadata, never load the deck's images/audio into memory."""
+_NS = {'p': 'http://schemas.openxmlformats.org/presentationml/2006/main',
+       'a': 'http://schemas.openxmlformats.org/drawingml/2006/main',
+       'r': 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'}
+
+
+def _slide_shapes(path):
+    """Read XML in presentation order without decompressing pictures or audio."""
     import posixpath
     from xml.etree import ElementTree as ET
     from zipfile import ZipFile
 
-    ns = {'p': 'http://schemas.openxmlformats.org/presentationml/2006/main',
-          'a': 'http://schemas.openxmlformats.org/drawingml/2006/main',
-          'r': 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'}
-    result, other_media = {}, False
+    ns = _NS
     with ZipFile(path) as archive:
         presentation = ET.fromstring(archive.read('ppt/presentation.xml'))
         relations = {row.attrib['Id']: row.attrib['Target']
@@ -24,22 +26,46 @@ def speaker_index(path):
             tree = ET.fromstring(archive.read(target)).find('p:cSld/p:spTree', ns)
             shapes = [shape for shape in tree if shape.tag not in
                       {'{' + ns['p'] + '}' + name for name in ('nvGrpSpPr', 'grpSpPr', 'extLst')}]
-            named = {}
-            for position, shape in enumerate(shapes, 1):
-                props = shape.find('.//p:cNvPr', ns)
-                named[props.get('name', '') if props is not None else ''] = position
-            audio = []
-            for position, shape in enumerate(shapes, 1):
-                props = shape.find('.//p:cNvPr', ns)
-                name = props.get('name', '') if props is not None else ''
-                if name.startswith('BiliClass audio '):
-                    language = name.split()[-1].lower()
-                    audio.append((position, int(props.attrib['id']), language,
-                                  named.get('BiliClass control ' + language.upper(), position),
-                                  named.get('BiliClass pause ' + language.upper())))
-                elif shape.find('.//a:audioFile', ns) is not None or shape.find('.//a:videoFile', ns) is not None:
-                    other_media = True  # Preserve source audio/video controls, including groups.
-            result[int(row.attrib['id'])] = audio
+            yield int(row.attrib['id']), shapes
+
+
+def speaker_languages(path):
+    """Preserve blank slides and report only genuine generated audio shapes."""
+    result = {}
+    for number, (_, shapes) in enumerate(_slide_shapes(path), 1):
+        languages = []
+        for shape in shapes:
+            props = shape.find('.//p:cNvPr', _NS)
+            name = props.get('name', '') if props is not None else ''
+            if name.startswith('BiliClass audio ') and shape.find('.//a:audioFile', _NS) is not None:
+                language = name.rsplit(' ', 1)[-1].lower()
+                if language in {'vi', 'en', 'both'}:
+                    languages.append(language)
+        result[number] = languages
+    return result
+
+
+def speaker_index(path):
+    """Read only XML metadata, never load the deck's images/audio into memory."""
+    ns = _NS
+    result, other_media = {}, False
+    for identity, shapes in _slide_shapes(path):
+        named = {}
+        for position, shape in enumerate(shapes, 1):
+            props = shape.find('.//p:cNvPr', ns)
+            named[props.get('name', '') if props is not None else ''] = position
+        audio = []
+        for position, shape in enumerate(shapes, 1):
+            props = shape.find('.//p:cNvPr', ns)
+            name = props.get('name', '') if props is not None else ''
+            if name.startswith('BiliClass audio '):
+                language = name.split()[-1].lower()
+                audio.append((position, int(props.attrib['id']), language,
+                              named.get('BiliClass control ' + language.upper(), position),
+                              named.get('BiliClass pause ' + language.upper())))
+            elif shape.find('.//a:audioFile', ns) is not None or shape.find('.//a:videoFile', ns) is not None:
+                other_media = True  # Preserve source audio/video controls, including groups.
+        result[identity] = audio
     return result, other_media
 
 

@@ -49,9 +49,8 @@ def prepare_original_teaching(lesson, directory):
 
 
 def _prepare_verified_teaching(lesson, preview, directory, path, data):
-    from pptx import Presentation
-
     from .lesson_narration import MODES, audio_status
+    from .slideshow_controls import speaker_languages
 
     warning = ''
     owned_path = ''
@@ -96,13 +95,11 @@ def _prepare_verified_teaching(lesson, preview, directory, path, data):
             target.unlink(missing_ok=True)
             raise
         path, owned_path = target, str(target)
-    media = {}
-    for index, slide in enumerate(Presentation(path).slides, 1):
-        languages = [shape.name.rsplit(' ', 1)[-1].lower() for shape in slide.shapes
-                     if shape.name.startswith('BiliClass audio ') and shape.element.xpath('.//a:audioFile')]
-        media[index] = [lang for lang in languages if lang in {'vi', 'en', 'both'}]
+    media = speaker_languages(path)
+    with Path(path).open('rb') as stream:
+        digest = hashlib.file_digest(stream, 'sha256').hexdigest()
     prepared = {'lesson': lesson, 'preview': preview, 'path': str(path), 'speech': data,
-            'media': media, 'sha256': hashlib.sha256(path.read_bytes()).hexdigest(),
+            'media': media, 'sha256': digest,
             'owned_path': owned_path, 'warning': warning}
     if managed_key:
         try:

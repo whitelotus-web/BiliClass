@@ -21,21 +21,24 @@ RowLayout {
         : (AppTheme.dark ? "#263246" : "#edf1f6")
     readonly property color outline: tone === "ready" ? (AppTheme.dark ? "#35634f" : "#b7dfc7")
         : tone === "checking" ? (AppTheme.dark ? "#3c5e88" : "#c3d6f3") : AppTheme.line
-    readonly property string text: languages.length ? (expanded ? "Có giọng " + languages.map(function(v) { return v === "vi" ? "Việt" : "Anh" }).join(" + ") : languages.map(function(v) { return v.toUpperCase() }).join(" · "))
+    readonly property string description: languages.length ? "Có giọng " + languages.map(function(v) { return v === "vi" ? "Việt" : "Anh" }).join(" + ")
         : audio.status === "checking" ? "Đang kiểm tra giọng…"
         : "Chưa có giọng"
-    spacing: 4
+    readonly property string text: languages.length && !expanded ? languages.map(function(v) { return v.toUpperCase() }).join(" + ") : description
+    spacing: 5
     Accessible.role: Accessible.StaticText
-    Accessible.name: languages.length ? "Đã có giọng đọc: " + languages.map(function(v) { return v === "vi" ? "tiếng Việt" : "tiếng Anh" }).join(", ") : text
-    Image {
+    Accessible.name: description
+    ThemedImage {
         objectName: "libraryVoiceSpeakerIcon"
-        visible: badge.languages.length > 0
-        source: "../assets/actions/speaker.svg"; sourceSize.width: 32; sourceSize.height: 32
-        Layout.preferredWidth: 15; Layout.preferredHeight: 15
+        darkTint: badge.foreground
+        source: badge.tone === "checking" ? "../assets/actions/refresh.png" : badge.languages.length ? "../assets/actions/speaker-ready.svg" : "../assets/actions/speaker-off.svg"
+        sourceSize.width: 48; sourceSize.height: 48; fillMode: Image.PreserveAspectFit
+        Layout.preferredWidth: 18; Layout.preferredHeight: 18
         Accessible.ignored: true
     }
     Label {
         objectName: "libraryVoiceStatusText"
+        visible: badge.languages.length > 0
         text: badge.text; color: badge.foreground
         font.pixelSize: 11; font.weight: badge.expanded || badge.languages.length ? Font.DemiBold : Font.Normal
         Layout.fillWidth: true; Layout.minimumWidth: 0; elide: Text.ElideRight

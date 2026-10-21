@@ -59,3 +59,12 @@ def test_current_native_speech_is_reused_without_discarding_saved_script_edits(t
     monkeypatch.setattr('app.slide_speech.deck_speech', lambda *_: pytest.fail('Current speech must not be re-inspected'))
     prepared = prepare_teaching(lesson, preview, directory)
     assert prepared['speech'] == lesson['slide_speech']
+
+
+def test_cosmetic_release_keeps_audio_cache_but_format_change_invalidates_it(tmp_path, monkeypatch):
+    lesson, preview, directory, _ = prepared_lesson(tmp_path)
+    before = teaching_cache.cache_key(lesson, preview['sha256'], directory)
+    monkeypatch.setattr('app.__version__', '9.9.9rc999')
+    assert teaching_cache.cache_key(lesson, preview['sha256'], directory) == before
+    monkeypatch.setattr(teaching_cache, 'FORMAT_VERSION', teaching_cache.FORMAT_VERSION + 1)
+    assert teaching_cache.cache_key(lesson, preview['sha256'], directory) != before

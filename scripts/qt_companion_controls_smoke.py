@@ -70,6 +70,7 @@ def main():
             companion.setProperty('collapsed', False)
             pump(150)
             assert not c('mascotCompanion').property('showSubjectBadge')
+            assert not c('companionCloseLesson').isVisible()
             assert not c('mascotCompanion').findChild(QObject, 'mascotSubjectBadge').isVisible()
             assert c('companionSettings').isVisible() and c('companionShortcutGuideToggle').width() == 30
             assert companion.opacity() == 1 and bridge.companionPanelOpacity == 100
@@ -93,7 +94,7 @@ def main():
             bridge._powerpoint_state = {'active': True, 'opened': True, 'slide': 2, 'total': 7, 'message': ''}
             native_commands = []
             lesson['narration'] = {'keys': {}}
-            bridge.powerpoint_worker = SimpleNamespace(navigate=lambda *args: native_commands.append(args))
+            bridge.powerpoint_worker = SimpleNamespace(navigate=lambda *args: native_commands.append(args), stop=lambda: native_commands.append(('stop',)))
             bridge.teachingSession.bind({'lesson': lesson, 'path': '', 'preview': {}, 'media': {2: ['en', 'vi']}})
             bridge.changed.emit()
             pump(150)
@@ -273,10 +274,14 @@ def main():
             panel_left = c('companionMenu').mapToGlobal(QPointF()).x()
             if panel_top-screen_area.top() >= native_tip['height']+16:
                 assert native_tip['y']+native_tip['height'] <= panel_top-4, (native_tip, panel_top)
+                assert abs(native_tip['x']-panel_left) <= 1, (native_tip, panel_left)
             else:
                 assert (native_tip['x']+native_tip['width'] <= panel_left-4
                         or native_tip['x'] >= panel_left+c('companionMenu').width()+4), (native_tip, panel_top)
             assert companion.height() == height_without_guide, 'Hover help must not resize the panel'
+            assert abs(native_tip['width']-c('companionMenu').width()) <= 1, native_tip
+            tooltip_window, error = QQmlExpression(QQmlEngine.contextForObject(tooltip), tooltip, 'contentItem.Window.window').evaluate()
+            assert not error and tooltip_window.grabWindow().save(str(report / 'shortcut-tooltip-window.png'))
             assert companion.grabWindow().save(str(report / 'shortcut-tooltip.png'))
             QTest.mouseMove(companion, QPoint(10, 10))
             until(lambda: not c('companionShortcutTooltip').property('visible'))
@@ -348,20 +353,29 @@ def main():
                 root.resize(width, height)
                 pump(100)
                 summary, toggles = c('mascotAccessorySummary'), c('mascotAlwaysOnTop')
+                accessory, subject = c('mascotAccessories'), c('mascotAccessorySubject')
                 summary_left = summary.mapToScene(QPointF()).x()
-                toggles_right = toggles.mapToScene(QPointF(toggles.width(), 0)).x()
-                if c('settingsPage').width() >= 800:
-                    accessory = c('mascotAccessories')
+                if abs(toggles.mapToScene(QPointF()).y()-accessory.mapToScene(QPointF()).y()) < 2:
+                    assert toggles.mapToScene(QPointF(toggles.width(), 0)).x() < accessory.mapToScene(QPointF()).x()
                     assert summary_left > accessory.mapToScene(QPointF(accessory.width(), 0)).x()
-                    assert summary.mapToScene(QPointF(summary.width(), 0)).x() < toggles.mapToScene(QPointF()).x()
                 else:
-                    assert summary.mapToScene(QPointF(0, summary.height())).y() < toggles.mapToScene(QPointF()).y()
+                    assert toggles.mapToScene(QPointF(0, toggles.height())).y() < accessory.mapToScene(QPointF()).y()
+                    assert accessory.mapToScene(QPointF(0, accessory.height())).y() < summary.mapToScene(QPointF()).y()
                 viewport = c('settingsContentScroll').property('contentItem')
                 offset = summary.mapToItem(viewport, QPointF()).y()
                 viewport.setProperty('contentY', max(0, min(viewport.property('contentHeight') - viewport.height(),
                                                            viewport.property('contentY') + offset - 120)))
                 pump(100)
                 assert root.grabWindow().save(str(report / f'settings-{width}.png'))
+                selected_subject, subject_width = subject.property('currentText'), subject.width()
+                click(root, accessory)
+                assert summary.isVisible() and subject.isVisible() and not subject.isEnabled()
+                assert subject.property('currentText') == selected_subject and subject.width() == subject_width
+                assert root.grabWindow().save(str(report / f'settings-accessories-off-{width}.png'))
+                QTest.mouseClick(root, Qt.LeftButton, Qt.NoModifier, subject.mapToScene(QPointF(subject.width()/2, subject.height()/2)).toPoint())
+                assert QQmlExpression(QQmlEngine.contextForObject(subject), subject, 'popup.visible').evaluate() == (False, False)
+                click(root, accessory)
+                assert subject.isEnabled() and subject.property('currentText') == selected_subject
             until(lambda: bridge._companion_preferences.worker is None and not bridge._companion_preferences.pending)
             assert library.setting('companion_panel_opacity', 0) == 100
             bridge.setCompanionPanelOpacity(-30)
@@ -395,6 +409,13 @@ def main():
             until(lambda: bridge._companion_preferences.worker is None and not bridge._companion_preferences.pending)
             assert library.setting('companion_panel_opacity', 100) == 30
             assert not bridge.mascotSaving and library.setting('mascot', '') == 'Milo'
+            bridge.showCompanion(companion)
+            companion.setProperty('collapsed', False)
+            pump(150)
+            close_lesson = c('companionCloseLesson')
+            assert close_lesson.isVisible() and close_lesson.isEnabled()
+            click(companion, close_lesson)
+            assert native_commands[-1] == ('stop',) and bridge.powerpointState['closing']
             assert not warnings, warnings
             result = dict(status='passed', sizes=3, opacity_clicks=2, settings_preserves_binding=True,
                           subject_badge_hidden=True, fixed_two_speakers=True, availability_geometry_stable=True, plain_speaker_icons=True, qml_warnings=warnings,

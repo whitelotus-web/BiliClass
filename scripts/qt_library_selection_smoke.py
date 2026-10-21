@@ -84,6 +84,7 @@ def main():
                         date, card = c('lessonCreated_'+identity), c('lessonCard_'+identity)
                         assert date.width() >= 140
                         assert date.mapToItem(card, QPointF()).x()+date.width() < card.width()
+                        assert abs(date.mapToScene(QPointF()).x()-c('lessonTitle_'+identity).mapToScene(QPointF()).x()) < 1
                     root.grabWindow().save(str(reports/f'{mode}-aligned-dates-{width}.png'))
             root.resize(1080, 700)
             pump(120)
@@ -143,11 +144,11 @@ def main():
                 assert last.y() < viewport_top + viewport.height() and last.y() + last_card.height() > viewport_top
                 assert root.grabWindow().save(str(reports/f'{mode}-scrolled.png'))
                 if mode == 'list':
-                    for width, height, limit in ((1080, 700, 132), (1366, 850, 110)):
+                    for width, height, limit in ((1080, 700, 142), (1366, 850, 120)):
                         root.resize(width, height)
                         view.setProperty('contentY', 0)
                         pump(180)
-                        assert c('lessonCard_'+ordered[0]).height() <= limit
+                        assert c('lessonCard_'+ordered[0]).height() <= limit, (width, c('lessonCard_'+ordered[0]).height(), limit)
                         assert c('lessonOpen_'+ordered[0]).height() == 34
                         assert root.grabWindow().save(str(reports/f'compact-list-{width}.png'))
                     root.resize(1080, 700)
@@ -189,9 +190,9 @@ def main():
             badge = badge_component.create()
             assert badge is not None, badge_component.errors()
             cases = [({'ready': True, 'mode': 'vi'}, 'VI'), ({'ready': True, 'mode': 'en'}, 'EN'),
-                     ({'ready': True, 'mode': 'both'}, 'VI · EN'),
+                     ({'ready': True, 'mode': 'both'}, 'VI + EN'),
                      ({'ready': True, 'mode': 'vi', 'variants': [{'ready': True, 'mode': 'en'}, {'ready': False, 'mode': 'vi'}]}, 'EN'),
-                     ({'variants': [{'ready': True, 'mode': 'vi'}, {'ready': True, 'mode': 'en'}]}, 'VI · EN'),
+                     ({'variants': [{'ready': True, 'mode': 'vi'}, {'ready': True, 'mode': 'en'}]}, 'VI + EN'),
                      ({'status': 'partial', 'mode': 'both', 'ready_languages': ['vi']}, 'Chưa có giọng')]
             for audio, expected in cases:
                 badge.setProperty('audio', audio)

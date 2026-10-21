@@ -46,6 +46,7 @@ Item {
         return subjects
     }
     readonly property string previewSubject: accessorySubjectChoice.currentText
+    FontMetrics { id: accessorySubjectMetrics; font: accessorySubjectChoice.font }
     readonly property bool wideMascotLayout: contentScroll.availableWidth >= 1020
     readonly property bool mascotPreviewVisible: true
     readonly property string mascotPreviewText: selectedMascot === "Lumi"
@@ -478,15 +479,18 @@ Item {
                 ColumnLayout { width: parent.width; spacing: 13
                     Title { text: "Cấu hình cho Mascot" }
                     Hint { text: "Chọn phụ kiện và cách hiển thị. Xem trước thay đổi ngay; bấm Lưu để áp dụng."; Layout.fillWidth: true }
-                    GridLayout { Layout.fillWidth: true; columns: page.width >= 800 ? 3 : 1; columnSpacing: 20; rowSpacing: 12
+                    GridLayout { id: mascotDisplayOptions; Layout.fillWidth: true; columns: page.width >= 800 ? 4 : 1; columnSpacing: 20; rowSpacing: 12
+                    CheckBox { id: mascotOnTop; objectName: "mascotAlwaysOnTop"; text: "Luôn nổi trên cùng"; checked: bridge.mascotSettings.always_on_top; Layout.alignment: Qt.AlignVCenter }
                     CheckBox { id: mascotAccessories; objectName: "mascotAccessories"; text: "Hiện phụ kiện theo môn"; checked: bridge.mascotSettings.accessories; Layout.alignment: Qt.AlignVCenter }
-                    ColumnLayout { objectName: "mascotAccessorySummary"; visible: mascotAccessories.checked; enabled: visible; Layout.fillWidth: true; Layout.preferredWidth: 360; Layout.minimumWidth: 0; Layout.alignment: Qt.AlignVCenter; spacing: 5
+                    ColumnLayout { objectName: "mascotAccessorySummary"; Layout.preferredWidth: accessorySubjectChoice.implicitWidth; Layout.maximumWidth: Math.min(accessorySubjectChoice.implicitWidth, page.width - 88); Layout.minimumWidth: 0; Layout.alignment: Qt.AlignVCenter; spacing: 5
                         Label { text: "Môn học"; color: page.ink; font.bold: true; Layout.fillWidth: true; wrapMode: Text.WordWrap }
-                        Choice { id: accessorySubjectChoice; objectName: "mascotAccessorySubject"; Layout.fillWidth: true; model: page.accessorySubjects; currentIndex: Math.max(0, model.indexOf(page.selectedAccessorySubject)); onActivated: { page.selectedAccessorySubject = currentText; page.accessorySubjectOverridden = true } }
+                        Choice { id: accessorySubjectChoice; objectName: "mascotAccessorySubject"; Layout.fillWidth: true
+                            implicitWidth: Math.ceil(model.reduce(function(width, subject) { return Math.max(width, accessorySubjectMetrics.advanceWidth(subject)) }, 0)) + leftPadding + rightPadding + (contentItem.leftPadding || 0) + (contentItem.rightPadding || 0) + 4
+                            enabled: mascotAccessories.checked; opacity: enabled ? 1 : .45; model: page.accessorySubjects; currentIndex: Math.max(0, model.indexOf(page.selectedAccessorySubject)); onActivated: { page.selectedAccessorySubject = currentText; page.accessorySubjectOverridden = true }
+                        }
                         Hint { objectName: "mascotThemeDescription"; text: mascotAccessories.checked ? mascotPreview.theme.label : "Phụ kiện đang tắt"; Layout.fillWidth: true; font.pixelSize: 11 }
                     }
-                    Item { visible: !mascotAccessories.checked && page.width >= 800; Layout.fillWidth: true }
-                    CheckBox { id: mascotOnTop; objectName: "mascotAlwaysOnTop"; text: "Luôn nổi trên cùng"; checked: bridge.mascotSettings.always_on_top; Layout.alignment: Qt.AlignVCenter }
+                    Item { visible: mascotDisplayOptions.columns > 1; Layout.fillWidth: true }
                     }
                     Rectangle { Layout.fillWidth: true; height: 1; color: page.line }
                     ColumnLayout { Layout.fillWidth: true; spacing: 5
