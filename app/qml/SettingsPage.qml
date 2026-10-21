@@ -402,7 +402,7 @@ Item {
 
         ColumnLayout {
             objectName: "mascotSettingsContent"
-            visible: page.activeTab === 3; Layout.fillWidth: true; Layout.maximumWidth: 1180; Layout.alignment: Qt.AlignHCenter; spacing: 14
+            visible: page.activeTab === 3; Layout.fillWidth: true; spacing: 14
             GridLayout {
                 Layout.fillWidth: true; columns: page.wideMascotLayout ? 3 : 2; columnSpacing: 12; rowSpacing: 12
                 Repeater { model: [

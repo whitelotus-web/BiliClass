@@ -141,7 +141,9 @@ def main():
                     assert c('mascotAccessorySummary').isVisible() and c('mascotAccessorySubject').isEnabled()
                     pump(150)
                     mascot = c('mascotSettingsContent')
-                    assert mascot.width() <= 1180 and abs(center(mascot)-center(page)) < 2
+                    assert abs(mascot.width()-mascot.parentItem().width()) < 2
+                    assert abs(mascot.mapToItem(mascot.parentItem(), QPointF()).x()) < 2
+                    assert window.grabWindow().save(str(reports/f'{mode}-mascot-{width}.png'))
                     viewport.setProperty('contentY', max(0, viewport.property('contentHeight')-viewport.height()))
                     pump(100)
                     guide, bindings, navigation = c('shortcutGuideLayout'), c('shortcutBindings'), c('shortcutNavigationGuide')
@@ -149,6 +151,18 @@ def main():
                         gap = navigation.mapToScene(QPointF()).x()-(bindings.mapToScene(QPointF()).x()+bindings.width())
                         assert 31 <= gap <= 33, gap
                     assert window.grabWindow().save(str(reports/f'{mode}-mascot-shortcuts-{width}.png'))
+            page.setProperty('activeTab', 3)
+            window.showMaximized()
+            c('settingsContentScroll').property('contentItem').setProperty('contentY', 0)
+            pump(250)
+            mascot = c('mascotSettingsContent')
+            assert abs(mascot.width()-mascot.parentItem().width()) < 2
+            assert window.grabWindow().save(str(reports/'mascot-maximized.png'))
+            window.showNormal()
+            window.resize(1080, 700)
+            pump(150)
+            assert abs(mascot.width()-mascot.parentItem().width()) < 2
+            assert c('settingsContentScroll').property('contentItem').property('contentWidth') <= c('settingsContentScroll').width()+1
             for width, height in ((1080, 700), (1366, 850), (1920, 1080)):
                 window.resize(width, height)
                 page.setProperty('activeTab', 1)
@@ -210,7 +224,7 @@ def main():
                 'Logo add/replace/remove updates image, buttons and saved asset',
                 'Voice actions remain next to rate controls at 1080/1366/1920, light/dark',
                 'Centered brand, version, update action and copyright in that vertical order',
-                'Mascot settings stay centered and bounded; shortcut columns remain adjacent',
+                'Mascot fills the content width at 1080/1366/1920 and maximized; shrinking has no horizontal overflow; shortcut columns remain adjacent',
                 'Three main storage actions; advanced actions collapsed and reachable',
                 'Profile fields still save; redundant voice hint hidden at rest',
                 'Real backup/restore preserves original library, profile and audio',
