@@ -77,9 +77,16 @@ def test_speaker_moves_immediately_and_coalesces_saves_without_busy_or_stale_les
     class Editor(QObject):
         selectionChanged = Signal()
         narrationChanged = Signal()
+        changed = Signal()
+        powerpointStateChanged = Signal()
         busy = narrationBusy = False
+        teachingTransitioning = False
+        powerpointState = {}
         powerpoint_worker = None
-        classroom = type('Classroom', (), {'running': False})()
+        class Classroom(QObject):
+            changed = Signal()
+            running = False
+        classroom = Classroom()
         def launch(self, *_):
             raise AssertionError('Position must not start a global job')
 

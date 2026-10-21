@@ -96,6 +96,18 @@ def test_original_and_converted_products_are_distinct_bindings(session):
     assert not bridge._focus_open_teaching(lesson['id'])
 
 
+def test_changed_speaker_position_requires_fresh_managed_product(session):
+    bridge, worker, lesson = session
+    bridge._powerpoint_state['active'] = False
+    saved = bridge.library.get(lesson['id'])
+    saved['speaker_position'] = 'top_left'
+    bridge.library._write(saved)
+    assert not bridge._focus_open_teaching(lesson['id'])
+    assert worker.stops == 0, 'Checking freshness must not close the bound editor'
+    bridge.teaching_session.bound['lesson']['speaker_position'] = 'top_left'
+    assert bridge._focus_open_teaching(lesson['id'])
+
+
 @pytest.mark.parametrize('opener,destination', [('openInputPowerPoint', None), ('openTeachingPresentation', 'library')])
 def test_local_file_open_uses_managed_copy_and_keeps_its_navigation_contract(session, monkeypatch, tmp_path, opener, destination):
     from pptx import Presentation

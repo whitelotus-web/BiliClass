@@ -27,6 +27,62 @@ def source(path, text='', notes=''):
     return path
 
 
+def test_idle_bound_mascot_allows_voice_configuration_without_rebinding(tmp_path, monkeypatch):
+    import copy
+    from PySide6.QtCore import QCoreApplication
+    from app.ui import Bridge
+
+    app = QCoreApplication.instance() or QCoreApplication([])
+    library = Library(tmp_path / 'data')
+    first = library.create('Bound lesson', 'Vật lý', 'THPT', '11', [('Slide 1', 'Năng lượng.')])
+    second = library.create('Voice draft', 'Vật lý', 'THPT', '11', [('Slide 1', 'Dao động.')])
+    bridge = Bridge(library)
+    worker = object()
+    bound = dict(lesson=copy.deepcopy(first))
+    stopped, prepared = [], []
+    try:
+        bridge.powerpoint_worker = worker
+        bridge._powerpoint_state = dict(opened=True, active=False)
+        bridge.teaching_session.bound = copy.deepcopy(bound)
+        monkeypatch.setattr(bridge, 'stopSpeech', lambda: stopped.append(True))
+        monkeypatch.setattr(bridge, 'launch', lambda action, callback, **_: callback(action()))
+        monkeypatch.setattr('app.voice_import.prepare_library_lesson',
+                            lambda *_: (second, dict(lesson_id=second['id'], revision=second['revision'], path='fixture.pptx')))
+        workspace = bridge.narration_workspace
+        assert workspace.configurationEnabled and not workspace.blockReason
+        workspace.setSpeakerPosition('top_left')
+        assert workspace.speakerPosition == 'top_left'
+        workspace.selectLibrary(second['id'])
+        assert bridge._lesson['id'] == second['id'] and stopped
+        assert bridge.teaching_session.bound == bound and bridge.powerpoint_worker is worker
+        assert not bridge.error
+        monkeypatch.setattr(bridge, '_available_voice', lambda _: True)
+        def prepare(*args):
+            prepared.append(args[1])
+            return dict(already_created=True)
+        monkeypatch.setattr('app.narration_preparation.prepare_request', prepare)
+        bridge._create_narration('vi', bridge.voiceSettings['voice'], 0)
+        assert prepared == [second['id']], 'Idle binding must not silently discard Create voice'
+        assert bridge.teaching_session.bound == bound and bridge.powerpoint_worker is worker
+        monkeypatch.setattr(bridge, 'launch', lambda *_args, **_kwargs: pytest.fail('Blocked configuration must not start a job'))
+        for state in (dict(active=True), dict(starting=True), dict(closing=True), dict(show_pending='start')):
+            bridge._powerpoint_state = dict(opened=True, **state)
+            assert not workspace.configurationEnabled and workspace.blockReason
+            workspace.selectLibrary(first['id'])
+            assert bridge._lesson['id'] == second['id']
+            assert bridge.error and bridge.message == workspace.blockReason
+    finally:
+        bridge.powerpoint_worker = None
+        bridge._powerpoint_state = {}
+        bridge.teaching_session.bound = {}
+        for service in (bridge._catalog, bridge.browserAI, bridge.slidePreview, bridge.libraryThumbnails,
+                        bridge.narrationPreferences, bridge.narration_preparation, bridge.english_reader,
+                        bridge.voice_controls, bridge._companion_preferences, bridge.classroom):
+            service.shutdown()
+        app.processEvents()
+        library.close()
+
+
 def test_intentionally_silent_slide_preserves_text_and_can_be_restored(tmp_path):
     path = source(tmp_path / 'Original.pptx', 'VI: Năng lượng\nEN: Energy')
     original = path.read_bytes()

@@ -34,6 +34,13 @@ Window {
     readonly property int controlHeight: compactPanel ? 30 : bridge.companionPanelSize === "large" ? 44 : bridge.companionPanelSize === "small" ? 34 : 38
     readonly property int controlFont: bridge.companionPanelSize === "large" ? 14 : bridge.companionPanelSize === "small" ? 12 : 13
     readonly property int audioCount: Number(!!availableAudio.en) + Number(!!availableAudio.vi) + Number(!!availableAudio.both)
+    readonly property int expandedWidth: Math.min(Screen.desktopAvailableWidth - 16, compactPanel ? 280 : bridge.companionPanelSize === "large" ? 400 : bridge.companionPanelSize === "small" ? 320 : 356)
+    readonly property int expandedHeight: Math.min(Screen.desktopAvailableHeight - 16, mascotExtent + menuContent.implicitHeight + 32)
+    property real panelOpacity: collapsed ? 0 : 1
+    Behavior on panelOpacity { enabled: companion.visible; NumberAnimation { id: panelFade; duration: 110; easing.type: Easing.OutCubic } }
+    readonly property bool panelExpanded: !collapsed || panelOpacity > 0
+    readonly property size layoutSize: Qt.size(panelExpanded ? expandedWidth : mascotExtent, panelExpanded ? expandedHeight : mascotExtent)
+    onLayoutSizeChanged: resizeToContent()
 
     function saveLocation() {
         bridge.saveMascotLocation(companion.x + mascotButton.x, companion.y + mascotButton.y)
@@ -116,17 +123,14 @@ Window {
     transientParent: null
     flags: Qt.Tool | Qt.FramelessWindowHint | (bridge.mascotSettings.always_on_top ? Qt.WindowStaysOnTopHint : 0) | Qt.NoDropShadowWindowHint | Qt.WindowDoesNotAcceptFocus
     title: "BiliClass · Trợ giảng"
-    width: collapsed ? mascotExtent : Math.min(Screen.desktopAvailableWidth - 16, compactPanel ? 280 : bridge.companionPanelSize === "large" ? 400 : bridge.companionPanelSize === "small" ? 320 : 356)
-    height: collapsed ? mascotExtent : Math.min(Screen.desktopAvailableHeight - 16, mascotExtent + menuContent.implicitHeight + 32)
+    width: 128; height: 128
     color: "transparent"
 
-    function reposition() {
-        if (visible && !disposing) Qt.callLater(function() { if (visible && !disposing) bridge.showCompanion(companion) })
+    function resizeToContent() {
+        if (visible && !disposing) bridge.resizeCompanion(companion)
     }
     Component.onDestruction: disposing = true
-    onWidthChanged: reposition()
-    onHeightChanged: reposition()
-    onVisibleChanged: if (!visible) mascotContextMenu.close()
+    onVisibleChanged: if (!visible) { panelFade.complete(); mascotContextMenu.close() }
     Shortcut { sequence: "Escape"; onActivated: companion.collapsed = true }
 
     Shortcut { sequence: "F5"; onActivated: bridge.startTeachingShow() }
@@ -135,10 +139,14 @@ Window {
     Rectangle {
         id: menu
         objectName: "companionMenu"
-        visible: !companion.collapsed
+        visible: companion.panelExpanded
+        enabled: !companion.collapsed
+        opacity: companion.panelOpacity
         x: 4; y: companion.mascotAtBottom ? 4 : companion.mascotExtent + 4
-        width: companion.width - 8
-        height: companion.height - companion.mascotExtent - 8
+        // Retain the expanded layout while hidden; opening must not first
+        // wrap all controls into a mascot-sized window and resize again.
+        width: companion.expandedWidth - 8
+        height: Math.max(0, Math.min(companion.expandedHeight, companion.height) - companion.mascotExtent - 8)
         radius: 15; color: Qt.rgba(AppTheme.dark ? 24 / 255 : 249 / 255, AppTheme.dark ? 36 / 255 : 251 / 255, AppTheme.dark ? 56 / 255 : 1, bridge.companionPanelOpacity / 100); border.color: AppTheme.adapt("#cbdcf4")
         ContentScrollView {
             id: controlScroll
@@ -167,8 +175,8 @@ Window {
         id: mascotButton
         objectName: "mascotToggle"
         width: companion.mascotExtent; height: companion.mascotExtent
-        x: companion.mascotAtRight ? companion.width - width : 0
-        y: companion.mascotAtBottom ? companion.height - height : 0
+        x: companion.mascotAtRight ? companion.layoutSize.width - width : 0
+        y: companion.mascotAtBottom ? companion.layoutSize.height - height : 0
         z: 2
         Mascot {
             objectName: "mascotCompanion"

@@ -2,8 +2,10 @@
 import json
 import sys
 import tempfile
+from copy import deepcopy
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from PIL import Image, ImageDraw
 from PySide6.QtCore import QCoreApplication, QEvent, QMetaObject, QObject, QPointF, Qt, QUrl, Slot
@@ -316,6 +318,49 @@ def main():
             pump(100)
             assert thumbnail.isVisible() and bridge.preview_calls == 1
             root.grabWindow().save(str(reports/'dark-voice-thumbnail.png'))
+            # An idle managed PowerPoint is a binding, not an active slideshow.
+            original_powerpoint_state = dict(bridge._powerpoint_state)
+            bound = dict(lesson=deepcopy(lesson))
+            worker = SimpleNamespace(navigate=lambda *_: None)
+            bridge.powerpoint_worker = worker
+            bridge.teaching_session.bound = deepcopy(bound)
+            bridge._powerpoint_state = dict(opened=True, active=False, message='Đã gán bài')
+            bridge.powerpointStateChanged.emit()
+            bridge._clear_narration_selection()
+            pump(100)
+            assert c('narrationSpeakerPosition').isEnabled()
+            assert c('selectVoiceLibraryLesson').isEnabled()
+            assert c('applicationStatusMessage').property('text') == 'Mascot đã gán bài · Chưa trình chiếu'
+            bridge.voice_controls.phase = 'playing'
+            bridge.voice_controls.changed.emit()
+            pump(60)
+            assert c('applicationStatusMessage').property('text') == 'Đang nghe thử giọng đọc'
+            assert c('narrationSpeakerPosition').isEnabled()
+            bridge.narrationWorkspace.setSpeakerPosition('top_center')
+            assert bridge.narrationWorkspace.speakerPosition == 'top_center'
+            prepared = dict(lesson_id=lesson['id'], revision=lesson['revision'], path='fixture.pptx', total=2, slide=1)
+            with patch('app.voice_import.prepare_library_lesson', return_value=(lesson, prepared)):
+                c('selectVoiceLibraryLesson').clicked.emit()
+                until(lambda: not bridge.busy and bridge._lesson.get('id') == lesson['id'])
+            pump(100)
+            assert bridge.teaching_session.bound == bound and bridge.powerpoint_worker is worker
+            assert bridge.voice_controls.phase == 'idle' and not bridge.error
+            assert c('narrationSpeakerPosition').isEnabled()
+            for state in (dict(active=True), dict(starting=True), dict(closing=True), dict(show_pending='start')):
+                bridge._powerpoint_state = dict(opened=True, active=False, message='Fixture PowerPoint')
+                bridge._powerpoint_state.update(state)
+                bridge.powerpointStateChanged.emit()
+                pump(50)
+                assert not c('narrationSpeakerPosition').isEnabled()
+                assert not c('selectVoiceLibraryLesson').isEnabled()
+                assert c('applicationStatusMessage').property('text') != 'BiliClass sẵn sàng'
+            bridge.powerpoint_worker = None
+            bridge._powerpoint_state = original_powerpoint_state
+            bridge.teaching_session.bound = {}
+            bridge.powerpointStateChanged.emit()
+            bridge.teaching_session.changed.emit()
+            pump(60)
+            assert c('narrationSpeakerPosition').isEnabled()
             # Generic tasks return to their originating Settings subtab.
             root.setProperty('page', 'settings')
             c('settingsPage').setProperty('activeTab', 2)

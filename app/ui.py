@@ -10,6 +10,7 @@ from PySide6.QtCore import (
     Property,
     QObject,
     QPoint,
+    QRect,
     QStandardPaths,
     QTimer,
     QUrl,
@@ -1325,6 +1326,7 @@ class Bridge(QObject):
 
         if not self.narration_workspace.available():
             return
+        self.stopSpeech()
         directory = self.library.directory
         self._narration_import_name = Path(QUrl(url).toLocalFile()).name
 
@@ -1379,7 +1381,7 @@ class Bridge(QObject):
     def _create_narration(self, mode, voice, rate, *, regenerate=False):
         from .narration_preparation import prepare_request
 
-        if self._busy or not self._lesson or self.narrationBusy or self.powerpoint_worker is not None:
+        if not self._lesson or not self.narration_workspace.available():
             return
         if not self._available_voice(voice) or type(rate) is not int or not -3 <= rate <= 3:
             self.inform("Chọn giọng và tốc độ hợp lệ trước khi tạo âm thanh.", True)
@@ -2157,23 +2159,42 @@ class Bridge(QObject):
             if for_presentation:
                 self.saveMascotLocation(anchor_x, anchor_y)
 
+        self._place_companion(window, area, anchor_x, anchor_y)
+        window.show()
+
+    @Slot(QObject)
+    def resizeCompanion(self, window):
+        """Keep the visible mascot fixed while its panel changes size."""
+        if window is None or not window.isVisible() or window.property('disposing'):
+            return
+        extent = int(window.property('mascotExtent'))
+        anchor_x = window.x() + (window.width() - extent if window.property('mascotAtRight') else 0)
+        anchor_y = window.y() + (window.height() - extent if window.property('mascotAtBottom') else 0)
+        screen = QGuiApplication.screenAt(QPoint(anchor_x + extent // 2, anchor_y + extent // 2)) or window.screen()
+        self._place_companion(window, screen.availableGeometry(), anchor_x, anchor_y)
+
+    def _place_companion(self, window, area, anchor_x, anchor_y):
+        extent = int(window.property('mascotExtent'))
+        size = window.property('layoutSize')
+        width, height = min(round(size.width()), area.width()), min(round(size.height()), area.height())
         right_edge = area.left() + area.width()
         bottom_edge = area.top() + area.height()
         menu_on_left = True
-        if anchor_x + window.width() > right_edge:
+        if anchor_x + width > right_edge:
             menu_on_left = True
-        elif anchor_x - (window.width() - extent) < area.left():
+        elif anchor_x - (width - extent) < area.left():
             menu_on_left = False
-        menu_above = anchor_y - (window.height() - extent) >= area.top()
-        if not menu_above and anchor_y + window.height() > bottom_edge:
+        menu_above = anchor_y - (height - extent) >= area.top()
+        if not menu_above and anchor_y + height > bottom_edge:
             menu_above = anchor_y - area.top() >= bottom_edge - (anchor_y + extent)
         window.setProperty("mascotAtRight", menu_on_left)
         window.setProperty("mascotAtBottom", menu_above)
-        x = anchor_x - (window.width() - extent if menu_on_left else 0)
-        y = anchor_y - (window.height() - extent if menu_above else 0)
-        window.setX(max(area.left(), min(x, right_edge - window.width())))
-        window.setY(max(area.top(), min(y, bottom_edge - window.height())))
-        window.show()
+        x = anchor_x - (width - extent if menu_on_left else 0)
+        y = anchor_y - (height - extent if menu_above else 0)
+        # A single native move/resize avoids rendering the new size at the
+        # old coordinates before a queued reposition catches up.
+        window.setGeometry(QRect(max(area.left(), min(x, right_edge - width)),
+                                 max(area.top(), min(y, bottom_edge - height)), width, height))
 
     @Slot(int, int)
     def saveMascotLocation(self, x, y):
@@ -3245,6 +3266,7 @@ class Bridge(QObject):
     def _focus_open_teaching(self, identity, narration=None, *, product='lesson'):
         """Reopening the same saved product must preserve its slide and playback."""
         from .lesson_narration import records, variant_id
+        from .speaker_layout import position
 
         bound = self.teaching_session.bound.get('lesson', {})
         if (not self.powerpoint_worker or not self._powerpoint_state.get('opened')
@@ -3257,6 +3279,7 @@ class Bridge(QObject):
             return False
         if (saved.get('revision') != bound.get('revision') or saved.get('source') != bound.get('source')
                 or (product != 'original' and records(saved) != records(bound))
+                or (product != 'original' and position(saved.get('speaker_position')) != position(bound.get('speaker_position')))
                 or (narration is not None and variant_id(narration) != variant_id(bound.get('narration')))):
             return False
         self.focusTeachingPresentation()

@@ -19,6 +19,7 @@ from qt_result_preview_mascot_smoke import control, pump
 
 from app.library import Library
 from app.paths import RESOURCE_ROOT
+from app.slideshow_shortcuts import window_identity
 from app.ui import Bridge
 
 
@@ -71,8 +72,8 @@ def main():
             pump(180)
             assert native_visible() and topmost()
             z_order = []
-            win32gui.EnumWindows(lambda handle, _: z_order.append(handle), None)
-            assert z_order.index(int(companion.winId())) < z_order.index(int(cover.winId()))
+            win32gui.EnumWindows(lambda handle, _: z_order.append(window_identity(handle)), None)
+            assert z_order.index(window_identity(companion.winId())) < z_order.index(window_identity(cover.winId()))
             cover.hide()
             companion.setProperty("collapsed", False)
             pump(100)

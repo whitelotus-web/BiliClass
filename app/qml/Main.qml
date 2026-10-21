@@ -191,6 +191,11 @@ ApplicationWindow {
     readonly property bool narrationPreviewActive: bridge.voiceUiState.phase === "preparing" || bridge.voiceUiState.phase === "playing"
     readonly property int lessonLayoutFailures: root.lessonData.voice_only ? 0 : ((((root.lessonData.slide_quality || {}).counts || {}).FAIL) || 0)
     readonly property bool taskRunning: bridge.busy || bridge.narrationBusy || !!bridge.browserState.running || bridge.inputDocuments.busy || !!bridge.updateState.downloading
+    readonly property string idleActivity: bridge.teachingTransitioning ? "PowerPoint đang mở, đóng hoặc chuyển chế độ…"
+        : bridge.powerpointState.active ? "PowerPoint đang trình chiếu"
+        : narrationPreviewActive ? (bridge.voiceUiState.phase === "preparing" ? "Đang chuẩn bị câu nghe thử…" : "Đang nghe thử giọng đọc")
+        : bridge.powerpointState.opened ? "Mascot đã gán bài · Chưa trình chiếu"
+        : "BiliClass sẵn sàng"
     property bool jobObserved: false
     property bool inputObserved: false
     property var jobOrigin: ({page: "home", tab: 0})
@@ -1384,7 +1389,7 @@ ApplicationWindow {
                                 positionLabel: speakerPositionChoice.currentText
                             }
                             MainAction { objectName: "createLessonButton"; visible: root.page === "new"; text: bridge.busy ? "Đang chuẩn bị…" : "Chuyển đổi bài giảng"; primary: true; enabled: !bridge.busy && !bridge.inputDocuments.busy && !bridge.narrationBusy && !root.inputDocumentError && root.creationPrompt.ready; onClicked: bridge.convertDocument(titleInput.text, root.creationSubject, educationInput.currentText, gradeInput.currentText, pasteInput.text, root.selectedFile, root.selectedConversionFormat.id, ["standard", "visual", "practice"][creationPreset.currentIndex], root.creationKeepSource ? "source" : "template", teacherNotesInput.text) }
-                            MainAction { objectName: "createLessonNarrationButton"; visible: root.page === "voice" && !root.narrationComplete; primary: true; text: bridge.narrationBusy ? "Đang tạo giọng…" : "Tạo giọng đọc"; enabled: !!bridge.quickResult.path && !!root.narrationDraft.total && !!root.narrationVoice && !root.narrationDraft.ready && !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !bridge.teachingTransitioning; onClicked: bridge.createLessonNarrationWithVoice(root.narrationMode, root.narrationVoice, root.narrationRate) }
+                            MainAction { objectName: "createLessonNarrationButton"; visible: root.page === "voice" && !root.narrationComplete; primary: true; text: bridge.narrationBusy ? "Đang tạo giọng…" : "Tạo giọng đọc"; enabled: !!bridge.quickResult.path && !!root.narrationDraft.total && !!root.narrationVoice && !root.narrationDraft.ready && bridge.narrationWorkspace.configurationEnabled; onClicked: bridge.createLessonNarrationWithVoice(root.narrationMode, root.narrationVoice, root.narrationRate) }
                             MainAction { objectName: "cancelLessonNarrationButton"; danger: true; symbol: "■"; text: bridge.lessonNarration.stopping ? "Đang dừng…" : "Dừng"; enabled: !bridge.lessonNarration.stopping; visible: (root.page === "voice" || root.page === "result") && !!bridge.lessonNarration.running; onClicked: bridge.cancelLessonNarration() }
                         }
                         Copy { visible: root.page === "new" && bridge.narrationBusy; text: "Đang tạo giọng đọc · Chờ hoàn tất hoặc dừng trước khi chuyển đổi bài mới."; Layout.fillWidth: true; font.pixelSize: 12 }
@@ -1526,8 +1531,8 @@ ApplicationWindow {
                                 onFilesDropped: function(urls) { if (urls.length === 1) bridge.importNarrationPresentation(urls[0]) }
                             }
                             RowLayout { visible: !bridge.quickResult.path || root.voiceSourceExpanded; Layout.fillWidth: true
-                                Choice { id: voiceLibraryPicker; objectName: "voiceLibraryPicker"; model: bridge.lessons; textRole: "title"; Layout.fillWidth: true; Layout.minimumWidth: 0; enabled: !bridge.busy && !bridge.narrationBusy }
-                                MainAction { objectName: "selectVoiceLibraryLesson"; text: "Dùng bài trong thư viện"; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !bridge.teachingTransitioning && voiceLibraryPicker.currentIndex >= 0; onClicked: bridge.narrationWorkspace.selectLibrary(bridge.lessons[voiceLibraryPicker.currentIndex].id) }
+                                Choice { id: voiceLibraryPicker; objectName: "voiceLibraryPicker"; model: bridge.lessons; textRole: "title"; Layout.fillWidth: true; Layout.minimumWidth: 0; enabled: bridge.narrationWorkspace.configurationEnabled }
+                                MainAction { objectName: "selectVoiceLibraryLesson"; text: "Dùng bài trong thư viện"; enabled: bridge.narrationWorkspace.configurationEnabled && voiceLibraryPicker.currentIndex >= 0; onClicked: bridge.narrationWorkspace.selectLibrary(bridge.lessons[voiceLibraryPicker.currentIndex].id) }
                             }
                             Copy { objectName: "voiceWorkspaceError"; visible: bridge.error && !bridge.busy; text: bridge.message; color: AppTheme.adapt("#a66318"); Layout.fillWidth: true }
                             RowLayout { visible: bridge.busy; Layout.fillWidth: true; spacing: 12
@@ -1735,7 +1740,7 @@ ApplicationWindow {
                                         readonly property var positionKeys: ["top_left", "top_center", "top_right", "bottom_left", "bottom_center", "bottom_right"]
                                         model: ["Trái trên", "Giữa trên", "Phải trên", "Trái dưới", "Giữa dưới", "Phải dưới"]
                                         currentIndex: Math.max(0, positionKeys.indexOf(bridge.narrationWorkspace.speakerPosition))
-                                        enabled: !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.opened && !bridge.teachingTransitioning
+                                        enabled: bridge.narrationWorkspace.configurationEnabled
                                         onActivated: bridge.narrationWorkspace.setSpeakerPosition(positionKeys[currentIndex])
                                         popup: Popup {
                                             objectName: "speakerPositionPopup"; y: speakerPositionChoice.height + 4; width: 300
@@ -2109,7 +2114,7 @@ ApplicationWindow {
                     anchors.leftMargin: 25; anchors.rightMargin: 25; spacing: 18
                     RowLayout { Layout.fillWidth: true; spacing: 10
                         BusyIndicator { visible: root.taskRunning; running: root.taskRunning; Layout.preferredWidth: 23; Layout.preferredHeight: 23 }
-                        TaskStatusLink { id: statusMessage; objectName: "applicationStatusMessage"; returnable: root.taskElsewhere; Layout.maximumWidth: Math.max(120, parent.width - 200); text: !root.taskRunning ? "BiliClass sẵn sàng" : bridge.narrationBusy ? "Đang tạo giọng đọc · " + (bridge.lessonNarration.percent || 0) + "%" : bridge.browserState.running ? (bridge.browserState.displayMessage || "Đang chuyển đổi bài giảng…") : bridge.inputDocuments.busy ? "Đang đọc PowerPoint…" : bridge.busy ? bridge.message || "Đang thực hiện tác vụ…" : bridge.updateState.message || "Đang tải bản mới…"; onReturnRequested: root.returnToTask() }
+                        TaskStatusLink { id: statusMessage; objectName: "applicationStatusMessage"; returnable: root.taskElsewhere; Layout.maximumWidth: Math.max(120, parent.width - 200); text: !root.taskRunning ? root.idleActivity : bridge.narrationBusy ? "Đang tạo giọng đọc · " + (bridge.lessonNarration.percent || 0) + "%" : bridge.browserState.running ? (bridge.browserState.displayMessage || "Đang chuyển đổi bài giảng…") : bridge.inputDocuments.busy ? "Đang đọc PowerPoint…" : bridge.busy ? bridge.message || "Đang thực hiện tác vụ…" : bridge.updateState.message || "Đang tải bản mới…"; onReturnRequested: root.returnToTask() }
                         Item { Layout.fillWidth: true }
                         MainAction { objectName: "applicationCancel"; visible: bridge.busy && bridge.jobCancellable && !conversionCancel.visible; text: "Dừng tác vụ"; implicitHeight: 30; onClicked: bridge.cancelJob() }
                         MainAction { objectName: "applicationCancelNarration"; visible: bridge.narrationBusy && root.page !== "voice"; text: "Dừng tạo giọng"; implicitHeight: 30; enabled: !bridge.lessonNarration.stopping; onClicked: bridge.cancelLessonNarration() }

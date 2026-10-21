@@ -16,6 +16,9 @@ class NarrationWorkspace(QObject):
         bridge.selectionChanged.connect(self._selection)
         bridge.narrationChanged.connect(self.changed)
         bridge.narrationPreferences.changed.connect(self.changed)
+        bridge.changed.connect(self.changed)
+        bridge.powerpointStateChanged.connect(self.changed)
+        bridge.classroom.changed.connect(self.changed)
 
     @Property(str, notify=changed)
     def speakerPosition(self):
@@ -94,10 +97,28 @@ class NarrationWorkspace(QObject):
                 missing += 1
         return {'total': total, 'readable': readable, 'missing': missing, 'silent': silent}
 
-    def available(self):
+    @Property(str, notify=changed)
+    def blockReason(self):
         bridge = self.bridge
-        if bridge.busy or bridge.narrationBusy or bridge.powerpoint_worker or bridge.classroom.running:
-            bridge.inform('Dừng tạo giọng, trình chiếu hoặc tiết học trước khi đổi bài hay lời đọc.', True, refresh=False)
+        if bridge.narrationBusy:
+            return 'Đang tạo giọng đọc. Hoàn tất hoặc dừng tạo giọng trước khi đổi bài hay lời đọc.'
+        if bridge.busy:
+            return 'Đang xử lý tác vụ. Chờ hoàn tất trước khi đổi bài hay lời đọc.'
+        if bridge.teachingTransitioning:
+            return 'PowerPoint đang mở, đóng hoặc chuyển chế độ. Chờ hoàn tất để đổi cấu hình.'
+        if bridge.powerpointState.get('active'):
+            return 'PowerPoint đang trình chiếu. Kết thúc trình chiếu để đổi bài hay lời đọc.'
+        if bridge.classroom.running:
+            return 'Đang mở tiết học. Kết thúc tiết học để đổi bài hay lời đọc.'
+        return ''
+
+    @Property(bool, notify=changed)
+    def configurationEnabled(self):
+        return not self.blockReason
+
+    def available(self):
+        if self.blockReason:
+            self.bridge.inform(self.blockReason, True, refresh=False)
             return False
         return True
 
@@ -108,6 +129,7 @@ class NarrationWorkspace(QObject):
         from .voice_import import prepare_library_lesson
 
         bridge = self.bridge
+        bridge.stopSpeech()
         directory, profile = bridge.library.directory, dict(bridge.settings)
         bridge.launch(lambda: prepare_library_lesson(directory, identity, profile),
                       lambda result: bridge._show_lesson(*result, auto_repair=False, destination='voice'))
