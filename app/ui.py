@@ -139,6 +139,7 @@ class Bridge(QObject):
         self._companion_preferences.persisted.connect(self._companion_settings_saved)
         self._companion_preferences.failed.connect(lambda message: self.inform(message, True, refresh=False))
         self._mascot_location = {}
+        self._companion_shown_this_session = False
         self.logger = configure_logging(library.directory)
         try:
             ensure_builtin_foundation(self.library)
@@ -988,6 +989,33 @@ class Bridge(QObject):
 
         self.launch(lambda: convert(self.library.directory, job, self.cancel_event, progress, budget=budget), completed)
 
+    @Slot(result=bool)
+    def dismissConversionInput(self):
+        if self._busy or self._browser_running or self.narrationBusy:
+            return False
+        if not self.googleTranslation:
+            return True
+        folder = self._chatgpt_request.get('folder')
+        if self.googleTranslation and folder:
+            from .google_conversion import dismiss
+
+            try:
+                dismiss(self.library.directory, folder)
+            except (ValueError, OSError) as exc:
+                self.inform(str(exc), True, refresh=False)
+                return False
+        self._freeze_conversion_clock()
+        self._chatgpt_request = {}
+        self._browser_state = {'phase': 'discarded', 'running': False, 'percent': 0, 'elapsedSeconds': 0,
+                               'waiting': False, 'stopping': False, 'stopRequested': False}
+        self._browser_clock_mark = None
+        self._discard_conversion = False
+        self.cancel_event.clear()
+        self.browserStateChanged.emit()
+        self.conversionClockChanged.emit()
+        self.inform('', refresh=False)
+        return True
+
     @Slot()
     def reconnectBrowserAI(self):
         if self.googleTranslation:
@@ -1432,6 +1460,8 @@ class Bridge(QObject):
         self._narration_clear_pending = None
         self.stopSpeech()
         self._lesson, self._quick_result, self._segment_index = {}, {}, 0
+        self.quickResultChanged.emit()
+        self.narrationChanged.emit()
         self.changed.emit()
         self.selectionChanged.emit()
         self.navigate.emit('voice')
@@ -2134,6 +2164,7 @@ class Bridge(QObject):
     @Slot(QObject)
     @Slot(QObject, bool)
     def showCompanion(self, window, for_presentation=False):
+        self._companion_shown_this_session = True
         extent = int(window.property("mascotExtent"))
         saved = self._mascot_location
         screen = QGuiApplication.primaryScreen()
@@ -2163,6 +2194,13 @@ class Bridge(QObject):
 
         self._place_companion(window, area, anchor_x, anchor_y)
         window.show()
+
+    @Slot(QObject)
+    def showCompanionForTeaching(self, window):
+        if self._companion_shown_this_session:
+            return
+        window.setProperty('collapsed', not bool(self.teaching_session.bound))
+        self.showCompanion(window, True)
 
     @Slot(QObject)
     def resizeCompanion(self, window):

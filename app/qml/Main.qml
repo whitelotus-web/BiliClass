@@ -451,6 +451,7 @@ ApplicationWindow {
             inputDocumentError = "Chỉ nhận tệp PowerPoint (.pptx), tối đa 200 MB."
             return false
         }
+        if (!bridge.dismissConversionInput()) return false
         inputDocumentError = ""
         selectedFile = selection.url
         selectedFileName = selection.name
@@ -463,6 +464,7 @@ ApplicationWindow {
         return true
     }
     function removeInputDocument() {
+        if (!bridge.dismissConversionInput()) return false
         creationPreviewExpanded = false
         bridge.inputDocuments.clear()
         if (titleInput.text === (selectedFileName ? selectedFileName.replace(/\.[^.]+$/, "") : previousInputTitle)) titleInput.text = ""
@@ -553,10 +555,7 @@ ApplicationWindow {
         function onUpdateAvailable() { updateDialog.open() }
         function onPowerpointSlideChanged(slide) { if (!root.dirty && !bridge.teachingSession.state.bound) bridge.followPowerPoint() }
         function onPowerpointStarted() {
-            if (bridge.mascotSettings.visible || bridge.teachingSession.state.bound) {
-                companion.collapsed = !bridge.teachingSession.state.bound
-                bridge.showCompanion(companion, true)
-            }
+            bridge.showCompanionForTeaching(companion)
         }
         function onProjectClassroomRequested() { if (bridge.experimentalTeaching) { projector.quiz = true; bridge.showProjector(projector, bridge.screens.length > 1 ? 1 : 0) } }
         function onTeachingLessonReady() {

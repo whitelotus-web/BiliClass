@@ -91,6 +91,13 @@ def main():
                 assert saved['external_deck']['reviewed_revision'] == 0
                 assert not any(row['approved'] for row in saved['segments'])
                 assert source.read_bytes() == (library.directory / 'sources' / saved['source']['file']).read_bytes()
+                assert bridge.error
+                bridge.dismissNarrationLesson()
+                pump(100)
+                assert not bridge.lesson and not bridge.quickResult and not bridge.narrationPreparation
+                assert not bridge.lessonNarration and not bridge.error and not bridge.narrationBusy
+                assert engine.rootObjects()[0].property('page')=='voice'
+                assert library.get(lesson['id'])==saved, 'Dismissing failed voice must keep the saved lesson and plan'
                 assert not warnings, warnings
                 report = {'status': 'passed', 'elapsed_seconds': round(time.monotonic() - started, 2),
                           'cache_heartbeat_ticks': cache_ticks, 'synthesis_heartbeat_ticks': voice_ticks,

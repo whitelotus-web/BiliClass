@@ -118,6 +118,18 @@ def discard(directory, folder):
     return identities
 
 
+def dismiss(directory, folder):
+    """Forget an idle input selection without deleting saved lessons or caches."""
+    from .library import Library
+
+    job = load(directory, folder, verify_source=False, allow_discarded=True)
+    if not (Path(job['folder']) / 'saved.json').is_file():
+        mark_discarded(directory, folder)
+    with closing(Library(directory)) as library:
+        if library.setting('google_request_folder', '') == job['folder']:
+            library.set_setting('google_request_folder', '')
+
+
 def original_source(directory, lesson):
     """Recover only this lesson's hash-verified original for later local checks."""
     import re

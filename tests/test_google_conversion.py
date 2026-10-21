@@ -221,6 +221,35 @@ def test_confirmed_discard_is_durable_scoped_and_keeps_source_keys_and_usage(tmp
         mark_discarded(tmp_path, tmp_path.parent)
 
 
+@pytest.mark.parametrize('already_saved', [False, True])
+def test_dismissed_input_forgets_job_but_never_deletes_a_saved_lesson(tmp_path, monkeypatch, already_saved):
+    from pathlib import Path
+    from app.chatgpt_handoff import inspect_returned_deck
+    from app.google_conversion import ConversionDiscarded, dismiss, load
+
+    monkeypatch.setattr('app.slide_repair.repair_and_inspect', lambda path, *_args, **_kwargs:
+                        {'path': str(path), 'inspection': inspect_returned_deck(path), 'changes': []})
+    store=KeyStore(tmp_path); store.add('AIza'+'a'*35)
+    job=prepare(tmp_path,config(),text='Năng lượng được bảo toàn.')
+    source=Path(job['folder'])/'source.txt'; original=source.read_bytes()
+    lesson=None
+    if already_saved:
+        lesson,_=convert(tmp_path,job,Event(),ConversionProgress(job['folder'],lambda _:None),
+                         translator=Translator(tmp_path,transport=transport))
+    usage=store.public(); encrypted=store.path.read_bytes()
+    dismiss(tmp_path,job['folder'])
+    dismiss(tmp_path,job['folder'])
+    with closing(Library(tmp_path)) as library:
+        assert library.setting('google_request_folder','')==''
+        assert len(library.list_lessons(verify_audio=False))==int(already_saved)
+        if lesson:assert not library.get(lesson['id']).get('deleted_at')
+    if not already_saved:
+        with pytest.raises(ConversionDiscarded):load(tmp_path,job['folder'])
+    else:
+        assert load(tmp_path,job['folder'])['folder']==job['folder']
+    assert source.read_bytes()==original and store.public()==usage and store.path.read_bytes()==encrypted
+
+
 @pytest.mark.skipif(__import__('os').name != 'nt', reason='Windows job lock')
 def test_same_job_locked_by_another_window_does_not_send(tmp_path):
     import msvcrt

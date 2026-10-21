@@ -335,6 +335,36 @@ with tempfile.TemporaryDirectory(prefix='biliclass-google-ui-', ignore_cleanup_e
     assert {row['id'] for row in library.list_lessons(verify_audio=False)} == {completed_id, other['id']}
     assert library.get(completed_id)['id'] == completed_id
     google_conversion.prepare = original_prepare
+    # Clearing the input after a failed/paused run must also forget its durable
+    # resume state. Merely hiding its selected filename leaves a stale progress UI.
+    paused_folder=bridge.chatgptRequest['folder']
+    usage=bridge.googleSettings.state['keys']
+    window.setProperty('selectedFile',QUrl.fromLocalFile(str(source)).toString())
+    window.setProperty('selectedFileName',source.name)
+    window.setProperty('previousInputTitle',source.stem)
+    control('lessonTitle').setProperty('text',source.stem)
+    window.setProperty('page','new');pump(100)
+    assert control('creationConversionProgress').isVisible()
+    click('removeInputDocumentButton')
+    pump(100)
+    assert not window.property('selectedFile') and not control('lessonTitle').property('text')
+    assert not bridge.chatgptRequest and not library.setting('google_request_folder','')
+    assert bridge.conversionClock['seconds']==0 and bridge.browserState['percent']==0
+    assert not control('creationConversionProgress').isVisible() and not control('browserConversionResume').isVisible()
+    assert (Path(paused_folder)/'conversion-discarded').exists()
+    assert bridge.googleSettings.state['keys']==usage
+    assert {row['id'] for row in library.list_lessons(verify_audio=False)}=={completed_id,other['id']}
+    bridge.browserConversionProgress.emit({'percent':54,'message':'late','runId':'dismissed-run'})
+    pump(60)
+    assert not control('creationConversionProgress').isVisible()
+    # A fresh choice is independent; it never resumes the dismissed run.
+    assert QMetaObject.invokeMethod(window,'applyInputSelection',Qt.DirectConnection,
+        Q_ARG('QVariant',{'valid':True,'url':QUrl.fromLocalFile(str(source)).toString(),'name':source.name}),
+        Q_ARG('QVariant',''))
+    pump(80)
+    assert window.property('selectedFile') and not control('creationConversionProgress').isVisible()
+    assert control('createLessonButton').isEnabled()
+    assert window.grabWindow().save(str(reports/'cleared-and-reselected.png'))
     timer.stop()
     assert len(beats) > 10, 'UI timer did not keep ticking'
     assert not warnings, warnings
@@ -345,6 +375,7 @@ with tempfile.TemporaryDirectory(prefix='biliclass-google-ui-', ignore_cleanup_e
                          'Stop uses square icon, disables while stopping, preserves work, resumes without another API call',
                          'stale discard guard; cached response and usage retained',
                          'stop during preparation before UI knows folder; prepared request and earlier completed lessons retained',
+                         'dismiss paused input clears persisted job/progress/clock/error; selecting again is fresh; saved lessons/usage remain',
                          'completion immediately shows real slides; previous/next without leaving completion',
                          'four balanced actions at 1080/1366/1920; restore exact completed lesson',
                          'voice preview works with inactive attached Office worker; download keeps original filename',

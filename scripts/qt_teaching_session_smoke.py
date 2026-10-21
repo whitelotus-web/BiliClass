@@ -88,6 +88,7 @@ def main():
             assert window.property('page') == 'library', 'Opening PowerPoint must not navigate to voice settings'
             assert not c('wholeLessonReview').property('visible')
             assert not bridge.powerpointState.get('active')
+            assert companion.isVisible(), 'First managed lesson must show Mascot before F5'
             assert library.get(lesson['id'])['revision'] == before_revision
             assert bridge.teachingSession.state['lesson_id'] == lesson['id']
             independent = folder / 'Downloaded with voice.pptx'

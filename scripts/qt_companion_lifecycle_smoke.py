@@ -38,6 +38,14 @@ def main():
         watchdog.timeout.connect(lambda: (timed_out.append(True), app.quit()))
         try:
             until(lambda: bridge._catalog.worker is None)
+            assert not companion.isVisible(), 'Starting the tool must leave Mascot hidden'
+            bridge.powerpointStarted.emit()
+            pump(120)
+            assert companion.isVisible(), 'First managed lesson should reveal Mascot'
+            companion.hide()
+            bridge.powerpointStarted.emit()
+            pump(100)
+            assert not companion.isVisible(), 'A later lesson must respect a manually hidden Mascot'
             bridge.showCompanion(companion)
             companion.setProperty('collapsed', False)
             pump(120)
