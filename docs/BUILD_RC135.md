@@ -21,3 +21,22 @@ không gọi lại phần đã dịch, dừng ngay trong bước chuẩn bị v�
 yêu cầu, hoàn tất và tải đúng bài. Đã xem nền sáng/tối ở
 1080/1366/1920; Qt smoke bố cục ở 700/768/850/1080 px cũng đạt,
 không cảnh báo QML. Kiểm tra dùng dữ liệu thử, không gửi bài cá nhân.
+
+Đóng gói một lần từ `91fe80af45af1693c2cffff7889786e567c2bd2d`:
+`BiliClass-RC135-Windows.zip`, 1.258.029.675 byte, SHA-256
+`bd5990f96590a4c1a97789cc2a060f38063f40b162f1b804e806edfabe851677`.
+55 tệp QML và hai PNG khớp nguồn; bytecode `app.ui` và
+`app.conversion_presentation` trong EXE khớp nguồn của commit.
+Toàn bộ ZIP được xác minh, 4.675 tệp ứng dụng. Smoke bản đóng gói
+ở màn thư viện và chuyển đổi đạt; đã xem hai ảnh, không cảnh báo QML.
+
+Cài tại `F:/Applications/BiliClass/1.0.0rc135`, mở màn Chuyển đổi
+qua Explorer độc lập với Codex. Cửa sổ chính và cửa sổ Mascot phản
+hồi; biểu tượng native/taskbar và shortcut Desktop/Start đúng RC135.
+Đối chiếu trước/sau cài đặt xác nhận nội dung bài, nguồn PowerPoint,
+WAV, hồ sơ/logo, khóa API mã hóa và tùy chọn giọng được giữ nguyên.
+
+Đã phát hành [v1.0.0rc135](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc135)
+với ZIP và checksum riêng. Digest/size GitHub khớp bản đã kiểm tra;
+tag trỏ đúng commit nguồn của gói. Kiểm tra updater công khai từ
+RC118 nhận đúng RC135 với cùng SHA-256 và kích thước.
