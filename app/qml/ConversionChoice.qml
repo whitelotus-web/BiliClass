@@ -41,7 +41,7 @@ Rectangle {
         }
           ActionButton { objectName: card.compact ? card.choiceName + "Preview" : ""; visible: card.showPreview && card.compact; text: "Xem mẫu"; implicitHeight: 26; font.pixelSize: 11; onClicked: card.previewRequested() }
         }
-        Label { text: card.detail; Layout.fillWidth: true; Layout.fillHeight: true; color: AppTheme.adapt("#667997"); font.pixelSize: 12; wrapMode: Text.WordWrap; textFormat: Text.PlainText; maximumLineCount: card.compact ? (card.tight ? 1 : 2) : 2147483647; elide: card.compact ? Text.ElideRight : Text.ElideNone }
+        Label { objectName: card.choiceName + "Detail"; text: card.detail; Layout.fillWidth: true; Layout.fillHeight: true; color: AppTheme.adapt("#667997"); font.pixelSize: 12; wrapMode: Text.WordWrap; textFormat: Text.PlainText; maximumLineCount: card.compact ? (card.tight ? 1 : 2) : 2147483647; elide: card.compact ? Text.ElideRight : Text.ElideNone }
         ActionButton {
             objectName: card.compact ? "" : card.choiceName + "Preview"
             visible: card.showPreview && !card.compact; text: "Xem mẫu"; iconName: "view"; Layout.alignment: Qt.AlignRight

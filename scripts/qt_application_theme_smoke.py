@@ -79,6 +79,52 @@ def main():
             for row in rows.values():
                 assert abs(min(left for left, _ in row)+max(right for _, right in row)-summary.width()) < 2
 
+        language_layouts = []
+
+        def separated_language_groups(width, selected):
+            row = c('narrationLanguagePositionRow')
+            panel = c('lessonNarrationPanel')
+            language_cell, position_cell = c('narrationLanguageCell'), c('narrationPositionCell')
+            languages, position = c('narrationLanguageChoices'), c('narrationPositionControls')
+            assert abs(row.width()-evaluate(row, 'parent.width')) < 2
+            assert abs(language_cell.width()-position_cell.width()) < 2
+            for content, cell in ((languages, language_cell), (position, position_cell)):
+                center = content.mapToItem(cell, QPointF(content.width()/2, content.height()/2))
+                assert abs(center.x()-cell.width()/2) < 1
+                assert abs(center.y()-cell.height()/2) < 1
+                assert content.width() <= cell.width()+1
+            columns = row.property('columns')
+            assert columns == (2 if width >= 1366 else 1)
+            if columns == 2:
+                assert position_cell.x() >= language_cell.x()+language_cell.width()+23
+                assert abs(languages.mapToItem(row, QPointF(0,languages.height()/2)).y()
+                           -position.mapToItem(row, QPointF(0,position.height()/2)).y()) < 1
+            else:
+                assert position_cell.y() >= language_cell.y()+language_cell.height()+9
+            buttons = [c(name) for name in ('narrationEnglish','narrationVietnamese','narrationBoth')]
+            for button in buttons:
+                point = button.mapToItem(languages,QPointF())
+                assert point.x() >= 0 and point.x()+button.width() <= languages.width()+1
+                detail = c(button.objectName()+'Detail')
+                card = c(button.objectName()+'Card')
+                assert detail.isVisible() and detail.property('text') and not detail.property('truncated')
+                assert detail.property('contentHeight') <= detail.height()+1
+                assert detail.mapToItem(card,QPointF(0,detail.height())).y() <= card.height()-11
+                assert button.mapToItem(card,QPointF(0,button.height())).y()+4 <= detail.mapToItem(card,QPointF()).y()
+            assert c('narrationPositionDescription').isVisible()
+            title = c('narrationConfigurationTitle')
+            assert title.mapToItem(panel,QPointF()).y() >= 16
+            assert row.mapToItem(panel,QPointF(0,row.height())).y() <= panel.height()-15
+            voice_choice = c('lessonNarrationVoiceChoice')
+            assert row.mapToItem(panel,QPointF()).y() >= voice_choice.mapToItem(panel,QPointF(0,voice_choice.height())).y()+11
+            if not selected:
+                picker = c('selectVoiceLibraryLesson')
+                gap = panel.mapToScene(QPointF()).y()-picker.mapToScene(QPointF(0,picker.height())).y()
+                assert 30 <= gap <= 70, gap
+                assert panel.height() >= 195, panel.height()
+            language_layouts.append(dict(width=width, selected=selected, columns=columns,
+                                         cell_width=language_cell.width(), row_width=row.width(), panel_height=panel.height()))
+
         try:
             for mode in ('dark', 'light', 'dark'):
                 bridge.setApplicationTheme(mode)
@@ -88,6 +134,12 @@ def main():
                     root.setProperty('page', page)
                     pump(60)
                     assert root.grabWindow().save(str(reports/f'{mode}-{page}.png'))
+                    if page == 'voice':
+                        for width, height in ((1080,700),(1366,850),(1920,1080)):
+                            root.resize(width,height); pump(100)
+                            separated_language_groups(width, False)
+                            root.grabWindow().save(str(reports/f'{mode}-empty-voice-{width}.png'))
+                        root.resize(1366,850); pump(80)
                 for index in (0, 1, 2, 3, 5, 6):
                     c('settingsPage').setProperty('activeTab', index)
                     pump(60)
@@ -187,7 +239,7 @@ def main():
                 assert c('narrationConfigurationTitle').property('text') == 'Cấu hình tạo giọng đọc'
                 language_row, panel = c('narrationLanguagePositionRow'), c('lessonNarrationPanel')
                 assert abs(language_row.mapToItem(panel, QPointF(language_row.width()/2, 0)).x()-panel.width()/2) < 2
-                assert language_row.width() < 850, 'Language and position must form one compact centered group'
+                separated_language_groups(width, True)
                 assert summary.isVisible()
                 centered(summary, ('language', 'voice', 'rate', 'speakers', 'coverage'))
                 point = summary.mapToItem(footer, QPointF())
@@ -385,7 +437,7 @@ def main():
             assert library.setting('application_theme', '') == 'dark'
             assert len(library.list_lessons(verify_audio=False)) == 1
             assert not warnings, warnings
-            result = dict(status='passed', warnings=warnings, dimensions=dimensions,
+            result = dict(status='passed', warnings=warnings, dimensions=dimensions, language_layouts=language_layouts,
                           checks=['light/dark across pages and Settings tabs', 'dialogs inherit dark palette',
                                   'Compact lesson details/actions share a row with 16:9 thumbnail at 1080/1366/1920',
                                   '16:9 thumbnail expands/collapses without repeated render',

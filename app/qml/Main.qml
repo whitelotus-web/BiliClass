@@ -1541,6 +1541,7 @@ ApplicationWindow {
                         MainAction { id: backToLibraryAction; objectName: "backToLibraryButton"; visible: root.page !== "voice"; text: "Trở lại thư viện"; iconName: "back"; subtle: true; implicitHeight: 32; Layout.alignment: Qt.AlignRight; enabled: !bridge.busy; onClicked: root.requestAction(function() { bridge.returnToLibrary() }) }
                         GridLayout {
                             id: voiceOverview; objectName: "voiceLessonOverview"
+                            visible: root.page !== "voice" || !!bridge.quickResult.path
                             Layout.fillWidth: true; columnSpacing: 24; rowSpacing: 12
                             columns: root.page === "voice" && !!bridge.quickResult.path && !root.voicePreviewExpanded && width >= 760 ? 2 : 1
                             ColumnLayout {
@@ -1672,9 +1673,11 @@ ApplicationWindow {
                         }
                         Surface {
                             id: lessonNarrationPanel; objectName: "lessonNarrationPanel"; visible: root.page === "voice"
-                            Layout.fillWidth: true; implicitHeight: narrationForm.height + 28
+                            readonly property real contentPadding: root.compactVoice ? 16 : 20
+                            Layout.fillWidth: true; Layout.topMargin: !bridge.quickResult.path ? (root.height < 850 ? 16 : 48) : 0
+                            implicitHeight: narrationForm.height + contentPadding * 2
                             ColumnLayout {
-                                id: narrationForm; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 14; spacing: root.compactVoice ? 6 : 8
+                                id: narrationForm; objectName: "narrationConfigurationForm"; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: lessonNarrationPanel.contentPadding; spacing: root.compactVoice ? 10 : 12
                                 Caption { objectName: "narrationConfigurationTitle"; text: "Cấu hình tạo giọng đọc"; font.pixelSize: 15; Layout.fillWidth: true }
                                 RowLayout { Layout.fillWidth: true
                                     Caption { Layout.fillWidth: true; Layout.minimumWidth: 0; wrapMode: Text.WordWrap; text: root.narrationComplete ? "Hoàn tất giọng đọc" : root.page === "voice" ? "Giọng đọc và ngôn ngữ" : "Tạo giọng đọc · không bắt buộc" }
@@ -1685,7 +1688,7 @@ ApplicationWindow {
                                 ColumnLayout {
                                 objectName: "narrationCreationOptions"; Layout.fillWidth: true
                                 visible: !root.narrationComplete || root.voiceConfigurationExpanded
-                                spacing: root.compactVoice ? 6 : 8
+                                spacing: root.compactVoice ? 12 : 16
                                 GridLayout { Layout.fillWidth: true; columns: width >= 640 ? 3 : 2; columnSpacing: 10; rowSpacing: 8
                                     Choice { objectName: "lessonNarrationVoiceChoice"; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.preferredWidth: 290
                                         Accessible.name: "Cặp giọng Việt–Mỹ"; hoverEnabled: true
@@ -1711,16 +1714,21 @@ ApplicationWindow {
                                         }
                                     }
                                 }
-                                GridLayout { objectName: "narrationLanguagePositionRow"; Layout.fillWidth: false; Layout.alignment: Qt.AlignHCenter; Layout.maximumWidth: parent.width
-                                Layout.preferredWidth: columns === 2 ? narrationLanguageChoices.naturalWidth + narrationPositionRow.implicitWidth + columnSpacing : Math.max(narrationLanguageChoices.naturalWidth, narrationPositionRow.implicitWidth)
-                                columns: parent.width >= narrationLanguageChoices.naturalWidth + narrationPositionRow.implicitWidth + columnSpacing ? 2 : 1; columnSpacing: 24; rowSpacing: 8
-                                Flow { id: narrationLanguageChoices; objectName: "narrationLanguageChoices"; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.preferredWidth: naturalWidth; spacing: 10
-                                    readonly property real naturalWidth: narrationEnglish.implicitWidth + narrationVietnamese.implicitWidth + narrationBoth.implicitWidth + spacing * 2
+                                GridLayout { objectName: "narrationLanguagePositionRow"; Layout.fillWidth: true; uniformCellWidths: true
+                                columns: parent.width >= 2 * Math.max(narrationLanguageChoices.naturalWidth, narrationPositionRow.implicitWidth) + columnSpacing ? 2 : 1; columnSpacing: 24; rowSpacing: 10
+                                Item { objectName: "narrationLanguageCell"; Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.alignment: Qt.AlignVCenter
+                                implicitHeight: narrationLanguageChoices.implicitHeight
+                                GridLayout { id: narrationLanguageChoices; objectName: "narrationLanguageChoices"; anchors.centerIn: parent; width: Math.min(720, parent.width); columns: 3; columnSpacing: 8; uniformCellWidths: true
+                                    readonly property real naturalWidth: 3 * 160 + columnSpacing * 2
                                     ButtonGroup { id: narrationLanguages }
-                                    ChoiceRadioButton { id: narrationEnglish; highlightSelection: true; objectName: "narrationEnglish"; text: "Tiếng Anh"; ButtonGroup.group: narrationLanguages; checked: root.narrationMode === "en"; enabled: !bridge.busy && !bridge.narrationBusy && (!bridge.quickResult.path || bridge.narrationInputLanguages.en); onClicked: root.chooseNarrationMode("en") }
-                                    ChoiceRadioButton { id: narrationVietnamese; highlightSelection: true; objectName: "narrationVietnamese"; text: "Tiếng Việt"; ButtonGroup.group: narrationLanguages; checked: root.narrationMode === "vi"; enabled: !bridge.busy && !bridge.narrationBusy && (!bridge.quickResult.path || bridge.narrationInputLanguages.vi); onClicked: root.chooseNarrationMode("vi") }
-                                    ChoiceRadioButton { id: narrationBoth; highlightSelection: true; objectName: "narrationBoth"; text: "Cả Anh và Việt · 2 loa riêng"; ButtonGroup.group: narrationLanguages; checked: root.narrationMode === "both"; enabled: !bridge.busy && !bridge.narrationBusy && (!bridge.quickResult.path || bridge.narrationInputLanguages.vi && bridge.narrationInputLanguages.en); onClicked: root.chooseNarrationMode("both") }
+                                    ConversionChoice { choiceName: "narrationEnglish"; label: "Tiếng Anh"; detail: "Chỉ đọc lời tiếng Anh của bài."; implicitHeight: 112; Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; choiceGroup: narrationLanguages; selected: root.narrationMode === "en"; enabled: !bridge.busy && !bridge.narrationBusy && (!bridge.quickResult.path || bridge.narrationInputLanguages.en); onChosen: root.chooseNarrationMode("en") }
+                                    ConversionChoice { choiceName: "narrationVietnamese"; label: "Tiếng Việt"; detail: "Chỉ đọc lời tiếng Việt của bài."; implicitHeight: 112; Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; choiceGroup: narrationLanguages; selected: root.narrationMode === "vi"; enabled: !bridge.busy && !bridge.narrationBusy && (!bridge.quickResult.path || bridge.narrationInputLanguages.vi); onChosen: root.chooseNarrationMode("vi") }
+                                    ConversionChoice { choiceName: "narrationBoth"; label: "Cả Anh và Việt"; detail: "Hai loa riêng VI và EN trên mỗi slide."; implicitHeight: 112; Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; choiceGroup: narrationLanguages; selected: root.narrationMode === "both"; enabled: !bridge.busy && !bridge.narrationBusy && (!bridge.quickResult.path || bridge.narrationInputLanguages.vi && bridge.narrationInputLanguages.en); onChosen: root.chooseNarrationMode("both") }
                                 }
+                                }
+                                Item { objectName: "narrationPositionCell"; Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.alignment: Qt.AlignVCenter
+                                implicitHeight: narrationPositionControls.implicitHeight
+                                ColumnLayout { id: narrationPositionControls; objectName: "narrationPositionControls"; anchors.centerIn: parent; width: Math.min(420, parent.width); spacing: 8
                                 RowLayout { id: narrationPositionRow; Layout.alignment: Qt.AlignHCenter; spacing: 10
                                     Caption { text: "Vị trí loa" }
                                     Choice { objectName: "narrationSpeakerPosition"; Layout.preferredWidth: 170
@@ -1762,6 +1770,9 @@ ApplicationWindow {
                                             Label { text: speakerPositionChoice.currentText; color: root.ink; font.pixelSize: 13; Layout.fillWidth: true; elide: Text.ElideRight }
                                         }
                                     }
+                                }
+                                Copy { objectName: "narrationPositionDescription"; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; font.pixelSize: 12; text: "Chọn nơi đặt loa trên tất cả slide." }
+                                }
                                 }
                                 }
                                 Copy {
