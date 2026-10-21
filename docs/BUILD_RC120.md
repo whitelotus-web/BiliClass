@@ -72,4 +72,16 @@ ngoài khung; bài chuyển đổi cũ cần chạy lại từ nguồn để nh�
 Phiên bản nguồn `1.0.0rc120`. Dựng một lần sau khi commit nguồn đã kiểm,
 dùng runtime/model RC119 với manifest SHA256. Commit được ghi trong
 BUILD_INFO.json; dữ liệu, audio, khóa, model tải và executable không
-đưa vào commit. Thông tin gói/cài đặt được bổ sung sau khi xác minh.
+đưa vào commit.
+
+Gói đã dựng từ `ce70f40c53d65ac2098ac2a51496a1dccc8fbd55`, ZIP
+1.249.991.815 byte, SHA256
+`cc967cdaab1438cd54a831a1f66e76a703e2a20f53091f8ea3655291363309a7`.
+4662 tệp ứng dụng và 54 QML/qmldir đã đối chiếu manifest/commit;
+PYZ có module cache mới. EXE thực chạy smoke Voice 1366×850, không có
+cảnh báo QML. Cài vào `F:/Applications/BiliClass/1.0.0rc120` và mở qua
+Explorer; cửa sổ chính/Mascot phản hồi, shortcut/taskbar/icon đúng bản.
+RC119 đã đóng bình thường, không đóng PowerPoint hoặc phiên khác.
+So sánh trước/sau cài xác nhận nội dung/nguồn bài, 1066 WAV được tham
+chiếu, logo, khóa mã hóa và tùy chọn giọng không thay đổi. Gói phục vụ
+test tại máy, chưa phát hành GitHub Release.
