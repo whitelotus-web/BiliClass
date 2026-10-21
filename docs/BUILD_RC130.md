@@ -34,3 +34,18 @@ Xác minh bằng `.venv`:
 - Qt bố cục Chuyển đổi/Tạo giọng ở bốn cỡ 1080/1366/1920: đúng hình,
   ảnh tải thành công và điều khiển tới được. Đã xem ảnh giao diện.
   Các luồng trên không có cảnh báo QML; dữ liệu thử giữ ngoài Git.
+
+Nguồn `1.0.0rc130`, commit
+`2fc04bda64c81e6d1dcd7a4f9dfd0a0e7aabec2d`. Dựng một lần từ runtime
+RC129 đã xác minh. Gói `dist/rc130-text-cursor-mascot/BiliClass-RC130-Windows.zip`,
+1.257.787.823 byte, SHA256
+`c42ee02d568040adca26256d21046b9e3969d79378fa15f5763b7c565e42356f`.
+Đối chiếu 4.670 file, 55 QML/qmldir và hai PNG khớp commit nguồn.
+Smoke bản đóng gói cả tab Chuyển đổi/Tạo giọng 1366×850 đều thoát 0,
+không cảnh báo; đã xem ảnh sáng/tối có đúng hai hình mới.
+
+Cài tại `F:/Applications/BiliClass/1.0.0rc130`, mở từ Explorer vào tab
+Chuyển đổi. Cửa sổ chính/Mascot phản hồi, icon/shortcut đúng phiên bản.
+Đối chiếu sau cài/mở giữ nguyên toàn bộ bài/tệp nguồn, 1.183 WAV,
+hồ sơ, logo, API key mã hóa và cấu hình giọng. RC129 đóng bình thường;
+không đóng PowerPoint hay RC80 độc lập.
