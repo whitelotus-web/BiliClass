@@ -1495,13 +1495,24 @@ ApplicationWindow {
                                 objectName: "voiceLessonDetails"
                                 Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.alignment: Qt.AlignTop; spacing: 12
                         RowLayout {
+                            id: resultHeadingRow
                             visible: root.page !== "voice" || !!bridge.quickResult.path; Layout.fillWidth: true
                             ColumnLayout {
                                 Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 6
                                 Heading { objectName: "resultLessonTitle"; font.pixelSize: root.page === "voice" ? 20 : 27; Layout.fillWidth: true; Layout.minimumWidth: 0; text: root.lessonData.title || "Bài giảng song ngữ" }
                                 Copy { Layout.fillWidth: true; Layout.minimumWidth: 0; text: [root.lessonData.subject, ((root.lessonData.education_level || "") + " " + (root.lessonData.grade || "")).trim(), root.lessonData.voice_only ? "PowerPoint nguyên bản · Tạo giọng độc lập" : bridge.conversionLabel].filter(function(value) { return !!value }).join(" · ") }
                             }
-                            MainAction { id: resultMoreAction; objectName: "resultMoreButton"; text: "Thao tác khác"; subtle: true; enabled: !bridge.busy; onClicked: resultMoreMenu.popup() }
+                            LibraryAction {
+                                id: resultMoreAction; objectName: "resultMoreButton"
+                                parent: root.page === "voice" ? voicePreviewActions : resultHeadingRow
+                                text: "⋯"; font.pixelSize: 24; subtle: true
+                                implicitWidth: 32; implicitHeight: 32
+                                Layout.minimumWidth: 32; Layout.preferredWidth: 32; Layout.maximumWidth: 32
+                                enabled: !bridge.busy
+                                Accessible.name: "Thao tác khác"
+                                ToolTip.visible: hovered; ToolTip.text: "Thao tác khác"; ToolTip.delay: 500
+                                onClicked: resultMoreMenu.popup()
+                            }
                             Menu { id: resultMoreMenu; objectName: "resultMoreMenu"; parent: resultMoreAction; x: parent.width - width; y: parent.height
                                 MenuItem { objectName: "reviewNarrationScript"; text: "Kiểm tra / sửa lời đọc…"; enabled: !!bridge.quickResult.path && !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !bridge.teachingTransitioning; onTriggered: narrationScript.open() }
                                 MenuItem { text: "Sửa thông tin bài"; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active; onTriggered: { metadataDialog.lessonData = root.lessonData; metadataDialog.open() } }
@@ -1529,7 +1540,12 @@ ApplicationWindow {
                                 Layout.preferredWidth: Math.min(voiceOverview.width >= 1000 ? 304 : 240, voiceOverview.width)
                                 Layout.minimumWidth: Layout.preferredWidth; Layout.maximumWidth: Layout.preferredWidth
                                 Layout.alignment: Qt.AlignTop | Qt.AlignRight; spacing: 8
-                                MainAction { objectName: "toggleVoiceSlidePreview"; text: root.voicePreviewExpanded ? "Ẩn xem trước" : "Xem trước slide"; Layout.alignment: Qt.AlignRight; subtle: true; implicitHeight: 32; onClicked: { if (root.voicePreviewExpanded) { root.voicePreviewExpanded = false; bridge.stopSpeech() } else root.showNarrationPreview() } }
+                                RowLayout {
+                                    id: voicePreviewActions; objectName: "voicePreviewActions"
+                                    Layout.fillWidth: true; spacing: 6
+                                    Item { Layout.fillWidth: true }
+                                    MainAction { objectName: "toggleVoiceSlidePreview"; text: root.voicePreviewExpanded ? "Ẩn xem trước" : "Xem trước slide"; subtle: true; implicitHeight: 32; onClicked: { if (root.voicePreviewExpanded) { root.voicePreviewExpanded = false; bridge.stopSpeech() } else root.showNarrationPreview() } }
+                                }
                                 Surface {
                                     objectName: "voiceSlideThumbnail"; visible: !root.voicePreviewExpanded
                                     Layout.fillWidth: true; implicitHeight: width * 9 / 16; radius: 10; color: AppTheme.adapt("#e9eef5")
