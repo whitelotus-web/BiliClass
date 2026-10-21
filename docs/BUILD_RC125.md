@@ -18,5 +18,10 @@ diện sáng/tối và tỷ lệ hiển thị 100%/150%. Kiểm chưa có kết 
 chỉ có kết quả giọng và có hai kết quả khác bài; mỗi tab mở lại đúng
 bài tương ứng, giữ đúng biến thể giọng. Không có cảnh báo QML.
 
+Chân trang đặt khung Cấu hình đã chọn và nút tạo trong cùng một hàng;
+nút cam ở hàng riêng dưới khung. Khi nút cam xuất hiện, nút Tạo giọng
+đọc/Chuyển đổi bài giảng vẫn căn giữa theo chiều cao của khung cấu hình.
+Qt kiểm cả hai tab khi có hoặc chưa có nút cam, ở ba kích thước và hai tỷ lệ.
+
 Nguồn `1.0.0rc125`. Dựng một lần sau commit đã kiểm, dùng runtime
 RC124 có manifest SHA256. Thông tin gói/cài đặt bổ sung sau xác minh.

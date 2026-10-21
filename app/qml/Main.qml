@@ -1360,13 +1360,13 @@ ApplicationWindow {
                     visible: root.page === "new" || (root.page === "voice" && !root.voiceResultShown); anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
                     height: visible ? creationFooterContent.implicitHeight + 24 : 0; color: AppTheme.adapt("#f3f7fc")
                     Rectangle { anchors.top: parent.top; height: 1; width: parent.width; color: root.line }
-                    RowLayout {
+                    ColumnLayout {
                         id: creationFooterContent
-                        anchors.fill: parent; anchors.leftMargin: 28; anchors.rightMargin: 28; anchors.topMargin: 12; anchors.bottomMargin: 12; spacing: 16
-                        ColumnLayout {
-                            Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.maximumWidth: Infinity; spacing: 3
+                        anchors.fill: parent; anchors.leftMargin: 28; anchors.rightMargin: 28; anchors.topMargin: 12; anchors.bottomMargin: 12; spacing: 3
+                        RowLayout {
+                            objectName: "creationFooterPrimaryRow"; Layout.fillWidth: true; spacing: 16
                             ConversionConfiguration {
-                                objectName: "conversionConfigurationSummary"; visible: root.page === "new"; Layout.fillWidth: true
+                                objectName: "conversionConfigurationSummary"; visible: root.page === "new"; Layout.fillWidth: true; Layout.minimumWidth: 0
                                 formatLabel: root.selectedConversionFormat.label
                                 formatId: root.selectedConversionFormat.id
                                 keepSource: root.creationKeepSource
@@ -1374,7 +1374,7 @@ ApplicationWindow {
                                 subject: root.creationSubject; education: educationInput.currentText; grade: gradeInput.currentText
                             }
                             NarrationConfiguration {
-                                objectName: "narrationConfiguration"; visible: root.page === "voice"; Layout.fillWidth: true
+                                objectName: "narrationConfiguration"; visible: root.page === "voice"; Layout.fillWidth: true; Layout.minimumWidth: 0
                                 mode: root.narrationMode
                                 voiceName: (bridge.multilingualVoices.find(function(v) { return v.id === root.narrationVoice }) || {}).name || ""
                                 pairLabel: bridge.voicePairDetails(root.narrationVoice).label || ""
@@ -1383,15 +1383,13 @@ ApplicationWindow {
                                 hasLesson: !!bridge.quickResult.path
                                 positionLabel: speakerPositionChoice.currentText
                             }
-                            Copy { visible: root.page === "new" && bridge.narrationBusy; text: "Đang tạo giọng đọc · Chờ hoàn tất hoặc dừng trước khi chuyển đổi bài mới."; Layout.fillWidth: true; font.pixelSize: 12 }
-                            RowLayout { visible: root.page === "new" && !!bridge.chatgptRequest.folder && !bridge.narrationBusy; Layout.fillWidth: true; spacing: 6
-                                MainAction { objectName: "resumeCreationTask"; text: bridge.browserState.phase === "completed" ? "Mở bài vừa chuyển đổi" : "Tiếp tục bài đang chuẩn bị"; visible: !!bridge.chatgptRequest.folder && !bridge.narrationBusy; attention: bridge.browserState.phase === "completed"; subtle: !attention; implicitHeight: attention ? 36 : 28; font.pixelSize: 11; onClicked: root.go("chatgpt") }
-                            }
-                            MainAction { objectName: "resumeNarrationTask"; text: "Mở bài vừa tạo giọng"; attention: true; implicitHeight: 36; font.pixelSize: 11; visible: root.page === "voice" && !!bridge.recentNarrationResult.lesson_id && !bridge.narrationBusy; enabled: !bridge.busy; onClicked: bridge.openRecentNarrationResult() }
+                            MainAction { objectName: "createLessonButton"; visible: root.page === "new"; text: bridge.busy ? "Đang chuẩn bị…" : "Chuyển đổi bài giảng"; primary: true; enabled: !bridge.busy && !bridge.inputDocuments.busy && !bridge.narrationBusy && !root.inputDocumentError && root.creationPrompt.ready; onClicked: bridge.convertDocument(titleInput.text, root.creationSubject, educationInput.currentText, gradeInput.currentText, pasteInput.text, root.selectedFile, root.selectedConversionFormat.id, ["standard", "visual", "practice"][creationPreset.currentIndex], root.creationKeepSource ? "source" : "template", teacherNotesInput.text) }
+                            MainAction { objectName: "createLessonNarrationButton"; visible: root.page === "voice" && !root.narrationComplete; primary: true; text: bridge.narrationBusy ? "Đang tạo giọng…" : "Tạo giọng đọc"; enabled: !!bridge.quickResult.path && !!root.narrationDraft.total && !!root.narrationVoice && !root.narrationDraft.ready && !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !bridge.teachingTransitioning; onClicked: bridge.createLessonNarrationWithVoice(root.narrationMode, root.narrationVoice, root.narrationRate) }
+                            MainAction { objectName: "cancelLessonNarrationButton"; danger: true; symbol: "■"; text: bridge.lessonNarration.stopping ? "Đang dừng…" : "Dừng"; enabled: !bridge.lessonNarration.stopping; visible: (root.page === "voice" || root.page === "result") && !!bridge.lessonNarration.running; onClicked: bridge.cancelLessonNarration() }
                         }
-                        MainAction { objectName: "createLessonButton"; visible: root.page === "new"; text: bridge.busy ? "Đang chuẩn bị…" : "Chuyển đổi bài giảng"; primary: true; enabled: !bridge.busy && !bridge.inputDocuments.busy && !bridge.narrationBusy && !root.inputDocumentError && root.creationPrompt.ready; onClicked: bridge.convertDocument(titleInput.text, root.creationSubject, educationInput.currentText, gradeInput.currentText, pasteInput.text, root.selectedFile, root.selectedConversionFormat.id, ["standard", "visual", "practice"][creationPreset.currentIndex], root.creationKeepSource ? "source" : "template", teacherNotesInput.text) }
-                        MainAction { objectName: "createLessonNarrationButton"; visible: root.page === "voice" && !root.narrationComplete; primary: true; text: bridge.narrationBusy ? "Đang tạo giọng…" : "Tạo giọng đọc"; enabled: !!bridge.quickResult.path && !!root.narrationDraft.total && !!root.narrationVoice && !root.narrationDraft.ready && !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !bridge.teachingTransitioning; onClicked: bridge.createLessonNarrationWithVoice(root.narrationMode, root.narrationVoice, root.narrationRate) }
-                        MainAction { objectName: "cancelLessonNarrationButton"; danger: true; symbol: "■"; text: bridge.lessonNarration.stopping ? "Đang dừng…" : "Dừng"; enabled: !bridge.lessonNarration.stopping; visible: (root.page === "voice" || root.page === "result") && !!bridge.lessonNarration.running; onClicked: bridge.cancelLessonNarration() }
+                        Copy { visible: root.page === "new" && bridge.narrationBusy; text: "Đang tạo giọng đọc · Chờ hoàn tất hoặc dừng trước khi chuyển đổi bài mới."; Layout.fillWidth: true; font.pixelSize: 12 }
+                        MainAction { objectName: "resumeCreationTask"; text: bridge.browserState.phase === "completed" ? "Mở bài vừa chuyển đổi" : "Tiếp tục bài đang chuẩn bị"; visible: root.page === "new" && !!bridge.chatgptRequest.folder && !bridge.narrationBusy; attention: bridge.browserState.phase === "completed"; subtle: !attention; implicitHeight: attention ? 36 : 28; font.pixelSize: 11; onClicked: root.go("chatgpt") }
+                        MainAction { objectName: "resumeNarrationTask"; text: "Mở bài vừa tạo giọng"; attention: true; implicitHeight: 36; font.pixelSize: 11; visible: root.page === "voice" && !!bridge.recentNarrationResult.lesson_id && !bridge.narrationBusy; enabled: !bridge.busy; onClicked: bridge.openRecentNarrationResult() }
                     }
                 }
 

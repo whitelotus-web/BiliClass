@@ -73,6 +73,22 @@ def main():
         def c(name):
             return control(window, name)
 
+        def check_footer_alignment(page, recent_link=False):
+            window.setProperty('page', page)
+            pump(80)
+            summary = c('narrationConfiguration' if page == 'voice' else 'conversionConfigurationSummary')
+            button = c('createLessonNarrationButton' if page == 'voice' else 'createLessonButton')
+            link = c('resumeNarrationTask' if page == 'voice' else 'resumeCreationTask')
+            assert summary.isVisible() and button.isVisible()
+            assert abs(summary.mapToScene(QPointF(0, summary.height()/2)).y()
+                       - button.mapToScene(QPointF(0, button.height()/2)).y()) < 2
+            assert summary.mapToScene(QPointF(summary.width(), 0)).x() + 12 <= button.mapToScene(QPointF()).x()
+            assert link.isVisible() == recent_link
+            if recent_link:
+                assert link.mapToScene(QPointF()).y() >= summary.mapToScene(QPointF(0, summary.height())).y() + 2
+                footer = c('creationFooter')
+                assert link.mapToItem(footer, QPointF(0, link.height())).y() <= footer.height() - 10
+
         try:
             window.show()
             for page in ('new', 'voice'):
@@ -80,6 +96,7 @@ def main():
                 pump(60)
                 assert not c('resumeNarrationTask').isVisible()
                 assert not c('resumeCreationTask').isVisible()
+                check_footer_alignment(page)
             bridge._show_lesson(lesson, preview, destination='voice', auto_repair=False, load_preview=False)
             until(lambda: window.property('narrationComplete'), timeout=30)
             until(lambda: bool(bridge.quickResult.get('image')) and not bridge.previewBusy, timeout=90)
@@ -250,11 +267,18 @@ def main():
             window.setProperty('page', 'new')
             pump(80)
             assert window.grabWindow().save(str(reports / 'conversion-only-recent-link.png'))
+            window.setProperty('narrationRate', 1)
+            for width, height in sizes:
+                window.resize(width, height)
+                for page in ('voice', 'new'):
+                    check_footer_alignment(page, recent_link=True)
+                    assert window.grabWindow().save(str(reports / f'footer-{page}-{width}.png'))
             assert not warnings, warnings
             (reports / 'result.json').write_text(json.dumps({'status': 'passed', 'automatic_preview': True,
                 'resume_exact_completed_variant_after_configuration_or_clear': True, 'centered_actions': True,
                 'centered_listening_all_language_modes': True, 'voiced_download_label': True,
                 'tab_specific_recent_results_reopen_distinct_lessons': True,
+                'footer_primary_action_aligned_with_summary': True,
                 'preview_while_powerpoint_active': True, 'sizes': sizes, 'qml_warnings': warnings}), encoding='utf-8')
             print('Completed narration Qt flow passed.', flush=True)
         finally:
