@@ -15,5 +15,17 @@ sao lưu/khôi phục thư viện thử và các tab hiện có đều đạt, k
 báo QML. Dữ liệu/ảnh thử giữ ngoài Git.
 
 Bản này gồm các sửa Mascot và cấu hình giọng đã kiểm ở RC127.
-Nguồn `1.0.0rc128`. Dựng một lần sau commit đã kiểm, dùng runtime
-RC127 có manifest SHA256. Thông tin gói/cài đặt bổ sung sau xác minh.
+Nguồn `1.0.0rc128`, commit
+`6cfcf9d7075a0fd89a2b9ba0293857c90c0781d6`. Dựng một lần sau kiểm,
+dùng runtime RC127 có manifest SHA256. Gói
+`dist/rc128-profile-save/BiliClass-RC128-Windows.zip`, 1.255.961.601
+byte, SHA256
+`f64c58c40680e027e59757126cfc11ab0b1cfaa3c59a76be1ce4b5a404c4a073`.
+Đối chiếu 4.667 file và 54 QML/qmldir khớp nguồn. Smoke bản đóng gói
+tab Cài đặt 1366×850 đạt, không cảnh báo QML.
+
+Cài tại `F:/Applications/BiliClass/1.0.0rc128`, mở từ Explorer vào tab
+Cài đặt. Cửa sổ chính/Mascot phản hồi, icon và shortcut đúng phiên bản.
+Đối chiếu sau cài và mở giữ nguyên 10 bài/tệp nguồn, 1.183 WAV, hồ sơ
+thầy cô/trường/bộ môn, logo, API key mã hóa và cấu hình giọng. Đóng
+RC126 bình thường; giữ PowerPoint và RC80 độc lập. RC127 không được cài.
