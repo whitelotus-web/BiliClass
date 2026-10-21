@@ -138,6 +138,8 @@ def prepare(source, manifest):
                 and max(u["font_size"] for u in units) >= 2600
             )
             title = title or heading_frame(shape, units, box, deck.slide_height)
+            if len(units) > 2 and length > 100:
+                title = False  # A question/instruction block needs body columns, not a stacked heading.
             if re.match(r"^\s*(?:Câu|Bước|Question)\s*\d", units[0]["raw"], re.I):
                 title = False
             x0, y0 = max(127000, x), max(127000, y)

@@ -186,6 +186,15 @@ def main():
                         verify_layout(entry, scroll)
                         if template:
                             assert c('creationPreset').property('count') == 3
+                            names = ['formatChoice_' + row['id'] + 'Preview' for row in bridge.conversionFormats]
+                            names += ['creationPresetView_' + preset for preset in ('standard', 'visual', 'practice')]
+                            buttons = [c(name) for name in names]
+                            assert len({(button.width(), button.height()) for button in buttons}) == 1, 'All five preview buttons must match'
+                            for button in buttons:
+                                assert button.isVisible() and button.property('text') == 'Xem mẫu'
+                                label = next(child for child in button.property('contentItem').childItems() if child.objectName() == 'actionButtonLabel')
+                                assert label.property('contentWidth') <= label.width()+1, 'Preview caption must fit'
+                            entry['preview_button_size'] = [buttons[0].width(), buttons[0].height()]
                             for preset in ('standard', 'visual', 'practice'):
                                 preview = c('creationPresetPreview_' + preset)
                                 assert QQmlExpression(engine.rootContext(), preview, 'status === 1').evaluate()[0]

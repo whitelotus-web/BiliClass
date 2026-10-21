@@ -34,6 +34,16 @@ def test_subject_defaults_aliases_and_teacher_priority():
     assert not TermPolicy('Âm nhạc').matches('Bài hát 4')
 
 
+def test_recent_physics_titles_and_pendulum_terms_are_local_and_teacher_overridable(tmp_path):
+    translator = Translator(tmp_path, transport=lambda *_: pytest.fail('Known physics terms need no API'))
+    translator.configure_terms('Vật lý', [])
+    assert translator.translate(['Định luật I Newton', 'Định luật 1 Newton', 'con lắc lò xo',
+                                 'dao động điều hoà'], Event()) == [
+        "Newton's first law", "Newton's first law", 'spring–mass oscillator', 'simple harmonic motion']
+    translator.configure_terms('Vật lý', [{'vi':'con lắc lò xo','en':'spring pendulum','locked':True}])
+    assert translator.translate(['con lắc lò xo'], Event()) == ['spring pendulum']
+
+
 def test_contextual_title_protects_heading_and_subject_terms_before_api(tmp_path):
     KeyStore(tmp_path).add('AIza' + 'x'*35)
     seen = []

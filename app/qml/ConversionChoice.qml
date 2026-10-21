@@ -16,7 +16,7 @@ Rectangle {
     property var choiceGroup: null
     signal chosen()
     signal previewRequested()
-    implicitHeight: fitContent ? Math.max(78, choiceContent.implicitHeight + 24) : compact ? (tight ? 64 : 78) : showPreview ? 138 : 90
+    implicitHeight: fitContent ? Math.max(78, choiceContent.implicitHeight + 24) : compact ? (tight ? (showPreview ? 66 : 64) : 78) : showPreview ? 138 : 90
     radius: 10
     color: selected ? AppTheme.adapt("#f2f7ff") : "transparent"
     border.width: 1
@@ -41,13 +41,12 @@ Rectangle {
             Accessible.name: card.label
             Accessible.description: card.detail
         }
-          ActionButton { objectName: card.compact ? card.choiceName + "Preview" : ""; visible: card.showPreview && card.compact; text: "Xem mẫu"; implicitHeight: 26; font.pixelSize: 11; onClicked: card.previewRequested() }
+          PreviewButton { objectName: card.compact ? card.choiceName + "Preview" : ""; visible: card.showPreview && card.compact; onClicked: card.previewRequested() }
         }
         Label { objectName: card.choiceName + "Detail"; text: card.detail; Layout.fillWidth: true; Layout.fillHeight: true; color: AppTheme.adapt("#667997"); font.pixelSize: 12; wrapMode: Text.WordWrap; textFormat: Text.PlainText; maximumLineCount: card.compact ? (card.tight ? 1 : 2) : 2147483647; elide: card.compact ? Text.ElideRight : Text.ElideNone }
-        ActionButton {
+        PreviewButton {
             objectName: card.compact ? "" : card.choiceName + "Preview"
-            visible: card.showPreview && !card.compact; text: "Xem mẫu"; iconName: "view"; Layout.alignment: Qt.AlignRight
-            implicitHeight: 29; font.pixelSize: 11
+            visible: card.showPreview && !card.compact; Layout.alignment: Qt.AlignRight
             onClicked: card.previewRequested()
         }
     }

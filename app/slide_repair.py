@@ -241,9 +241,18 @@ def _office_fit(path, target, targets, cancel):
             for shape in office_text_shapes(deck.Slides(number).Shapes):
                 if (shape.Id in ids and shape.Type in {1, 14, 17} and shape.Rotation == 0
                         and shape.HasTextFrame and shape.TextFrame2.HasText):
-                    shape.TextFrame2.AutoSize = 2  # msoAutoSizeTextToFitShape
+                    shape.TextFrame2.AutoSize = 0
                     shape.TextFrame2.WordWrap = -1
                     text = shape.TextFrame2.TextRange
+                    # Justification can paint glyphs beyond a narrow frame even
+                    # at the minimum font size. Compact paragraph spacing before
+                    # reducing type; retain all text, run styling and hierarchy.
+                    paragraph = text.ParagraphFormat
+                    if text.BoundWidth > shape.Width + 1 and paragraph.Alignment == 4:
+                        paragraph.Alignment = 1  # msoAlignLeft
+                    if (text.BoundHeight > shape.Height + 1 and paragraph.LineRuleWithin
+                            and paragraph.SpaceWithin > 1):
+                        paragraph.SpaceWithin = 1
                     for _ in range(4):
                         if text.BoundHeight <= shape.Height + 1 and text.BoundWidth <= shape.Width + 1:
                             break
@@ -330,7 +339,7 @@ def _grow_formula_frame(shape, slide, width, height):
     return True
 
 
-def repair_layout(path, directory, report, cancel=None, progress=None):
+def repair_layout(path, directory, report, cancel=None, progress=None, *, layout_plan=None):
     """Change only overflowing, horizontal native text. Never rewrite prose."""
     path, directory = Path(path), Path(directory)
     if file_digest(path) != report["sha256"]:
@@ -366,6 +375,8 @@ def repair_layout(path, directory, report, cancel=None, progress=None):
             band = reserve_band(root, deck.slide_width, deck.slide_height, deck.slides[number - 1])
             math_changes.extend({'slide': number, **change} for change in band)
             moved = {change['shape_id'] for change in band}
+            layout = layout_plan[number - 1] if layout_plan else {}
+            translated = {pair[lang + '_shape'] for pair in layout.get('pairs', []) for lang in ('vi', 'en')}
             targets[number].update(change['shape_id'] for change in band
                                     if change['operation'] in {'separate_text_rows', 'align_caption_band'})
             for shape_id in targets[number]:
@@ -388,7 +399,8 @@ def repair_layout(path, directory, report, cancel=None, progress=None):
                     deck = Presentation(path)
                 from .text_frame_space import grow
 
-                if shape_id not in moved and grow(shape, deck.slides[number - 1], deck.slide_width, deck.slide_height):
+                if shape_id not in moved and grow(shape, deck.slides[number - 1], deck.slide_width, deck.slide_height,
+                                                 translated=layout.get('role') == 'en' or shape_id in translated):
                     math_changes.append({'slide': number, 'shape_id': shape_id, 'operation': 'grow_text_frame'})
                 native_targets.setdefault(number, set()).add(shape_id)
                 _compact_fixed_spacing(body)
@@ -500,7 +512,7 @@ def repair_and_inspect(path, directory, *, source=None, mode="", style="source",
         before = failure_keys(inspection["slide_quality"])
         if not before:
             break
-        result = repair_layout(current, directory, inspection["slide_quality"], cancel, progress)
+        result = repair_layout(current, directory, inspection["slide_quality"], cancel, progress, layout_plan=layout_plan)
         candidate = Path(result["path"])
         if candidate == current:
             break

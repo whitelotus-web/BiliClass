@@ -2,10 +2,12 @@
 
 from itertools import product
 
+from lxml import etree
+
 from .source_deck import NS
 
 
-def grow(shape, slide, width, height):
+def grow(shape, slide, width, height, *, translated=False):
     from .framed_text import owner, panels
     from .native_layout import text_height
     from .slide_speech import objects
@@ -13,8 +15,11 @@ def grow(shape, slide, width, height):
     identity = shape.find('p:nvSpPr/p:cNvPr', NS)
     transform = shape.find('p:spPr/a:xfrm', NS)
     body = shape.find('p:txBody', NS)
-    if (identity is None or not identity.get('name', '').startswith('BCL_') or body is None
+    if (identity is None or not (translated or identity.get('name', '').startswith('BCL_')) or body is None
             or transform is None or transform.get('rot', '0') != '0'):
+        return False
+    if etree.XPath('.//p:animMotion//p:spTgt[@spid=$id]|.//p:cond/p:tgtEl/p:spTgt[@spid=$id]',
+                   namespaces=NS)(slide._element, id=identity.get('id')):
         return False
     for parent in shape.iterancestors():
         if parent.tag == '{' + NS['p'] + '}grpSp':

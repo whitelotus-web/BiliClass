@@ -332,6 +332,28 @@ def test_long_math_or_single_body_is_not_misclassified_as_title(tmp_path):
     assert not next(u for u in manifest["units"] if u["shape_id"] == body.shape_id)["title"]
 
 
+def test_top_question_block_with_three_paragraphs_uses_body_columns(tmp_path):
+    deck = Presentation()
+    deck.slide_width, deck.slide_height = Inches(13.333), Inches(7.5)
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    body = slide.shapes.add_textbox(Inches(1), Inches(.7), Inches(11), Inches(1.4))
+    body.text = ('Quan sát các vật trong hình vẽ.\n'
+                 '1. Giải thích tại sao quả cầu đứng yên khi được treo.\n'
+                 '2. Tại sao người trượt ván có thể giữ nguyên vận tốc của mình?')
+    for paragraph in body.text_frame.paragraphs:
+        paragraph.font.size = Pt(25)
+    source = tmp_path / 'question.pptx'
+    deck.save(source)
+    manifest = extract(source, 'parallel_columns', same_slide=True)
+    assert all(not unit['title'] for unit in manifest['units'])
+    from app.translation_batches import TOKEN
+
+    values = {unit['id']: {'en': ' '.join(TOKEN.findall(unit['text'])) +
+                          ' Observe and explain the motion of the object.'} for unit in manifest['units']}
+    assemble(source, tmp_path / 'bilingual.pptx', manifest, values, 'parallel_columns')
+    assert all(not pair['inline'] for pair in manifest['layout_plan'][0]['pairs'])
+
+
 def test_table_cells_keep_both_languages(tmp_path):
     source = fixture(tmp_path / "source.pptx")
     deck = Presentation(source)

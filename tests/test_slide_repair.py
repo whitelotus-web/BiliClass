@@ -196,6 +196,29 @@ def test_reducing_overflows_cannot_hide_new_missing_body_translation():
     assert not improved(before, after)
 
 
+@pytest.mark.parametrize('translated,blocked', [(False,False),(True,False),(True,True)])
+def test_only_declared_translation_can_grow_an_original_named_frame(tmp_path, translated, blocked):
+    from app.text_frame_space import grow
+
+    deck = Presentation()
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    shape = slide.shapes.add_textbox(Inches(1), Inches(1), Inches(5), Inches(.35))
+    shape.text = 'Ví dụ thực tế:\nReal-world example:'
+    for paragraph in shape.text_frame.paragraphs:
+        paragraph.font.size = Pt(18)
+    before = shape.left, shape.top, shape.width, shape.height
+    if blocked:
+        obstacle = slide.shapes.add_textbox(Inches(.2), Inches(.2), Inches(8), Inches(4))
+        obstacle.text = 'Keep this figure caption clear'
+    changed = grow(shape._element, slide, deck.slide_width, deck.slide_height, translated=translated)
+    assert changed == (translated and not blocked)
+    assert shape.text == 'Ví dụ thực tế:\nReal-world example:'
+    if changed:
+        assert shape.height > before[3] and shape.width >= before[2]
+    else:
+        assert (shape.left, shape.top, shape.width, shape.height) == before
+
+
 def test_independent_page_fixes_are_kept_without_accepting_regression(tmp_path):
     from app.slide_repair import retain_improved_pages
     from app.source_deck import source_slide_parts

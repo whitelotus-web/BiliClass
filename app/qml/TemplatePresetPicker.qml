@@ -43,12 +43,10 @@ GridLayout {
                     Layout.fillWidth: true; onClicked: picker.currentIndex = card.index
                 }
                 Label { text: card.modelData.detail; color: AppTheme.adapt("#667997"); font.pixelSize: 11; Layout.fillWidth: true; wrapMode: Text.WordWrap }
-                Button {
+                PreviewButton {
                     objectName: "creationPresetView_" + card.modelData.id
-                    text: "Xem mẫu"; implicitHeight: 31; Layout.alignment: Qt.AlignRight
+                    Layout.alignment: Qt.AlignRight
                     onClicked: picker.previewRequested(card.modelData.id)
-                    contentItem: Label { text: parent.text; color: AppTheme.adapt("#0869ff"); font.pixelSize: 12; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                    background: Rectangle { color: parent.hovered ? AppTheme.adapt("#e7f1ff") : AppTheme.surface; radius: 7; border.color: AppTheme.adapt("#cbdcf4") }
                 }
             }
         }

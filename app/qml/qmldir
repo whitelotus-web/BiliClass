@@ -29,6 +29,7 @@ NarrationScriptDialog 1.0 NarrationScriptDialog.qml
 NavigationIcon 1.0 NavigationIcon.qml
 NavigationItem 1.0 NavigationItem.qml
 PowerPointUpload 1.0 PowerPointUpload.qml
+PreviewButton 1.0 PreviewButton.qml
 ProjectorWindow 1.0 ProjectorWindow.qml
 ReportsPage 1.0 ReportsPage.qml
 SelectBox 1.0 SelectBox.qml
