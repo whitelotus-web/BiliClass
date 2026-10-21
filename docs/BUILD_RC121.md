@@ -13,5 +13,16 @@ không có cảnh báo QML.
 
 Nguồn `1.0.0rc121`; dựng một lần từ commit đã kiểm, dùng runtime/model
 RC120 với manifest SHA256. Commit được ghi trong BUILD_INFO.json.
-Gói, dữ liệu cá nhân và báo cáo thử không đưa vào Git. Thông tin gói và
-đối chiếu dữ liệu sau cài đặt được bổ sung sau khi xác minh.
+Gói, dữ liệu cá nhân và báo cáo thử không đưa vào Git.
+
+Gói đã dựng từ `4ef9bf8f8f435f9fd03b0311efac2fc4b8925433`, ZIP có
+1.249.991.770 byte, SHA256
+`ffce00ebb54c57ed94d8a27774d3d277beb1eaad2bb4f7588d81b7d515d35413`.
+4662 tệp ứng dụng và 54 QML/qmldir đã đối chiếu manifest/commit.
+EXE thực chạy smoke Cài đặt 1920×1080, không có cảnh báo QML.
+Cài vào `F:/Applications/BiliClass/1.0.0rc121`, mở qua Explorer ở trang
+Cài đặt; cửa sổ chính/Mascot phản hồi, shortcut/taskbar/icon đúng bản.
+RC120 đóng bình thường; phiên khác và PowerPoint được giữ nguyên.
+Đối chiếu trước/sau xác nhận bài/nguồn, 1066 WAV được tham chiếu, logo,
+khóa mã hóa và tùy chọn giọng giữ nguyên. Gói dùng để test tại máy,
+chưa phát hành GitHub Release.
