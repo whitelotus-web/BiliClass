@@ -1563,13 +1563,13 @@ class Bridge(QObject):
             return
         path = RESOURCE_ROOT / "assets/templates" / (preset + "-classroom.pptx")
         if path.is_file():
-            QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
+            self._open_teaching_presentation(QUrl.fromLocalFile(str(path)).toString(), destination=None)
         else:
             self.inform("Chưa có file PowerPoint mẫu trên máy này.", True)
 
     @Slot(str, str)
     def openLocalTemplateSample(self, preset, mode):
-        if self._busy or preset not in {'standard','visual','practice'} or mode not in {'parallel_columns','sentence_pairs','english_only'}:
+        if preset not in {'standard','visual','practice'} or mode not in {'parallel_columns','sentence_pairs','english_only'} or not self._can_open_teaching():
             return
         # Read settings on the GUI thread, never access its SQLite connection in a Job.
         metadata = {}  # Creation now uses only the tested BiliClass templates.
@@ -1621,7 +1621,7 @@ class Bridge(QObject):
             ],Event())
             cache.write_text(json.dumps({'sha256':hashlib.sha256(target.read_bytes()).hexdigest()}),encoding='utf-8')
             return str(target)
-        self.launch(work,lambda path: QDesktopServices.openUrl(QUrl.fromLocalFile(path)))
+        self.launch(work, lambda path: self._open_teaching_presentation(QUrl.fromLocalFile(path).toString(), destination=None))
 
     @Property(bool, notify=changed)
     def templateBookends(self):
@@ -2868,39 +2868,29 @@ class Bridge(QObject):
 
     @Slot()
     def startPowerPoint(self):
-        if not self._lesson:
+        if not self._lesson or not self._can_open_teaching():
             return
-        if self.previewBusy:
-            self.inform('Đang hoàn thiện ảnh xem trước. Bạn có thể mở trình chiếu ngay sau đó.')
+        if self._focus_open_teaching(self._lesson['id'], product='original'):
             return
-        if self.powerpoint_worker is not None:
-            self.inform("PowerPoint đang mở hoặc đang đóng. Hãy chờ hoàn tất.")
-            return
-        try:
-            path = verified_presentation(self._lesson, self.library.directory)
-            self._start_powerpoint_session(path)
-            self.inform("Đang mở bản PowerPoint nguồn ở chế độ chỉ đọc…")
-        except Exception as exc:
-            self.inform(str(exc), True)
+        import copy
 
-    def _start_powerpoint_session(self, path, source_map=None, segment_map=None, *, prepared=None):
+        from .teaching_session import prepare_original_teaching
+
+        lesson, directory = copy.deepcopy(self._lesson), self.library.directory
+        self.launch(lambda: prepare_original_teaching(lesson, directory),
+                    lambda prepared: self._open_library_teaching(prepared, select=False))
+
+    def _start_powerpoint_session(self, path, source_map=None, segment_map=None, *, prepared):
         self.stopSpeech()
         self._session_speech = {}
         self._presentation_stamp = (Path(path).stat().st_size, Path(path).stat().st_mtime_ns)
-        initial = slide_for_locator(self.segment.get("locator", "")) or 1
         self._powerpoint_source_map = source_map or []
         self._powerpoint_segment_map = segment_map or []
-        if self._powerpoint_source_map and not prepared:
-            initial = self._powerpoint_source_map.index(initial) + 1
-        elif self._powerpoint_segment_map and not prepared:
-            initial = self._powerpoint_segment_map.index(self.segment["id"]) + 1 if self.segment["id"] in self._powerpoint_segment_map else 1
-        if prepared:
-            self.teaching_session.bind(prepared)
-            initial = 1
-        worker = PowerPointSession(path, initial, self, autostart=not bool(prepared),
-                                  shortcuts=self.shortcut_settings.bindings if prepared else None)
+        self.teaching_session.bind(prepared)
+        worker = PowerPointSession(path, 1, self, autostart=False,
+                                  shortcuts=self.shortcut_settings.bindings)
         self.powerpoint_worker = worker
-        self._powerpoint_lesson_id = prepared['lesson']['id'] if prepared else self._lesson["id"]
+        self._powerpoint_lesson_id = prepared['lesson']['id']
         self._powerpoint_state = {"active": False, "starting": True, "slide": 0, "total": 0,
                                   "message": "Đang mở PowerPoint…"}
         self.powerpointStateChanged.emit()
@@ -2912,25 +2902,31 @@ class Bridge(QObject):
 
     @Slot()
     def startBilingualPowerPoint(self):
-        from .source_deck import prepare_source_deck
+        import copy
 
-        if not self._lesson or self._busy or self.previewBusy:
+        from .quick_conversion import build_preview
+        from .teaching_session import prepare_teaching
+
+        if not self._lesson or not self._can_open_teaching():
             return
-        if self.powerpoint_worker is not None:
-            self.inform("PowerPoint đang mở hoặc đang đóng. Hãy chờ hoàn tất.")
+        if self._focus_open_teaching(self._lesson['id'], product='source_style'):
             return
-        lesson, directory = self._lesson, self.library.directory
+        lesson, directory = copy.deepcopy(self._lesson), self.library.directory
+        lesson['presentation_style'] = 'source'
+        profile = dict(self.settings)
         terms = self.library.glossary(lesson.get("subject", ""))
 
-        def opened(result):
-            if self._lesson.get("id") != lesson["id"]:
-                return
-            self._conversion_report = result.get("report", [])
-            self.changed.emit()
-            self._start_powerpoint_session(result["path"], result["slide_map"])
-            self.inform("Đang trình chiếu bản song ngữ, giữ thiết kế PowerPoint gốc…")
+        def prepare():
+            preview = build_preview(lesson, directory, profile, terms)
+            preview['product'] = 'source_style'
+            return prepare_teaching(lesson, preview, directory)
 
-        self.launch(lambda: prepare_source_deck(lesson, directory, terms), opened)
+        def opened(prepared):
+            self._conversion_report = prepared['preview'].get('report', [])
+            self.changed.emit()
+            self._open_library_teaching(prepared, select=False)
+
+        self.launch(prepare, opened)
 
     @Slot(object)
     def _powerpoint_changed(self, state):
@@ -3130,15 +3126,8 @@ class Bridge(QObject):
 
     @Slot()
     def openConvertedDeck(self):
-        from .quick_conversion import verify_preview
-
-        try:
-            path = verify_preview(self._lesson, self.quickResult, self.library.directory)
-            if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(path))):
-                raise ValueError("Máy chưa có ứng dụng mở PowerPoint: " + str(path))
-            self.inform("Đã mở bản trình chiếu để kiểm tra. Khi đã kiểm tra, chọn Dùng để dạy.")
-        except Exception as exc:
-            self.inform(str(exc), True)
+        if self._lesson:
+            self._open_teaching_library(self._lesson['id'])
 
     @Slot()
     def useConvertedLesson(self):
@@ -3189,20 +3178,21 @@ class Bridge(QObject):
             return False
         return True
 
-    def _focus_open_teaching(self, identity, narration=None):
+    def _focus_open_teaching(self, identity, narration=None, *, product='lesson'):
         """Reopening the same saved product must preserve its slide and playback."""
         from .lesson_narration import records, variant_id
 
         bound = self.teaching_session.bound.get('lesson', {})
         if (not self.powerpoint_worker or not self._powerpoint_state.get('opened')
-                or bound.get('id') != identity):
+                or bound.get('id') != identity
+                or self.teaching_session.bound.get('preview', {}).get('product', 'lesson') != product):
             return False
         try:
             saved = self.library.get(identity)
         except (KeyError, ValueError):
             return False
         if (saved.get('revision') != bound.get('revision') or saved.get('source') != bound.get('source')
-                or records(saved) != records(bound)
+                or (product != 'original' and records(saved) != records(bound))
                 or (narration is not None and variant_id(narration) != variant_id(bound.get('narration')))):
             return False
         self.focusTeachingPresentation()
@@ -3263,33 +3253,43 @@ class Bridge(QObject):
             return self.teaching_session.bound.get('lesson', {}).get('id', '')
         return ''
 
-    def _open_library_teaching(self, prepared, *, destination=None):
+    def _open_library_teaching(self, prepared, *, destination=None, select=True):
         lesson, preview = prepared['lesson'], prepared['preview']
-        self._show_lesson(lesson, preview, auto_repair=False, destination=destination, load_preview=False)
+        if select:
+            self._show_lesson(lesson, preview, auto_repair=False, destination=destination, load_preview=False)
         if self.powerpoint_worker is not None:
             self._pending_teaching = prepared
             self.stopPowerPoint()
         else:
             self._activate_teaching(prepared)
 
-    def _teaching_lesson_ready(self, result):
+    def _teaching_lesson_ready(self, result, *, destination='library'):
         from .teaching_session import prepare_teaching
 
         lesson, preview = result
         if self._focus_open_teaching(lesson['id']):
-            self.navigate.emit('library')
+            if destination:
+                self.navigate.emit(destination)
             return
         self.launch(lambda: prepare_teaching(lesson, preview, self.library.directory),
-                    lambda prepared: self._open_library_teaching(prepared, destination='library'))
+                    lambda prepared: self._open_library_teaching(prepared, destination=destination))
 
     @Slot(str)
     def openTeachingPresentation(self, url):
+        self._open_teaching_presentation(url, destination='library')
+
+    @Slot(str)
+    def openInputPowerPoint(self, url):
+        self._open_teaching_presentation(url, destination=None)
+
+    def _open_teaching_presentation(self, url, *, destination):
         from .voice_import import import_presentation
 
         if not url or not self._can_open_teaching():
             return
         directory = self.library.directory
-        self.launch(lambda: import_presentation(directory, QUrl(url).toLocalFile()), self._teaching_lesson_ready)
+        self.launch(lambda: import_presentation(directory, QUrl(url).toLocalFile()),
+                    lambda result: self._teaching_lesson_ready(result, destination=destination))
 
     @Slot(str)
     def setTeachingPreset(self, preset):
@@ -3329,22 +3329,7 @@ class Bridge(QObject):
 
     @Slot()
     def previewSourcePowerPoint(self):
-        from .source_deck import prepare_source_deck
-
-        if not self._lesson or self._busy:
-            return
-        lesson, directory = self._lesson, self.library.directory
-        terms = self.library.glossary(lesson.get("subject", ""))
-
-        def opened(result):
-            self._conversion_report = result.get("report", [])
-            self.changed.emit()
-            if not QDesktopServices.openUrl(QUrl.fromLocalFile(result["path"])):
-                self.inform("Đã tạo bản song ngữ nhưng máy chưa có ứng dụng mở PowerPoint: " + result["path"], True)
-            else:
-                self.inform("Đã mở bản song ngữ cùng thiết kế gốc. Bản gốc được giữ riêng trong thư viện.")
-
-        self.launch(lambda: prepare_source_deck(lesson, directory, terms), opened)
+        self.startBilingualPowerPoint()
 
     @Slot(str, str, bool, bool, result=bool)
     def saveSegment(self, vi, en, approve, locked):
@@ -3805,6 +3790,9 @@ class Bridge(QObject):
         source = self._lesson.get("source")
         if not source:
             self.inform("Bài này được tạo từ nội dung dán vào.")
+            return
+        if Path(source.get('file', '')).suffix.lower() == '.pptx':
+            self.startPowerPoint()
             return
         try:
             path = self.library.directory / "sources" / source["file"]

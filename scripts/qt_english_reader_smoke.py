@@ -86,7 +86,10 @@ def main():
             plan, _ = make_plan(bridge.lesson, "en", bridge.voiceSettings)
             bridge._lesson = library.update_narration(lesson["id"], plan)
             bridge.narrationChanged.emit()
-            bridge.startPowerPoint()
+            bridge.openTeachingLibraryLesson(lesson['id'])
+            wait(lambda: bridge.powerpointState.get('opened') and not bridge.busy)
+            assert not bridge.powerpointState.get('active')
+            bridge.startTeachingShow()
             wait(lambda: bridge.powerpointState.get("active"))
             assert not plays and bridge.englishReaderState["state"] == "stopped"
             companion.setProperty("collapsed", False)

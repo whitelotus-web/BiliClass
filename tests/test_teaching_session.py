@@ -42,6 +42,26 @@ def prepared_lesson(tmp_path, mode='both'):
     return lesson, external_preview(lesson, directory), directory, path
 
 
+def test_original_source_is_managed_without_borrowing_converted_scripts_or_voice(tmp_path):
+    from app.teaching_session import prepare_original_teaching
+
+    lesson, _, directory, source = prepared_lesson(tmp_path)
+    before = copy.deepcopy(lesson)
+    original = source.read_bytes()
+    prepared = prepare_original_teaching(lesson, directory)
+    assert prepared['preview']['product'] == 'original'
+    assert prepared['path'] == prepared['owned_path'] and Path(prepared['path']).is_file()
+    assert Path(prepared['path']).read_bytes() == original
+    assert not prepared['lesson'].get('narration') and not prepared['lesson'].get('narration_variants')
+    assert not prepared['media'][1], 'A generated voice must not be attached to the original'
+    assert not prepared['speech']['slides'][0]['englishSpeechSegments'], 'Original is blank; edited scripts belong to the saved product'
+    assert lesson == before and source.read_bytes() == original
+    with_source = copy.deepcopy(lesson)
+    with_source['source']['sha256'] = 'invalid'
+    with pytest.raises(ValueError, match='thay đổi'):
+        prepare_original_teaching(with_source, directory)
+
+
 def test_ready_voice_opens_powerpoint_without_approving_or_blocking_on_layout_warning(tmp_path, monkeypatch):
     import time
 

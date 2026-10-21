@@ -1,6 +1,7 @@
 """Deck-wide speaker placement; changing this never invalidates narration WAVs."""
 
-POSITIONS = {'bottom_left': 'Trái dưới', 'bottom_center': 'Giữa dưới', 'bottom_right': 'Phải dưới'}
+POSITIONS = {'top_left': 'Trái trên', 'top_center': 'Giữa trên', 'top_right': 'Phải trên',
+             'bottom_left': 'Trái dưới', 'bottom_center': 'Giữa dưới', 'bottom_right': 'Phải dưới'}
 DEFAULT_POSITION = 'bottom_right'
 
 
@@ -29,7 +30,8 @@ def fixed_slots(bounds, selected=DEFAULT_POSITION, *, mini=False, languages=('vi
     width, height = bounds
     cell_width, cell_height = (50, 20) if mini else (36, 34)
     total = cell_width * len(languages)
-    left = {'bottom_left': 12, 'bottom_center': (width - total) / 2,
-            'bottom_right': width - total - 12}[position(selected)]
-    return {language: (left + index * cell_width, height - cell_height - 12, 'mini' if mini else False)
+    row, column = position(selected).split('_')
+    left = {'left': 12, 'center': (width - total) / 2, 'right': width - total - 12}[column]
+    top = 12 if row == 'top' else height - cell_height - 12
+    return {language: (left + index * cell_width, top, 'mini' if mini else False)
             for index, language in enumerate(languages)}

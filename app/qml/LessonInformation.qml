@@ -27,7 +27,7 @@ Rectangle {
             Label { text: "Môn · Lớp"; color: AppTheme.adapt("#667997"); font.pixelSize: 13 }
             Label { text: [card.lesson.subject, card.lesson.education_level, card.lesson.grade ? "Lớp " + card.lesson.grade : ""].filter(function(value) { return !!value }).join(" · "); color: AppTheme.adapt("#112650"); font.pixelSize: 13; wrapMode: Text.WordWrap; Layout.fillWidth: true }
             Label { text: "Vị trí loa"; color: AppTheme.adapt("#667997"); font.pixelSize: 13 }
-            Label { text: ({bottom_left: "Trái dưới", bottom_center: "Giữa dưới", bottom_right: "Phải dưới"})[card.lesson.speaker_position || "bottom_right"]; color: AppTheme.adapt("#112650"); font.pixelSize: 13; Layout.fillWidth: true }
+            Label { text: ({top_left: "Trái trên", top_center: "Giữa trên", top_right: "Phải trên", bottom_left: "Trái dưới", bottom_center: "Giữa dưới", bottom_right: "Phải dưới"})[card.lesson.speaker_position || "bottom_right"]; color: AppTheme.adapt("#112650"); font.pixelSize: 13; Layout.fillWidth: true }
             Label { text: "Ngày tạo"; color: AppTheme.adapt("#667997"); font.pixelSize: 13 }
             Label { text: card.lesson.created_at ? Qt.formatDateTime(new Date(card.lesson.created_at), "dd/MM/yyyy · HH:mm") : "—"; color: AppTheme.adapt("#112650"); font.pixelSize: 13; Layout.fillWidth: true }
         }

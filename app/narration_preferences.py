@@ -25,11 +25,15 @@ def store_mode(directory, mode):
                    ('narration_last_mode', json.dumps(mode)))
 
 
-def store_choices(directory, choices):
+def store_choices(directory, choices, positions=None):
     with closing(sqlite3.connect(directory / 'library.db', timeout=2)) as db, db:
         for key, value in choices.items():
             db.execute('INSERT INTO settings VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
                        (key, json.dumps(value)))
+        for identity, selected in (positions or {}).items():
+            if not db.execute("UPDATE lessons SET content=json_set(content, '$.speaker_position', ?) WHERE id=?",
+                              (selected, identity)).rowcount:
+                raise ValueError('Không còn bài giảng để lưu vị trí loa.')
 
 
 def store_lesson_position(directory, lesson_id, selected):
@@ -54,6 +58,7 @@ class NarrationPreferences(QObject):
         self._position = speaker_position(library.setting('narration_speaker_position', 'bottom_right'))
         self.worker = None
         self.pending = {}
+        self.pending_positions = {}
 
     @Property(str, notify=changed)
     def mode(self):
@@ -73,21 +78,24 @@ class NarrationPreferences(QObject):
         return self._position
 
     @Slot(str)
-    def selectPosition(self, selected):
+    def selectPosition(self, selected, *, lesson_id=None):
         from .speaker_layout import POSITIONS
 
         if selected not in POSITIONS:
             return
         self._position = selected
         self.pending['narration_speaker_position'] = selected
+        if lesson_id:
+            self.pending_positions[lesson_id] = selected
         self.changed.emit()
         self._start()
 
     def _start(self):
-        if self.worker is not None or not self.pending:
+        if self.worker is not None or not (self.pending or self.pending_positions):
             return
         choices, self.pending = self.pending, {}
-        self.worker = VoiceTask(lambda _: store_choices(self.directory, choices), self)
+        positions, self.pending_positions = self.pending_positions, {}
+        self.worker = VoiceTask(lambda _: store_choices(self.directory, choices, positions), self)
         self.worker.finished.connect(self._finished)
         self.worker.start()
 
@@ -102,9 +110,10 @@ class NarrationPreferences(QObject):
     def shutdown(self):
         if self.worker:
             self.worker.wait()
-        if self.pending:
+        if self.pending or self.pending_positions:
             try:
-                store_choices(self.directory, self.pending)
+                store_choices(self.directory, self.pending, self.pending_positions)
                 self.pending = {}
-            except (sqlite3.Error, OSError) as exc:
+                self.pending_positions = {}
+            except (sqlite3.Error, OSError, ValueError) as exc:
                 self.failed.emit('Chưa lưu được cấu hình giọng gần nhất: ' + str(exc))

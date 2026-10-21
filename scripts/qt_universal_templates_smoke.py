@@ -66,8 +66,8 @@ def main():
         assert library.setting("template_bookends", False)
         bridge.setTemplateBookends(False)
         opened = []
-        original = QDesktopServices.openUrl
-        QDesktopServices.openUrl = lambda url: opened.append(url.toLocalFile()) or True
+        original = bridge._open_teaching_presentation
+        bridge._open_teaching_presentation = lambda url, **_: opened.append(QUrl(url).toLocalFile())
         builds = []
         try:
             for index in range(3):
@@ -101,7 +101,7 @@ def main():
             until(lambda: len(opened) > old)
             assert Path(opened[-1]) == cached and cached.stat().st_mtime_ns == stamp
         finally:
-            QDesktopServices.openUrl = original
+            bridge._open_teaching_presentation = original
         for width, height in ((1366, 850), (1080, 700)):
             root.setWidth(width)
             root.setHeight(height)

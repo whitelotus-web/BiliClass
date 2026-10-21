@@ -74,9 +74,58 @@ def test_all_open_routes_reject_concurrent_office_transitions(session, monkeypat
     bridge.openTeachingLibraryLesson(lesson['id'])
     bridge.openCompanionLibraryLesson(lesson['id'])
     bridge.openTeachingPresentation('file:///not-used.pptx')
+    bridge.openInputPowerPoint('file:///not-used.pptx')
     bridge.openNarratedPowerPoint('not-used')
     bridge.useConvertedLesson()
+    bridge.openConvertedDeck()
+    bridge.startPowerPoint()
+    bridge.startBilingualPowerPoint()
+    bridge.previewSourcePowerPoint()
+    bridge._lesson['source'] = {'file': 'not-used.pptx'}
+    bridge.openSourceCopy()
+    bridge.openTemplateSample('standard')
+    bridge.openLocalTemplateSample('standard', 'parallel_columns')
     assert worker.stops == 0 and bridge.powerpoint_worker is worker
+
+
+def test_original_and_converted_products_are_distinct_bindings(session):
+    bridge, worker, lesson = session
+    assert not bridge._focus_open_teaching(lesson['id'], product='original')
+    bridge.teaching_session.bound['preview'] = {'product': 'original'}
+    assert bridge._focus_open_teaching(lesson['id'], product='original')
+    assert not bridge._focus_open_teaching(lesson['id'])
+
+
+@pytest.mark.parametrize('opener,destination', [('openInputPowerPoint', None), ('openTeachingPresentation', 'library')])
+def test_local_file_open_uses_managed_copy_and_keeps_its_navigation_contract(session, monkeypatch, tmp_path, opener, destination):
+    from pptx import Presentation
+    from PySide6.QtCore import QUrl
+
+    bridge, _, _ = session
+    path = tmp_path / 'Bài 6 – Dao động tắt dần.pptx'
+    deck = Presentation()
+    deck.slides.add_slide(deck.slide_layouts[6])
+    deck.save(path)
+    original = path.read_bytes()
+    bridge.powerpoint_worker = None
+    bridge.teaching_session.bound = {}
+    pages, prepared = [], []
+    bridge.navigate.connect(pages.append)
+    monkeypatch.setattr(bridge, 'launch', lambda action, callback, **_: callback(action()))
+    monkeypatch.setattr(bridge, '_activate_teaching', prepared.append)
+    monkeypatch.setattr('app.ui.QDesktopServices.openUrl', lambda *_: pytest.fail('PowerPoint must be managed'))
+    getattr(bridge, opener)(QUrl.fromLocalFile(str(path)).toString())
+    assert pages == ([destination] if destination else [])
+    assert len(prepared) == 1 and prepared[0]['lesson']['title'] == path.stem
+    assert prepared[0]['owned_path'] != str(path)
+    assert path.read_bytes() == original and not bridge.narrationBusy
+    # Cancellation is inert; reopening the same bound product keeps its session.
+    bridge.powerpoint_worker = Office()
+    bridge._powerpoint_state = dict(opened=True, active=True, slide=2)
+    bridge.teaching_session.bound = prepared[0]
+    getattr(bridge, opener)('')
+    getattr(bridge, opener)(QUrl.fromLocalFile(str(path)).toString())
+    assert len(prepared) == 1 and bridge.powerpointState['slide'] == 2
 
 
 def test_replacement_waits_for_old_office_close_and_ignores_late_old_signals(session, monkeypatch):

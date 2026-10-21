@@ -226,6 +226,30 @@ def main():
             assert window.property('page') == 'voice' and not bridge.powerpointState.get('active')
             assert not c('wholeLessonReview').property('visible')
             assert not any(segment['approved'] for segment in library.get(lesson['id'])['segments'])
+            # Opening the upload from Conversion keeps that form and its title.
+            from PySide6.QtQml import QQmlEngine, QQmlExpression
+            window.setProperty('page', 'new')
+            name = 'Bài 6 – Dao động tắt dần, dao động cưỡng bức và hiện tượng cộng hưởng.pptx'
+            conversion_input = folder / name
+            shutil.copyfile(original, conversion_input)
+            selection = dict(valid=True, url=conversion_input.as_uri(), name=name)
+            expression = 'applyInputSelection(' + json.dumps(selection) + ', "")'
+            _, error = QQmlExpression(QQmlEngine.contextForObject(window), window, expression).evaluate()
+            assert not error
+            pump(150)
+            title = c('lessonTitle')
+            assert title.property('text') == conversion_input.stem and title.property('cursorPosition') == 0
+            click(window, c('creationOpenPowerPoint'))
+            until(lambda: not bridge.busy and bridge.powerpointState.get('opened') and not bridge.teachingTransitioning, timeout=50)
+            assert window.property('page') == 'new' and window.property('selectedFile') == conversion_input.as_uri()
+            assert title.property('text') == conversion_input.stem and title.property('cursorPosition') == 0
+            assert bridge.teachingSession.state.get('lesson_id') and not bridge.powerpointState.get('active')
+            tap('companionStartShow')
+            until(lambda: bridge.powerpointState.get('active'))
+            tap('companionNext')
+            until(lambda: bridge.powerpointState.get('slide') == 2)
+            assert conversion_input.read_bytes() == original_bytes
+            window.grabWindow().save(str(out / 'conversion-input-open.png'))
             bridge.stopPowerPoint()
             until(lambda: bridge.powerpoint_worker is None)
             assert not bridge.teachingSession.state['bound']
@@ -238,6 +262,7 @@ def main():
                                  'no-voice teaching', 'external PPTX with embedded voices', 'native pause/resume',
                                  'delayed playback rejected after native slide change',
                                  'direct Open and Mascot binding after conversion/before voice/after voice/in library',
+                                 'conversion input opens managed, preserves configuration and starts only on F5',
                                  'source unchanged'],
                       'scope': 'Current Windows/Office, silent WAV fixtures; no physical projector or second monitor certification'}
             (out / 'result.json').write_text(json.dumps(result, indent=2), encoding='utf-8')

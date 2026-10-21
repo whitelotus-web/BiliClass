@@ -145,7 +145,7 @@ def test_selected_speakers_are_embedded_internal_click_only_and_source_is_unchan
         library.close()
 
 
-@pytest.mark.parametrize('selected', ['bottom_left', 'bottom_center', 'bottom_right'])
+@pytest.mark.parametrize('selected', ['top_left', 'top_center', 'top_right', 'bottom_left', 'bottom_center', 'bottom_right'])
 def test_export_position_is_identical_across_pages_and_reuses_saved_audio(tmp_path, monkeypatch, selected):
     from app.speaker_layout import fixed_slots
 

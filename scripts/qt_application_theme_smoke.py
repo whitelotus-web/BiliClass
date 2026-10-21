@@ -15,7 +15,7 @@ from app.branding import configure_application
 from app.library import Library
 from app.paths import RESOURCE_ROOT
 from app.ui import Bridge
-from scripts.qt_result_preview_mascot_smoke import control, pump, until
+from scripts.qt_result_preview_mascot_smoke import click, control, pump, until
 
 
 class PreviewFixtureBridge(Bridge):
@@ -69,6 +69,15 @@ def main():
             value, error = QQmlExpression(QQmlEngine.contextForObject(obj), obj, expression).evaluate()
             assert not error, expression
             return value
+
+        def centered(summary, keys):
+            rows = {}
+            for key in keys:
+                badge = c(summary.objectName()+'_'+key)
+                point = badge.mapToItem(summary, QPointF())
+                rows.setdefault(round(point.y()), []).append((point.x(), point.x()+badge.width()))
+            for row in rows.values():
+                assert abs(min(left for left, _ in row)+max(right for _, right in row)-summary.width()) < 2
 
         try:
             for mode in ('dark', 'light', 'dark'):
@@ -142,6 +151,7 @@ def main():
                 assert c('creationPreset').property('currentIndex') == index
                 assert evaluate(conversion_summary, 'entries[1].text').startswith('Mẫu: ')
                 assert c('creationPreset').property('currentText') in evaluate(conversion_summary, 'entries[1].text')
+                centered(conversion_summary, ('language', 'design', 'subject', 'class'))
             # A converted lesson has a 16:9 thumbnail before any preview click.
             bridge._lesson = lesson
             bridge._quick_result = dict(lesson_id=lesson['id'], revision=lesson['revision'], path='fixture.pptx', total=2, slide=1)
@@ -166,6 +176,7 @@ def main():
                 assert abs(thumbnail.width()/thumbnail.height()-16/9) < .01
                 summary, footer, create = c('narrationConfiguration'), c('creationFooter'), c('createLessonNarrationButton')
                 assert summary.isVisible()
+                centered(summary, ('language', 'voice', 'rate', 'speakers', 'coverage'))
                 point = summary.mapToItem(footer, QPointF())
                 assert abs(point.x()-28) <= 1 and point.y() >= 12
                 assert point.y()+summary.height() <= footer.height()-11
@@ -200,10 +211,11 @@ def main():
                     ' + '.join(names) if mode == 'both' else names[mode == 'en'])
                 expected = ['vi', 'en'] if mode == 'both' else [mode]
                 assert evaluate(preview, 'languages.join(",")') == ','.join(expected)
-                for index, position in enumerate(('bottom_left', 'bottom_center', 'bottom_right')):
+                for index, position in enumerate(('top_left', 'top_center', 'top_right', 'bottom_left', 'bottom_center', 'bottom_right')):
                     choice = c('narrationSpeakerPosition')
-                    choice.setProperty('currentIndex', index)
-                    choice.activated.emit(index)
+                    click(root, choice)
+                    click(root, c('speakerPosition_'+position))
+                    assert not bridge.busy, 'A speaker position must not trigger global loading'
                     until(lambda: not bridge.busy)
                     until(lambda: preview.property('position') == position)
                     assert c('narrationConfiguration').property('positionLabel') == choice.property('currentText')
@@ -211,9 +223,13 @@ def main():
                     group = c('thumbnailSpeakerPreviewGroup')
                     assert group.y() >= 0 and group.y()+group.height() <= preview.height()
                     assert group.x() >= 0 and group.x()+group.width() <= preview.width()
-                    if index == 0:
+                    if index < 3:
+                        assert group.y() < preview.height()/2
+                    else:
+                        assert group.y() > preview.height()/2
+                    if index % 3 == 0:
                         assert group.x() < preview.width()/4
-                    elif index == 1:
+                    elif index % 3 == 1:
                         assert abs(group.x()+group.width()/2-preview.width()/2) < 1
                     else:
                         assert group.x() > preview.width()/2
@@ -360,7 +376,7 @@ def main():
                           checks=['light/dark across pages and Settings tabs', 'dialogs inherit dark palette',
                                   'Compact lesson details/actions share a row with 16:9 thumbnail at 1080/1366/1920',
                                   '16:9 thumbnail expands/collapses without repeated render',
-                                  'EN/VI/both speaker demo follows left/center/right immediately; preview image reused',
+                                  'EN/VI/both speaker demo follows all six positions immediately without global loading; preview image reused',
                                   'Template samples open PNGs in-app; selection cards retain thin borders',
                                   'Narration summary stays beside action while scrolling and updates with language/position',
                                   'task return preserves Settings subtab and dirty guard',

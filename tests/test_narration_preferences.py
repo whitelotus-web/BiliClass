@@ -48,7 +48,7 @@ def test_positions_default_right_and_persist_without_changing_voice_or_revision(
         lesson = library.create('Position fixture', 'Tin học', 'THPT', '10', [('Slide 1', 'Xin chào.')])
         before = signature(lesson)
         assert default_position(tmp_path) == 'bottom_right'
-        for selected in ('bottom_left', 'bottom_center', 'bottom_right'):
+        for selected in ('top_left', 'top_center', 'top_right', 'bottom_left', 'bottom_center', 'bottom_right'):
             store_choices(tmp_path, {'narration_speaker_position': selected})
             saved = store_lesson_position(tmp_path, lesson['id'], selected)
             assert saved['revision'] == lesson['revision'] and signature(saved) == before
@@ -57,6 +57,77 @@ def test_positions_default_right_and_persist_without_changing_voice_or_revision(
             assert len({p[1] for p in slots.values()}) == 1
             assert slots['vi'][0] < slots['en'][0] < slots['both'][0]
             assert 0 <= slots['vi'][0] and slots['both'][0] + 50 <= 960
-            assert all(p[1] == 508 for p in slots.values())
+            assert all(p[1] == (12 if selected.startswith('top_') else 508) for p in slots.values())
     finally:
+        library.close()
+
+
+def test_speaker_moves_immediately_and_coalesces_saves_without_busy_or_stale_lesson(monkeypatch, tmp_path):
+    import threading
+    import time
+    from PySide6.QtCore import QCoreApplication, QObject, Signal
+    from app.narration_preferences import NarrationPreferences, store_choices
+    from app.narration_workspace import NarrationWorkspace
+
+    app = QCoreApplication.instance() or QCoreApplication([])
+    library = Library(tmp_path)
+    first = library.create('First', 'Vật lý', 'THPT', '11', [('Slide 1', 'Dao động.')])
+    second = library.create('Second', 'Vật lý', 'THPT', '11', [('Slide 1', 'Cộng hưởng.')])
+
+    class Editor(QObject):
+        selectionChanged = Signal()
+        narrationChanged = Signal()
+        busy = narrationBusy = False
+        powerpoint_worker = None
+        classroom = type('Classroom', (), {'running': False})()
+        def launch(self, *_):
+            raise AssertionError('Position must not start a global job')
+
+    bridge = Editor()
+    bridge._lesson = first
+    bridge.narrationPreferences = NarrationPreferences(library)
+    workspace = NarrationWorkspace(bridge)
+    entered, release = threading.Event(), threading.Event()
+    writes = []
+
+    def delayed(directory, choices, positions=None):
+        writes.append(dict(positions or {}))
+        if len(writes) == 1:
+            entered.set()
+            assert release.wait(5)
+        return store_choices(directory, choices, positions)
+
+    monkeypatch.setattr('app.narration_preferences.store_choices', delayed)
+
+    def wait(predicate):
+        deadline = time.monotonic() + 5
+        while not predicate():
+            assert time.monotonic() < deadline
+            app.processEvents()
+            time.sleep(.002)
+
+    try:
+        started = time.monotonic()
+        workspace.setSpeakerPosition('bottom_left')
+        assert workspace.speakerPosition == 'bottom_left' and time.monotonic() - started < .1
+        wait(entered.is_set)
+        for position in ('bottom_right', 'bottom_center', 'bottom_left', 'bottom_center'):
+            workspace.setSpeakerPosition(position)
+        bridge._lesson = second
+        workspace.setSpeakerPosition('bottom_left')
+        # A delayed preference save must not restore an old title or voice blob.
+        edited = library.get(first['id'])
+        edited.update(title='Edited while saving', revision=edited['revision'] + 1)
+        library._write(edited)
+        release.set()
+        wait(lambda: bridge.narrationPreferences.worker is None)
+        assert len(writes) == 2 and not bridge.busy
+        assert bridge._lesson['id'] == second['id'] and workspace.speakerPosition == 'bottom_left'
+        saved = library.get(first['id'])
+        assert saved['title'] == edited['title'] and saved['revision'] == edited['revision']
+        assert saved['speaker_position'] == 'bottom_center'
+        assert library.get(second['id'])['speaker_position'] == 'bottom_left'
+    finally:
+        release.set()
+        bridge.narrationPreferences.shutdown()
         library.close()

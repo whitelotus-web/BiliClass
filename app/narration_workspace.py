@@ -25,22 +25,17 @@ class NarrationWorkspace(QObject):
 
     @Slot(str)
     def setSpeakerPosition(self, selected):
-        from .narration_preferences import store_lesson_position
         from .speaker_layout import POSITIONS
 
         if selected not in POSITIONS or not self.available():
             return
         bridge = self.bridge
-        bridge.narrationPreferences.selectPosition(selected)
         identity = bridge._lesson.get('id')
-        if not identity:
-            return
-        def saved(lesson):
-            if bridge._lesson.get('id') == identity:
-                bridge._lesson = lesson
-                bridge.changed.emit()
-                self.changed.emit()
-        bridge.launch(lambda: store_lesson_position(bridge.library.directory, identity, selected), saved)
+        if identity:
+            # The preview reads this immediately. Persist only this JSON field
+            # in the preferences queue; a global Job refreshes the whole lesson.
+            bridge._lesson['speaker_position'] = selected
+        bridge.narrationPreferences.selectPosition(selected, lesson_id=identity)
 
     def _selection(self):
         identity = self.bridge._lesson.get('id', '')

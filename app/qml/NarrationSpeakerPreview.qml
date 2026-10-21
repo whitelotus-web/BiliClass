@@ -12,10 +12,10 @@ Item {
     Row {
         objectName: preview.objectName + "Group"
         spacing: Math.max(3, preview.iconSize * .12)
-        x: preview.position === "bottom_left" ? preview.inset
-            : preview.position === "bottom_center" ? (preview.width - width) / 2
+        x: preview.position.endsWith("_left") ? preview.inset
+            : preview.position.endsWith("_center") ? (preview.width - width) / 2
             : preview.width - width - preview.inset
-        y: preview.height - height - preview.inset
+        y: preview.position.startsWith("top_") ? preview.inset : preview.height - height - preview.inset
         Repeater {
             model: preview.languages
             Image {

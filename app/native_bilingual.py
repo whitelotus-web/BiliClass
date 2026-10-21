@@ -134,8 +134,10 @@ def extract(source, mode, *, preserve_design=False, same_slide=False):
                      (shape.left,shape.top,shape.width,shape.height))
             fully_outside=(x+w<=0 or y+h<=0 or x>=deck.slide_width or y>=deck.slide_height)
             animated=bool(motion.intersection(box.get('ancestors',[]))) if box else shape.shape_id in motion
-            if fully_outside and not animated:
-                continue  # Keep unused source workspace objects byte-for-byte.
+            if fully_outside and not animated and mode != 'english_only':
+                continue  # Keep unused bilingual source workspace objects intact.
+            # English-only also translates off-canvas text: PowerPoint can
+            # paint overflowing glyphs inside the slide despite the box bounds.
             transform = shape._element.find('p:spPr/a:xfrm',NS)
             if mode == 'parallel_columns' and shape.has_text_frame and (
                     transform is None or transform.get('rot') not in {None,'0'}):

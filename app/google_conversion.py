@@ -369,12 +369,14 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
         # A photograph without detected text is not an untranslated paragraph.
         # An unavailable OCR pass leaves coverage unknown rather than complete.
         text_pages = picture_data.get('text_pages', image_pages)
-        needs_review = [number for number in image_pages if number in text_pages]
+        needs_review = sorted({number for number in image_pages if number in text_pages}
+                              | {row['slide'] for row in picture_data['rows']})
         if needs_review:
             content_review = {
                 'image_pages': needs_review, 'coverage': 'unverified',
-                'message': (f"{len(needs_review)} slide chứa nội dung trong ảnh. Chưa xác minh đã dịch đủ chữ, bảng và công thức "
-                            "trong ảnh; đối chiếu nội dung và lời đọc trước khi dạy."),
+                'message': (f"{len(needs_review)} slide cần đối chiếu chữ trong ảnh "
+                            f"(slide nguồn: {', '.join(map(str, needs_review[:8]))}{'…' if len(needs_review) > 8 else ''}). "
+                            "Tool tự nhận diện và dịch vùng chữ đọc rõ; chưa xác minh đủ chữ, bảng và công thức trong ảnh."),
             }
             warnings.append(content_review['message'])
         warnings.extend(picture_data['warnings'])

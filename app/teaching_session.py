@@ -19,7 +19,6 @@ def prepare_teaching(lesson, preview, directory):
     """Verify the selected product once, without synthesis or source edits."""
     from pptx import Presentation
 
-    from .lesson_narration import MODES, audio_status
     from .quick_conversion import verify_preview
     from .slide_speech import deck_speech
 
@@ -28,6 +27,32 @@ def prepare_teaching(lesson, preview, directory):
     data = lesson.get('slide_speech', {})
     if not lesson.get('voice_only'):
         data = deck_speech(path, Presentation(path), lesson.get('conversion_format', ''))
+    return _prepare_verified_teaching(lesson, preview, directory, path, data)
+
+
+def prepare_original_teaching(lesson, directory):
+    """Bind the verified original without borrowing a converted product's voice."""
+    from pptx import Presentation
+
+    from .powerpoint import verified_presentation
+    from .slide_speech import deck_speech
+
+    lesson = copy.deepcopy(lesson)
+    path = verified_presentation(lesson, directory)
+    data = deck_speech(path, Presentation(path))
+    lesson.pop('narration', None)
+    lesson.pop('narration_variants', None)
+    lesson['slide_speech'] = data
+    preview = dict(lesson_id=lesson['id'], revision=lesson['revision'], path=str(path),
+                   sha256=data['sha256'], total=len(data['slides']), product='original')
+    return _prepare_verified_teaching(lesson, preview, directory, path, data)
+
+
+def _prepare_verified_teaching(lesson, preview, directory, path, data):
+    from pptx import Presentation
+
+    from .lesson_narration import MODES, audio_status
+
     warning = ''
     owned_path = ''
     if (lesson.get('narration') or {}).get('mode') in MODES:

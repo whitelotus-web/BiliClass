@@ -10,6 +10,24 @@ from app.native_bilingual import assemble, extract, leaves
 from app.source_deck import NS
 
 
+def test_english_only_translates_off_canvas_text_without_moving_its_frame(tmp_path):
+    deck = Presentation()
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    shape = slide.shapes.add_textbox(Inches(1), Inches(-2), Inches(8), Inches(1))
+    shape.text = 'HIỆN TƯỢNG CỘNG HƯỞNG'
+    source = tmp_path / 'overflowing-title.pptx'
+    deck.save(source)
+    original = source.read_bytes()
+    manifest = extract(source, 'english_only', preserve_design=True)
+    assert len(manifest['units']) == 1 and manifest['units'][0]['raw'] == shape.text
+    target = assemble(source, tmp_path/'english.pptx', manifest,
+                      {manifest['units'][0]['id']: {'en': 'RESONANCE PHENOMENON'}}, 'english_only')
+    translated = Presentation(target).slides[0].shapes[0]
+    assert translated.text == 'RESONANCE PHENOMENON'
+    assert (translated.left, translated.top, translated.width, translated.height) == (shape.left, shape.top, shape.width, shape.height)
+    assert source.read_bytes() == original
+
+
 def fixture(path):
     deck=Presentation()
     deck.slide_width,deck.slide_height=Inches(13.333),Inches(7.5)
