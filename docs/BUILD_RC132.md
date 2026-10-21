@@ -44,3 +44,17 @@ Xác minh bằng `.venv`:
   giải phóng; B sẵn sàng, chưa tự chiếu. Thử nút đóng mới và nguồn giữ
   nguyên. Lượt đổi bài thử mất khoảng 5,1 giây; không đại diện mọi máy/bài.
 - WAV, ảnh, tệp PowerPoint thử và báo cáo chỉ ở thư mục ngoài Git.
+
+Nguồn `1.0.0rc132`, commit
+`c09f2a9fa46c1ad8472e5d4499c247038746cdee`. Dựng một lần từ runtime
+RC131 đã xác minh. Gói `dist/rc132-library-mascot/BiliClass-RC132-Windows.zip`,
+1.257.790.120 byte, SHA256
+`848895e2c46b1cc26257f1d034d8487e204dbaa8689a3bb23eccd53d3ef483d7`.
+Đối chiếu 4.673 file, 55 QML/qmldir và các SVG mới khớp nguồn.
+Smoke bản đóng gói tab Thư viện 1366×850 thoát 0, không cảnh báo QML;
+đã xem ảnh nền tối.
+
+Cài tại `F:/Applications/BiliClass/1.0.0rc132`, mở từ Explorer vào Thư
+viện. Cửa sổ chính/Mascot phản hồi, icon/shortcut đúng phiên bản.
+Đối chiếu sau cài/mở giữ nguyên bài/tệp nguồn, 1.183 WAV, hồ sơ,
+logo, API key mã hóa và cấu hình giọng. RC131 đóng bình thường.
