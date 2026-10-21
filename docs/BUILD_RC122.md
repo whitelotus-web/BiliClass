@@ -61,4 +61,14 @@ Không có cảnh báo QML ở các lần kiểm đạt.
 
 Nguồn `1.0.0rc122`; dựng một lần sau commit đã kiểm, dùng runtime/model
 RC121 có manifest SHA256. Gói, model và báo cáo không đưa vào Git.
-Commit, hash và kiểm cài đặt được ghi bổ sung sau khi xác minh gói.
+Commit nguồn `98217240533cab351a1e505b013f0e5d0dc47006`.
+Gói `dist/rc122-shortcut-layout/BiliClass-RC122-Windows.zip`,
+1.255.953.933 byte, SHA256
+`5a571fc623afa8dbeec2f50b273d727a22de2a8794fde0d943c36efdfecc8893`.
+Manifest xác minh 4.667 file; 54 file QML/qmldir khớp commit nguồn.
+Smoke bản đóng gói 1920×1080 đạt, không có cảnh báo QML.
+
+Cài vào `F:/Applications/BiliClass/1.0.0rc122`, mở từ Explorer, có cửa sổ
+chính và Mascot hoạt động độc lập với Codex. Kiểm sau cài xác nhận giữ
+nguyên bài/nguồn, 1.066 WAV cá nhân, logo, API key mã hóa và lựa chọn
+giọng; không đóng PowerPoint hay phiên BiliClass cũ độc lập.
