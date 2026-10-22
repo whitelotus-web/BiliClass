@@ -39,5 +39,6 @@ jobs:
           tests/test_voice_pairs.py
           tests/test_library_actions.py tests/test_library_bulk.py
           tests/test_completed_export.py tests/test_office_retry.py
+          tests/test_batch_jobs.py
       - name: Fixture corpus (structural; no Office)
         run: python -m scripts.verify_quality_corpus

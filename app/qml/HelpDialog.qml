@@ -26,14 +26,14 @@ Dialog {
     ]
     readonly property var workflows: [[],
         [
-            {title:"Chọn PowerPoint", body:"Kéo thả hoặc bấm chọn tệp .pptx. Kiểm tra tên bài, môn học và khối lớp."},
+            {title:"Chọn PowerPoint", body:"Kéo thả hoặc bấm chọn tệp .pptx. Giữ Ctrl/Shift để chọn nhiều file, tối đa 100 bài. Một bài vẫn dùng quy trình quen thuộc."},
             {title:"Chọn kiểu và thiết kế", body:"Chọn Song ngữ Việt–Anh hoặc Tiếng Anh 100%. Giữ thiết kế gốc hoặc chọn mẫu BiliClass; có thể Xem mẫu trước."},
-            {title:"Tạo và xem ngay kết quả", body:"Bấm Chuyển đổi bài giảng. Khi xong, xem từng slide ngay trên tool, đối chiếu nội dung rồi mở PowerPoint hoặc thêm giọng đọc."}
+            {title:"Chuyển đổi và lưu kết quả", body:"Chọn nhiều file: cấu hình dùng chung, tên bài lấy theo từng file; tool xử lý lần lượt và tự lưu bản mới cạnh file gốc. Dừng → Tiếp tục giữ phần đã làm. Thử lại bài lỗi chỉ chạy các bài chưa thành công; Xem bài mở đúng kết quả."}
         ],
         [
-            {title:"Chọn bài cần tạo giọng", body:"Dùng bài vừa chuyển đổi hoặc chọn từ Thư viện. Bấm Xem trước slide khi cần đối chiếu."},
+            {title:"Chọn bài cần tạo giọng", body:"Dùng bài vừa chuyển đổi, chọn từ Thư viện hoặc chọn nhiều PowerPoint trên máy bằng Ctrl/Shift. Tool tạo giọng lần lượt cho từng file."},
             {title:"Chọn giọng và ngôn ngữ", body:"Chọn cặp Việt–Mỹ, tốc độ và Nghe thử. Chọn Tiếng Việt, Tiếng Anh hoặc cả hai; mỗi ngôn ngữ được đọc bằng giọng tương ứng."},
-            {title:"Tạo giọng và dùng để dạy", body:"Bấm Tạo giọng đọc. Chọn cả hai sẽ có hai loa VI và EN riêng trên slide. Có thể nghe, mở PowerPoint hoặc tải bài có giọng."}
+            {title:"Tạo giọng và dùng để dạy", body:"Bấm Tạo giọng đọc. Mỗi bài hoàn tất tự lưu PowerPoint có giọng cạnh file gốc. Dừng/Tiếp tục giữ các đoạn đã có; chọn Thử lại bài lỗi khi cần. Nếu thư mục gốc không ghi được, tool lưu vào thư mục BiliClass và có nút Mở thư mục."}
         ],
         [
             {title:"Mở bài trong PowerPoint", body:"Bấm Mở PowerPoint từ Thư viện hoặc chọn bài trên Mascot. Bấm F5 khi sẵn sàng trình chiếu."},

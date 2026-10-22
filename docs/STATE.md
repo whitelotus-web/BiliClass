@@ -1,5 +1,15 @@
 # Trạng thái BiliClass
 
+Ngày 22/10/2026 — theo yêu cầu mới, nguồn RC147 thêm chọn nhiều file và
+hàng đợi xử lý lần lượt ở cả Chuyển đổi/Tạo giọng; thay ràng buộc tạm
+hoãn hàng đợi trước đây. Dừng/Tiếp tục giữ checkpoint/WAV, chỉ thử lại
+bài lỗi; lỗi chung tạm dừng lượt. Từng bài tự lưu cạnh đúng file gốc,
+không ghi đè, có thư mục dự phòng. Khôi phục danh sách đã bắt đầu sau
+khi mở lại; Trang chủ và bốn tab Cài đặt giữ nguyên. Kiểm thử hàng đợi,
+hồi quy và ba Qt smoke đạt; phạm vi ở [BUILD_RC147.md](BUILD_RC147.md).
+Chưa đóng gói/phát hành RC147; chưa thêm xử lý đồng thời hoặc ghép
+chuyển đổi → tạo giọng tự động.
+
 Ngày 22/10/2026 — nguồn RC146 tự lưu PowerPoint có giọng cạnh file
 đầu vào khi hoàn tất; không ghi đè, có thư mục dự phòng và đường dẫn
 trong cả kết quả/cấu hình. Tải về vẫn chọn nơi lưu. Kiểm nguồn, revision,

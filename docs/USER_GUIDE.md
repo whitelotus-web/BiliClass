@@ -1,6 +1,6 @@
 # BiliClass — Hướng dẫn sử dụng
 
-Hướng dẫn cập nhật theo mã nguồn RC146 · 22/10/2026
+Hướng dẫn cập nhật theo mã nguồn RC147 · 22/10/2026
 
 BiliClass chuyển bài giảng PowerPoint sang Việt–Anh hoặc tiếng Anh, tạo
 âm thanh Việt–Mỹ và hỗ trợ trình chiếu bằng Mascot. Bài giảng và giọng đọc
@@ -74,6 +74,43 @@ Bản tải dùng tên bài, kèm kiểu chuyển đổi và `Voice VI`, `Voice 
 `Voice VI-EN` theo bản giọng đang chọn. Vẫn có thể tải PowerPoint không giọng.
 Nếu thiếu lời đọc, mở **Kiểm tra / bổ sung** để xem phần còn thiếu; tool
 không tự đoán nội dung hay công thức chưa nhận diện được.
+
+## Chọn nhiều file và xử lý lần lượt
+
+Cả **Chuyển đổi bài giảng** và **Tạo giọng đọc bài giảng** nhận nhiều
+file PowerPoint: trong hộp chọn file, giữ **Ctrl** để chọn từng file hoặc
+**Shift** để chọn một dải; cũng có thể kéo thả nhiều file. Tối đa 100 file,
+200 MB mỗi file. Chọn một file vẫn dùng màn hình quen thuộc.
+
+1. Xem danh sách và bấm **×** để bỏ file chọn nhầm trước khi bắt đầu.
+2. Chọn cấu hình chung cho lượt đó. Với chuyển đổi, tên bài lấy theo
+   từng file; môn, lớp và kiểu thiết kế dùng chung. Với tạo giọng, chọn
+   chung ngôn ngữ, giọng, tốc độ và vị trí loa. Chọn các bài cùng cấu
+   hình; tạo giọng không tự dịch các bài còn thiếu ngôn ngữ.
+3. Bấm **Chuyển đổi … bài** hoặc **Tạo giọng … bài**. Mỗi lần chỉ xử lý
+   một bài; bài tiếp theo bắt đầu sau khi bài trước kết thúc.
+4. Mỗi bài hoàn tất được giữ trong Thư viện và tự lưu PowerPoint mới
+   cạnh file đầu vào. File gốc và bản đã sửa không bị ghi đè. Nếu thư
+   mục gốc không ghi được, tool dùng thư mục `exports` trong dữ liệu
+   BiliClass. Bấm **Mở thư mục** để tới đúng nơi lưu hoặc **Xem bài**
+   để mở kết quả. Nút **Tải** vẫn cho chọn nơi lưu như trước.
+
+**Dừng** dừng cả hàng đợi sau bước đang xử lý an toàn. Bấm **Tiếp tục**
+để làm phần còn lại; bài đã xong và đoạn giọng đã có được dùng lại.
+Danh sách đã bắt đầu được lưu trên máy. Nếu mở lại ứng dụng, Trang chủ
+vẫn là màn hình đầu; bấm **Mở hàng đợi** ở thanh trạng thái để tiếp tục.
+Danh sách mới chọn nhưng chưa bắt đầu chưa được lưu qua lần mở ứng dụng.
+
+Lỗi riêng một bài được ghi ngay dưới tên file, các bài sau vẫn được xử
+lý. **Thử lại bài lỗi** chỉ chạy lại những bài chưa thành công. Thiếu
+dung lượng, key hoặc gián đoạn dịch làm cả lượt tạm dừng; xử lý thông
+báo rồi bấm **Tiếp tục**. Nếu đã sửa file đầu vào trong khi dừng, chọn
+lại file để dùng bản mới; tool giữ phần cũ và không tự áp dụng lên bản sửa.
+
+**Bỏ danh sách** chỉ đóng danh sách, giữ bài/file đã tạo. Một cửa sổ chỉ
+hiển thị một danh sách hiện tại: chọn lượt mới khi đang dừng thay thế
+danh sách đang xem. Chuyển đổi nhiều bài và tạo giọng nhiều bài là hai
+lượt riêng; chưa có chuỗi tự chuyển đổi rồi tạo giọng hoặc chạy đồng thời.
 
 ## Dạy với PowerPoint và Mascot
 

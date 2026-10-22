@@ -191,6 +191,7 @@ def run(args):
         bridge.powerpoint_worker.wait()  # Helper supervisor has its own bounded shutdown.
     bridge.teaching_session.clear()
     if bridge.worker:
+        bridge.batchQueue.stop()
         bridge.worker.wait()  # closing is disabled while jobs run; also safe on OS shutdown
     bridge.english_reader.shutdown()
     bridge._catalog.shutdown()

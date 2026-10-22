@@ -340,6 +340,14 @@ class Bridge(QObject):
         self.teaching_session = TeachingSession(self)
         self.teaching_session.changed.connect(self.mascotStateChanged)
 
+        from .batch_queue import BatchQueue
+
+        self._batch_queue = BatchQueue(self)
+
+    @Property(QObject, constant=True)
+    def batchQueue(self):
+        return self._batch_queue
+
     @Property(QObject, constant=True)
     def teachingSession(self):
         return self.teaching_session
@@ -2607,6 +2615,10 @@ class Bridge(QObject):
 
     @Slot()
     def cancelJob(self):
+        if self.batchQueue.running:
+            self.batchQueue.stop()
+            self.inform('Đang dừng hàng đợi sau bước hiện tại; phần đã làm được giữ.', refresh=False)
+            return
         if self._busy and not getattr(self, '_job_cancellable', True):
             self.inform('Đang lưu thay đổi. Vui lòng chờ hoàn tất.', refresh=False)
             return

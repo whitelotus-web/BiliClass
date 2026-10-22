@@ -8,6 +8,7 @@ Rectangle {
     property string loadingFileName: ""
     property string errorText: ""
     property bool busy: false
+    property bool multiple: false
     property bool working: false
     property string workingTitle: "Bài giảng đang được chuẩn bị"
     property string workingDetail: "Theo dõi tiến độ; các phần đã xong được lưu lại."
@@ -66,7 +67,7 @@ Rectangle {
                 Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
             }
             Label {
-                text: upload.working ? upload.workingDetail : upload.loadingFileName || "Kéo thả tệp vào đây hoặc bấm nút bên dưới để chọn file"
+                text: upload.working ? upload.workingDetail : upload.loadingFileName || (upload.multiple ? "Kéo thả một hoặc nhiều tệp vào đây, hoặc bấm nút bên dưới để chọn" : "Kéo thả tệp vào đây hoặc bấm nút bên dưới để chọn file")
                 color: AppTheme.adapt("#687e9b"); font.pixelSize: 13; Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
             }
@@ -111,7 +112,7 @@ Rectangle {
                 }
             }
             Label {
-                text: "Chỉ hỗ trợ tệp .pptx tối đa 200 MB"; color: AppTheme.adapt("#687e9b"); font.pixelSize: 12
+                text: "Chỉ hỗ trợ tệp .pptx tối đa 200 MB" + (upload.multiple ? " mỗi file" : ""); color: AppTheme.adapt("#687e9b"); font.pixelSize: 12
                 Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
             }
             RowLayout {
@@ -197,7 +198,7 @@ Rectangle {
     DropArea {
         id: drop; objectName: upload.dropObjectName
         anchors.fill: parent; enabled: !upload.working && !upload.busy
-        onEntered: function(drag) { drag.accepted = drag.hasUrls && drag.urls.length === 1 }
+        onEntered: function(drag) { drag.accepted = drag.hasUrls && (upload.multiple || drag.urls.length === 1) }
         onDropped: function(event) {
             var urls = []
             for (var i = 0; i < event.urls.length; i++) urls.push(event.urls[i].toString())

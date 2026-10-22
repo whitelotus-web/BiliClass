@@ -4,6 +4,7 @@ import QtQuick.Controls
 Button {
     id: status
     property bool returnable: false
+    property string returnLabel: "Quay lại tác vụ đang chạy"
     signal returnRequested()
     enabled: returnable
     focusPolicy: returnable ? Qt.TabFocus : Qt.NoFocus
@@ -14,11 +15,11 @@ Button {
     font.pixelSize: 11
     Accessible.role: returnable ? Accessible.Button : Accessible.StaticText
     Accessible.name: text
-    Accessible.description: returnable ? "Quay lại màn hình của tác vụ đang chạy" : ""
+    Accessible.description: returnable ? returnLabel : ""
     onClicked: returnRequested()
     ToolTip.visible: returnable && hovered
     ToolTip.delay: 400
-    ToolTip.text: "Quay lại tác vụ đang chạy"
+    ToolTip.text: returnLabel
     contentItem: Label {
         text: status.text; font: status.font; textFormat: Text.PlainText
         color: status.returnable ? AppTheme.blue : AppTheme.muted
