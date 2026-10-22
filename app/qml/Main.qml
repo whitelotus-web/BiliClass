@@ -1873,6 +1873,7 @@ ApplicationWindow {
                                     onDownloadPresentation: { if (root.narrationDraft.id !== bridge.selectedNarrationVariant) bridge.selectNarrationVariant(root.narrationDraft.id); if (bridge.selectedNarrationVariant === root.narrationDraft.id) { root.includeDownloadVoice = true; presentationSave.openSuggested() } }
                                     onDownloadAudio: { if (root.narrationDraft.id !== bridge.selectedNarrationVariant) bridge.selectNarrationVariant(root.narrationDraft.id); if (bridge.selectedNarrationVariant === root.narrationDraft.id) narrationAudioSave.openSuggested() }
                                 }
+                                CompletedExportNotice { appBridge: root.bridgeRef; Layout.fillWidth: true; visible: !!root.narrationDraft.ready && !!exportState.phase }
                             }
                         }
                         RowLayout {

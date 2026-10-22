@@ -62,6 +62,7 @@ class Bridge(QObject):
     narrationChanged = Signal()
     recentNarrationChanged = Signal()
     narrationResultRequested = Signal()
+    completedExportChanged = Signal()
     lessonsChanged = Signal()
     libraryViewChanged = Signal()
     deletionUndoChanged = Signal()
@@ -120,6 +121,13 @@ class Bridge(QObject):
         apply_color_scheme(self._application_theme)
         self._automatic_narration_repairs = set()
         self._recent_narration_result = {}
+        self._completed_export_state = {}
+        self._completed_export_request = None
+        self._completed_export_timer = QTimer(self)
+        self._completed_export_timer.setSingleShot(True)
+        self._completed_export_timer.timeout.connect(self._save_completed_export)
+        self.selectionChanged.connect(self.completedExportChanged)
+        self.narrationChanged.connect(self.completedExportChanged)
         from .storage_controls import StorageControls
 
         self.storage = StorageControls(self)
@@ -1529,6 +1537,7 @@ class Bridge(QObject):
                             and state.get('complete') == state['total']
                             and not state.get('failed') and not state.get('cancelled')):
                         self._remember_narration_result(lesson, lesson['narration'])
+                        self._request_completed_export(lesson)
                 except (ValueError, KeyError):
                     pass  # A deleted/edited lesson cannot receive stale audio metadata.
                 if not state.get('running') and state.get('message'):
@@ -1541,6 +1550,70 @@ class Bridge(QObject):
         if (not state.get('running') and getattr(self, '_narration_clear_pending', None)
                 and self._narration_clear_pending == self._lesson.get('id')):
             self._clear_narration_selection()
+
+    @Property('QVariantMap', notify=completedExportChanged)
+    def completedExport(self):
+        value = self._completed_export_state
+        return value if (value.get('lesson_id') == self._lesson.get('id')
+                         and value.get('record_id') == self.selectedNarrationVariant) else {}
+
+    def _request_completed_export(self, lesson):
+        import copy
+
+        from .lesson_narration import variant_id
+
+        preview = dict(self.quickResult)
+        if not lesson.get('external_deck') and not preview.get('path'):
+            return
+        # One final save for the just-completed voice operation, not a lesson queue.
+        self._completed_export_request = (copy.deepcopy(lesson), preview, self.library.directory)
+        self._completed_export_state = {'lesson_id': lesson['id'], 'record_id': variant_id(lesson['narration']),
+                                        'phase': 'saving'}
+        self.completedExportChanged.emit()
+        self._completed_export_timer.start(0)
+
+    @Slot()
+    def _save_completed_export(self):
+        if self._completed_export_request is None or self.library._closed:
+            return
+        if self._busy or self.narrationBusy:
+            self._completed_export_timer.start(250)
+            return
+        from .completed_export import save_finished
+
+        lesson, preview, directory = self._completed_export_request
+        self._completed_export_request = None
+        context = dict(self._completed_export_state)
+
+        def work():
+            try:
+                # External preview verification hashes the deck; keep it off the GUI thread.
+                from .chatgpt_handoff import external_preview
+
+                checked = external_preview(lesson, directory) if lesson.get('external_deck') else preview
+                return save_finished(directory, lesson, checked)
+            except (OSError, ValueError) as exc:
+                return {**context, 'phase': 'error', 'message': str(exc)}
+            except Exception:
+                import logging
+
+                logging.exception('Automatic narrated PowerPoint save failed')
+                return {**context, 'phase': 'error', 'message':
+                        'Chưa tự lưu được PowerPoint. Bài và giọng vẫn trong Thư viện; dùng Tải PowerPoint để chọn nơi lưu.'}
+
+        def completed(result):
+            self._completed_export_state = result
+            self.completedExportChanged.emit()
+            self.inform(('Đã tự lưu PowerPoint có giọng: ' + result['path']) if result.get('path')
+                        else result['message'], result.get('phase') == 'error', refresh=False)
+
+        self.launch(work, completed, cancellable=False, message='Đang tự lưu PowerPoint có giọng…')
+
+    @Slot()
+    def openCompletedExportFolder(self):
+        path = self.completedExport.get('path')
+        if path and Path(path).is_file():
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(Path(path).parent)))
 
     def _lesson_voice_settings(self):
         if not self._lesson.get("external_deck") and "narration" not in self._lesson:

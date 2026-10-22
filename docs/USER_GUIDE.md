@@ -1,6 +1,6 @@
 # BiliClass — Hướng dẫn sử dụng
 
-Phiên bản RC105 · 20/10/2026
+Hướng dẫn cập nhật theo mã nguồn RC146 · 22/10/2026
 
 BiliClass chuyển bài giảng PowerPoint sang Việt–Anh hoặc tiếng Anh, tạo
 âm thanh Việt–Mỹ và hỗ trợ trình chiếu bằng Mascot. Bài giảng và giọng đọc
@@ -46,7 +46,7 @@ Kiểm tra lại ý nghĩa bản dịch, số liệu, công thức và bố cụ
 ảnh hoặc slide dày nội dung có thể chưa được nhận diện/chuyển đổi đầy đủ.
 File PowerPoint gốc được giữ nguyên; bản chuyển đổi được lưu riêng.
 
-Nếu cần dừng tác vụ, bấm Hủy rồi xác nhận. Tool chờ bước đang chạy dừng
+Nếu cần dừng tác vụ, bấm **Dừng**. Tool chờ bước đang chạy dừng
 an toàn. Phần đã gửi dịch không được hoàn lại trong bộ đếm cục bộ.
 Bộ đếm trong BiliClass không phải số dư hoặc hóa đơn Google Cloud.
 
@@ -63,6 +63,12 @@ Tiếng Việt do giọng Việt đọc; tiếng Anh do giọng Mỹ đọc. Ch�
 hai loa độc lập. Lựa chọn cặp/tốc độ gần nhất được nhớ cho lần tạo mới;
 Cài đặt → Giọng đọc dùng cùng mặc định. Âm thanh của bài đã tạo được giữ
 nguyên khi đổi mặc định.
+
+Khi tạo đủ giọng, tool tự lưu một PowerPoint có giọng cạnh file đầu vào,
+không ghi đè file gốc. Màn hình hoàn tất hiện đường dẫn và **Mở thư mục**.
+Nếu thư mục đầu vào không còn hoặc không ghi được, tool lưu trong thư mục
+BiliClass và báo vị trí đó. **Tải PowerPoint có giọng** vẫn cho chọn nơi
+lưu thêm. Bản tự lưu mà thầy cô đã sửa được giữ; tool dùng tên mới.
 
 Bản tải dùng tên bài, kèm kiểu chuyển đổi và `Voice VI`, `Voice EN` hoặc
 `Voice VI-EN` theo bản giọng đang chọn. Vẫn có thể tải PowerPoint không giọng.
@@ -108,6 +114,10 @@ Bấm thùng rác đỏ để đưa bài vào thùng rác của tool. Vào **Chi
 lịch sử khỏi thư viện; không chuyển sang Thùng rác Windows và không khôi
 phục từ tool được nữa. Các tệp PowerPoint, âm thanh lưu trong dữ liệu và
 bản sao lưu vẫn được giữ; thao tác này chưa thu hồi toàn bộ dung lượng.
+
+Ngay sau khi xóa, **Hoàn tác xóa** xuất hiện cạnh **Chia sẻ & quản lý**
+để khôi phục lần xóa gần nhất trong cửa sổ hiện tại. Trang xem bài cũng
+có icon xóa cạnh **Tạo giọng đọc**.
 
 ## Sao lưu và đổi nơi lưu
 

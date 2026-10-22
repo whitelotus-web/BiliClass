@@ -192,6 +192,8 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
     import win32com.client
     import win32process
 
+    from .office_retry import call as office_call
+    from .office_retry import is_busy
     from .slideshow_controls import prepare_controls, speaker_regions
     from .slideshow_shortcuts import SlideshowKeys
 
@@ -232,9 +234,9 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
 
     def start_show():
         nonlocal window, view, players, playing
-        window = presentation.SlideShowSettings.Run()
+        window = office_call(lambda: presentation.SlideShowSettings.Run())
         view = window.View
-        view.GotoSlide(initial_slide)
+        office_call(lambda: view.GotoSlide(initial_slide))
         players, playing = {}, set()
 
     def progress(message):
@@ -243,11 +245,23 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
     def controls_warning():
         events.put({'event': 'input_warning', 'message': 'Chưa đổi được biểu tượng loa. Vẫn có thể phát/tạm dừng bằng Mascot.'})
 
+    def paint_speakers(regions, active_languages=(), slide_id=None):
+        nonlocal overlay
+        if overlay:
+            try:
+                overlay.update(hwnd, regions, active_languages)
+            except Exception:
+                overlay.close()
+                overlay = None
+                keys.bind(hwnd, slide_id, (), presenter)
+                events.put({'event': 'input_warning', 'message':
+                            'Chưa hiển thị được loa trên slide. Dùng nút đọc trên Mascot.'})
+
     try:
         progress("Đang kết nối PowerPoint…")
-        application = win32com.client.DispatchEx("PowerPoint.Application")
+        application = office_call(lambda: win32com.client.DispatchEx("PowerPoint.Application"))
         progress("Đang mở bài giảng trong PowerPoint…")
-        presentation = application.Presentations.Open(path, ReadOnly=True, Untitled=False, WithWindow=not autostart)
+        presentation = office_call(lambda: application.Presentations.Open(path, ReadOnly=True, Untitled=False, WithWindow=not autostart))
         presentation.SlideShowSettings.ShowType = 1  # ppShowTypeSpeaker: native full-screen slideshow.
         if shortcuts is not None:
             keys.start()
@@ -331,23 +345,32 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
                 continue
             if command == "goto":
                 if type(target) is int and 1 <= target <= total:
-                    view.GotoSlide(target)
+                    office_call(lambda: view.GotoSlide(target))
             elif command == "next":
-                view.Next()  # Office handles animation builds before advancing the slide.
+                office_call(view.Next)  # Office handles animation builds before advancing the slide.
             elif command == "previous":
-                previous_build(view)
+                office_call(lambda: previous_build(view))
             elif command in {"next_slide", "previous_slide"}:
                 number = view.Slide.SlideIndex + (1 if command == "next_slide" else -1)
                 if 1 <= number <= total:
                     stop_media()
-                    view.GotoSlide(number)
+                    office_call(lambda: view.GotoSlide(number))
             try:
-                slide = view.Slide
+                slide = office_call(lambda: view.Slide)
+                position = (slide.SlideIndex, slide.SlideID)
+                if not isinstance(last, tuple) or last[:2] != position:
+                    # Paint before GetClickIndex too: Office may wait for its
+                    # animation/media pipeline even for this metadata request.
+                    hwnd = slideshow_handle(path)
+                    early_boxes = slide_media.get(position[1], ([], []))[1]
+                    early_regions = speaker_regions(early_boxes, hwnd, slide_width, slide_height)
+                    keys.bind(hwnd, position[1], early_regions if overlay else (), presenter)
+                    paint_speakers(early_regions, slide_id=position[1])
                 try:
                     click_index = int(view.GetClickIndex())
                 except Exception:
                     click_index = None
-                current = (slide.SlideIndex, slide.SlideID, click_index)
+                current = (*position, click_index)
             except Exception:
                 if autostart:
                     break
@@ -357,7 +380,8 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
                 continue  # Esc returns to the bound deck; F5 can start it again.
             if current != last:
                 build_started = time.monotonic()
-                if not isinstance(last, tuple) or current[0] != last[0]:
+                slide_changed = not isinstance(last, tuple) or current[0] != last[0]
+                if slide_changed:
                     cached_badge = None
                     stop_media()
                     players = {}
@@ -366,12 +390,6 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
                     previous_paused = set()
                     media_token = None
                     current_audio, boxes = slide_media.get(current[1], ([], []))
-                    for identity, language, shape in current_audio:
-                        try:
-                            players[identity] = view.Player(identity)
-                            player_languages[identity] = language
-                        except Exception:
-                            pass
                 if not hwnd or focus_after_start or not isinstance(last, tuple) or last[0] == 'ready':
                     hwnd = slideshow_handle(path)
                     handles_refreshed = 0
@@ -384,6 +402,13 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
                             "message": f"PowerPoint · slide {current[0]}/{total}"})
                 focus_after_start = False
                 last = current
+                if slide_changed:
+                    for identity, language, shape in current_audio:
+                        try:
+                            players[identity] = office_call(lambda: view.Player(identity))
+                            player_languages[identity] = language
+                        except Exception:
+                            pass
             media_event, playing = _control_media(command, target, current[1], players, player_languages, playing)
             if command in {'stop_media', 'play_media'}:
                 cached_badge = None
@@ -450,20 +475,15 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
             visible_badges = {(current[1], identity) for identity in now_playing - paused}
             visible_badges.update((current[1], identity) for identity, language in player_languages.items()
                                   if cached_badge and language == cached_badge)
-            if overlay:
-                try:
-                    overlay.update(hwnd, regions,
-                                   {language for identity, language in player_languages.items()
-                                    if (current[1], identity) in visible_badges})
-                except Exception:
-                    # A drawing failure must never close the teacher's show.
-                    overlay.close()
-                    overlay = None
-                    keys.bind(hwnd, current[1], (), presenter)
-                    events.put({'event': 'input_warning', 'message':
-                                'Chưa hiển thị được loa trên slide. Dùng nút đọc trên Mascot.'})
+            paint_speakers(regions, {language for identity, language in player_languages.items()
+                                    if (current[1], identity) in visible_badges}, current[1])
     except Exception as exc:
-        events.put({"error": "Không thể điều khiển PowerPoint: " + str(exc)})
+        import logging
+
+        logging.exception('PowerPoint session failed')
+        message = ('PowerPoint đang bận. Đóng hộp thoại trong PowerPoint rồi bấm Mở PowerPoint để thử lại.'
+                   if is_busy(exc) else 'Chưa mở hoặc điều khiển được PowerPoint. Kiểm tra PowerPoint rồi thử mở bài lại.')
+        events.put({"error": message + ' Bài giảng và giọng đã lưu được giữ nguyên.'})
     finally:
         keys.close()
         if overlay:

@@ -29,6 +29,7 @@ ContentScrollView {
                 Label { text: "✓ Giọng đọc đã hoàn tất và lưu cùng bài giảng"; color: AppTheme.success; font.pixelSize: 14; font.weight: Font.DemiBold; Layout.fillWidth: true; wrapMode: Text.WordWrap }
                 Label { text: (result.record.title || "") + " · " + (result.record.complete || result.record.total || 0) + "/" + (result.record.total || 0) + " đoạn sẵn sàng"; color: AppTheme.ink; font.pixelSize: 13; Layout.fillWidth: true; wrapMode: Text.WordWrap }
                 Label { text: (result.coverage.total || 0) + " slide · " + (result.coverage.readable || 0) + " slide có lời đọc" + ((result.coverage.total || 0) > (result.coverage.readable || 0) ? " · Slide không có lời giữ im lặng" : ""); color: AppTheme.muted; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                CompletedExportNotice { appBridge: result.bridge; Layout.fillWidth: true }
             }
         }
         Flow { objectName: "narrationResultActions"; Layout.alignment: Qt.AlignHCenter; Layout.minimumWidth: 0; Layout.maximumWidth: result.availableWidth

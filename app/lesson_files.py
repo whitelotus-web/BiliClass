@@ -9,12 +9,15 @@ from pathlib import Path
 from .quick_conversion import verify_preview
 
 
-def save_presentation(lesson, preview, directory, destination, *, with_voice=False, report=None):
+def save_presentation(lesson, preview, directory, destination, *, with_voice=False, report=None,
+                      overwrite=True, managed_output=False):
     source = verify_preview(lesson, preview, directory).resolve()
     destination = Path(destination).resolve()
     if destination.suffix.lower() != ".pptx":
         raise ValueError("Lưu bài giảng thành tệp .pptx.")
-    if destination.is_relative_to(Path(directory).resolve()) or destination == source:
+    internal = destination.is_relative_to(Path(directory).resolve())
+    managed = managed_output and destination.parent == Path(directory).resolve() / 'exports'
+    if (internal and not managed) or destination == source:
         raise ValueError("Chọn thư mục ngoài dữ liệu BiliClass, ví dụ Downloads hoặc Desktop.")
     if not destination.parent.is_dir():
         raise ValueError("Thư mục lưu chưa tồn tại. Chọn lại vị trí lưu.")
@@ -32,7 +35,12 @@ def save_presentation(lesson, preview, directory, destination, *, with_voice=Fal
             result = embed_audio(source, pending, lesson, directory)
             if report is not None:
                 report.update(result)
-        os.replace(pending, destination)
+        if overwrite:
+            os.replace(pending, destination)
+        elif os.name == 'nt':
+            os.rename(pending, destination)  # Windows refuses an existing destination atomically.
+        else:
+            os.link(pending, destination)  # Atomic, exclusive publication on POSIX.
     finally:
         if pending:
             pending.unlink(missing_ok=True)

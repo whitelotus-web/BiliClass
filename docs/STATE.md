@@ -1,5 +1,15 @@
 # Trạng thái BiliClass
 
+Ngày 22/10/2026 — nguồn RC146 tự lưu PowerPoint có giọng cạnh file
+đầu vào khi hoàn tất; không ghi đè, có thư mục dự phòng và đường dẫn
+trong cả kết quả/cấu hình. Tải về vẫn chọn nơi lưu. Kiểm nguồn, revision,
+WAV và bản giọng trước ghi; giữ bản giáo viên sửa, không lặp bản đã lưu.
+Loa được vẽ trước bước chuẩn bị media Office; thử lại lỗi Office bận
+có giới hạn, thông báo dễ đọc. 81/73 pytest liên quan có giao nhau và
+ba Qt smoke xuất/kết quả giọng/PowerPoint thật đạt. Xem phạm vi và số
+đo ở [BUILD_RC146.md](BUILD_RC146.md). Chưa đóng gói/phát hành RC146;
+không thêm hàng đợi hay tối ưu đọc file độc lập ngoài tool/Mascot.
+
 Ngày 22/10/2026 — nguồn RC145 gộp nghe/dừng theo đúng ngôn ngữ,
 slide và phiên phát; dùng chung ở kết quả/cấu hình, giữ kích thước.
 Thêm Hoàn tác xóa ngay cạnh Chia sẻ & quản lý cho lần xóa thành
