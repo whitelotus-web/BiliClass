@@ -154,7 +154,7 @@ lịch sử khỏi thư viện; không chuyển sang Thùng rác Windows và kh�
 phục từ tool được nữa. Các tệp PowerPoint, âm thanh lưu trong dữ liệu và
 bản sao lưu vẫn được giữ; thao tác này chưa thu hồi toàn bộ dung lượng.
 
-Ngay sau khi xóa, **Hoàn tác xóa** xuất hiện cạnh **Chia sẻ & quản lý**
+Ngay sau khi xóa, **Hoàn tác xóa** xuất hiện cạnh menu **⋮**
 để khôi phục lần xóa gần nhất trong cửa sổ hiện tại. Trang xem bài cũng
 có icon xóa cạnh **Tạo giọng đọc**.
 
@@ -186,7 +186,7 @@ Chọn nhiều bài rồi bấm **Tạo giọng đã chọn**, chọn cấu hìn
 bắt đầu. Tool giữ bài hiện có, bỏ qua bài đã có giọng hoàn tất và xử lý
 lần lượt các bài còn lại. Không tự tạo lại bản đã hoàn tất.
 
-**Mở bài từ máy** trong Thư viện mở PowerPoint và gắn Mascot qua luồng
+**⋮ → Mở bài từ máy** trong Thư viện mở PowerPoint và gắn Mascot qua luồng
 trình chiếu hiện có; không tự chuyển ngữ hoặc tạo âm thanh. File chưa
 được chuyển đổi/tạo giọng không tự thành một sản phẩm đã hoàn tất.
 
@@ -210,3 +210,5 @@ bài tạo danh sách xử lý lần lượt, dùng cấu hình giọng chung. M
 tối đa 100 bài. Chọn bài chưa khởi động tạo giọng; bấm **Tạo giọng …
 bài** khi cấu hình xong. Các tab kẹp file trong Thư viện giữ số lượng
 bài và phân nhóm theo việc đã hoàn tất giọng đọc.
+
+Menu **⋮** ở góc phải Thư viện gom mở bài từ máy, nhận gói bài và thùng rác. Nút **Tạo giọng đã chọn** xuất hiện bên phải hàng tab khi có bài được tích chọn.

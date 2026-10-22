@@ -8,7 +8,7 @@
 
 Nguồn RC151 thêm tích chọn nhiều bài ngay ở màn Tạo giọng, giữ
 hàng đợi đúng công cụ và tự ẩn khi cả lượt đã hoàn tất. Thư viện
-có tab kẹp file với cạnh phải vát nhẹ, kèm icon/số bài. [Phạm vi RC151](docs/BUILD_RC151.md).
+có tab kẹp file thấp gọn, cạnh phải vát nhẹ, kèm icon/số bài; menu ba chấm và nút tải/xóa bằng icon. [Phạm vi RC151](docs/BUILD_RC151.md).
 
 RC149 giữ đúng bài đã chọn trong Mascot khi thư viện cập nhật
 hoặc đổi thứ tự, tránh mở nhầm bài ở vị trí cũ; bài đã xóa không tự

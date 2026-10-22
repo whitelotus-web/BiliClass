@@ -77,7 +77,7 @@ def main():
                     pump(120)
                     management = c('libraryManagementButton')
                     assert undo.isVisible() and undo.isEnabled()
-                    assert undo.mapToScene(QPointF()).x() >= management.mapToScene(QPointF(management.width(), 0)).x() + 8
+                    assert management.mapToScene(QPointF()).x() >= undo.mapToScene(QPointF(undo.width(), 0)).x() + 8
                     assert undo.mapToScene(QPointF(undo.width(), 0)).x() <= width - 15
                     assert abs(undo.mapToScene(QPointF(0, undo.height()/2)).y()
                                - management.mapToScene(QPointF(0, management.height()/2)).y()) <= 1

@@ -983,19 +983,23 @@ ApplicationWindow {
                         id: libraryHeaderContent; anchors.fill: parent; spacing: 12
                         ColumnLayout {
                             visible: root.page === "library"; Layout.fillWidth: true; spacing: 5
-                            Heading { objectName: "libraryHomeHeading"; text: "Thư viện bài giảng"; font.pixelSize: 28; Layout.fillWidth: true }
                             RowLayout {
                                 Layout.fillWidth: true; spacing: 12
-                                Copy { objectName: "libraryDescription"; text: "Tìm đúng bài, chọn bản giọng và mở để dạy hoặc tải PowerPoint."; Layout.fillWidth: true }
-                                MainAction { objectName: "libraryNarrateSelected"; text: "Tạo giọng đã chọn"; visible: root.selectedLessons.length > 0; implicitHeight: 32; enabled: !bridge.busy && !bridge.narrationBusy; ToolTip.visible: hovered; ToolTip.text: "Tạo giọng lần lượt cho bài chưa có giọng; bỏ qua bài đã hoàn tất"; onClicked: bridge.batchQueue.selectLessons(root.selectedLessons) }
-                                MainAction { objectName: "openLibraryPresentation"; text: "Mở bài từ máy"; subtle: true; implicitHeight: 28; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.teachingTransitioning; onClicked: libraryPresentationOpen.open() }
-                                MainAction { id: libraryManagementAction; objectName: "libraryManagementButton"; text: "Chia sẻ & quản lý"; subtle: true; implicitHeight: 28; onClicked: libraryManagementMenu.popup() }
+                                Heading { objectName: "libraryHomeHeading"; text: "Thư viện bài giảng"; font.pixelSize: 28; Layout.fillWidth: true }
                                 MainAction { objectName: "undoLibraryDeletion"; text: "Hoàn tác xóa"; symbol: "↶"; implicitHeight: 28; visible: bridge.undoDeleteCount > 0; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !bridge.teachingTransitioning && !root.classroom.running; ToolTip.visible: hovered; ToolTip.text: "Khôi phục " + bridge.undoDeleteCount + " bài trong lần xóa gần nhất"; onClicked: bridge.undoDeletion() }
+                                MainAction {
+                                    id: libraryManagementAction; objectName: "libraryManagementButton"
+                                    text: "⋮"; font.pixelSize: 26; font.weight: Font.Normal; subtle: true; implicitWidth: 36; implicitHeight: 36
+                                    Accessible.name: "Tùy chọn thư viện"; ToolTip.visible: hovered; ToolTip.text: "Tùy chọn thư viện"
+                                    onClicked: libraryManagementMenu.popup()
+                                }
                                 Menu { id: libraryManagementMenu; parent: libraryManagementAction; x: parent.width - width; y: parent.height
+                                    MenuItem { objectName: "openLibraryPresentation"; text: "Mở bài từ máy…"; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.teachingTransitioning; onTriggered: libraryPresentationOpen.open() }
                                     MenuItem { objectName: "importSharedLessonButton"; text: "Nhận gói bài từ giáo viên khác…"; onTriggered: packOpen.open() }
                                     MenuItem { text: "Thùng rác (" + bridge.trashedLessons.length + ")"; onTriggered: lessonTrashDialog.open() }
                                 }
                             }
+                            Copy { objectName: "libraryDescription"; text: "Tìm đúng bài, chọn bản giọng và mở để dạy hoặc tải PowerPoint."; Layout.fillWidth: true }
                         }
                         ColumnLayout {
                             visible: root.page === "library"; Layout.fillWidth: true; spacing: 0
@@ -1010,7 +1014,7 @@ ApplicationWindow {
                                     readonly property bool selected: root.libraryGroup === modelData.key
                                     objectName: "libraryTab_" + (modelData.key || "all")
                                     text: modelData.label + " (" + ((root.libraryResult.groups || {})[modelData.count] || 0) + ")"
-                                    Layout.preferredWidth: Math.max(150, tabContents.implicitWidth + 44); implicitHeight: 46; leftPadding: 16; rightPadding: 28
+                                    Layout.preferredWidth: Math.max(150, tabContents.implicitWidth + 44); implicitHeight: 40; leftPadding: 16; rightPadding: 28
                                     Accessible.role: Accessible.PageTab; Accessible.selected: selected
                                     background: Canvas {
                                         property bool selected: libraryTab.selected
@@ -1054,6 +1058,7 @@ ApplicationWindow {
                                 }
                             }
                             Item { Layout.fillWidth: true }
+                            MainAction { objectName: "libraryNarrateSelected"; text: "Tạo giọng đã chọn"; visible: root.selectedLessons.length > 0; implicitHeight: 32; enabled: !bridge.busy && !bridge.narrationBusy; ToolTip.visible: hovered; ToolTip.text: "Tạo giọng lần lượt cho bài chưa có giọng; bỏ qua bài đã hoàn tất"; onClicked: bridge.batchQueue.selectLessons(root.selectedLessons) }
                         }
                         Rectangle {
                             Layout.fillWidth: true; implicitHeight: 1; color: AppTheme.line
@@ -1112,8 +1117,8 @@ ApplicationWindow {
                             LibraryAction { objectName: "libraryClearFilters"; text: "↺"; font.pixelSize: 18; Layout.preferredWidth: 30; Accessible.name: "Xóa bộ lọc"; ToolTip.visible: hovered; ToolTip.text: "Xóa bộ lọc"; onClicked: { search.clear(); subjectFilter.currentIndex = 0; gradeFilter.currentIndex = 0; stateFilter.currentIndex = 0; voiceFilter.currentIndex = 0; root.libraryPage = 1 } }
                             LibraryCheck { objectName: "librarySelectAll"; text: "Chọn tất cả"; ToolTip.visible: hovered; ToolTip.delay: 600; ToolTip.text: "Chọn toàn bộ " + root.libraryResult.total + " bài khớp bộ lọc, kể cả các trang khác.\nĐổi bộ lọc sẽ bỏ chọn."; Accessible.description: ToolTip.text; checkState: !root.selectedLessons.length ? Qt.Unchecked : root.selectedLessons.length === root.libraryResult.total ? Qt.Checked : Qt.PartiallyChecked; nextCheckState: function() { return checkState === Qt.Checked ? Qt.Unchecked : Qt.Checked }; enabled: root.libraryResult.total > 0; onClicked: root.selectedLessons = checked ? root.libraryResult.ids.slice() : [] }
                             LibraryAction { objectName: "libraryDeselectAll"; text: "Bỏ chọn"; subtle: true; enabled: root.selectedLessons.length > 0; onClicked: root.selectedLessons = [] }
-                            LibraryAction { objectName: "libraryDownloadSelected"; text: "Tải đã chọn"; ToolTip.visible: hovered; ToolTip.text: "Tải " + root.selectedLessons.length + " bài đã chọn"; enabled: root.selectedLessons.length > 0 && !bridge.busy && !bridge.narrationBusy; onClicked: root.downloadLibraryLessons(root.selectedLessons) }
-                            LibraryAction { objectName: "libraryDeleteSelected"; text: "Xóa đã chọn"; danger: true; ToolTip.visible: hovered; ToolTip.text: "Đưa " + root.selectedLessons.length + " bài đã chọn vào thùng rác"; enabled: root.selectedLessons.length > 0 && !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !root.classroom.running; onClicked: { bulkDeleteDialog.identities = root.selectedLessons.slice(); bulkDeleteDialog.open() } }
+                            LibraryDownloadButton { objectName: "libraryDownloadSelected"; Accessible.name: ToolTip.text; ToolTip.visible: hovered; ToolTip.text: "Tải " + root.selectedLessons.length + " bài đã chọn"; enabled: root.selectedLessons.length > 0 && !bridge.busy && !bridge.narrationBusy; onClicked: root.downloadLibraryLessons(root.selectedLessons) }
+                            LibraryTrashButton { objectName: "libraryDeleteSelected"; Accessible.name: ToolTip.text; ToolTip.visible: hovered; ToolTip.text: "Đưa " + root.selectedLessons.length + " bài đã chọn vào thùng rác"; enabled: root.selectedLessons.length > 0 && !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !root.classroom.running; onClicked: { bulkDeleteDialog.identities = root.selectedLessons.slice(); bulkDeleteDialog.open() } }
                             Label {
                                 objectName: "libraryResultCount"
                                 text: root.selectedLessons.length ? "Đã chọn " + root.selectedLessons.length + " bài" : root.libraryResult.total + (root.libraryFiltersActive ? " kết quả" : " bài")

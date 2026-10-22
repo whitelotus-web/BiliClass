@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from pptx import Presentation
 from pptx.util import Inches
-from PySide6.QtCore import Q_ARG, QCoreApplication, QEvent, QMetaObject, Qt, QUrl
+from PySide6.QtCore import Q_ARG, QCoreApplication, QEvent, QMetaObject, QPointF, Qt, QUrl
 from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine, QQmlExpression
 from PySide6.QtQuickControls2 import QQuickStyle
@@ -151,8 +151,33 @@ def main():
             click(root, c('voiceLibraryClearSelection'))
             assert qml('voiceLibraryPicker.selectedCount') == 0
             click(root, c('voiceLibraryPickerDone'))
+            for original, _ in lessons:
+                product = library.get(original['id'])
+                product['voice_published'] = True
+                library.db.execute('UPDATE lessons SET content=? WHERE id=?', (json.dumps(product), product['id']))
+            library.db.commit()
+            bridge._catalog.refresh(force=True)
+            until(lambda: bridge._catalog.worker is None and len(bridge.lessons) == 3)
             root.setProperty('page', 'library')
             pump(100)
+            assert c('libraryManagementButton').property('text') == '⋮'
+            assert not c('libraryNarrateSelected').isVisible()
+            qml('libraryPresentationOpen.options = FileDialog.DontUseNativeDialog')
+            click(root, c('libraryManagementButton'))
+            assert c('openLibraryPresentation').isVisible()
+            click(root, c('openLibraryPresentation'))
+            assert c('libraryPresentationDialog').property('visible')
+            QMetaObject.invokeMethod(c('libraryPresentationDialog'), 'reject', Qt.DirectConnection)
+            root.setProperty('selectedLessons', ids[:2])
+            pump(80)
+            tabs, action = c('libraryVoiceTabs'), c('libraryNarrateSelected')
+            center = action.mapToItem(tabs, QPointF(0, action.height()/2))
+            assert action.isVisible() and abs(center.y()-tabs.height()/2) <= 1
+            assert action.mapToItem(tabs, QPointF(action.width(), 0)).x() >= tabs.width()-2
+            for name in ('libraryDownloadSelected', 'libraryDeleteSelected'):
+                assert c(name).property('text') == '' and c(name).isEnabled()
+                assert c(name).width() <= 38
+            root.grabWindow().save(str(report/'library-selection-action.png'))
             for theme in ('light', 'dark'):
                 bridge.setApplicationTheme(theme)
                 for key in ('all', 'none', 'ready'):

@@ -1,7 +1,9 @@
 # Trạng thái BiliClass
 
 Ngày 22/10/2026 — RC151 thêm cạnh phải vát nhẹ cho tab kẹp file
-trong Thư viện, giữ icon, số bài và các chức năng RC150.
+trong Thư viện, giữ chữ 13 px/icon, số bài và các chức năng RC150.
+Menu ba chấm gom mở bài từ máy; Tạo giọng đã chọn nằm bên phải hàng
+tab; tải/xóa dùng icon. Ba Qt smoke bổ sung đạt, gồm xóa/hoàn tác.
 [Phạm vi RC151](BUILD_RC151.md).
 [Trạng thái phát hành RC151: đang kiểm tra.]
 

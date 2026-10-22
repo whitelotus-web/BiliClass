@@ -276,7 +276,7 @@ def main():
             until(lambda: bridge._catalog.worker is None)
             window.setProperty('selectedLessons', [pending['id'], ready_id])
             pump(80)
-            assert c('libraryNarrateSelected').isVisible() and c('openLibraryPresentation').isVisible()
+            assert c('libraryNarrateSelected').isVisible() and c('libraryManagementButton').isVisible()
             opened_local = []
             dialog = c('libraryPresentationDialog')
             assert dialog.setProperty('selectedFile', QUrl.fromLocalFile(str(sources[0])))
