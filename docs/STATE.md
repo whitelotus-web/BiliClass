@@ -5,7 +5,9 @@ xuống ngay dưới hình thu nhỏ trong cả đầu vào một/nhiều bài,
 Chuyển đổi/Tạo giọng. Hàng đợi bỏ khung trắng bao ngoài; nút xem
 trước dùng cùng kiểu chữ xanh không viền như một bài.
 [Phạm vi RC154](BUILD_RC154.md).
-[Trạng thái phát hành RC154: đang kiểm tra.]
+Đã phát hành từ `5542cf6`; Source checks GitHub, bundle/ZIP,
+digest/tag, updater công khai, cài/mở Trang chủ từ Explorer đạt; hồ sơ,
+key, bài và 1752 WAV tham chiếu giữ nguyên.
 
 Ngày 22/10/2026 — nguồn RC153 thống nhất hàng đợi đầu vào và xem
 trước từng bài trên cấu hình ở cả Chuyển đổi và Tạo giọng. Đọc

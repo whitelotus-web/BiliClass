@@ -31,4 +31,10 @@ Kiểm chứng nguồn:
 - Ruff, compileall và các smoke không có cảnh báo QML.
   Không đánh giá lại nội dung dịch/TTS trong chỉnh sửa giao diện này.
 
-[Trạng thái phát hành RC154: đang kiểm tra.]
+Đã phát hành từ `5542cf6aa4013448bd6a209c29379d8c85dc7a54`;
+[Source checks](https://github.com/whitelotus-web/BiliClass/actions/runs/39806497724) đạt cho đúng commit gói.
+[Gói RC154](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc154): 1,258,164,169 byte, SHA-256
+`1d6aebc21601848c74180d67b8dd45550a70d2d38eff809fbe6ebaf07444b979`. 62 tệp QML/qmldir và bytecode
+khớp nguồn; ZIP/digest/tag và updater công khai đạt. Cài/mở Trang chủ
+từ Explorer, Mascot mặc định ẩn; hồ sơ/key, bài và
+1752 WAV tham chiếu giữ nguyên.

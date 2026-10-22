@@ -4,9 +4,9 @@
 
 ## Phiên bản và tải xuống
 
-**[Tải BiliClass cho Windows](https://github.com/whitelotus-web/BiliClass/releases)** · [RC153 đã kiểm chứng](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc153) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md)
+**[Tải BiliClass cho Windows](https://github.com/whitelotus-web/BiliClass/releases)** · [RC154 đã kiểm chứng](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc154) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md)
 
-Nguồn RC154 đặt chuyển slide ngay dưới hình thu nhỏ ở cả một/nhiều
+RC154 đặt chuyển slide ngay dưới hình thu nhỏ ở cả một/nhiều
 bài, không cần phóng to. Nút xem trước đồng nhất và hàng đợi bỏ
 khung trắng bao ngoài. [Phạm vi RC154](docs/BUILD_RC154.md).
 
@@ -53,7 +53,7 @@ và hiệu ứng nằm trong chi tiết; chỉ lỗi cụ thể chưa xử lý x
 nêu nổi bật. Hai công cụ Chuyển đổi và Tạo giọng đọc dùng chung cách
 hiển thị. [Phạm vi và kiểm chứng RC144](docs/BUILD_RC144.md).
 
-Gói RC153 đã phát hành từ commit `677dcf0`, được kiểm tra ZIP, cài và
+Gói RC154 đã phát hành từ commit `5542cf6`, được kiểm tra ZIP, cài và
 mở Trang chủ. Mã nguồn và gói tải có vòng phát hành riêng: phiên bản
 gói luôn được ghi rõ trong Releases và trong ứng dụng. Các mốc bên
 dưới là lịch sử, không phải phiên bản hiện tại.
