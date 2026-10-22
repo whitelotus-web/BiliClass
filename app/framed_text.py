@@ -1,14 +1,36 @@
 """Find text panels by their painted area, excluding transparent image shadows."""
-from functools import lru_cache
+import hashlib
+from collections import OrderedDict
 from io import BytesIO
+from threading import RLock
 
 from PIL import Image, ImageStat
 
 from .source_deck import NS
 
 
-@lru_cache(maxsize=128)
+_panel_cache = OrderedDict()
+_panel_cache_lock = RLock()
+
+
 def _painted_image(blob):
+    # Cache tiny bounds by digest. Keeping image bytes as an LRU key retained
+    # every large embedded picture even after its PowerPoint was closed.
+    key = hashlib.sha256(blob).digest()
+    with _panel_cache_lock:
+        if key in _panel_cache:
+            _panel_cache.move_to_end(key)
+            return _panel_cache[key]
+    value = _inspect_painted_image(blob)
+    with _panel_cache_lock:
+        _panel_cache[key] = value
+        _panel_cache.move_to_end(key)
+        if len(_panel_cache) > 128:
+            _panel_cache.popitem(last=False)
+    return value
+
+
+def _inspect_painted_image(blob):
     try:
         with Image.open(BytesIO(blob)) as source:
             if source.width * source.height > 16_000_000:

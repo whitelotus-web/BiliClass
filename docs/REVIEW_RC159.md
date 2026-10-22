@@ -13,9 +13,12 @@ hoặc release mới. Kế thừa [RC157](REVIEW_RC157.md) và [RC158](REVIEW_RC
   nhận diện trong phép thử thay bằng fixture, không phải chứng nhận OCR.
   Cùng kiểu header quá lớn được bắt ở bước nhận diện khung nền, kiểm
   tra mặt nạ logo và đọc cache ảnh bìa. Cache bìa hỏng được dựng lại từ
-  ảnh slide hợp lệ; không bỏ giới hạn pixel. 15 kiểm tra bị ảnh hưởng
-  đạt, gồm ba trường hợp PNG có header giả kích thước lớn, không cấp
-  phát bitmap khổng lồ.
+  ảnh slide hợp lệ; không bỏ giới hạn pixel. 56 kiểm tra ảnh/khung/logo/
+  ảnh bìa và bố cục song ngữ liên quan đạt, gồm ba trường hợp PNG có
+  header giả kích thước lớn, không cấp
+  phát bitmap khổng lồ. Cache khung nền chỉ giữ hash và tọa độ nhỏ, thay
+  vì giữ toàn bộ bytes của đến 128 ảnh lớn sau khi đóng PowerPoint;
+  kiểm thử xác nhận cache không giữ sống ảnh đầu vào.
 - Hai bài dừng khi phản hồi dịch làm mất các dấu giữ công thức. Sau
   lần thử lại bằng khóa ẩn đã có, thêm một bước cuối: dịch riêng phần
   chữ, ghép khóa tại máy, kiểm tra lại số/ký hiệu/hóa học rồi mới cache.

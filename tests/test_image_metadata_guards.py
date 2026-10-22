@@ -2,6 +2,7 @@
 
 import hashlib
 import struct
+import sys
 import zlib
 from io import BytesIO
 
@@ -47,3 +48,13 @@ def test_corrupt_oversized_cover_cache_is_regenerated_from_the_valid_slide(tmp_p
         assert image.size == (640, 360)
         image.verify()
     assert original.read_bytes() == before
+
+
+def test_panel_cache_does_not_keep_the_large_input_image_alive():
+    output = BytesIO()
+    Image.new('RGB', (100, 100), 'navy').save(output, 'PNG')
+    blob = output.getvalue() + b'padding-after-image' * 100000
+    references = sys.getrefcount(blob)
+    assert _painted_image(blob) == (0, 0, 1, 1)
+    assert _painted_image(blob) == (0, 0, 1, 1)
+    assert sys.getrefcount(blob) == references
