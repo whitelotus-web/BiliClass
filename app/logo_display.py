@@ -33,5 +33,5 @@ def _inspect(path, size, modified):
                     if ((x+.5-64)/64)**2 + ((y+.5-64)/64)**2 > 1.04:
                         return False
         return ink > 8
-    except (OSError, ValueError):
+    except (OSError, ValueError, Image.DecompressionBombError):
         return False

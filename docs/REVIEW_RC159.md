@@ -11,6 +11,11 @@ hoặc release mới. Kế thừa [RC157](REVIEW_RC157.md) và [RC158](REVIEW_RC
   chưa xác minh chữ trong ảnh. Không tắt giới hạn pixel hoặc cố giải
   mã ảnh khổng lồ. Thử đọc lại đúng nguồn lỗi đã đi qua bước này; bộ
   nhận diện trong phép thử thay bằng fixture, không phải chứng nhận OCR.
+  Cùng kiểu header quá lớn được bắt ở bước nhận diện khung nền, kiểm
+  tra mặt nạ logo và đọc cache ảnh bìa. Cache bìa hỏng được dựng lại từ
+  ảnh slide hợp lệ; không bỏ giới hạn pixel. 15 kiểm tra bị ảnh hưởng
+  đạt, gồm ba trường hợp PNG có header giả kích thước lớn, không cấp
+  phát bitmap khổng lồ.
 - Hai bài dừng khi phản hồi dịch làm mất các dấu giữ công thức. Sau
   lần thử lại bằng khóa ẩn đã có, thêm một bước cuối: dịch riêng phần
   chữ, ghép khóa tại máy, kiểm tra lại số/ký hiệu/hóa học rồi mới cache.

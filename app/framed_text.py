@@ -20,7 +20,7 @@ def _painted_image(blob):
         if box is None or ImageStat.Stat(mask.crop(box)).mean[0] < 225:
             return None  # An irregular illustration is not a text container.
         return tuple(value / size for value, size in zip(box, (image.width, image.height)*2, strict=True))
-    except (OSError, ValueError):
+    except (OSError, ValueError, Image.DecompressionBombError):
         return None
 
 

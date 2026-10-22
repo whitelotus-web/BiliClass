@@ -25,7 +25,7 @@ def cover_image(image, directory):
             with Image.open(target) as saved:
                 saved.verify()
             return str(target)
-        except (OSError, ValueError):
+        except (OSError, ValueError, Image.DecompressionBombError):
             pass
     with Image.open(image) as original:
         fitted = ImageOps.contain(original.convert('RGB'), (640, 360), Image.Resampling.LANCZOS)
