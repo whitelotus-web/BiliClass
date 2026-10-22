@@ -35,4 +35,4 @@ URL nhiều file được đưa qua đúng receiver của sự kiện nhận fil
 Chưa tự động chọn nhiều file trong hộp thoại Windows của người dùng,
 nên không kết luận đã tái hiện đầy đủ nguyên nhân báo lỗi trên RC149.
 
-[Trạng thái phát hành RC150: đang kiểm tra.]
+Mốc RC150 được giữ làm gói kiểm chứng nội bộ; chưa phát hành. RC151 bổ sung cạnh tab vát theo yêu cầu mới và là mốc đóng gói kế tiếp.

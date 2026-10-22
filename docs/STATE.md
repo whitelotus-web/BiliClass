@@ -1,12 +1,17 @@
 # Trạng thái BiliClass
 
+Ngày 22/10/2026 — RC151 thêm cạnh phải vát nhẹ cho tab kẹp file
+trong Thư viện, giữ icon, số bài và các chức năng RC150.
+[Phạm vi RC151](BUILD_RC151.md).
+[Trạng thái phát hành RC151: đang kiểm tra.]
+
 Ngày 22/10/2026 — nguồn RC150 thống nhất hộp chọn file có mục đích
 rõ ràng, chọn nhiều bài trong màn Tạo giọng bằng checkbox và tự ẩn
 hàng đợi hoàn tất ở cả hai công cụ. Lượt còn lỗi/chờ vẫn giữ để tiếp
 tục. Thư viện dùng tab kẹp file có icon/số bài. Một bài dùng workspace
 cũ, nhiều bài dùng hàng đợi xử lý lần lượt trên cùng bộ xử lý.
 [Phạm vi RC150](BUILD_RC150.md).
-[Trạng thái phát hành RC150: đang kiểm tra.]
+RC150 là mốc kiểm chứng nội bộ, không phát hành; xem RC151.
 
 Ngày 22/10/2026 — nguồn RC149 sửa lỗi chọn bài trong Mascot theo vị
 trí dòng, giữ đúng ID khi thư viện làm mới/đổi thứ tự; khóa lựa chọn

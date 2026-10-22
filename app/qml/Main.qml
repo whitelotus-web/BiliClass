@@ -1010,7 +1010,7 @@ ApplicationWindow {
                                     readonly property bool selected: root.libraryGroup === modelData.key
                                     objectName: "libraryTab_" + (modelData.key || "all")
                                     text: modelData.label + " (" + ((root.libraryResult.groups || {})[modelData.count] || 0) + ")"
-                                    Layout.preferredWidth: Math.max(150, tabContents.implicitWidth + 32); implicitHeight: 46; leftPadding: 16; rightPadding: 16
+                                    Layout.preferredWidth: Math.max(150, tabContents.implicitWidth + 44); implicitHeight: 46; leftPadding: 16; rightPadding: 28
                                     Accessible.role: Accessible.PageTab; Accessible.selected: selected
                                     background: Canvas {
                                         property bool selected: libraryTab.selected
@@ -1027,11 +1027,11 @@ ApplicationWindow {
                                             const c = getContext("2d"), r = 10
                                             c.clearRect(0, 0, width, height)
                                             c.beginPath(); c.moveTo(0.5, height); c.lineTo(0.5, r)
-                                            c.quadraticCurveTo(0.5, 0.5, r, 0.5); c.lineTo(width-r, 0.5)
-                                            c.quadraticCurveTo(width-0.5, 0.5, width-0.5, r); c.lineTo(width-0.5, height)
+                                            c.quadraticCurveTo(0.5, 0.5, r, 0.5); c.lineTo(width-20, 0.5)
+                                            c.quadraticCurveTo(width-15, 0.5, width-13, 6); c.lineTo(width-0.5, height)
                                             c.fillStyle = selected ? AppTheme.surface : hovered ? AppTheme.hover : AppTheme.raised
                                             c.fill(); c.strokeStyle = focused ? AppTheme.blue : AppTheme.line; c.lineWidth = 1; c.stroke()
-                                            if (selected) { c.fillStyle = AppTheme.blue; c.fillRect(r, 0, width-2*r, 2) }
+                                            if (selected) { c.fillStyle = AppTheme.blue; c.fillRect(r, 0, width-r-21, 2) }
                                         }
                                     }
                                     contentItem: RowLayout {

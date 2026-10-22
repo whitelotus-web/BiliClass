@@ -6,9 +6,9 @@
 
 **[Tải BiliClass cho Windows](https://github.com/whitelotus-web/BiliClass/releases)** · [RC149 đã kiểm chứng](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc149) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md)
 
-Nguồn RC150 thêm tích chọn nhiều bài ngay ở màn Tạo giọng, giữ
+Nguồn RC151 thêm tích chọn nhiều bài ngay ở màn Tạo giọng, giữ
 hàng đợi đúng công cụ và tự ẩn khi cả lượt đã hoàn tất. Thư viện
-có tab kẹp file kèm icon/số bài. [Phạm vi RC150](docs/BUILD_RC150.md).
+có tab kẹp file với cạnh phải vát nhẹ, kèm icon/số bài. [Phạm vi RC151](docs/BUILD_RC151.md).
 
 RC149 giữ đúng bài đã chọn trong Mascot khi thư viện cập nhật
 hoặc đổi thứ tự, tránh mở nhầm bài ở vị trí cũ; bài đã xóa không tự
