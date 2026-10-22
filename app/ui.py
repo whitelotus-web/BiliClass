@@ -1617,7 +1617,7 @@ class Bridge(QObject):
         def completed(result):
             self._completed_export_state = result
             self.completedExportChanged.emit()
-            self.inform(('Đã tự lưu PowerPoint có giọng: ' + result['path']) if result.get('path')
+            self.inform((('Đã cập nhật PowerPoint có giọng: ' if result.get('updated') else 'Đã tự lưu PowerPoint có giọng: ') + result['path']) if result.get('path')
                         else result['message'], result.get('phase') == 'error', refresh=False)
 
         self.launch(work, completed, cancellable=False, message='Đang tự lưu PowerPoint có giọng…')

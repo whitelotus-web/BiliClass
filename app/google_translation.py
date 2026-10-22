@@ -384,7 +384,7 @@ def protected_html(text, terms=None, *, chemistry=False, opaque_values=False, na
     return ''.join(parts), locks
 
 
-def unprotect(value, locks):
+def _protected_text(value):
     from html.parser import HTMLParser
 
     class Text(HTMLParser):
@@ -414,7 +414,11 @@ def unprotect(value, locks):
     parser.feed(value)
     if parser.lock_depth:
         raise TranslationProblem('api_result', 'Vùng bảo vệ bản dịch chưa hợp lệ; chưa áp dụng kết quả này.')
-    text = ''.join(parser.parts)
+    return ''.join(parser.parts)
+
+
+def unprotect(value, locks):
+    text = _protected_text(value)
     expected = [f'BCLLOCK{i}END' for i in range(len(locks))]
     if sorted(re.findall(r'BCLLOCK\d+END', text)) != sorted(expected):
         raise TranslationProblem('api_result', 'Bản dịch chưa giữ đủ số liệu/công thức; chưa áp dụng kết quả này.')
@@ -484,7 +488,8 @@ class Translator:
         return self.translate([u['text'] for u in units] + [row['text'] for row in images], cancel, progress,
                               native_values=hints + [{} for _ in images])
 
-    def translate(self, texts, cancel, progress=None, *, source='vi', target='en', native_values=None):
+    def translate(self, texts, cancel, progress=None, *, source='vi', target='en', native_values=None,
+                  fragment_repair=True):
         """Two bounded workers; unique chunks cached as soon as they validate."""
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -550,6 +555,52 @@ class Translator:
         if progress:
             progress(done, total)
 
+        def checked(item, result):
+            from collections import Counter
+
+            from .translation_batches import NUMBERS
+
+            whitespace = re.fullmatch(r'(\s*)(.*?)(\s*)', item[0], re.S)
+            result = whitespace[1] + result.strip() + whitespace[3]
+            if Counter(NUMBERS.findall(result)) != Counter(NUMBERS.findall(item[0])):
+                raise TranslationProblem('api_result', 'Bản dịch làm thay đổi số liệu; chưa áp dụng kết quả này.')
+            if policy.subject == 'hoa hoc':
+                from .chemical_notation import signature
+
+                if signature(result) != signature(item[0]):
+                    raise TranslationProblem('api_result', 'Bản dịch làm thay đổi công thức hóa học; chưa áp dụng kết quả này. Phần đã dịch đúng được giữ để tiếp tục.')
+            return policy.postprocess(item[0], result)
+
+        def repair_fragments(invalid):
+            """Last bounded attempt: send prose only, rebuild every lock locally."""
+            repaired = []
+            for item, error in invalid:
+                payload, locks = protected_html(item[0], policy.matches(item[0]),
+                    chemistry=policy.subject == 'hoa hoc', opaque_values=True)
+                if not locks:
+                    raise error
+                pieces = re.split(r'(BCLLOCK\d+END)', _protected_text(payload))
+                prose = [index for index in range(0, len(pieces), 2)
+                         if any(unicodedata.category(char).startswith('L') for char in pieces[index])]
+                try:
+                    values = self.translate([pieces[index] for index in prose], cancel, source=source, target=target,
+                                            fragment_repair=False)
+                except TranslationProblem as exc:
+                    exc.failed_text = item[0]  # Diagnostics refer to the original frame, not a common prose fragment.
+                    raise
+                for index, value in zip(prose, values, strict=True):
+                    pieces[index] = value
+                for index in range(1, len(pieces), 2):
+                    pieces[index] = locks[int(pieces[index][7:-3])]
+                try:
+                    value = checked(item, ''.join(pieces))
+                except TranslationProblem as exc:
+                    exc.failed_text = item[0]
+                    raise
+                self.store.cache(item[3], value)
+                repaired.append((item[4], value))
+            return repaired
+
         def run(group, *, repairing=False):
             count = sum(len(item[1]) for item in group)
             excluded = set()
@@ -580,20 +631,7 @@ class Translator:
                 translated, invalid = [], []
                 for item, value in zip(group, response, strict=True):
                     try:
-                        result = unprotect(value, item[2])
-                        whitespace = re.fullmatch(r'(\s*)(.*?)(\s*)', item[0], re.S)
-                        result = whitespace[1] + result.strip() + whitespace[3]
-                        from collections import Counter
-
-                        from .translation_batches import NUMBERS
-                        if Counter(NUMBERS.findall(result)) != Counter(NUMBERS.findall(item[0])):
-                            raise TranslationProblem('api_result', 'Bản dịch làm thay đổi số liệu; chưa áp dụng kết quả này.')
-                        if policy.subject == 'hoa hoc':
-                            from .chemical_notation import signature
-
-                            if signature(result) != signature(item[0]):
-                                raise TranslationProblem('api_result', 'Bản dịch làm thay đổi công thức hóa học; chưa áp dụng kết quả này. Phần đã dịch đúng được giữ để tiếp tục.')
-                        result = policy.postprocess(item[0], result)
+                        result = checked(item, unprotect(value, item[2]))
                         translated.append((item, result))
                     except TranslationProblem as exc:
                         exc.failed_text = item[0]
@@ -601,7 +639,9 @@ class Translator:
                 self.store.cache_many([(item[3], value) for item, value in translated])
                 if invalid:
                     if repairing:
-                        raise invalid[0][1]
+                        if not fragment_repair:
+                            raise invalid[0][1]
+                        return [(item[4], value) for item, value in translated] + repair_fragments(invalid)
                     # One bounded repair of failed chunks only. Hide numeric
                     # values from the model as well as restoring them afterward;
                     # exposed numbers can be repeated outside their HTML locks.

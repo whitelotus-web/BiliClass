@@ -1,8 +1,29 @@
 """Local-only export locations; paths never enter portable lesson content."""
 
+import hashlib
+import json
 from pathlib import Path
 
 from .download_names import presentation_title
+
+
+def is_automatic_product(library, lesson, path, digest=None):
+    """An unchanged automatic B keeps its link to A when imported for voice."""
+    path = Path(path).resolve()
+    for row in library.db.execute('SELECT value FROM settings WHERE key LIKE ?',
+                                  ('completed_export:' + lesson['id'] + ':%',)):
+        try:
+            saved = json.loads(row[0])
+            if (isinstance(saved, dict) and saved.get('lesson_id') == lesson['id']
+                    and Path(saved['path']).resolve() == path):
+                if digest is None:
+                    with path.open('rb') as source:
+                        digest = hashlib.file_digest(source, 'sha256').hexdigest()
+                if digest == saved.get('sha256'):
+                    return True
+        except (ValueError, KeyError, TypeError, OSError):
+            continue
+    return False
 
 
 def remember_source(library, path, digest):

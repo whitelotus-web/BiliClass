@@ -1730,6 +1730,12 @@ ApplicationWindow {
                                 }
                             }
                             MainAction { objectName: "cancelLessonNarrationButton"; danger: true; symbol: "■"; text: bridge.lessonNarration.stopping ? "Đang dừng…" : "Dừng"; enabled: !bridge.lessonNarration.stopping; visible: (root.page === "voice" || root.page === "result") && !!bridge.lessonNarration.running; onClicked: bridge.cancelLessonNarration() }
+                            MainAction {
+                                objectName: "batchStop_" + (root.batchState.kind || "convert"); danger: true; symbol: "■"
+                                text: root.batchState.stopping ? "Đang dừng…" : "Dừng"
+                                visible: !!root.batchState.running && (root.creationBatch && root.page === "new" || root.voiceBatch && root.page === "voice")
+                                enabled: !root.batchState.stopping; onClicked: bridge.batchQueue.stop()
+                            }
                         }
                         Copy { visible: root.page === "new" && bridge.narrationBusy; text: "Đang tạo giọng đọc · Chờ hoàn tất hoặc dừng trước khi chuyển đổi bài mới."; Layout.fillWidth: true; font.pixelSize: 12 }
                         MainAction { objectName: "resumeCreationTask"; text: bridge.browserState.phase === "completed" ? "Mở bài vừa chuyển đổi" : "Tiếp tục bài đang chuẩn bị"; visible: root.page === "new" && !root.creationBatch && !!bridge.chatgptRequest.folder && !root.inlineConversionVisible && !bridge.narrationBusy; attention: bridge.browserState.phase === "completed"; subtle: !attention; implicitHeight: attention ? 36 : 28; font.pixelSize: 11; onClicked: root.go("chatgpt") }
@@ -2458,7 +2464,7 @@ ApplicationWindow {
                         BusyIndicator { visible: root.taskRunning; running: root.taskRunning; Layout.preferredWidth: 23; Layout.preferredHeight: 23 }
                         TaskStatusLink { id: statusMessage; objectName: "applicationStatusMessage"; returnable: root.taskElsewhere || !root.taskRunning && (root.batchPending || root.batchResultsAvailable); returnLabel: root.batchResultsAvailable ? "Xem kết quả vừa hoàn tất" : root.batchState.running || root.batchPending ? "Mở hàng đợi" : "Quay lại tác vụ đang chạy"; Layout.maximumWidth: Math.max(120, parent.width - 200); text: root.batchState.running ? "Đang xử lý hàng đợi · " + ((root.batchState.counts || {}).done || 0) + "/" + root.batchState.total + " bài hoàn tất" : !root.taskRunning && root.batchPending ? "Hàng đợi còn bài chưa xong · Bấm để tiếp tục" : !root.taskRunning && root.batchResultsAvailable ? "Lượt xử lý đã hoàn tất · Bấm để xem kết quả" : !root.taskRunning ? root.idleActivity : bridge.narrationBusy ? "Đang tạo giọng đọc · " + (bridge.lessonNarration.percent || 0) + "%" : bridge.browserState.running ? (bridge.browserState.displayMessage || "Đang chuyển đổi bài giảng…") : bridge.inputDocuments.busy ? "Đang đọc PowerPoint…" : bridge.busy ? bridge.message || "Đang thực hiện tác vụ…" : bridge.updateState.message || "Đang tải bản mới…"; onReturnRequested: root.returnToTask() }
                         Item { Layout.fillWidth: true }
-                        MainAction { objectName: "applicationCancel"; visible: bridge.busy && bridge.jobCancellable && !conversionCancel.visible; text: "Dừng tác vụ"; implicitHeight: 30; onClicked: bridge.cancelJob() }
+                        MainAction { objectName: "applicationCancel"; visible: bridge.busy && bridge.jobCancellable && !conversionCancel.visible && !(root.batchState.running && (root.creationBatch && root.page === "new" || root.voiceBatch && root.page === "voice")); text: "Dừng tác vụ"; implicitHeight: 30; onClicked: { if (root.batchState.running) bridge.batchQueue.stop(); else bridge.cancelJob() } }
                         MainAction { objectName: "applicationCancelNarration"; visible: bridge.narrationBusy && root.page !== "voice"; text: "Dừng tạo giọng"; implicitHeight: 30; enabled: !bridge.lessonNarration.stopping; onClicked: bridge.cancelLessonNarration() }
                     }
                 }

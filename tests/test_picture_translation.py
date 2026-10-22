@@ -53,6 +53,21 @@ def test_template_ocr_can_include_animated_content_without_exposing_it_in_preser
     assert path.read_bytes() == before
 
 
+def test_oversized_image_metadata_skips_ocr_without_disabling_pixel_guard_or_changing_source(tmp_path, monkeypatch):
+    path = source(tmp_path)
+    before, limit = path.read_bytes(), Image.MAX_IMAGE_PIXELS
+
+    def rejected_image(*args, **kwargs):
+        raise Image.DecompressionBombError('Untrusted image header declares billions of pixels')
+
+    monkeypatch.setattr('app.picture_ocr.Image.open', rejected_image)
+    result = extract_pictures(path, tmp_path/'guarded', Event(), recognizer=recognizer)
+    assert not result['rows'] and result['images'] == 0
+    assert result['warnings'] and 'giữ hình gốc' in result['warnings'][0]
+    assert result['text_pages'] == [1], 'Skipped OCR must remain explicitly unverified'
+    assert path.read_bytes() == before and Image.MAX_IMAGE_PIXELS == limit
+
+
 def test_known_whole_picture_entrance_keeps_translation_on_the_same_click(tmp_path):
     from lxml import etree
 

@@ -215,11 +215,11 @@ def test_unknown_network_result_not_refunded_or_moved_to_another_key(tmp_path):
     assert keys == [KEY1]
 
 
-def test_missing_number_token_is_rejected_and_not_cached(tmp_path):
+def test_missing_number_token_without_fragment_repair_is_rejected_and_not_cached(tmp_path):
     KeyStore(tmp_path).add(KEY1)
     translator = Translator(tmp_path, transport=lambda *args: ['Velocity'])
     with pytest.raises(TranslationProblem, match='số liệu'):
-        translator.translate(['Vận tốc 12'], Event())
+        translator.translate(['Vận tốc 12'], Event(), fragment_repair=False)
     with closing(translator.store.connect()) as db:
         assert db.execute('SELECT COUNT(*) FROM cache').fetchone()[0] == 0
 
@@ -242,7 +242,7 @@ def test_numeric_repair_retries_only_failed_chunks_and_keeps_exact_values(tmp_pa
     assert len(calls)==2, 'Good values and repaired values must both resume from cache'
 
 
-def test_invalid_numeric_repair_stops_after_one_attempt_and_never_caches(tmp_path):
+def test_invalid_numeric_repair_stops_after_bounded_fragment_attempt_and_never_caches(tmp_path):
     KeyStore(tmp_path).add(KEY1)
     calls=[]
     def transport(rows,*_):
@@ -251,7 +251,7 @@ def test_invalid_numeric_repair_stops_after_one_attempt_and_never_caches(tmp_pat
     translator=Translator(tmp_path,transport=transport)
     with pytest.raises(TranslationProblem,match='số liệu'):
         translator.translate(['Giá trị 12'],Event())
-    assert len(calls)==2
+    assert len(calls)==4, 'Whole text and prose-only repair each have at most two attempts'
     with closing(translator.store.connect()) as db:
         assert db.execute('select count(*) from cache').fetchone()[0]==0
 
@@ -267,6 +267,55 @@ def test_cancel_before_numeric_repair_never_sends_the_retry(tmp_path):
     with pytest.raises(InterruptedError):
         Translator(tmp_path,transport=transport).translate(['Giá trị 12'],cancel)
     assert len(calls)==1
+
+
+@pytest.mark.parametrize('text', [
+    'Sử dụng máy tính cầm tay, tìm số đo độ và radian của góc ⟦BLC0⟧ ,biết ⟦BLC1⟧',
+    'Nếu ⟦BLC0⟧, tỉ số ⟦BLC1⟧ được gọi là tang của ⟦BLC2⟧,',
+    'Độ dài 12 m và tọa độ (1,2; -3).',
+])
+def test_missing_html_locks_repaired_by_sending_prose_only_and_restoring_exact_tokens(tmp_path, text):
+    import re
+    from collections import Counter
+
+    from app.translation_batches import NUMBERS
+
+    store = KeyStore(tmp_path)
+    store.add(KEY1)
+    calls = []
+
+    def transport(rows, *_):
+        calls.append(rows)
+        if any('<span' in row for row in rows):
+            return [re.sub(r'BCLLOCK\d+END', 'lost', row) for row in rows]
+        assert all('⟦BLC' not in row and not NUMBERS.findall(row) for row in rows)
+        return [row.replace('Sử dụng máy tính cầm tay', 'Use a calculator')
+                .replace('Nếu', 'If').replace('Độ dài', 'Length') for row in rows]
+
+    translator = Translator(tmp_path, transport=transport)
+    value = translator.translate([text], Event())[0]
+    assert value != text and Counter(NUMBERS.findall(value)) == Counter(NUMBERS.findall(text))
+    assert re.findall(r'⟦BLC\d+⟧', value) == re.findall(r'⟦BLC\d+⟧', text)
+    assert len(calls) == 3 and all('<span' not in row for row in calls[-1])
+    assert translator.translate([text], Event()) == [value] and len(calls) == 3
+    assert store.public()[0]['used'] == sum(len(row) for batch in calls for row in batch)
+
+
+def test_cancel_after_opaque_retry_prevents_fragment_requests(tmp_path):
+    import re
+
+    KeyStore(tmp_path).add(KEY1)
+    cancel, calls = Event(), []
+
+    def transport(rows, *_):
+        calls.append(rows)
+        if len(calls) == 2:
+            cancel.set()
+        return [re.sub(r'BCLLOCK\d+END', 'lost', row) for row in rows]
+
+    with pytest.raises(InterruptedError):
+        Translator(tmp_path, transport=transport).translate(['Nếu ⟦BLC0⟧ thì ⟦BLC1⟧'], cancel)
+    assert len(calls) == 2
 
 
 def test_circled_number_labels_from_geometry_deck_never_reach_google(tmp_path):

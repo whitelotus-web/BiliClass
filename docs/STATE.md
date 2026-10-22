@@ -1,5 +1,14 @@
 # Trạng thái BiliClass
 
+Ngày 23/10/2026 — nguồn RC159 sửa lỗi ngắt nhận diện khi ảnh khai báo
+kích thước bất thường, giữ nguyên giới hạn đọc ảnh và báo phần OCR chưa
+xác minh. Dịch công thức có bước cuối tách phần chữ rồi ghép khóa tại
+máy, vẫn kiểm tra số/công thức và hạn mức. Tự lưu giọng cập nhật đúng
+file kết quả đã quản lý; bảo vệ bản gốc, bản sửa ngoài và file đang mở.
+Nút Dừng hàng đợi cùng vị trí thanh dưới ở hai công cụ. Kiểm tra thêm
+34 PowerPoint Downloads và ảnh mẫu kết quả, chưa đóng gói.
+[Kiểm chứng RC159](REVIEW_RC159.md).
+
 Ngày 23/10/2026 — nguồn RC158 căn giữa cụm chuyển slide trong khung
 xem trước, độc lập với một/hai nút nghe. Cửa sổ hẹp xuống hàng nút nghe.
 Sao lưu gộp các tệp trùng nội dung trong gói, khôi phục đủ đường dẫn

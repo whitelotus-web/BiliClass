@@ -52,11 +52,6 @@ Rectangle {
                 objectName: "batchShow_" + panel.kind; text: "Xem danh sách"; visible: !panel.queueState.shown
                 implicitHeight: 32; onClicked: panel.controller.show()
             }
-            ActionButton {
-                objectName: "batchStop_" + panel.kind; text: panel.queueState.stopping ? "Đang dừng…" : "Dừng"
-                symbol: "■"; danger: true; visible: !!panel.queueState.running
-                enabled: !panel.queueState.stopping; onClicked: panel.controller.stop()
-            }
         }
         Label {
             objectName: "batchCompletionNotice_" + panel.kind

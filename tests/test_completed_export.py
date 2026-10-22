@@ -6,7 +6,7 @@ import pytest
 from test_presentation_audio import fixture
 
 from app.chatgpt_handoff import external_preview
-from app.completed_export import save_finished
+from app.completed_export import save_converted, save_finished
 from app.export_origin import bind_lesson, remember_source
 from app.lesson_files import save_presentation
 
@@ -27,7 +27,7 @@ def test_finished_voice_automatically_creates_standalone_pptx_next_to_source_wit
         result = save_finished(library.directory, lesson, preview)
         target = Path(result['path'])
         assert target.parent == source.parent and target != source
-        assert 'Voice VI-EN' in target.name and not result['fallback']
+        assert 'Song ngữ VI-EN' in target.name and 'Voice' not in target.name and not result['fallback']
         with ZipFile(target) as archive:
             assert sum(name.endswith('.wav') for name in archive.namelist()) == 2
         assert source.read_bytes() == source_bytes and library.get(lesson['id']) == lesson
@@ -57,10 +57,9 @@ def test_old_pause_policy_is_reexported_without_regenerating_or_overwriting_audi
         with monkeypatch.context() as patch:
             patch.setattr('app.completed_export.PARAGRAPH_GAP_MS', 450)
             old = save_finished(library.directory, lesson, preview)
-        previous = Path(old['path']).read_bytes()
         fresh = save_finished(library.directory, lesson, preview)
-        assert fresh['path'] != old['path'] and not fresh['reused']
-        assert fresh['join_gap_ms'] == 1100 and Path(old['path']).read_bytes() == previous
+        assert fresh['path'] == old['path'] and not fresh['reused'] and fresh['updated']
+        assert fresh['join_gap_ms'] == 1100 and Path(old['path']).is_file()
         assert wavs == {p.name: p.read_bytes() for p in (library.directory/'audio').glob('*.wav')}
         assert save_finished(library.directory, lesson, preview)['reused']
     finally:
@@ -76,7 +75,7 @@ def test_new_audio_with_same_text_keys_invalidates_autosave_reuse(tmp_path):
         data[-2:] = b'\1\0'
         wav.write_bytes(data)
         second = save_finished(library.directory, lesson, preview)
-        assert not second['reused'] and first['path'] != second['path']
+        assert not second['reused'] and first['path'] == second['path'] and second['updated']
         assert first['audio_sha256'] != second['audio_sha256']
     finally:
         library.close()
@@ -129,5 +128,107 @@ def test_exclusive_publish_cannot_replace_a_file_created_after_name_selection(tm
             save_presentation(lesson, preview, library.directory, target, overwrite=False)
         assert target.read_bytes() == b'existing teacher file'
         assert not list(tmp_path.glob('.biliclass-*.pptx'))
+    finally:
+        library.close()
+
+
+def test_conversion_then_voice_updates_one_owned_product_beside_unchanged_original(tmp_path):
+    library, lesson, source, preview = prepared(tmp_path)
+    original = source.read_bytes()
+    try:
+        converted = save_converted(library.directory, lesson, preview)
+        target = Path(converted['path'])
+        with ZipFile(target) as archive:
+            assert not any(name.endswith('.wav') for name in archive.namelist())
+        voiced = save_finished(library.directory, lesson, preview)
+        assert voiced['path'] == converted['path'] and voiced['updated']
+        assert len(list(source.parent.glob('*.pptx'))) == 2
+        with ZipFile(target) as archive:
+            assert sum(name.endswith('.wav') for name in archive.namelist()) == 2
+        assert source.read_bytes() == original
+        assert save_finished(library.directory, lesson, preview)['reused']
+        retried_conversion = save_converted(library.directory, lesson, preview)
+        assert retried_conversion['path'] == voiced['path'] and retried_conversion['kept_voiced_product']
+        assert len(list(source.parent.glob('*.pptx'))) == 2
+    finally:
+        library.close()
+
+
+@pytest.mark.parametrize('changed', ['edited', 'open'])
+def test_converted_product_edited_or_open_in_powerpoint_gets_a_separate_voice_file(tmp_path, changed):
+    library, lesson, source, preview = prepared(tmp_path)
+    original = source.read_bytes()
+    try:
+        target = Path(save_converted(library.directory, lesson, preview)['path'])
+        if changed == 'edited':
+            target.write_bytes(b'teacher edit')
+        else:
+            target.with_name('~$' + target.name).write_bytes(b'Office owner file')
+        before = target.read_bytes()
+        voice = save_finished(library.directory, lesson, preview)
+        assert Path(voice['path']) != target and not voice['updated'] and voice['previous_kept']
+        assert target.read_bytes() == before and source.read_bytes() == original
+    finally:
+        library.close()
+
+
+def test_teacher_edit_during_embedding_is_detected_before_replacing_the_product(tmp_path, monkeypatch):
+    from app import presentation_audio
+
+    library, lesson, _, preview = prepared(tmp_path)
+    target = Path(save_converted(library.directory, lesson, preview)['path'])
+    embed, changed = presentation_audio.embed_audio, False
+
+    def edit_while_embedding(*args, **kwargs):
+        nonlocal changed
+        if not changed:
+            target.write_bytes(b'edited while tool was generating voice')
+            changed = True
+        return embed(*args, **kwargs)
+
+    monkeypatch.setattr(presentation_audio, 'embed_audio', edit_while_embedding)
+    try:
+        result = save_finished(library.directory, lesson, preview)
+        assert result['path'] != str(target) and result['previous_kept']
+        assert target.read_bytes() == b'edited while tool was generating voice'
+        assert not list(target.parent.glob('.biliclass-*.pptx'))
+    finally:
+        library.close()
+
+
+def test_failed_voice_embedding_keeps_converted_product_and_its_saved_shortcut(tmp_path, monkeypatch):
+    library, lesson, _, preview = prepared(tmp_path)
+    converted = save_converted(library.directory, lesson, preview)
+    target = Path(converted['path'])
+    before = target.read_bytes()
+
+    def failed(*args, **kwargs):
+        raise ValueError('Fixture embedding failed')
+
+    monkeypatch.setattr('app.presentation_audio.embed_audio', failed)
+    try:
+        with pytest.raises(ValueError, match='embedding'):
+            save_finished(library.directory, lesson, preview)
+        assert target.read_bytes() == before
+        assert save_converted(library.directory, lesson, preview)['path'] == converted['path']
+        assert not list(target.parent.glob('.biliclass-*.pptx'))
+    finally:
+        library.close()
+
+
+def test_importing_owned_converted_file_for_voice_keeps_original_origin_including_batch(tmp_path):
+    from app.batch_jobs import bind_origin
+    from app.export_origin import destination
+    from app.voice_import import import_presentation
+
+    library, lesson, source, preview = prepared(tmp_path)
+    try:
+        converted = save_converted(library.directory, lesson, preview)
+        product = Path(converted['path'])
+        reopened, _ = import_presentation(library.directory, product)
+        assert reopened['id'] == lesson['id']
+        assert destination(library, reopened, tmp_path) == (source.parent, source.stem)
+        bind_origin(library.directory, {'url': product.as_uri()}, reopened)
+        assert destination(library, reopened, tmp_path) == (source.parent, source.stem)
     finally:
         library.close()

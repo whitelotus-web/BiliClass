@@ -51,7 +51,20 @@ def _save_product(directory, selected, preview, *, with_voice):
         origin = {'origin_folder': str(folder.resolve()), 'origin_name': title}
         origin_key = hashlib.sha256(json.dumps(origin, sort_keys=True).encode()).hexdigest()
         key = 'completed_export:' + lesson['id'] + ':' + identity + ':' + origin_key
+        current_key = 'completed_export:' + lesson['id'] + ':current:' + origin_key
         previous = library.setting(key, {})
+        current = library.setting(current_key, {})
+        if (not with_voice and isinstance(current, dict) and isinstance(current.get('record_id'), str)
+                and current['record_id'] != 'no_voice'
+                and current.get('source_sha256') == preview.get('sha256')
+                and current.get('revision') == lesson['revision']
+                and all(current.get(name) == value for name, value in origin.items())):
+            try:
+                path = Path(current['path'])
+                if path.is_file() and digest(path) == current.get('sha256'):
+                    return {**current, 'phase': 'saved', 'reused': True, 'kept_voiced_product': True}
+            except (KeyError, TypeError, OSError):
+                pass
         if (isinstance(previous, dict) and previous.get('source_sha256') == preview.get('sha256')
                 and previous.get('revision') == lesson['revision'] and previous.get('audio_sha256') == audio_sha256
                 and previous.get('join_gap_ms') == (PARAGRAPH_GAP_MS if with_voice else 0)
@@ -59,16 +72,53 @@ def _save_product(directory, selected, preview, *, with_voice):
             try:
                 path = Path(previous['path'])
                 if path.is_file() and digest(path) == previous.get('sha256'):
+                    try:
+                        library.set_setting(current_key, previous)
+                    except (OSError, sqlite3.Error):
+                        pass
                     return {**previous, 'phase': 'saved', 'reused': True}
             except (KeyError, TypeError, OSError):
                 pass
-        suffix = presentation_suffix(lesson, with_voice)
+        # One automatic product evolves from converted to voiced. Manual Save As
+        # keeps its descriptive voice suffix and remains a separate user action.
+        suffix = presentation_suffix(lesson, False)
+        owned, kept = None, False
+        if with_voice:
+            candidates = [current, previous,
+                          library.setting('completed_export:' + lesson['id'] + ':no_voice:' + origin_key, {})]
+            for saved in candidates:
+                if (not isinstance(saved, dict) or saved.get('lesson_id') != lesson['id']
+                        or not all(saved.get(name) == value for name, value in origin.items())):
+                    continue
+                try:
+                    path = Path(saved['path']).resolve()
+                    if (path.suffix.lower() != '.pptx' or path.parent not in {folder.resolve(), fallback.resolve()}
+                            or path == (folder / (title + '.pptx')).resolve()
+                            or path == Path(preview['path']).resolve()):
+                        continue
+                    if path.is_file() and digest(path) == saved.get('sha256'):
+                        owned = path, saved['sha256']
+                        break
+                    kept = kept or path.is_file()
+                except (KeyError, TypeError, OSError):
+                    continue
         failure = None
         for chosen in dict.fromkeys((folder, fallback)):
             try:
                 if chosen == fallback:
                     fallback.mkdir(exist_ok=True)
+                updated, report = False, {}
+                if owned and owned[0].parent == chosen.resolve():
+                    path = owned[0]
+                    try:
+                        save_presentation(lesson, preview, directory, path, with_voice=with_voice, report=report,
+                                          expected_sha256=owned[1], managed_output=chosen == fallback)
+                        updated = True
+                    except (FileExistsError, PermissionError):
+                        kept = True  # A teacher edit or an open presentation gets a separate new output.
                 for _ in range(20):
+                    if updated:
+                        break
                     path = suggestion(chosen, title, suffix, 'pptx')
                     try:
                         report = {}
@@ -81,10 +131,12 @@ def _save_product(directory, selected, preview, *, with_voice):
                     raise OSError('Chưa chọn được tên tệp mới để tự lưu.')
                 value = {**origin, 'lesson_id': lesson['id'], 'record_id': identity, 'revision': lesson['revision'],
                          'source_sha256': preview['sha256'], 'path': str(path), 'sha256': digest(path),
-                         'audio_sha256': audio_sha256, 'fallback': chosen == fallback, 'coverage': report}
+                         'audio_sha256': audio_sha256, 'fallback': chosen == fallback, 'coverage': report,
+                         'updated': updated, 'previous_kept': kept}
                 value['join_gap_ms'] = PARAGRAPH_GAP_MS if with_voice else 0
                 try:
                     library.set_setting(key, value)
+                    library.set_setting(current_key, value)
                 except (OSError, sqlite3.Error):
                     pass  # The finished file is valid even if saving the shortcut fails.
                 return {**value, 'phase': 'saved', 'reused': False}

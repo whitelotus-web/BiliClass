@@ -26,6 +26,8 @@ MATH_HEADINGS = {
     'các ví dụ minh họa': 'Illustrative examples',
     'bài tập': 'Exercises',
     'sản phẩm': 'Expected result',
+    'giải phương trình': 'Solve the equation',
+    'giải hệ phương trình': 'Solve the system of equations',
 }
 _NUMBERED = re.compile(r'^(phiếu học tập số|hoạt động|luyện tập|nhiệm vụ|vận dụng|ví dụ|hđ|bài|bai|chương|chuong|câu|cau|mục|muc)\s*(\d+(?:\.\d+)*|[IVXLCDM]+|⟦BLC\d+⟧)(?!\w)', re.I)
 _LABELS = {'bài':'Lesson', 'bai':'Lesson', 'chương':'Chapter', 'chuong':'Chapter',

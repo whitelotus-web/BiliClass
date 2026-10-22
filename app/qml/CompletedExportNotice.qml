@@ -14,7 +14,7 @@ RowLayout {
         font.pixelSize: 12; wrapMode: Text.WrapAnywhere
         color: notice.exportState.phase === "error" ? AppTheme.danger : AppTheme.muted
         text: notice.exportState.phase === "saving" ? "Đang tự lưu PowerPoint có giọng…"
-              : notice.exportState.path ? "Đã tự lưu PowerPoint" + (notice.exportState.fallback ? " trong thư mục BiliClass" : " cạnh file gốc") + ": " + notice.exportState.path
+              : notice.exportState.path ? (notice.exportState.updated ? "Đã cập nhật PowerPoint có giọng" : "Đã tự lưu PowerPoint") + (notice.exportState.fallback ? " trong thư mục BiliClass" : " cạnh file gốc") + ": " + notice.exportState.path + (notice.exportState.previous_kept ? " · Giữ file đã mở hoặc chỉnh sửa; bản mới được lưu riêng." : "")
               : notice.exportState.message || ""
     }
     ActionButton {

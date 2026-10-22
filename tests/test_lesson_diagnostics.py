@@ -102,7 +102,7 @@ def test_failed_native_translation_identifies_slide_and_keeps_original(tmp_path)
     job = prepare(tmp_path/'data', config, source)
     with pytest.raises(TranslationProblem, match='Slide nguồn 2'):
         convert(tmp_path/'data', job, Event(), ConversionProgress(job['folder'], lambda _: None), translator=translator)
-    assert len(calls) == 2, 'One bounded repair; never loop over the entire lesson'
+    assert len(calls) == 4, 'One opaque retry, then bounded prose-only attempts for the failed chunk'
     context = json.loads((Path(job['folder'])/'conversion-issue.json').read_text(encoding='utf-8'))
     assert context['source_slides'] == [2] and context['excerpt'] == 'Một đường thẳng có 2 điểm.'
     shown = display_state({'running': False, 'phase': 'error', 'errorCode': 'api_result', 'issueContext': context})

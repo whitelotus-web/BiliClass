@@ -8,6 +8,10 @@ NUMBER = r'(?:⟦BLC\d+⟧|\d+)'
 def exact(text):
     source = ' '.join(text.split())
     token = r'⟦BLC\d+⟧'
+    match = re.fullmatch(r'Giải (phương trình|hệ phương trình)\s*:?\s*(' + token + r')([.]?)', source, re.I)
+    if match:
+        command = 'Solve the equation' if match[1].casefold() == 'phương trình' else 'Solve the system of equations'
+        return command + ' ' + match[2] + match[3]
     match = re.fullmatch(r'Phải quay kim phút mấy phần của một vòng tròn theo '
         r'(chiều quay ngược chiều kim đồng hồ|chiều quay của kim đồng hồ) để nó chỉ đúng số (' + NUMBER + r')\?', source, re.I)
     if match:
@@ -27,6 +31,8 @@ def exact(text):
     if match:
         return (match[1] or '') + f'Through {match[2]} distinct, noncollinear points.'
     clauses = {
+        'sin thì sin cos cos sin': 'Sine: sine–cosine, cosine–sine',
+        'cos thì cos cos sin sin nhớ trừ': 'Cosine: cosine–cosine, sine–sine; remember to subtract',
         'các mặt đều là hình tam giác': 'All the faces are triangles',
         'đường nằm trong mặt (vô số điểm chung)': 'The line lies in the plane (infinitely many common points)',
         'đường cắt mặt tại một điểm (một điểm chung)': 'The line intersects the plane at one point (one common point)',

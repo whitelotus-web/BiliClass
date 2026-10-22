@@ -119,6 +119,17 @@ def main():
                 for width, height in ((1080, 700), (1366, 850)):
                     window.resize(width, height)
                     pump(70)
+                    if bridge.batchQueue.running and window.property('page') in ('new', 'voice'):
+                        kind = bridge.batchQueue.state['kind']
+                        stop = c('batchStop_' + kind)
+                        primary = c('createLessonButton' if kind == 'convert' else 'createLessonNarrationButton')
+                        footer = c('creationFooter')
+                        assert stop.isVisible() and stop.isEnabled()
+                        assert abs(stop.mapToScene(QPointF(0, stop.height()/2)).y()
+                                   - primary.mapToScene(QPointF(0, primary.height()/2)).y()) < 2
+                        assert stop.mapToItem(footer, QPointF()).y() >= 0
+                        assert stop.mapToItem(footer, QPointF(0, stop.height())).y() <= footer.height()
+                        assert not c('applicationCancel').isVisible(), 'One Stop action on the active tool'
                     assert window.grabWindow().save(str(report/f'{label}-{theme}-{width}.png'))
 
         try:
@@ -400,6 +411,8 @@ def main():
                 last_name = c('batchName_'+bridge.batchQueue.data['rows'][-1]['id'])
                 assert view.property('contentY') > 0
                 assert 0 <= last_name.mapToItem(view, QPointF()).y() < view.height()
+                window.setProperty('page', 'home')
+                pump(60)
                 click(window, c('applicationCancel'))
                 until(lambda: not bridge.busy)
             assert bridge.batchQueue.state['counts']['done'] == 24

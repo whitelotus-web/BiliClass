@@ -128,6 +128,7 @@ def extract_pictures(source, directory, cancel, progress=None, *, recognizer=Non
     occurrences = []
     pictures = {}
     warnings = []
+    unread_pages = set()
     folder = Path(directory) / "temp/picture-ocr"
     folder.mkdir(parents=True, exist_ok=True)
     for number, slide in enumerate(deck.slides, 1):
@@ -169,6 +170,8 @@ def extract_pictures(source, directory, cancel, progress=None, *, recognizer=Non
                 try:
                     with Image.open(io.BytesIO(blob)) as image:
                         if image.width * image.height > 30_000_000:
+                            unread_pages.add(number)
+                            warnings.append(f'Slide {number}: ảnh quá lớn để OCR; giữ hình gốc để đối chiếu.')
                             continue
                         path = folder / (digest + ".png")
                         if not path.is_file():
@@ -178,7 +181,12 @@ def extract_pictures(source, directory, cancel, progress=None, *, recognizer=Non
                                 visible.save(path, "PNG")
                             finally:
                                 visible.close()
+                except Image.DecompressionBombError:
+                    unread_pages.add(number)
+                    warnings.append(f'Slide {number}: ảnh có kích thước khai báo quá lớn để OCR; giữ hình gốc để đối chiếu.')
+                    continue
                 except (OSError, ValueError):
+                    unread_pages.add(number)
                     warnings.append(f"Slide {number}: định dạng ảnh chưa hỗ trợ OCR.")
                     continue
                 pictures[digest] = path
@@ -192,7 +200,7 @@ def extract_pictures(source, directory, cancel, progress=None, *, recognizer=Non
                 }
             )
     if not occurrences:
-        return {"rows": [], "warnings": warnings, "images": 0, "text_pages": []}
+        return {"rows": [], "warnings": warnings, "images": 0, "text_pages": sorted(unread_pages)}
     if recognizer is None and not model_paths():
         return {
             "rows": [],
@@ -268,7 +276,7 @@ def extract_pictures(source, directory, cancel, progress=None, *, recognizer=Non
                     "image": str(pictures[occurrence["key"]]),
                 }
             )
-    text_pages = sorted({occurrence['slide'] for occurrence in occurrences
+    text_pages = sorted(unread_pages | {occurrence['slide'] for occurrence in occurrences
                          if any(sum(c.isalpha() for c in line['text']) >= 4
                                 for line in cached[occurrence['key']])})
     return {"rows": rows, "images": len(pictures), "warnings": list(dict.fromkeys(warnings)),

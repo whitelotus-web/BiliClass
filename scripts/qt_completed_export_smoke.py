@@ -14,6 +14,7 @@ from PySide6.QtQuickControls2 import QQuickStyle
 from test_teaching_session import prepared_lesson
 
 from app.branding import configure_application
+from app.completed_export import save_converted
 from app.library import Library
 from app.paths import RESOURCE_ROOT
 from app.ui import Bridge
@@ -34,6 +35,9 @@ def main():
         original = source.read_bytes()
         wavs = {p.name: p.read_bytes() for p in (directory / "audio").glob("*.wav")}
         library = Library(directory)
+        converted = save_converted(directory, lesson, preview)
+        converted_path = Path(converted['path'])
+        files_before_voice = set(source.parent.glob('*.pptx'))
         library.set_setting("voice_options", {"voice": lesson["narration"]["voice"], "rate": 0})
         bridge = Bridge(library)
         bridge.previewConvertedSlide = lambda *_: None  # Preview rendering is independently covered.
@@ -68,6 +72,8 @@ def main():
                 until(lambda: not bridge.busy and bridge.completedExport.get("phase") == "saved", timeout=30)
             target = Path(bridge.completedExport["path"])
             assert target.parent == source.parent and target != source and target.is_file()
+            assert target == converted_path and bridge.completedExport['updated']
+            assert set(source.parent.glob('*.pptx')) == files_before_voice
             with ZipFile(target) as archive:
                 # Equal silent fixture WAVs share a single embedded media part.
                 assert any(p.endswith(".wav") for p in archive.namelist())
@@ -88,6 +94,7 @@ def main():
                     ]
                     assert labels and str(target) in labels[0].property("text")
                     assert "cạnh file gốc" in labels[0].property("text")
+                    assert 'Đã cập nhật PowerPoint có giọng' in labels[0].property('text')
                     assert window.grabWindow().save(str(report / f"auto-saved-{theme}-{width}.png"))
             opened = []
             with patch(
@@ -126,6 +133,7 @@ def main():
                         manual_save_dialog_unchanged=True,
                         repeated_notification_does_not_duplicate=True,
                         source_wavs_preserved=True,
+                        conversion_to_voice_updates_the_same_owned_product=True,
                         qml_warnings=[],
                     )
                 ),

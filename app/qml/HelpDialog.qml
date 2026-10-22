@@ -46,13 +46,13 @@ Dialog {
             {title:"Chọn một hoặc nhiều bài", body:"Bấm Chọn file PowerPoint hoặc kéo bài từ thư mục vào khung tải lên. Muốn chọn nhiều bài: giữ phím Ctrl rồi bấm từng bài, sau đó bấm Mở. Mỗi bài tối đa 200 MB; mỗi lượt tối đa 100 bài."},
             {title:"Xem lại bài vừa chọn", body:"Ảnh slide nằm bên phải; bấm mũi tên dưới ảnh để xem slide khác. Với nhiều bài, bấm tên bài bên trái để đổi ảnh xem trước. Nút × nhỏ bỏ riêng bài đó; Chọn bài khác để chọn lại."},
             {title:"Chọn kiểu và thiết kế", body:"Chọn Song ngữ Việt–Anh hoặc Tiếng Anh 100%. Giữ thiết kế gốc hoặc chọn mẫu BiliClass; có thể Xem mẫu trước."},
-            {title:"Chuyển đổi và lưu kết quả", body:"Chọn nhiều file: cấu hình dùng chung, tên bài lấy theo từng file; tool xử lý lần lượt và tự lưu bản mới cạnh file gốc. Dừng → Tiếp tục giữ phần đã làm. Thử lại bài lỗi chỉ chạy các bài chưa thành công; Xem bài mở đúng kết quả. Khi tất cả bài hoàn tất, màn hình giữ danh sách kết quả; bấm Về Thư viện hoặc Chuyển đổi bài khác khi sẵn sàng."}
+            {title:"Chuyển đổi và lưu kết quả", body:"Chọn nhiều file: cấu hình dùng chung, tên bài lấy theo từng file; tool xử lý lần lượt và tự lưu kết quả cạnh file gốc. Nút Dừng ở thanh dưới, cạnh Đang xử lý. Dừng → Tiếp tục giữ phần đã làm. Thử lại bài lỗi chỉ chạy các bài chưa thành công; Xem bài mở đúng kết quả. Khi tất cả bài hoàn tất, màn hình giữ danh sách kết quả; bấm Về Thư viện hoặc Chuyển đổi bài khác khi sẵn sàng."}
         ],
         [
             {title:"Chọn bài cần tạo giọng", body:"Có thể chọn bài từ thư viện hoặc bấm Chọn file PowerPoint để lấy bài trên máy. Bài đã có sẵn hai ngôn ngữ thì dùng ngay công cụ này, không cần chuyển đổi lại."},
             {title:"Xem bài và chọn nhiều bài", body:"Ảnh slide và nút chuyển slide ở bên phải. Nếu chọn nhiều bài, bấm từng tên bên trái để xem. Trong thư viện, cũng có thể tích nhiều bài rồi bấm Tạo giọng đã chọn."},
             {title:"Chọn giọng và ngôn ngữ", body:"Chọn cặp Việt–Mỹ, tốc độ và Nghe thử. Chọn Tiếng Việt, Tiếng Anh hoặc cả hai; mỗi ngôn ngữ được đọc bằng giọng tương ứng."},
-            {title:"Tạo giọng và dùng để dạy", body:"Bấm Tạo giọng đọc. Mỗi bài hoàn tất tự lưu PowerPoint có giọng cạnh file gốc. Dừng/Tiếp tục giữ các đoạn đã có; chọn Thử lại bài lỗi khi cần. Nếu thư mục gốc không ghi được, tool lưu vào thư mục BiliClass và có nút Mở thư mục. Khi cả lượt xong, màn hình giữ kết quả từng bài; bấm Về Thư viện hoặc Tạo giọng cho bài khác để tiếp tục."}
+            {title:"Tạo giọng và dùng để dạy", body:"Bấm Tạo giọng đọc. Mỗi bài hoàn tất tự lưu PowerPoint có giọng cạnh file gốc. Nếu bài đã có file kết quả do tool tự lưu, giọng được cập nhật vào chính file đó. File gốc luôn được giữ; file kết quả đang mở hoặc đã sửa được giữ riêng. Nút Dừng ở thanh dưới; Tiếp tục giữ các đoạn đã có. Nếu thư mục gốc không ghi được, tool lưu vào thư mục BiliClass và có nút Mở thư mục. Khi cả lượt xong, bấm Về Thư viện hoặc Tạo giọng cho bài khác khi sẵn sàng."}
         ],
         [
             {title:"Mở bài trong PowerPoint", body:"Bấm Mở PowerPoint từ Thư viện hoặc chọn bài trên Mascot. Bấm F5 khi sẵn sàng trình chiếu."},

@@ -6,7 +6,14 @@
 
 **[Tải BiliClass cho Windows](https://github.com/whitelotus-web/BiliClass/releases)** · [RC155 đã kiểm chứng](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc155) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md)
 
-Mã nguồn **RC158 đang chờ giáo viên thử**, chưa tạo gói cài mới.
+Mã nguồn **RC159 đang chờ giáo viên thử**, chưa tạo gói cài mới.
+Sửa ngắt OCR do ảnh khai báo quá lớn và bổ sung sửa bản dịch mất dấu
+giữ công thức bằng cách dịch riêng phần chữ. Khi tạo giọng, file kết
+quả tự lưu được cập nhật tại chỗ; giữ file gốc và bản giáo viên đã sửa.
+Nút Dừng của hàng đợi nằm cạnh Đang xử lý trên thanh dưới.
+[Phạm vi RC159](docs/REVIEW_RC159.md).
+
+RC158 căn chỉnh xem trước và sao lưu:
 Cụm chuyển slide ở khung xem trước được căn giữa cả khi có nút nghe;
 cửa sổ hẹp tự xuống hàng để các nút không chồng nhau. Bản sao lưu mới
 chỉ chứa một bản cho mỗi nội dung trùng, khi khôi phục vẫn tạo đủ tệp

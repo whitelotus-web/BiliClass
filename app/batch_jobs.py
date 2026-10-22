@@ -7,6 +7,7 @@ import logging
 import math
 import os
 import re
+import traceback
 from contextlib import closing, contextmanager
 from pathlib import Path
 from time import monotonic
@@ -18,6 +19,13 @@ from .library import Library
 
 MAX_FILES = 100
 GLOBAL_ERRORS = {'storage', 'api_settings', 'api_budget', 'api_key', 'api_rate', 'api_quota', 'api_network'}
+
+
+def _log_failure(context, error):
+    # The root console can be hidden in the desktop app. Keep a useful local
+    # stack without copying exception text that may contain lesson content/key.
+    logging.getLogger('biliclass').error('%s: %s\n%s', context, type(error).__name__,
+                                       ''.join(traceback.format_tb(error.__traceback__)))
 
 
 def selection(kind, urls):
@@ -169,6 +177,10 @@ def bind_origin(directory, row, lesson):
     path = Path(QUrl(row['url']).toLocalFile()).resolve()
     with closing(Library(directory)) as library:
         if not path.is_relative_to(library.directory.resolve()):
+            from .export_origin import is_automatic_product
+
+            if is_automatic_product(library, lesson, path):
+                return
             library.set_setting('export_origin_lesson:' + lesson['id'],
                                 {'folder': str(path.parent), 'name': path.name})
 
@@ -337,9 +349,9 @@ def run(directory, original, cancel, notify, *, process=None, retry=False):
                 except Exception as exc:
                     from .storage_space import FULL_DISK_MESSAGE, full_disk_error
 
-                    logging.exception('Batch lesson failed: %s', row['id'])
+                    _log_failure('Batch lesson ' + row['id'], exc)
                     full = full_disk_error(exc)
-                    code = 'storage' if full else getattr(exc, 'code', '')
+                    code = 'storage' if full else getattr(exc, 'code', 'unexpected')
                     message = FULL_DISK_MESSAGE if full else (str(exc) if isinstance(exc, (OSError, ValueError))
                         else 'Chưa hoàn tất bài này. Bấm Thử lại bài lỗi; phần đã làm được giữ lại.')
                     row.update(status='failed', message=message, error_code=code)
@@ -362,7 +374,7 @@ def run(directory, original, cancel, notify, *, process=None, retry=False):
     except Exception as exc:
         from .storage_space import FULL_DISK_MESSAGE, full_disk_error
 
-        logging.exception('Batch checkpoint failed')
+        _log_failure('Batch checkpoint', exc)
         state.update(phase='paused', message=FULL_DISK_MESSAGE if full_disk_error(exc) else str(exc))
         clock()
         for row in state['rows']:

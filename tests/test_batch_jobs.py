@@ -45,6 +45,19 @@ def test_stop_arriving_after_last_saved_result_does_not_leave_a_stuck_paused_que
     assert batch_jobs.load(tmp_path, state['id'])['phase'] == 'finished'
 
 
+def test_unexpected_failure_has_a_local_stack_without_exception_text_or_secret(tmp_path, caplog):
+    secret = 'private lesson wording and API credential'
+
+    def failed(*args):
+        raise RuntimeError(secret)
+
+    with caplog.at_level('ERROR', logger='biliclass'):
+        result = batch_jobs.run(tmp_path, batch(tmp_path, count=1), Event(), lambda _: None, process=failed)
+    assert result['rows'][0]['status'] == 'failed' and result['rows'][0]['error_code'] == 'unexpected'
+    assert 'RuntimeError' in caplog.text and 'batch_jobs.py' in caplog.text
+    assert secret not in caplog.text and secret not in result['rows'][0]['message']
+
+
 def test_elapsed_clock_keeps_per_file_time_and_excludes_pause_between_runs(tmp_path, monkeypatch):
     now = [100.0]
     monkeypatch.setattr(batch_jobs, 'monotonic', lambda: now[0])

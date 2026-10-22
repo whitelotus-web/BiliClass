@@ -149,7 +149,7 @@ def refresh_native_speech(library, lesson, cancel=None):
 
 def import_presentation(directory, path):
     from .document_limits import check_document_size
-    from .export_origin import bind_lesson, remember_source
+    from .export_origin import bind_lesson, is_automatic_product, remember_source
     from .narration_script import prepare
 
     path = Path(path)
@@ -172,7 +172,8 @@ def import_presentation(directory, path):
                 raise ValueError('PowerPoint đã thay đổi trong lúc đọc. Chọn lại file trước khi tạo giọng.')
             lesson = prepare(library, prepare_script(library, lesson))
             remember_source(library, path, digest)
-            bind_lesson(library, lesson, digest)
+            if not is_automatic_product(library, lesson, path, digest):
+                bind_lesson(library, lesson, digest)
             return lesson, external_preview(lesson, directory)
         inspection = inspect_returned_deck(path, narration_only=True)
         source = library.store_source(path)

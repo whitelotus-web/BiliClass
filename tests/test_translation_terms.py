@@ -126,7 +126,24 @@ def test_valid_items_are_cached_when_another_item_in_same_batch_is_rejected(tmp_
 
     translator = Translator(tmp_path, transport=transport)
     with pytest.raises(TranslationProblem):
-        translator.translate(['Xin chào', 'Sai 12'], Event())
+        translator.translate(['Xin chào', 'Sai 12'], Event(), fragment_repair=False)
     assert translator.translate(['Xin chào'], Event()) == ['Hello']
     assert len(calls) == 2, 'Only the invalid chunk gets one bounded opaque-value repair'
     assert len(calls[1]) == 1 and 'Sai' in calls[1][0]
+
+
+def test_math_instruction_keeps_the_solve_verb_before_cache_or_provider(tmp_path):
+    import hashlib
+    from threading import Event
+
+    from app.google_translation import Translator
+
+    translator = Translator(tmp_path, transport=lambda *_: (_ for _ in ()).throw(AssertionError('Exact instruction needs no API')))
+    translator.configure_terms('Toán', [])
+    text = 'Giải phương trình'
+    stale = hashlib.sha256(('google-nmt-context-v3|vi|en|' + text).encode()).hexdigest()
+    translator.store.cache(stale, 'equation')
+    assert translator.translate([text, 'Giải hệ phương trình', 'Giải phương trình ⟦BLC0⟧.',
+        'Sin thì sin cos cos sin', 'Cos thì cos cos sin sin nhớ trừ.'], Event()) == [
+        'Solve the equation', 'Solve the system of equations', 'Solve the equation ⟦BLC0⟧.',
+        'Sine: sine–cosine, cosine–sine', 'Cosine: cosine–cosine, sine–sine; remember to subtract.']

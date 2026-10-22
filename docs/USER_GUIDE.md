@@ -1,6 +1,6 @@
 # BiliClass — Hướng dẫn sử dụng
 
-Hướng dẫn cập nhật theo mã nguồn RC158 · 23/10/2026
+Hướng dẫn cập nhật theo mã nguồn RC159 · 23/10/2026
 
 BiliClass chuyển bài giảng PowerPoint sang Việt–Anh hoặc tiếng Anh, tạo
 âm thanh Việt–Mỹ và hỗ trợ trình chiếu bằng Mascot. Bài giảng và giọng đọc
@@ -176,6 +176,12 @@ Ngay sau khi xóa, **Hoàn tác xóa** xuất hiện cạnh menu **⋮**
 có icon xóa cạnh **Tạo giọng đọc**.
 
 ## Sao lưu và đổi nơi lưu
+
+File PowerPoint gốc luôn được giữ. Nếu tool đã tự lưu file chuyển đổi,
+khi tạo giọng tool cập nhật vào chính file kết quả đó để tránh sinh
+thêm bản trung gian. Nếu file kết quả đang mở hoặc thầy cô đã sửa,
+tool giữ file đó và tạo bản mới. Muốn giữ riêng cả bản không giọng và
+có giọng, dùng **Tải PowerPoint** để chủ động chọn tên/vị trí khác.
 
 Vào **Cài đặt → Dữ liệu**:
 
