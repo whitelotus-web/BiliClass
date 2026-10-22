@@ -1,5 +1,14 @@
 # Trạng thái BiliClass
 
+Ngày 22/10/2026 — nguồn RC143 bỏ nền trạng thái loa trong thư viện,
+dùng xanh lá cho có giọng và xám gạch chéo khi chưa có; giữ vùng bấm
+và focus. Loa nhúng PowerPoint tăng theo chiều cao canvas, chừa mép,
+dùng cùng hình học cho phát/tạm dừng và đo giao nội dung. Cache bản
+chiếu đổi phiên bản để dùng lại WAV với hình loa mới. Qt sáng/tối
+list/grid và Office media API qua; bản sao bài thật giữ nguồn/115 WAV.
+Sửa lỗi mở tệp mới khi thư viện có bài với source=null. Chi tiết và
+giới hạn ở [BUILD_RC143.md](BUILD_RC143.md).
+
 Ngày 22/10/2026 — nguồn RC142 sửa nhận vai trò Title/nội dung,
 cỡ chữ và ngắt dòng trong ô bảng; xử lý bản dịch nháp đoạn văn dài
 trong ảnh, giữ hình gốc và hiệu ứng xuất hiện cùng click khi xác

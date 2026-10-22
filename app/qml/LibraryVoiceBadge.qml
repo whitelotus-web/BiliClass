@@ -16,18 +16,8 @@ RowLayout {
     }
     readonly property string tone: languages.length ? "ready" : audio.status === "checking" ? "checking" : "none"
     readonly property string languageMode: languages.length === 2 ? "both" : languages[0] || ""
-    readonly property color foreground: languageMode === "vi" ? (AppTheme.dark ? "#c4a7ff" : "#7c3aed")
-        : languageMode === "en" || tone === "checking" ? AppTheme.blue
-        : languageMode === "both" ? AppTheme.success : (AppTheme.dark ? AppTheme.muted : "#526278")
-    readonly property color fill: languageMode === "vi" ? (AppTheme.dark ? "#35284d" : "#f3edff")
-        : languageMode === "en" ? (AppTheme.dark ? "#203b60" : "#e7f0ff")
-        : languageMode === "both" ? (AppTheme.dark ? "#173c32" : "#e7f6ec")
-        : tone === "checking" ? (AppTheme.dark ? "#203b60" : "#e7f0ff")
-        : (AppTheme.dark ? "#263246" : "#edf1f6")
-    readonly property color outline: languageMode === "vi" ? (AppTheme.dark ? "#69508c" : "#d9c5fa")
-        : languageMode === "en" ? (AppTheme.dark ? "#3c5e88" : "#c3d6f3")
-        : languageMode === "both" ? (AppTheme.dark ? "#35634f" : "#b7dfc7")
-        : tone === "checking" ? (AppTheme.dark ? "#3c5e88" : "#c3d6f3") : AppTheme.line
+    readonly property color foreground: languages.length ? AppTheme.success
+        : tone === "checking" ? AppTheme.blue : (AppTheme.dark ? AppTheme.muted : "#526278")
     readonly property string description: languages.length ? "Có giọng " + languages.map(function(v) { return v === "vi" ? "Việt" : "Anh" }).join(" + ")
         : audio.status === "checking" ? "Đang kiểm tra giọng…"
         : "Chưa có giọng"
@@ -38,6 +28,7 @@ RowLayout {
     ThemedImage {
         objectName: "libraryVoiceSpeakerIcon"
         visible: !badge.languages.length
+        tintEnabled: true
         darkTint: badge.foreground
         source: badge.tone === "checking" ? "../assets/actions/refresh.png" : "../assets/actions/speaker-off.svg"
         sourceSize.width: 48; sourceSize.height: 48; fillMode: Image.PreserveAspectFit
@@ -54,7 +45,7 @@ RowLayout {
             // canvas while displaying the language letters already in the art.
             sourceClipRect: modelData === "en" ? Qt.rect(386, 401, 526, 471) : Qt.rect(338, 422, 577, 457)
             tintEnabled: true
-            darkTint: modelData === "en" ? AppTheme.blue : AppTheme.dark ? "#c4a7ff" : "#7c3aed"
+            darkTint: badge.foreground
             fillMode: Image.PreserveAspectFit; smooth: true; mipmap: true
             Layout.preferredWidth: 24; Layout.preferredHeight: 22
             Accessible.ignored: true

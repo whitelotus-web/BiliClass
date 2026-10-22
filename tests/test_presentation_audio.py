@@ -95,6 +95,39 @@ def test_fixed_footer_keeps_all_speakers_on_crowded_pages_and_reports_overlap(tm
         library.close()
 
 
+@pytest.mark.parametrize('bounds', [(720, 540), (960, 540), (1440, 1080), (1920, 1080)])
+def test_speaker_artwork_keeps_screen_proportion_and_inset_on_large_source_canvases(tmp_path, bounds):
+    from app.presentation_audio import embed_audio
+
+    library, lesson, source = fixture(tmp_path)
+    deck = Presentation(source)
+    deck.slide_width, deck.slide_height = (round(value * 12700) for value in bounds)
+    deck.save(source)
+    original = source.read_bytes()
+    try:
+        for position in ('top_left', 'top_center', 'top_right', 'bottom_left', 'bottom_center', 'bottom_right'):
+            lesson['speaker_position'] = position
+            target = tmp_path / (position + '.pptx')
+            embed_audio(source, target, lesson, library.directory)
+            page = Presentation(target).slides[0]
+            controls = [shape for shape in page.shapes if shape.name.startswith('BiliClass control ')]
+            pauses = [shape for shape in page.shapes if shape.name.startswith('BiliClass pause ')]
+            assert len(controls) == len(pauses) == 2
+            for shape, paused in zip(controls, pauses, strict=True):
+                box = (shape.left, shape.top, shape.width, shape.height)
+                assert box == (paused.left, paused.top, paused.width, paused.height)
+                assert shape.width / deck.slide_height == pytest.approx(32 / 540, abs=1e-6)
+                assert shape.height == shape.width
+                assert shape.left / deck.slide_height >= 18 / 540
+                assert shape.top / deck.slide_height >= 18 / 540
+                assert (deck.slide_width - shape.left - shape.width) / deck.slide_height >= 18 / 540
+                assert (deck.slide_height - shape.top - shape.height) / deck.slide_height >= 18 / 540
+            assert controls[0].left + controls[0].width < controls[1].left
+        assert source.read_bytes() == original
+    finally:
+        library.close()
+
+
 @pytest.mark.parametrize("mode,count", [("en", 1), ("vi", 1), ("both", 2)])
 def test_selected_speakers_are_embedded_internal_click_only_and_source_is_unchanged(
     tmp_path, mode, count, monkeypatch
@@ -147,7 +180,7 @@ def test_selected_speakers_are_embedded_internal_click_only_and_source_is_unchan
 
 @pytest.mark.parametrize('selected', ['top_left', 'top_center', 'top_right', 'bottom_left', 'bottom_center', 'bottom_right'])
 def test_export_position_is_identical_across_pages_and_reuses_saved_audio(tmp_path, monkeypatch, selected):
-    from app.speaker_layout import fixed_slots
+    from app.speaker_layout import control_box, fixed_slots
 
     library, lesson, source = fixture(tmp_path, crowded=True)
     try:
@@ -162,7 +195,8 @@ def test_export_position_is_identical_across_pages_and_reuses_saved_audio(tmp_pa
         for slide in deck.slides:
             boxes = {shape.name.split()[-1].lower(): (shape.left / 12700, shape.top / 12700)
                      for shape in slide.shapes if shape.name.startswith('BiliClass control ')}
-            assert boxes == {lang: (slot[0] + 4, slot[1] + 2) for lang, slot in expected.items()}
+            bounds = (deck.slide_width / 12700, deck.slide_height / 12700)
+            assert boxes == {lang: control_box(bounds, slot)[:2] for lang, slot in expected.items()}
             pages.append(boxes)
         assert pages[0] == pages[1]
     finally:

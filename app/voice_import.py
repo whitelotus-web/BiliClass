@@ -162,7 +162,7 @@ def import_presentation(directory, path):
         # Check exact bytes before parsing. Reopening a known presentation keeps
         # its edited scripts and recordings, without inspecting every slide again.
         matches = [lesson for row in library.db.execute('SELECT content FROM lessons')
-                   if (lesson := json.loads(row[0])).get('source', {}).get('sha256') == digest
+                   if ((lesson := json.loads(row[0])).get('source') or {}).get('sha256') == digest
                    and not lesson.get('deleted_at')]
         # Reuse the converted product before any older source-only draft.
         matches.sort(key=lambda lesson: bool(lesson.get('voice_only')))

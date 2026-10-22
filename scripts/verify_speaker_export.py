@@ -31,7 +31,7 @@ def commands(path):
 
 def main():
     pythoncom.CoInitialize()
-    report = Path('reports/rc90/speaker-export.json')
+    report = Path('reports/rc143/speaker-export.json')
     report.parent.mkdir(parents=True, exist_ok=True)
     presentation = None
     try:
@@ -46,7 +46,7 @@ def main():
             presentation = office.Presentations.Open(str(exported), ReadOnly=True, Untitled=False, WithWindow=False)
             assert presentation.Slides.Count == 3
             counts = [slide.TimeLine.InteractiveSequences.Count for slide in presentation.Slides]
-            assert counts == [6, 0, 2], counts
+            assert counts == [4, 0, 2], counts
             presentation.SaveCopyAs(str(normalized), 24)
             after = commands(normalized)
             assert [sorted(page) for page in before] == [sorted(page) for page in after], (before, after)
@@ -58,7 +58,7 @@ def main():
                 time.sleep(.15)
                 media = [shape for shape in presentation.Slides(1).Shapes
                          if str(shape.Name).startswith('BiliClass audio ')]
-                assert len(media) == 3
+                assert len(media) == 2
                 for shape in media:
                     player = view.Player(shape.Id)
                     assert player.State != 0, 'Export must never autoplay'

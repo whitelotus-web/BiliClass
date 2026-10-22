@@ -157,7 +157,7 @@ def embed_audio(source, destination, lesson, directory, *, scope='full_slide', m
     from .presentation_controls import add_controls, picture
     from .slide_speech import objects
     from .speaker_artwork import artwork
-    from .speaker_layout import default_position, fixed_slots, position
+    from .speaker_layout import control_box, default_position, fixed_slots, position
 
     pages = slide_audio(lesson, directory, scope=scope)
     deck = Presentation(source)
@@ -172,8 +172,8 @@ def embed_audio(source, destination, lesson, directory, *, scope='full_slide', m
     count, embedded_pages, unplaced_pages, overlap_pages = 0, [], [], []
     selected_position = position(lesson.get('speaker_position', default_position(directory)))
     deck_languages = [lang for lang in ('vi', 'en', 'both') if any(lang in languages for languages in pages.values())]
-    slots = fixed_slots((deck.slide_width / 12700, deck.slide_height / 12700), selected_position,
-                        languages=deck_languages)
+    bounds = (deck.slide_width / 12700, deck.slide_height / 12700)
+    slots = fixed_slots(bounds, selected_position, languages=deck_languages)
     missing_pages = sorted(set(range(1, len(parts) + 1)) - set(pages))
     restricted_pages = list(missing_pages) if scope == 'visible' else []
     for number, languages in pages.items():
@@ -206,7 +206,7 @@ def embed_audio(source, destination, lesson, directory, *, scope='full_slide', m
             if not item["hidden"] and (item['source_type'] != 'image' or
                     box[2] * box[3] < deck.slide_width * deck.slide_height / 12700**2 * 0.6):
                 occupied.append(box)
-        if any(intersection((slots[lang][0] + 4, slots[lang][1] + 2, 28, 28), box) for lang in languages for box in occupied):
+        if any(intersection(control_box(bounds, slots[lang]), box) for lang in languages for box in occupied):
             overlap_pages.append(number)
         embedded_pages.append(number)
         identity = max(int(v) for v in tree.xpath(".//p:cNvPr/@id", namespaces=NS))
@@ -221,13 +221,11 @@ def embed_audio(source, destination, lesson, directory, *, scope='full_slide', m
                 "../media/" + Path(audio_name).name,
             )
             identity += 1
-            left, top, compact = slots[language]
-            mini = compact == 'mini'
             icon, crop = artwork(language)
             icon_name = 'ppt/media/biliclass-' + hashlib.sha256(icon).hexdigest() + '.png'
             entries[icon_name] = icon
             icon_id = relation(NS['r'] + '/image', '../media/' + Path(icon_name).name)
-            box = (left, top, 50, 20) if mini else (left + (2 if compact else 4), top + 2, 28, 28)
+            box = control_box(bounds, slots[language])
             media = media_shape(identity, language, box, audio_id, media_id, icon_id)
             shape_tree.append(media)
             shape_tree.append(picture(media, identity + 1, language, icon_id, crop=crop))

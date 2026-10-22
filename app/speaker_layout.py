@@ -28,10 +28,21 @@ def default_position(directory):
 
 def fixed_slots(bounds, selected=DEFAULT_POSITION, *, mini=False, languages=('vi', 'en', 'both')):
     width, height = bounds
-    cell_width, cell_height = (50, 20) if mini else (36, 34)
+    scale = height / 540
+    cell_width, cell_height = ((50 * scale, 20 * scale) if mini else (44 * scale, 40 * scale))
+    margin = (12 if mini else 18) * scale
     total = cell_width * len(languages)
     row, column = position(selected).split('_')
-    left = {'left': 12, 'center': (width - total) / 2, 'right': width - total - 12}[column]
-    top = 12 if row == 'top' else height - cell_height - 12
+    left = {'left': margin, 'center': (width - total) / 2, 'right': width - total - margin}[column]
+    top = margin if row == 'top' else height - cell_height - margin
     return {language: (left + index * cell_width, top, 'mini' if mini else False)
             for index, language in enumerate(languages)}
+
+
+def control_box(bounds, slot):
+    """Use the same relative artwork/hit region on standard and large canvases."""
+    scale = bounds[1] / 540
+    left, top, compact = slot
+    if compact == 'mini':
+        return left, top, 50 * scale, 20 * scale
+    return left + 6 * scale, top + 4 * scale, 32 * scale, 32 * scale
