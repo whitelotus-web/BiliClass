@@ -8,6 +8,10 @@ Trang xem có icon xóa cạnh Tạo giọng đọc, dùng chung xác nhận,
 về Thư viện sau khi xóa và hiện hoàn tác. 65 pytest, Qt kết quả
 giọng, xóa/hoàn tác và độ phản hồi được kiểm; giữ nguồn/WAV.
 Chi tiết và phạm vi ở [BUILD_RC145.md](BUILD_RC145.md).
+Đã phát hành RC145 từ `6474d93`; Source checks tại `139c722` qua,
+cây app/phiên bản không đổi. 402 portable và corpus tại máy đạt.
+ZIP, digest/tag, updater công khai, cài/mở Home từ Explorer đạt;
+giữ nguồn/1.752 WAV và thao tác đưa bài vào thùng rác trong lúc thử.
 
 Ngày 22/10/2026 — nguồn RC144 tự sửa từng ô bảng, đo lưới trước khi
 Office tự nới hàng và sửa tương phản trên nền đặc khi có bằng chứng.

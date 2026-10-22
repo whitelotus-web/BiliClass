@@ -40,3 +40,15 @@ thiếu tín hiệu trạng thái phát mới. Đã cập nhật fixture và ch�
 CI bổ sung kiểm hợp đồng xóa/hoàn tác. Gói Windows được dựng từ
 `6474d93d468964e4b12faef304632096f6cc17a1`; thay đổi kiểm thử sau đó
 phải giữ nguyên cây `app` và phiên bản trước khi nhận kết quả CI.
+
+402 ca portable và corpus cấu trúc tại máy đạt. Source checks GitHub
+đạt tại `139c722`; đã đối chiếu cây ứng dụng và `pyproject.toml` với
+commit gói, không có khác biệt. [RC145 đã phát hành](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc145),
+ZIP 1.258.099.188 byte, SHA-256
+`a4c10fdfffb91c01cab88a1bad7d0ad8c34886068c0ad6bd1280410ff2a079e9`.
+57 QML và bytecode ứng dụng khớp nguồn gói; toàn bộ ZIP, digest/tag
+và kiểm cập nhật công khai đạt. Đã cài và mở Home từ Explorer,
+Mascot mặc định ẩn; hồ sơ, cấu hình/key, nguồn và 1.752 WAV giữ nguyên.
+Một bài được đưa vào thùng rác trong lúc kiểm cài: đã chứng minh
+chỉ thêm đúng dấu xóa, toàn bộ nội dung gốc và nguồn khớp; giữ thao
+tác xóa đó, không tự khôi phục hoặc ghi đè bài người dùng đang thử.

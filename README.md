@@ -2,9 +2,13 @@
 
 Ứng dụng Windows chuyển tài liệu của giáo viên thành bài giảng Anh–Việt, rồi trình chiếu bằng PowerPoint với giọng đọc và mascot trợ giảng. Hỗ trợ cấu hình từ lớp 1 đến lớp 12 và môn tự nhập.
 
-## Phiên bản hiện tại — RC144
+## Phiên bản và tải xuống
 
-**[Tải BiliClass RC144 cho Windows](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc144)** · [Tất cả bản phát hành](https://github.com/whitelotus-web/BiliClass/releases) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md)
+**[Tải BiliClass cho Windows](https://github.com/whitelotus-web/BiliClass/releases)** · [RC145 đã kiểm chứng](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc145) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md)
+
+RC145 gộp nghe/dừng thành một nút cho mỗi ngôn ngữ; thêm **Hoàn tác xóa**
+cạnh **Chia sẻ & quản lý** và icon xóa trong trang xem bài. Xóa/khôi phục
+chạy nền, giữ nguồn và WAV. [Kiểm chứng RC145](docs/BUILD_RC145.md).
 
 RC144 tự căn chữ trong từng ô bảng và sửa tương phản khi có bằng chứng,
 rồi kiểm tra lại trước khi hoàn thành. Ghi chú chung về ảnh, công thức
@@ -12,7 +16,7 @@ và hiệu ứng nằm trong chi tiết; chỉ lỗi cụ thể chưa xử lý x
 nêu nổi bật. Hai công cụ Chuyển đổi và Tạo giọng đọc dùng chung cách
 hiển thị. [Phạm vi và kiểm chứng RC144](docs/BUILD_RC144.md).
 
-Gói RC144 đã phát hành từ commit `0b6aa21`, được kiểm tra ZIP, cài và
+Gói RC145 đã phát hành từ commit `6474d93`, được kiểm tra ZIP, cài và
 mở Trang chủ. Mã nguồn và gói tải có vòng phát hành riêng: phiên bản
 gói luôn được ghi rõ trong Releases và trong ứng dụng. Các mốc bên
 dưới là lịch sử, không phải phiên bản hiện tại.
@@ -61,13 +65,13 @@ Mascot mặc định phải dưới, kéo để di chuyển. Nhỏ/Vừa/Lớn �
 
 Loa VI/EN/VI+EN chỉ hiện theo âm thanh thực có, nhãn ghép ở góc biểu tượng. Bấm phát/tạm dừng/đọc tiếp; đổi ngôn ngữ dừng giọng trước. [Kiểm chứng kiểu loa](docs/BUILD_RC75.md). Bản dựng tại máy và bản trên GitHub Releases có vòng phát hành riêng; xem version trong ứng dụng/gói đang dùng.
 
-BiliClass dùng **Google Cloud Translation** dịch phần chữ và sắp xếp PowerPoint tại máy. Browser ChatGPT/Gemini tạm ẩn. Giọng Việt VieNeu và giọng Mỹ Kokoro chạy ngoại tuyến, là bước tùy chọn sau khi đã có bài song ngữ.
+BiliClass dùng **Google Cloud Translation** dịch phần chữ và sắp xếp PowerPoint tại máy. Browser ChatGPT/Gemini tạm ẩn. Giọng Việt và giọng Mỹ chạy ngoại tuyến, là bước tùy chọn sau khi đã có bài song ngữ.
 
 1. Cài đặt → Google Dịch: thêm key, mỗi dòng một key, rồi lưu. Key chỉ lưu mã hóa trên máy, không đồng bộ hay tải lên GitHub.
 2. Chọn PowerPoint `.pptx` tối đa 200 MB, chọn **Song ngữ Việt–Anh** hoặc **Tiếng Anh 100%**; giữ thiết kế gốc hoặc chọn một trong các mẫu BiliClass có sẵn.
 3. Chuyển đổi và xem lại bài. Song ngữ cùng slide tự chọn cách xếp theo vùng; vùng quá kín có thể dùng trang tiếp nối song ngữ. Hình, công thức, nội dung OCR và hiệu ứng phức tạp vẫn cần đối chiếu.
 4. Tải PowerPoint ngay hoặc chọn người đọc/tốc độ để tạo giọng Anh, Việt hay Việt–Anh. Lần đầu mặc định Tiếng Anh, lần sau nhớ lựa chọn gần nhất. Tạo trùng có popup dùng lại/tạo lại. Tên tải có sẵn tên bài và ngôn ngữ/bản giọng trong ngoặc.
-5. Bấm **Mở PowerPoint** để mở/gắn Mascot dù có hoặc chưa có giọng; F5 bắt đầu trình chiếu. Khi đủ giọng, có thêm **Kiểm tra slide và giọng**, tải PPTX/audio hoặc xem trong Bài giảng. Loa đọc trọn lời đã lưu của slide khi bấm, kể cả phần xuất hiện sau. Mascot có lựa chọn đọc theo phần đang hiện. Việc mở không tự duyệt nội dung/bố cục.
+5. Bấm **Mở PowerPoint** để mở/gắn Mascot dù có hoặc chưa có giọng; F5 bắt đầu trình chiếu. Khi đủ giọng, có thể nghe/dừng theo ngôn ngữ trong màn kết quả, tải PPTX/audio hoặc xem trong Bài giảng. Loa đọc trọn lời đã lưu của slide khi bấm, kể cả phần xuất hiện sau. Mascot có lựa chọn đọc theo phần đang hiện. Việc mở không tự chứng nhận mọi nội dung/bố cục.
 
 Thư viện có tìm/lọc, một nút biểu tượng đổi Danh sách/Thẻ lớn với trang đầu 16:9 và chọn nhiều bài để tải ZIP hoặc đưa vào thùng rác. Thuật ngữ & kiến thức dùng để tra cứu và quản lý cách dùng từ riêng. [Thay đổi thư viện và dạy học](docs/WORKFLOW_RC51.md). [Rà soát và tối ưu RC58](docs/AUDIT_RC58.md). [Trang chủ RC60](docs/HOME_RC60.md).
 
