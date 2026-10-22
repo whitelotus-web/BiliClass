@@ -46,6 +46,27 @@ và PowerPoint thật qua, không QML warning. Ruff toàn kho và compileall
 qua. Bài/âm thanh/ảnh/báo cáo cá nhân không vào Git; không thêm hàng đợi
 hoặc xử lý nhiều bài đồng thời, giữ các tab Cài đặt hiện có.
 
-Đóng gói RC142 được thực hiện riêng sau commit đã kiểm thử; commit,
-checksum và kết quả cài sẽ được ghi khi hoàn tất. RC141 đã phát hành
-và kiểm updater công khai đạt, không còn ở trạng thái nháp.
+Đã phát hành [RC142](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc142)
+từ commit `1c6b045cd67604f9869b360d55500d390de759de`. Gói dựng một
+lần từ runtime RC141 đã đối chiếu hash; bytecode các module mới/sửa
+và 56 QML khớp commit. ZIP 1.258.085.562 byte, SHA-256
+`98d1ca26d6eb409b73fd997511936417748f508b82ace55e01168118273c30a1`.
+GitHub xác nhận digest; tag và updater công khai trỏ đúng bản này.
+[Source checks](https://github.com/whitelotus-web/BiliClass/actions/runs/39715228190)
+của commit dựng đã thành công.
+
+Bản độc lập khởi động Home và nhận lại đoạn văn trong ảnh bằng bộ
+model đóng gói, dùng dữ liệu cô lập, bỏ đường dẫn runtime/model phát
+triển; giữ số liệu và click xuất hiện đúng. Đã cài/mở Home từ Explorer,
+Mascot ẩn, cửa sổ phản hồi, icon/shortcut đúng; không QML warning.
+Hồ sơ, API key, tùy chọn, bài và 1.746 WAV tham chiếu khớp trước/sau
+cài. Bài thật đang được tạo giọng đã thay đổi trong lúc rà soát: chặn
+ghi đè theo trạng thái mới, giữ bản dịch/bố cục cải thiện thành bản
+xem riêng, không gán giọng cũ cho lời mới.
+
+Theo yêu cầu dọn ổ, đã xóa 18 ZIP cũ sau khi đối chiếu size/digest
+với bản đã phát hành trên GitHub, 18 thư mục build tạm của các mốc đó
+và tám thư viện thử trung gian của lượt này. Giữ bản cuối, metadata
+build, runtime nền/RC142, ứng dụng cài, thư viện, nguồn và âm thanh,
+model cá nhân. Nhật ký chi tiết ở ngoài Git. Không thêm hàng đợi hoặc
+đồng bộ sửa/lưu bên ngoài trong đợt này.

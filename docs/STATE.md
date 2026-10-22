@@ -9,7 +9,11 @@ chi tiết đồng bộ ở cả hai công cụ. 185 pytest liên quan, 384 ca n
 portable (có giao nhau), corpus, hai Qt smoke, Ruff/compileall qua.
 Bản sao bài 16 slide giữ media và 739 run ký hiệu; không FAIL trong
 phép đo hiện có, vẫn CHECK và cần xem trang dày chữ trước khi chiếu.
-Đóng gói riêng sau mốc mã nguồn đã kiểm; xem [BUILD_RC142](BUILD_RC142.md).
+Đã phát hành RC142 từ `1c6b045`, Source checks GitHub xanh; bundle,
+OCR độc lập, cài/mở Home và updater công khai đạt. Hồ sơ/bài/1.746
+WAV tham chiếu giữ nguyên. Bài đang tạo giọng không bị ghi đè; bản
+sửa nằm riêng để xem. Đã dọn ZIP cũ có digest trùng GitHub, build tạm
+và bản thử trung gian, giữ thư viện/model. Xem [BUILD_RC142](BUILD_RC142.md).
 
 Ngày 22/10/2026 — nguồn RC141 rà bốn bản Toán mới trên bản sao:
 89 slide, 2.017 run ký hiệu và media nguồn giữ nguyên; không FAIL
