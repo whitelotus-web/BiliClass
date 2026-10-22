@@ -7,8 +7,10 @@ bài lỗi; lỗi chung tạm dừng lượt. Từng bài tự lưu cạnh đún
 không ghi đè, có thư mục dự phòng. Khôi phục danh sách đã bắt đầu sau
 khi mở lại; Trang chủ và bốn tab Cài đặt giữ nguyên. Kiểm thử hàng đợi,
 hồi quy và ba Qt smoke đạt; phạm vi ở [BUILD_RC147.md](BUILD_RC147.md).
-Chưa đóng gói/phát hành RC147; chưa thêm xử lý đồng thời hoặc ghép
-chuyển đổi → tạo giọng tự động.
+Đã phát hành từ `5572f03`; Source checks GitHub xanh, ZIP/digest/tag,
+updater công khai và cài/mở Trang chủ từ Explorer đạt. Hồ sơ/key,
+nguồn và 1752 WAV tham chiếu giữ nguyên. Chưa thêm xử lý đồng
+thời hoặc ghép chuyển đổi → tạo giọng tự động.
 
 Ngày 22/10/2026 — nguồn RC146 tự lưu PowerPoint có giọng cạnh file
 đầu vào khi hoàn tất; không ghi đè, có thư mục dự phòng và đường dẫn

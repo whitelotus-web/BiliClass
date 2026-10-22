@@ -51,3 +51,10 @@ riêng cho tự lưu và kết quả/nghe-dừng một bài tiếp tục đạt.
 kiểm điều phối/nhúng file, không đo chất lượng model giọng. Có kiểm
 chế độ OpenFiles và nhận URL trong QML; chưa tự động bấm hộp chọn file
 Windows bằng chuột/phím toàn hệ thống.
+
+Đã phát hành từ `5572f03fd6c180f9aa25af7b119f19d949c687f2`; [Source checks GitHub](https://github.com/whitelotus-web/BiliClass/actions/runs/39747264522) đạt cho đúng commit gói.
+[Gói RC147](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc147) có 1,258,134,623 byte, SHA-256
+`fc0f76bc9a37a1fab86f834cee781dbbb25294594c0080a9ea200ca45eb41f61`. 59 tệp QML/qmldir và bytecode ứng dụng khớp nguồn;
+toàn bộ ZIP, digest/tag và phát hiện bản cập nhật công khai đạt.
+Đã cài, mở Trang chủ từ Explorer; Mascot khởi động ẩn. Hồ sơ,
+cấu hình/key, nguồn và 1752 WAV tham chiếu giữ nguyên.
