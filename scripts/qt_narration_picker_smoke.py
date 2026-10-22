@@ -13,6 +13,7 @@ from PySide6.QtQml import QQmlApplicationEngine, QQmlExpression
 from PySide6.QtQuickControls2 import QQuickStyle
 
 from app.branding import configure_application
+from app.lesson_location import presentation_location
 from app.library import Library
 from app.paths import RESOURCE_ROOT
 from app.ui import Bridge
@@ -161,6 +162,7 @@ def main():
             root.setProperty('page', 'library')
             pump(100)
             assert c('libraryManagementButton').property('text') == '⋮'
+            assert c('libraryManagementIcon').width() >= 22
             assert not c('libraryNarrateSelected').isVisible()
             qml('libraryPresentationOpen.options = FileDialog.DontUseNativeDialog')
             click(root, c('libraryManagementButton'))
@@ -168,6 +170,22 @@ def main():
             click(root, c('openLibraryPresentation'))
             assert c('libraryPresentationDialog').property('visible')
             QMetaObject.invokeMethod(c('libraryPresentationDialog'), 'reject', Qt.DirectConnection)
+            # Both lesson menus reveal an existing file without exporting or changing selection.
+            revealed = []
+            identity = bridge.lessons[0]['id']
+            expected_location = presentation_location(library.directory, identity)
+            for view in ('list', 'grid'):
+                bridge.setLibraryView(view)
+                pump(180)
+                click(root, c('lessonMore_'+identity))
+                reveal = c('lessonReveal_'+identity)
+                assert reveal.isVisible() and reveal.property('text') == 'Mở trong Explorer'
+                root.grabWindow().save(str(report/f'library-explorer-{view}.png'))
+                with patch('app.lesson_location.select_in_explorer', side_effect=lambda path: revealed.append(path) or True):
+                    click(root, reveal)
+                    until(lambda: not bridge.busy)
+                assert revealed[-1] == expected_location and not root.property('selectedLessons').toVariant()
+            bridge.setLibraryView('list')
             root.setProperty('selectedLessons', ids[:2])
             pump(80)
             tabs, action = c('libraryVoiceTabs'), c('libraryNarrateSelected')
@@ -182,15 +200,20 @@ def main():
                 bridge.setApplicationTheme(theme)
                 for key in ('all', 'none', 'ready'):
                     click(root, c('libraryTab_'+key))
+                    pump(80)
                     assert c('libraryTab_'+key).property('selected')
                     assert c('libraryTabIcon_'+key).isVisible()
+                    assert c('libraryTab_'+key).property('z') > max(c('libraryTab_'+other).property('z') for other in ('all', 'none', 'ready') if other != key)
                     root.grabWindow().save(str(report/f'library-{key}-{theme}.png'))
+            all_tab, next_tab = c('libraryTab_all'), c('libraryTab_none')
+            assert 0 < all_tab.x()+all_tab.width()-next_tab.x() <= 12
             assert [source.read_bytes() for source in sources] == originals
             assert not warnings, warnings
             (report/'result.json').write_text(json.dumps(dict(status='passed', explicit_input_routing=True,
                 native_multiselect_not_automated=True, multiple_library_choices_stay_open=True,
                 selected_ids_survive_reorder=True, removed_ids_pruned=True, one_lesson_uses_existing_workspace=True,
                 multiple_lessons_draft_only=True, sources_preserved=True, library_tabs_icons_and_filters=True,
+                explorer_list_and_grid=True, overlapping_active_folder_tabs=True,
                 qml_warnings=[])), encoding='utf-8')
             print('Narration multi-picker and input routing Qt smoke passed.', flush=True)
         finally:

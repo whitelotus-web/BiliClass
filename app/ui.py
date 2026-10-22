@@ -1628,6 +1628,27 @@ class Bridge(QObject):
         if path and Path(path).is_file():
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(Path(path).parent)))
 
+    @Slot(str)
+    def openLessonFileLocation(self, identity):
+        if self._busy or self.narrationBusy:
+            return
+        from .lesson_location import presentation_location, select_in_explorer
+
+        directory = self.library.directory
+
+        def work():
+            path = presentation_location(directory, identity)
+            return {'path': str(path), 'selected': select_in_explorer(path)}
+
+        def completed(value):
+            path = Path(value['path'])
+            if not value['selected'] and not QDesktopServices.openUrl(QUrl.fromLocalFile(str(path.parent))):
+                self.inform('Chưa mở được thư mục bài giảng: ' + str(path.parent), True, refresh=False)
+                return
+            self.inform('Vị trí bài giảng: ' + str(path), refresh=False)
+
+        self.launch(work, completed, cancellable=False, message='Đang tìm vị trí bài giảng…')
+
     def _lesson_voice_settings(self):
         if not self._lesson.get("external_deck") and "narration" not in self._lesson:
             return dict(self.voiceSettings)

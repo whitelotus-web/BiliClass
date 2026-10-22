@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
@@ -990,6 +991,8 @@ ApplicationWindow {
                                 MainAction {
                                     id: libraryManagementAction; objectName: "libraryManagementButton"
                                     text: "⋮"; font.pixelSize: 26; font.weight: Font.Normal; subtle: true; implicitWidth: 36; implicitHeight: 36
+                                    padding: 7; leftPadding: 7; rightPadding: 7
+                                    contentItem: ThemedImage { objectName: "libraryManagementIcon"; source: "../assets/actions/more-vertical.svg"; sourceSize.width: 48; sourceSize.height: 48; fillMode: Image.PreserveAspectFit; tintEnabled: true; darkTint: libraryManagementAction.enabled ? AppTheme.blue : AppTheme.disabled; Accessible.ignored: true }
                                     Accessible.name: "Tùy chọn thư viện"; ToolTip.visible: hovered; ToolTip.text: "Tùy chọn thư viện"
                                     onClicked: libraryManagementMenu.popup()
                                 }
@@ -1004,19 +1007,30 @@ ApplicationWindow {
                         ColumnLayout {
                             visible: root.page === "library"; Layout.fillWidth: true; spacing: 0
                         RowLayout {
-                            objectName: "libraryVoiceTabs"; Layout.fillWidth: true; spacing: 5
+                            objectName: "libraryVoiceTabs"; Layout.fillWidth: true; spacing: 12
+                            Row {
+                            id: libraryFolderTabs
+                            spacing: -10
                             Repeater {
                                 id: libraryTabs
-                                model: [{key:"", label:"Tất cả", count:"all", icon:"../assets/navigation/lessons.png"}, {key:"none", label:"Chưa có giọng", count:"none", icon:"../assets/actions/speaker-off.svg"}, {key:"ready", label:"Đã có giọng", count:"ready", icon:"../assets/actions/speaker-ready.svg"}]
+                                model: [{key:"", label:"Tất cả", count:"all", icon:"../assets/actions/library-all.svg"}, {key:"none", label:"Chưa có giọng", count:"none", icon:"../assets/actions/speaker-off.svg"}, {key:"ready", label:"Đã có giọng", count:"ready", icon:"../assets/actions/speaker-ready.svg"}]
                                 Button {
                                     id: libraryTab
                                     required property var modelData
+                                    required property int index
                                     readonly property bool selected: root.libraryGroup === modelData.key
                                     objectName: "libraryTab_" + (modelData.key || "all")
                                     text: modelData.label + " (" + ((root.libraryResult.groups || {})[modelData.count] || 0) + ")"
-                                    Layout.preferredWidth: Math.max(150, tabContents.implicitWidth + 44); implicitHeight: 40; leftPadding: 16; rightPadding: 28
+                                    implicitWidth: Math.max(150, tabContents.implicitWidth + 44); width: implicitWidth; height: 40
+                                    leftPadding: 16; rightPadding: 28; z: selected ? 100 : index
                                     Accessible.role: Accessible.PageTab; Accessible.selected: selected
                                     background: Canvas {
+                                        layer.enabled: true
+                                        layer.effect: MultiEffect {
+                                            shadowEnabled: true; shadowColor: "#101827"
+                                            shadowOpacity: AppTheme.dark ? 0.3 : 0.14
+                                            shadowBlur: 0.25; shadowVerticalOffset: 2; shadowHorizontalOffset: 1
+                                        }
                                         property bool selected: libraryTab.selected
                                         property bool hovered: libraryTab.hovered
                                         property bool focused: libraryTab.visualFocus
@@ -1033,9 +1047,9 @@ ApplicationWindow {
                                             c.beginPath(); c.moveTo(0.5, height); c.lineTo(0.5, r)
                                             c.quadraticCurveTo(0.5, 0.5, r, 0.5); c.lineTo(width-20, 0.5)
                                             c.quadraticCurveTo(width-15, 0.5, width-13, 6); c.lineTo(width-0.5, height)
-                                            c.fillStyle = selected ? AppTheme.surface : hovered ? AppTheme.hover : AppTheme.raised
-                                            c.fill(); c.strokeStyle = focused ? AppTheme.blue : AppTheme.line; c.lineWidth = 1; c.stroke()
-                                            if (selected) { c.fillStyle = AppTheme.blue; c.fillRect(r, 0, width-r-21, 2) }
+                                            c.fillStyle = selected ? AppTheme.accent : hovered ? AppTheme.hover : AppTheme.raised
+                                            c.fill(); c.strokeStyle = focused ? (selected ? AppTheme.accentText : AppTheme.blue) : selected ? AppTheme.accent : AppTheme.line
+                                            c.lineWidth = focused ? 2 : 1; c.stroke()
                                         }
                                     }
                                     contentItem: RowLayout {
@@ -1044,18 +1058,19 @@ ApplicationWindow {
                                         ThemedImage {
                                             objectName: "libraryTabIcon_" + (libraryTab.modelData.key || "all")
                                             source: libraryTab.modelData.icon; tintEnabled: true
-                                            darkTint: libraryTab.selected ? AppTheme.blue : AppTheme.ink
+                                            darkTint: libraryTab.selected ? AppTheme.accentText : AppTheme.ink
                                             sourceSize.width: 64; sourceSize.height: 64; fillMode: Image.PreserveAspectFit
                                             Layout.preferredWidth: 22; Layout.preferredHeight: 22
                                             Accessible.ignored: true
                                         }
-                                        Label { text: libraryTab.text; color: libraryTab.selected ? AppTheme.blue : AppTheme.ink; font.pixelSize: 13; font.weight: libraryTab.selected ? Font.Bold : Font.DemiBold }
+                                        Label { text: libraryTab.text; color: libraryTab.selected ? AppTheme.accentText : AppTheme.ink; font.pixelSize: 13; font.weight: libraryTab.selected ? Font.Bold : Font.DemiBold }
                                     }
                                     onClicked: {
                                         if (modelData.key === "none" || voiceFilter.currentValue === "none") voiceFilter.currentIndex = 0
                                         root.libraryGroup = modelData.key; root.libraryPage = 1
                                     }
                                 }
+                            }
                             }
                             Item { Layout.fillWidth: true }
                             MainAction { objectName: "libraryNarrateSelected"; text: "Tạo giọng đã chọn"; visible: root.selectedLessons.length > 0; implicitHeight: 32; enabled: !bridge.busy && !bridge.narrationBusy; ToolTip.visible: hovered; ToolTip.text: "Tạo giọng lần lượt cho bài chưa có giọng; bỏ qua bài đã hoàn tất"; onClicked: bridge.batchQueue.selectLessons(root.selectedLessons) }
@@ -1065,7 +1080,7 @@ ApplicationWindow {
                             Rectangle {
                                 readonly property var selectedTab: libraryTabs.itemAt(root.libraryGroup === "none" ? 1 : root.libraryGroup === "ready" ? 2 : 0)
                                 x: selectedTab ? selectedTab.x + 1 : 0; width: selectedTab ? selectedTab.width - 2 : 0
-                                height: 1; color: AppTheme.surface
+                                height: 1; color: AppTheme.accent
                             }
                         }
                         }
@@ -1213,6 +1228,7 @@ ApplicationWindow {
                                         LibraryAction { id: rowMore; objectName: "lessonMore_" + modelData.id; text: "⋯"; font.pixelSize: 20; implicitHeight: 34; Accessible.name: "Thao tác với " + modelData.title; onClicked: rowMenu.popup() }
                                         Menu { id: rowMenu; parent: rowMore; x: parent.width - width; y: parent.height
                                             MenuItem { objectName: "lessonPreview_" + modelData.id; text: "Xem bài giảng"; enabled: !bridge.busy && !bridge.narrationBusy; onTriggered: bridge.openLesson(modelData.id) }
+                                            MenuItem { objectName: "lessonReveal_" + modelData.id; text: "Mở trong Explorer"; enabled: !bridge.busy && !bridge.narrationBusy; onTriggered: bridge.openLessonFileLocation(modelData.id) }
                                             MenuItem { objectName: "lessonEdit_" + modelData.id; text: "Đổi tên / thông tin bài"; enabled: !bridge.busy && !bridge.powerpointState.active; onTriggered: { metadataDialog.lessonData = modelData; metadataDialog.open() } }
                                         }
                                         LibraryTrashButton { id: rowDelete; objectName: "lessonDelete_" + modelData.id; Accessible.name: "Xóa bài giảng " + modelData.title; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !root.classroom.running; onClicked: { deleteLessonDialog.lessonId = modelData.id; deleteLessonDialog.lessonTitle = modelData.title; deleteLessonDialog.open() } }
@@ -1272,6 +1288,7 @@ ApplicationWindow {
                                             LibraryAction { id: largeCardMore; objectName: "lessonMore_" + modelData.id; text: "⋯"; font.pixelSize: 20; implicitHeight: 40; Accessible.name: "Thao tác với " + modelData.title; onClicked: largeCardMenu.popup() }
                                             Menu { id: largeCardMenu; parent: largeCardMore; x: parent.width - width; y: parent.height
                                                 MenuItem { objectName: "lessonPreview_" + modelData.id; text: "Xem bài giảng"; enabled: !bridge.busy && !bridge.narrationBusy; onTriggered: bridge.openLesson(modelData.id) }
+                                                MenuItem { objectName: "lessonReveal_" + modelData.id; text: "Mở trong Explorer"; enabled: !bridge.busy && !bridge.narrationBusy; onTriggered: bridge.openLessonFileLocation(modelData.id) }
                                                 MenuItem { objectName: "lessonEdit_" + modelData.id; text: "Đổi tên / thông tin bài"; enabled: !bridge.busy && !bridge.powerpointState.active; onTriggered: { metadataDialog.lessonData = modelData; metadataDialog.open() } }
                                             }
                                             LibraryTrashButton { id: largeCardDelete; objectName: "lessonDelete_" + modelData.id; implicitHeight: 40; Accessible.name: "Xóa bài giảng " + modelData.title; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !root.classroom.running; onClicked: { deleteLessonDialog.lessonId = modelData.id; deleteLessonDialog.lessonTitle = modelData.title; deleteLessonDialog.open() } }

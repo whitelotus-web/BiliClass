@@ -1,5 +1,13 @@
 # Trạng thái BiliClass
 
+Ngày 22/10/2026 — nguồn RC152 có tab hồ sơ nền xanh khi chọn,
+chữ/icon trắng, đuôi chồng nhẹ và bóng mỏng. Các icon theo mẫu
+người dùng; loa Việt/Anh trên bài vẫn giữ nguyên. Ba chấm góc lớn
+hơn; menu từng bài có Mở trong Explorer. 17 pytest, Qt sáng/tối,
+danh sách/thẻ và Explorer thật trên file thử đạt.
+[Phạm vi RC152](BUILD_RC152.md).
+[Trạng thái phát hành RC152: đang kiểm tra.]
+
 Ngày 22/10/2026 — RC151 thêm cạnh phải vát nhẹ cho tab kẹp file
 trong Thư viện, giữ chữ 13 px/icon, số bài và các chức năng RC150.
 Menu ba chấm gom mở bài từ máy; Tạo giọng đã chọn nằm bên phải hàng

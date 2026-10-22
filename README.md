@@ -6,6 +6,10 @@
 
 **[Tải BiliClass cho Windows](https://github.com/whitelotus-web/BiliClass/releases)** · [RC151 đã kiểm chứng](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc151) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md)
 
+Nguồn RC152 thay các icon tab theo mẫu, cho tab đang chọn nền xanh,
+chữ/icon trắng, đuôi chồng nhẹ và bóng mỏng. Menu từng bài thêm
+**Mở trong Explorer** để tìm file đã lưu. [Phạm vi RC152](docs/BUILD_RC152.md).
+
 RC151 thêm tích chọn nhiều bài ngay ở màn Tạo giọng, giữ
 hàng đợi đúng công cụ và tự ẩn khi cả lượt đã hoàn tất. Thư viện
 có tab kẹp file thấp gọn, cạnh phải vát nhẹ, kèm icon/số bài; menu ba chấm và nút tải/xóa bằng icon. [Phạm vi RC151](docs/BUILD_RC151.md).
