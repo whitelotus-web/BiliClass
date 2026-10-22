@@ -1,6 +1,6 @@
 # BiliClass — Hướng dẫn sử dụng
 
-Hướng dẫn cập nhật theo mã nguồn RC149 · 22/10/2026
+Hướng dẫn cập nhật theo mã nguồn RC156 · 23/10/2026
 
 BiliClass chuyển bài giảng PowerPoint sang Việt–Anh hoặc tiếng Anh, tạo
 âm thanh Việt–Mỹ và hỗ trợ trình chiếu bằng Mascot. Bài giảng và giọng đọc
@@ -28,8 +28,11 @@ Trước khi tạo bài đầu tiên, mở **Cài đặt** và lần lượt chu
 - **Mascot:** chọn nhân vật, kích thước và cách hiển thị.
 
 Bấm **F1** hoặc **Hướng dẫn · F1** ở thanh bên bất cứ lúc nào. Chọn mục
-bên trái để đọc các bước; đóng hướng dẫn để tiếp tục màn hình đang làm.
-Hướng dẫn ghi nhớ mục vừa đọc trong lần mở ứng dụng hiện tại.
+bên trái để đọc các bước, hoặc gõ vào ô tìm kiếm (có thể gõ không dấu).
+Mục **Bắt đầu nhanh** hướng dẫn bốn bước từ chọn bài đến mở để dạy;
+**Dạy với Mascot** có hình minh họa chuột và phím. Đóng hướng dẫn để
+tiếp tục màn hình đang làm. Hướng dẫn ghi nhớ mục vừa đọc trong lần
+mở ứng dụng hiện tại.
 
 ## Chuyển đổi bài giảng
 

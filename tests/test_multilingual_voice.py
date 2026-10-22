@@ -79,8 +79,9 @@ def test_speed_handles_short_and_silent_audio(size):
 
 
 def test_unsupported_old_voice_is_not_silently_read_with_other_speaker(tmp_path):
-    with pytest.raises(ValueError, match="VieNeu"):
+    with pytest.raises(ValueError, match="Chọn cặp giọng"):
         speech.synthesize("Hello", "kokoro:af_heart", 0, tmp_path)
+    assert not list(tmp_path.glob('*.wav'))
 
 
 def test_speed_rejects_invalid_input():

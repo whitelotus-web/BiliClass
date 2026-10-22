@@ -14,6 +14,10 @@ def test_exported_and_embedded_audio_has_an_actual_pause_between_paragraphs(tmp_
     data, duration = joined_wav(tmp_path, ['title', 'body'])
     with wave.open(io.BytesIO(data), 'rb') as wav:
         frames = wav.readframes(wav.getnframes())
-        assert wav.getnframes() == 2 * (2400 + 10800)
-        assert frames[2400*2:(2400+10800)*2] == b'\0\0' * 10800
-        assert duration == 1100
+        # RC148 increased the shared paragraph pause to 1.1 seconds.
+        gap_frames = 26400
+        assert wav.getnframes() == 2 * (2400 + gap_frames)
+        assert frames[2400*2:(2400+gap_frames)*2] == b'\0\0' * gap_frames
+        second_start = (2400 + gap_frames) * 2
+        assert frames[second_start:second_start + 4800] == b'\1\0' * 2400
+        assert duration == 2400

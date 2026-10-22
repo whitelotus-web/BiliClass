@@ -317,10 +317,12 @@ def main():
             assert companion.height() == height_without_guide, 'Hover help must not resize the panel'
             assert abs(native_tip['width']-c('companionMenu').width()) <= 1, native_tip
             tooltip_window, error = QQmlExpression(QQmlEngine.contextForObject(tooltip), tooltip, 'contentItem.Window.window').evaluate()
-            assert c('shortcutGuideTitle').property('text') == 'Hướng dẫn phím và chuột'
-            assert c('shortcutMouseWheelIcon').isVisible()
+            # F1 also embeds ShortcutGuide. Inspect this open tooltip's copy.
+            tip_content = tooltip.property('contentItem')
+            assert control(tip_content, 'shortcutGuideTitle').property('text') == 'Hướng dẫn phím và chuột'
+            assert control(tip_content, 'shortcutMouseWheelIcon').isVisible()
             for name in ('shortcutMouseNavigation', 'shortcutMouseVolume'):
-                label = c(name)
+                label = control(tip_content, name)
                 assert label.isVisible() and label.property('contentWidth') <= label.width()+1
                 assert label.property('contentHeight') <= label.height()+1
             assert native_tip['y'] >= screen_area.top() and native_tip['y']+native_tip['height'] <= screen_area.bottom()+1

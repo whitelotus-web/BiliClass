@@ -1,5 +1,13 @@
 # Trạng thái BiliClass
 
+Ngày 23/10/2026 — nguồn RC156 làm gọn F1 thành bảy mục theo việc cần làm,
+có tìm kiếm không dấu và minh họa phím/chuột. Thư viện bỏ số bài ở góc
+thanh công cụ; thùng rác nằm cuối hàng. Loa trên thẻ thẳng lề ảnh,
+thẻ cùng hàng đều chiều cao và căn các nút dù tên bài dài.
+Có Chay-BiliClass.cmd mở bản nguồn tại thư mục dự án với phạm vi tính năng
+như bản phát hành. Chưa đóng gói RC156; chờ giáo viên thử và yêu cầu tạo
+bản cài. [Kiểm chứng RC156](REVIEW_RC156.md).
+
 Ngày 22/10/2026 — nguồn RC155 thống nhất lề, tiêu đề, thông tin bài,
 xem trước và cấu hình của hai công cụ khi chưa tải file/một/nhiều
 bài. Bỏ tiêu đề hàng đợi đầu vào, chuyển lời nhắc xuống dưới danh

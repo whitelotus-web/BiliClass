@@ -1,12 +1,13 @@
 """Render borderless library speaker states and exercise their real hit targets."""
 
 import json
+import os
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-from PySide6.QtCore import QCoreApplication, QEvent, QPointF, Qt
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtCore import QCoreApplication, QEvent, QObject, QPointF, Qt
+from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
 
@@ -42,15 +43,30 @@ def icon_in(badge, name):
     raise AssertionError(name)
 
 
+def reveal(item):
+    parent = item.parentItem()
+    while parent is not None:
+        if parent.metaObject().indexOfProperty('contentY') >= 0:
+            top = item.mapToItem(parent, QPointF()).y()
+            if top < 0 or top + item.height() > parent.height():
+                parent.setProperty('contentY', max(0, min(parent.property('contentHeight')-parent.height(),
+                    parent.property('contentY')+top-40)))
+                pump(80)
+        parent = parent.parentItem()
+
+
 def main():
     app = QGuiApplication([])
     QQuickStyle.setStyle('Basic')
-    report = Path('reports/rc143/library-speakers')
+    for font in (RESOURCE_ROOT/'assets').glob('*.ttf'):
+        QFontDatabase.addApplicationFont(str(font))
+    app.setFont(QFont('Be Vietnam Pro', 10))
+    report = Path(os.environ.get('BILICLASS_SPEAKER_REPORT', 'reports/library-speakers'))
     report.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='biliclass-speaker-ui-', ignore_cleanup_errors=True) as temporary:
         library = Library(Path(temporary))
         modes = {}
-        for mode, title in [('none', 'Chưa có giọng'), ('vi', 'Giọng Việt'), ('en', 'Giọng Anh'), ('both', 'Việt và Anh')]:
+        for mode, title in [('none', 'Chưa có giọng'), ('vi', 'Bài giảng Việt với tên rất dài để kiểm tra các thẻ có hai dòng vẫn thẳng hàng'), ('en', 'Giọng Anh'), ('both', 'Việt và Anh')]:
             lesson = library.create(title, 'Toán', 'THPT', '11', [('Slide 1', 'Nội dung thử.')])
             library.edit_segment(lesson['id'], lesson['segments'][0]['id'], 'Nội dung thử.', 'Test content.', True)
             modes[lesson['id']] = mode
@@ -83,6 +99,13 @@ def main():
                             button = control(root, 'lessonStatus_' + identity)
                             surface = control(root, 'lessonStatusSurface_' + identity)
                             badge = control(root, 'lessonNarrationBadge_' + identity)
+                            reveal(button)
+                            if view == 'grid':
+                                cover = control(root, 'lessonCover_'+identity)
+                                assert abs(badge.mapToScene(QPointF(badge.width(),0)).x()
+                                    - cover.mapToScene(QPointF(cover.width(),0)).x()) <= 1, (mode,badge.width(),cover.width(),
+                                        badge.mapToScene(QPointF(badge.width(),0)).x(),cover.mapToScene(QPointF(cover.width(),0)).x(),
+                                        button.x(),button.width(),button.property('contentItem').width(),button.property('alignIconRight'))
                             assert surface.property('color').alpha() == 0
                             sizes.add((button.width(), button.height()))
                             if mode != 'none':
@@ -92,7 +115,7 @@ def main():
                                 for icon in icons:
                                     assert icon.isVisible() and icon.width() == 24 and icon.height() == 22
                                     assert colored_pixels(root, icon, green=True) > 20
-                                    assert colored_pixels(root, icon, green=False) == 0
+                                    assert colored_pixels(root, icon, green=False) == 0, (theme,view,mode,button.hasActiveFocus())
                             else:
                                 icon = icon_in(badge, 'libraryVoiceSpeakerIcon')
                                 assert icon.isVisible() and icon.property('source').toString().endswith('speaker-off.svg')
@@ -103,6 +126,23 @@ def main():
                             assert opened.call_args.args == (identity,)
                             assert not root.property('selectedLessons').toVariant()
                         assert len(sizes) == 1 and next(iter(sizes)) == (96, 28)
+                        if view == 'grid':
+                            rows = {}
+                            for identity in modes:
+                                card = control(root,'lessonCard_'+identity)
+                                rows.setdefault(round(card.mapToScene(QPointF()).y()),[]).append(identity)
+                            for identities in rows.values():
+                                measures = []
+                                for identity in identities:
+                                    card = control(root,'lessonCard_'+identity)
+                                    action = control(root,'lessonOpen_'+identity)
+                                    measures.append((card.height(),action.mapToScene(QPointF()).y()))
+                                assert all(abs(a-b)<=1 for values in zip(*measures) for a,b in zip(values,values[1:])), measures
+                        assert root.findChild(QObject, 'libraryResultCount') is None
+                        delete = control(root, 'libraryDeleteSelected')
+                        toolbar = control(root, 'libraryToolbar')
+                        assert abs(delete.mapToScene(QPointF(delete.width(),0)).x()
+                            - toolbar.mapToScene(QPointF(toolbar.width(),0)).x()) <= 1
                         assert root.grabWindow().save(str(report / f'{theme}-{view}.png'))
                         focus = control(root, 'lessonStatus_' + next(iter(modes)))
                         focus.forceActiveFocus(Qt.TabFocusReason)
@@ -113,7 +153,8 @@ def main():
             assert not warnings, warnings
             result = {'status': 'passed', 'qml_warnings': warnings, 'states': checks,
                       'checks': ['green ready artwork, gray crossed no-voice', 'transparent background',
-                                 'equal hit targets and correct action, no selection side effect', 'visible keyboard focus']}
+                                 'equal hit targets and correct action, no selection side effect', 'visible keyboard focus',
+                                 'grid badges aligned with cover right edge; bulk trash last, no corner count']}
             (report / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
             print(json.dumps(result, ensure_ascii=False), flush=True)
         finally:

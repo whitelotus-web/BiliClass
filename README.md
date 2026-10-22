@@ -6,6 +6,13 @@
 
 **[Tải BiliClass cho Windows](https://github.com/whitelotus-web/BiliClass/releases)** · [RC155 đã kiểm chứng](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc155) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md)
 
+Mã nguồn **RC156 đang chờ giáo viên thử**, chưa tạo gói cài mới.
+F1 có bốn bước bắt đầu, tìm kiếm không dấu và hình hướng dẫn phím/chuột.
+Thẻ thư viện đều chiều cao, các nút cùng hàng; loa thẳng lề phải ảnh,
+thùng rác ở cuối thanh công cụ. Trên máy phát triển, mở bản nguồn bằng
+**Chay-BiliClass.cmd** trong thư mục dự án.
+[Phạm vi RC156](docs/REVIEW_RC156.md).
+
 RC155 cân chỉnh giao diện Chuyển đổi/Tạo giọng ở trạng thái
 chưa tải file, một bài và nhiều bài. Lăn chuột trong bảng Mascot
 chuyển hiệu ứng/slide; vùng âm lượng tăng/giảm 5%. Trợ giúp thêm
