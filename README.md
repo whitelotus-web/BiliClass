@@ -4,7 +4,12 @@
 
 ## Phiên bản và tải xuống
 
-**[Tải BiliClass cho Windows](https://github.com/whitelotus-web/BiliClass/releases)** · [RC145 đã kiểm chứng](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc145) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md)
+**[Tải BiliClass cho Windows](https://github.com/whitelotus-web/BiliClass/releases)** · [RC146 đã kiểm chứng](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc146) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md)
+
+RC146 tự lưu PowerPoint có giọng cạnh file đầu vào khi hoàn tất, giữ file
+gốc và các bản đã sửa; có đường dẫn và **Mở thư mục**. Loa trên slide
+được vẽ sớm trước bước chuẩn bị media của Office. **Tải về** vẫn chọn
+nơi lưu như trước. [Kiểm chứng và phạm vi RC146](docs/BUILD_RC146.md).
 
 RC145 gộp nghe/dừng thành một nút cho mỗi ngôn ngữ; thêm **Hoàn tác xóa**
 cạnh **Chia sẻ & quản lý** và icon xóa trong trang xem bài. Xóa/khôi phục
@@ -16,7 +21,7 @@ và hiệu ứng nằm trong chi tiết; chỉ lỗi cụ thể chưa xử lý x
 nêu nổi bật. Hai công cụ Chuyển đổi và Tạo giọng đọc dùng chung cách
 hiển thị. [Phạm vi và kiểm chứng RC144](docs/BUILD_RC144.md).
 
-Gói RC145 đã phát hành từ commit `6474d93`, được kiểm tra ZIP, cài và
+Gói RC146 đã phát hành từ commit `f9f1523`, được kiểm tra ZIP, cài và
 mở Trang chủ. Mã nguồn và gói tải có vòng phát hành riêng: phiên bản
 gói luôn được ghi rõ trong Releases và trong ứng dụng. Các mốc bên
 dưới là lịch sử, không phải phiên bản hiện tại.

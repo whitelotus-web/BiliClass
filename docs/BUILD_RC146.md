@@ -42,3 +42,10 @@ Giữ bốn tab Cài đặt. Không thêm hàng đợi hoặc chạy đồng th�
 thay đổi cách đọc file độc lập ngoài tool/Mascot theo yêu cầu người dùng.
 Tự lưu mới áp dụng sau tạo giọng, không tuyên bố đồng bộ file bên ngoài
 hay chứng nhận toàn bộ nghĩa dịch, OCR, công thức và bố cục.
+
+Đã phát hành từ `f9f1523e9ad5f2b402ee6ee455fbff7e7cd8b3bd`; [Source checks GitHub](https://github.com/whitelotus-web/BiliClass/actions/runs/39730672103) đạt cho đúng commit gói.
+[Gói RC146](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc146) có 1,258,107,880 byte, SHA-256
+`395462aaa79e53861a85b03bd12fa65be186038a82412ae1002f9d0c1470a7df`. 58 QML và bytecode ứng dụng khớp nguồn;
+toàn bộ ZIP, digest/tag và phát hiện bản cập nhật công khai đạt.
+Đã cài, mở Trang chủ từ Explorer; Mascot khởi động ẩn. Hồ sơ,
+cấu hình/key, nguồn và 1752 WAV tham chiếu giữ nguyên.

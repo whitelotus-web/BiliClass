@@ -7,8 +7,10 @@ WAV và bản giọng trước ghi; giữ bản giáo viên sửa, không lặp 
 Loa được vẽ trước bước chuẩn bị media Office; thử lại lỗi Office bận
 có giới hạn, thông báo dễ đọc. 81/73 pytest liên quan có giao nhau và
 ba Qt smoke xuất/kết quả giọng/PowerPoint thật đạt. Xem phạm vi và số
-đo ở [BUILD_RC146.md](BUILD_RC146.md). Chưa đóng gói/phát hành RC146;
-không thêm hàng đợi hay tối ưu đọc file độc lập ngoài tool/Mascot.
+đo ở [BUILD_RC146.md](BUILD_RC146.md). Đã phát hành từ `f9f1523`;
+Source checks GitHub, ZIP/digest/tag, updater công khai và cài/mở Home
+đạt. Hồ sơ/key, nguồn và 1752 WAV tham chiếu giữ nguyên.
+Không thêm hàng đợi hay tối ưu đọc file độc lập ngoài tool/Mascot.
 
 Ngày 22/10/2026 — nguồn RC145 gộp nghe/dừng theo đúng ngôn ngữ,
 slide và phiên phát; dùng chung ở kết quả/cấu hình, giữ kích thước.
