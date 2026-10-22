@@ -11,6 +11,7 @@ from .export_origin import destination
 from .lesson_files import save_presentation
 from .lesson_narration import audio_status, records, variant_id
 from .library import Library, RevisionConflict
+from .narration_timing import PARAGRAPH_GAP_MS
 
 
 def digest(path):
@@ -53,6 +54,7 @@ def _save_product(directory, selected, preview, *, with_voice):
         previous = library.setting(key, {})
         if (isinstance(previous, dict) and previous.get('source_sha256') == preview.get('sha256')
                 and previous.get('revision') == lesson['revision'] and previous.get('audio_sha256') == audio_sha256
+                and previous.get('join_gap_ms') == (PARAGRAPH_GAP_MS if with_voice else 0)
                 and all(previous.get(key) == value for key, value in origin.items())):
             try:
                 path = Path(previous['path'])
@@ -80,6 +82,7 @@ def _save_product(directory, selected, preview, *, with_voice):
                 value = {**origin, 'lesson_id': lesson['id'], 'record_id': identity, 'revision': lesson['revision'],
                          'source_sha256': preview['sha256'], 'path': str(path), 'sha256': digest(path),
                          'audio_sha256': audio_sha256, 'fallback': chosen == fallback, 'coverage': report}
+                value['join_gap_ms'] = PARAGRAPH_GAP_MS if with_voice else 0
                 try:
                     library.set_setting(key, value)
                 except (OSError, sqlite3.Error):

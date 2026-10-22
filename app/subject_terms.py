@@ -34,6 +34,7 @@ TERMS = {
         'hóa học hữu cơ':'organic chemistry', 'nhóm chức':'functional group',
         'công thức phân tử':'molecular formula', 'công thức cấu tạo':'structural formula',
         'liên kết cộng hóa trị':'covalent bond', 'liên kết ion':'ionic bond', 'cộng hóa trị':'covalent',
+        'chủ yếu là liên kết cộng hóa trị':'Mainly covalent bonds',
         'phổ hồng ngoại':'infrared spectrum', 'số sóng':'wavenumber',
         'nhiệt độ nóng chảy':'melting point', 'nhiệt độ sôi':'boiling point',
         'hydrocarbon no':'saturated hydrocarbons', 'hydrocarbon không no':'unsaturated hydrocarbons',

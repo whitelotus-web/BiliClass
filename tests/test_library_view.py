@@ -51,6 +51,19 @@ def test_pagination_limits_created_rows_and_clamps_after_filtering():
     assert result['rows'] == [] and result['page'] == 1 and result['start'] == result['end'] == 0
 
 
+def test_voice_groups_move_only_after_completion_and_keep_language_filters():
+    data = rows()
+    pending = query(data, group='none')
+    assert pending['groups'] == {'all': 4, 'none': 3, 'ready': 1}
+    assert 'unfinished' in pending['ids'] and 'physics' not in pending['ids']
+    item = next(row for row in data if row['id'] == 'unfinished')
+    item['narration'] = {'status': 'ready', 'mode': 'en', 'ready': True}
+    assert 'unfinished' not in query(data, group='none')['ids']
+    assert 'unfinished' in query(data, group='ready', voice='en')['ids']
+    assert 'unfinished' not in query(data, group='ready', voice='vi')['ids']
+    assert len(data) == 4, 'Grouping never copies or moves the actual lesson file'
+
+
 def test_filter_options_are_unique_and_based_on_real_catalog():
     assert [r['label'] for r in options(rows(), 'subject')] == ['Tất cả môn học', 'Tin học', 'Vật lý']
     assert [r['id'] for r in options(rows(), 'grade')] == ['', 'THPT|10', 'THPT|11']

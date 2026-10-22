@@ -1,5 +1,6 @@
 import wave
 import zipfile
+from io import BytesIO
 
 import pytest
 from lxml import etree
@@ -13,6 +14,26 @@ from app.lesson_narration import make_plan
 from app.library import Library
 from app.presentation_audio import slide_audio
 from app.source_deck import NS, source_slide_parts
+
+
+def test_joined_audio_has_a_full_breath_between_paragraphs_and_keeps_the_recordings(tmp_path):
+    from app.presentation_audio import joined_wav
+
+    folder = tmp_path/'audio'
+    folder.mkdir()
+    for key, value in [('first', 101), ('second', 202)]:
+        with wave.open(str(folder/(key+'.wav')), 'wb') as wav:
+            wav.setparams((1, 2, 24000, 0, 'NONE', 'not compressed'))
+            wav.writeframes(value.to_bytes(2, 'little')*2400)
+    before = {p.name: p.read_bytes() for p in folder.iterdir()}
+    data, duration = joined_wav(tmp_path, ['first', 'second'])
+    with wave.open(BytesIO(data)) as wav:
+        pcm = wav.readframes(wav.getnframes())
+        gap = pcm[2400*2:(2400+26400)*2]
+        assert len(gap) == 52800 and not any(gap)
+        assert pcm[(2400+26400)*2:(2400+26400+10)*2] == (202).to_bytes(2, 'little')*10
+        assert duration == 2400
+    assert before == {p.name: p.read_bytes() for p in folder.iterdir()}
 
 
 def fixture(tmp_path, mode="both", crowded=False):

@@ -1,6 +1,6 @@
 # BiliClass — Hướng dẫn sử dụng
 
-Hướng dẫn cập nhật theo mã nguồn RC147 · 22/10/2026
+Hướng dẫn cập nhật theo mã nguồn RC148 · 22/10/2026
 
 BiliClass chuyển bài giảng PowerPoint sang Việt–Anh hoặc tiếng Anh, tạo
 âm thanh Việt–Mỹ và hỗ trợ trình chiếu bằng Mascot. Bài giảng và giọng đọc
@@ -175,3 +175,20 @@ chứa mở thư mục, mở thư viện khác và xuất thông tin hỗ trợ 
 **Cài đặt → Chung** lưu tên thầy cô, trường, môn và logo; có thể bật/tắt
 hiển thị hồ sơ trên bài giảng. **Cài đặt → Thông tin BiliClass** có phiên
 bản, bản quyền và kiểm tra cập nhật. Nhấn **F1** để xem hướng dẫn trong app.
+## Thư viện theo giọng đọc — RC148
+
+Ba tab **Tất cả**, **Chưa có giọng**, **Đã có giọng** là các cách xem
+cùng một bài. Tạo giọng hoàn tất thì bài tự xuất hiện ở Đã có giọng;
+bản thiếu đoạn vẫn ở Chưa có giọng. Đổi tab bỏ chọn những bài đang ẩn.
+Chọn nhiều bài rồi bấm **Tạo giọng đã chọn**, chọn cấu hình chung và
+bắt đầu. Tool giữ bài hiện có, bỏ qua bài đã có giọng hoàn tất và xử lý
+lần lượt các bài còn lại. Không tự tạo lại bản đã hoàn tất.
+
+**Mở bài từ máy** trong Thư viện mở PowerPoint và gắn Mascot qua luồng
+trình chiếu hiện có; không tự chuyển ngữ hoặc tạo âm thanh. File chưa
+được chuyển đổi/tạo giọng không tự thành một sản phẩm đã hoàn tất.
+
+Hàng đợi nằm ngay trong cấu hình ở cả hai công cụ, có thời gian bài
+đang chạy và tổng lượt; thời gian tạm dừng không được cộng. Khoảng
+nghỉ giữa các đoạn là 1,1 giây. PowerPoint đã xuất theo khoảng nghỉ cũ
+cần xuất lại; các đoạn âm thanh gốc được dùng lại khi còn hợp lệ.

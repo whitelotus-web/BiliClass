@@ -34,12 +34,14 @@ def voice_matches(row, voice):
         return {'vi', 'en'} <= languages if voice == 'both' else voice in languages
     if voice == 'none':
         return not any(v.get('ready') for v in variants) and audio.get('status') != 'checking'
+    if voice == 'ready':
+        return any(v.get('ready') for v in variants)
     if voice == 'partial':
         return any(not v.get('ready') for v in variants)
     return True
 
 
-def query(rows, text='', subject='', grade='', state='', voice='', page=1, page_size=20):
+def query(rows, text='', subject='', grade='', state='', voice='', page=1, page_size=20, *, group=''):
     words = folded(text).split()
     selected = []
     for row in rows:
@@ -52,9 +54,13 @@ def query(rows, text='', subject='', grade='', state='', voice='', page=1, page_
                 or not voice_matches(row, voice)):
             continue
         selected.append(row)
+    groups = {'all': len(selected), 'none': sum(voice_matches(row, 'none') for row in selected),
+              'ready': sum(voice_matches(row, 'ready') for row in selected)}
+    if group in {'none', 'ready'}:
+        selected = [row for row in selected if voice_matches(row, group)]
     pages = max(1, math.ceil(len(selected) / page_size))
     page = max(1, min(page, pages))
     start = (page - 1) * page_size
-    return {'rows': selected[start:start + page_size], 'ids': [row['id'] for row in selected], 'total': len(selected), 'all': len(rows), 'page_size': page_size,
+    return {'rows': selected[start:start + page_size], 'ids': [row['id'] for row in selected], 'total': len(selected), 'all': len(rows), 'page_size': page_size, 'groups': groups,
             'page': page, 'pages': pages, 'start': start + 1 if selected else 0,
             'end': min(start + page_size, len(selected))}

@@ -11,6 +11,28 @@ from app.picture_ocr import extract_pictures
 from app.picture_translation import apply_picture_translations, background
 
 
+def test_split_covalent_bond_term_is_joined_only_with_verified_aligned_next_line():
+    import copy
+
+    from app.picture_prose import scientific_lines
+
+    def line(text, left, top, verified=True):
+        return dict(text=text, confidence=.98, verified=verified,
+                    points=[[left, top], [left+.3, top], [left+.3, top+.04], [left, top+.04]])
+
+    original = [line('Chủ yếu là liên kết cộng', .35, .5), line('hoá trị', .35, .55)]
+    before = copy.deepcopy(original)
+    joined = scientific_lines(original)
+    assert len(joined) == 1 and joined[0]['text'] == 'Chủ yếu là liên kết cộng hoá trị'
+    assert original == before, 'Raw recognition and picture cache must remain unchanged'
+    assert len(scientific_lines([original[0], line('hoá trị', .7, .55)])) == 2
+    assert len(scientific_lines([original[0], line('hoá trị', .35, .55, False)])) == 2
+    assert len(scientific_lines([original[0], line('hoá trị', .35, .8)])) == 2
+    centered = line('hoá trị', .45, .55)
+    centered['points'][1][0] = centered['points'][2][0] = .55
+    assert len(scientific_lines([original[0], centered])) == 1
+
+
 def test_template_ocr_can_include_animated_content_without_exposing_it_in_preserved_design(tmp_path):
     from lxml import etree
 

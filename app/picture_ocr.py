@@ -231,9 +231,9 @@ def extract_pictures(source, directory, cancel, progress=None, *, recognizer=Non
     from .slide_semantics import roman_label
 
     for occurrence in occurrences:
-        lines = cached[occurrence["key"]]
-        from .picture_prose import paragraphs
+        from .picture_prose import paragraphs, scientific_lines
 
+        lines = scientific_lines(cached[occurrence["key"]])
         blocks = paragraphs(lines, occurrence, str(pictures[occurrence['key']]))
         rows.extend(blocks)
         included = {index for block in blocks for index in block['line_indices']}
@@ -263,6 +263,7 @@ def extract_pictures(source, directory, cancel, progress=None, *, recognizer=Non
                     "id": f"ocr-{occurrence['slide']}-{occurrence['shape_id']}-{index}",
                     "text": text,
                     "confidence": line["confidence"],
+                    "same_column": bool(line.get('scientific_join')),
                     "region": [x + left * w, y + top * h, (right - left) * w, (bottom - top) * h],
                     "image": str(pictures[occurrence["key"]]),
                 }

@@ -5,6 +5,44 @@ import unicodedata
 from difflib import SequenceMatcher
 
 
+def scientific_lines(lines):
+    """Keep a verified split covalent-bond term together, within the same column."""
+    result, used = [], set()
+    for index, line in enumerate(lines):
+        if index in used:
+            continue
+        text = line['text'].strip()
+        if line.get('verified') and re.search(r'liên kết cộng$', text, re.I):
+            points = line['points']
+            left, bottom = min(p[0] for p in points), max(p[1] for p in points)
+            height = bottom-min(p[1] for p in points)
+            matches = []
+            for other, following in enumerate(lines):
+                if other <= index or other in used or not following.get('verified'):
+                    continue
+                if following['text'].strip().casefold() not in {'hoá trị', 'hóa trị'}:
+                    continue
+                corners = following['points']
+                gap = min(p[1] for p in corners)-bottom
+                aligned = (abs(min(p[0] for p in corners)-left) < .035
+                           or abs((min(p[0] for p in corners)+max(p[0] for p in corners))
+                                  -(left+max(p[0] for p in points))) < .07)
+                if aligned and -.2*height <= gap <= 1.2*height:
+                    matches.append((other, following))
+            if len(matches) == 1:
+                other, following = matches[0]
+                corners = points+following['points']
+                right, top = max(p[0] for p in corners), min(p[1] for p in corners)
+                bottom = max(p[1] for p in corners)
+                line = {**line, 'text': text+' '+following['text'].strip(),
+                        'scientific_join': True,
+                        'confidence': min(line['confidence'], following['confidence']),
+                        'points': [[left, top], [right, top], [right, bottom], [left, bottom]]}
+                used.add(other)
+        result.append(line)
+    return result
+
+
 def draft_line(line):
     first, second = line['text'].strip(), line.get('alternate', '').strip()
     if re.search(r'[=∑√∫≤≥ωαβφ²³]', first + second):

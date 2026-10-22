@@ -130,6 +130,41 @@ ApplicationWindow {
     property bool voiceConfigurationExpanded: false
     readonly property bool narrationComplete: !!bridge.quickResult.path && !!narrationDraft.ready && !bridge.narrationBusy
     readonly property var batchState: bridge.batchQueue.state
+    property string restoredBatch: ""
+    property string revealedBatch: ""
+    onBatchStateChanged: Qt.callLater(root.syncBatchConfiguration)
+    function syncBatchConfiguration() {
+        if (!batchState.shown || !batchState.options || batchState.phase === "draft") return
+        const options = batchState.options
+        if (restoredBatch !== batchState.id) {
+            restoredBatch = batchState.id
+            if (batchState.kind === "convert") {
+                titleInput.text = "Tên theo từng file"
+                const subject = bridge.conversionSubjects.indexOf(options.subject)
+                subjectInput.currentIndex = subject >= 0 ? subject : bridge.conversionSubjects.indexOf("Khác")
+                customSubjectInput.text = subject >= 0 ? "" : options.subject
+                educationInput.currentIndex = educationInput.model.indexOf(options.education)
+                gradeInput.currentIndex = gradeInput.model.indexOf(options.grade)
+                creationFormat.currentIndex = root.conversionFormats.findIndex(function(item) { return item.id === options.format })
+                creationWorkflow.currentIndex = options.style === "source" ? 0 : 1
+                creationPreset.currentIndex = ["standard", "visual", "practice"].indexOf(options.preset)
+                teacherNotesInput.text = options.notes || ""
+            } else {
+                root.narrationMode = options.mode; root.narrationVoice = options.voice
+                root.narrationRate = options.rate; root.batchSpeakerPosition = options.position
+            }
+        }
+        const key = batchState.id + "|" + batchState.running
+        if (batchState.running && revealedBatch !== key) {
+            revealedBatch = key
+            Qt.callLater(function() {
+                const panel = batchState.kind === "convert" ? conversionBatchPanel : voiceBatchPanel
+                const flick = batchState.kind === "convert" ? creationScroll.contentItem : resultScroll.contentItem
+                const bottom = panel.mapToItem(flick.contentItem, 0, 0).y + panel.height
+                flick.contentY = Math.max(0, Math.min(bottom - flick.height + 16, flick.contentHeight - flick.height))
+            })
+        } else if (!batchState.running) revealedBatch = ""
+    }
     readonly property bool creationBatch: batchState.kind === "convert" && !!batchState.total && !!batchState.shown
     onCreationBatchChanged: if (!creationBatch && titleInput && titleInput.text === "Tên theo từng file") titleInput.text = ""
     readonly property bool voiceBatch: batchState.kind === "voice" && !!batchState.total && !!batchState.shown
@@ -159,6 +194,7 @@ ApplicationWindow {
         const title = root.lessonData.title
         bridge.stopSpeech()
         root.go("library")
+        root.libraryGroup = ""
         search.text = title
         subjectFilter.currentIndex = 0; gradeFilter.currentIndex = 0; stateFilter.currentIndex = 0; voiceFilter.currentIndex = 0
         root.libraryPage = 1
@@ -303,6 +339,7 @@ ApplicationWindow {
     onLibraryLargeChanged: coverRequests.restart()
     Timer { id: coverRequests; interval: 120; onTriggered: bridge.requestLibraryCovers(root.libraryLarge ? root.libraryResult.rows : []) }
     property var selectedLessons: []
+    property string libraryGroup: ""
     property string librarySelectionAnchor: ""
     property var libraryCardItems: ({})
     property string libraryDragStart: ""
@@ -310,7 +347,7 @@ ApplicationWindow {
     property point libraryDragPointer: Qt.point(0, 0)
     property bool libraryDragActive: false
     property bool libraryDragSelecting: false
-    readonly property string librarySelectionScope: [search.text, subjectFilter.currentValue, gradeFilter.currentValue, stateFilter.currentValue, voiceFilter.currentValue].join("|")
+    readonly property string librarySelectionScope: [search.text, subjectFilter.currentValue, gradeFilter.currentValue, stateFilter.currentValue, voiceFilter.currentValue, libraryGroup].join("|")
     readonly property bool libraryFiltersActive: !!(search.text.trim() || subjectFilter.currentValue || gradeFilter.currentValue || stateFilter.currentValue || voiceFilter.currentValue)
     onLibrarySelectionScopeChanged: { selectedLessons = []; librarySelectionAnchor = ""; endLibraryDrag() }
     onLibraryResultChanged: {
@@ -384,8 +421,8 @@ ApplicationWindow {
         libraryDownloadDialog.identities = identities.slice()
         libraryDownloadDialog.open()
     }
-    readonly property var libraryResult: bridge.queryLibrary(bridge.lessons, search.text,
-        subjectFilter.currentValue || "", gradeFilter.currentValue || "", stateFilter.currentValue || "", voiceFilter.currentValue || "", root.libraryPage)
+    readonly property var libraryResult: bridge.queryLibraryGroup(bridge.lessons, search.text,
+        subjectFilter.currentValue || "", gradeFilter.currentValue || "", stateFilter.currentValue || "", voiceFilter.currentValue || "", root.libraryPage, root.libraryGroup)
     function durationText(seconds) {
         const value = Math.max(0, Math.floor(seconds || 0))
         function two(n) { return n < 10 ? "0" + n : "" + n }
@@ -942,6 +979,8 @@ ApplicationWindow {
                             RowLayout {
                                 Layout.fillWidth: true; spacing: 12
                                 Copy { objectName: "libraryDescription"; text: "Tìm đúng bài, chọn bản giọng và mở để dạy hoặc tải PowerPoint."; Layout.fillWidth: true }
+                                MainAction { objectName: "libraryNarrateSelected"; text: "Tạo giọng đã chọn"; visible: root.selectedLessons.length > 0; implicitHeight: 32; enabled: !bridge.busy && !bridge.narrationBusy; ToolTip.visible: hovered; ToolTip.text: "Tạo giọng lần lượt cho bài chưa có giọng; bỏ qua bài đã hoàn tất"; onClicked: bridge.batchQueue.selectLessons(root.selectedLessons) }
+                                MainAction { objectName: "openLibraryPresentation"; text: "Mở bài từ máy"; subtle: true; implicitHeight: 28; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.teachingTransitioning; onClicked: libraryPresentationOpen.open() }
                                 MainAction { id: libraryManagementAction; objectName: "libraryManagementButton"; text: "Chia sẻ & quản lý"; subtle: true; implicitHeight: 28; onClicked: libraryManagementMenu.popup() }
                                 MainAction { objectName: "undoLibraryDeletion"; text: "Hoàn tác xóa"; symbol: "↶"; implicitHeight: 28; visible: bridge.undoDeleteCount > 0; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !bridge.teachingTransitioning && !root.classroom.running; ToolTip.visible: hovered; ToolTip.text: "Khôi phục " + bridge.undoDeleteCount + " bài trong lần xóa gần nhất"; onClicked: bridge.undoDeletion() }
                                 Menu { id: libraryManagementMenu; parent: libraryManagementAction; x: parent.width - width; y: parent.height
@@ -949,6 +988,24 @@ ApplicationWindow {
                                     MenuItem { text: "Thùng rác (" + bridge.trashedLessons.length + ")"; onTriggered: lessonTrashDialog.open() }
                                 }
                             }
+                        }
+                        RowLayout {
+                            objectName: "libraryVoiceTabs"; visible: root.page === "library"; Layout.fillWidth: true; spacing: 8
+                            Repeater {
+                                model: [{key:"", label:"Tất cả", count:"all"}, {key:"none", label:"Chưa có giọng", count:"none"}, {key:"ready", label:"Đã có giọng", count:"ready"}]
+                                MainAction {
+                                    required property var modelData
+                                    objectName: "libraryTab_" + (modelData.key || "all")
+                                    text: modelData.label + " (" + ((root.libraryResult.groups || {})[modelData.count] || 0) + ")"
+                                    primary: root.libraryGroup === modelData.key; implicitHeight: 34
+                                    Accessible.role: Accessible.PageTab; Accessible.selected: primary
+                                    onClicked: {
+                                        if (modelData.key === "none" || voiceFilter.currentValue === "none") voiceFilter.currentIndex = 0
+                                        root.libraryGroup = modelData.key; root.libraryPage = 1
+                                    }
+                                }
+                            }
+                            Item { Layout.fillWidth: true }
                         }
                         RowLayout { visible: root.page === "library"; Layout.fillWidth: true; spacing: 12
                             Field {
@@ -1207,7 +1264,6 @@ ApplicationWindow {
                             MainAction { objectName: "removeInputDocumentButton"; visible: !!root.selectedFile; text: "Hủy bài đang chọn"; danger: true; symbol: "×"; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: root.removeInputDocument() }
                         }
                         Copy { text: "Chọn PowerPoint → Chọn kiểu chuyển đổi → Thiết kế bài giảng → Tạo bài giảng."; Layout.fillWidth: true }
-                        BatchQueuePanel { objectName: "conversionBatchPanel"; controller: bridge.batchQueue; kind: "convert"; working: bridge.busy; Layout.fillWidth: true }
                         PowerPointUpload {
                             objectName: "creationSourceArea"; visible: !root.selectedFile && !root.creationBatch; illustrated: true; compact: true; multiple: bridge.googleTranslation; Layout.fillWidth: true
                             chooseObjectName: root.selectedFile || root.creationBatch ? "" : "chooseInputDocumentButton"
@@ -1287,7 +1343,7 @@ ApplicationWindow {
                             Item { Layout.fillWidth: true }
                         }
                         Surface {
-                            objectName: "creationConfiguration"; visible: !root.creationBatch || root.batchState.phase === "draft"; Layout.fillWidth: true; implicitHeight: config.height + (root.compactCreation ? 24 : 38)
+                            objectName: "creationConfiguration"; Layout.fillWidth: true; implicitHeight: config.height + (root.compactCreation ? 24 : 38)
                             ColumnLayout {
                                 id: config; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: root.compactCreation ? 12 : 19; spacing: root.compactCreation ? 6 : 12
                                 ColumnLayout {
@@ -1433,9 +1489,10 @@ ApplicationWindow {
                                         }
                                     }
                                 }
+                                BatchQueuePanel { id: conversionBatchPanel; objectName: "conversionBatchPanel"; controller: bridge.batchQueue; kind: "convert"; working: bridge.busy; Layout.fillWidth: true }
                                 ColumnLayout {
                                     id: creationConversionProgress; objectName: "creationConversionProgress"
-                                    visible: root.inlineConversionVisible; Layout.fillWidth: true; spacing: 10
+                                    visible: !root.creationBatch && root.inlineConversionVisible; Layout.fillWidth: true; spacing: 10
                                     onVisibleChanged: if (visible) Qt.callLater(root.revealConversionProgress)
                                     onYChanged: if (visible) Qt.callLater(root.revealConversionProgress)
                                     onHeightChanged: if (visible) Qt.callLater(root.revealConversionProgress)
@@ -1646,7 +1703,6 @@ ApplicationWindow {
                                 onChooseFile: voicePresentationOpen.open()
                                 onFilesDropped: function(urls) { root.acceptVoiceDocuments(urls) }
                             }
-                            BatchQueuePanel { objectName: "voiceBatchPanel"; controller: bridge.batchQueue; kind: "voice"; working: bridge.busy; Layout.fillWidth: true }
                             RowLayout { visible: !root.voiceBatch && (!bridge.quickResult.path || root.voiceSourceExpanded); Layout.fillWidth: true
                                 Choice { id: voiceLibraryPicker; objectName: "voiceLibraryPicker"; model: bridge.narrationSources; textRole: "title"; Layout.fillWidth: true; Layout.minimumWidth: 0; enabled: bridge.narrationWorkspace.configurationEnabled }
                                 MainAction { objectName: "selectVoiceLibraryLesson"; text: "Dùng bài đã chọn"; enabled: bridge.narrationWorkspace.configurationEnabled && voiceLibraryPicker.currentIndex >= 0; onClicked: bridge.narrationWorkspace.selectLibrary(bridge.narrationSources[voiceLibraryPicker.currentIndex].id) }
@@ -1798,7 +1854,7 @@ ApplicationWindow {
                             onViewRequested: function(slide) { root.voicePreviewExpanded = true; bridge.previewConvertedSlide(slide) }
                         }
                         Surface {
-                            id: lessonNarrationPanel; objectName: "lessonNarrationPanel"; visible: root.page === "voice" && (!root.voiceBatch || root.batchState.phase === "draft")
+                            id: lessonNarrationPanel; objectName: "lessonNarrationPanel"; visible: root.page === "voice"
                             readonly property real contentPadding: root.compactVoice ? 16 : 20
                             Layout.fillWidth: true
                             implicitHeight: narrationForm.height + contentPadding * 2
@@ -1927,17 +1983,18 @@ ApplicationWindow {
                                 }
                                 CheckBox { objectName: "embedPresentationVoice"; visible: root.page !== "voice" && !!bridge.quickResult.path && !!bridge.selectedNarrationVariant; checked: root.includeDownloadVoice; onClicked: root.includeDownloadVoice = checked; text: "Kèm loa đọc toàn bộ lời đã lưu của slide khi bấm" }
                                 }
-                                RowLayout { Layout.fillWidth: true; visible: !!bridge.lessonNarration.running
+                                BatchQueuePanel { id: voiceBatchPanel; objectName: "voiceBatchPanel"; controller: bridge.batchQueue; kind: "voice"; working: bridge.busy; Layout.fillWidth: true }
+                                RowLayout { Layout.fillWidth: true; visible: !root.voiceBatch && !!bridge.lessonNarration.running
                                     ProgressBar { objectName: "lessonNarrationProgressBar"; Layout.fillWidth: true; from: 0; to: 100; value: bridge.lessonNarration.percent || 0 }
                                     Caption { objectName: "lessonNarrationPercent"; text: (bridge.lessonNarration.percent || 0) + "%" }
                                 }
-                                RowLayout { Layout.fillWidth: true; visible: !!bridge.narrationPreparation.lesson_id && (bridge.lessonNarration.running || bridge.narrationClock.elapsedSeconds > 0 && !root.narrationDraft.ready)
+                                RowLayout { Layout.fillWidth: true; visible: !root.voiceBatch && !!bridge.narrationPreparation.lesson_id && (bridge.lessonNarration.running || bridge.narrationClock.elapsedSeconds > 0 && !root.narrationDraft.ready)
                                     Copy { objectName: "lessonNarrationElapsed"; text: "Thời gian tạo giọng: " + root.durationText(bridge.narrationClock.elapsedSeconds); color: root.ink; font.pixelSize: 12 }
                                     Item { Layout.fillWidth: true }
                                     Copy { text: (bridge.lessonNarration.complete || 0) + " / " + (bridge.lessonNarration.total || 0) + " đoạn sẵn sàng"; color: root.muted; font.pixelSize: 12 }
                                 }
                                 Repeater {
-                                    model: bridge.narrationPreparation.failed_segments || []
+                                    model: root.voiceBatch ? [] : bridge.narrationPreparation.failed_segments || []
                                     Copy {
                                         required property var modelData
                                         objectName: "failedNarrationLocation"
@@ -1947,7 +2004,7 @@ ApplicationWindow {
                                               + " · Chưa tạo được âm thanh: “" + modelData.excerpt + "”. Tiếp tục để tạo phần thiếu."
                                     }
                                 }
-                                Copy { objectName: "narrationPreparationStatus"; Layout.fillWidth: true; visible: !!bridge.lessonNarration.message && !root.narrationDraft.ready; text: bridge.lessonNarration.message || ""; color: root.muted; font.pixelSize: 12 }
+                                Copy { objectName: "narrationPreparationStatus"; Layout.fillWidth: true; visible: !root.voiceBatch && !!bridge.lessonNarration.message && !root.narrationDraft.ready; text: bridge.lessonNarration.message || ""; color: root.muted; font.pixelSize: 12 }
                                 NarrationReadyCard {
                                     objectName: "narrationReadyNextStep"; visible: !root.voiceBatch && !!bridge.quickResult.path && !!root.narrationDraft.ready && !bridge.narrationBusy
                                     Layout.fillWidth: true; busy: bridge.busy || bridge.narrationBusy; opening: bridge.teachingTransitioning
@@ -2314,6 +2371,7 @@ ApplicationWindow {
     SuggestedSaveDialog { id: finalPresentationSave; objectName: "finalPresentationSaveDialog"; title: "Tải PowerPoint"; nameFilters: ["PowerPoint (*.pptx)"]; defaultSuffix: "pptx"; currentFolder: bridge.downloadsDirectory; suggestionProvider: function() { return root.lessonData.id ? bridge.libraryDownloadSuggestion([root.lessonData.id], true) : "" }; onAccepted: bridge.downloadFinalPresentation(selectedFile.toString()) }
     SuggestedSaveDialog { id: narrationAudioSave; objectName: "narrationAudioSaveDialog"; title: "Lưu audio theo slide"; nameFilters: ["Audio theo slide (*.zip)"]; defaultSuffix: "zip"; currentFolder: bridge.downloadsDirectory; suggestionProvider: function() { return bridge.exportSuggestion("zip") }; onAccepted: bridge.narrationWorkspace.exportAudio(selectedFile.toString()) }
     FileDialog { id: voicePresentationOpen; objectName: "voicePresentationFileDialog"; title: "Chọn một hoặc nhiều PowerPoint để tạo giọng đọc"; fileMode: FileDialog.OpenFiles; nameFilters: ["PowerPoint (*.pptx)"]; onAccepted: root.acceptVoiceDocuments(selectedFiles.map(function(url) { return url.toString() })) }
+    FileDialog { id: libraryPresentationOpen; objectName: "libraryPresentationDialog"; title: "Mở bài giảng trên máy với Mascot"; fileMode: FileDialog.OpenFile; nameFilters: ["PowerPoint (*.pptx)"]; onAccepted: bridge.openTeachingPresentation(selectedFile.toString()) }
     FileDialog { id: documentOpen; objectName: "creationFileDialog"; title: "Chọn một hoặc nhiều file PowerPoint"; fileMode: bridge.googleTranslation ? FileDialog.OpenFiles : FileDialog.OpenFile; nameFilters: ["PowerPoint (*.pptx)"]; onAccepted: root.acceptInputDocuments(selectedFiles.map(function(url) { return url.toString() })) }
     FileDialog { id: chatgptDeckOpen; title: "Nhận PowerPoint đã tải từ ChatGPT"; nameFilters: ["PowerPoint (*.pptx)"]; onAccepted: bridge.receiveChatGPTDeck(selectedFile.toString()) }
     FileDialog { id: logoOpen; title: "Chọn logo trường"; nameFilters: ["Ảnh (*.png *.jpg *.jpeg)"]; onAccepted: bridge.saveSchoolLogo(selectedFile.toString()) }

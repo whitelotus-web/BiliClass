@@ -26,6 +26,9 @@ from app.voice_pairs import ENGLISH_VERSION
     ('The element H is present in H2O.', 'The element hydrogen is present in aitch 2 oh.'),
     ('Contains only two elements: C and H.', 'Contains only two elements: carbon and hydrogen.'),
     ('Does not react with Na.', 'Does not react with sodium.'),
+    ('CH3 −O−CH3', 'see aitch 3 single bond oh single bond see aitch 3'),
+    ('CH3 – CH2 – CH = CH – CH2 – CH3', 'see aitch 3 single bond see aitch 2 single bond see aitch double bond see aitch single bond see aitch 2 single bond see aitch 3'),
+    ('CH3 − CH2 − OH', 'see aitch 3 single bond see aitch 2 single bond oh aitch'),
     ('I identify the element I.', 'I identify the element iodine.'),
 ])
 def test_spoken_formulas_keep_every_atom_index_and_charge(text, expected):
@@ -44,6 +47,15 @@ def test_chemical_names_are_spoken_as_english_words_not_spelled_symbols():
     assert spoken_text('Oxygen, hydrogen, sulfuric acid, iron, aluminium and alcohol.') == 'Oxygen, hydrogen, sulfuric acid, iron, aluminium and alcohol.'
 
 
+def test_only_changed_structural_readings_invalidate_previously_correct_formula_audio():
+    def previous(text):
+        return hashlib.sha256(json.dumps({'text': text, 'voice': 'kokoro-us:af_heart', 'rate': 0,
+            'provider': ENGLISH_VERSION+'|spoken-chemistry-v1'}, sort_keys=True).encode()).hexdigest()
+    assert speech.audio_key('HCN', 'kokoro-us:af_heart', 0) == previous('HCN')
+    assert speech.audio_key('CH3 −O−CH3', 'kokoro-us:af_heart', 0) != previous('CH3 −O−CH3')
+    assert spoken_text('C2H6O') == 'see 2 aitch 6 oh', 'A formula alone does not identify an isomer'
+
+
 def test_cache_migration_matches_actual_rendering_and_keeps_unaffected_audio():
     def legacy(text,voice='kokoro-us:af_heart',provider=ENGLISH_VERSION):
         return hashlib.sha256(json.dumps({'text':text,'voice':voice,'rate':0,'provider':provider},sort_keys=True).encode()).hexdigest()
@@ -52,3 +64,9 @@ def test_cache_migration_matches_actual_rendering_and_keeps_unaffected_audio():
         assert speech.audio_key(text,'kokoro-us:af_heart',0) != legacy(text)
     assert speech.audio_key('Alcohol','kokoro-us:af_heart',0) == legacy('Alcohol')
     assert speech.audio_key('HCN','sapi:legacy',0) == legacy('HCN','sapi:legacy','sapi-v1')
+def test_numbered_geometry_points_do_not_supply_chemical_bond_context():
+    from app.spoken_chemistry import cache_version, structural_formula
+
+    assert not structural_formula('S2 - S1')
+    assert not structural_formula('C2 - C3')
+    assert cache_version('S2 - S1') == 'spoken-chemistry-v1'

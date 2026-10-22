@@ -405,6 +405,11 @@ class Bridge(QObject):
         from .library_view import query
         return query(rows, text, subject, grade, state, voice, page)
 
+    @Slot('QVariantList', str, str, str, str, str, int, str, result='QVariantMap')
+    def queryLibraryGroup(self, rows, text, subject, grade, state, voice, page, group):
+        from .library_view import query
+        return query(rows, text, subject, grade, state, voice, page, group=group)
+
     @Property(str, notify=libraryViewChanged)
     def lessonOrder(self):
         return self._library_preferences.values['lesson_order']

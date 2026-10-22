@@ -50,6 +50,23 @@ def test_teacher_edit_of_autosaved_file_is_kept_and_a_new_name_is_used(tmp_path)
         library.close()
 
 
+def test_old_pause_policy_is_reexported_without_regenerating_or_overwriting_audio(tmp_path, monkeypatch):
+    library, lesson, source, preview = prepared(tmp_path)
+    wavs = {p.name: p.read_bytes() for p in (library.directory/'audio').glob('*.wav')}
+    try:
+        with monkeypatch.context() as patch:
+            patch.setattr('app.completed_export.PARAGRAPH_GAP_MS', 450)
+            old = save_finished(library.directory, lesson, preview)
+        previous = Path(old['path']).read_bytes()
+        fresh = save_finished(library.directory, lesson, preview)
+        assert fresh['path'] != old['path'] and not fresh['reused']
+        assert fresh['join_gap_ms'] == 1100 and Path(old['path']).read_bytes() == previous
+        assert wavs == {p.name: p.read_bytes() for p in (library.directory/'audio').glob('*.wav')}
+        assert save_finished(library.directory, lesson, preview)['reused']
+    finally:
+        library.close()
+
+
 def test_new_audio_with_same_text_keys_invalidates_autosave_reuse(tmp_path):
     library, lesson, _, preview = prepared(tmp_path)
     try:

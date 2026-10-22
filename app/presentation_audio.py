@@ -10,6 +10,7 @@ from lxml import etree
 
 from .lesson_narration import MODES, audio_status, valid_key
 from .narration_script import segments as narration_segments
+from .narration_timing import PARAGRAPH_GAP_MS
 from .powerpoint import slide_for_locator
 from .source_deck import NS, _bytes, _rels_path, _xml, source_slide_parts
 
@@ -85,7 +86,7 @@ def joined_wav(directory, keys):
                 if current != parameters or source.getcomptype() != "NONE":
                     raise ValueError("Các đoạn voice khác định dạng. Tạo lại giọng đọc của bài.")
                 output.writeframes(source.readframes(source.getnframes()))
-                silence = int(current[2] * 0.45)
+                silence = current[2] * PARAGRAPH_GAP_MS // 1000
                 output.writeframes(b"\x00" * (silence * current[0] * current[1]))
                 total += source.getnframes() + silence
     return buffer.getvalue(), round(total / parameters[2] * 1000)

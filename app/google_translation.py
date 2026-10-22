@@ -28,10 +28,12 @@ DEFAULT_BUDGET = 500_000
 _LOCK = threading.RLock()
 # A value and its unit form one protected expression. In particular, an
 # exposed trailing s2 must not be translated as a word or lose its s.
-_UNIT = r'(?:kHz|Hz|cm|mm|km|ms|rad|kg|mol|mL|eV|Pa|m|s|h|g|N|J|W|V|A|Ω|K|°C|L)(?:[²³23]|\^\d+)?'
+_UNIT_BASE = r'(?-i:kHz|Hz|cm|mm|km|ms|rad|kg|mol|mL|eV|Pa|m|s|h|g|N|J|W|V|A|Ω|K|°C|L)'
+_EXPONENT = r'(?:[²³23]|\^\s*(?:\{\s*[+−-]?\d+\s*\}|[+−-]?\d+)|[⁻⁺]?[⁰¹²³⁴⁵⁶⁷⁸⁹]+|[−-]\s*\d+|⟦BLC\d+⟧)'
+_UNIT = _UNIT_BASE + r'(?:\s*' + _EXPONENT + ')?'
 _NUMBER = r'[+−-]?\d+(?:[.,]\d+)*(?:\s*%)?'
 _MEASUREMENT = _NUMBER + r'(?:\s*' + _UNIT + r'(?:/' + _UNIT + r')?(?!\w))?'
-_UNIT_EXPRESSION = r'(?<!\w)(?:' + _UNIT + '/' + _UNIT + r'|(?:cm|mm|km|m)[²³23])(?!\w)'
+_UNIT_EXPRESSION = r'(?<!\w)(?:' + _UNIT + '/' + _UNIT + '|' + _UNIT_BASE + r'\s*' + _EXPONENT + r')(?!\w)'
 
 
 class TranslationProblem(ValueError):
@@ -522,6 +524,8 @@ class Translator:
                 namespace += '|' + notation_version
             if numeric_glyphs(text):
                 namespace += '|unicode-numeric-glyphs-v1'
+            if re.search(_UNIT_EXPRESSION, text):
+                namespace += '|unit-expressions-v2'
             cache_id = _digest(namespace + '|' + source + '|' + target + '|' + text)
             cached = self.store.cached(cache_id)
             if cached is not None:

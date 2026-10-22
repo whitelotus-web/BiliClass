@@ -1,6 +1,7 @@
 import copy
 import errno
 import hashlib
+import json
 import shutil
 import wave
 from contextlib import closing
@@ -24,6 +25,37 @@ def batch(tmp_path, kind='convert', count=3):
     rows = batch_jobs.selection(kind, [QUrl.fromLocalFile(str(tmp_path/f'Bài {n}.pptx')).toString() for n in range(count)])
     rows['options'] = {'subject': 'Toán'}
     return rows
+
+
+def test_elapsed_clock_keeps_per_file_time_and_excludes_pause_between_runs(tmp_path, monkeypatch):
+    now = [100.0]
+    monkeypatch.setattr(batch_jobs, 'monotonic', lambda: now[0])
+    cancel, updates = Event(), []
+
+    def interrupted(directory, row, options, event, update):
+        now[0] += 3.25
+        update({'percent': 40}, True)
+        event.set()
+        raise InterruptedError()
+
+    paused = batch_jobs.run(tmp_path, batch(tmp_path, count=2), cancel, updates.append, process=interrupted)
+    assert paused['phase'] == 'paused'
+    assert paused['elapsed_seconds'] == paused['rows'][0]['elapsed_seconds'] == 3.25
+    assert paused['rows'][1].get('elapsed_seconds', 0) == 0
+    assert batch_jobs.load(tmp_path, paused['id'])['elapsed_seconds'] == 3.25
+    now[0] += 900  # Closing/reopening or pausing must not add 15 minutes of work.
+    cancel.clear()
+
+    def finished(directory, row, options, event, update):
+        now[0] += 2
+        update({'percent': 80})
+        return {}
+
+    result = batch_jobs.run(tmp_path, paused, cancel, updates.append, process=finished)
+    assert result['elapsed_seconds'] == 7.25
+    assert [row['elapsed_seconds'] for row in result['rows']] == [5.25, 2]
+    assert result['current_row_id'] == result['rows'][1]['id']
+    assert updates[-1]['phase'] == 'finished'
 
 
 def test_selection_deduplicates_paths_and_never_reads_or_imports_files(tmp_path, monkeypatch):
@@ -292,3 +324,29 @@ def test_real_conversion_batch_uses_each_title_and_exports_without_voice_without
         with ZipFile(row['output']) as archive:
             assert not any(name.endswith('.wav') for name in archive.namelist())
     assert [path.read_bytes() for path in paths] == before
+
+
+def test_library_selection_keeps_existing_ids_skips_ready_voice_and_detects_later_edits(tmp_path, monkeypatch):
+    from app.voice_import import import_presentation
+
+    directory = tmp_path/'data'
+    lessons = [import_presentation(directory, deck(tmp_path/f'Bài {index}.pptx', f'Nội dung {index}.'))[0]
+               for index in range(2)]
+    monkeypatch.setattr('app.lesson_narration.library_audio_status',
+                        lambda lesson, _: {'ready': lesson['id'] == lessons[1]['id']})
+    state = batch_jobs.library_selection(directory, [lesson['id'] for lesson in lessons])
+    assert state['skipped_ready'] == 1 and len(state['rows']) == 1
+    row = state['rows'][0]
+    assert row['library_lesson'] and row['lesson_id'] == lessons[0]['id']
+    assert row['name'] == lessons[0]['title']
+    with closing(Library(directory)) as library:
+        assert library.db.execute('SELECT COUNT(*) FROM lessons').fetchone()[0] == 2
+        changed = library.get(lessons[0]['id'])
+        changed['revision'] += 1
+        library.db.execute('UPDATE lessons SET content=? WHERE id=?', (json.dumps(changed), changed['id']))
+        library.db.commit()
+    state['options'] = {'mode': 'en', 'voice': 'pair:truc-ly', 'rate': 0, 'position': 'bottom_right'}
+    result = batch_jobs.run(directory, state, Event(), lambda _: None)
+    assert result['rows'][0]['status'] == 'failed' and 'đã sửa' in result['rows'][0]['message']
+    with pytest.raises(ValueError, match='đều có giọng'):
+        batch_jobs.library_selection(directory, [lessons[1]['id']])

@@ -197,7 +197,8 @@ def apply_picture_translations(path, manifest, rows, translations, mode, cancel=
                         (width, height),
                         (deck.slide_width / 12700, deck.slide_height / 12700),
                         occupied + [original],
-                        clear=lambda candidate: bool(background(image, row["box"], candidate)),
+                        clear=lambda candidate: (not row.get('same_column') or x <= candidate[0]+candidate[2]/2 <= x+w)
+                            and bool(background(image, row["box"], candidate)),
                     )
                     if box:
                         fill = background(image, row["box"], box)

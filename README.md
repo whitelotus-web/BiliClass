@@ -6,6 +6,12 @@
 
 **[Tải BiliClass cho Windows](https://github.com/whitelotus-web/BiliClass/releases)** · [RC147 đã kiểm chứng](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc147) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md)
 
+Nguồn RC148 thêm ba nhóm **Tất cả / Chưa có giọng / Đã có giọng**,
+**Tạo giọng đã chọn** và **Mở bài từ máy** trong Thư viện. Hàng đợi
+hiện ngay trong cấu hình, có thời gian từng bài/tổng lượt. Nghỉ giữa
+đoạn tăng lên 1,1 giây; giữ đơn vị số mũ khi dịch và cải thiện cách
+đọc công thức cấu tạo. [Phạm vi RC148](docs/BUILD_RC148.md).
+
 RC147 chọn nhiều PowerPoint và xử lý lần lượt ở cả **Chuyển đổi** và
 **Tạo giọng đọc**; có Dừng/Tiếp tục, chỉ thử lại bài lỗi và giữ phần
 đã làm khi mở lại tool. Từng bài tự lưu cạnh đúng file đầu vào,

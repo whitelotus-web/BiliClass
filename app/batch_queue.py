@@ -2,8 +2,9 @@
 
 import copy
 from threading import Event
+from time import monotonic
 
-from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
+from PySide6.QtCore import Property, QObject, Qt, QTimer, Signal, Slot
 
 from . import batch_jobs
 
@@ -24,6 +25,10 @@ class BatchQueue(QObject):
         self._progress_timer.setSingleShot(True)
         self._progress_timer.setInterval(40)
         self._progress_timer.timeout.connect(self.changed.emit)
+        self._clock = QTimer(self)
+        self._clock.setInterval(1000)
+        self._clock.setTimerType(Qt.TimerType.PreciseTimer)
+        self._clock.timeout.connect(self.changed.emit)
         identity = bridge.library.setting('last_batch_queue', '')
         if identity:
             try:
@@ -47,7 +52,13 @@ class BatchQueue(QObject):
         rows = self.data.get('rows', [])
         counts = {status: sum(row['status'] == status for row in rows)
                   for status in ('waiting', 'running', 'done', 'failed')}
-        return {**copy.deepcopy(self.data), 'running': self._running, 'stopping': self._stopping,
+        snapshot = copy.deepcopy(self.data)
+        age = max(0, monotonic()-snapshot.get('clock_monotonic', monotonic())) if self._running and snapshot.get('phase') == 'running' else 0
+        snapshot['elapsed_seconds'] = snapshot.get('elapsed_seconds', 0)+age
+        for row in snapshot.get('rows', []):
+            if row['status'] == 'running':
+                row['elapsed_seconds'] = row.get('elapsed_seconds', 0)+age
+        return {**snapshot, 'running': self._running, 'stopping': self._stopping,
                 'shown': self._shown, 'counts': counts, 'total': len(rows),
                 'canResume': not self._running and bool(counts['waiting']),
                 'canRetry': not self._running and bool(counts['failed'])}
@@ -85,6 +96,23 @@ class BatchQueue(QObject):
         if not self.data['rows']:
             self.data = {}
         self.changed.emit()
+
+    @Slot('QVariantList')
+    def selectLessons(self, identities):
+        if not self.available():
+            return
+        directory = self.bridge.library.directory
+
+        def ready(value):
+            self.data, self._shown = value, True
+            self.changed.emit()
+            self.bridge.navigate.emit('voice')
+            skipped = value.get('skipped_ready', 0)
+            if skipped:
+                self.bridge.inform(f'Đã chọn {len(value["rows"])} bài chưa có giọng; bỏ qua {skipped} bài đã có giọng hoàn tất.', refresh=False)
+
+        self.bridge.launch(lambda: batch_jobs.library_selection(directory, list(identities)), ready,
+                           cancellable=False, message='Đang chuẩn bị các bài đã chọn…')
 
     @Slot()
     def clear(self):
@@ -169,11 +197,14 @@ class BatchQueue(QObject):
         bridge = self.bridge
         bridge.stopSpeech()
         self._running, self._stopping, self._shown = True, False, True
+        self.data['clock_monotonic'] = monotonic()
+        self._clock.start()
         self.cancel = Event()
         state, directory, cancel = copy.deepcopy(self.data), bridge.library.directory, self.cancel
         self.changed.emit()
 
         def completed(value):
+            self._clock.stop()
             self._progress_timer.stop()
             self.data = value
             self._running = self._stopping = False
@@ -192,6 +223,8 @@ class BatchQueue(QObject):
     @Slot(object)
     def _progress(self, value):
         if self._running and value.get('id') == self.data.get('id'):
+            if value.get('phase') == 'running' and self.data.get('phase') != 'running':
+                self._clock.start()
             self.data = value
             if not self._progress_timer.isActive():
                 self._progress_timer.start()

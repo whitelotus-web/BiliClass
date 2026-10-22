@@ -4,6 +4,7 @@ import copy
 import hashlib
 import json
 import logging
+import math
 import os
 import re
 from contextlib import closing, contextmanager
@@ -42,6 +43,32 @@ def journal(directory, identity):
     return Path(directory)/'batch_jobs'/identity/'queue.json'
 
 
+def library_selection(directory, identities):
+    """Queue existing lesson identities without importing duplicate PPTX files."""
+    from .lesson_narration import library_audio_status
+    from .powerpoint import verified_presentation
+
+    if not 1 <= len(identities) <= MAX_FILES or any(not isinstance(value, str) for value in identities):
+        raise ValueError(f'Chọn từ 1 đến {MAX_FILES} bài trong thư viện.')
+    rows, skipped = [], 0
+    with closing(Library(directory)) as library:
+        for identity in dict.fromkeys(identities):
+            lesson = library.get(identity)
+            if lesson.get('deleted_at'):
+                raise ValueError('Danh sách có bài đã xóa. Chọn lại bài trong thư viện.')
+            if library_audio_status(lesson, directory)['ready']:
+                skipped += 1
+                continue
+            path = verified_presentation(lesson, directory)
+            rows.append({'id': uuid4().hex, 'url': QUrl.fromLocalFile(str(path)).toString(),
+                         'name': lesson['title'], 'lesson_id': identity, 'lesson_revision': lesson['revision'],
+                         'library_lesson': True, 'status': 'waiting', 'percent': 0, 'message': 'Chờ xử lý'})
+    if not rows:
+        raise ValueError('Các bài đã chọn đều có giọng đọc hoàn tất. Chọn bài chưa có giọng để tạo hàng loạt.')
+    return {'id': uuid4().hex, 'kind': 'voice', 'phase': 'draft', 'rows': rows,
+            'revision': 0, 'options': {}, 'skipped_ready': skipped}
+
+
 def load(directory, identity):
     path = journal(directory, identity)
     if path.stat().st_size > 2_000_000:
@@ -54,12 +81,16 @@ def load(directory, identity):
             or not isinstance(state.get('options'), dict)):
         raise ValueError('Chưa đọc được danh sách xử lý đã lưu.')
     identities = set()
+    def valid_elapsed(value):
+        return type(value) in (int, float) and math.isfinite(value) and 0 <= value <= 10**10
+    if not valid_elapsed(state.get('elapsed_seconds', 0)):
+        raise ValueError('Thời gian trong danh sách xử lý chưa hợp lệ.')
     for row in state['rows']:
         if (not isinstance(row, dict) or not isinstance(row.get('id'), str)
                 or not re.fullmatch('[a-f0-9]{32}', row['id']) or row['id'] in identities
                 or row.get('status') not in {'waiting', 'running', 'done', 'failed'}
                 or not isinstance(row.get('name'), str) or not isinstance(row.get('url'), str)
-                or not QUrl(row['url']).isLocalFile()):
+                or not QUrl(row['url']).isLocalFile() or not valid_elapsed(row.get('elapsed_seconds', 0))):
             raise ValueError('Một mục trong hàng đợi đã lưu không còn hợp lệ.')
         identities.add(row['id'])
     return state
@@ -196,8 +227,14 @@ def narrate_one(directory, row, options, cancel, update):
 
     require_space(directory)
     if row.get('lesson_id'):
+        if row.get('library_lesson'):
+            with closing(Library(directory)) as library:
+                if library.get(row['lesson_id'])['revision'] != row['lesson_revision']:
+                    raise ValueError('Bài giảng đã sửa từ lúc vào hàng đợi. Chọn lại bài trong thư viện.')
         lesson, preview = prepare_library_lesson(directory, row['lesson_id'], cancel=cancel)
         verify_input_version(row, lesson['source']['sha256'])
+        if row.get('library_lesson'):
+            update({'lesson_revision': lesson['revision']}, True)
         if row.get('lesson_revision') != lesson['revision']:
             raise ValueError('Bài giảng đã sửa từ lúc vào hàng đợi. Chọn lại file để dùng nội dung mới.')
     else:
@@ -239,6 +276,17 @@ def narrate_one(directory, row, options, cancel, update):
 def run(directory, original, cancel, notify, *, process=None, retry=False):
     """Stop preserves the current checkpoint; failures never silently discard the remaining files."""
     state = copy.deepcopy(original)
+    started = current = None
+    elapsed = state.get('elapsed_seconds', 0)
+    row_started = row_elapsed = 0
+
+    def clock():
+        if started is not None:
+            now = monotonic()
+            state.update(elapsed_seconds=round(elapsed+now-started, 3), clock_monotonic=now)
+            if current is not None:
+                current['elapsed_seconds'] = round(row_elapsed+now-row_started, 3)
+
     try:
         with queue_lock(directory):
             if state['revision'] and load(directory, state['id'])['revision'] != state['revision']:
@@ -249,6 +297,8 @@ def run(directory, original, cancel, notify, *, process=None, retry=False):
                         row.update(status='waiting', percent=0, message='Chờ thử lại')
             state['phase'] = 'running'
             state.pop('message', None)
+            started = monotonic()
+            clock()
             persist(directory, state)
             with closing(Library(directory)) as library:
                 library.set_setting('last_batch_queue', state['id'])
@@ -260,11 +310,15 @@ def run(directory, original, cancel, notify, *, process=None, retry=False):
                 if row['status'] not in {'waiting', 'running'}:
                     continue
                 row.update(status='running', message='Đang chuẩn bị…')
+                current = row
+                row_started, row_elapsed = monotonic(), row.get('elapsed_seconds', 0)
+                state['current_row_id'] = row['id']
                 last_saved = monotonic()
 
                 def update(values, checkpoint=False):
                     nonlocal last_saved
                     row.update(values)
+                    clock()
                     if checkpoint or monotonic()-last_saved >= 1:
                         persist(directory, state)
                         last_saved = monotonic()
@@ -293,9 +347,12 @@ def run(directory, original, cancel, notify, *, process=None, retry=False):
                         row['status'] = 'waiting'
                         state.update(phase='paused', message=message)
                         break
+                clock()
                 persist(directory, state)
                 notify(copy.deepcopy(state))
+                current = None
             state['phase'] = 'paused' if cancel.is_set() or state['phase'] == 'paused' else 'finished'
+            clock()
             persist(directory, state)
             notify(copy.deepcopy(state))
     except Exception as exc:
@@ -303,6 +360,7 @@ def run(directory, original, cancel, notify, *, process=None, retry=False):
 
         logging.exception('Batch checkpoint failed')
         state.update(phase='paused', message=FULL_DISK_MESSAGE if full_disk_error(exc) else str(exc))
+        clock()
         for row in state['rows']:
             if row['status'] == 'running':
                 row.update(status='waiting', message='Chưa hoàn tất; phần đã làm được giữ để tiếp tục')

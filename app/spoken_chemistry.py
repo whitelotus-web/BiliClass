@@ -8,6 +8,7 @@ import re
 from .chemical_notation import formula_spans
 
 VERSION = 'spoken-chemistry-v1'
+STRUCTURAL_VERSION = 'spoken-chemistry-structural-v2'
 _LETTERS = dict(zip('ABCDEFGHIJKLMNOPQRSTUVWXYZ', (
     'ay bee see dee ee ef gee aitch eye jay kay el em en oh pee cue ar ess tee '
     'you vee double-you ex why zee').split()))
@@ -24,6 +25,18 @@ _ELEMENT_NAMES = dict(zip(
     'hydrogen oxygen nitrogen carbon sulfur phosphorus chlorine fluorine bromine iodine sodium potassium calcium magnesium aluminium iron copper zinc silver gold'.split()))
 _ELEMENT = re.compile(r'(?<!\w)(?:'+ '|'.join(sorted(_ELEMENT_NAMES,key=len,reverse=True)) + r')(?!\w)')
 _BOND_CONTEXT = re.compile(r'\b(?:bonds?|functional|groups?|molecules?|molecular|chemical|aldehyde|ketone|alcohol|infrared)\b',re.I)
+
+
+def structural_formula(value):
+    compact = re.sub(r'\s+', '', value)
+    return bool(re.search(r'C[\d₀-₉]*H[\d₀-₉]+', compact)
+                and re.search(r'[-–−=≡#](?=[A-Z(])', compact))
+
+
+def cache_version(text):
+    # Existing recordings of unchanged formulas such as CO2 and HCN stay valid.
+    return STRUCTURAL_VERSION if not _BOND_CONTEXT.search(text) and any(
+        structural_formula(match.group()) for match in formula_spans(text)) else VERSION
 
 
 def _formula(value, chemical=False):
@@ -71,7 +84,7 @@ def english(text):
             # bare English words such as NO, ON and IN are not.
             if len(re.findall(r'[A-Z][a-z]?', compact)) < 2 or not re.search('[a-z]',compact):
                 continue
-        text = text[:start] + _formula(value,chemical) + text[end:]
+        text = text[:start] + _formula(value, chemical or structural_formula(value)) + text[end:]
     def element(match):
         before,after = text[max(0,match.start()-80):match.start()],text[match.end():match.end()+30]
         explicit = re.search(r'\b(?:element|atom|symbol)\s*$',before,re.I)

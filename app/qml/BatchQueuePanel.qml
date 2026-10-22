@@ -14,6 +14,15 @@ Rectangle {
         for (let index = 0; index < items.length; ++index) if (items[index].status === "running") return index
         return -1
     }
+    readonly property var currentRow: {
+        const items = queueState.rows || []
+        return items.find(function(row) { return row.id === panel.queueState.current_row_id }) || ({})
+    }
+    function duration(seconds) {
+        const total = Math.max(0, Math.floor(seconds || 0))
+        return [Math.floor(total / 3600), Math.floor(total / 60) % 60, total % 60]
+            .map(function(part) { return String(part).padStart(2, "0") }).join(":")
+    }
     function followActive() {
         if (activeIndex < 0 || !applies || !queueState.shown) return
         rows.forceLayout()
@@ -48,9 +57,43 @@ Rectangle {
         Label {
             visible: !!panel.queueState.shown; Layout.fillWidth: true; wrapMode: Text.WordWrap
             color: AppTheme.muted; font.pixelSize: 12
-            text: panel.queueState.phase === "draft" ? "Chọn cấu hình chung bên dưới rồi bắt đầu. Tên bài lấy theo từng file."
+            text: panel.queueState.phase === "draft" ? "Dùng cấu hình chung ở trên. Tên bài lấy theo từng file."
                 : (panel.queueState.summary || "") + " · " + ((panel.queueState.counts || {}).done || 0) + " hoàn tất · "
                   + ((panel.queueState.counts || {}).failed || 0) + " lỗi · " + ((panel.queueState.counts || {}).waiting || 0) + " chờ"
+        }
+        ColumnLayout {
+            visible: !!panel.queueState.shown && panel.queueState.phase !== "draft"
+            Layout.fillWidth: true; spacing: 8
+            RowLayout {
+                visible: !!panel.currentRow.id && panel.queueState.phase !== "finished"; Layout.fillWidth: true
+                Label {
+                    Layout.fillWidth: true; Layout.minimumWidth: 0; elide: Text.ElideMiddle; textFormat: Text.PlainText
+                    text: panel.currentRow.name || ""; color: AppTheme.ink; font.pixelSize: 13
+                }
+                Label {
+                    objectName: "batchPercent_" + panel.kind
+                    text: (panel.currentRow.percent || 0) + "%"; color: AppTheme.ink; font.pixelSize: 13; font.bold: true
+                }
+            }
+            ProgressBar {
+                objectName: "batchProgress_" + panel.kind
+                visible: !!panel.currentRow.id && panel.queueState.phase !== "finished"
+                value: (panel.currentRow.percent || 0) / 100; Layout.fillWidth: true; implicitHeight: 6
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Label {
+                    objectName: "batchFileTime_" + panel.kind
+                    text: "Thời gian bài này: " + panel.duration(panel.currentRow.elapsed_seconds)
+                    visible: !!panel.currentRow.id; color: AppTheme.muted; font.pixelSize: 12
+                }
+                Item { Layout.fillWidth: true }
+                Label {
+                    objectName: "batchTotalTime_" + panel.kind
+                    text: "Tổng thời gian: " + panel.duration(panel.queueState.elapsed_seconds)
+                    color: AppTheme.muted; font.pixelSize: 12
+                }
+            }
         }
         Label {
             objectName: "batchMessage_" + panel.kind
@@ -93,7 +136,11 @@ Rectangle {
                             font.pixelSize: 12; wrapMode: Text.WordWrap; Layout.fillWidth: true
                             color: modelData.status === "failed" ? AppTheme.danger : modelData.status === "done" ? AppTheme.success : AppTheme.muted
                         }
-                        ProgressBar { visible: modelData.status === "running"; value: (modelData.percent || 0) / 100; Layout.fillWidth: true; implicitHeight: 5 }
+                        Label {
+                            visible: modelData.status === "done" || modelData.status === "failed"
+                            text: "Thời gian: " + panel.duration(modelData.elapsed_seconds)
+                            color: AppTheme.muted; font.pixelSize: 12
+                        }
                     }
                     ActionButton {
                         objectName: "batchResult_" + modelData.id; text: "Xem bài"; implicitHeight: 32

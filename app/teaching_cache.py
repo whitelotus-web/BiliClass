@@ -7,7 +7,7 @@ from pathlib import Path
 from uuid import uuid4
 
 # Bump when managed audio/controls change, independently of cosmetic releases.
-FORMAT_VERSION = 2
+FORMAT_VERSION = 3
 
 
 def cache_key(lesson, source_sha256, directory):

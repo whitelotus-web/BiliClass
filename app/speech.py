@@ -102,11 +102,11 @@ def audio_key(text, voice_id, rate):
 
         if english(text) != text:
             provider += '|' + VERSION
-        from .spoken_chemistry import VERSION as chemical_version
+        from .spoken_chemistry import cache_version
         from .spoken_chemistry import english as chemistry
 
         if chemistry(english(text)) != english(text):
-            provider += '|' + chemical_version
+            provider += '|' + cache_version(english(text))
     payload = json.dumps({"text": text, "voice": voice_id, "rate": rate, "provider": provider}, sort_keys=True)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 

@@ -1,4 +1,5 @@
 import hashlib
+import re
 from threading import Event
 
 import pytest
@@ -48,6 +49,15 @@ def test_invented_compounds_are_rejected_before_caching(tmp_path):
 def test_formula_lock_does_not_match_prefixes_inside_words():
     payload,locks=protected_html('CO; COMPOUNDS',chemistry=True)
     assert locks == ['CO'] and payload.endswith('COMPOUNDS')
+
+
+@pytest.mark.parametrize('unit', ['cm-1', 'cm -1', 'cm⁻¹', 'cm^{-1}', 'cm⟦BLC1⟧'])
+def test_inverse_centimeter_units_are_immutable_including_native_exponent_tokens(unit):
+    payload, locks = protected_html('Số sóng 3337 '+unit, chemistry=True)
+    assert any(value.endswith(unit) for value in locks), locks
+    # A translation engine changing the span contents must not remove cm or duplicate its exponent.
+    changed = re.sub(r'(?<=>)(?:3337[^<]*|cm[^<]*)(?=</span>)', 'wrong', payload)
+    assert unprotect(changed, locks) == 'Số sóng 3337 '+unit
 
 
 def test_chemistry_nouns_keep_sentence_grammar_and_english_class_names():

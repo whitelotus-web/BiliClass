@@ -40,5 +40,7 @@ jobs:
           tests/test_library_actions.py tests/test_library_bulk.py
           tests/test_completed_export.py tests/test_office_retry.py
           tests/test_batch_jobs.py
+          tests/test_library_view.py tests/test_chemical_translation.py
+          tests/test_spoken_chemistry.py tests/test_picture_translation.py
       - name: Fixture corpus (structural; no Office)
         run: python -m scripts.verify_quality_corpus

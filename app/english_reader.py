@@ -9,6 +9,7 @@ from pathlib import Path
 from PySide6.QtCore import QObject, QThread, QTimer, Signal, Slot
 
 from . import speech
+from .narration_timing import PARAGRAPH_GAP_MS
 from .slide_speech import speech_chunks
 
 
@@ -141,7 +142,7 @@ class EnglishReader(QObject):
         self._between_chunks = False
         self.gap = QTimer(self)
         self.gap.setSingleShot(True)
-        self.gap.setInterval(450)
+        self.gap.setInterval(PARAGRAPH_GAP_MS)
         self.gap.timeout.connect(self._finish_gap)
         self.timer = QTimer(self)
         self.timer.setInterval(100)

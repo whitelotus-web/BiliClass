@@ -82,6 +82,12 @@ def main():
         def c(name):
             return control(window, name)
 
+        def qml(source):
+            expression = QQmlExpression(engine.contextForObject(window), window, source)
+            value, undefined = expression.evaluate()
+            assert not expression.hasError() and not undefined, expression.error().toString()
+            return value
+
         def slow_convert(directory, row, options, cancel, update):
             nonlocal active, peak
             active += 1
@@ -139,12 +145,25 @@ def main():
                 until(entered.is_set)
                 assert bridge.busy and bridge.batchQueue.running
                 assert not c('createLessonButton').isEnabled()
-                pump(350)
+                assert c('creationConfiguration').isVisible()
+                assert not c('conversionConfigurationFields').isEnabled()
+                assert c('conversionBatchPanel').parentItem().parentItem() == c('creationConfiguration')
+                pump(1250)
+                until(lambda: c('batchTotalTime_convert').property('text') != 'Tổng thời gian: 00:00:00', timeout=3)
+                elapsed = bridge.batchQueue.state['elapsed_seconds']
+                assert elapsed >= 1
+                assert c('batchTotalTime_convert').property('text') != 'Tổng thời gian: 00:00:00'
+                assert c('batchPercent_convert').property('text') == '30%'
+                screenshots('conversion-running')
                 assert len(ticks) >= 8, ticks
                 click(window, c('batchStop_convert'))
                 until(lambda: not bridge.busy)
                 assert bridge.batchQueue.state['phase'] == 'paused'
                 assert bridge.batchQueue.state['counts']['waiting'] == 3
+                stopped_time = bridge.batchQueue.state['elapsed_seconds']
+                pump(1100)
+                assert bridge.batchQueue.state['elapsed_seconds'] == stopped_time
+                assert c('creationConfiguration').isVisible() and c('batchResume_convert').isEnabled()
                 restored = BatchQueue(bridge)
                 assert restored.data['id'] == bridge.batchQueue.data['id']
                 assert restored.data['options'] == bridge.batchQueue.data['options']
@@ -220,6 +239,11 @@ def main():
 
             with patch.object(bridge, '_available_voice', return_value=True), patch('app.speech.synthesize_background', synthesize), patch('app.speech.narration_workers', return_value=1):
                 click(window, c('createLessonNarrationButton'))
+                until(lambda: bridge.batchQueue.running)
+                assert c('lessonNarrationPanel').isVisible()
+                assert not c('narrationCreationOptions').isEnabled()
+                assert c('voiceBatchPanel').parentItem().parentItem() == c('lessonNarrationPanel')
+                screenshots('voice-running')
                 until(lambda: not bridge.busy, timeout=45)
             assert bridge.batchQueue.state['counts']['done'] == 2, bridge.batchQueue.state
             assert generated and not window.property('voiceResultShown')
@@ -228,6 +252,44 @@ def main():
                 assert Path(row['output']).is_file() and Path(row['output']).parent == folder
                 assert library.get(row['lesson_id'])['speaker_position'] == 'top_left'
             screenshots('voice-finished')
+            ready_id = bridge.batchQueue.data['rows'][0]['lesson_id']
+            bridge.batchQueue.clear()
+            until(lambda: not bridge.busy)
+            # Publish one imported fixture as a library product so the actual
+            # selection controls can queue its existing identity beside a ready lesson.
+            pending = library.get(lesson['id'])
+            pending['voice_published'] = True
+            library.db.execute('UPDATE lessons SET content=? WHERE id=?', (json.dumps(pending), pending['id']))
+            library.db.commit()
+            bridge._catalog.refresh(force=True)
+            window.setProperty('page', 'library')
+            until(lambda: any(row['id'] == pending['id'] for row in bridge.lessons))
+            until(lambda: bridge._catalog.worker is None)
+            window.setProperty('selectedLessons', [pending['id'], ready_id])
+            pump(80)
+            assert c('libraryNarrateSelected').isVisible() and c('openLibraryPresentation').isVisible()
+            opened_local = []
+            dialog = c('libraryPresentationDialog')
+            assert dialog.setProperty('selectedFile', QUrl.fromLocalFile(str(sources[0])))
+            with patch.object(bridge, '_open_teaching_presentation',
+                              side_effect=lambda url, **kwargs: opened_local.append((url, kwargs))):
+                assert QMetaObject.invokeMethod(dialog, 'accepted', Qt.DirectConnection)
+            assert opened_local == [(QUrl.fromLocalFile(str(sources[0])).toString(), {'destination': 'library'})]
+            screenshots('library-selected')
+            click(window, c('libraryTab_ready'))
+            assert qml('selectedLessons.length') == 0
+            assert qml('libraryResult.ids.indexOf('+json.dumps(pending['id'])+')') == -1
+            click(window, c('libraryTab_none'))
+            assert qml('libraryResult.ids.indexOf('+json.dumps(pending['id'])+')') >= 0
+            click(window, c('libraryTab_all'))
+            window.setProperty('selectedLessons', [pending['id'], ready_id])
+            click(window, c('libraryNarrateSelected'))
+            until(lambda: not bridge.busy)
+            assert window.property('page') == 'voice'
+            assert bridge.batchQueue.data['skipped_ready'] == 1
+            assert [row['lesson_id'] for row in bridge.batchQueue.data['rows']] == [pending['id']]
+            assert c('lessonNarrationPanel').isVisible() and c('narrationCreationOptions').isEnabled()
+            assert library.db.execute('SELECT COUNT(*) FROM lessons WHERE id=?', (pending['id'],)).fetchone()[0] == 1
             # A long queue keeps the currently running file visible across progress model updates.
             bridge.batchQueue.clear()
             until(lambda: not bridge.busy)
