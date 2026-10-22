@@ -43,3 +43,11 @@ ghi đè bài hoặc âm thanh thật. Không thêm hàng đợi hay chạy nhi�
 Trên bài thật, tool tự sửa thêm tương phản hai ô ở slide 4 rồi đo
 lại; bản xem trước vẫn cần được hiểu trong phạm vi phép kiểm tra,
 không đồng nghĩa mọi bố cục đều đẹp hoặc toàn bộ nội dung đã đúng.
+
+Đã phát hành [RC144](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc144)
+từ `0b6aa21d2fda9965a6581c8ac51adb8f57bd5489`. Source checks GitHub đạt.
+ZIP 1.258.096.170 byte; SHA-256
+`e8d8c3e3de9c52a1ec30d153d96d2b59ec7b23f9edab69ff498393e4dcccf883`.
+Đã so khớp mã QML/bytecode, toàn bộ ZIP, digest và tag công khai;
+kiểm cập nhật phát hiện RC144. Bản cài mở Trang chủ từ Explorer,
+Mascot ẩn; hồ sơ, cấu hình giọng, thư viện và WAV tham chiếu giữ nguyên.

@@ -8,6 +8,9 @@ vẫn được nêu; ghi chú OCR/Math/hiệu ứng không còn thành cảnh b�
 Office thật tự xử lý hai ô lỗi và tương phản không cần bấm sửa,
 giữ chữ/lưới/Math; Qt sáng/tối và bản sao bài thật 16 slide đã kiểm.
 Phạm vi và giới hạn: [BUILD_RC144.md](BUILD_RC144.md).
+Đã phát hành RC144 từ `0b6aa21`; ZIP/digest/tag, updater công khai,
+cài/mở Home và giữ hồ sơ/bài/WAV đạt. README đã bỏ nhãn hiện tại
+RC105 cũ và trỏ tới đúng gói RC144; các mốc cũ giữ làm lịch sử.
 
 Ngày 22/10/2026 — nguồn RC143 bỏ nền trạng thái loa trong thư viện,
 dùng xanh lá cho có giọng và xám gạch chéo khi chưa có; giữ vùng bấm

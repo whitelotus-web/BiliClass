@@ -2,7 +2,22 @@
 
 Ứng dụng Windows chuyển tài liệu của giáo viên thành bài giảng Anh–Việt, rồi trình chiếu bằng PowerPoint với giọng đọc và mascot trợ giảng. Hỗ trợ cấu hình từ lớp 1 đến lớp 12 và môn tự nhập.
 
-## Luồng hiện tại — RC105
+## Phiên bản hiện tại — RC144
+
+**[Tải BiliClass RC144 cho Windows](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc144)** · [Tất cả bản phát hành](https://github.com/whitelotus-web/BiliClass/releases) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md)
+
+RC144 tự căn chữ trong từng ô bảng và sửa tương phản khi có bằng chứng,
+rồi kiểm tra lại trước khi hoàn thành. Ghi chú chung về ảnh, công thức
+và hiệu ứng nằm trong chi tiết; chỉ lỗi cụ thể chưa xử lý xong mới được
+nêu nổi bật. Hai công cụ Chuyển đổi và Tạo giọng đọc dùng chung cách
+hiển thị. [Phạm vi và kiểm chứng RC144](docs/BUILD_RC144.md).
+
+Gói RC144 đã phát hành từ commit `0b6aa21`, được kiểm tra ZIP, cài và
+mở Trang chủ. Mã nguồn và gói tải có vòng phát hành riêng: phiên bản
+gói luôn được ghi rõ trong Releases và trong ứng dụng. Các mốc bên
+dưới là lịch sử, không phải phiên bản hiện tại.
+
+### Các mốc trước — RC105 trở về trước
 
 RC105 làm gọn loading, bỏ dãy vòng tròn cuối màn hình, chỉnh thanh chuyển
 động nhẹ và chuyển sang cửa sổ chính bằng hiệu ứng mờ ngắn. Tôn trọng
