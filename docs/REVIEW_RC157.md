@@ -53,3 +53,48 @@ Thao tác mở từng kết quả hàng đợi được bắt để kiểm tra �
 mở hàng loạt PowerPoint của người dùng. Báo cáo/ảnh nằm trong reports/rc157,
 không đưa vào Git. Không đổi các tab Cài đặt, không sửa cơ chế lưu bài,
 không tạo thêm bộ model hoặc bản thực thi.
+
+## Rà soát toàn bộ phạm vi đang dùng
+
+Đợt rà soát mở rộng bao gồm Trang chủ, hai công cụ, Thư viện, Cài đặt,
+Mascot, hướng dẫn, màn khởi động và các thao tác dữ liệu. Kết quả:
+
+- Toàn bộ nhóm pytest nguồn lõi: **1.585 đạt**, một cảnh báo deprecation
+  của thư viện phục vụ kiểm thử; không có test thất bại. Hai nhóm tự
+  động hóa Browser AI cũ không nằm trong phạm vi luồng Google Dịch đang
+  dùng và không được dùng để khẳng định kết quả rà soát này.
+- 17 nhóm Qt riêng biệt đạt: đầu vào, hàng đợi, chuyển đổi một bài,
+  giọng một bài, Trang chủ, Cài đặt, xóa/hoàn tác, chọn bài, loa/thẻ,
+  điều khiển Mascot, vòng đời Mascot, độ đáp ứng, theme, cuộn, phạm vi
+  tính năng hiển thị, khởi động và F1.
+- Giao diện sáng/tối ở 1080/1366/1920 tùy nhóm; cuộn ở 1080/1366/1680.
+  Không cảnh báo QML. Kiểm tra giữ nguyên lựa chọn, bản nháp và trạng
+  thái khi đổi trang; khóa thao tác không hợp lệ khi đang ghi dữ liệu.
+- Trong phép thử đọc ổ/khóa SQLite có chủ ý, khoảng ngắt Qt lớn nhất
+  khoảng 0,281 giây; ghi/xóa/khôi phục và các lần đọc chậm chạy ở nền.
+  Đây không phải phép đo tốc độ Office hay tổng hợp giọng trên máy yếu.
+- Màn khởi động 860×484, chuyển pha/đóng IPC và mở cửa sổ đầu tiên đạt.
+  Sao lưu/khôi phục kiểm chứng trên thư viện thử; giữ nguồn, hồ sơ và WAV.
+
+Các điểm sửa thêm sau rà soát:
+
+- Qt Layout giữ chiều cao danh sách cũ khi repeater trở về rỗng: tìm
+  kiếm có 0 kết quả nhưng vùng cuộn vẫn cao 1.838 px trong viewport
+  340 px. Ẩn layout danh sách/thẻ rỗng để bỏ khoảng trắng và thanh cuộn
+  giả; kiểm tra cả hai chế độ khi tìm kiếm không có kết quả.
+- Tìm kiếm, bộ lọc/nhóm, sắp xếp và đổi trang đưa viewport về đầu. Cập
+  nhật metadata/giọng ở nền không dùng đường reset này.
+- Lời nhắc ở Thư viện trống chỉ hướng dẫn PowerPoint `.pptx`, khớp
+  với bộ chọn file hiện tại.
+- Tiêu đề và lề Cài đặt dùng chung kích thước với trang công cụ;
+  giữ nguyên các tab và chức năng Cài đặt.
+
+Ba kiểm tra hình học cũ được cập nhật theo thiết kế hiện tại: môn học
+Mascot luôn hiện nhưng khóa khi tắt phụ kiện (đã áp dụng từ RC132), lề
+compact 12 px và chiều rộng client thực tế khi Windows điều chỉnh khung.
+Không thay đổi hành vi sản phẩm chỉ để thỏa các kỳ vọng đã lỗi thời đó.
+
+Chưa tạo bản cài; giáo viên thử bản nguồn trên F trước. Chưa kiểm chứng
+trên máy cấu hình thấp. Việc xóa ZIP build cũ bị hệ thống thực thi chặn
+(`blocked by policy`), nên không ghi nhận là đã giải phóng dung lượng.
+Danh sách ứng viên dọn nằm riêng trong báo cáo tại máy, ngoài Git.

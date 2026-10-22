@@ -53,11 +53,11 @@ def main():
     app = QGuiApplication([])
     configure_application(app)
     QQuickStyle.setStyle('Basic')
-    out = Path('reports/rc64/scroll')
+    out = Path(sys.argv[1] if len(sys.argv) > 1 else 'reports/rc64/scroll')
     out.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='biliclass-scroll-', ignore_cleanup_errors=True) as folder:
         library = Library(Path(folder))
-        for index in range(12):
+        for index in range(25):
             library.create(f'Bài thử {index + 1}: Dao động điều hòa', 'Vật lý', 'THPT', '11', [('Slide 1', 'Vận tốc biến thiên.')])
         KeyStore(Path(folder)).add('AIza' + 'a' * 35)
         bridge = Bridge(library)
@@ -73,13 +73,15 @@ def main():
         measurements = []
         compact = None
         try:
-            until(lambda: len(bridge.lessons) == 12 and bridge._catalog.worker is None)
+            until(lambda: len(bridge.lessons) == 25 and bridge._catalog.worker is None)
             for width, height in ((1080, 700), (1366, 850), (1680, 960)):
                 window.resize(width, height)
-                for page, name in [('library', 'libraryHomeScroll'), ('new', 'creationScroll'),
+                pages = [('library', 'libraryHomeScroll'), ('new', 'creationScroll'),
                                    ('result', 'resultScroll'),
-                                   ('settings', 'settingsContentScroll'), ('classroom', 'classroomPage'),
-                                   ('reports', 'reportContentScroll'), ('reference', 'termsScroll')]:
+                                   ('settings', 'settingsContentScroll'), ('reference', 'termsScroll')]
+                if bridge.experimentalTeaching:
+                    pages += [('classroom', 'classroomPage'), ('reports', 'reportContentScroll')]
+                for page, name in pages:
                     window.setProperty('page', page)
                     pump(150)
                     scroll = c(name)
@@ -91,10 +93,12 @@ def main():
                     edge = scroll.mapToScene(QPointF(scroll.width(), 0)).x()
                     left = bar.mapToScene(QPointF()).x()
                     assert abs(left - edge - 6) < .2, (name, left, edge)
-                    assert bar.mapToScene(QPointF(bar.width(), 0)).x() <= width - 1, name
+                    # Windows may adjust the requested minimum width for its
+                    # native frame. Test against the real client area.
+                    assert bar.mapToScene(QPointF(bar.width(), 0)).x() <= window.width() - 1, name
                     if bar.isVisible():
                         assert abs(bar.property('contentItem').width() - 6) < .2, name
-                    if page in ('new', 'library'):
+                    if page in ('new', 'library') and bar.isVisible():
                         drag_and_wheel(window, scroll)
                     if page == 'new':
                         assert bar.mapToScene(QPointF(0, bar.height())).y() < c('createLessonButton').mapToScene(QPointF()).y()
@@ -115,11 +119,47 @@ def main():
                 window.setProperty('page', 'library')
                 pump(100)
                 before = c('libraryHomeScroll').property('availableWidth')
+                flick = c('libraryHomeScroll').property('contentItem')
+                for page_number in (2, 1):
+                    flick.setProperty('contentY', max(0, flick.property('contentHeight')-flick.height()))
+                    window.setProperty('libraryPage', page_number)
+                    pump(120)
+                    assert abs(flick.property('contentY')) < 1, 'A new page must start with its first result'
+                flick.setProperty('contentY', max(0, flick.property('contentHeight')-flick.height()))
+                bridge.setLessonOrder('created_desc' if bridge.lessonOrder == 'title_asc' else 'title_asc')
+                pump(120)
+                assert abs(flick.property('contentY')) < 1, 'A new sort order must start at the top'
+                flick.setProperty('contentY', max(0, flick.property('contentHeight')-flick.height()))
+                c('librarySearch').setProperty('text', 'bài thử')
+                pump(120)
+                assert abs(flick.property('contentY')) < 1, 'A new search must show the first match'
                 c('librarySearch').setProperty('text', 'khong-co-bai-phu-hop')
                 pump(120)
+                if c('libraryScrollBar').isVisible():
+                    result = window.property('libraryResult')
+                    result = result.toVariant() if hasattr(result, 'toVariant') else result
+                    flick = c('libraryHomeScroll').property('contentItem')
+                    (out/'empty-search-debug.json').write_text(json.dumps(dict(
+                        total=result['total'], contentY=flick.property('contentY'),
+                        contentHeight=flick.property('contentHeight'), height=flick.height(),
+                        barSize=c('libraryScrollBar').property('size'),
+                        items=[dict(name=item.objectName(), height=item.height(), implicit=item.implicitHeight(),
+                                    children=[dict(name=c.objectName(), height=c.height(), implicit=c.implicitHeight(),
+                                                   visible=c.isVisible()) for c in item.childItems()])
+                               for item in flick.property('contentItem').childItems()])), encoding='utf-8')
+                    window.grabWindow().save(str(out/'empty-search-debug.png'))
                 assert not c('libraryScrollBar').isVisible()
                 assert c('libraryHomeScroll').property('availableWidth') == before
                 c('librarySearch').setProperty('text', '')
+                pump(100)
+                bridge.setLibraryView('grid')
+                pump(120)
+                c('librarySearch').setProperty('text', 'khong-co-bai-phu-hop')
+                pump(120)
+                assert not c('libraryScrollBar').isVisible(), 'An empty grid must not retain the previous grid height'
+                c('librarySearch').setProperty('text', '')
+                bridge.setLibraryView('list')
+                pump(120)
 
             component = QQmlComponent(engine)
             component.setData(b'''import QtQuick
@@ -157,7 +197,8 @@ ApplicationWindow { width: 520; height: 300; visible: true
             assert abs(horizontal.property('contentItem').height() - 6) < .2
             assert not warnings, warnings
             result = {'status': 'passed', 'qml_warnings': warnings, 'measurements': measurements,
-                      'checks': ['page gutters across eight screens and three sizes', '6px thumb; 18px pointer target',
+                      'checks': ['page gutters across active screens and three sizes', '6px thumb; 18px pointer target',
+                                 'search, sort and pagination start at first result; empty list/grid shrink without stale scroll height',
                                  'drag and wheel on conversion/library/compact text', 'conversion footer stays outside bar',
                                  'settings tabs share gutter', 'hidden page bars and no width jump',
                                  'compact editor viewport/caret stays clear of bar', 'unwrapped text reserves horizontal gutter']}

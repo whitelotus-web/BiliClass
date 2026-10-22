@@ -364,6 +364,14 @@ ApplicationWindow {
     property bool libraryDragActive: false
     property bool libraryDragSelecting: false
     readonly property string librarySelectionScope: [search.text, subjectFilter.currentValue, gradeFilter.currentValue, stateFilter.currentValue, voiceFilter.currentValue, libraryGroup].join("|")
+    readonly property string libraryViewportScope: [librarySelectionScope, libraryPage, bridge.lessonOrder].join("|")
+    onLibraryViewportScopeChanged: if (page === "library") Qt.callLater(root.resetLibraryViewport)
+    function resetLibraryViewport() {
+        if (!libraryHomeScroll || page !== "library") return
+        const flick = libraryHomeScroll.contentItem
+        flick.cancelFlick()
+        flick.contentY = 0
+    }
     readonly property bool libraryFiltersActive: !!(search.text.trim() || subjectFilter.currentValue || gradeFilter.currentValue || stateFilter.currentValue || voiceFilter.currentValue)
     onLibrarySelectionScopeChanged: { selectedLessons = []; librarySelectionAnchor = ""; endLibraryDrag() }
     onLibraryResultChanged: {
@@ -1198,11 +1206,11 @@ ApplicationWindow {
                         Surface {
                             visible: root.page === "library" && bridge.lessons.length === 0; Layout.fillWidth: true; implicitHeight: 202
                             ColumnLayout { anchors.centerIn: parent; spacing: 13; Label { text: "Bài giảng đầu tiên bắt đầu từ đây"; color: root.ink; font.pixelSize: 19; font.weight: Font.DemiBold }
-                                Copy { text: "Tải PPTX, DOCX, PDF có văn bản, TXT hoặc dán nội dung."; Layout.alignment: Qt.AlignHCenter }
+                                Copy { text: "Chọn file PowerPoint (.pptx) trong Chuyển đổi bài giảng để bắt đầu."; Layout.alignment: Qt.AlignHCenter }
                                 MainAction { visible: root.page === "library"; text: "Chuyển đổi bài giảng"; primary: true; Layout.alignment: Qt.AlignHCenter; onClicked: root.go("new") } }
                         }
                         ColumnLayout {
-                            visible: root.page === "library" && !root.libraryLarge; Layout.fillWidth: true; spacing: 8
+                            visible: root.page === "library" && !root.libraryLarge && root.libraryResult.rows.length > 0; Layout.fillWidth: true; spacing: 8
                             Repeater {
                                 model: root.page === "library" && !root.libraryLarge ? root.libraryResult.rows : []
                                 delegate: LessonSurface {
@@ -1246,7 +1254,7 @@ ApplicationWindow {
                         }
                         GridLayout {
                             id: libraryGrid; objectName: "libraryGrid"
-                            visible: root.libraryLarge; Layout.fillWidth: true
+                            visible: root.libraryLarge && root.libraryResult.rows.length > 0; Layout.fillWidth: true
                             columns: Math.max(1, Math.min(4, Math.floor((width + 16) / 330)))
                             columnSpacing: 16; rowSpacing: 16
                             Repeater {
@@ -2414,7 +2422,8 @@ ApplicationWindow {
 
                 SettingsPage {
                     id: settingsPanel
-                    anchors.fill: parent; anchors.margins: 26; visible: root.page === "settings"
+                    anchors.fill: parent; anchors.margins: root.inputPageMargin; visible: root.page === "settings"
+                    headingPixelSize: root.tightCreation ? 24 : 27; sectionSpacing: root.inputSectionSpacing
                     bridge: root.bridgeRef
                     onRequestBackup: backupOpen.open()
                     onRequestLibrary: libraryOpen.open()

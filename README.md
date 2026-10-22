@@ -10,6 +10,10 @@ Mã nguồn **RC157 đang chờ giáo viên thử**, chưa tạo gói cài mới
 Chuyển đổi/tạo giọng nhiều bài giữ màn hình hoàn tất với từng kết quả,
 **Xem bài**, **Mở thư mục** và **Về Thư viện**; không trở về màn tải file
 trống. Giữ kết quả khi đổi trang, mở lại tool hoặc hủy chọn lượt mới.
+Thư viện bỏ chiều cao cuộn thừa khi không có kết quả; tìm kiếm, sắp xếp
+và đổi trang về đầu danh sách. Tiêu đề/lề Cài đặt theo cùng kích thước
+với hai công cụ. Đã rà soát luồng đang dùng bằng 1.585 pytest và các
+kiểm tra Qt trên dữ liệu riêng.
 [Phạm vi RC157](docs/REVIEW_RC157.md).
 
 RC156 làm gọn hướng dẫn và thư viện:

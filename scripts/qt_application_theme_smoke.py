@@ -117,8 +117,10 @@ def main():
                 assert button.mapToItem(card,QPointF(0,button.height())).y()+4 <= detail.mapToItem(card,QPointF()).y()
             assert c('narrationPositionDescription').isVisible()
             title = c('narrationConfigurationTitle')
-            assert title.mapToItem(panel,QPointF()).y() >= 16
-            assert row.mapToItem(panel,QPointF(0,row.height())).y() <= panel.height()-15
+            padding = panel.property('contentPadding')
+            assert padding >= 12
+            assert title.mapToItem(panel,QPointF()).y() >= padding - 1
+            assert row.mapToItem(panel,QPointF(0,row.height())).y() <= panel.height()-padding+1
             voice_choice = c('lessonNarrationVoiceChoice')
             assert row.mapToItem(panel,QPointF()).y() >= voice_choice.mapToItem(panel,QPointF(0,voice_choice.height())).y()+11
             if not selected:

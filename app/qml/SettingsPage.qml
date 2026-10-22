@@ -6,6 +6,8 @@ Item {
     id: page
     objectName: "settingsPage"
     required property var bridge
+    property int headingPixelSize: 27
+    property int sectionSpacing: 12
     signal requestBackup()
     signal requestLibrary()
     signal requestRelocation()
@@ -117,8 +119,8 @@ Item {
     }
 
     ColumnLayout {
-        anchors.fill: parent; spacing: 15
-        Label { objectName: "settingsPageTitle"; text: "Cài đặt"; color: page.ink; font.pixelSize: 37; font.weight: Font.Bold }
+        anchors.fill: parent; spacing: page.sectionSpacing
+        Label { objectName: "settingsPageTitle"; text: "Cài đặt"; color: page.ink; font.pixelSize: page.headingPixelSize; font.weight: Font.Bold }
         Hint { objectName: "settingsPageDescription"; Layout.fillWidth: true
             text: ({
                 0: "Thông tin thầy cô, trường học và các lựa chọn dùng chung trên máy.",

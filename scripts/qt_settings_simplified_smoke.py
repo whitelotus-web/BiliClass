@@ -55,6 +55,10 @@ def main():
             window.setProperty('page', 'settings')
             page = c('settingsPage')
             pump(150)
+            heading = c('settingsPageTitle')
+            conversion_heading = c('creationPageHeading')
+            assert heading.property('font').pixelSize() == conversion_heading.property('font').pixelSize()
+            assert abs(page.x() - c('creationScroll').x()) < 1, 'Main tool pages share the same left gutter'
             assert not c('saveProfile').isEnabled(), 'Unchanged profile must not offer a redundant save'
             original_teacher = bridge.settings['teacher']
             click(window, c('settingsTeacher'))
@@ -158,12 +162,16 @@ def main():
                     assert c('mascotAccessories').property('text') == 'Hiện phụ kiện theo môn'
                     c('mascotAccessories').setProperty('checked', False)
                     pump(60)
-                    assert not c('mascotAccessorySummary').isVisible()
-                    assert not c('mascotAccessorySubject').isVisible() and not c('mascotAccessorySubject').isEnabled()
+                    # RC132 keeps the subject in place, disabled, so switching
+                    # accessories does not shift the settings layout.
+                    selected_subject = c('mascotAccessorySubject').property('currentText')
+                    assert c('mascotAccessorySummary').isVisible()
+                    assert c('mascotAccessorySubject').isVisible() and not c('mascotAccessorySubject').isEnabled()
                     assert not c('mascotPreview').property('accessories')
                     c('mascotAccessories').setProperty('checked', True)
                     pump(60)
                     assert c('mascotAccessorySummary').isVisible() and c('mascotAccessorySubject').isEnabled()
+                    assert c('mascotAccessorySubject').property('currentText') == selected_subject
                     pump(150)
                     mascot = c('mascotSettingsContent')
                     assert abs(mascot.width()-mascot.parentItem().width()) < 2

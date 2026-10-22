@@ -5,6 +5,10 @@ và tạo giọng nhiều bài. Có kết quả từng bài, mở thư mục, ch
 và về Thư viện rõ ràng. Thanh trạng thái mở lại kết quả khi đổi trang;
 đóng lượt là thao tác chủ động, không xóa bài. Sửa Dừng đến sau bài cuối
 đã lưu và cho tiếp tục khi lỗi lưu trạng thái ở cuối lượt. Chưa đóng gói.
+Rà soát thêm Trang chủ, Thư viện, Cài đặt, Mascot, theme, cuộn và khởi
+động: 1.585 pytest đạt. Sửa vùng cuộn giữ chiều cao cũ khi không còn bài,
+về đầu khi đổi truy vấn/trang/sắp xếp, lời nhắc PowerPoint ở thư viện
+trống, cùng cỡ tiêu đề và lề Cài đặt. Các kiểm tra dùng dữ liệu riêng.
 [Kiểm chứng luồng giao diện RC157](REVIEW_RC157.md).
 
 Ngày 23/10/2026 — nguồn RC156 làm gọn F1 thành bảy mục theo việc cần làm,
