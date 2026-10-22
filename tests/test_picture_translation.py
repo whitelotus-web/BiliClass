@@ -31,6 +31,35 @@ def test_template_ocr_can_include_animated_content_without_exposing_it_in_preser
     assert path.read_bytes() == before
 
 
+def test_known_whole_picture_entrance_keeps_translation_on_the_same_click(tmp_path):
+    from lxml import etree
+
+    from app.slide_speech import animation_rules
+
+    path = source(tmp_path)
+    deck = Presentation(path)
+    slide = deck.slides[0]
+    identity = slide.shapes[0].shape_id
+    slide._element.append(etree.fromstring(
+        '<p:timing xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">'
+        '<p:tnLst><p:par><p:cTn id="1" nodeType="mainSeq"><p:childTnLst><p:par>'
+        '<p:cTn id="2" nodeType="clickEffect" presetClass="entr"><p:childTnLst>'
+        '<p:set><p:cBhvr><p:cTn id="3" dur="1"/><p:tgtEl>'
+        f'<p:spTgt spid="{identity}"/></p:tgtEl></p:cBhvr><p:to><p:strVal val="visible"/></p:to>'
+        '</p:set></p:childTnLst></p:cTn></p:par></p:childTnLst></p:cTn></p:par></p:tnLst></p:timing>'
+    ))
+    deck.save(path)
+    data = extract_pictures(path, tmp_path/'data', Event(), recognizer=recognizer)
+    assert data['rows'][0]['animation_source'] == identity
+    manifest = extract(path, 'parallel_columns', same_slide=True)
+    target = assemble(path, tmp_path/'paired.pptx', manifest, {}, 'parallel_columns')
+    result = apply_picture_translations(target, manifest, data['rows'],
+        {data['rows'][0]['id']: 'The velocity of the object'}, 'parallel_columns', Event())
+    rules = animation_rules(Presentation(target).slides[0])
+    assert result['applied']
+    assert rules[str(identity)]['show_after'] == rules[str(result['applied'][0]['shape_id'])]['show_after'] == 1
+
+
 def test_no_image_labels_are_remembered_without_rescanning_or_changing_audio(tmp_path, monkeypatch):
     from types import SimpleNamespace
 

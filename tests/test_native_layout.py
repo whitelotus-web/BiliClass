@@ -91,3 +91,37 @@ def test_text_fit_leaves_rotated_text_unchanged(tmp_path):
     before = shape.element.xml
     fit_body(shape.element, 4000)
     assert shape.element.xml == before
+
+
+def test_measured_math_fit_changes_font_properties_not_only_ignored_autofit(tmp_path):
+    from lxml import etree
+
+    from app.native_layout import fit_preserved_frames
+    from app.source_deck import NS, source_slide_parts
+
+    path = source(tmp_path/'formula.pptx')
+    deck = Presentation(path)
+    shape = deck.slides[0].shapes[1]
+    paragraph = shape.text_frame.paragraphs[0]
+    paragraph.text = ''
+    paragraph._p.append(etree.fromstring(
+        '<m:oMath xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" '
+        'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
+        '<m:r><m:rPr><m:sty m:val="b"/></m:rPr><a:rPr sz="4400"/><m:t>x²</m:t></m:r></m:oMath>'
+    ))
+    deck.save(path)
+    calls = []
+
+    def measure(*_):
+        calls.append(1)
+        return [(1, shape.shape_id, .7)] if len(calls) == 1 else []
+
+    before = hashlib.sha256(path.read_bytes()).hexdigest()
+    result = fit_preserved_frames(path, {'layout_plan': [{'role': 'bilingual'}], 'same_slide': True}, measure=measure)
+    assert result['changes'] and len(calls) == 2
+    assert hashlib.sha256(path.read_bytes()).hexdigest() != before
+    with zipfile.ZipFile(path) as archive:
+        tree = etree.fromstring(archive.read(source_slide_parts(path)[0]))
+    assert tree.xpath('.//*[local-name()="oMath"]//*[local-name()="t"]/text()') == ['x²']
+    size = int(tree.xpath('.//*[local-name()="oMath"]//a:rPr/@sz', namespaces=NS)[0])
+    assert 1400 <= size < 4400

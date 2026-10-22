@@ -133,6 +133,18 @@ def office_text_shapes(shapes):
             yield shape
 
 
+def office_table_cells(shapes):
+    """Cell shapes have no usable COM Id; retain the owning table and coordinates."""
+    for shape in shapes:
+        if shape.Type == 6 and not shape.Rotation:
+            yield from office_table_cells(shape.GroupItems)
+        elif not shape.Rotation and getattr(shape, 'HasTable', False):
+            table = shape.Table
+            for row in range(1, table.Rows.Count + 1):
+                for column in range(1, table.Columns.Count + 1):
+                    yield table.Cell(row, column).Shape, int(shape.Id), [row-1, column-1]
+
+
 def fittable_text(shape):
     # Publisher headings are often freeform shapes (msoFreeform = 5), with
     # fully editable native text. Their outlines must stay untouched.
@@ -255,12 +267,19 @@ def fit_preserved_frames(path, manifest, cancel=None, *, measure=None):
             previous = props.find('a:normAutofit',NS)
             scale = int(previous.get('fontScale','100000')) if previous is not None else 100000
             fitted = min(scale,max(floor,round(scale*factor*.97)))
+            math_body = bool(body.xpath('.//*[local-name()="oMath" or local-name()="oMathPara"]'))
+            if math_body:
+                fitted = max(floor, round(factor*.97*100000))
             if fitted >= scale-100 and not spacing_changed:
                 continue
             for child in list(props):
                 if etree.QName(child).localname in {'normAutofit','noAutofit','spAutoFit'}:
                     props.remove(child)
             etree.SubElement(props,f'{{{NS["a"]}}}normAutofit',fontScale=str(fitted),lnSpcReduction='10000')
+            if math_body:
+                for node in body.xpath('.//a:rPr[@sz]|.//a:defRPr[@sz]|.//a:endParaRPr[@sz]', namespaces=NS):
+                    node.set('sz', str(max(100, round(int(node.get('sz'))*fitted/100000))))
+                props.find('a:normAutofit', NS).set('fontScale', '100000')
             applied.append({'page':page,'shape_id':shape_id,'font_scale':fitted,'pass':attempt+1})
         if not applied:
             break

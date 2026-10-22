@@ -49,7 +49,7 @@ def heading_frame(shape, units, box, slide_height):
     text = " ".join(unit["raw"] for unit in units).strip()
     if not (4 <= len(text) <= 130 and len(units) <= 2 and box["h"] < slide_height * 0.25):
         return False
-    if re.match(r"^(?:Câu|Bước|Question|Exercise)\s*\d", text, re.I) or re.search(r"[;=!?]", text):
+    if re.match(r"^(?:Câu|Bước|Question|Exercise)\s*\d", text, re.I) or body_prose(text, len(units)) or '=' in text:
         return False
     if shape._element.xpath('.//*[local-name()="oMath"]'):
         return False
@@ -57,3 +57,23 @@ def heading_frame(shape, units, box, slide_height):
     properties = etree.XPath(".//a:r[a:t[normalize-space()]]/a:rPr", namespaces=NS)(shape._element)
     bold = sum(p.get("b") == "1" for p in properties)
     return min(sizes, default=0) >= 2200 and bool(properties) and bold >= len(properties) * 0.6
+
+
+def title_frame(shape, slide_width, slide_height):
+    """Placeholder names are authoring hints; the actual content can be a body."""
+    if not shape.has_text_frame:
+        return False
+    text = ' '.join(shape.text.split())
+    paragraphs = [p for p in shape.text_frame.paragraphs if p.text.strip()]
+    if (not text or body_prose(text, len(paragraphs))
+            or shape.height >= slide_height * .3
+            or re.search(r'(?:^|\s)[a-d][.)]\s', text, re.I)):
+        return False
+    placeholder = shape.is_placeholder and int(shape.placeholder_format.type) in {1, 3}
+    top_band = 0 <= shape.top < slide_height * .18 and shape.width > slide_width * .22
+    return placeholder or top_band
+
+
+def body_prose(text, paragraph_count=1):
+    return (len(text) >= 180 or paragraph_count > 2 or bool(re.search(r'[!?;]', text))
+            or len(text) > 45 and bool(re.match(r'^(?:Cho|Hãy|Phải)\b', text, re.I)))

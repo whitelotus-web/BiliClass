@@ -91,10 +91,11 @@ def _visible_insets(shape, box, deck, items):
 def extract(source, mode, *, preserve_design=False, same_slide=False):
     """Preflight before any send. Image/diagram-heavy decks retain the visual route."""
     from pptx import Presentation
+    from pptx.text.text import TextFrame
 
     from .importers import inspect_zip
     from .input_analysis import language_of
-    from .slide_semantics import equation_only, quantity_only, roman_label
+    from .slide_semantics import equation_only, quantity_only, roman_label, title_frame
 
     preserve_design = preserve_design or same_slide
     inspect_zip(source)
@@ -144,8 +145,7 @@ def extract(source, mode, *, preserve_design=False, same_slide=False):
                     transform is None or transform.get('rot') not in {None,'0'}):
                 unsupported.append(f'Slide {index}: hộp chữ xoay hoặc thiếu tọa độ riêng')
             title_height=layout_height=None
-            shape_title=(shape.has_text_frame and (shape.is_placeholder and int(shape.placeholder_format.type) in {1,3}
-                or 0<=shape.top<deck.slide_height*.18 and shape.width>deck.slide_width*.22 and len(shape.text)<180))
+            shape_title = title_frame(shape, deck.slide_width, deck.slide_height)
             if shape.has_text_frame and shape.text.strip():
                 if (shape.left<0 or shape.top<0 or shape.left+shape.width>deck.slide_width
                         or shape.top+shape.height>deck.slide_height) and shape.shape_id not in motion:
@@ -248,9 +248,12 @@ def extract(source, mode, *, preserve_design=False, same_slide=False):
                         'text':text,'numbers':numbers,'xml_locks':xml_locks,'language':language,
                         'raw':raw,'title':bool(shape_title),'title_height':title_height,'part':original_parts[index-1],
                         'layout_height':layout_height, **({'math_prose':True} if math_words else {}),
+                        **({'table_cell':True} if shape.has_table and not any(
+                            n.find('p:txEl', NS) is not None for n in slide._element.xpath(
+                                './/p:spTgt[@spid="' + str(shape.shape_id) + '"]')) else {}),
                         **({'clip_insets':_visible_insets(shape,visible_boxes[shape.shape_id],deck,visible_items)}
                            if shape.shape_id in visible_boxes and shape.shape_id not in moving and not shape.rotation else {}),
-                        'font_size':round(_size(shape.text_frame,shape)*100) if shape.has_text_frame else 1800})
+                        'font_size':round(_size(shape.text_frame if shape.has_text_frame else TextFrame(body, shape),shape)*100)})
     if mode != 'english_only' and english > max(5, len(units)*.35):
         unsupported.append('Nguồn có nhiều vùng English/song ngữ cần ghép cặp trực quan')
     if not units:
@@ -266,8 +269,10 @@ def extract(source, mode, *, preserve_design=False, same_slide=False):
             'text_characters':sum(len(u['text']) for u in native)}
     if same_slide:
         from .same_slide import prepare
+        from .table_prose import join_wrapped
 
         manifest.update(same_slide=True, paired_slides=[])
+        manifest['units'] = join_wrapped(manifest['units'])
         prepare(source,manifest)
     elif preserve_design:
         from .native_fonts import missing_embedded_fonts
@@ -442,12 +447,24 @@ def assemble(source, destination, manifest, translations, mode):
                     continue
                 originals = list(body.findall('a:p', NS))
                 selected = {u['paragraph']:u for u in units if u['body'] == body_index}
+                if together and selected and shape.tag == f'{{{NS["p"]}}}graphicFrame':
+                    margins = next(iter(selected.values())).get('cell_margins', {})
+                    if margins:
+                        cell = body.getparent()
+                        props = cell.find('a:tcPr', NS)
+                        if props is None:
+                            props = etree.SubElement(cell, f'{{{NS["a"]}}}tcPr')
+                        for name, value in margins.items():
+                            props.set(name, str(value))
+                joined = {p for u in selected.values() for p in u.get('merged_paragraphs', [])[1:]}
                 for paragraph in originals:
                     body.remove(paragraph)
                 en_body = clone_bodies[body_index]
                 for paragraph in list(en_body.findall('a:p', NS)):
                     en_body.remove(paragraph)
                 for paragraph_index, original in enumerate(originals):
+                    if paragraph_index in joined:
+                        continue
                     start = len(body.findall('a:p',NS))
                     unit = selected.get(paragraph_index)
                     if unit is None:
@@ -460,11 +477,21 @@ def assemble(source, destination, manifest, translations, mode):
                             paragraph_maps.setdefault(shape_id,{})[paragraph_index]=[start]
                         continue
                     value = translations[unit['id']]
+                    if unit.get('merged_paragraphs'):
+                        original = copy.deepcopy(original)
+                        for child in list(original):
+                            if etree.QName(child).localname == 'endParaRPr':
+                                original.remove(child)
+                        for p in unit['merged_paragraphs'][1:]:
+                            _element(_element(original, 'a', 'r'), 'a', 't').text = ' '
+                            for child in originals[p]:
+                                if etree.QName(child).localname not in {'pPr', 'endParaRPr'}:
+                                    original.append(copy.deepcopy(child))
                     english = translated_paragraph(original,value['en'],unit,english=True,
                         smaller=not together and (effective_mode=='sentence_pairs' or title and
                         (effective_mode!='english_only' or not manifest.get('preserve_design'))))
                     if together:
-                        if unit.get('math_prose'):
+                        if unit.get('math_prose') or unit.get('cell_heading'):
                             # Normal equation text is prose, not a formula. Let
                             # Office wrap/fit it as text while restoring every
                             # genuinely mathematical subtree from its XML lock.
@@ -473,6 +500,15 @@ def assemble(source, destination, manifest, translations, mode):
                             canvas_scale=unit.get('canvas_scale', 1))
                         english = same_slide.style_paragraph(english,unit['font_size'],english=True,title=title,label=unit.get('label',False),
                             canvas_scale=unit.get('canvas_scale', 1))
+                        if unit.get('cell_heading'):
+                            original.find('a:pPr', NS).set('algn', 'ctr')
+                            english.find('a:pPr', NS).set('algn', 'ctr')
+                        if effective_mode == 'sentence_pairs':
+                            props = english.find('a:pPr', NS)
+                            for child in list(props):
+                                if etree.QName(child).localname in {'buAutoNum', 'buChar', 'buNone'}:
+                                    props.remove(child)
+                            etree.SubElement(props, f'{{{NS["a"]}}}buNone')
                     if effective_mode == 'english_only':
                         body.append(english)
                     elif effective_mode == 'sentence_pairs' or title:
@@ -523,6 +559,8 @@ def assemble(source, destination, manifest, translations, mode):
                     fit_body(clone, max(u['font_size'] for u in units))
             if together:
                 same_slide.fit(shape,max(u['font_size'] for u in units),title=title)
+                if shape.tag == f'{{{NS["p"]}}}graphicFrame':
+                    same_slide.fit_cells(shape, max(u['font_size'] for u in units))
             elif manifest.get('version', 1) >= 2:
                 fit_body(shape, max(u['font_size'] for u in units), minimum=14 if paired else 18)
         from .slide_typography import protect_tree

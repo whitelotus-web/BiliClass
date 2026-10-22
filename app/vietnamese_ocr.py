@@ -65,3 +65,28 @@ class VietnameseReader:
             scores.append(float(probabilities[index]))
             token = np.array([index], dtype=np.int64)
         return "", 0
+
+    def read_line(self, image):
+        """Split a long line at a real word gap before the 512px encoder cap."""
+        if image.width / max(1, image.height) < 14:
+            return self.read(image)
+        data = np.asarray(image.convert('RGB'))
+        ink = (data.min(axis=2) < 130).mean(axis=0)
+        gaps, start = [], None
+        for index, value in enumerate(ink):
+            if value < .02 and start is None:
+                start = index
+            elif value >= .02 and start is not None:
+                if index-start >= image.height*.14 and image.width*.3 < start < image.width*.7:
+                    gaps.append((start+index)//2)
+                start = None
+        if not gaps:
+            return self.read(image)
+        split = min(gaps, key=lambda x: abs(x-image.width/2))
+        pieces = []
+        for left, right in ((0, split), (split, image.width)):
+            with image.crop((left, 0, right, image.height)) as crop:
+                pieces.append(self.read(crop))
+        if not all(text for text, _ in pieces):
+            return self.read(image)
+        return ' '.join(text for text, _ in pieces), min(score for _, score in pieces)

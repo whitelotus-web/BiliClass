@@ -7,7 +7,7 @@ import shutil
 from datetime import date
 from pathlib import Path
 
-VERSION = 3
+VERSION = 4
 NATIVE_CODES = {"text_overflow", "low_contrast"}
 RENDER_CODES = NATIVE_CODES | {"visual_review", "render_unavailable"}
 

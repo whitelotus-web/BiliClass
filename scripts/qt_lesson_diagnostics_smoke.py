@@ -11,6 +11,7 @@ from PySide6.QtCore import Q_ARG, QCoreApplication, QEvent, QMetaObject
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
+from PySide6.QtTest import QSignalSpy
 
 from app.chatgpt_handoff import external_preview, inspect_returned_deck
 from app.library import Library
@@ -100,6 +101,13 @@ def main():
                                     assert QMetaObject.invokeMethod(chooser, 'activated', Q_ARG(int, 1))
                                     show.assert_called_once_with(1)
                                     assert checks.property('page')['slide'] == 1
+                                with patch.object(Bridge, 'previewConvertedSlide') as show:
+                                    requests = QSignalSpy(checks.viewRequested)
+                                    bridge._quick_result['slide'] = 2
+                                    bridge.quickResultChanged.emit()
+                                    pump(30)
+                                    assert checks.property('page')['slide'] == 2
+                                    assert requests.count() == 0, 'Following preview must not request the same slide again'
                             assert root.grabWindow().save(str(report/f'{page}-{theme}-{width}-{expanded}.png'))
             assert source.read_bytes() == original
             assert not warnings, warnings

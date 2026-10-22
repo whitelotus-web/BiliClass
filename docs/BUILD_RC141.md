@@ -85,5 +85,7 @@ workflow đã chạy lại trong `.venv`: 383/383 qua. Nhóm cache/nhập
 slide có 17/17 qua; Qt chẩn đoán chạy lại đạt. Corpus cấu trúc không
 Office cũng qua; không dùng kết quả cấu trúc để tuyên bố bố cục đẹp.
 
-Gói đã tải lên bản nháp, chờ kiểm nguồn mới trên GitHub trước khi
-phát hành. Không thêm hàng đợi hoặc đồng bộ sửa/lưu bên ngoài.
+Đã phát hành [RC141](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc141).
+Kiểm nguồn commit `eca5282` trên GitHub thành công; tag vẫn trỏ đúng
+commit dựng `6445b69`. Updater công khai nhận RC141 với đúng size/hash.
+Không thêm hàng đợi hoặc đồng bộ sửa/lưu bên ngoài.

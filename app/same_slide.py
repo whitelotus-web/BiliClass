@@ -50,7 +50,9 @@ def style_paragraph(paragraph, source_size, *, english=False, title=False, label
         if node.text:
             node.text = node.text.replace("\t", " ")
     visible = bool(text_of(paragraph).strip())
-    minimum = 18 * canvas_scale
+    # A large slide canvas does not mean every small source label should grow
+    # twofold. Preserve its hierarchy and use the readable floor in points.
+    minimum = (14 if label else 18) * min(1, canvas_scale)
     size = min(max(source_size / 100, minimum), (32 if title else 18 if label else 24) * canvas_scale)
     target = max(minimum, size * (0.82 if english else 1))
     scale = target / max(1, source_size / 100)
@@ -84,7 +86,7 @@ def prepare(source, manifest):
 
     from .native_bilingual import leaves
     from .native_fonts import missing_embedded_fonts
-    from .slide_semantics import heading_frame
+    from .slide_semantics import body_prose, heading_frame
     from .slide_speech import normalized, objects
 
     deck = Presentation(source)
@@ -128,7 +130,40 @@ def prepare(source, manifest):
         for key, units in groups.items():
             shape = shapes[key]
             box = boxes.get(key)
+            if box is None and shape.has_table:
+                # Ordinary text extraction omits a cell containing only native
+                # Office Math. Its grid still owns the canvas scale and margins.
+                box = dict(x=shape.left, y=shape.top, w=shape.width, h=shape.height)
             if box is None:
+                continue
+            if shape.has_table:
+                # Each cell owns its font and grid. A table is neither a title
+                # nor one huge text frame to expand around its foreground art.
+                for unit in units:
+                    row, column = divmod(unit['body'], len(shape.table.columns))
+                    cell = shape.table.cell(row, column)
+                    left = box['x'] + sum(c.width for c in list(shape.table.columns)[:column]) * box['w']/shape.width
+                    top = box['y'] + sum(r.height for r in list(shape.table.rows)[:row]) * box['h']/shape.height
+                    width = sum(c.width for c in list(shape.table.columns)[column:column+cell.span_width]) * box['w']/shape.width
+                    height = sum(r.height for r in list(shape.table.rows)[row:row+cell.span_height]) * box['h']/shape.height
+                    margins = {}
+                    for other in items:
+                        if other['shape_id'] == key or other.get('hidden'):
+                            continue
+                        ox, oy, ow, oh = (other[n] for n in ('x', 'y', 'w', 'h'))
+                        overlap = min(top+height, oy+oh)-max(top, oy)
+                        if (other['source_type'] == 'image' and overlap > min(height, oh)*.15
+                                and left+width*.45 < ox < left+width
+                                and ow*oh < deck.slide_width*deck.slide_height*.6):
+                            margins['marR'] = max(margins.get('marR', 0), round((left+width-ox+12700)*shape.width/box['w']))
+                        if (other['text'] and len(other['text']) < 30 and overlap > min(height, oh)*.15
+                                and left-width*.1 < ox < left+width*.2 and ow < width*.3):
+                            margins['marL'] = max(margins.get('marL', 0), round((ox+ow-left+6*12700)*shape.width/box['w']))
+                        if (other['text'] and top+height*.5 < oy < top+height
+                                and min(left+width, ox+ow)-max(left, ox) > width*.5):
+                            margins['marB'] = max(margins.get('marB', 0), round((top+height-oy+12700)*shape.height/box['h']))
+                    unit.update(title=False, canvas_scale=canvas_scale, inline_pair=True, cell_margins=margins,
+                                cell_heading=row == 0 and len(unit['raw']) <= 50 and unit['raw'].isupper())
                 continue
             x, y, w, h = (box[name] for name in ("x", "y", "w", "h"))
             length = sum(len(u["raw"]) for u in units)
@@ -142,7 +177,7 @@ def prepare(source, manifest):
                 and max(u["font_size"] for u in units) >= 2600
             )
             title = title or heading_frame(shape, units, box, deck.slide_height)
-            if len(units) > 2 and length > 100:
+            if body_prose(' '.join(u['raw'] for u in units), len(units)):
                 title = False  # A question/instruction block needs body columns, not a stacked heading.
             if re.match(r"^\s*(?:Câu|Bước|Question)\s*\d", units[0]["raw"], re.I):
                 title = False
@@ -165,7 +200,7 @@ def prepare(source, manifest):
                     # badge. Two language columns need their own clear left edge.
                     x0 = max(x0, ox + ow + 6 * 12700)
                 if (
-                    length > 100
+                    length > 40
                     and not badge
                     and other["text"]
                     and len(other["text"]) < 35
@@ -259,8 +294,8 @@ def prefer_inline(units, translations):
         for unit in units:
             original=unit['raw']
             english=restore(translations[unit['id']]['en'],unit.get('numbers',[]))
-            size=min(max(unit['font_size']/100,18*canvas),24*canvas)*scale
-            en_size=max(18*canvas, min(max(unit['font_size']/100,18*canvas),24*canvas)*.82)*scale
+            size=min(max(unit['font_size']/100,18*min(1,canvas)),24*canvas)*scale
+            en_size=max(18*min(1,canvas), min(max(unit['font_size']/100,18*min(1,canvas)),24*canvas)*.82)*scale
             vi+=text_height(original,max(1,(width-12*canvas)/2),size)
             en+=text_height(english,max(1,(width-12*canvas)/2),en_size)
             stacked+=text_height(original,max(1,width-6*canvas),size)
@@ -357,6 +392,51 @@ def fit(shape, fallback_size, *, title=False):
         fontScale=str(round(scale * 100000)),
         lnSpcReduction="10000",
     )
+
+
+def fit_cells(shape, fallback_size):
+    """Apply the same bounded fitter within each cell, retaining the native grid."""
+    table = shape.find('.//a:tbl', NS)
+    if table is None:
+        return
+    widths = [int(c.get('w')) for c in table.findall('a:tblGrid/a:gridCol', NS)]
+    rows = table.findall('a:tr', NS)
+    for row_index, row in enumerate(rows):
+        for column, cell in enumerate(row.findall('a:tc', NS)):
+            body = cell.find('a:txBody', NS)
+            if body is None or cell.get('hMerge') == '1' or cell.get('vMerge') == '1':
+                continue
+            width = sum(widths[column:column+int(cell.get('gridSpan', '1'))])
+            height = sum(int(r.get('h')) for r in rows[row_index:row_index+int(cell.get('rowSpan', '1'))])
+            margins = cell.find('a:tcPr', NS)
+            if margins is not None:
+                width -= int(margins.get('marL', '91440')) + int(margins.get('marR', '91440'))
+                height -= int(margins.get('marT', '45720')) + int(margins.get('marB', '45720'))
+            wrapper = etree.Element(f'{{{NS["p"]}}}sp')
+            nv = etree.SubElement(wrapper, f'{{{NS["p"]}}}nvSpPr')
+            etree.SubElement(nv, f'{{{NS["p"]}}}cNvPr', name='BCL_BODY cell')
+            props = etree.SubElement(wrapper, f'{{{NS["p"]}}}spPr')
+            transform = etree.SubElement(props, f'{{{NS["a"]}}}xfrm')
+            etree.SubElement(transform, f'{{{NS["a"]}}}ext', cx=str(width), cy=str(height))
+            copied = copy.deepcopy(body)
+            copied.tag = f'{{{NS["p"]}}}txBody'
+            # Cell margins live on tcPr, not bodyPr.
+            bp = copied.find('a:bodyPr', NS)
+            if bp is not None:
+                for margin in ('lIns', 'rIns', 'tIns', 'bIns'):
+                    bp.set(margin, '0')
+            wrapper.append(copied)
+            fit(wrapper, fallback_size)
+            # PowerPoint ignores normAutofit for some table cells. Materialize
+            # the bounded scale in run properties, preserving relative sizes.
+            bp = copied.find('a:bodyPr', NS)
+            autofit = bp.find('a:normAutofit', NS)
+            scale = int(autofit.get('fontScale', '100000')) / 100000
+            for node in copied.xpath('.//a:rPr[@sz]|.//a:defRPr[@sz]|.//a:endParaRPr[@sz]', namespaces=NS):
+                node.set('sz', str(max(100, round(int(node.get('sz')) * scale))))
+            autofit.set('fontScale', '100000')
+            copied.tag = f'{{{NS["a"]}}}txBody'
+            cell.replace(body, copied)
 
 
 def _shape(tree, shape_id):

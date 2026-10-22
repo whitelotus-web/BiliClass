@@ -5,6 +5,17 @@ import pytest
 from app.google_translation import KeyStore, TranslationProblem, Translator
 
 
+@pytest.mark.parametrize('direction, english', [('chiều quay ngược chiều kim đồng hồ', 'counterclockwise'),
+                                              ('chiều quay của kim đồng hồ', 'clockwise')])
+def test_clock_question_keeps_fraction_and_rotation_direction(direction, english):
+    from app.translation_terms import TermPolicy
+
+    text = f'Phải quay kim phút mấy phần của một vòng tròn theo {direction} để nó chỉ đúng số ⟦BLC0⟧?'
+    translated = TermPolicy('Toán').exact(text)
+    assert translated == f'Through what fraction of a full turn must the minute hand rotate {english} to point to ⟦BLC0⟧?'
+    assert TermPolicy('Toán').exact('Giải') == 'Solution'
+
+
 def test_exact_teacher_term_and_classroom_heading_need_no_api(tmp_path):
     translator = Translator(tmp_path, transport=lambda *_: pytest.fail('Local wording must not call Google'))
     translator.configure_terms('Vật lý', [{'vi': 'động năng', 'en': 'Kinetic energy', 'locked': True}])

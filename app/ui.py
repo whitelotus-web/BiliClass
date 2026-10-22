@@ -2882,9 +2882,13 @@ class Bridge(QObject):
                 if not self.quickResult.get('image'):
                     self.previewConvertedSlide(1)
             failures = inspection["slide_quality"]["counts"]["FAIL"]
+            from .lesson_diagnostics import layout
+
+            remaining = layout(self._lesson)['remaining']
             self.inform(result.get("message") or
                         (f"Đã tự sửa và kiểm tra lại. Còn {failures} slide cần hoàn thiện; xem chi tiết." if failures
-                         else "Đã sửa các lỗi kiểm tra được. Xem lại nội dung và xác nhận để dạy."), bool(failures))
+                         else f"Đã kiểm tra lại. Còn {remaining} slide cần đối chiếu nội dung, ảnh hoặc hiệu ứng; xem chi tiết." if remaining
+                         else "Đã kiểm tra lại; chưa phát hiện lỗi trong các phép kiểm tra tự động."), bool(failures))
 
         self.launch(work, completed)
         self.inform("Đang tự sửa và kiểm tra lại bài giảng…")

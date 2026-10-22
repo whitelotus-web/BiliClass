@@ -14,6 +14,126 @@ from app.native_bilingual import assemble, extract
 from app.source_deck import NS, source_slide_parts
 
 
+@pytest.mark.parametrize('content', [
+    'Phải quay kim phút mấy phần của một vòng tròn để nó chỉ đúng số 12?',
+    'Dòng nội dung thứ nhất\nDòng nội dung thứ hai\nDòng nội dung thứ ba',
+    'Một đoạn nội dung giải thích chuyển động của vật. ' * 6,
+    'Cho tam giác ABC có điểm M là trung điểm của cạnh BC.',
+])
+def test_title_placeholder_used_for_content_is_not_a_heading(tmp_path, content):
+    deck = Presentation()
+    slide = deck.slides.add_slide(deck.slide_layouts[5])
+    title = slide.shapes.title
+    title.text = content
+    title.text_frame.paragraphs[0].font.size = Pt(32)
+    path = tmp_path/'misused-title.pptx'
+    deck.save(path)
+    manifest = extract(path, 'parallel_columns', same_slide=True)
+    assert all(not u['title'] for u in manifest['units'] if u['shape_id'] == title.shape_id)
+
+
+def test_native_table_uses_its_cell_font_and_fits_inside_the_source_grid(tmp_path):
+    deck = Presentation()
+    deck.slide_width, deck.slide_height = Inches(26.667), Inches(15)
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    shape = slide.shapes.add_table(2, 2, Inches(.4), Inches(1.5), Inches(25.5), Inches(10))
+    table = shape.table
+    table.rows[0].height = Inches(1.5)
+    table.rows[1].height = Inches(8.5)
+    table.cell(0, 0).text = 'CÂU HỎI'
+    table.cell(1, 0).text = 'Phải quay kim phút mấy phần của một vòng tròn để nó chỉ đúng số 12?'
+    for row in table.rows:
+        for cell in row.cells:
+            for p in cell.text_frame.paragraphs:
+                p.font.size = Pt(44)
+    source = tmp_path/'table.pptx'
+    deck.save(source)
+    before = source.read_bytes()
+    manifest = extract(source, 'parallel_columns', same_slide=True)
+    assert all(u['font_size'] == 4400 for u in manifest['units'])
+    assert all(not u['title'] and 'same_slide_box' not in u for u in manifest['units'])
+    values = {u['id']: {'en': 'QUESTION' if u['raw'] == 'CÂU HỎI' else
+                         'What fraction of a full turn must the minute hand rotate to point to ⟦BLC0⟧?'}
+              for u in manifest['units']}
+    output = assemble(source, tmp_path/'paired.pptx', manifest, values, 'parallel_columns')
+    result = Presentation(output).slides[0].shapes[0]
+    assert (result.left, result.top, result.width, result.height) == (shape.left, shape.top, shape.width, shape.height)
+    assert 'What fraction' in result.table.cell(1, 0).text
+    assert max((p.runs[0].font.size or p.font.size).pt for p in result.table.cell(1, 0).text_frame.paragraphs if p.runs) <= 44
+    assert source.read_bytes() == before
+
+
+def test_manual_wrapped_table_question_is_translated_as_one_sentence(tmp_path):
+    deck = Presentation()
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    shape = slide.shapes.add_table(1, 1, Inches(1), Inches(2), Inches(7), Inches(4))
+    shape.table.cell(0, 0).text = 'Phải quay kim phút mấy\nphần của một vòng tròn để nó chỉ đúng\nsố 12?'
+    source = tmp_path/'wrapped.pptx'
+    deck.save(source)
+    manifest = extract(source, 'parallel_columns', same_slide=True)
+    assert len(manifest['units']) == 1
+    unit = manifest['units'][0]
+    assert unit['merged_paragraphs'] == [0, 1, 2]
+    assert 'kim phút mấy phần' in unit['raw']
+    output = assemble(source, tmp_path/'paired.pptx', manifest,
+        {unit['id']: {'en': 'What fraction of a turn must the hand rotate to point to ⟦BLC0⟧?'}}, 'parallel_columns')
+    paragraphs = Presentation(output).slides[0].shapes[0].table.cell(0, 0).text_frame.paragraphs
+    assert len([p for p in paragraphs if p.text.strip()]) == 2
+    assert 'kim phút mấy phần' in paragraphs[0].text
+    assert 'What fraction' in paragraphs[1].text
+
+
+def test_small_source_label_does_not_double_with_a_large_canvas(tmp_path):
+    deck = Presentation()
+    deck.slide_width, deck.slide_height = Inches(26.667), Inches(15)
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    label = slide.shapes.add_textbox(Inches(1), Inches(5), Inches(2), Inches(.7))
+    label.text = 'Giải'
+    label.text_frame.paragraphs[0].font.size = Pt(24)
+    source = tmp_path/'small-label.pptx'
+    deck.save(source)
+    manifest = extract(source, 'parallel_columns', same_slide=True)
+    output = assemble(source, tmp_path/'paired.pptx', manifest,
+        {manifest['units'][0]['id']: {'en': 'Solution'}}, 'parallel_columns')
+    paragraph = Presentation(output).slides[0].shapes[0].text_frame.paragraphs[0]
+    assert (paragraph.runs[0].font.size or paragraph.font.size).pt <= 24
+
+
+def test_table_with_only_office_math_still_has_cell_geometry_and_reserves_a_solution_label(tmp_path):
+    deck = Presentation()
+    deck.slide_width, deck.slide_height = Inches(26.667), Inches(15)
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    shape = slide.shapes.add_table(1, 1, Inches(1), Inches(5), Inches(12), Inches(2))
+    cell = shape.table.cell(0, 0)
+    cell.text_frame.paragraphs[0]._p.append(etree.fromstring(
+        '<m:oMath xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" '
+        'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
+        '<m:r><m:rPr><m:nor/></m:rPr><a:rPr sz="4400"/><m:t>Ta có công thức sau đây.</m:t></m:r></m:oMath>'
+    ))
+    label = slide.shapes.add_textbox(Inches(1), Inches(5), Inches(2), Inches(.8))
+    label.text = 'Lời giải'
+    path = tmp_path/'math-table.pptx'
+    deck.save(path)
+    manifest = extract(path, 'parallel_columns', same_slide=True)
+    unit = next(u for u in manifest['units'] if u['shape_id'] == shape.shape_id)
+    assert unit['canvas_scale'] == 2 and not unit['title']
+    assert unit['cell_margins']['marL'] > Inches(2)
+
+
+def test_short_solution_body_reserves_room_for_a_stacked_solution_heading(tmp_path):
+    deck = Presentation()
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    label = slide.shapes.add_textbox(Inches(.5), Inches(3), Inches(2), Inches(.6))
+    label.text = 'Lời giải'
+    body = slide.shapes.add_textbox(Inches(.5), Inches(3), Inches(7), Inches(2))
+    body.text = 'Bán kính quỹ đạo của trạm vũ trụ quốc tế là:'
+    source = tmp_path/'solution-label.pptx'
+    deck.save(source)
+    manifest = extract(source, 'parallel_columns', same_slide=True)
+    unit = next(u for u in manifest['units'] if u['shape_id'] == body.shape_id)
+    assert unit['same_slide_box']['y'] >= label.top+label.height
+
+
 @pytest.mark.parametrize('label', ['❶', '❷', '❸', '❹', '❺', '①', '⓿', '½', 'Ⅲ'])
 def test_shared_numeric_badges_keep_one_source_copy_and_its_size(tmp_path, label):
     from pptx.enum.shapes import MSO_AUTO_SHAPE_TYPE

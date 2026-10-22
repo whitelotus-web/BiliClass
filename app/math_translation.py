@@ -8,6 +8,11 @@ NUMBER = r'(?:⟦BLC\d+⟧|\d+)'
 def exact(text):
     source = ' '.join(text.split())
     token = r'⟦BLC\d+⟧'
+    match = re.fullmatch(r'Phải quay kim phút mấy phần của một vòng tròn theo '
+        r'(chiều quay ngược chiều kim đồng hồ|chiều quay của kim đồng hồ) để nó chỉ đúng số (' + NUMBER + r')\?', source, re.I)
+    if match:
+        direction = 'counterclockwise' if 'ngược' in match[1].casefold() else 'clockwise'
+        return f'Through what fraction of a full turn must the minute hand rotate {direction} to point to {match[2]}?'
     match = re.fullmatch('(' + token + r') với (' + token + r') là (tâm hình bình hành|trung điểm) (' + token + r')(' + token + r'|[.])?', source, re.I)
     if match:
         role = 'center of the parallelogram' if match[3].casefold() == 'tâm hình bình hành' else 'midpoint of'
@@ -36,6 +41,9 @@ def exact(text):
 
 
 def terminology(source, translated):
+    if re.search(r'quay kim phút một khoảng bằng', source, re.I):
+        translated = re.sub(r'rotating the minute hand by a distance equal to',
+                            'rotating the minute hand through', translated, flags=re.I)
     if re.search(r'\blớp\s+⟦BLC\d+⟧', source, re.I):
         translated = re.sub(r'(⟦BLC\d+⟧) grade\b', r'Grade \1', translated, flags=re.I)
     if re.search(r'\bnằm trên\b', source, re.I) and not re.search(r'\bphía trên\b', source, re.I):

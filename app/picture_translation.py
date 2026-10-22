@@ -1,5 +1,6 @@
 """Editable overlays on the original picture; never alter raster evidence."""
 
+import hashlib
 import json
 import math
 import zipfile
@@ -99,6 +100,17 @@ def apply_picture_translations(path, manifest, rows, translations, mode, cancel=
     warnings = []
     note_additions = {}
     images = {}
+    canvases = {}
+    prose_pages = [page for page, item in enumerate(plan, 1) if any(
+        row.get('draft') and row['slide'] == item['source_slide'] for row in rows)]
+    if prose_pages and mode != 'english_only':
+        from .office_tasks import render_quality
+
+        directory = path.parent/'picture-background'
+        report = {'sha256': hashlib.sha256(path.read_bytes()).hexdigest(),
+                  'slides': [dict(slide=n, issues=[]) for n in prose_pages]}
+        render_quality(path, directory, report, cancel)
+        canvases = {row['slide']: directory/row['render_image'] for row in report['slides'] if row.get('rendered')}
     try:
         for page, slide in enumerate(deck.slides, 1):
             if cancel is not None and cancel.is_set():
@@ -112,6 +124,9 @@ def apply_picture_translations(path, manifest, rows, translations, mode, cancel=
             items = objects(slide)
             placed = []
             for row in matching:
+                if row.get('draft') and mode == 'english_only':
+                    warnings.append(f"Slide {page}: đoạn đọc từ ảnh cần đối chiếu; giữ chữ gốc thay vì che bằng bản dịch nháp.")
+                    continue
                 text = translations[row["id"]]
                 original = tuple(row["region"])
                 x, y, w, h = original
@@ -186,6 +201,22 @@ def apply_picture_translations(path, manifest, rows, translations, mode, cancel=
                     )
                     if box:
                         fill = background(image, row["box"], box)
+                    if box is None and row.get('draft') and page in canvases:
+                        canvas_key = 'canvas-' + str(page)
+                        if canvas_key not in images:
+                            with Image.open(canvases[page]) as rendered:
+                                images[canvas_key] = rendered.convert('RGB')
+                        canvas = images[canvas_key]
+                        bounds = (deck.slide_width/12700, deck.slide_height/12700)
+                        width = min(bounds[0]-24, max(w, bounds[0]*.92))
+                        for size in (32, 28, 24, 20, 18):
+                            height = text_height(text, width-6, size) + 8
+                            box = empty_region(original, (width, height), bounds, occupied+[tuple(row['box'])],
+                                clear=lambda candidate: bool(background(canvas, (0, 0, *bounds), candidate)))
+                            if box:
+                                fill = background(canvas, (0, 0, *bounds), box)
+                                warnings.append(f"Slide {page}: đã đặt bản dịch nháp cho đoạn chữ trong ảnh; cần đối chiếu với ảnh gốc, chưa tự đọc đoạn này.")
+                                break
                 if box is None:
                     warnings.append(
                         f"Slide {page}: chưa đủ vùng trống/nền rõ để đặt bản dịch chữ trong ảnh; cần đối chiếu."
@@ -199,6 +230,10 @@ def apply_picture_translations(path, manifest, rows, translations, mode, cancel=
                 overlay.find('p:nvSpPr/p:cNvPr', NS).set('descr', PREFIX + json.dumps(
                     {'vi': row['text'], 'en': text}, ensure_ascii=False))
                 shape_tree.append(overlay)
+                if row.get('animation_source'):
+                    from .same_slide import synchronize
+
+                    synchronize(tree, {row['animation_source']: identity}, {})
                 placed.append(box)
                 applied.append(
                     {

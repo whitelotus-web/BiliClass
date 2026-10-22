@@ -391,15 +391,20 @@ def render_quality(path, directory, report, cancel=None, progress=None, *, reuse
             slide.Export(str(temporary.resolve()), "PNG", 1600, height)
             temporary.replace(image)
             row.update(rendered=True, render_image=image.relative_to(directory).as_posix())
-            from .native_layout import office_text_shapes
+            from .native_layout import office_table_cells, office_text_shapes
 
-            for shape in office_text_shapes(slide.Shapes):
+            frames = [(shape, int(shape.Id), None) for shape in office_text_shapes(slide.Shapes)]
+            frames.extend(office_table_cells(slide.Shapes))
+            for shape, identity, cell in frames:
                 try:
                     if not shape.HasTextFrame or not shape.TextFrame2.HasText:
                         continue
                     text = shape.TextFrame2.TextRange
+                    if not str(text.Text).strip():
+                        continue  # Empty formatted cells can have nonzero native text bounds.
                     if text.BoundHeight > shape.Height + 3 or text.BoundWidth > shape.Width + 3:
-                        row["issues"].append({"code": "text_overflow", "severity": "FAIL", "shape_id": shape.Id,
+                        row["issues"].append({"code": "text_overflow", "severity": "FAIL", "shape_id": identity,
+                                              **({'cell': cell} if cell is not None else {}),
                                               "excerpt": str(text.Text).strip()[:120]})
                     if shape.Fill.Visible and shape.Fill.Type == 1:
                         foreground, background = int(text.Font.Fill.ForeColor.RGB), int(shape.Fill.ForeColor.RGB)
@@ -408,7 +413,8 @@ def render_quality(path, directory, report, cancel=None, progress=None, *, reuse
                         ratio = contrast_ratio(foreground, background)
                         threshold = 3 if float(text.Font.Size) >= 24 else 4.5
                         if ratio < threshold:
-                            row["issues"].append({"code": "low_contrast", "severity": "CHECK", "shape_id": shape.Id})
+                            row["issues"].append({"code": "low_contrast", "severity": "CHECK", "shape_id": identity,
+                                                  **({'cell': cell} if cell is not None else {})})
                 except Exception:
                     continue
             cache.save_row(row)

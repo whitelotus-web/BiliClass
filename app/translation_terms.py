@@ -14,7 +14,7 @@ HEADINGS = {
     'phiếu học tập': 'Worksheet', 'hướng dẫn về nhà': 'Homework',
     'hướng dẫn vẽ đồ thị': 'Graphing instructions',
     'định nghĩa': 'Definition', 'nội dung': 'Contents', 'lời giải': 'Solution',
-    'bài giải': 'Solution', 'chú ý': 'Note', 'nhận xét': 'Observation',
+    'bài giải': 'Solution', 'giải': 'Solution', 'chú ý': 'Note', 'nhận xét': 'Observation',
 }
 # Whole headings only: sentence translations still keep their own grammar.
 # Geometry assumptions are axioms/postulates, not "recognizational properties".
@@ -25,6 +25,7 @@ MATH_HEADINGS = {
     'hình chóp và hình tứ diện': 'Pyramids and tetrahedra',
     'các ví dụ minh họa': 'Illustrative examples',
     'bài tập': 'Exercises',
+    'sản phẩm': 'Expected result',
 }
 _NUMBERED = re.compile(r'^(phiếu học tập số|hoạt động|luyện tập|nhiệm vụ|vận dụng|ví dụ|hđ|bài|bai|chương|chuong|câu|cau|mục|muc)\s*(\d+(?:\.\d+)*|[IVXLCDM]+|⟦BLC\d+⟧)(?!\w)', re.I)
 _LABELS = {'bài':'Lesson', 'bai':'Lesson', 'chương':'Chapter', 'chuong':'Chapter',

@@ -47,6 +47,18 @@ def test_source_review_keeps_exact_reason_and_does_not_invent_an_answer():
     assert 'giữ nguyên giả thiết và đáp án' in issue['message']
 
 
+def test_distinct_table_cells_keep_their_own_location_and_excerpt():
+    report = layout({'slide_quality': {'slides': [{'slide': 4, 'issues': [
+        {'code': 'text_overflow', 'severity': 'FAIL', 'shape_id': 2, 'cell': [1, 0], 'excerpt': 'First question'},
+        {'code': 'text_overflow', 'severity': 'FAIL', 'shape_id': 2, 'cell': [2, 0], 'excerpt': 'Second question'},
+    ]}]}})
+    issues = report['pages'][0]['issues']
+    assert len(issues) == 2 and report['failures'] == 1
+    assert issues[0]['location'] == 'Ô bảng hàng 2, cột 1.'
+    assert issues[1]['location'] == 'Ô bảng hàng 3, cột 1.'
+    assert issues[1]['excerpt'] == 'Second question'
+
+
 def test_failed_shared_speech_lists_every_source_slide_and_language():
     inspection = {'profile': {'units': [
         {'locator': 'Slide 2', 'vi': 'Số một.', 'en': ''},

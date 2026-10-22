@@ -1,5 +1,16 @@
 # Trạng thái BiliClass
 
+Ngày 22/10/2026 — nguồn RC142 sửa nhận vai trò Title/nội dung,
+cỡ chữ và ngắt dòng trong ô bảng; xử lý bản dịch nháp đoạn văn dài
+trong ảnh, giữ hình gốc và hiệu ứng xuất hiện cùng click khi xác
+định chắc. Căn cỡ chữ Office Math thật; đo ô bảng với vị trí chính
+xác, bỏ báo tràn ở ô rỗng và làm mới cache. Kiểm tra lại/điều hướng
+chi tiết đồng bộ ở cả hai công cụ. 185 pytest liên quan, 384 ca nhóm
+portable (có giao nhau), corpus, hai Qt smoke, Ruff/compileall qua.
+Bản sao bài 16 slide giữ media và 739 run ký hiệu; không FAIL trong
+phép đo hiện có, vẫn CHECK và cần xem trang dày chữ trước khi chiếu.
+Đóng gói riêng sau mốc mã nguồn đã kiểm; xem [BUILD_RC142](BUILD_RC142.md).
+
 Ngày 22/10/2026 — nguồn RC141 rà bốn bản Toán mới trên bản sao:
 89 slide, 2.017 run ký hiệu và media nguồn giữ nguyên; không FAIL
 trong bộ đo hiện có, vẫn có CHECK cho ý nghĩa/ảnh/hiệu ứng. Sửa dịch
@@ -14,7 +25,8 @@ Bản dịch cải thiện của các bản có giọng được thử riêng. H
 cần đối chiếu ngay trong đề gốc được ghi theo slide, không sửa
 giả thiết. Xem [BUILD_RC141](BUILD_RC141.md). Gói dựng từ `6445b69`,
 kiểm bundle/ZIP/khởi động độc lập/cài và giữ dữ liệu đạt, đã mở Home
-từ Explorer. Bản nháp GitHub đang chờ kiểm nguồn mới: đã sửa 32 lỗi
+từ Explorer. RC141 đã phát hành và kiểm updater công khai đạt.
+Kiểm nguồn GitHub `eca5282` thành công: đã sửa 32 lỗi
 Ruff toàn kho và bổ sung thuộc tính Text thiếu trong mẫu COM của
 kiểm thử cache; không bỏ/hạ các phép kiểm tra. Không thêm hàng đợi
 hoặc đồng bộ Save.

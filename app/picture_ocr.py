@@ -10,7 +10,7 @@ from pathlib import Path
 
 from PIL import Image
 
-ENGINE = "rapidocr-3.9.2-latin-v5-vietocr-onnx-regions-3"
+ENGINE = "rapidocr-3.9.2-latin-v5-vietocr-onnx-regions-4"
 
 
 def _worker(files, events):
@@ -32,7 +32,7 @@ def _worker(files, events):
                 rows = []
                 if result.boxes is not None:
                     for text, score, box in zip(result.txts, result.scores, result.boxes, strict=True):
-                        checked, verified = text, False
+                        checked, verified, alternate, probability = text, False, '', 0
                         from .input_analysis import language_of
 
                         if verifier is not None and language_of(text) == "vi":
@@ -47,7 +47,7 @@ def _worker(files, events):
                                 )
                             )
                             try:
-                                alternate, probability = verifier.read(crop)
+                                alternate, probability = verifier.read_line(crop)
                             finally:
                                 crop.close()
                             checked, verified = crosscheck(text, float(score), alternate, probability)
@@ -56,6 +56,8 @@ def _worker(files, events):
                                 "text": checked,
                                 "confidence": float(score),
                                 "verified": verified,
+                                "alternate": alternate,
+                                "probability": probability,
                                 "points": [[float(x) / image.width, float(y) / image.height] for x, y in box],
                             }
                         )
@@ -119,7 +121,7 @@ def extract_pictures(source, directory, cancel, progress=None, *, recognizer=Non
     from pptx import Presentation
 
     from .local_ocr import model_paths
-    from .slide_speech import objects
+    from .slide_speech import animation_rules, objects
     from .vietnamese_ocr import pack_directory
 
     deck = Presentation(source)
@@ -131,6 +133,7 @@ def extract_pictures(source, directory, cancel, progress=None, *, recognizer=Non
     for number, slide in enumerate(deck.slides, 1):
         items = objects(slide)
         animated = set(slide._element.xpath(".//p:spTgt/@spid"))
+        rules = animation_rules(slide)
         for item in items:
             if cancel.is_set():
                 raise InterruptedError("Đã dừng đọc hình trong bài giảng.")
@@ -151,8 +154,11 @@ def extract_pictures(source, directory, cancel, progress=None, *, recognizer=Non
                 if parent.tag.endswith("}grpSp")
             ):
                 continue
-            if not include_animated and any(str(key) in animated for key in item["ancestors"]):
-                continue  # Never reveal text hidden behind a classroom trigger.
+            animation_sources = [key for key in item['ancestors'] if str(key) in animated]
+            synchronized = (len(animation_sources) == 1
+                            and rules.get(str(animation_sources[0]), {}).get('kind') == 'click')
+            if not include_animated and animation_sources and not synchronized:
+                continue  # Never reveal text hidden behind an unknown classroom trigger.
             crop_values=[getattr(shape,'crop_'+side,0) for side in ('left','top','right','bottom')]
             left,top,right,bottom=crop_values
             if min(crop_values)<0 or left+right>=1 or top+bottom>=1:
@@ -182,6 +188,7 @@ def extract_pictures(source, directory, cancel, progress=None, *, recognizer=Non
                     "shape_id": item["shape_id"],
                     "key": digest,
                     "box": [item[k] / 12700 for k in ("x", "y", "w", "h")],
+                    **({'animation_source': animation_sources[0]} if synchronized and not include_animated else {}),
                 }
             )
     if not occurrences:
@@ -224,7 +231,15 @@ def extract_pictures(source, directory, cancel, progress=None, *, recognizer=Non
     from .slide_semantics import roman_label
 
     for occurrence in occurrences:
-        for index, line in enumerate(cached[occurrence["key"]]):
+        lines = cached[occurrence["key"]]
+        from .picture_prose import paragraphs
+
+        blocks = paragraphs(lines, occurrence, str(pictures[occurrence['key']]))
+        rows.extend(blocks)
+        included = {index for block in blocks for index in block['line_indices']}
+        for index, line in enumerate(lines):
+            if index in included:
+                continue
             text = line["text"].strip()
             if language_of(text) != "vi" or roman_label(text) or len(text) < 4:
                 continue
@@ -235,7 +250,8 @@ def extract_pictures(source, directory, cancel, progress=None, *, recognizer=Non
                 continue
             points = line["points"]
             # Reject angled lines rather than cover neighbouring scientific labels.
-            if abs(points[1][1] - points[0][1]) > 0.008:
+            if abs((points[1][1] - points[0][1]) * occurrence['box'][3]) > max(
+                    1, abs(points[1][0]-points[0][0]) * occurrence['box'][2] * .035):
                 warnings.append(f"Slide {occurrence['slide']}: chữ nghiêng trong ảnh cần đối chiếu.")
                 continue
             x, y, w, h = occurrence["box"]

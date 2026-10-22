@@ -23,12 +23,16 @@ def layout(lesson):
         issues, seen = [], set()
         for issue in row.get('issues', []):
             code = issue.get('code', '')
-            if code in INFORMATIONAL or code in seen:
+            cell = issue.get('cell')
+            identity = (code, issue.get('shape_id'), tuple(cell or ()))
+            if code in INFORMATIONAL or identity in seen:
                 continue
-            seen.add(code)
+            seen.add(identity)
             excerpt = issue.get('excerpt', '')
+            location = f'Ô bảng hàng {cell[0]+1}, cột {cell[1]+1}.' if isinstance(cell, list) and len(cell) == 2 else ''
             issues.append(dict(code=code, message=MESSAGES.get(code, 'Cần đối chiếu vùng nội dung này.'),
                                severity=issue.get('severity', 'CHECK'), excerpt=excerpt,
+                               location=location,
                                action=ACTIONS.get(code, 'Xem slide và đối chiếu với bài gốc.')))
         if issues:
             pages.append(dict(slide=row['slide'], source_slide=row.get('source_slide', row['slide']),

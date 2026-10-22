@@ -15,6 +15,19 @@ Frame {
         if (page.slide && !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !bridge.powerpointState.starting)
             viewRequested(page.slide)
     }
+    Connections {
+        target: checks.bridge
+        function onQuickResultChanged() {
+            if (!checks.expanded) return
+            var slide = checks.bridge.quickResult.slide
+            for (var index = 0; index < checks.pages.length; index++) {
+                if (checks.pages[index].slide === slide) {
+                    checks.selected = index
+                    return
+                }
+            }
+        }
+    }
     onExpandedChanged: { if (expanded) showSelected() }
     padding: 10
     visible: !!report.remaining || !!report.image_note
@@ -48,7 +61,7 @@ Frame {
                     onActivated: function(index) { checks.selected = index; checks.showSelected() }
                 }
                 ActionButton { objectName: checks.objectName + "View"; text: "Xem slide"; implicitHeight: 32; enabled: !checks.bridge.busy && !checks.bridge.narrationBusy && !checks.bridge.powerpointState.active; onClicked: checks.viewRequested(checks.page.slide) }
-                ActionButton { objectName: checks.objectName + "Repair"; text: "Kiểm tra và tự sửa"; implicitHeight: 32; visible: !!checks.report.failures; enabled: !checks.bridge.busy && !checks.bridge.narrationBusy && !checks.bridge.powerpointState.opened && !checks.bridge.powerpointState.active; onClicked: checks.bridge.repairConvertedLesson() }
+                ActionButton { objectName: checks.objectName + "Repair"; text: checks.report.failures ? "Kiểm tra và tự sửa" : "Kiểm tra lại"; implicitHeight: 32; visible: !!checks.report.remaining; enabled: !checks.bridge.busy && !checks.bridge.narrationBusy && !checks.bridge.powerpointState.opened && !checks.bridge.powerpointState.active; onClicked: checks.bridge.repairConvertedLesson() }
             }
             Repeater {
                 model: checks.page.issues || []
@@ -56,7 +69,7 @@ Frame {
                     required property var modelData
                     Layout.fillWidth: true; wrapMode: Text.WordWrap; textFormat: Text.PlainText
                     color: AppTheme.ink; font.pixelSize: 13
-                    text: "• " + modelData.message + (modelData.excerpt ? " Vùng: “" + modelData.excerpt + "”." : "") + " " + modelData.action
+                    text: "• " + modelData.message + (modelData.location ? " " + modelData.location : "") + (modelData.excerpt ? " Vùng: “" + modelData.excerpt + "”." : "") + " " + modelData.action
                 }
             }
         }
