@@ -201,6 +201,7 @@ def run(args):
     bridge.slidePreview.shutdown()
     bridge.libraryThumbnails.shutdown()
     bridge.inputDocuments.shutdown()
+    bridge.batchQueue.shutdown()
     speech.stop()
     from .speech_process import shutdown
 

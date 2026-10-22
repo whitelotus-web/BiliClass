@@ -67,8 +67,9 @@ def capture(hwnd, path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--exe', type=Path)
+    parser.add_argument('--report', type=Path, default=Path('reports/rc105/splash-native'))
     args = parser.parse_args()
-    report = Path('reports/rc105/splash-native')
+    report = args.report
     report.mkdir(parents=True, exist_ok=True)
     command = [str(args.exe)] if args.exe else [sys.executable, '-m', 'app']
     child = subprocess.Popen(command+['--startup-splash'], stdin=subprocess.PIPE,
@@ -77,8 +78,12 @@ def main():
     control = StartupSplash(child)
     try:
         hwnd = until(lambda: next((h for h,t in windows(child) if 'Đang khởi động' in t), None))
-        time.sleep(.15)
-        one = capture(hwnd, report/'preparing.png')
+        def first_frame():
+            try:
+                return capture(hwnd, report/'preparing.png')
+            except AssertionError:
+                return None  # A visible native surface can precede its first GPU frame.
+        one = until(first_frame, timeout=5)
         # The caller has no Qt loop and is deliberately blocked; child motion continues.
         time.sleep(.38)
         two = capture(hwnd, report/'animation.png')
@@ -113,6 +118,7 @@ def main():
                 win32gui.PostMessage(hwnd, 0x10, 0, 0)
             assert desktop.wait(timeout=15) == 0
     result = {'status':'passed','scope':'own disposable profile/processes; no teacher data',
+              'size_pixels':list(one.size),
               'reduced_motion':reduced_motion(),
               'checks':['artwork and live phases render','motion follows Windows animation preference',
                         'ready/EOF closes dedicated child','normal desktop closes splash after first frame']}

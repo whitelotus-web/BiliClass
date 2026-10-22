@@ -7,7 +7,7 @@ Window {
     title: "BiliClass · " + (stage === "ready" ? "Đã sẵn sàng" : stage === "interface" ? "Đang tải giao diện" : stage === "library" ? "Đang mở thư viện" : "Đang khởi động")
     flags: Qt.SplashScreen | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.WindowDoesNotAcceptFocus
     color: "#edf7ff"
-    width: 1000; height: 563
+    width: 860; height: 484
     readonly property string stage: splashState.stage
     opacity: stage === "ready" ? 0 : 1
     Behavior on opacity { NumberAnimation { duration: splashState.reducedMotion ? 0 : 110; easing.type: Easing.OutCubic } }

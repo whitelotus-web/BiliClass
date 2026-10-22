@@ -6,6 +6,11 @@
 
 **[Tải BiliClass cho Windows](https://github.com/whitelotus-web/BiliClass/releases)** · [RC152 đã kiểm chứng](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc152) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md)
 
+Nguồn RC153 thống nhất đầu vào nhiều bài ở Chuyển đổi và Tạo giọng:
+hàng đợi trên cấu hình, chọn từng bài để xem trước; mỗi bài có số
+slide, mở PowerPoint và nút bỏ riêng. Icon tab nhỏ hơn, thứ tự chồng
+đúng kiểu hồ sơ; màn khởi động gọn hơn. [Phạm vi RC153](docs/BUILD_RC153.md).
+
 RC152 thay các icon tab theo mẫu, cho tab đang chọn nền xanh,
 chữ/icon trắng, đuôi chồng nhẹ và bóng mỏng. Menu từng bài thêm
 **Mở trong Explorer** để tìm file đã lưu. [Phạm vi RC152](docs/BUILD_RC152.md).

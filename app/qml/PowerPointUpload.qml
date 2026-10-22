@@ -67,7 +67,7 @@ Rectangle {
                 Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
             }
             Label {
-                text: upload.working ? upload.workingDetail : upload.loadingFileName || (upload.multiple ? "Kéo thả một hoặc nhiều tệp vào đây, hoặc bấm nút bên dưới để chọn" : "Kéo thả tệp vào đây hoặc bấm nút bên dưới để chọn file")
+                text: upload.working ? upload.workingDetail : upload.loadingFileName || (upload.multiple ? "Có thể chọn hoặc kéo thả nhiều file cùng lúc; các bài được xử lý lần lượt." : "Kéo thả tệp vào đây hoặc bấm nút bên dưới để chọn file")
                 color: AppTheme.adapt("#687e9b"); font.pixelSize: 13; Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
             }

@@ -29,6 +29,9 @@ class BatchQueue(QObject):
         self._clock.setInterval(1000)
         self._clock.setTimerType(Qt.TimerType.PreciseTimer)
         self._clock.timeout.connect(self.changed.emit)
+        from .batch_inputs import BatchInputs
+
+        self._inputs = BatchInputs(self)
         identity = bridge.library.setting('last_batch_queue', '')
         if identity:
             try:
@@ -46,6 +49,13 @@ class BatchQueue(QObject):
     @Property(bool, notify=changed)
     def running(self):
         return self._running
+
+    @Property(QObject, constant=True)
+    def inputs(self):
+        return self._inputs
+
+    def shutdown(self):
+        self._inputs.shutdown()
 
     @Property('QVariantMap', notify=changed)
     def state(self):

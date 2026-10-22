@@ -145,7 +145,7 @@ def run():
     window = engine.rootObjects()[0]
     screen = app.screenAt(QCursor.pos()) or app.primaryScreen()
     area = screen.availableGeometry()
-    width = min(1000, int(area.width()*.82), int(area.height()*.82*1672/941))
+    width = min(window.width(), int(area.width()*.82), int(area.height()*.82*1672/941))
     window.resize(width, round(width*941/1672))
     window.setPosition(area.x()+(area.width()-window.width())//2,
                        area.y()+(area.height()-window.height())//2)

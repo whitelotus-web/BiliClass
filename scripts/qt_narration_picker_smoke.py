@@ -88,7 +88,7 @@ def main():
             root.setProperty('page', 'new')
             invoke(dialog, 'receiveFiles', [source.as_uri() for source in sources])
             assert bridge.batchQueue.state['kind'] == 'voice' and root.property('page') == 'voice'
-            assert c('voiceBatchPanel').isVisible() and not c('conversionBatchPanel').isVisible()
+            assert c('voiceBatchInputs').isVisible() and not c('conversionBatchInputs').isVisible()
             assert c('createLessonNarrationButton').isEnabled()
             assert not bridge.busy and not bridge.batchQueue.running
             bridge.batchQueue.clear()
@@ -106,7 +106,7 @@ def main():
             root.setProperty('page', 'voice')
             invoke(dialog, 'receiveFiles', [source.as_uri() for source in sources])
             assert bridge.batchQueue.state['kind'] == 'convert' and root.property('page') == 'new'
-            assert c('conversionBatchPanel').isVisible() and not c('voiceBatchPanel').isVisible()
+            assert c('conversionBatchInputs').isVisible() and not c('voiceBatchInputs').isVisible()
             bridge.batchQueue.clear()
             pump(60)
             root.setProperty('page', 'voice')
@@ -218,6 +218,7 @@ def main():
             print('Narration multi-picker and input routing Qt smoke passed.', flush=True)
         finally:
             until(lambda: not bridge.busy)
+            bridge.batchQueue.shutdown()
             for name in ('libraryThumbnails', 'googleSettings', '_library_preferences', 'slidePreview',
                          '_catalog', 'browserAI', 'english_reader', 'narration_preparation',
                          'narrationPreferences', '_companion_preferences', 'classroom', 'voice_controls', 'inputDocuments'):

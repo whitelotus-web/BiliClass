@@ -1,5 +1,13 @@
 # Trạng thái BiliClass
 
+Ngày 22/10/2026 — nguồn RC153 thống nhất hàng đợi đầu vào và xem
+trước từng bài trên cấu hình ở cả Chuyển đổi và Tạo giọng. Đọc
+thông tin file ở nền, giữ nguyên xử lý lần lượt và hàng đợi hoàn
+tất tự ẩn. Tab chồng theo thứ tự trái trước/phải sau, tab chọn trên
+cùng; icon 18 px. Màn khởi động 860×484.
+[Phạm vi RC153](BUILD_RC153.md).
+[Trạng thái phát hành RC153: đang kiểm tra.]
+
 Ngày 22/10/2026 — nguồn RC152 có tab hồ sơ nền xanh khi chọn,
 chữ/icon trắng, đuôi chồng nhẹ và bóng mỏng. Các icon theo mẫu
 người dùng; loa Việt/Anh trên bài vẫn giữ nguyên. Ba chấm góc lớn

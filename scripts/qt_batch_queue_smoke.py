@@ -347,6 +347,7 @@ def main():
             release.set()
             bridge.batchQueue.stop()
             until(lambda: not bridge.busy, timeout=60)
+            bridge.batchQueue.shutdown()
             timer.stop()
             for service in (bridge._catalog, bridge.browserAI, bridge.googleSettings, bridge.slidePreview,
                             bridge.libraryThumbnails, bridge.narrationPreferences, bridge.narration_preparation,
