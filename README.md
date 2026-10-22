@@ -4,9 +4,9 @@
 
 ## Phiên bản và tải xuống
 
-**[Tải BiliClass cho Windows](https://github.com/whitelotus-web/BiliClass/releases)** · [RC148 đã kiểm chứng](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc148) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md)
+**[Tải BiliClass cho Windows](https://github.com/whitelotus-web/BiliClass/releases)** · [RC149 đã kiểm chứng](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc149) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md)
 
-Nguồn RC149 giữ đúng bài đã chọn trong Mascot khi thư viện cập nhật
+RC149 giữ đúng bài đã chọn trong Mascot khi thư viện cập nhật
 hoặc đổi thứ tự, tránh mở nhầm bài ở vị trí cũ; bài đã xóa không tự
 thay bằng bài khác. [Phạm vi RC149](docs/BUILD_RC149.md).
 
@@ -36,7 +36,7 @@ và hiệu ứng nằm trong chi tiết; chỉ lỗi cụ thể chưa xử lý x
 nêu nổi bật. Hai công cụ Chuyển đổi và Tạo giọng đọc dùng chung cách
 hiển thị. [Phạm vi và kiểm chứng RC144](docs/BUILD_RC144.md).
 
-Gói RC148 đã phát hành từ commit `14c71c6`, được kiểm tra ZIP, cài và
+Gói RC149 đã phát hành từ commit `e9ca1af`, được kiểm tra ZIP, cài và
 mở Trang chủ. Mã nguồn và gói tải có vòng phát hành riêng: phiên bản
 gói luôn được ghi rõ trong Releases và trong ứng dụng. Các mốc bên
 dưới là lịch sử, không phải phiên bản hiện tại.

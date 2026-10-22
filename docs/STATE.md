@@ -5,7 +5,9 @@ trí dòng, giữ đúng ID khi thư viện làm mới/đổi thứ tự; khóa 
 đã bị xóa và giữ lại khi khôi phục. Đã tái hiện mở nhầm trước sửa,
 đúng ID sau sửa; 46 pytest, Ruff/compileall và ba Qt smoke gồm Office
 thật đạt. [Phạm vi RC149](BUILD_RC149.md).
-[Trạng thái phát hành RC149: đang kiểm tra.]
+Đã phát hành từ `e9ca1af`; Source checks GitHub, bundle/ZIP,
+digest/tag, updater công khai, cài/mở Trang chủ từ Explorer đạt; hồ sơ,
+key, bài và 1752 WAV tham chiếu giữ nguyên.
 
 Ngày 22/10/2026 — nguồn RC148 thêm nhóm Thư viện theo giọng đọc,
 tạo giọng cho các bài đã chọn qua hàng đợi và mở bài từ máy qua Mascot.
