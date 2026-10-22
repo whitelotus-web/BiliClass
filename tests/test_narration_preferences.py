@@ -81,6 +81,7 @@ def test_speaker_moves_immediately_and_coalesces_saves_without_busy_or_stale_les
         narrationChanged = Signal()
         changed = Signal()
         powerpointStateChanged = Signal()
+        speechStateChanged = Signal()
         busy = narrationBusy = False
         teachingTransitioning = False
         powerpointState = {}

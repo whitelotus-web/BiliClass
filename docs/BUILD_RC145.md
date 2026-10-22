@@ -33,3 +33,10 @@ Smoke RC71 cũ dừng tại nhãn “Việt + Anh” đã đổi từ trước t
 “Cả Anh và Việt”; không dùng lần chạy đó làm bằng chứng đạt.
 Luồng kết quả/cấu hình hiện tại được kiểm bằng smoke kết quả giọng.
 Không thay dữ liệu cá nhân, mô hình, bốn tab Cài đặt hoặc thêm hàng đợi.
+
+Kiểm tra GitHub phát hiện fixture `Editor` của phép thử lưu vị trí loa
+thiếu tín hiệu trạng thái phát mới. Đã cập nhật fixture và chạy lại
+5 ca liên quan; không sửa/hạ yêu cầu kiểm tra và không đổi mã ứng dụng.
+CI bổ sung kiểm hợp đồng xóa/hoàn tác. Gói Windows được dựng từ
+`6474d93d468964e4b12faef304632096f6cc17a1`; thay đổi kiểm thử sau đó
+phải giữ nguyên cây `app` và phiên bản trước khi nhận kết quả CI.
