@@ -82,7 +82,7 @@ def main():
             viewport_bottom = scroll.mapToScene(QPointF(0, scroll.property('availableHeight'))).y()
             assert bottom <= viewport_bottom + 1, entry
             summary = c('conversionConfigurationSummary')
-            assert summary.isVisible()
+            assert summary.isVisible(), (entry, window.property('page'), bridge.batchQueue.data)
             footer = c('creationFooter')
             convert = c('createLessonButton')
             local = summary.mapToItem(footer, QPointF())

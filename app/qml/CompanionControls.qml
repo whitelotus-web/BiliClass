@@ -8,6 +8,35 @@ ColumnLayout {
     required property var bridge
     required property var companion
     spacing: companion.compactPanel ? 5 : 8
+    property real volumeWheelRemainder: 0
+    property real navigationWheelRemainder: 0
+    function handlePanelWheel(event, source) {
+        if (!companion.visible || companion.collapsed || !companion.session.bound || !companion.session.active ||
+                bridge.teachingTransitioning || companion.choosingLesson || event.modifiers !== Qt.NoModifier) {
+            volumeWheelRemainder = navigationWheelRemainder = 0
+            event.accepted = false
+            return
+        }
+        const point = source.mapToItem(volumeArea, Qt.point(event.x, event.y))
+        const overVolume = volumeArea.visible && point.x >= 0 && point.x < volumeArea.width && point.y >= -5 && point.y < volumeArea.height + 5
+        const delta = event.angleDelta.y ? event.angleDelta.y / 120 : event.pixelDelta.y / 40
+        if (!delta) { event.accepted = false; return }
+        if (overVolume) {
+            navigationWheelRemainder = 0
+            volumeWheelRemainder += delta
+            const steps = Math.trunc(volumeWheelRemainder)
+            volumeWheelRemainder -= steps
+            if (steps) bridge.teachingSession.setVolume(Math.max(0, Math.min(100, Math.round(volumeSlider.value) + steps * 5)))
+        } else {
+            volumeWheelRemainder = 0
+            navigationWheelRemainder += delta
+            const steps = Math.trunc(navigationWheelRemainder)
+            navigationWheelRemainder -= steps
+            for (let step = 0; step < Math.abs(steps); ++step)
+                bridge.navigatePowerPoint(steps > 0 ? "previous" : "next")
+        }
+        event.accepted = true
+    }
 
     component PanelAction: ActionButton {
         id: panelAction
@@ -39,7 +68,7 @@ ColumnLayout {
         Label { text: "Trợ giảng"; color: AppTheme.adapt("#112650"); font.pixelSize: companion.compactPanel ? 13 : 15; font.weight: Font.DemiBold; Layout.fillWidth: true }
         HeaderAction { objectName: "collapseCompanionPanel"; iconName: "collapse"; hint: "Thu bảng về Mascot"; onClicked: companion.collapsed = true }
         HeaderAction {
-            id: shortcutHelp; objectName: "companionShortcutGuideToggle"; iconName: "keyboard-help"; hint: "Rê chuột để xem hướng dẫn phím"; standardHint: false
+            id: shortcutHelp; objectName: "companionShortcutGuideToggle"; iconName: "keyboard-help"; hint: "Hướng dẫn phím và chuột"; standardHint: false
             ToolTip {
                 id: shortcutTooltip
                 objectName: "companionShortcutTooltip"
@@ -146,29 +175,17 @@ ColumnLayout {
     }
     Label { visible: !!companion.session.warning; text: companion.session.warning || ""; color: AppTheme.adapt("#a66318"); wrapMode: Text.WordWrap; Layout.fillWidth: true; font.pixelSize: 11 }
     RowLayout {
+        id: volumeArea; objectName: "companionVolumeArea"
         visible: companion.session.bound && !!companion.session.active; Layout.fillWidth: true; spacing: 6
-        Label { text: "Âm lượng"; font.pixelSize: 12; color: AppTheme.adapt("#667997") }
+        Label { objectName: "companionVolumeLabel"; text: "Âm lượng"; font.pixelSize: 12; color: AppTheme.adapt("#667997") }
         Slider {
             id: volumeSlider; objectName: "companionVolume"
             from: 0; to: 100; stepSize: 5; Layout.fillWidth: true
             value: companion.reader.volume === undefined ? 80 : companion.reader.volume
             onMoved: bridge.teachingSession.setVolume(Math.round(value))
             onPressedChanged: if (!pressed) bridge.focusTeachingPresentation()
-            WheelHandler {
-                target: null; acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-                property real remainder: 0
-                onWheel: function(event) {
-                    remainder += event.angleDelta.y ? event.angleDelta.y / 120 : event.pixelDelta.y / 40
-                    const steps = Math.trunc(remainder)
-                    if (steps) {
-                        remainder -= steps
-                        bridge.teachingSession.setVolume(Math.max(0, Math.min(100, Math.round(volumeSlider.value) + steps * 5)))
-                    }
-                    event.accepted = true
-                }
-            }
         }
-        Label { text: (companion.reader.volume === undefined ? 80 : companion.reader.volume) + "%"; font.pixelSize: 12; color: AppTheme.adapt("#102e54") }
+        Label { objectName: "companionVolumePercent"; text: (companion.reader.volume === undefined ? 80 : companion.reader.volume) + "%"; font.pixelSize: 12; color: AppTheme.adapt("#102e54") }
     }
     GridLayout {
         objectName: "companionAudioControls"; visible: !!companion.session.bound || bridge.companionCanRead

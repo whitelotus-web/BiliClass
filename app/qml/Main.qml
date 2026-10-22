@@ -106,6 +106,9 @@ ApplicationWindow {
     readonly property bool compactCreation: height < 980
     readonly property bool tightCreation: height < 800
     readonly property bool compactVoice: page === "voice" && !!bridge.quickResult.path && height < 850
+    readonly property int inputPageMargin: 30
+    readonly property int inputSectionSpacing: 12
+    readonly property int inputConfigurationPadding: compactCreation ? 12 : 19
     property bool voicePreviewExpanded: false
     property bool creationPreviewExpanded: false
     function showCreationPreview() {
@@ -1328,7 +1331,7 @@ ApplicationWindow {
 
                 ContentScrollView {
                     id: creationScroll; objectName: "creationScroll"; outerGutter: true
-                    anchors.fill: parent; anchors.margins: 30; anchors.bottomMargin: creationFooter.height + 12
+                    anchors.fill: parent; anchors.margins: root.inputPageMargin; anchors.bottomMargin: creationFooter.height + 12
                     visible: root.page === "new"; contentWidth: availableWidth
                     background: DropArea {
                         objectName: root.selectedFile ? "creationDocumentDrop" : ""
@@ -1336,13 +1339,13 @@ ApplicationWindow {
                         onDropped: function(drop) { if (drop.hasUrls) { root.acceptInputDocuments(drop.urls); drop.acceptProposedAction() } }
                     }
                     ColumnLayout {
-                        width: parent.width; spacing: root.compactCreation ? 8 : 12
+                        width: creationScroll.availableWidth; spacing: root.inputSectionSpacing
                         RowLayout { Layout.fillWidth: true
-                            Heading { text: "Chuyển đổi bài giảng PowerPoint"; font.pixelSize: root.tightCreation ? 24 : 27; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                            Heading { objectName: "creationPageHeading"; text: "Chuyển đổi bài giảng PowerPoint"; font.pixelSize: root.tightCreation ? 24 : 27; Layout.fillWidth: true; Layout.minimumWidth: 0; wrapMode: Text.WordWrap }
                             MainAction { objectName: root.selectedFile || root.creationBatch ? "chooseInputDocumentButton" : ""; visible: !!root.selectedFile || root.creationBatch; text: "Chọn bài khác"; enabled: !bridge.busy && !bridge.inputDocuments.busy && !bridge.narrationBusy; onClicked: root.chooseInputDocuments("convert") }
                             MainAction { objectName: "removeInputDocumentButton"; visible: !!root.selectedFile || root.creationBatch; text: root.creationBatch ? "Hủy các bài đang chọn" : "Hủy bài đang chọn"; danger: true; symbol: "×"; enabled: !bridge.busy && !bridge.narrationBusy && (!root.creationBatch || root.batchState.phase === "draft"); onClicked: root.creationBatch ? bridge.batchQueue.clear() : root.removeInputDocument() }
                         }
-                        Copy { text: "Chọn PowerPoint → Chọn kiểu chuyển đổi → Thiết kế bài giảng → Tạo bài giảng."; Layout.fillWidth: true }
+                        Copy { objectName: "creationWorkflowGuide"; text: "Chọn PowerPoint → Chọn kiểu chuyển đổi → Thiết kế bài giảng → Tạo bài giảng."; Layout.fillWidth: true }
                         PowerPointUpload {
                             objectName: "creationSourceArea"; enabled: root.page === "new"; visible: !root.selectedFile && !root.creationBatch; illustrated: true; compact: true; multiple: bridge.googleTranslation; Layout.fillWidth: true
                             chooseObjectName: root.selectedFile || root.creationBatch ? "" : "chooseInputDocumentButton"
@@ -1373,9 +1376,9 @@ ApplicationWindow {
                                         ToolTip.text: root.selectedFileName; ToolTip.delay: 500
                                         HoverHandler { id: creationTitleHover }
                                     }
-                                    Copy { Layout.fillWidth: true; text: [root.creationSubject, educationInput.currentText + " " + gradeInput.currentText, "PowerPoint gốc"].filter(function(value) { return !!value }).join(" · ") }
+                                    Copy { objectName: "creationSelectedLessonInfo"; Layout.fillWidth: true; text: [root.creationSubject, educationInput.currentText + " " + gradeInput.currentText, "PowerPoint gốc"].filter(function(value) { return !!value }).join(" · ") }
                                 }
-                                Copy { text: bridge.browserState.running ? "✓ Đã chọn tệp · Đang chuyển đổi" : "✓ Đã chọn tệp · Chưa chuyển đổi"; color: AppTheme.success; font.pixelSize: 12; Layout.fillWidth: true }
+                                Copy { objectName: "creationInputState"; text: bridge.browserState.running ? "✓ Đã chọn tệp · Đang chuyển đổi" : "✓ Đã chọn tệp · Chưa chuyển đổi"; color: AppTheme.success; font.pixelSize: 12; Layout.fillWidth: true; Layout.minimumHeight: 22 }
                                 Copy { objectName: "creationSelectedSlideCount"; text: (bridge.inputDocuments.preview.total ? bridge.inputDocuments.preview.total + " slide · " : "") + (bridge.browserState.running ? "Xem tiến độ chuyển đổi ở bên dưới" : "Chọn cấu hình chuyển đổi ở bên dưới"); color: root.ink; Layout.fillWidth: true }
                                 MainAction { objectName: "creationOpenPowerPoint"; text: "Mở PowerPoint"; Layout.alignment: Qt.AlignLeft; enabled: root.creationPowerPoint && !bridge.busy && !bridge.inputDocuments.busy && !bridge.narrationBusy && !bridge.teachingTransitioning; onClicked: bridge.openInputPowerPoint(root.selectedFile) }
                                 Copy { visible: !!root.inputDocumentError; text: root.inputDocumentError; color: AppTheme.warning; Layout.fillWidth: true }
@@ -1384,7 +1387,10 @@ ApplicationWindow {
                                 Layout.preferredWidth: Math.min(creationScroll.availableWidth >= 1000 ? 304 : 240, creationScroll.availableWidth)
                                 Layout.minimumWidth: Layout.preferredWidth; Layout.maximumWidth: Layout.preferredWidth
                                 Layout.alignment: Qt.AlignTop | Qt.AlignRight; spacing: 8
-                                MainAction { objectName: "creationPreviewButton"; text: root.creationPreviewExpanded ? "Ẩn xem trước" : "Xem trước slide"; subtle: true; implicitHeight: 32; Layout.alignment: Qt.AlignRight; enabled: root.creationPreviewExpanded || !!bridge.inputDocuments.preview.image; onClicked: { if (root.creationPreviewExpanded) root.creationPreviewExpanded = false; else root.showCreationPreview() } }
+                                RowLayout { Layout.fillWidth: true
+                                MainAction { objectName: "creationPreviewButton"; text: root.creationPreviewExpanded ? "Ẩn xem trước" : "Xem trước slide"; subtle: true; implicitHeight: 32; enabled: root.creationPreviewExpanded || !!bridge.inputDocuments.preview.image; onClicked: { if (root.creationPreviewExpanded) root.creationPreviewExpanded = false; else root.showCreationPreview() } }
+                                Item { Layout.fillWidth: true }
+                                }
                                 Surface {
                                     objectName: "creationSelectedSlidePreview"; visible: !root.creationPreviewExpanded; Layout.fillWidth: true; implicitHeight: width * 9 / 16; radius: 10; color: AppTheme.adapt("#e9eef5")
                                     Image { objectName: "creationSelectedSlideImage"; anchors.fill: parent; anchors.margins: 3; source: bridge.inputDocuments.preview.image || ""; fillMode: Image.PreserveAspectFit; sourceSize.width: 640; asynchronous: true; cache: true }
@@ -1433,13 +1439,13 @@ ApplicationWindow {
                             onRequested: function(number) { bridge.inputDocuments.showSlide(number) }
                         }
                         Surface {
-                            objectName: "creationConfiguration"; Layout.fillWidth: true; implicitHeight: config.height + (root.compactCreation ? 24 : 38)
+                            objectName: "creationConfiguration"; Layout.fillWidth: true; implicitHeight: config.height + root.inputConfigurationPadding * 2
                             ColumnLayout {
-                                id: config; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: root.compactCreation ? 12 : 19; spacing: root.compactCreation ? 6 : 12
+                                id: config; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: root.inputConfigurationPadding; spacing: root.compactCreation ? 6 : 12
                                 ColumnLayout {
                                     objectName: "conversionConfigurationFields"; Layout.fillWidth: true
                                     spacing: root.compactCreation ? 6 : 12; enabled: !bridge.busy && !bridge.browserState.running && (!root.creationBatch || root.batchState.phase === "draft")
-                                    Caption { visible: !root.tightCreation; text: "Cấu hình bài giảng"; font.pixelSize: 15 }
+                                    Caption { objectName: "conversionConfigurationTitle"; text: "Cấu hình bài giảng"; font.pixelSize: 15 }
                                     GridLayout {
                                         Layout.fillWidth: true; columns: 12; columnSpacing: 12; rowSpacing: root.compactCreation ? 4 : 7
                                         Caption { text: "Tên bài học"; Layout.columnSpan: 4 } Caption { text: "Môn học"; Layout.columnSpan: 4 }
@@ -1778,16 +1784,16 @@ ApplicationWindow {
 
                 ContentScrollView {
                     id: resultScroll; objectName: "resultScroll"; outerGutter: true
-                    anchors.fill: parent; anchors.margins: root.compactVoice ? 18 : 28; anchors.bottomMargin: creationFooter.height + 12; visible: root.page === "result" || (root.page === "voice" && !root.voiceResultShown); contentWidth: availableWidth
+                    anchors.fill: parent; anchors.margins: root.page === "voice" ? root.inputPageMargin : 28; anchors.bottomMargin: creationFooter.height + 12; visible: root.page === "result" || (root.page === "voice" && !root.voiceResultShown); contentWidth: availableWidth
                     ColumnLayout {
-                        width: resultScroll.availableWidth; spacing: root.compactVoice ? 12 : 18
+                        width: resultScroll.availableWidth; spacing: root.page === "voice" ? root.inputSectionSpacing : 18
                         ColumnLayout { visible: root.page === "voice"; Layout.fillWidth: true; spacing: 12
                             RowLayout { Layout.fillWidth: true
-                                Heading { objectName: "voicePageHeading"; text: "Tạo giọng đọc bài giảng"; font.pixelSize: 27; Layout.fillWidth: true }
+                                Heading { objectName: "voicePageHeading"; text: "Tạo giọng đọc bài giảng"; font.pixelSize: root.tightCreation ? 24 : 27; Layout.fillWidth: true; Layout.minimumWidth: 0 }
                                 MainAction { objectName: "changeVoiceSource"; visible: !!bridge.quickResult.path || root.voiceBatch; text: !root.voiceBatch && root.voiceSourceExpanded ? "Thu gọn" : "Chọn bài khác"; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !bridge.teachingTransitioning; onClicked: { if (root.voiceBatch) root.chooseInputDocuments("voice"); else root.voiceSourceExpanded = !root.voiceSourceExpanded } }
                                 MainAction { objectName: "dismissVoiceLesson"; visible: root.voiceBatch || !!bridge.quickResult.path; danger: true; symbol: "×"; text: root.voiceBatch ? "Hủy các bài đang chọn" : bridge.lessonNarration.stopping ? "Đang hủy…" : "Hủy bài đang chọn"; Accessible.description: "Bỏ bài đang chọn khỏi màn tạo giọng; bài đã lưu vẫn còn trong thư viện."; enabled: !bridge.busy && !bridge.lessonNarration.stopping && !bridge.powerpointState.active && !bridge.teachingTransitioning && (!root.voiceBatch || root.batchState.phase === "draft"); onClicked: { if (root.voiceBatch) bridge.batchQueue.clear(); bridge.dismissNarrationLesson() } }
                             }
-                            Copy { objectName: "voiceWorkflowGuide"; text: "Chọn PowerPoint có sẵn hoặc bài trong thư viện → Chọn cấu hình giọng đọc và ngôn ngữ → Tạo giọng đọc"; Layout.fillWidth: true; font.pixelSize: 12 }
+                            Copy { objectName: "voiceWorkflowGuide"; text: "Chọn PowerPoint hoặc bài trong thư viện → Chọn giọng và ngôn ngữ → Tạo giọng đọc."; Layout.fillWidth: true }
                             PowerPointUpload { objectName: "voiceSourceArea"; enabled: root.page === "voice"; visible: !root.voiceBatch && (!bridge.quickResult.path || root.voiceSourceExpanded); illustrated: true; compact: true; multiple: true; Layout.fillWidth: true; chooseObjectName: "chooseVoicePresentation"; dropObjectName: "voicePresentationDrop"; busy: bridge.busy || bridge.narrationBusy; loadingFileName: bridge.narrationImportName
                                 illustrationSource: "../assets/powerpoint-narration.png"; illustrationClipRect: Qt.rect(40, 200, 1408, 750)
                                 onChooseFile: root.chooseInputDocuments("voice")
@@ -1814,7 +1820,7 @@ ApplicationWindow {
                             }
                         }
                         BatchInputPanel { objectName: "voiceBatchInputs"; controller: bridge.batchQueue; bridge: root.appBridge; kind: "voice"; Layout.fillWidth: true }
-                        ColumnLayout { objectName: "voiceContentLayout"; Layout.fillWidth: true; spacing: root.compactVoice ? 12 : 18
+                        ColumnLayout { objectName: "voiceContentLayout"; Layout.fillWidth: true; spacing: root.page === "voice" ? root.inputSectionSpacing : 18
                         MainAction { id: backToLibraryAction; objectName: "backToLibraryButton"; visible: root.page !== "voice"; text: "Trở lại thư viện"; iconName: "back"; subtle: true; implicitHeight: 32; Layout.alignment: Qt.AlignRight; enabled: !bridge.busy; onClicked: root.requestAction(function() { bridge.returnToLibrary() }) }
                         GridLayout {
                             id: voiceOverview; objectName: "voiceLessonOverview"
@@ -1830,7 +1836,7 @@ ApplicationWindow {
                             ColumnLayout {
                                 Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 6
                                 Heading { objectName: "resultLessonTitle"; font.pixelSize: root.page === "voice" ? 20 : 27; Layout.fillWidth: true; Layout.minimumWidth: 0; text: root.lessonData.title || "Bài giảng song ngữ" }
-                                Copy { Layout.fillWidth: true; Layout.minimumWidth: 0; text: [root.lessonData.subject, ((root.lessonData.education_level || "") + " " + (root.lessonData.grade || "")).trim(), root.lessonData.voice_only ? "PowerPoint nguyên bản · Tạo giọng độc lập" : bridge.conversionLabel].filter(function(value) { return !!value }).join(" · ") }
+                                Copy { objectName: "voiceSelectedLessonInfo"; Layout.fillWidth: true; Layout.minimumWidth: 0; text: [root.lessonData.subject, ((root.lessonData.education_level || "") + " " + (root.lessonData.grade || "")).trim(), root.lessonData.voice_only ? "PowerPoint gốc" : bridge.conversionLabel].filter(function(value) { return !!value }).join(" · ") }
                             }
                             LibraryAction {
                                 id: resultMoreAction; objectName: "resultMoreButton"
@@ -1850,20 +1856,20 @@ ApplicationWindow {
                                 MenuItem { objectName: "voiceDownloadWithoutNarrationMenu"; text: "Tải PowerPoint không giọng…"; visible: root.page === "voice" && !!root.narrationDraft.ready; height: visible ? implicitHeight : 0; enabled: !!bridge.quickResult.path && !bridge.busy && !bridge.narrationBusy; onTriggered: presentationNoVoiceSave.openSuggested() }
                             }
                         }
-                        LessonStateStrip { objectName: "lessonWorkflowState"; visible: root.page === "voice" && !!root.lessonData.id; state: bridge.workflowState; showPreparation: bridge.experimentalTeaching; showContentReview: bridge.experimentalTeaching; Layout.fillWidth: true }
+                        LessonStateStrip { objectName: "lessonWorkflowState"; visible: root.page === "voice" && !!root.lessonData.id; state: bridge.workflowState; showPreparation: bridge.experimentalTeaching; showContentReview: bridge.experimentalTeaching; fontPixelSize: 12; Layout.fillWidth: true; Layout.minimumHeight: 22 }
                         LessonInformation {
                             objectName: "lessonInformation"; visible: root.page === "result"; Layout.fillWidth: true
                             lesson: root.lessonData; voices: bridge.narrationVariants
                             conversion: bridge.conversionLabel; slides: bridge.quickResult.total || (root.lessonData.segments || []).length
                         }
-                        Copy { visible: root.page === "voice" && bridge.narrationWorkspace.summary.silent > 0; text: bridge.narrationWorkspace.summary.silent + " slide được chọn không đọc"; Layout.fillWidth: true; font.pixelSize: 12 }
                         RowLayout { visible: root.page === "voice" && !!bridge.quickResult.path; Layout.fillWidth: true
                             Copy { objectName: "voiceSourceSummary"; Layout.fillWidth: true; Layout.minimumWidth: 0; color: root.ink; text: bridge.narrationWorkspace.summary.total + " slide · có lời Việt: " + bridge.narrationWorkspace.summary.vi + " · có lời Anh: " + bridge.narrationWorkspace.summary.en + (bridge.narrationWorkspace.summary.empty ? " · " + bridge.narrationWorkspace.summary.empty + " slide chưa có lời đọc" : "") }
                         }
                         Flow { visible: root.page === "voice" && !!bridge.quickResult.path && !root.narrationDraft.ready; Layout.fillWidth: true; spacing: 10
-                            MainAction { objectName: "voiceDownloadWithoutNarration"; text: "Tải PowerPoint không giọng"; iconName: "download"; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: presentationNoVoiceSave.openSuggested() }
                             MainAction { objectName: "voiceTeachWithoutNarration"; text: "Mở PowerPoint"; enabled: !bridge.busy && !bridge.previewBusy && !bridge.narrationBusy; onClicked: root.prepareTeaching() }
+                            MainAction { objectName: "voiceDownloadWithoutNarration"; text: "Tải PowerPoint không giọng"; iconName: "download"; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: presentationNoVoiceSave.openSuggested() }
                         }
+                        Copy { visible: root.page === "voice" && bridge.narrationWorkspace.summary.silent > 0; text: bridge.narrationWorkspace.summary.silent + " slide được chọn không đọc"; Layout.fillWidth: true; font.pixelSize: 12 }
                             }
                             ColumnLayout {
                                 visible: root.page === "voice" && !!bridge.quickResult.path
@@ -1873,8 +1879,8 @@ ApplicationWindow {
                                 RowLayout {
                                     id: voicePreviewActions; objectName: "voicePreviewActions"
                                     Layout.fillWidth: true; spacing: 6
-                                    Item { Layout.fillWidth: true }
                                     MainAction { objectName: "toggleVoiceSlidePreview"; text: root.voicePreviewExpanded ? "Ẩn xem trước" : "Xem trước slide"; subtle: true; implicitHeight: 32; onClicked: { if (root.voicePreviewExpanded) { root.voicePreviewExpanded = false; bridge.stopSpeech() } else root.showNarrationPreview() } }
+                                    Item { Layout.fillWidth: true }
                                 }
                                 Surface {
                                     objectName: "voiceSlideThumbnail"; visible: !root.voicePreviewExpanded
@@ -1963,7 +1969,7 @@ ApplicationWindow {
                         }
                         Surface {
                             id: lessonNarrationPanel; objectName: "lessonNarrationPanel"; visible: root.page === "voice"
-                            readonly property real contentPadding: root.compactVoice ? 16 : 20
+                            readonly property real contentPadding: root.inputConfigurationPadding
                             Layout.fillWidth: true
                             implicitHeight: narrationForm.height + contentPadding * 2
                             ColumnLayout {

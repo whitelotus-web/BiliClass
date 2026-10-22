@@ -23,8 +23,6 @@ ColumnLayout {
             id: listContent
             Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.alignment: Qt.AlignTop
             spacing: 10
-            Label { text: "Hàng đợi · " + (panel.queueState.total || 0) + " bài"; font.pixelSize: 15; font.weight: Font.DemiBold; color: AppTheme.ink }
-            Label { text: "Chọn bài để xem trước. Dùng chung cấu hình bên dưới."; font.pixelSize: 12; color: AppTheme.muted; wrapMode: Text.WordWrap; Layout.fillWidth: true }
             ListView {
                 id: rows
                 objectName: "batchInputRows_" + panel.kind
@@ -87,19 +85,23 @@ ColumnLayout {
                     }
                 }
             }
+            Label { objectName: "batchInputHint_" + panel.kind; text: "Chọn bài để xem trước. Dùng chung cấu hình bên dưới."; font.pixelSize: 12; color: AppTheme.muted; wrapMode: Text.WordWrap; Layout.fillWidth: true }
         }
         ColumnLayout {
             Layout.preferredWidth: Math.min(panel.width >= 1000 ? 304 : 240, panel.width)
             Layout.minimumWidth: Layout.preferredWidth; Layout.maximumWidth: Layout.preferredWidth
             Layout.alignment: Qt.AlignTop | Qt.AlignRight; spacing: 8
+            RowLayout {
+            Layout.fillWidth: true
             ActionButton {
                 objectName: "batchInputPreviewToggle_" + panel.kind
                 text: panel.expanded ? "Ẩn xem trước" : "Xem trước slide"; subtle: true; implicitHeight: 32
                 leftPadding: 17; rightPadding: 17; font.pixelSize: 13
-                Layout.alignment: Qt.AlignRight; enabled: !!panel.selected.id
+                enabled: !!panel.selected.id
                 onClicked: panel.expanded = !panel.expanded
             }
-            Label { text: panel.selected.name || ""; textFormat: Text.PlainText; elide: Text.ElideMiddle; font.pixelSize: 12; color: AppTheme.muted; Layout.fillWidth: true }
+            Item { Layout.fillWidth: true }
+            }
             Rectangle {
                 objectName: "batchInputThumbnail_" + panel.kind
                 visible: !panel.expanded; Layout.fillWidth: true; implicitHeight: width * 9 / 16
@@ -113,7 +115,8 @@ ColumnLayout {
                     ActionButton { text: "Thử lại"; visible: !panel.selected.error; implicitHeight: 30; Layout.alignment: Qt.AlignHCenter; onClicked: panel.documents.retryPreview() }
                 }
                 TapHandler { onTapped: panel.expanded = true }
-                HoverHandler { cursorShape: Qt.PointingHandCursor }
+                HoverHandler { id: previewHover; cursorShape: Qt.PointingHandCursor }
+                ToolTip.visible: previewHover.hovered; ToolTip.text: panel.selected.name || ""; ToolTip.delay: 500
                 Accessible.role: Accessible.Button; Accessible.name: "Phóng to xem trước slide"; Accessible.onPressAction: panel.expanded = true
             }
             SlideNavigation {

@@ -6,6 +6,11 @@
 
 **[Tải BiliClass cho Windows](https://github.com/whitelotus-web/BiliClass/releases)** · [RC154 đã kiểm chứng](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc154) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md)
 
+Nguồn RC155 cân chỉnh giao diện Chuyển đổi/Tạo giọng ở trạng thái
+chưa tải file, một bài và nhiều bài. Lăn chuột trong bảng Mascot
+chuyển hiệu ứng/slide; vùng âm lượng tăng/giảm 5%. Trợ giúp thêm
+hình chuột và chỉ dẫn trực quan. [Phạm vi RC155](docs/BUILD_RC155.md).
+
 RC154 đặt chuyển slide ngay dưới hình thu nhỏ ở cả một/nhiều
 bài, không cần phóng to. Nút xem trước đồng nhất và hàng đợi bỏ
 khung trắng bao ngoài. [Phạm vi RC154](docs/BUILD_RC154.md).

@@ -63,6 +63,7 @@ Window {
     component MoveArea: MouseArea {
         property bool dragged: false
         property bool toggleOnClick: false
+        property bool routeTeachingWheel: false
         property var exclusionRoot: null
         property real pressGlobalX: 0
         property real pressGlobalY: 0
@@ -120,7 +121,10 @@ Window {
                 if (toggleOnClick) companion.collapsed = !companion.collapsed
             }
         }
-        onWheel: function(wheel) { wheel.accepted = false }
+        onWheel: function(wheel) {
+            if (routeTeachingWheel) menuContent.handlePanelWheel(wheel, panelMoveArea)
+            else wheel.accepted = false
+        }
     }
 
     // An owned tool window is hidden by Windows when its owner is minimized.
@@ -167,6 +171,7 @@ Window {
         MoveArea {
             id: panelMoveArea
             objectName: "companionPanelMoveArea"
+            routeTeachingWheel: true
             exclusionRoot: menu
             Accessible.name: "Kéo bảng trợ giảng để di chuyển"
             ToolTip.visible: containsMouse && !overControl && mouseY < 48 && !pressed

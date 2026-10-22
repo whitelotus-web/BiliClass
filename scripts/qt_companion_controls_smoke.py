@@ -242,6 +242,42 @@ def main():
                 until(lambda: endpoint[0] == expected)
                 assert endpoint[0] == expected
                 assert scroll.property('contentY') == scroll_position
+            def wheel_at(target, delta=0, pixels=0):
+                center = target.mapToScene(QPointF(target.width()/2, target.height()/2))
+                event = QWheelEvent(center, QPointF(companion.mapToGlobal(center.toPoint())),
+                    QPoint(0, pixels), QPoint(0, delta), Qt.NoButton, Qt.NoModifier, Qt.NoScrollPhase, False)
+                QGuiApplication.sendEvent(companion, event)
+                pump(80)
+
+            commands = list(bridge.commands)
+            for name in ('companionVolumeLabel', 'companionVolumePercent', 'companionVolumeArea'):
+                wheel_at(c(name), 120)
+                until(lambda: bridge.teachingSession.volume == initial + 5)
+                wheel_at(c(name), -120)
+                until(lambda: bridge.teachingSession.volume == initial)
+                assert bridge.commands == commands, (name, bridge.commands)
+            wheel_at(volume, 60)
+            assert bridge.teachingSession.volume == initial
+            wheel_at(volume, 60)
+            until(lambda: bridge.teachingSession.volume == initial + 5)
+            wheel_at(volume, -120)
+            until(lambda: bridge.teachingSession.volume == initial)
+            for name in ('companionBoundLesson', 'companionNext', 'companionSlidePosition'):
+                wheel_at(c(name), -120)
+                assert bridge.commands == commands + [('navigate', 'next')], (name, bridge.commands)
+                wheel_at(c(name), 120)
+                commands += [('navigate', 'next'), ('navigate', 'previous')]
+                assert bridge.commands == commands, (name, bridge.commands)
+                assert bridge.teachingSession.volume == initial
+                assert scroll.property('contentY') == scroll_position
+            wheel_at(c('companionBoundLesson'), -60)
+            assert bridge.commands == commands
+            wheel_at(c('companionBoundLesson'), -60)
+            commands += [('navigate', 'next')]
+            assert bridge.commands == commands
+            wheel_at(c('companionBoundLesson'), pixels=40)
+            commands += [('navigate', 'previous')]
+            assert bridge.commands == commands
             # An external Windows slider/hardware-key update is reflected back.
             endpoint[0] = 37
             until(lambda: bridge.teachingSession.volume == 37)
@@ -281,6 +317,13 @@ def main():
             assert companion.height() == height_without_guide, 'Hover help must not resize the panel'
             assert abs(native_tip['width']-c('companionMenu').width()) <= 1, native_tip
             tooltip_window, error = QQmlExpression(QQmlEngine.contextForObject(tooltip), tooltip, 'contentItem.Window.window').evaluate()
+            assert c('shortcutGuideTitle').property('text') == 'Hướng dẫn phím và chuột'
+            assert c('shortcutMouseWheelIcon').isVisible()
+            for name in ('shortcutMouseNavigation', 'shortcutMouseVolume'):
+                label = c(name)
+                assert label.isVisible() and label.property('contentWidth') <= label.width()+1
+                assert label.property('contentHeight') <= label.height()+1
+            assert native_tip['y'] >= screen_area.top() and native_tip['y']+native_tip['height'] <= screen_area.bottom()+1
             assert not error and tooltip_window.grabWindow().save(str(report / 'shortcut-tooltip-window.png'))
             assert companion.grabWindow().save(str(report / 'shortcut-tooltip.png'))
             QTest.mouseMove(companion, QPoint(10, 10))
@@ -320,6 +363,8 @@ def main():
             else:
                 assert not c('companionResponseScroll').isVisible()
             viewport = c('companionControlsScroll').property('contentItem')
+            companion.setProperty('choosingLesson', True)
+            pump(150)
             original_height = companion.height()
             companion.setHeight(min(430, original_height - 60))
             pump(150)
@@ -329,7 +374,11 @@ def main():
                                 Qt.NoButton, Qt.NoModifier, Qt.NoScrollPhase, False)
             QGuiApplication.sendEvent(companion, event)
             pump(150)
-            assert viewport.property('contentY') > 0, 'Panel movement must not swallow wheel scrolling'
+            assert viewport.property('contentY') > 0, ('Panel movement must not swallow wheel scrolling',
+                viewport.height(), viewport.property('contentHeight'), companion.height(),
+                companion.property('choosingLesson'), bridge.commands, event.isAccepted())
+            assert bridge.commands == commands, 'Choosing a lesson must retain normal wheel scrolling'
+            companion.setProperty('choosingLesson', False)
             companion.setHeight(original_height)
             bridge.teachingSession.response = {'untouched': True}
             bridge.teachingSession.changed.emit()
@@ -421,7 +470,9 @@ def main():
                           subject_badge_hidden=True, fixed_two_speakers=True, availability_geometry_stable=True, plain_speaker_icons=True, qml_warnings=warnings,
                           panel_drag_and_down_arrow=True,
                           shortcut_tooltip_above_panel=True, shortcut_tooltip_edge_fallback_without_overlap=True,
-                          wheel_volume_5_percent=True, system_volume_two_way=True, navigation_tooltips_removed=True,
+                          wheel_volume_5_percent=True, wheel_volume_whole_row=True, wheel_navigation_outside_volume=True,
+                          fractional_and_pixel_wheel=True, mouse_guide_visible_and_fits_screen=True,
+                          system_volume_two_way=True, navigation_tooltips_removed=True,
                           transparency_max_ui_gap_seconds=round(max_gap, 3), transparency_broad_refreshes=len(broad_refreshes),
                           scope='Qt hit targets/geometry with intercepted commands; native Office verified separately')
             (report / 'result.json').write_text(json.dumps(result, indent=2), encoding='utf-8')

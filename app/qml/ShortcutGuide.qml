@@ -5,7 +5,7 @@ import QtQuick.Layouts
 ColumnLayout {
     required property var settings
     spacing: 9
-    Label { text: "Hướng dẫn phím"; font.pixelSize: 14; font.bold: true; color: AppTheme.adapt("#102e54") }
+    Label { objectName: "shortcutGuideTitle"; text: "Hướng dẫn phím và chuột"; font.pixelSize: 14; font.bold: true; color: AppTheme.adapt("#102e54") }
     Repeater {
         model: [{key: settings.state.labels.en, action: "Đọc / tạm dừng tiếng Anh"},
                 {key: settings.state.labels.vi, action: "Đọc / tạm dừng tiếng Việt"},
@@ -23,6 +23,31 @@ ColumnLayout {
             }
             Label { text: modelData.action; Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 12; color: AppTheme.adapt("#526888") }
         }
+    }
+    Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: AppTheme.adapt("#e0e8f4") }
+    RowLayout {
+        Layout.fillWidth: true; spacing: 10
+        Rectangle {
+            implicitWidth: 112; implicitHeight: 54; color: AppTheme.adapt("#f0f4fa"); border.color: AppTheme.adapt("#cbdcf4"); radius: 5
+            RowLayout {
+                anchors.centerIn: parent; spacing: 7
+                CompanionIcon { objectName: "shortcutMouseWheelIcon"; iconName: "mouse-wheel"; Layout.preferredWidth: 27; Layout.preferredHeight: 27 }
+                Label { text: "Lăn chuột"; font.pixelSize: 11; font.bold: true; color: AppTheme.adapt("#102e54") }
+            }
+        }
+        Label { objectName: "shortcutMouseNavigation"; text: "↑ Lùi · ↓ Tiến hiệu ứng, slide\nTrên slide hoặc bảng trợ giảng, ngoài vùng âm lượng."; Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 12; color: AppTheme.adapt("#526888") }
+    }
+    RowLayout {
+        Layout.fillWidth: true; spacing: 10
+        Rectangle {
+            implicitWidth: 112; implicitHeight: 42; color: AppTheme.adapt("#f0f4fa"); border.color: AppTheme.adapt("#cbdcf4"); radius: 5
+            RowLayout {
+                anchors.centerIn: parent; spacing: 7
+                CompanionIcon { iconName: "mouse-wheel"; Layout.preferredWidth: 27; Layout.preferredHeight: 27 }
+                Label { text: "Âm lượng"; font.pixelSize: 11; font.bold: true; color: AppTheme.adapt("#102e54") }
+            }
+        }
+        Label { objectName: "shortcutMouseVolume"; text: "↑ Tăng · ↓ Giảm 5%\nLăn trong cả hàng Âm lượng."; Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 12; color: AppTheme.adapt("#526888") }
     }
     Label { text: "Bấm Mascot để dùng phím cho bài đang gắn. Đổi phím trong Cài đặt → Mascot."; Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 11; color: AppTheme.adapt("#667997") }
 }

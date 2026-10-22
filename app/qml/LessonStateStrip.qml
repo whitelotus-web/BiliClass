@@ -7,6 +7,7 @@ Flow {
     property var state: ({})
     property bool showPreparation: true
     property bool showContentReview: true
+    property int fontPixelSize: 11
     spacing: 10
     Repeater {
         model: [
@@ -19,7 +20,7 @@ Flow {
             required property var modelData
             text: (modelData.ok ? "✓ " : "○ ") + modelData.label
             textFormat: Text.PlainText
-            font.pixelSize: 11
+            font.pixelSize: strip.fontPixelSize
             color: modelData.ok ? AppTheme.adapt("#19745c") : AppTheme.adapt("#667997")
             Accessible.name: text
         }

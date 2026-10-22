@@ -117,7 +117,13 @@ lượt riêng; chưa có chuỗi tự chuyển đổi rồi tạo giọng hoặ
 ## Dạy với PowerPoint và Mascot
 
 - Bấm **Mở PowerPoint** để mở bài và gắn Mascot; bấm **F5** khi sẵn sàng trình chiếu.
-- Dùng **Trước/Sau** để đổi slide; bộ đếm theo slide PowerPoint đang chiếu.
+- Dùng **Trước/Sau** để lùi/tiến hiệu ứng, rồi chuyển slide; bộ đếm
+  theo slide PowerPoint đang chiếu.
+- Khi đang trình chiếu, lăn chuột **lên để lùi, xuống để tiến** trên
+  slide hoặc trong bảng trợ giảng (ngoài vùng âm lượng). Lăn ở cả hàng
+  **Âm lượng** tăng/giảm 5% mỗi nấc. Khi mở bộ chọn bài, lăn chuột
+  vẫn cuộn danh sách. Rê lên biểu tượng **? / bàn phím** trên bảng
+  để xem hướng dẫn phím và chuột có hình minh họa.
 - Bấm loa Anh hoặc Việt để đọc/tạm dừng/tiếp tục. Nút chỉ sáng khi có
   âm thanh phù hợp. Đổi ngôn ngữ dừng giọng trước đó.
 - Chế độ **Toàn bộ slide** đọc lời đã lưu của slide; **Đọc phần đang hiện**
@@ -131,8 +137,7 @@ lượt riêng; chưa có chuỗi tự chuyển đổi rồi tạo giọng hoặ
 - Thu nhỏ ứng dụng vẫn giữ Mascot. Đóng ứng dụng kết thúc cả Mascot.
 
 Các phím điều khiển được xem/gán tại **Cài đặt → Mascot**. Phím mũi tên
-trong PowerPoint vẫn có thể đi theo từng hiệu ứng; nút Trước/Sau trên
-Mascot chuyển slide.
+và nút Trước/Sau trên Mascot đi theo từng hiệu ứng trước khi đổi slide.
 
 ## Tìm và quản lý bài
 

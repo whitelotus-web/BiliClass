@@ -76,7 +76,45 @@ def main():
                 Q_ARG('QVariant', [path.as_uri() for path in sources]))
 
         inputs = bridge.batchQueue.inputs
+        batch_geometry, single_geometry, empty_geometry = {}, {}, {}
+
+        def geometry(names):
+            return {key: (c(name).mapToScene(QPointF()).x(), c(name).mapToScene(QPointF()).y(),
+                          c(name).width(), c(name).height()) for key, name in names.items()}
+
+        def same_geometry(first, second, scope):
+            for key in first:
+                assert all(abs(a-b) <= 1 for a, b in zip(first[key], second[key])), (scope, key, first[key], second[key])
+
+        def resize(width, height):
+            root.resize(width, height)
+            pump(100)
+            if root.width() != width or root.height() != height:
+                # Windows can finish applying the initial native frame after the first resize.
+                root.resize(width, height)
+                pump(100)
+            assert (root.width(), root.height()) == (width, height)
+
         try:
+            # Shared upload controls align before a single file or queue exists.
+            for kind, page, prefix, upload, button in (
+                ('convert', 'new', 'creation', 'creationSourceArea', 'chooseInputDocumentButton'),
+                ('voice', 'voice', 'voice', 'voiceSourceArea', 'chooseVoicePresentation'),
+            ):
+                root.setProperty('page', page)
+                for theme in ('light', 'dark'):
+                    bridge.setApplicationTheme(theme)
+                    for width, height in ((1080, 700), (1366, 850)):
+                        resize(width, height)
+                        measured = geometry(dict(heading=prefix+'PageHeading', guide=prefix+'WorkflowGuide',
+                            upload=upload, button=button, illustration=button+'Illustration'))
+                        assert c(upload).isVisible() and c(upload).property('multiple')
+                        assert c(button).isEnabled()
+                        if kind == 'convert':
+                            empty_geometry[theme, width] = measured
+                        else:
+                            same_geometry(empty_geometry[theme, width], measured, ('empty', theme, width))
+                        root.grabWindow().save(str(report/f'empty-{kind}-{theme}-{width}.png'))
             with patch('app.input_documents.input_preview', renderer):
                 for kind, method, source_panel, config in (
                     ('convert', 'acceptInputDocuments', 'conversionBatchInputs', 'creationConfiguration'),
@@ -96,8 +134,7 @@ def main():
                     for theme in ('light', 'dark'):
                         bridge.setApplicationTheme(theme)
                         for width, height in ((1080, 700), (1366, 850)):
-                            root.resize(width, height)
-                            pump(100)
+                            resize(width, height)
                             list_view, thumbnail = c('batchInputRows_'+kind), c('batchInputThumbnail_'+kind)
                             assert thumbnail.mapToScene(QPointF()).x() >= list_view.mapToScene(QPointF(list_view.width(), 0)).x()
                             assert abs(thumbnail.width()/thumbnail.height()-16/9) < .01
@@ -105,6 +142,19 @@ def main():
                             assert nav.isVisible() and nav.mapToScene(QPointF()).y() >= thumbnail.mapToScene(QPointF(0, thumbnail.height())).y()
                             assert abs(nav.mapToScene(QPointF(nav.width()/2, 0)).x()-thumbnail.mapToScene(QPointF(thumbnail.width()/2, 0)).x()) <= 1
                             assert c('batchInputPreviewToggle_'+kind).property('subtle')
+                            hint = c('batchInputHint_'+kind)
+                            assert hint.mapToScene(QPointF()).y() >= list_view.mapToScene(QPointF(0, list_view.height())).y()
+                            measured = geometry(dict(
+                                guide='creationWorkflowGuide' if kind == 'convert' else 'voiceWorkflowGuide',
+                                thumbnail='batchInputThumbnail_'+kind, navigation='batchInputThumbnailNavigation_'+kind,
+                                rows='batchInputRows_'+kind, hint='batchInputHint_'+kind,
+                                configuration=config,
+                            ))
+                            measured['configuration'] = measured['configuration'][:2]
+                            if kind == 'convert':
+                                batch_geometry[theme, width] = measured
+                            else:
+                                same_geometry(batch_geometry[theme, width], measured, ('batch', theme, width))
                             root.grabWindow().save(str(report/f'{kind}-{theme}-{width}.png'))
                     assert QMetaObject.invokeMethod(list_view, 'positionViewAtEnd', Qt.DirectConnection)
                     pump(80)
@@ -153,7 +203,17 @@ def main():
                 click(root, c('creationNextSlide'))
                 until(lambda: bridge.inputDocuments.preview.get('slide') == 2 and not bridge.inputDocuments.preview.get('busy'))
                 assert not root.property('creationPreviewExpanded')
-                root.grabWindow().save(str(report/'single-conversion-thumbnail.png'))
+                for theme in ('light', 'dark'):
+                    bridge.setApplicationTheme(theme)
+                    for width, height in ((1080, 700), (1366, 850)):
+                        resize(width, height)
+                        single_geometry[theme, width] = geometry(dict(
+                            guide='creationWorkflowGuide', title='creationSelectedLessonTitle', info='creationSelectedLessonInfo',
+                            state='creationInputState', summary='creationSelectedSlideCount', open='creationOpenPowerPoint',
+                            thumbnail='creationSelectedSlidePreview', navigation='creationThumbnailNavigation',
+                            preview='creationPreviewButton', configuration='creationConfiguration', configTitle='conversionConfigurationTitle',
+                        ))
+                        root.grabWindow().save(str(report/f'single-conversion-{theme}-{width}.png'))
                 QMetaObject.invokeMethod(root, 'removeInputDocument', Qt.DirectConnection)
                 # Existing one-lesson Voice preview uses the same navigation placement.
                 lesson, preview = import_presentation(library.directory, sources[0])
@@ -169,7 +229,21 @@ def main():
                     click(root, c('voiceThumbnailNextSlide'))
                     until(lambda: not bridge.previewBusy and bridge.quickResult.get('slide') == 2)
                     assert not root.property('voicePreviewExpanded')
-                    root.grabWindow().save(str(report/'single-voice-thumbnail.png'))
+                    for theme in ('light', 'dark'):
+                        bridge.setApplicationTheme(theme)
+                        for width, height in ((1080, 700), (1366, 850)):
+                            resize(width, height)
+                            measured = geometry(dict(
+                                guide='voiceWorkflowGuide', title='resultLessonTitle', info='voiceSelectedLessonInfo',
+                                state='lessonWorkflowState', summary='voiceSourceSummary', open='voiceTeachWithoutNarration',
+                                thumbnail='voiceSlideThumbnail', navigation='voiceThumbnailNavigation',
+                                preview='toggleVoiceSlidePreview', configuration='lessonNarrationPanel', configTitle='narrationConfigurationTitle',
+                            ))
+                            # Content-specific text and form heights may differ; common edges and baselines must align.
+                            first = {key: value[:2] for key, value in single_geometry[theme, width].items()}
+                            second = {key: value[:2] for key, value in measured.items()}
+                            same_geometry(first, second, ('single', theme, width))
+                            root.grabWindow().save(str(report/f'single-voice-{theme}-{width}.png'))
                 assert [source.read_bytes() for source in sources] == original
                 assert not warnings, warnings
             (report/'result.json').write_text(json.dumps(dict(status='passed', shared_convert_voice_input_panel=True,
@@ -177,6 +251,7 @@ def main():
                 per_file_open_keeps_selection=True, header_cancel_clears_only_inputs=True,
                 slide_navigation_and_expand=True, metadata_real_pptx=True, sources_and_library_preserved=True,
                 navigation_under_thumbnail_single_and_multiple=True, scroll_to_fourth_input=True,
+                matched_empty_single_and_batch_geometry_between_tools=True, queue_hint_below_rows=True,
                 light_dark_1080_1366=True, qml_warnings=[])), encoding='utf-8')
             print('Batch input selection, preview race and layout Qt checks passed.', flush=True)
         finally:

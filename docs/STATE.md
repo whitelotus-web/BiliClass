@@ -1,5 +1,13 @@
 # Trạng thái BiliClass
 
+Ngày 22/10/2026 — nguồn RC155 thống nhất lề, tiêu đề, thông tin bài,
+xem trước và cấu hình của hai công cụ khi chưa tải file/một/nhiều
+bài. Bỏ tiêu đề hàng đợi đầu vào, chuyển lời nhắc xuống dưới danh
+sách. Mascot dùng wheel chuyển hiệu ứng/slide ngoài vùng âm lượng;
+cả hàng âm lượng chỉnh 5%. Hướng dẫn thêm hình chuột/mũi tên.
+[Phạm vi RC155](BUILD_RC155.md).
+[Trạng thái phát hành RC155: đang kiểm tra.]
+
 Ngày 22/10/2026 — nguồn RC154 chuyển nút trước/sau và số slide
 xuống ngay dưới hình thu nhỏ trong cả đầu vào một/nhiều bài,
 Chuyển đổi/Tạo giọng. Hàng đợi bỏ khung trắng bao ngoài; nút xem
