@@ -1,3 +1,5 @@
+import copy
+import hashlib
 import zipfile
 from pathlib import Path
 
@@ -187,6 +189,75 @@ def test_repair_handles_source_and_office_using_different_slide_part_names(tmp_p
 def test_regression_cannot_hide_an_incorrect_quiz_answer():
     def q(code): return {"slides": [{"slide": 1, "issues": [{"severity": "FAIL", "code": code}]}]}
     assert not improved(q("text_overflow"), q("quiz_mismatch"))
+
+
+def test_partial_table_improvement_keeps_distinct_cell_failures():
+    from app.slide_repair import failure_keys
+
+    first = {'slide': 1, 'issues': [{'code': 'text_overflow', 'severity': 'FAIL', 'shape_id': 3, 'cell': [n, 0]}
+                                  for n in (0, 1)]}
+    before = {'slides': [first]}
+    after = {'slides': [{**first, 'issues': first['issues'][1:]}]}
+    assert len(failure_keys(before)) == 2 and failure_keys(after) < failure_keys(before)
+
+
+@pytest.mark.parametrize('rewrite_words', [False, True])
+def test_cell_fit_retains_grid_other_cells_and_math_and_rejects_changed_words(tmp_path, monkeypatch, rewrite_words):
+    from lxml import etree
+
+    from app.slide_repair import NS
+    from app.source_deck import source_slide_parts
+
+    deck = Presentation()
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    table_shape = slide.shapes.add_table(2, 2, Inches(1), Inches(1), Inches(6), Inches(2))
+    table_shape.table.cell(0, 0).text = 'A triangle has three vertices.'
+    table_shape.table.cell(0, 0).text_frame.paragraphs[0].runs[0].font.size = Pt(40)
+    table_shape.table.cell(1, 1).text = 'Unrelated cell'
+    math = etree.fromstring(b'<a14:m xmlns:a14="http://schemas.microsoft.com/office/drawing/2010/main" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"><m:oMath><m:r><m:t>x+1</m:t></m:r></m:oMath></a14:m>')
+    table_shape.table.cell(0, 1).text_frame.paragraphs[0]._p.append(math)
+    source = tmp_path / 'table.pptx'
+    deck.save(source)
+    original = source.read_bytes()
+    part = source_slide_parts(source)[0]
+    identity = table_shape.shape_id
+
+    def fitted(before, after, targets, *_):
+        assert targets == {1: {(identity, 0, 0)}}
+        with zipfile.ZipFile(before) as archive:
+            entries = {name: archive.read(name) for name in archive.namelist()}
+        tree = etree.fromstring(entries[part])
+        cell = tree.find('.//a:tbl/a:tr/a:tc', NS)
+        cell.find('.//a:rPr', NS).set('sz', '1400')
+        if rewrite_words:
+            cell.find('.//a:t', NS).text = 'Incorrect rewritten content'
+        # An Office rewrite must not leak any edits to an unrelated cell.
+        tree.findall('.//a:tbl/a:tr', NS)[1].findall('a:tc', NS)[1].find('.//a:t', NS).text = 'Changed by Office'
+        frame = tree.find('p:cSld/p:spTree/p:graphicFrame', NS)
+        alternate = etree.Element('{' + NS['mc'] + '}AlternateContent')
+        frame.getparent().replace(frame, alternate)
+        etree.SubElement(alternate, '{' + NS['mc'] + '}Choice', Requires='a14').append(frame)
+        etree.SubElement(alternate, '{' + NS['mc'] + '}Fallback').append(copy.deepcopy(frame))
+        entries[part] = etree.tostring(tree)
+        with zipfile.ZipFile(after, 'w') as archive:
+            for name, data in entries.items():
+                archive.writestr(name, data)
+
+    monkeypatch.setattr('app.office_tasks.fit_text', fitted)
+    report = {'sha256': hashlib.sha256(original).hexdigest(), 'slides': [{'slide': 1, 'issues': [
+        {'code': 'text_overflow', 'severity': 'FAIL', 'shape_id': identity, 'cell': [0, 0]}]}]}
+    result = repair_layout(source, tmp_path, report)
+    assert source.read_bytes() == original
+    if rewrite_words:
+        assert not result['changes'] and Path(result['path']) == source
+    else:
+        repaired = Presentation(result['path']).slides[0].shapes[0]
+        assert repaired.table.cell(0, 0).text == table_shape.table.cell(0, 0).text
+        assert repaired.table.cell(0, 0).text_frame.paragraphs[0].runs[0].font.size.pt == 14
+        assert repaired.table.cell(1, 1).text == 'Unrelated cell'
+        assert etree.tostring(repaired.table.cell(0, 1)._tc) == etree.tostring(table_shape.table.cell(0, 1)._tc)
+        assert (repaired.left, repaired.top, repaired.width, repaired.height) == (table_shape.left, table_shape.top, table_shape.width, table_shape.height)
+        assert result['changes'][0]['cell'] == [0, 0]
 
 
 def test_reducing_overflows_cannot_hide_new_missing_body_translation():

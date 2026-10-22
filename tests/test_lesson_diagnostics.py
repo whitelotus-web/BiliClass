@@ -21,20 +21,20 @@ def test_layout_explains_specific_pages_without_turning_generic_review_into_erro
         {'slide': 3, 'issues': [{'code': 'text_overflow', 'severity': 'FAIL'}]},
     ], 'local_repairs': [{'slide': 2, 'operation': 'grow_text_frame'}]}})
     assert [row['slide'] for row in report['pages']] == [3, 2]
-    assert report['failures'] == 1 and report['remaining'] == 2 and report['repaired'] == 1
+    assert report['failures'] == 1 and report['remaining'] == 1 and report['notices'] == 1 and report['repaired'] == 1
     assert report['pages'][1]['source_slide'] == 1
     assert report['pages'][1]['issues'][0]['excerpt'] == 'Định nghĩa'
-    assert report['title'] == 'Cần sửa bố cục trước khi dạy'
+    assert report['title'] == 'Tool chưa sửa xong bố cục'
     assert layout({})['has_report'] is False
 
 
 def test_image_review_is_plain_and_retained_without_a_layout_failure():
     report = layout({'external_deck': {'content_review': {'image_pages': [1], 'message': 'Legacy technical message'}},
                      'slide_quality': {'slides': [{'slide': 1, 'issues': [{'code': 'notes_mismatch', 'severity': 'CHECK'}]}]}})
-    assert report['title'] == 'Cần xem lại trước khi dạy'
-    assert report['failures'] == 0 and report['remaining'] == 1
-    assert report['summary'] == 'Có 1 slide cần xem lại.'
-    assert report['image_note'] == 'Chữ trong ảnh ở slide nguồn 1 chưa được kiểm tra hết. Hãy đối chiếu chữ, bảng và công thức với bản gốc.'
+    assert report['title'] == 'Đã kiểm tra tự động'
+    assert report['failures'] == 0 and report['remaining'] == 0 and report['notices'] == 1
+    assert 'Chưa phát hiện lỗi cụ thể trong phạm vi kiểm tra.' in report['summary']
+    assert report['image_note'] == 'Chữ trong ảnh ở slide nguồn 1 chưa được xác minh đầy đủ; kết quả tự kiểm tra không chứng nhận phần này.'
     assert layout({'external_deck': {'content_review': {'message': 'Cần xem ảnh.'}}})['image_note'] == 'Cần xem ảnh.'
 
 
@@ -45,6 +45,20 @@ def test_source_review_keeps_exact_reason_and_does_not_invent_an_answer():
     assert report['failures'] == 0 and report['pages'][0]['slide'] == 6
     assert issue['excerpt'] == 'Kiểm tra giả thiết trong đề gốc.'
     assert 'giữ nguyên giả thiết và đáp án' in issue['message']
+    assert report['remaining'] == 1 and report['attention'] == 1
+
+
+def test_generic_uncertainty_on_every_slide_is_not_sixteen_errors_or_a_content_approval():
+    report = layout({'external_deck': {'content_review': {'image_pages': [2, 3, 4, 14]}},
+                     'slide_quality': {'slides': [{'slide': n, 'rendered': True, 'issues': [
+                         {'code': code, 'severity': 'CHECK'} for code in
+                         ('image_or_formula_needs_review', 'animation_needs_review', 'notes_mismatch')]}
+                                                 for n in range(1, 17)]}})
+    assert report['remaining'] == report['attention'] == report['failures'] == 0
+    assert report['notices'] == 16 and report['rendered'] == 16
+    assert 'cần xem lại' not in report['summary'] and 'cần đối chiếu' not in report['summary']
+    assert 'chưa xác minh' in report['scope_note'] and '2, 3, 4, 14' in report['image_note']
+    assert len(report['pages']) == 16, 'Scope evidence remains available; it is not silently certified'
 
 
 def test_distinct_table_cells_keep_their_own_location_and_excerpt():

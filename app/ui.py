@@ -2887,7 +2887,7 @@ class Bridge(QObject):
             remaining = layout(self._lesson)['remaining']
             self.inform(result.get("message") or
                         (f"Đã tự sửa và kiểm tra lại. Còn {failures} slide cần hoàn thiện; xem chi tiết." if failures
-                         else f"Đã kiểm tra lại. Còn {remaining} slide cần đối chiếu nội dung, ảnh hoặc hiệu ứng; xem chi tiết." if remaining
+                         else f"Đã kiểm tra lại. Còn {remaining} slide có vấn đề cụ thể; xem chi tiết xử lý." if remaining
                          else "Đã kiểm tra lại; chưa phát hiện lỗi trong các phép kiểm tra tự động."), bool(failures))
 
         self.launch(work, completed)
@@ -2973,7 +2973,7 @@ class Bridge(QObject):
 
     def _show_lesson(self, lesson, preview=None, *, auto_repair=True, destination='result', load_preview=True):
         """Apply prepared UI data; file integrity checks belong to the worker."""
-        from .lesson_completion import completion_current
+        from .lesson_completion import needs_completion
 
         if not self.teaching_session.bound:
             self.stopSpeech()
@@ -2993,8 +2993,7 @@ class Bridge(QObject):
         self.selectionChanged.emit()
         if destination is not None:
             self.navigate.emit(destination)
-        if (auto_repair and not completion_current(lesson) and not lesson.get('voice_only') and lesson.get('external_deck') and lesson.get('slide_quality',{}).get('counts',{}).get('FAIL')
-                and 'local_repairs' not in lesson.get('slide_quality',{})
+        if (auto_repair and needs_completion(lesson)
                 and lesson['id'] not in getattr(self,'_auto_reviewed',set())):
             if not hasattr(self,'_auto_reviewed'):
                 self._auto_reviewed=set()

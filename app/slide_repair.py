@@ -10,7 +10,8 @@ from uuid import uuid4
 from lxml import etree
 
 NS = {"p": "http://schemas.openxmlformats.org/presentationml/2006/main",
-      "a": "http://schemas.openxmlformats.org/drawingml/2006/main"}
+      "a": "http://schemas.openxmlformats.org/drawingml/2006/main",
+      "mc": "http://schemas.openxmlformats.org/markup-compatibility/2006"}
 
 
 def file_digest(path):
@@ -19,8 +20,15 @@ def file_digest(path):
 
 
 def failure_keys(report):
-    return {(row["slide"], issue["code"], issue.get("shape_id"))
+    return {(row["slide"], issue["code"], _target(issue))
             for row in report["slides"] for issue in row["issues"] if issue["severity"] == "FAIL"}
+
+
+def _target(issue):
+    cell = issue.get('cell')
+    if isinstance(cell, (list, tuple)) and len(cell) == 2:
+        return issue.get('shape_id'), *cell
+    return issue.get('shape_id')
 
 
 def retain_improved_pages(current, candidate, before, after, directory):
@@ -49,8 +57,22 @@ def actionable_rows(report):
 
 
 def _shape(root, shape_id):
-    found = root.xpath('.//p:sp[p:nvSpPr/p:cNvPr[@id=$id]]', namespaces=NS, id=str(shape_id))
+    if isinstance(shape_id, tuple):
+        table_id, row, column = shape_id
+        tables = root.xpath('.//p:graphicFrame[not(ancestor::mc:Fallback)][p:nvGraphicFramePr/p:cNvPr[@id=$id]]//a:tbl',
+                            namespaces=NS, id=str(table_id))
+        if len(tables) != 1 or not all(type(value) is int and value >= 0 for value in (row, column)):
+            return None
+        rows = tables[0].findall('a:tr', NS)
+        cells = rows[row].findall('a:tc', NS) if row < len(rows) else []
+        return cells[column] if column < len(cells) else None
+    found = root.xpath('.//p:sp[not(ancestor::mc:Fallback)][p:nvSpPr/p:cNvPr[@id=$id]]', namespaces=NS, id=str(shape_id))
     return found[0] if len(found) == 1 else None
+
+
+def _body(shape):
+    body = shape.find('p:txBody', NS)
+    return body if body is not None else shape.find('a:txBody', NS)
 
 
 def _write_copy(source, target, replacements):
@@ -223,7 +245,7 @@ def _office_fit(path, target, targets, cancel):
     import pythoncom
     import win32com.client
 
-    from .native_layout import fittable_text, office_text_shapes
+    from .native_layout import fittable_text, fixed_cell_sizes, office_table_cells, office_text_shapes
 
     existing = any((p.info["name"] or "").lower() == "powerpnt.exe" for p in psutil.process_iter(["name"]))
     pythoncom.CoInitialize()
@@ -234,29 +256,35 @@ def _office_fit(path, target, targets, cancel):
 
         register_office(office)
         deck = office.Presentations.Open(str(path.resolve()), ReadOnly=False, Untitled=False, WithWindow=False)
+        cell_sizes = fixed_cell_sizes(path)
         for number, ids in targets.items():
             native_progress(f'Đang căn chữ slide {number}…')
             if cancel and cancel.is_set():
                 raise ValueError("Đã dừng sửa bài giảng; bản trước vẫn được giữ.")
-            for shape in office_text_shapes(deck.Slides(number).Shapes):
-                if shape.Id in ids and fittable_text(shape):
-                    shape.TextFrame2.AutoSize = 0
-                    shape.TextFrame2.WordWrap = -1
+            shapes = deck.Slides(number).Shapes
+            candidates = [(shape, shape.Id, False) for shape in office_text_shapes(shapes)]
+            candidates.extend((shape, (owner, *cell), True) for shape, owner, cell in office_table_cells(shapes))
+            for shape, identity, cell in candidates:
+                if identity in ids and (fittable_text(shape) if not cell else shape.HasTextFrame and shape.TextFrame2.HasText):
+                    width, height = cell_sizes.get((number, *identity), (shape.Width, shape.Height)) if cell else (shape.Width, shape.Height)
+                    if not cell:
+                        shape.TextFrame2.AutoSize = 0
+                        shape.TextFrame2.WordWrap = -1
                     text = shape.TextFrame2.TextRange
                     # Justification can paint glyphs beyond a narrow frame even
                     # at the minimum font size. Compact paragraph spacing before
                     # reducing type; retain all text, run styling and hierarchy.
                     paragraph = text.ParagraphFormat
-                    if text.BoundWidth > shape.Width + 1 and paragraph.Alignment == 4:
+                    if text.BoundWidth > width + 1 and paragraph.Alignment == 4:
                         paragraph.Alignment = 1  # msoAlignLeft
-                    if (text.BoundHeight > shape.Height + 1 and paragraph.LineRuleWithin
+                    if (text.BoundHeight > height + 1 and paragraph.LineRuleWithin
                             and paragraph.SpaceWithin > 1):
                         paragraph.SpaceWithin = 1
                     for _ in range(4):
-                        if text.BoundHeight <= shape.Height + 1 and text.BoundWidth <= shape.Width + 1:
+                        if text.BoundHeight <= height + 1 and text.BoundWidth <= width + 1:
                             break
-                        factor = min((shape.Height - 2) / max(text.BoundHeight, 1),
-                                     (shape.Width - 2) / max(text.BoundWidth, 1), .95)
+                        factor = min((height - 2) / max(text.BoundHeight, 1),
+                                     (width - 2) / max(text.BoundWidth, 1), .95)
                         changed = False
                         # Preserve the VI/EN hierarchy and every run's other styling.
                         runs_id = text._oleobj_.GetIDsOfNames("Runs")
@@ -266,13 +294,14 @@ def _office_fit(path, target, targets, cancel):
                             run = win32com.client.Dispatch(text._oleobj_.Invoke(
                                 runs_id, 0, pythoncom.DISPATCH_PROPERTYGET, True, index, 1))
                             size = float(run.Font.Size)
-                            fitted = max(min(14, size), size * factor)
+                            fitted = max(min(14 * deck.PageSetup.SlideHeight / 540, size), size * factor)
                             if size > 0 and fitted < size - .05:
                                 run.Font.Size = fitted
                                 changed = True
                         if not changed:
                             break
-                    shape.TextFrame2.AutoSize = 0
+                    if not cell:
+                        shape.TextFrame2.AutoSize = 0
         deck.SaveAs(str(target.resolve()), 24)  # ppSaveAsOpenXMLPresentation
     finally:
         if deck is not None:
@@ -345,7 +374,7 @@ def repair_layout(path, directory, report, cancel=None, progress=None, *, layout
         raise ValueError("Bài giảng đã thay đổi; kiểm tra lại trước khi tự sửa.")
     targets = {}
     for row in report["slides"]:
-        ids = {i["shape_id"] for i in row["issues"]
+        ids = {_target(i) for i in row["issues"]
                if i["code"] == "text_overflow" and "shape_id" in i}
         if ids:
             targets[row["slide"]] = ids
@@ -371,7 +400,8 @@ def repair_layout(path, directory, report, cancel=None, progress=None, *, layout
                 deck = Presentation(path)
             from .caption_layout import reserve_band
 
-            band = reserve_band(root, deck.slide_width, deck.slide_height, deck.slides[number - 1])
+            band = (reserve_band(root, deck.slide_width, deck.slide_height, deck.slides[number - 1])
+                    if any(isinstance(identity, int) for identity in targets[number]) else [])
             math_changes.extend({'slide': number, **change} for change in band)
             moved = {change['shape_id'] for change in band}
             layout = layout_plan[number - 1] if layout_plan else {}
@@ -382,14 +412,14 @@ def repair_layout(path, directory, report, cancel=None, progress=None, *, layout
                 shape = _shape(root, shape_id)
                 if shape is None:
                     continue
-                body = shape.find("p:txBody", NS)
+                body = _body(shape)
                 if body is None:
                     continue
                 if body.xpath(".//*[local-name()='oMath' or local-name()='oMathPara']"):
                     if deck is None:
                         from pptx import Presentation
                         deck = Presentation(path)
-                    if _grow_formula_frame(shape, deck.slides[number - 1], deck.slide_width, deck.slide_height):
+                    if not isinstance(shape_id, tuple) and _grow_formula_frame(shape, deck.slides[number - 1], deck.slide_width, deck.slide_height):
                         math_changes.append({'slide': number, 'shape_id': shape_id, 'operation': 'grow_formula_frame'})
                     continue
                 if deck is None:
@@ -398,7 +428,7 @@ def repair_layout(path, directory, report, cancel=None, progress=None, *, layout
                     deck = Presentation(path)
                 from .text_frame_space import grow
 
-                if shape_id not in moved and grow(shape, deck.slides[number - 1], deck.slide_width, deck.slide_height,
+                if not isinstance(shape_id, tuple) and shape_id not in moved and grow(shape, deck.slides[number - 1], deck.slide_width, deck.slide_height,
                                                  translated=layout.get('role') == 'en' or shape_id in translated):
                     math_changes.append({'slide': number, 'shape_id': shape_id, 'operation': 'grow_text_frame'})
                 native_targets.setdefault(number, set()).add(shape_id)
@@ -437,17 +467,21 @@ def repair_layout(path, directory, report, cancel=None, progress=None, *, layout
                 original, adjusted = _shape(roots[number], shape_id), _shape(office_root, shape_id)
                 if original is None or adjusted is None:
                     continue
-                before_text = ["".join(p.xpath(".//a:t/text()", namespaces=NS)) for p in original.findall("p:txBody/a:p", NS)]
-                after_text = ["".join(p.xpath(".//a:t/text()", namespaces=NS)) for p in adjusted.findall("p:txBody/a:p", NS)]
+                original_body, adjusted_body = _body(original), _body(adjusted)
+                if original_body is None or adjusted_body is None:
+                    continue
+                before_text = ["".join(p.xpath(".//a:t/text()", namespaces=NS)) for p in original_body.findall("a:p", NS)]
+                after_text = ["".join(p.xpath(".//a:t/text()", namespaces=NS)) for p in adjusted_body.findall("a:p", NS)]
                 if before_text != after_text or original.xpath(".//*[local-name()='oMath']"):
                     continue
-                body = original.find("p:txBody/a:bodyPr", NS)
-                office_body = adjusted.find("p:txBody/a:bodyPr", NS)
+                body = original_body.find("a:bodyPr", NS)
+                office_body = adjusted_body.find("a:bodyPr", NS)
                 if body is None or office_body is None or body.get("vert", "horz") != "horz":
                     continue
-                original_body = original.find("p:txBody", NS)
-                original.replace(original_body, copy.deepcopy(adjusted.find("p:txBody", NS)))
-                changes.append({"slide": number, "shape_id": shape_id, "operation": "fit_text"})
+                original.replace(original_body, copy.deepcopy(adjusted_body))
+                changes.append({"slide": number, "shape_id": shape_id[0] if isinstance(shape_id, tuple) else shape_id,
+                                **({'cell': list(shape_id[1:])} if isinstance(shape_id, tuple) else {}),
+                                "operation": "fit_table_cell" if isinstance(shape_id, tuple) else "fit_text"})
             replacements[part] = etree.tostring(roots[number], xml_declaration=True, encoding="UTF-8", standalone=True)
     if not changes:
         return {"path": str(path), "changes": []}
@@ -496,6 +530,12 @@ def repair_and_inspect(path, directory, *, source=None, mode="", style="source",
     inspection = inspect_returned_deck(current, source, mode, style, layout_plan=layout_plan)
     render_quality(current, directory, inspection["slide_quality"], cancel, progress, reuse_directory=reuse_directory)
     history = list(typography)
+    from .contrast_repair import verified as contrast_pass
+
+    contrasted = contrast_pass(current, directory, inspection, source=source, mode=mode, style=style,
+                               layout_plan=layout_plan, cancel=cancel, progress=progress)
+    current, inspection = Path(contrasted['path']), contrasted['inspection']
+    history.extend(contrasted['changes'])
     if not layout_plan and not (cancel and cancel.is_set()):
         title_result = normalize_titles(current, directory, mode)
         if Path(title_result["path"]) != current:
@@ -505,6 +545,7 @@ def repair_and_inspect(path, directory, *, source=None, mode="", style="source",
                     and all(r["rendered"] for r in titled["slide_quality"]["slides"])):
                 current, inspection = Path(title_result["path"]), titled
                 history.extend(title_result["changes"])
+    passes = 0
     for attempt in range(3):
         if cancel and cancel.is_set():
             break
@@ -516,6 +557,7 @@ def repair_and_inspect(path, directory, *, source=None, mode="", style="source",
         numbers = sorted({key[0] for key in before})
         pages = ', '.join(map(str, numbers[:12])) + ('…' if len(numbers) > 12 else '')
         emit_progress(progress, 'quality', f'Đang tự sửa bố cục slide {pages} · lượt {attempt + 1}/3…')
+        passes += 1
         result = repair_layout(current, directory, inspection["slide_quality"], cancel, progress, layout_plan=layout_plan)
         candidate = Path(result["path"])
         if candidate == current:
@@ -537,5 +579,18 @@ def repair_and_inspect(path, directory, *, source=None, mode="", style="source",
             break  # Never publish a regression or a page that has not been rendered.
         history.extend(changes)
         current, inspection = candidate, after
+    # Fitting can turn large display text into body-size text, whose contrast
+    # requirement is stricter. Check and correct that result before publishing.
+    contrasted = contrast_pass(current, directory, inspection, source=source, mode=mode, style=style,
+                               layout_plan=layout_plan, cancel=cancel, progress=progress)
+    current, inspection = Path(contrasted['path']), contrasted['inspection']
+    history.extend(contrasted['changes'])
     inspection["slide_quality"]["local_repairs"] = history
+    from .lesson_completion import VERSION
+
+    inspection['slide_quality'].update(completion_version=VERSION,
+                                       completion_sha256=inspection['slide_speech']['sha256'],
+                                       automatic_completion={'layout_passes': passes, 'scope': 'structure_and_layout',
+                                           'remaining_errors': len(failure_keys(inspection['slide_quality'])),
+                                           'content_certified': False})
     return {"path": str(current), "inspection": inspection, "changes": history}

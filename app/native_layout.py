@@ -152,6 +152,57 @@ def fittable_text(shape):
             and shape.HasTextFrame and shape.TextFrame2.HasText)
 
 
+def fixed_cell_sizes(path):
+    """Declared direct-table grids, before Office silently expands their rows."""
+    import zipfile
+
+    from .source_deck import NS, _xml, source_slide_parts
+
+    result = {}
+    with zipfile.ZipFile(path) as archive:
+        for page, part in enumerate(source_slide_parts(path), 1):
+            tree = _xml(archive.read(part))
+            namespaces = {**NS, 'mc': 'http://schemas.openxmlformats.org/markup-compatibility/2006'}
+            for shape in tree.xpath('.//p:graphicFrame[not(ancestor::mc:Fallback) and not(ancestor::p:grpSp)]', namespaces=namespaces):
+                table = shape.find('a:graphic/a:graphicData/a:tbl', NS)
+                if table is None:
+                    continue
+                identity = int(shape.find('p:nvGraphicFramePr/p:cNvPr', NS).get('id'))
+                widths = [int(column.get('w')) for column in table.findall('a:tblGrid/a:gridCol', NS)]
+                rows = table.findall('a:tr', NS)
+                for row_index, row in enumerate(rows):
+                    for column, cell in enumerate(row.findall('a:tc', NS)):
+                        if cell.get('hMerge') in {'1', 'true'} or cell.get('vMerge') in {'1', 'true'}:
+                            continue
+                        width = sum(widths[column:column + int(cell.get('gridSpan', '1'))])
+                        height = sum(int(r.get('h')) for r in rows[row_index:row_index + int(cell.get('rowSpan', '1'))])
+                        result[page, identity, row_index, column] = width / 12700, height / 12700
+    return result
+
+
+def math_text_frames(path):
+    """TextRange.Font is not a trustworthy color measurement for Office Math."""
+    import zipfile
+
+    from .source_deck import NS, _xml, source_slide_parts
+
+    result = set()
+    namespaces = {**NS, 'mc': 'http://schemas.openxmlformats.org/markup-compatibility/2006'}
+    with zipfile.ZipFile(path) as archive:
+        for page, part in enumerate(source_slide_parts(path), 1):
+            tree = _xml(archive.read(part))
+            for shape in tree.xpath('.//p:sp[not(ancestor::mc:Fallback)]', namespaces=namespaces):
+                if shape.xpath('.//*[local-name()="oMath"]'):
+                    result.add((page, int(shape.find('p:nvSpPr/p:cNvPr', NS).get('id')), None))
+            for shape in tree.xpath('.//p:graphicFrame[not(ancestor::mc:Fallback)]', namespaces=namespaces):
+                identity = int(shape.find('p:nvGraphicFramePr/p:cNvPr', NS).get('id'))
+                for row, cells in enumerate(shape.findall('.//a:tbl/a:tr', NS)):
+                    for column, cell in enumerate(cells.findall('a:tc', NS)):
+                        if cell.xpath('.//*[local-name()="oMath"]'):
+                            result.add((page, identity, (row, column)))
+    return result
+
+
 def _office_overflows(path, pages, cancel):
     """Measure translated frames read-only; never save an Office rewrite."""
     import pythoncom

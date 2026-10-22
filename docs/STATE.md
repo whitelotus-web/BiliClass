@@ -1,5 +1,14 @@
 # Trạng thái BiliClass
 
+Ngày 22/10/2026 — nguồn RC144 tự sửa từng ô bảng, đo lưới trước khi
+Office tự nới hàng và sửa tương phản trên nền đặc khi có bằng chứng.
+Giữ bản tốt nhất, đóng dấu phiên bản/hash để không lặp. Lỗi cụ thể
+vẫn được nêu; ghi chú OCR/Math/hiệu ứng không còn thành cảnh báo
+16/16 slide. Cùng trạng thái gọn và chi tiết ở hai công cụ. Qt với
+Office thật tự xử lý hai ô lỗi và tương phản không cần bấm sửa,
+giữ chữ/lưới/Math; Qt sáng/tối và bản sao bài thật 16 slide đã kiểm.
+Phạm vi và giới hạn: [BUILD_RC144.md](BUILD_RC144.md).
+
 Ngày 22/10/2026 — nguồn RC143 bỏ nền trạng thái loa trong thư viện,
 dùng xanh lá cho có giọng và xám gạch chéo khi chưa có; giữ vùng bấm
 và focus. Loa nhúng PowerPoint tăng theo chiều cao canvas, chừa mép,

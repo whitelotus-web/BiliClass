@@ -16,7 +16,7 @@ Frame {
         spacing: 10
         LessonChecks {
             objectName: "completionChecks"; Layout.fillWidth: true
-            bridge: preview.bridge; visible: preview.current && (!!report.remaining || !!report.image_note)
+            bridge: preview.bridge; visible: preview.current && (!!report.has_report || !!report.image_note)
             onViewRequested: function(slide) { preview.bridge.previewConvertedSlide(slide) }
         }
         Item {

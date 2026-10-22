@@ -60,7 +60,7 @@ def main():
         engine.load(RESOURCE_ROOT/'qml/Main.qml')
         assert engine.rootObjects(), warnings
         root = engine.rootObjects()[0]
-        report = Path('reports/rc141/lesson-checks')
+        report = Path('reports/rc144/lesson-checks')
         report.mkdir(parents=True, exist_ok=True)
         try:
             bridge._browser_state.update(phase='completed', lessonId=lesson['id'])
@@ -84,7 +84,8 @@ def main():
                             assert checks.isVisible() and checks.property('report')['failures'] == 1
                             assert checks.property('page')['slide'] == 2
                             background = control(root, name+'Background').property('color')
-                            for suffix in ('Title', 'Summary', 'ImageNote'):
+                            assert control(root, name+'ImageNote').isVisible() == expanded
+                            for suffix in ('Title', 'Summary', 'ImageNote', 'Scope') if expanded else ('Title', 'Summary'):
                                 label = control(root, name+suffix)
                                 ratio = contrast(label.property('color'), background)
                                 assert label.isVisible() and ratio >= 4.5, (theme, name, suffix, ratio)
@@ -109,6 +110,37 @@ def main():
                                     assert checks.property('page')['slide'] == 2
                                     assert requests.count() == 0, 'Following preview must not request the same slide again'
                             assert root.grabWindow().save(str(report/f'{page}-{theme}-{width}-{expanded}.png'))
+            # A whole deck with generic OCR/animation uncertainty is a compact
+            # scope result, never sixteen claimed slide errors or an approval.
+            lesson['slide_quality'] = {'counts': {'FAIL': 0, 'CHECK': 16, 'PASS': 0}, 'slides': [
+                {'slide': n, 'rendered': True, 'issues': [{'code': code, 'severity': 'CHECK'}
+                    for code in ('image_or_formula_needs_review', 'notes_mismatch', 'animation_needs_review')]}
+                for n in range(1, 17)]}
+            lesson['external_deck']['content_review']['image_pages'] = [2, 3, 4, 14]
+            bridge._lesson = lesson
+            bridge.changed.emit()
+            for theme in ('light', 'dark'):
+                bridge.setApplicationTheme(theme)
+                for page, name in [('chatgpt', 'completionChecks'), ('voice', 'voiceChecks')]:
+                    root.setProperty('page', page)
+                    checks = control(root, name)
+                    checks.setProperty('expanded', False)
+                    pump(150)
+                    assert checks.property('report')['remaining'] == 0
+                    assert checks.property('report')['notices'] == 16
+                    assert checks.height() <= 58, checks.height()
+                    assert control(root, name+'Background').property('color').alpha() == 0
+                    assert not control(root, name+'Summary').isVisible()
+                    assert not control(root, name+'ImageNote').isVisible()
+                    assert not control(root, name+'Repair').isVisible()
+                    assert control(root, name+'Title').property('text') == 'Đã kiểm tra tự động'
+                    with patch.object(Bridge, 'previewConvertedSlide'):
+                        click(root, control(root, name+'Toggle'))
+                    pump(100)
+                    assert control(root, name+'ImageNote').isVisible()
+                    assert '2, 3, 4, 14' in control(root, name+'ImageNote').property('text')
+                    assert 'chưa xác minh' in control(root, name+'Scope').property('text')
+                    assert root.grabWindow().save(str(report/f'{page}-{theme}-scope.png'))
             assert source.read_bytes() == original
             assert not warnings, warnings
             (report/'result.json').write_text(json.dumps(dict(status='passed', qml_warnings=warnings, minimum_text_contrast=min(contrasts))))

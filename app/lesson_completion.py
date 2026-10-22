@@ -2,13 +2,20 @@
 
 from pathlib import Path
 
-VERSION = 6
+VERSION = 7
 
 
 def completion_current(lesson):
     quality = lesson.get('slide_quality', {})
     return (quality.get('completion_version') == VERSION
-            and quality.get('completion_sha256') == lesson.get('source', {}).get('sha256'))
+            and quality.get('completion_sha256') == (lesson.get('source') or {}).get('sha256'))
+
+
+def needs_completion(lesson):
+    quality = lesson.get('slide_quality') or {}
+    return (not completion_current(lesson) and not lesson.get('voice_only') and bool(lesson.get('external_deck'))
+            and (bool(quality.get('counts', {}).get('FAIL')) or any(
+                issue.get('code') == 'low_contrast' for row in quality.get('slides', []) for issue in row.get('issues', []))))
 
 
 def complete_existing(library, lesson, cancel=None):
@@ -17,12 +24,11 @@ def complete_existing(library, lesson, cancel=None):
     from .powerpoint import verified_presentation
     from .slide_repair import repair_and_inspect
 
-    quality = lesson.get('slide_quality', {})
     if lesson.get('voice_only') or not lesson.get('external_deck'):
         return lesson
     if completion_current(lesson):
         return lesson
-    if not quality.get('counts', {}).get('FAIL'):
+    if not needs_completion(lesson):
         # Earlier checks could approve an oversized box while its text escaped
         # a painted panel. Audit only native converted decks with paired frames.
         if not any(row.get('pairs') for row in lesson['external_deck'].get('layout_plan', [])):

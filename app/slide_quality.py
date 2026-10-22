@@ -361,6 +361,8 @@ def render_quality(path, directory, report, cancel=None, progress=None, *, reuse
         else:
             remaining.append(row)
     office = deck = com = None
+    cell_sizes = None
+    math_frames = None
     existing = True
     try:
         if remaining and not (cancel and cancel.is_set()):
@@ -391,10 +393,23 @@ def render_quality(path, directory, report, cancel=None, progress=None, *, reuse
             slide.Export(str(temporary.resolve()), "PNG", 1600, height)
             temporary.replace(image)
             row.update(rendered=True, render_image=image.relative_to(directory).as_posix())
-            from .native_layout import office_table_cells, office_text_shapes
+            from .native_layout import (
+                fixed_cell_sizes,
+                math_text_frames,
+                office_table_cells,
+                office_text_shapes,
+            )
 
             frames = [(shape, int(shape.Id), None) for shape in office_text_shapes(slide.Shapes)]
             frames.extend(office_table_cells(slide.Shapes))
+            if math_frames is None and frames:
+                math_frames = math_text_frames(path)
+            if cell_sizes is None:
+                cell_sizes = fixed_cell_sizes(path) if any(cell is not None for _, _, cell in frames) else None
+            escaped_tables = {identity for shape, identity, cell in frames if cell is not None
+                              and (row['slide'], identity, *cell) in (cell_sizes or {})
+                              and (shape.Top + shape.Height > deck.PageSetup.SlideHeight + 3
+                                   or shape.Left + shape.Width > deck.PageSetup.SlideWidth + 3)}
             for shape, identity, cell in frames:
                 try:
                     if not shape.HasTextFrame or not shape.TextFrame2.HasText:
@@ -402,10 +417,14 @@ def render_quality(path, directory, report, cancel=None, progress=None, *, reuse
                     text = shape.TextFrame2.TextRange
                     if not str(text.Text).strip():
                         continue  # Empty formatted cells can have nonzero native text bounds.
-                    if text.BoundHeight > shape.Height + 3 or text.BoundWidth > shape.Width + 3:
+                    width, height_limit = ((cell_sizes or {}).get((row['slide'], identity, *cell), (shape.Width, shape.Height))
+                                           if cell is not None and identity in escaped_tables else (shape.Width, shape.Height))
+                    if text.BoundHeight > height_limit + 3 or text.BoundWidth > width + 3:
                         row["issues"].append({"code": "text_overflow", "severity": "FAIL", "shape_id": identity,
                                               **({'cell': cell} if cell is not None else {}),
                                               "excerpt": str(text.Text).strip()[:120]})
+                    if (row['slide'], identity, tuple(cell) if cell is not None else None) in (math_frames or set()):
+                        continue  # Keep geometry checks; math run colors are outside TextRange.Font's scope.
                     if shape.Fill.Visible and shape.Fill.Type == 1:
                         foreground, background = int(text.Font.Fill.ForeColor.RGB), int(shape.Fill.ForeColor.RGB)
                         if foreground < 0 or background < 0:
@@ -414,7 +433,9 @@ def render_quality(path, directory, report, cancel=None, progress=None, *, reuse
                         threshold = 3 if float(text.Font.Size) >= 24 else 4.5
                         if ratio < threshold:
                             row["issues"].append({"code": "low_contrast", "severity": "CHECK", "shape_id": identity,
-                                                  **({'cell': cell} if cell is not None else {})})
+                                                  **({'cell': cell} if cell is not None else {}),
+                                                  'foreground_rgb': foreground, 'background_rgb': background,
+                                                  'ratio': round(ratio, 3), 'threshold': threshold})
                 except Exception:
                     continue
             cache.save_row(row)

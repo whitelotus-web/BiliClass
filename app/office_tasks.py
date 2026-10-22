@@ -179,7 +179,8 @@ def worker_main(directory):
             from .slide_repair import _office_fit
 
             _office_fit(Path(payload['path']), Path(payload['target']),
-                        {int(k): set(v) for k, v in payload['targets'].items()}, None)
+                        {int(k): {tuple(item) if isinstance(item, list) else item for item in v}
+                         for k, v in payload['targets'].items()}, None)
             value = str(payload['target'])
         elif request['operation'] == 'preview':
             from .powerpoint_review import _render_preview_pages

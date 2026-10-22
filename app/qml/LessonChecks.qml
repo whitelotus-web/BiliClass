@@ -30,38 +30,39 @@ Frame {
     }
     onExpandedChanged: { if (expanded) showSelected() }
     padding: 10
-    visible: !!report.remaining || !!report.image_note
-    background: Rectangle { objectName: checks.objectName + "Background"; radius: 10; color: AppTheme.warningSurface; border.color: AppTheme.warningLine }
+    visible: !!report.has_report || !!report.image_note
+    background: Rectangle { objectName: checks.objectName + "Background"; radius: 10; color: checks.report.attention ? AppTheme.warningSurface : "transparent"; border.color: checks.report.attention ? AppTheme.warningLine : AppTheme.line }
     contentItem: ColumnLayout {
         spacing: 7
         RowLayout {
             Layout.fillWidth: true
             ColumnLayout {
                 Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 4
-                Label { objectName: checks.objectName + "Title"; text: checks.report.title || "Cần xem lại trước khi dạy"; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: AppTheme.warningInk; font.pixelSize: 14; font.weight: Font.DemiBold }
-                Label { objectName: checks.objectName + "Summary"; text: checks.report.summary || ""; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: AppTheme.ink; font.pixelSize: 13 }
+                Label { objectName: checks.objectName + "Title"; text: checks.report.title || "Kiểm tra tự động"; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: checks.report.attention ? AppTheme.warningInk : AppTheme.ink; font.pixelSize: 14; font.weight: Font.DemiBold }
+                Label { objectName: checks.objectName + "Summary"; visible: !!checks.report.attention || checks.expanded; text: checks.report.summary || ""; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: AppTheme.ink; font.pixelSize: 13 }
             }
-            ActionButton { text: checks.expanded ? "Thu gọn" : "Xem vị trí"; implicitHeight: 30; onClicked: checks.expanded = !checks.expanded }
+            ActionButton { objectName: checks.objectName + "Repair"; text: "Tool thử hoàn thiện lại"; implicitHeight: 32; visible: !!checks.report.attention; enabled: !checks.bridge.busy && !checks.bridge.narrationBusy && !checks.bridge.powerpointState.opened && !checks.bridge.powerpointState.active; onClicked: checks.bridge.repairConvertedLesson() }
+            ActionButton { objectName: checks.objectName + "Toggle"; text: checks.expanded ? "Thu gọn" : checks.report.attention ? "Xem lỗi còn lại" : "Chi tiết và phạm vi"; implicitHeight: 30; onClicked: checks.expanded = !checks.expanded }
         }
         Label {
             objectName: checks.objectName + "ImageNote"
-            visible: !!text; text: checks.report.image_note || ""
+            visible: checks.expanded && !!text; text: checks.report.image_note || ""
             Layout.fillWidth: true; wrapMode: Text.WordWrap; textFormat: Text.PlainText
             color: AppTheme.ink; font.pixelSize: 13
         }
         ColumnLayout {
             visible: checks.expanded; Layout.fillWidth: true; spacing: 6
+            Label { objectName: checks.objectName + "Scope"; text: checks.report.scope_note || ""; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: AppTheme.ink; font.pixelSize: 13 }
             RowLayout {
                 Layout.fillWidth: true
                 ComboBox {
                     objectName: checks.objectName + "Page"
                     Layout.fillWidth: true; Layout.minimumWidth: 0
-                    model: checks.pages.map(function(row) { return "Slide " + row.slide + (row.source_slide !== row.slide ? " · nguồn " + row.source_slide : "") + (row.failed ? " · Còn lỗi bố cục" : " · Cần đối chiếu") })
+                    model: checks.pages.map(function(row) { return "Slide " + row.slide + (row.source_slide !== row.slide ? " · nguồn " + row.source_slide : "") + (row.failed ? " · Chưa sửa xong bố cục" : row.attention ? " · Chưa hoàn thiện" : " · Giới hạn kiểm tra") })
                     currentIndex: Math.min(checks.selected, checks.pages.length - 1)
                     onActivated: function(index) { checks.selected = index; checks.showSelected() }
                 }
-                ActionButton { objectName: checks.objectName + "View"; text: "Xem slide"; implicitHeight: 32; enabled: !checks.bridge.busy && !checks.bridge.narrationBusy && !checks.bridge.powerpointState.active; onClicked: checks.viewRequested(checks.page.slide) }
-                ActionButton { objectName: checks.objectName + "Repair"; text: checks.report.failures ? "Kiểm tra và tự sửa" : "Kiểm tra lại"; implicitHeight: 32; visible: !!checks.report.remaining; enabled: !checks.bridge.busy && !checks.bridge.narrationBusy && !checks.bridge.powerpointState.opened && !checks.bridge.powerpointState.active; onClicked: checks.bridge.repairConvertedLesson() }
+                ActionButton { objectName: checks.objectName + "View"; text: "Xem slide"; implicitHeight: 32; enabled: !!checks.page.slide && !checks.bridge.busy && !checks.bridge.narrationBusy && !checks.bridge.powerpointState.active; onClicked: checks.viewRequested(checks.page.slide) }
             }
             Repeater {
                 model: checks.page.issues || []

@@ -3,6 +3,11 @@
 from .slide_quality import MESSAGES
 
 INFORMATIONAL = {'visual_review', 'source_workspace', 'source_language_pair', 'source_motion_position'}
+# These findings have an identifiable missing/invalid result. Bounding-box
+# overlap, OCR coverage and animation uncertainty remain scope notes, not errors.
+ACTIONABLE = {'source_review_note', 'english_body_missing', 'translation_pair_missing',
+              'speech_metadata_invalid', 'speech_metadata_mismatch', 'quiz_mismatch',
+              'vietnamese_remaining', 'render_unavailable', 'low_contrast'}
 ACTIONS = {
     'source_review_note': 'Đối chiếu nhận xét với đề và hình gốc trước khi sử dụng bài.',
     'text_overflow': 'Tự căn lại khung chữ và đo lại bằng PowerPoint.',
@@ -37,22 +42,37 @@ def layout(lesson):
         if issues:
             pages.append(dict(slide=row['slide'], source_slide=row.get('source_slide', row['slide']),
                               failed=any(i['severity'] == 'FAIL' for i in issues), issues=issues))
-    pages.sort(key=lambda row: (not row['failed'], row['slide']))
+    for page in pages:
+        page['attention'] = any(issue['severity'] == 'FAIL' or issue['code'] in ACTIONABLE for issue in page['issues'])
+    pages.sort(key=lambda row: (not row['attention'], not row['failed'], row['slide']))
     repairs = report.get('local_repairs', [])
     fixed = {row['slide'] for row in repairs if row.get('slide') and row.get('operation') != 'keep_quantities_together'}
     failures = sum(row['failed'] for row in pages)
+    attention = sum(row['attention'] for row in pages)
+    rendered = sum(bool(row.get('rendered')) for row in report.get('slides', []))
+    render_failed = bool(attention and not rendered and all(
+        issue['code'] == 'render_unavailable' for page in pages for issue in page['issues']
+        if issue['severity'] == 'FAIL' or issue['code'] in ACTIONABLE))
     review = (lesson.get('external_deck') or {}).get('content_review') or {}
     image_pages = sorted({n for n in review.get('image_pages', []) if type(n) is int and n > 0})
     image_note = (f"Chữ trong ảnh ở slide nguồn {', '.join(map(str, image_pages[:8]))}{'…' if len(image_pages) > 8 else ''} "
-                  'chưa được kiểm tra hết. Hãy đối chiếu chữ, bảng và công thức với bản gốc.'
+                  'chưa được xác minh đầy đủ; kết quả tự kiểm tra không chứng nhận phần này.'
                   if image_pages else review.get('message', ''))
+    checked = (f"Đã đo bố cục {rendered}/{len(report.get('slides', []))} slide bằng PowerPoint. " if rendered
+               else f"Đã kiểm tra cấu trúc {len(report.get('slides', []))} slide. " if report else '')
     return dict(pages=pages, total=len(report.get('slides', [])), repaired=len(fixed), failures=failures,
-                remaining=len(pages), has_report=bool(report),
-                title='Cần sửa bố cục trước khi dạy' if failures else 'Cần xem lại trước khi dạy',
+                remaining=attention, notices=sum(not row['attention'] for row in pages), has_report=bool(report),
+                attention=attention, rendered=rendered,
+                title='Tool chưa sửa xong bố cục' if failures else 'Chưa hoàn tất kiểm tra bằng PowerPoint'
+                      if render_failed else 'Có phần chưa hoàn thiện' if attention else 'Đã kiểm tra tự động',
                 image_note=image_note,
-                summary=(f'Đã tự căn chỉnh {len(fixed)} slide. ' if fixed else '')
-                        + (f'Có {len(pages)} slide cần xem lại' + (f', trong đó {failures} slide còn lỗi bố cục.' if failures else '.')
-                           if pages else 'Chưa phát hiện lỗi trong các phép kiểm tra tự động.' if report else 'Chưa có kết quả kiểm tra slide.'))
+                scope_note='Kiểm tra cấu trúc và bố cục; chưa xác minh toàn bộ ý nghĩa, chữ trong ảnh và hiệu ứng.',
+                summary=(f'Đã tự căn chỉnh {len(fixed)} slide. ' if fixed else '') + checked
+                        + ('Chưa đo được bố cục bằng PowerPoint; bản đã xử lý được giữ để kiểm tra tiếp.' if render_failed
+                           else f'Còn {failures} slide có lỗi bố cục chưa sửa được; bản đã xử lý được giữ lại.' if failures
+                           else f'Còn {attention} slide có vấn đề cụ thể; xem trạng thái xử lý trong chi tiết.' if attention
+                           else 'Chưa phát hiện lỗi cụ thể trong phạm vi kiểm tra. Giới hạn kiểm tra nằm trong chi tiết.'
+                           if report else 'Chưa có kết quả kiểm tra slide.'))
 
 
 def failed_speech(inspection, voices, tasks):

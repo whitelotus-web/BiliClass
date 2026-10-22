@@ -18,6 +18,7 @@ def report(path, count=2):
 
 def office_fixture(monkeypatch, cancel=None, *, date_slides=()):
     calls = []
+    monkeypatch.setattr('app.native_layout.math_text_frames', lambda *_: set())
 
     class Slide:
         Shapes = [SimpleNamespace(Type=17, Rotation=0, HasTextFrame=True, TextFrame2=SimpleNamespace(HasText=True,
@@ -117,6 +118,7 @@ def test_table_overflow_keeps_owner_and_cell_while_empty_formatted_cells_are_ign
         TextRange=SimpleNamespace(Text='\r ', BoundHeight=99, BoundWidth=99)), Width=20, Height=20)
     # A real PowerPoint cell shape raises when its Id is accessed.
     monkeypatch.setattr('app.native_layout.office_table_cells', lambda *_: [(cell, 44, [1, 0]), (empty, 44, [1, 1])])
+    monkeypatch.setattr('app.native_layout.fixed_cell_sizes', lambda *_: {})
     quality = render_quality(path, tmp_path, report(path, 1))
     issues = quality['slides'][0]['issues']
     cells = [issue for issue in issues if 'cell' in issue]

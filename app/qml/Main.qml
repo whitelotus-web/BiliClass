@@ -1709,7 +1709,7 @@ ApplicationWindow {
                         }
                         LessonChecks {
                             objectName: "voiceChecks"; Layout.fillWidth: true
-                            visible: root.page === "voice" && !!bridge.quickResult.path && (!!report.remaining || !!report.image_note)
+                            visible: root.page === "voice" && !!bridge.quickResult.path && (!!report.has_report || !!report.image_note)
                             bridge: root.bridgeRef
                             onViewRequested: function(slide) { root.voicePreviewExpanded = true; bridge.previewConvertedSlide(slide) }
                         }
