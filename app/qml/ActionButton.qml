@@ -6,6 +6,7 @@ Button {
     id: control
     property bool primary: false
     property bool danger: false
+    property bool subtle: false
     property string symbol: ""
     property string iconName: ""
     property int iconSize: 22
@@ -23,5 +24,5 @@ Button {
         Text { objectName: "actionButtonLabel"; text: control.text; font: control.font; color: !control.enabled ? (control.inactiveStatus ? AppTheme.muted : AppTheme.disabled) : control.primary ? AppTheme.accentText : control.danger ? AppTheme.adapt("#c92d37") : AppTheme.adapt("#0869f9"); verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight; Layout.minimumWidth: 0; Layout.maximumWidth: Math.max(0, control.availableWidth - (control.iconName ? control.iconSize + 6 : 0) - (control.symbol ? 18 : 0)) }
         Item { Layout.fillWidth: true }
     }
-    background: Rectangle { radius: 8; color: !control.enabled ? AppTheme.adapt("#edf1f7") : control.primary ? (control.down ? AppTheme.adapt("#0055d8") : AppTheme.accent) : control.danger ? (control.pointerHovered ? AppTheme.adapt("#ffe4e7") : AppTheme.adapt("#fff6f7")) : control.pointerHovered ? AppTheme.adapt("#eaf3ff") : AppTheme.surface; border.color: control.primary ? "transparent" : control.danger ? AppTheme.adapt("#f1b8be") : AppTheme.adapt("#cbdcf4"); border.width: control.visualFocus ? 2 : 1 }
+    background: Rectangle { radius: 8; color: !control.enabled ? AppTheme.adapt("#edf1f7") : control.primary ? (control.down ? AppTheme.adapt("#0055d8") : AppTheme.accent) : control.danger ? (control.pointerHovered ? AppTheme.adapt("#ffe4e7") : AppTheme.adapt("#fff6f7")) : control.pointerHovered ? AppTheme.adapt("#eaf3ff") : control.subtle ? "transparent" : AppTheme.surface; border.color: control.primary || control.subtle ? "transparent" : control.danger ? AppTheme.adapt("#f1b8be") : AppTheme.adapt("#cbdcf4"); border.width: control.visualFocus ? 2 : 1 }
 }

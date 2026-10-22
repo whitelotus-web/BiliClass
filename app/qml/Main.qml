@@ -1398,6 +1398,15 @@ ApplicationWindow {
                                     TapHandler { onTapped: if (bridge.inputDocuments.preview.image) root.showCreationPreview() }
                                     HoverHandler { cursorShape: Qt.PointingHandCursor }
                                 }
+                                SlideNavigation {
+                                    objectName: "creationThumbnailNavigation"; visible: !root.creationPreviewExpanded; Layout.fillWidth: true
+                                    number: bridge.inputDocuments.preview.slide || 1; total: bridge.inputDocuments.preview.total || 0
+                                    working: !!bridge.inputDocuments.preview.busy || bridge.inputDocuments.busy
+                                    previousObjectName: visible ? "creationPreviousSlide" : ""
+                                    counterObjectName: visible ? "creationSlideCounter" : ""
+                                    nextObjectName: visible ? "creationNextSlide" : ""
+                                    onRequested: function(number) { bridge.inputDocuments.showSlide(number) }
+                                }
                             }
                         }
                         TextArea { id: pasteInput; objectName: "lessonContent"; visible: false }
@@ -1414,13 +1423,14 @@ ApplicationWindow {
                                 MainAction { objectName: "retryCreationSlidePreview"; text: "Tải lại slide"; Layout.alignment: Qt.AlignHCenter; onClicked: bridge.inputDocuments.retryPreview() }
                             }
                         }
-                        RowLayout {
+                        SlideNavigation {
                             objectName: "creationSlideNavigation"; visible: !!root.selectedFile && root.creationPreviewExpanded; Layout.fillWidth: true
-                            Item { Layout.fillWidth: true }
-                            MainAction { objectName: "creationPreviousSlide"; text: "‹"; implicitHeight: 34; enabled: !bridge.inputDocuments.preview.busy && (bridge.inputDocuments.preview.slide || 1) > 1; onClicked: bridge.inputDocuments.showSlide(bridge.inputDocuments.preview.slide - 1) }
-                            Copy { objectName: "creationSlideCounter"; text: "Slide " + (bridge.inputDocuments.preview.slide || 1) + " / " + (bridge.inputDocuments.preview.total || 0); color: root.ink }
-                            MainAction { objectName: "creationNextSlide"; text: "›"; implicitHeight: 34; enabled: !bridge.inputDocuments.preview.busy && (bridge.inputDocuments.preview.slide || 1) < bridge.inputDocuments.preview.total; onClicked: bridge.inputDocuments.showSlide((bridge.inputDocuments.preview.slide || 1) + 1) }
-                            Item { Layout.fillWidth: true }
+                            number: bridge.inputDocuments.preview.slide || 1; total: bridge.inputDocuments.preview.total || 0
+                            working: !!bridge.inputDocuments.preview.busy || bridge.inputDocuments.busy
+                            previousObjectName: visible ? "creationPreviousSlide" : ""
+                            counterObjectName: visible ? "creationSlideCounter" : ""
+                            nextObjectName: visible ? "creationNextSlide" : ""
+                            onRequested: function(number) { bridge.inputDocuments.showSlide(number) }
                         }
                         Surface {
                             objectName: "creationConfiguration"; Layout.fillWidth: true; implicitHeight: config.height + (root.compactCreation ? 24 : 38)
@@ -1883,6 +1893,13 @@ ApplicationWindow {
                                     Copy { visible: !bridge.quickResult.image; anchors.centerIn: parent; text: bridge.previewBusy ? "Đang tải slide…" : "Xem trước slide"; font.pixelSize: 12 }
                                     TapHandler { onTapped: root.showNarrationPreview() }
                                     HoverHandler { cursorShape: Qt.PointingHandCursor }
+                                }
+                                SlideNavigation {
+                                    objectName: "voiceThumbnailNavigation"; visible: !root.voicePreviewExpanded; Layout.fillWidth: true
+                                    number: bridge.quickResult.slide || 1; total: bridge.quickResult.total || 0
+                                    working: bridge.busy || bridge.previewBusy
+                                    previousObjectName: "voiceThumbnailPreviousSlide"; counterObjectName: "voiceThumbnailSlideCounter"; nextObjectName: "voiceThumbnailNextSlide"
+                                    onRequested: function(number) { bridge.previewConvertedSlide(number) }
                                 }
                             }
                         }

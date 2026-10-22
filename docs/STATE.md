@@ -1,5 +1,12 @@
 # Trạng thái BiliClass
 
+Ngày 22/10/2026 — nguồn RC154 chuyển nút trước/sau và số slide
+xuống ngay dưới hình thu nhỏ trong cả đầu vào một/nhiều bài,
+Chuyển đổi/Tạo giọng. Hàng đợi bỏ khung trắng bao ngoài; nút xem
+trước dùng cùng kiểu chữ xanh không viền như một bài.
+[Phạm vi RC154](BUILD_RC154.md).
+[Trạng thái phát hành RC154: đang kiểm tra.]
+
 Ngày 22/10/2026 — nguồn RC153 thống nhất hàng đợi đầu vào và xem
 trước từng bài trên cấu hình ở cả Chuyển đổi và Tạo giọng. Đọc
 thông tin file ở nền, giữ nguyên xử lý lần lượt và hàng đợi hoàn

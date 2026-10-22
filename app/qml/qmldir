@@ -19,6 +19,7 @@ CreatedNarrationButton 1.0 CreatedNarrationButton.qml
 CompletedExportNotice 1.0 CompletedExportNotice.qml
 BatchQueuePanel 1.0 BatchQueuePanel.qml
 BatchInputPanel 1.0 BatchInputPanel.qml
+SlideNavigation 1.0 SlideNavigation.qml
 HelpDialog 1.0 HelpDialog.qml
 HomeLibraryOverview 1.0 HomeLibraryOverview.qml
 HomeWelcome 1.0 HomeWelcome.qml

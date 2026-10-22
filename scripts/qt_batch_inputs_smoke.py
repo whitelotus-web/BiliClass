@@ -16,6 +16,7 @@ from app.branding import configure_application
 from app.library import Library
 from app.paths import RESOURCE_ROOT
 from app.ui import Bridge
+from app.voice_import import import_presentation
 from scripts.qt_result_preview_mascot_smoke import click, control, pump, until
 
 
@@ -31,7 +32,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix='bcl-input-queue-', ignore_cleanup_errors=True) as temporary:
         folder = Path(temporary)
         sources, pictures = [], []
-        for n, color in enumerate(('#c64b43', '#3776c5', '#309765')):
+        for n, color in enumerate(('#c64b43', '#3776c5', '#309765', '#b2792a')):
             deck = Presentation()
             for _ in range(n+2):
                 deck.slides.add_slide(deck.slide_layouts[6])
@@ -83,11 +84,11 @@ def main():
                 ):
                     root.setProperty('page', 'new' if kind == 'convert' else 'voice')
                     accept(method)
-                    until(lambda: len(inputs.details) == 3 and not inputs.documents.preview.get('busy', True))
+                    until(lambda: len(inputs.details) == 4 and not inputs.documents.preview.get('busy', True))
                     ids = [row['id'] for row in bridge.batchQueue.data['rows']]
                     assert inputs.state['selected_id'] == ids[0]
                     assert inputs.documents.preview['image'] == pictures[0]
-                    assert [row['total'] for row in inputs.state['rows']] == [2, 3, 4]
+                    assert [row['total'] for row in inputs.state['rows']] == [2, 3, 4, 5]
                     assert c(source_panel).isVisible()
                     assert c(source_panel).mapToScene(QPointF()).y() < c(config).mapToScene(QPointF()).y()
                     cancel = c('removeInputDocumentButton' if kind == 'convert' else 'dismissVoiceLesson')
@@ -100,7 +101,15 @@ def main():
                             list_view, thumbnail = c('batchInputRows_'+kind), c('batchInputThumbnail_'+kind)
                             assert thumbnail.mapToScene(QPointF()).x() >= list_view.mapToScene(QPointF(list_view.width(), 0)).x()
                             assert abs(thumbnail.width()/thumbnail.height()-16/9) < .01
+                            nav = c('batchInputThumbnailNavigation_'+kind)
+                            assert nav.isVisible() and nav.mapToScene(QPointF()).y() >= thumbnail.mapToScene(QPointF(0, thumbnail.height())).y()
+                            assert abs(nav.mapToScene(QPointF(nav.width()/2, 0)).x()-thumbnail.mapToScene(QPointF(thumbnail.width()/2, 0)).x()) <= 1
+                            assert c('batchInputPreviewToggle_'+kind).property('subtle')
                             root.grabWindow().save(str(report/f'{kind}-{theme}-{width}.png'))
+                    assert QMetaObject.invokeMethod(list_view, 'positionViewAtEnd', Qt.DirectConnection)
+                    pump(80)
+                    click(root, c('batchInputChoice_'+ids[3]))
+                    until(lambda: inputs.documents.preview.get('image') == pictures[3] and not inputs.documents.preview.get('busy'))
                     delayed[0] = True
                     entered.clear()
                     release.clear()
@@ -116,7 +125,10 @@ def main():
                     assert inputs.documents.preview['image'] == pictures[2]
                     click(root, c('batchInputPreviewToggle_'+kind))
                     assert c('batchInputExpanded_'+kind).isVisible()
+                    assert c('batchInputExpandedNavigation_'+kind).isVisible()
                     click(root, c('batchInputPreviewToggle_'+kind))
+                    assert QMetaObject.invokeMethod(list_view, 'positionViewAtBeginning', Qt.DirectConnection)
+                    pump(80)
                     opened = []
                     with patch.object(bridge, 'openInputPowerPoint', side_effect=opened.append):
                         click(root, c('batchInputOpen_'+ids[0]))
@@ -124,18 +136,47 @@ def main():
                     assert inputs.state['selected_id'] == ids[2], inputs.state
                     click(root, c('batchInputRemove_'+ids[2]))
                     until(lambda: inputs.state['selected_id'] == ids[0] and inputs.documents.preview.get('image') == pictures[0])
-                    assert [row['id'] for row in bridge.batchQueue.data['rows']] == ids[:2]
+                    assert [row['id'] for row in bridge.batchQueue.data['rows']] == [*ids[:2], ids[3]]
                     click(root, cancel)
                     pump(100)
                     assert not bridge.batchQueue.data and not inputs.state['selected_id'] and not inputs.documents.preview
                     assert not bridge.busy and not bridge.narrationBusy
                 assert library.db.execute('SELECT COUNT(*) FROM lessons').fetchone()[0] == 0
+                # Single-file conversion can change the thumbnail before expanding it.
+                root.setProperty('page', 'new')
+                assert QMetaObject.invokeMethod(root, 'acceptInputDocuments', Qt.DirectConnection,
+                    Q_ARG('QVariant', [sources[0].as_uri()]))
+                until(lambda: not bridge.inputDocuments.preview.get('busy', True) and not bridge.inputDocuments.busy)
+                thumbnail, nav = c('creationSelectedSlidePreview'), c('creationThumbnailNavigation')
+                assert thumbnail.isVisible() and nav.isVisible() and not root.property('creationPreviewExpanded')
+                assert nav.mapToScene(QPointF()).y() >= thumbnail.mapToScene(QPointF(0, thumbnail.height())).y()
+                click(root, c('creationNextSlide'))
+                until(lambda: bridge.inputDocuments.preview.get('slide') == 2 and not bridge.inputDocuments.preview.get('busy'))
+                assert not root.property('creationPreviewExpanded')
+                root.grabWindow().save(str(report/'single-conversion-thumbnail.png'))
+                QMetaObject.invokeMethod(root, 'removeInputDocument', Qt.DirectConnection)
+                # Existing one-lesson Voice preview uses the same navigation placement.
+                lesson, preview = import_presentation(library.directory, sources[0])
+                with patch('app.slide_preview.PreviewSession.render', return_value=QUrl(pictures[0]).toLocalFile()):
+                    bridge._show_lesson(lesson, preview, destination='voice', auto_repair=False, load_preview=False)
+                    bridge.previewConvertedSlide(1)
+                    until(lambda: not bridge.previewBusy and bool(bridge.quickResult.get('image')))
+                    root.setProperty('voicePreviewExpanded', False)
+                    pump(100)
+                    thumbnail, nav = c('voiceSlideThumbnail'), c('voiceThumbnailNavigation')
+                    assert nav.isVisible() and thumbnail.isVisible()
+                    assert nav.mapToScene(QPointF()).y() >= thumbnail.mapToScene(QPointF(0, thumbnail.height())).y()
+                    click(root, c('voiceThumbnailNextSlide'))
+                    until(lambda: not bridge.previewBusy and bridge.quickResult.get('slide') == 2)
+                    assert not root.property('voicePreviewExpanded')
+                    root.grabWindow().save(str(report/'single-voice-thumbnail.png'))
                 assert [source.read_bytes() for source in sources] == original
                 assert not warnings, warnings
             (report/'result.json').write_text(json.dumps(dict(status='passed', shared_convert_voice_input_panel=True,
                 first_file_preview=True, latest_selection_wins=True, remove_selected_falls_back=True,
                 per_file_open_keeps_selection=True, header_cancel_clears_only_inputs=True,
                 slide_navigation_and_expand=True, metadata_real_pptx=True, sources_and_library_preserved=True,
+                navigation_under_thumbnail_single_and_multiple=True, scroll_to_fourth_input=True,
                 light_dark_1080_1366=True, qml_warnings=[])), encoding='utf-8')
             print('Batch input selection, preview race and layout Qt checks passed.', flush=True)
         finally:

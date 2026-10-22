@@ -6,6 +6,10 @@
 
 **[Tải BiliClass cho Windows](https://github.com/whitelotus-web/BiliClass/releases)** · [RC153 đã kiểm chứng](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc153) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md)
 
+Nguồn RC154 đặt chuyển slide ngay dưới hình thu nhỏ ở cả một/nhiều
+bài, không cần phóng to. Nút xem trước đồng nhất và hàng đợi bỏ
+khung trắng bao ngoài. [Phạm vi RC154](docs/BUILD_RC154.md).
+
 RC153 thống nhất đầu vào nhiều bài ở Chuyển đổi và Tạo giọng:
 hàng đợi trên cấu hình, chọn từng bài để xem trước; mỗi bài có số
 slide, mở PowerPoint và nút bỏ riêng. Icon tab nhỏ hơn, thứ tự chồng
