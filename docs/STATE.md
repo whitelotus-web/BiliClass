@@ -12,8 +12,12 @@ Ruff và compileall đạt. Ba sản phẩm đã kiểm được lưu revision g
 nguồn/lịch sử; bản mới có giọng chỉ sửa bố cục, giữ lời/147 khóa WAV.
 Bản dịch cải thiện của các bản có giọng được thử riêng. Hai điểm
 cần đối chiếu ngay trong đề gốc được ghi theo slide, không sửa
-giả thiết. Xem [BUILD_RC141](BUILD_RC141.md); chưa phát hành gói
-tại thời điểm kiểm chứng nguồn. Không thêm hàng đợi/đồng bộ Save.
+giả thiết. Xem [BUILD_RC141](BUILD_RC141.md). Gói dựng từ `6445b69`,
+kiểm bundle/ZIP/khởi động độc lập/cài và giữ dữ liệu đạt, đã mở Home
+từ Explorer. Bản nháp GitHub đang chờ kiểm nguồn mới: đã sửa 32 lỗi
+Ruff toàn kho và bổ sung thuộc tính Text thiếu trong mẫu COM của
+kiểm thử cache; không bỏ/hạ các phép kiểm tra. Không thêm hàng đợi
+hoặc đồng bộ Save.
 
 Ngày 22/10/2026 — nguồn RC140 sửa khung cảnh báo khó đọc ở chế độ
 tối: bộ màu theo giao diện, chữ 13–14 px, tiêu đề tách lời nhắc với

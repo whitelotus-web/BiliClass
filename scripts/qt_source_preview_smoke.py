@@ -1,23 +1,30 @@
 """Real Qt controls and native source previews in a disposable library."""
-import json,os,tempfile
-from pathlib import Path
+import json
+import os
+import tempfile
 from multiprocessing import freeze_support
+from pathlib import Path
+
 from pptx import Presentation
-from pptx.util import Inches,Pt
-from PySide6.QtCore import Q_ARG,QCoreApplication,QEvent,QMetaObject,Qt
-from PySide6.QtGui import QFont,QFontDatabase,QGuiApplication
+from pptx.util import Inches, Pt
+from PySide6.QtCore import Q_ARG, QCoreApplication, QEvent, QMetaObject, Qt
+from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
+
 from app.branding import configure_application
 from app.library import Library
 from app.paths import RESOURCE_ROOT
 from app.ui import Bridge
-from scripts.qt_result_preview_mascot_smoke import click,control,pump,until
+from scripts.qt_result_preview_mascot_smoke import click, control, pump, until
+
+
 def main():
  app=QGuiApplication([])
  configure_application(app)
  QQuickStyle.setStyle('Basic')
- for f in (RESOURCE_ROOT/'assets').glob('*.ttf'): QFontDatabase.addApplicationFont(str(f))
+ for f in (RESOURCE_ROOT/'assets').glob('*.ttf'):
+  QFontDatabase.addApplicationFont(str(f))
  app.setFont(QFont('Be Vietnam Pro',10))
  out=Path(os.environ.get('BILICLASS_SOURCE_PREVIEW_REPORT','reports/rc123/source-preview'))
  out.mkdir(parents=True,exist_ok=True)
@@ -45,16 +52,20 @@ def main():
   results=[]
   try:
    root.setProperty('page','new')
-   root.show();root.raise_();root.requestActivate()
+   root.show()
+   root.raise_()
+   root.requestActivate()
    QMetaObject.invokeMethod(root,'acceptInputDocuments',Qt.DirectConnection,Q_ARG('QVariant',[path.as_uri()]))
    until(lambda:bool(bridge.inputDocuments.preview.get('image')),timeout=120)
    assert not bridge.inputDocuments.preview.get('error'),bridge.inputDocuments.preview
    for theme in ['light','dark']:
     bridge.setApplicationTheme(theme)
     for w,h in [(1366,850),(1920,1080),(1080,700)]:
-     root.resize(w,h);pump(200)
+     root.resize(w,h)
+     pump(200)
      assert c('creationSelectedSlidePreview').isVisible()
-     click(root,c('creationPreviewButton'));pump(200)
+     click(root,c('creationPreviewButton'))
+     pump(200)
      assert root.property('creationPreviewExpanded')
      assert c('creationExpandedSlidePreview').isVisible() and not c('creationSelectedSlidePreview').isVisible()
      assert not root.findChild(type(c('creationPreviewButton')),'creationInputPreviewDialog')
@@ -73,12 +84,15 @@ def main():
      until(lambda:not bridge.inputDocuments.preview.get('busy'),timeout=120)
      click(root,c('creationPreviousSlide'))
      until(lambda:not bridge.inputDocuments.preview.get('busy'),timeout=120)
-     c('creationScroll').property('contentItem').setProperty('contentY',0);pump(100)
+     c('creationScroll').property('contentItem').setProperty('contentY',0)
+     pump(100)
      root.grabWindow().save(str(out/f'{theme}-{w}.png'))
-     click(root,c('creationPreviewButton'));pump(100)
+     click(root,c('creationPreviewButton'))
+     pump(100)
      assert not c('creationSlideNavigation').isVisible() and c('creationSelectedSlidePreview').isVisible()
      results.append(dict(theme=theme,size=[w,h],pages=3,inline=True))
-   click(root,c('creationSelectedSlidePreview'));pump(100)
+   click(root,c('creationSelectedSlidePreview'))
+   pump(100)
    assert root.property('creationPreviewExpanded')
    QMetaObject.invokeMethod(root,'removeInputDocument',Qt.DirectConnection)
    pump(50)
@@ -92,8 +106,11 @@ def main():
                   bridge.browserAI,bridge.english_reader,bridge.narration_preparation,
                   bridge.classroom,bridge.voice_controls):
     worker.shutdown()
-   root.close();engine.deleteLater()
-   QCoreApplication.sendPostedEvents(None,QEvent.DeferredDelete);app.processEvents();library.close()
+   root.close()
+   engine.deleteLater()
+   QCoreApplication.sendPostedEvents(None,QEvent.DeferredDelete)
+   app.processEvents()
+   library.close()
 if __name__=='__main__':
  freeze_support()
  main()

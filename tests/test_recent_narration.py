@@ -1,10 +1,10 @@
 import pytest
 from PySide6.QtCore import QCoreApplication
+from test_teaching_session import prepared_lesson
 
 from app import speech
 from app.library import Library
 from app.ui import Bridge
-from test_teaching_session import prepared_lesson
 
 
 def test_completed_voice_link_survives_clearing_selection_and_opens_exact_variant(tmp_path, monkeypatch):

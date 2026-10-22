@@ -77,6 +77,7 @@ def test_term_cache_isolated_by_subject_and_teacher_wording(tmp_path):
 
 def test_contextual_payload_does_not_reuse_opaque_term_cache(tmp_path):
     import hashlib
+
     from app.translation_terms import TermPolicy
 
     KeyStore(tmp_path).add('AIza' + 'x'*35)

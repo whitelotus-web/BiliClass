@@ -29,7 +29,9 @@ def source(path, text='', notes=''):
 
 def test_idle_bound_mascot_allows_voice_configuration_without_rebinding(tmp_path, monkeypatch):
     import copy
+
     from PySide6.QtCore import QCoreApplication
+
     from app.ui import Bridge
 
     app = QCoreApplication.instance() or QCoreApplication([])

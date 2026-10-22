@@ -62,6 +62,28 @@ Kế hoạch cặp Việt–Anh và danh sách ảnh được lưu lại cùng b
 tránh dùng ánh xạ cũ sau khi thay bản sửa.
 Thư viện, bản sao thử, âm thanh, ảnh và báo cáo cá nhân ở ngoài Git.
 
-Chưa phát hành RC141 tại thời điểm kiểm chứng mã nguồn này. Gói là
-artifact riêng, chỉ dựng sau commit đã kiểm tra. Không thêm hàng đợi,
-không triển khai đồng bộ chỉnh/sửa PowerPoint bên ngoài trong đợt này.
+Gói 1.0.0rc141 dựng một lần từ commit
+`6445b69c385936d7e96098306d3be830fe774f14`, dùng runtime RC140 đã
+đối chiếu. 4.676 tệp ứng dụng, 56 QML và bytecode các module trọng
+yếu khớp commit; ZIP kiểm từng tệp đạt. Dung lượng 1.258.068.730 byte;
+SHA-256 `6bfb607306f89e0fdedffffbcc745393f0b0ae4cc962c48179ea857131d86d05`.
+Home trong bản độc lập được xem ở dữ liệu cô lập, không PYTHONPATH
+hay model phát triển, không cảnh báo QML. Đã cài và mở từ Explorer
+tại `F:/Applications/BiliClass/1.0.0rc141`, Home và Mascot ẩn, cửa sổ
+phản hồi; đối chiếu hồ sơ/key/tùy chọn, bài và WAV tham chiếu đạt.
+
+Kiểm trên GitHub phát hiện bước Ruff toàn kho dừng ở 32 lỗi định
+dạng/import/biến không dùng trong các tệp ngoài nhóm vừa sửa. Đã
+sửa trực tiếp, không bỏ bước kiểm tra hay hạ quy tắc. Mẫu COM của
+hai kiểm thử cache còn thiếu thuộc tính Text mà bộ chẩn đoán dùng
+để trích vùng tràn; bổ sung mẫu đầy đủ, giữ nguyên các khẳng định
+hai lỗi tràn phải còn sau khi dùng cache. Các thay đổi app tiếp theo
+chỉ là thứ tự import/khoảng trắng; gói RC141 vẫn ghi đúng commit dựng
+nêu trên. Không ghi lại artifact để che lịch sử kiểm tra bị đỏ.
+Ruff toàn app/scripts/tests, compileall và đúng nhóm portable của
+workflow đã chạy lại trong `.venv`: 383/383 qua. Nhóm cache/nhập
+slide có 17/17 qua; Qt chẩn đoán chạy lại đạt. Corpus cấu trúc không
+Office cũng qua; không dùng kết quả cấu trúc để tuyên bố bố cục đẹp.
+
+Gói đã tải lên bản nháp, chờ kiểm nguồn mới trên GitHub trước khi
+phát hành. Không thêm hàng đợi hoặc đồng bộ sửa/lưu bên ngoài.

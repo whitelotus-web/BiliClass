@@ -1,10 +1,10 @@
 from pathlib import Path
 
 import pytest
+from test_teaching_session import prepared_lesson
 
 from app import presentation_audio, teaching_cache
 from app.teaching_session import prepare_teaching
-from test_teaching_session import prepared_lesson
 
 
 def test_reopen_reuses_verified_product_but_each_office_session_owns_its_copy(tmp_path, monkeypatch):

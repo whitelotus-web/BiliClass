@@ -124,9 +124,10 @@ def test_source_preview_cancels_replaced_file_and_ignores_its_late_image(tmp_pat
 
 def test_page_requests_cancel_the_old_page_and_keep_only_latest(tmp_path, monkeypatch):
     from types import SimpleNamespace
+
     from PySide6.QtCore import QObject
 
-    app = QCoreApplication.instance() or QCoreApplication([])
+    _app = QCoreApplication.instance() or QCoreApplication([])
     parent = QObject()
     parent.library = SimpleNamespace(directory=tmp_path)
     entered, cancelled = threading.Event(), threading.Event()
@@ -161,7 +162,9 @@ def test_source_preview_reuses_only_verified_pngs_and_prefetches_neighbours(tmp_
     import hashlib
     import json
     from pathlib import Path
+
     from pptx import Presentation
+
     from app.input_documents import input_preview
 
     deck = Presentation()

@@ -14,12 +14,12 @@ from PySide6.QtGui import QCursor, QFont, QFontDatabase, QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine, QQmlComponent
 from PySide6.QtQuickControls2 import QQuickStyle
 from PySide6.QtTest import QTest
+from qt_result_preview_mascot_smoke import click, control, pump
 
 from app.branding import configure_application
 from app.library import Library
 from app.paths import RESOURCE_ROOT
 from app.ui import Bridge
-from qt_result_preview_mascot_smoke import click, control, pump
 
 
 def main():
@@ -49,7 +49,8 @@ def main():
         window.show()
         window.raise_()
         window.requestActivate()
-        c = lambda name: control(window, name)
+        def c(name):
+            return control(window, name)
         ibeam = win32gui.LoadCursor(0, 32513)
 
         def hover(item, name, expected=True, x=None):

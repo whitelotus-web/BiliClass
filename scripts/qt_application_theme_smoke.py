@@ -140,10 +140,12 @@ def main():
                     assert root.grabWindow().save(str(reports/f'{mode}-{page}.png'))
                     if page == 'voice':
                         for width, height in ((1080,700),(1366,850),(1920,1080)):
-                            root.resize(width,height); pump(100)
+                            root.resize(width,height)
+                            pump(100)
                             separated_language_groups(width, False)
                             root.grabWindow().save(str(reports/f'{mode}-empty-voice-{width}.png'))
-                        root.resize(1366,850); pump(80)
+                        root.resize(1366,850)
+                        pump(80)
                 for index in (0, 1, 2, 3, 5, 6):
                     c('settingsPage').setProperty('activeTab', index)
                     pump(60)

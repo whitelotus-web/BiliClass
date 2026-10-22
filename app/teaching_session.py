@@ -58,8 +58,8 @@ def _prepare_verified_teaching(lesson, preview, directory, path, data):
     if (lesson.get('narration') or {}).get('mode') in MODES:
         if not audio_status(lesson, directory).get('ready'):
             raise ValueError('Bản giọng chưa hoàn tất. Tạo tiếp hoặc chọn Không kèm giọng đọc.')
-        from .presentation_audio import embed_audio
         from . import teaching_cache
+        from .presentation_audio import embed_audio
 
         target = Path(directory) / 'temp/teaching' / (uuid4().hex + '.pptx')
         target.parent.mkdir(parents=True, exist_ok=True)

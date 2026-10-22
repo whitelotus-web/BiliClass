@@ -10,8 +10,8 @@ from .voice_pairs import ENGLISH_VOICES
 
 
 def spoken_text(text):
-    from .spoken_labels import english as labels
     from .spoken_chemistry import english as chemistry
+    from .spoken_labels import english as labels
 
     return chemistry(labels(text))
 

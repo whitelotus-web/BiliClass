@@ -21,7 +21,7 @@ def office_fixture(monkeypatch, cancel=None, *, date_slides=()):
 
     class Slide:
         Shapes = [SimpleNamespace(Type=17, Rotation=0, HasTextFrame=True, TextFrame2=SimpleNamespace(HasText=True,
-            TextRange=SimpleNamespace(BoundHeight=50, BoundWidth=50)), Height=20, Width=20,
+            TextRange=SimpleNamespace(BoundHeight=50, BoundWidth=50, Text='Overflowing fixture text')), Height=20, Width=20,
             Fill=SimpleNamespace(Visible=False), Id=7)]
 
         def __init__(self, index):

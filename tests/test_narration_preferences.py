@@ -65,7 +65,9 @@ def test_positions_default_right_and_persist_without_changing_voice_or_revision(
 def test_speaker_moves_immediately_and_coalesces_saves_without_busy_or_stale_lesson(monkeypatch, tmp_path):
     import threading
     import time
+
     from PySide6.QtCore import QCoreApplication, QObject, Signal
+
     from app.narration_preferences import NarrationPreferences, store_choices
     from app.narration_workspace import NarrationWorkspace
 

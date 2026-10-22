@@ -201,7 +201,7 @@ def test_existing_source_thanks_does_not_receive_a_second_ending(tmp_path):
     settings = {**config(), 'template_bookends': True}
     pairs = [('Slide 1', 'Bài học', 'Lesson'),
              ('Slide 2', 'Cảm ơn các em đã theo dõi bài học hôm nay', 'Thank you for watching the lesson')]
-    info = build(tmp_path/'out.pptx', asset('standard'), settings, pairs, Event())
+    _info = build(tmp_path/'out.pptx', asset('standard'), settings, pairs, Event())
     deck = Presentation(tmp_path/'out.pptx')
     assert len(deck.slides) == 3
     assert 'Thank you!' not in text(deck)

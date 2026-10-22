@@ -116,8 +116,8 @@ def test_only_exact_text_overlays_are_deduplicated():
 
 
 def test_source_rows_tolerate_import_rounding_and_keep_top_opaque_answer():
-    from pptx.enum.shapes import MSO_SHAPE
     from pptx.dml.color import RGBColor
+    from pptx.enum.shapes import MSO_SHAPE
     deck = Presentation()
     page = deck.slides.add_slide(deck.slide_layouts[6])
     for left, top, text in [(1, 2, 'A. 2'), (7, 2-1/12700, 'B. 3'),
