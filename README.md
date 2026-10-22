@@ -4,9 +4,9 @@
 
 ## Phiên bản và tải xuống
 
-**[Tải BiliClass cho Windows](https://github.com/whitelotus-web/BiliClass/releases)** · [RC147 đã kiểm chứng](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc147) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md)
+**[Tải BiliClass cho Windows](https://github.com/whitelotus-web/BiliClass/releases)** · [RC148 đã kiểm chứng](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc148) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md)
 
-Nguồn RC148 thêm ba nhóm **Tất cả / Chưa có giọng / Đã có giọng**,
+RC148 thêm ba nhóm **Tất cả / Chưa có giọng / Đã có giọng**,
 **Tạo giọng đã chọn** và **Mở bài từ máy** trong Thư viện. Hàng đợi
 hiện ngay trong cấu hình, có thời gian từng bài/tổng lượt. Nghỉ giữa
 đoạn tăng lên 1,1 giây; giữ đơn vị số mũ khi dịch và cải thiện cách
@@ -32,7 +32,7 @@ và hiệu ứng nằm trong chi tiết; chỉ lỗi cụ thể chưa xử lý x
 nêu nổi bật. Hai công cụ Chuyển đổi và Tạo giọng đọc dùng chung cách
 hiển thị. [Phạm vi và kiểm chứng RC144](docs/BUILD_RC144.md).
 
-Gói RC147 đã phát hành từ commit `5572f03`, được kiểm tra ZIP, cài và
+Gói RC148 đã phát hành từ commit `14c71c6`, được kiểm tra ZIP, cài và
 mở Trang chủ. Mã nguồn và gói tải có vòng phát hành riêng: phiên bản
 gói luôn được ghi rõ trong Releases và trong ứng dụng. Các mốc bên
 dưới là lịch sử, không phải phiên bản hiện tại.

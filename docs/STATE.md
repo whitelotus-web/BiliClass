@@ -5,8 +5,9 @@ tạo giọng cho các bài đã chọn qua hàng đợi và mở bài từ máy
 Hai công cụ giữ cấu hình khi chạy hàng đợi, có đồng hồ từng bài/tổng
 lượt, không tính lúc dừng. Khoảng nghỉ 1,1 giây, giữ nguyên WAV gốc;
 khóa đơn vị có số mũ, đọc liên kết hữu cơ có bằng chứng, ghép thuật
-ngữ OCR đã xác minh trong cùng cột. Đang xác minh cuối và đóng gói;
-RC147 vẫn là gói phát hành đã kiểm. Xem [BUILD_RC148.md](BUILD_RC148.md)
+ngữ OCR đã xác minh trong cùng cột. Đã phát hành từ `14c71c6`; Source checks, bundle/ZIP/digest/tag,
+updater công khai và cài/mở Trang chủ từ Explorer đạt. Hồ sơ/key,
+nguồn và 1752 WAV tham chiếu giữ nguyên. Xem [BUILD_RC148.md](BUILD_RC148.md)
 cho phạm vi, giới hạn và bằng chứng bài Hóa. Chưa thêm chỉnh tốc độ
 trực tiếp khi trình chiếu, không tạo lại giọng tự động khi mở file.
 

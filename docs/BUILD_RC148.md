@@ -53,5 +53,14 @@ Không tự động chọn file qua hộp thoại Windows; kiểm mode và recei
 QML bằng URL cục bộ. Không có cảnh báo QML; kiểm route mở file không
 thay cho một phiên giảng dạy thật đầy đủ với mọi PowerPoint ngoài tool.
 
-Gói RC148 chưa phát hành ở thời điểm đóng băng nguồn này. Mốc commit,
-digest, kiểm updater công khai và kết quả cài sẽ được ghi sau khi dựng.
+Đã phát hành từ `14c71c608d463280478ccd30587aec4117d621b2`;
+[Source checks GitHub](https://github.com/whitelotus-web/BiliClass/actions/runs/39758371644) đạt cho đúng commit gói.
+[Gói RC148](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc148) có 1,258,143,596 byte, SHA-256
+`bdcb32edd432c080102b377cba9a2058a9259a1635f726fe8f1c0ff345e77d41`. 59 tệp QML/qmldir và bytecode ứng dụng khớp nguồn;
+ZIP, digest/tag và phát hiện bản cập nhật công khai đạt. Đã cài và
+mở Trang chủ từ Explorer; Mascot khởi động ẩn. Hồ sơ, cấu hình/key,
+nguồn và 1752 WAV tham chiếu giữ nguyên.
+
+39 WAV trong bài người dùng gửi dài khoảng 697 giây, không có mẫu
+clipping trong phép đo PCM. Đây là kiểm mức tín hiệu, không thay
+cho đánh giá nghe/thiết bị loa hoặc chứng nhận cách phát âm từng từ.
