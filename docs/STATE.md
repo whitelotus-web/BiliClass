@@ -5,7 +5,9 @@ trong Thư viện, giữ chữ 13 px/icon, số bài và các chức năng RC150
 Menu ba chấm gom mở bài từ máy; Tạo giọng đã chọn nằm bên phải hàng
 tab; tải/xóa dùng icon. Ba Qt smoke bổ sung đạt, gồm xóa/hoàn tác.
 [Phạm vi RC151](BUILD_RC151.md).
-[Trạng thái phát hành RC151: đang kiểm tra.]
+Đã phát hành từ `0111b31`; Source checks GitHub, bundle/ZIP,
+digest/tag, updater công khai, cài/mở Trang chủ từ Explorer đạt; hồ sơ,
+key, bài và 1752 WAV tham chiếu giữ nguyên.
 
 Ngày 22/10/2026 — nguồn RC150 thống nhất hộp chọn file có mục đích
 rõ ràng, chọn nhiều bài trong màn Tạo giọng bằng checkbox và tự ẩn

@@ -24,4 +24,10 @@ tab, cạnh vát không chạm chữ/icon. Các kiểm chứng RC150 (516 pytest
 năm Qt smoke, gói nội bộ đúng 60 QML/qmldir và bytecode) giữ nguyên;
 không thay bộ xử lý bài/giọng trong lần chỉnh cạnh tab này.
 
-[Trạng thái phát hành RC151: đang kiểm tra.]
+Đã phát hành từ `0111b31c6b21835f83dafaa72ce01c9b72b3b006`;
+[Source checks](https://github.com/whitelotus-web/BiliClass/actions/runs/39792153131) đạt cho đúng commit gói.
+[Gói RC151](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc151): 1,258,147,711 byte, SHA-256
+`92c18d40ba43e6d3b92fe171d6e3c68c93f6da8f65f00f52bb23b581b9671a46`. 60 tệp QML/qmldir và bytecode
+khớp nguồn; ZIP/digest/tag và updater công khai đạt. Cài/mở Trang chủ
+từ Explorer, Mascot mặc định ẩn; hồ sơ/key, bài và
+1752 WAV tham chiếu giữ nguyên.

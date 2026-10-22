@@ -4,9 +4,9 @@
 
 ## Phiên bản và tải xuống
 
-**[Tải BiliClass cho Windows](https://github.com/whitelotus-web/BiliClass/releases)** · [RC149 đã kiểm chứng](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc149) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md)
+**[Tải BiliClass cho Windows](https://github.com/whitelotus-web/BiliClass/releases)** · [RC151 đã kiểm chứng](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc151) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md)
 
-Nguồn RC151 thêm tích chọn nhiều bài ngay ở màn Tạo giọng, giữ
+RC151 thêm tích chọn nhiều bài ngay ở màn Tạo giọng, giữ
 hàng đợi đúng công cụ và tự ẩn khi cả lượt đã hoàn tất. Thư viện
 có tab kẹp file thấp gọn, cạnh phải vát nhẹ, kèm icon/số bài; menu ba chấm và nút tải/xóa bằng icon. [Phạm vi RC151](docs/BUILD_RC151.md).
 
@@ -40,7 +40,7 @@ và hiệu ứng nằm trong chi tiết; chỉ lỗi cụ thể chưa xử lý x
 nêu nổi bật. Hai công cụ Chuyển đổi và Tạo giọng đọc dùng chung cách
 hiển thị. [Phạm vi và kiểm chứng RC144](docs/BUILD_RC144.md).
 
-Gói RC149 đã phát hành từ commit `e9ca1af`, được kiểm tra ZIP, cài và
+Gói RC151 đã phát hành từ commit `0111b31`, được kiểm tra ZIP, cài và
 mở Trang chủ. Mã nguồn và gói tải có vòng phát hành riêng: phiên bản
 gói luôn được ghi rõ trong Releases và trong ứng dụng. Các mốc bên
 dưới là lịch sử, không phải phiên bản hiện tại.
