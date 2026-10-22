@@ -8,6 +8,7 @@ import re
 import sqlite3
 import tempfile
 import zipfile
+from collections import Counter
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path, PurePosixPath
@@ -110,6 +111,51 @@ def _copy_hashed(source, target, limit):
     return digest.hexdigest()
 
 
+def _file_signature(path):
+    info = path.stat()
+    return info.st_size, info.st_mtime_ns, info.st_ctime_ns, info.st_ino
+
+
+def _backup_plan(files, progress):
+    """Hash possible duplicates only; never stage another copy of source files."""
+    signatures = {name: _file_signature(path) for name, path in files}
+    sizes = Counter(value[0] for value in signatures.values())
+    hashes, originals, aliases = {}, {}, {}
+    for index, (name, path) in enumerate(files, 1):
+        signature = signatures[name]
+        if sizes[signature[0]] > 1:
+            digest, size = hashlib.sha256(), 0
+            with path.open('rb') as source:
+                while chunk := source.read(CHUNK_BYTES):
+                    size += len(chunk)
+                    if size > MAX_FILE_BYTES:
+                        raise ValueError('Một tệp vượt giới hạn sao lưu/khôi phục.')
+                    digest.update(chunk)
+            if _file_signature(path) != signature:
+                raise ValueError('Tệp thay đổi trong lúc sao lưu; hãy thử lại sau khi lưu bài xong.')
+            hashes[name] = digest.hexdigest()
+            key = size, hashes[name]
+            if key in originals:
+                aliases[name] = originals[key]
+            else:
+                originals[key] = name
+        if progress:
+            progress(index, len(files) * 2)
+    return signatures, hashes, aliases
+
+
+def _valid_backup_name(name):
+    parts = PurePosixPath(name)
+    valid = name in ('library.db', 'classroom.db') or (
+        len(parts.parts) >= 2 and parts.parts[0] in BACKUP_TREES)
+    reserved = {'CON', 'PRN', 'AUX', 'NUL', *(f'COM{i}' for i in range(1, 10)),
+                *(f'LPT{i}' for i in range(1, 10))}
+    return (valid and '..' not in parts.parts and ':' not in name and '\\' not in name
+            and not parts.is_absolute() and parts.as_posix() == name
+            and not any(part.endswith((' ', '.')) or part.split('.')[0].upper() in reserved
+                        for part in parts.parts))
+
+
 def configure_logging(directory):
     path = Path(directory) / "logs"
     path.mkdir(parents=True, exist_ok=True)
@@ -166,26 +212,37 @@ def _create_backup(directory, destination=None, daily=False, *, progress=None):
             raise ValueError("Thư viện vượt giới hạn bản sao lưu; chưa tạo tệp không thể khôi phục.")
         if any(path.stat().st_size > MAX_FILE_BYTES for _, path in files):
             raise ValueError("Một tệp vượt giới hạn sao lưu/khôi phục.")
-        _check_space(output.parent, sum(path.stat().st_size for _, path in files))
+        signatures, hashes, aliases = _backup_plan(files, progress)
+        if aliases:
+            manifest.update(version=3, aliases=aliases)
+        _check_space(output.parent, sum(value[0] for name, value in signatures.items() if name not in aliases))
         with tempfile.NamedTemporaryFile(dir=output.parent, suffix=".tmp", delete=False) as pending:
             temporary = Path(pending.name)
         try:
             with zipfile.ZipFile(temporary, "w", zipfile.ZIP_DEFLATED, allowZip64=True) as archive:
                 for index, (name, path) in enumerate(files, 1):
-                    info = zipfile.ZipInfo(name)
-                    info.compress_type = (zipfile.ZIP_STORED if path.suffix.lower() in
-                                          {'.pptx', '.zip', '.bcbackup', '.png', '.jpg', '.jpeg', '.webp'}
-                                          else zipfile.ZIP_DEFLATED)
-                    with path.open('rb') as source_file, archive.open(info, 'w', force_zip64=True) as entry:
-                        manifest["files"][name] = _copy_hashed(source_file, entry, MAX_FILE_BYTES)
+                    if name in aliases:
+                        manifest['files'][name] = manifest['files'][aliases[name]]
+                    else:
+                        info = zipfile.ZipInfo(name)
+                        info.compress_type = (zipfile.ZIP_STORED if path.suffix.lower() in
+                                              {'.pptx', '.zip', '.bcbackup', '.png', '.jpg', '.jpeg', '.webp'}
+                                              else zipfile.ZIP_DEFLATED)
+                        with path.open('rb') as source_file, archive.open(info, 'w', force_zip64=True) as entry:
+                            checksum = _copy_hashed(source_file, entry, MAX_FILE_BYTES)
+                        if name in hashes and checksum != hashes[name]:
+                            raise ValueError('Tệp thay đổi trong lúc sao lưu; hãy thử lại sau khi lưu bài xong.')
+                        manifest['files'][name] = checksum
                     if temporary.stat().st_size > MAX_BACKUP_BYTES:
                         raise ValueError('Bản sao lưu vượt giới hạn 64 GiB.')
                     if progress:
-                        progress(index, len(files))
+                        progress(len(files) + index, len(files) * 2)
+                if any(_file_signature(path) != signatures[name] for name, path in files):
+                    raise ValueError('Tệp thay đổi trong lúc sao lưu; hãy thử lại sau khi lưu bài xong.')
                 encoded_manifest = json.dumps(manifest).encode('utf-8')
                 if len(encoded_manifest) > MAX_MANIFEST_BYTES:
                     raise ValueError("Danh mục bản sao lưu vượt giới hạn.")
-                if sum(entry.file_size for entry in archive.infolist()) + len(encoded_manifest) > MAX_RESTORE_BYTES:
+                if sum(value[0] for value in signatures.values()) + len(encoded_manifest) > MAX_RESTORE_BYTES:
                     raise ValueError("Thư viện vượt giới hạn bản sao lưu; chưa tạo tệp không thể khôi phục.")
                 archive.writestr("manifest.json", encoded_manifest)
             if temporary.stat().st_size > MAX_BACKUP_BYTES:
@@ -225,29 +282,34 @@ def restore_backup(path, destination):
             raise ValueError('Manifest bản sao lưu không hợp lệ.') from exc
         if not isinstance(manifest, dict):
             raise ValueError('Manifest bản sao lưu không hợp lệ.')
-        if (manifest.get("version") not in {1, 2} or not isinstance(manifest.get('files'), dict)
-                or set(names) != {"manifest.json", *manifest.get("files", {})}):
+        if manifest.get('version') not in {1, 2, 3} or not isinstance(manifest.get('files'), dict):
             raise ValueError("Định dạng bản sao lưu không được hỗ trợ.")
+        files = manifest['files']
+        aliases = manifest.get('aliases', {}) if manifest['version'] == 3 else {}
+        if (not isinstance(aliases, dict) or not set(aliases).issubset(files)
+                or any(not isinstance(target, str) or target not in files or target in aliases
+                       or files[name] != files[target] for name, target in aliases.items())
+                or set(names) != {'manifest.json', *(set(files) - set(aliases))}
+                or len({name.casefold() for name in files}) != len(files)
+                or len(files) + 1 > MAX_BACKUP_FILES):
+            raise ValueError('Danh mục tệp trong bản sao lưu không hợp lệ.')
+        if any(not _valid_backup_name(name) for name in files):
+            raise ValueError('Đường dẫn trong bản sao lưu không hợp lệ.')
+        if any(((entry.external_attr >> 16) & 0o170000) == 0o120000 for entry in entries):
+            raise ValueError('Đường dẫn trong bản sao lưu không hợp lệ.')
+        if any(not isinstance(checksum, str) or not re.fullmatch(r'[0-9a-f]{64}', checksum)
+               for checksum in files.values()):
+            raise ValueError('Checksum bản sao lưu không hợp lệ.')
+        expanded_bytes = sum(archive.getinfo(aliases.get(name, name)).file_size for name in files)
+        if expanded_bytes + archive.getinfo('manifest.json').file_size > MAX_RESTORE_BYTES:
+            raise ValueError('Bản sao lưu giải nén vượt 128 GiB.')
         destination.parent.mkdir(parents=True, exist_ok=True)
-        _check_space(destination.parent, sum(entry.file_size for entry in entries))
+        _check_space(destination.parent, expanded_bytes + archive.getinfo('manifest.json').file_size)
         with tempfile.TemporaryDirectory(prefix="biliclass-restore-", dir=destination.parent) as temporary:
             staging = Path(temporary) / 'library'
             staging.mkdir()
-            for entry in entries:
-                name = entry.filename
-                if name == "manifest.json":
-                    continue
-                parts = PurePosixPath(name)
-                valid = name in ("library.db", "classroom.db") or (
-                    len(parts.parts) >= 2 and parts.parts[0] in BACKUP_TREES
-                )
-                if (not valid or ".." in parts.parts or ":" in name or "\\" in name
-                        or parts.is_absolute() or parts.as_posix() != name
-                        or any(part.endswith((' ', '.')) or part.split('.')[0].upper()
-                               in {'CON', 'PRN', 'AUX', 'NUL', *(f'COM{i}' for i in range(1, 10)),
-                                   *(f'LPT{i}' for i in range(1, 10))} for part in parts.parts)
-                        or ((entry.external_attr >> 16) & 0o170000) == 0o120000):
-                    raise ValueError("Đường dẫn trong bản sao lưu không hợp lệ.")
+            for name in files:
+                entry = archive.getinfo(aliases.get(name, name))
                 output = Path(staging) / name
                 output.parent.mkdir(parents=True, exist_ok=True)
                 with archive.open(entry) as source_file, output.open('wb') as target_file:

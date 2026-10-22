@@ -1,6 +1,6 @@
 # BiliClass — Hướng dẫn sử dụng
 
-Hướng dẫn cập nhật theo mã nguồn RC157 · 23/10/2026
+Hướng dẫn cập nhật theo mã nguồn RC158 · 23/10/2026
 
 BiliClass chuyển bài giảng PowerPoint sang Việt–Anh hoặc tiếng Anh, tạo
 âm thanh Việt–Mỹ và hỗ trợ trình chiếu bằng Mascot. Bài giảng và giọng đọc
@@ -186,6 +186,10 @@ Vào **Cài đặt → Dữ liệu**:
 
 Bản sao gồm bài, giọng và thiết lập đã lưu; không gồm bộ giọng cài kèm,
 key hoặc phiên đăng nhập. Giữ bản sao ở ổ/thư mục khác để dự phòng.
+Bản mới gộp nội dung trùng để bản sao nhẹ hơn; khi khôi phục vẫn đủ tệp
+ở đúng chỗ. Bản sao nhẹ không có nghĩa là thư viện khôi phục cũng nhỏ
+bằng vậy: cần đủ chỗ cho toàn bộ bài và giọng. Nên khôi phục bằng cùng
+phiên bản BiliClass đã tạo bản sao hoặc phiên bản mới hơn.
 Không xóa thủ công thư mục dữ liệu vì đang dọn bản cài cũ. **Tùy chọn khác**
 chứa mở thư mục, mở thư viện khác và xuất thông tin hỗ trợ khi cần.
 

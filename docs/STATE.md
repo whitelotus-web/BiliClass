@@ -1,5 +1,13 @@
 # Trạng thái BiliClass
 
+Ngày 23/10/2026 — nguồn RC158 căn giữa cụm chuyển slide trong khung
+xem trước, độc lập với một/hai nút nghe. Cửa sổ hẹp xuống hàng nút nghe.
+Sao lưu gộp các tệp trùng nội dung trong gói, khôi phục đủ đường dẫn
+thành các tệp riêng. Giữ đọc bản sao lưu cũ, kiểm tra dung lượng khôi
+phục theo tổng các tệp đầy đủ, giữ bản tốt nếu nguồn thay đổi hoặc lỗi.
+Chưa đóng gói; giáo viên thử nguồn trên F trước.
+[Kiểm chứng RC158](REVIEW_RC158.md).
+
 Ngày 23/10/2026 — nguồn RC157 giữ màn hình hoàn tất cho lượt chuyển đổi
 và tạo giọng nhiều bài. Có kết quả từng bài, mở thư mục, chọn lượt mới
 và về Thư viện rõ ràng. Thanh trạng thái mở lại kết quả khi đổi trang;

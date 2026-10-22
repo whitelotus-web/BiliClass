@@ -3,6 +3,7 @@
 import json
 import sys
 import tempfile
+import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -36,6 +37,9 @@ def main():
         sample = library.directory/'audio/sample.wav'
         sample.parent.mkdir(exist_ok=True)
         sample.write_bytes(b'backup fixture; no synthesis')
+        duplicate = library.directory/'google_jobs/backup-fixture/copy.wav'
+        duplicate.parent.mkdir(parents=True)
+        duplicate.write_bytes(sample.read_bytes())
         bridge = Bridge(library)
         engine = QQmlApplicationEngine()
         warnings = []
@@ -261,6 +265,10 @@ def main():
                 bridge.backupLibrary(backup.as_uri())
                 until(lambda: not bridge.busy)
                 assert backup.is_file() and bridge.storage.state['status'] == 'passed'
+                with zipfile.ZipFile(backup) as archive:
+                    manifest = json.loads(archive.read('manifest.json'))
+                    assert manifest['version'] == 3
+                    assert manifest['aliases'] == {'google_jobs/backup-fixture/copy.wav': 'audio/sample.wav'}
                 bridge.restoreLibraryTo(backup.as_uri(), directory.as_uri())
                 until(lambda: not bridge.busy and bool(bridge.storage.next_directory))
                 assert quit_app.call_count == 1
@@ -273,6 +281,7 @@ def main():
             finally:
                 recovered.close()
             assert (restored/'audio/sample.wav').read_bytes() == sample.read_bytes()
+            assert (restored/'google_jobs/backup-fixture/copy.wav').read_bytes() == sample.read_bytes()
             assert library.get(lesson['id'])['revision'] == lesson['revision']
             assert not warnings, warnings
             result = dict(status='passed', warnings=warnings, checks=[
@@ -284,6 +293,7 @@ def main():
                 'Three main storage actions; advanced actions collapsed and reachable',
                 'Profile fields still save; redundant voice hint hidden at rest',
                 'Real backup/restore preserves original library, profile and audio',
+                'Duplicate contents stored once; restored into both original paths',
                 'Only successful verified restore requests a clean restart into restored data'])
             (reports/'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
             print(json.dumps(result, ensure_ascii=False), flush=True)

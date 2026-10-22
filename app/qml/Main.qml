@@ -1969,15 +1969,26 @@ ApplicationWindow {
                                 MainAction { objectName: "retrySlidePreview"; visible: !!bridge.quickResult.path && !bridge.previewBusy && !bridge.busy; text: "Tải lại slide"; Layout.alignment: Qt.AlignHCenter; onClicked: bridge.previewConvertedSlide(bridge.quickResult.slide || 1) }
                             }
                         }
-                        RowLayout {
+                        Item {
+                            id: resultNavigation
                             objectName: "resultSlideNavigation"; Layout.fillWidth: true; visible: !root.voiceBatch && !!bridge.quickResult.path && (root.page !== "voice" || root.voicePreviewExpanded)
-                            Item { Layout.fillWidth: true; visible: root.page !== "voice" || !root.narrationComplete }
-                            MainAction { objectName: "resultPreviousSlide"; text: "‹"; implicitHeight: 34; enabled: !bridge.busy && (bridge.quickResult.slide || 1) > 1; onClicked: bridge.previewConvertedSlide(bridge.quickResult.slide - 1) }
-                            Copy { objectName: "resultSlideCounter"; text: "Slide " + (bridge.quickResult.slide || 1) + " / " + (bridge.quickResult.total || 0); color: root.ink }
-                            MainAction { objectName: "resultNextSlide"; text: "›"; implicitHeight: 34; enabled: !bridge.busy && (bridge.quickResult.slide || 1) < bridge.quickResult.total; onClicked: bridge.previewConvertedSlide(bridge.quickResult.slide + 1) }
-                            Item { Layout.fillWidth: true }
+                            readonly property bool stacked: createdListening.visible && width < resultPager.implicitWidth + 2 * (createdListening.implicitWidth + 12)
+                            implicitHeight: stacked ? resultPager.implicitHeight + createdListening.implicitHeight + 8 : Math.max(resultPager.implicitHeight, createdListening.visible ? createdListening.implicitHeight : 0)
                             RowLayout {
+                                id: resultPager; objectName: "resultSlidePager"
+                                anchors.top: parent.top; anchors.horizontalCenter: parent.horizontalCenter
+                                width: implicitWidth; height: implicitHeight; spacing: 8
+                                MainAction { objectName: "resultPreviousSlide"; text: "‹"; implicitHeight: 34; enabled: !bridge.busy && (bridge.quickResult.slide || 1) > 1; onClicked: bridge.previewConvertedSlide(bridge.quickResult.slide - 1) }
+                                Copy { objectName: "resultSlideCounter"; text: "Slide " + (bridge.quickResult.slide || 1) + " / " + (bridge.quickResult.total || 0); color: root.ink }
+                                MainAction { objectName: "resultNextSlide"; text: "›"; implicitHeight: 34; enabled: !bridge.busy && (bridge.quickResult.slide || 1) < bridge.quickResult.total; onClicked: bridge.previewConvertedSlide(bridge.quickResult.slide + 1) }
+                            }
+                            RowLayout {
+                                id: createdListening
                                 objectName: "createdNarrationListening"; visible: root.page === "voice" && root.narrationComplete
+                                anchors.top: parent.top; anchors.topMargin: resultNavigation.stacked ? resultPager.implicitHeight + 8 : 0
+                                anchors.right: resultNavigation.stacked ? undefined : parent.right
+                                anchors.horizontalCenter: resultNavigation.stacked ? parent.horizontalCenter : undefined
+                                width: implicitWidth; height: implicitHeight
                                 spacing: 8
                                 CreatedNarrationButton { objectName: "listenCreatedEnglish"; appBridge: root.bridgeRef; language: "en"; shortLabel: true; implicitHeight: 34; visible: root.narrationMode !== "vi"; slideNumber: bridge.quickResult.slide || 1; recordId: root.narrationDraft.id || "" }
                                 CreatedNarrationButton { objectName: "listenCreatedVietnamese"; appBridge: root.bridgeRef; language: "vi"; shortLabel: true; implicitHeight: 34; visible: root.narrationMode !== "en"; slideNumber: bridge.quickResult.slide || 1; recordId: root.narrationDraft.id || "" }

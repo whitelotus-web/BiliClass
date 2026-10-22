@@ -249,6 +249,45 @@ def main():
             until(lambda: not bridge.previewBusy, timeout=90)
             pump(100)
             assert c('createdNarrationListening').isVisible()
+            # The pager stays on the slide centre even with one/two audio buttons.
+            # On narrow windows the audio actions move below instead of shifting it.
+            for theme in ('light', 'dark'):
+                bridge.setApplicationTheme(theme)
+                for width, height in [(900, 700), *sizes]:
+                    window.resize(width, height)
+                    for english, vietnamese in ((True, True), (True, False), (False, True)):
+                        c('listenCreatedEnglish').setVisible(english)
+                        c('listenCreatedVietnamese').setVisible(vietnamese)
+                        pump(60)
+                        preview_item = c('lessonSlidePreview')
+                        pager, listening = c('resultSlidePager'), c('createdNarrationListening')
+                        assert abs(pager.mapToScene(QPointF(pager.width()/2, 0)).x()
+                                   - preview_item.mapToScene(QPointF(preview_item.width()/2, 0)).x()) < 1
+                        nav = c('resultSlideNavigation')
+                        pager_at, listen_at = pager.mapToItem(nav, QPointF()), listening.mapToItem(nav, QPointF())
+                        assert pager_at.x() >= 0 and pager_at.x()+pager.width() <= nav.width()+1
+                        assert listen_at.x() >= 0 and listen_at.x()+listening.width() <= nav.width()+1
+                        assert (pager_at.x()+pager.width()+8 <= listen_at.x()
+                                or listen_at.y() >= pager_at.y()+pager.height()+8)
+                        assert listen_at.y()+listening.height() <= nav.height()+1
+                        if width in (900, 1080) and english and not vietnamese:
+                            viewport = c('resultScroll').property('contentItem')
+                            bottom = nav.mapToItem(viewport, QPointF(0, nav.height())).y()
+                            viewport.setProperty('contentY', max(0, viewport.property('contentY') + bottom - viewport.height() + 16))
+                            bridge.inform('', refresh=False)  # The expected playback-error check above is complete.
+                            pump(60)
+                            assert pager.mapToItem(viewport, QPointF()).y() >= 0
+                            assert nav.mapToItem(viewport, QPointF(0, nav.height())).y() <= viewport.height()
+                            assert window.grabWindow().save(str(reports / f'centred-inline-pager-{theme}-{width}.png'))
+            bridge.setApplicationTheme('light')
+            c('listenCreatedEnglish').setVisible(True)
+            c('listenCreatedVietnamese').setVisible(True)
+            window.resize(1366, 850)
+            before_slide = bridge.quickResult['slide']
+            c('resultNextSlide').clicked.emit()
+            until(lambda: not bridge.previewBusy and bridge.quickResult['slide'] == before_slide + 1, timeout=90)
+            c('resultPreviousSlide').clicked.emit()
+            until(lambda: not bridge.previewBusy and bridge.quickResult['slide'] == before_slide, timeout=90)
             with patch.object(reader, 'player', player):
                 for name in ('listenCreatedEnglish', 'listenCreatedVietnamese'):
                     button = c(name)
@@ -369,6 +408,7 @@ def main():
                 'reset_on_finished_error_navigation_external_stop': True, 'reader_ownership_checked': True,
                 'tab_specific_recent_results_reopen_distinct_lessons': True,
                 'footer_primary_action_aligned_with_summary': True,
+                'expanded_pager_centred_with_one_or_two_audio_buttons_and_narrow_stacking': True,
                 'preview_while_powerpoint_active': True, 'sizes': sizes, 'qml_warnings': warnings}), encoding='utf-8')
             print('Completed narration Qt flow passed.', flush=True)
         finally:

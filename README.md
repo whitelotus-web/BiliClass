@@ -6,7 +6,14 @@
 
 **[Tải BiliClass cho Windows](https://github.com/whitelotus-web/BiliClass/releases)** · [RC155 đã kiểm chứng](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc155) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md)
 
-Mã nguồn **RC157 đang chờ giáo viên thử**, chưa tạo gói cài mới.
+Mã nguồn **RC158 đang chờ giáo viên thử**, chưa tạo gói cài mới.
+Cụm chuyển slide ở khung xem trước được căn giữa cả khi có nút nghe;
+cửa sổ hẹp tự xuống hàng để các nút không chồng nhau. Bản sao lưu mới
+chỉ chứa một bản cho mỗi nội dung trùng, khi khôi phục vẫn tạo đủ tệp
+ở đúng thư mục. Đọc được các bản sao lưu cũ.
+[Phạm vi RC158](docs/REVIEW_RC158.md).
+
+RC157 sửa màn hình hoàn tất:
 Chuyển đổi/tạo giọng nhiều bài giữ màn hình hoàn tất với từng kết quả,
 **Xem bài**, **Mở thư mục** và **Về Thư viện**; không trở về màn tải file
 trống. Giữ kết quả khi đổi trang, mở lại tool hoặc hủy chọn lượt mới.

@@ -556,7 +556,7 @@ Item {
                     Hint {
                         objectName: "storageBackupStatus"
                         readonly property var backup: bridge.storageControls.state
-                        text: backup.running ? "Đang sao lưu" + (backup.total ? " · " + backup.done + "/" + backup.total + " tệp" : "…")
+                        text: backup.running ? "Đang sao lưu" + (backup.total ? " · " + Math.floor(100 * backup.done / backup.total) + "%" : "…")
                             : backup.status === "failed" ? "Sao lưu chưa thành công: " + backup.last_error
                             : backup.last_success ? "Đã sao lưu: " + Qt.formatDateTime(new Date(backup.last_success), "dd/MM/yyyy · HH:mm")
                             : "Chưa có bản sao lưu. Bấm Sao lưu dữ liệu để tạo một bản."
