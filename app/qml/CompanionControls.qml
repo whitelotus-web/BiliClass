@@ -86,9 +86,22 @@ ColumnLayout {
     PanelAction { objectName: "companionChooseLesson"; text: companion.choosingLesson ? "Thu chọn bài" : companion.session.bound ? "Đổi bài giảng" : "Chọn bài giảng"; primary: !companion.session.bound; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.teachingTransitioning; onClicked: companion.choosingLesson = !companion.choosingLesson }
     ColumnLayout {
         visible: companion.choosingLesson; Layout.fillWidth: true; spacing: 6
-        ComboBox { id: teachingLibrary; objectName: "companionLibraryPicker"; Layout.fillWidth: true; model: bridge.lessons; textRole: "title"; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.teachingTransitioning }
+        ComboBox {
+            id: teachingLibrary; objectName: "companionLibraryPicker"; Layout.fillWidth: true
+            model: bridge.lessons; textRole: "title"; valueRole: "id"
+            property string chosenLessonId: ""
+            displayText: currentIndex < 0 && chosenLessonId ? "Bài đã chọn không còn trong thư viện" : currentText
+            function keepSelection() {
+                currentIndex = chosenLessonId ? indexOfValue(chosenLessonId) : count > 0 ? 0 : -1
+                if (!chosenLessonId && currentIndex >= 0) chosenLessonId = currentValue || ""
+            }
+            onActivated: chosenLessonId = currentValue || ""
+            onModelChanged: Qt.callLater(keepSelection)
+            Component.onCompleted: keepSelection()
+            enabled: !bridge.busy && !bridge.narrationBusy && !bridge.teachingTransitioning
+        }
         RowLayout { Layout.fillWidth: true; spacing: 6
-            PanelAction { objectName: "companionSelectLibrary"; text: "Mở bài đã chọn"; enabled: teachingLibrary.currentIndex >= 0 && !bridge.busy && !bridge.narrationBusy && !bridge.teachingTransitioning; onClicked: { bridge.openCompanionLibraryLesson(bridge.lessons[teachingLibrary.currentIndex].id); companion.choosingLesson = false } }
+            PanelAction { objectName: "companionSelectLibrary"; text: "Mở bài đã chọn"; enabled: teachingLibrary.currentIndex >= 0 && teachingLibrary.currentValue === teachingLibrary.chosenLessonId && !bridge.busy && !bridge.narrationBusy && !bridge.teachingTransitioning; onClicked: { bridge.openCompanionLibraryLesson(teachingLibrary.chosenLessonId); companion.choosingLesson = false } }
             PanelAction { objectName: "companionSelectFile"; text: "Chọn file…"; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.teachingTransitioning; onClicked: companion.choosePresentation() }
         }
     }

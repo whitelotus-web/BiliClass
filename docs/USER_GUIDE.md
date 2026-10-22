@@ -1,6 +1,6 @@
 # BiliClass — Hướng dẫn sử dụng
 
-Hướng dẫn cập nhật theo mã nguồn RC148 · 22/10/2026
+Hướng dẫn cập nhật theo mã nguồn RC149 · 22/10/2026
 
 BiliClass chuyển bài giảng PowerPoint sang Việt–Anh hoặc tiếng Anh, tạo
 âm thanh Việt–Mỹ và hỗ trợ trình chiếu bằng Mascot. Bài giảng và giọng đọc
@@ -192,3 +192,10 @@ Hàng đợi nằm ngay trong cấu hình ở cả hai công cụ, có thời gi
 đang chạy và tổng lượt; thời gian tạm dừng không được cộng. Khoảng
 nghỉ giữa các đoạn là 1,1 giây. PowerPoint đã xuất theo khoảng nghỉ cũ
 cần xuất lại; các đoạn âm thanh gốc được dùng lại khi còn hợp lệ.
+
+## Chọn bài trong Mascot — RC149
+
+Bài đang chọn giữ nguyên khi thư viện đổi tên/sắp xếp hoặc cập nhật.
+Nếu bài đã bị xóa, Mascot báo bài không còn trong thư viện và khóa
+nút mở; chọn bài khác hoặc khôi phục bài trong Thùng rác để tiếp tục.
+Chọn file rồi bấm Hủy không mở bài hay tạo giọng tự động.

@@ -6,6 +6,10 @@
 
 **[Tải BiliClass cho Windows](https://github.com/whitelotus-web/BiliClass/releases)** · [RC148 đã kiểm chứng](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc148) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md)
 
+Nguồn RC149 giữ đúng bài đã chọn trong Mascot khi thư viện cập nhật
+hoặc đổi thứ tự, tránh mở nhầm bài ở vị trí cũ; bài đã xóa không tự
+thay bằng bài khác. [Phạm vi RC149](docs/BUILD_RC149.md).
+
 RC148 thêm ba nhóm **Tất cả / Chưa có giọng / Đã có giọng**,
 **Tạo giọng đã chọn** và **Mở bài từ máy** trong Thư viện. Hàng đợi
 hiện ngay trong cấu hình, có thời gian từng bài/tổng lượt. Nghỉ giữa

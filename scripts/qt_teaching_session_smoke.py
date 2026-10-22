@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tests'))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from PySide6.QtCore import QCoreApplication, QEvent, QObject
+from PySide6.QtCore import Q_ARG, QCoreApplication, QEvent, QMetaObject, QObject, Qt
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
@@ -159,7 +159,6 @@ def main():
             worker, token = bridge.powerpoint_worker, bridge.teachingSession.token
             tap('companionChooseLesson')
             assert bridge.powerpoint_worker is worker and bridge.powerpointState['active']
-            from PySide6.QtCore import QMetaObject, Qt
             QMetaObject.invokeMethod(cc('companionPresentationDialog'), 'open', Qt.DirectConnection)
             pump(120)
             QMetaObject.invokeMethod(cc('companionPresentationDialog'), 'reject', Qt.DirectConnection)
@@ -171,6 +170,7 @@ def main():
             assert cc('companionLibraryPicker').isVisible() and cc('companionSelectFile').isVisible()
             index = next(i for i, row in enumerate(bridge.lessons) if row['id'] == other['id'])
             cc('companionLibraryPicker').setProperty('currentIndex', index)
+            QMetaObject.invokeMethod(cc('companionLibraryPicker'), 'activated', Qt.DirectConnection, Q_ARG(int, index))
             tap('companionSelectLibrary')
             until(lambda: bridge.teachingSession.state.get('lesson_id') == other['id'] and bridge.powerpointState.get('opened'), timeout=50)
             assert window.property('page') == 'library', 'Mascot opens in the lesson library, never the voice tool'

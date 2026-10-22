@@ -1,5 +1,12 @@
 # Trạng thái BiliClass
 
+Ngày 22/10/2026 — nguồn RC149 sửa lỗi chọn bài trong Mascot theo vị
+trí dòng, giữ đúng ID khi thư viện làm mới/đổi thứ tự; khóa lựa chọn
+đã bị xóa và giữ lại khi khôi phục. Đã tái hiện mở nhầm trước sửa,
+đúng ID sau sửa; 46 pytest, Ruff/compileall và ba Qt smoke gồm Office
+thật đạt. [Phạm vi RC149](BUILD_RC149.md).
+[Trạng thái phát hành RC149: đang kiểm tra.]
+
 Ngày 22/10/2026 — nguồn RC148 thêm nhóm Thư viện theo giọng đọc,
 tạo giọng cho các bài đã chọn qua hàng đợi và mở bài từ máy qua Mascot.
 Hai công cụ giữ cấu hình khi chạy hàng đợi, có đồng hồ từng bài/tổng

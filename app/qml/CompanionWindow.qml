@@ -138,7 +138,7 @@ Window {
     Shortcut { sequence: "Escape"; onActivated: companion.collapsed = true }
 
     Shortcut { sequence: "F5"; onActivated: bridge.startTeachingShow() }
-    FileDialog { id: teachingFile; objectName: "companionPresentationDialog"; title: "Chọn PowerPoint để dạy cùng Mascot"; nameFilters: ["PowerPoint (*.pptx)"]; onAccepted: bridge.openTeachingPresentation(selectedFile.toString()) }
+    FileDialog { id: teachingFile; objectName: "companionPresentationDialog"; title: "Chọn PowerPoint để dạy cùng Mascot"; fileMode: FileDialog.OpenFile; nameFilters: ["PowerPoint (*.pptx)"]; onAccepted: bridge.openTeachingPresentation(selectedFile.toString()) }
     function choosePresentation() { teachingFile.open() }
     Rectangle {
         id: menu
