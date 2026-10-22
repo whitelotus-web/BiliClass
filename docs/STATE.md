@@ -1,5 +1,12 @@
 # Trạng thái BiliClass
 
+Ngày 23/10/2026 — nguồn RC157 giữ màn hình hoàn tất cho lượt chuyển đổi
+và tạo giọng nhiều bài. Có kết quả từng bài, mở thư mục, chọn lượt mới
+và về Thư viện rõ ràng. Thanh trạng thái mở lại kết quả khi đổi trang;
+đóng lượt là thao tác chủ động, không xóa bài. Sửa Dừng đến sau bài cuối
+đã lưu và cho tiếp tục khi lỗi lưu trạng thái ở cuối lượt. Chưa đóng gói.
+[Kiểm chứng luồng giao diện RC157](REVIEW_RC157.md).
+
 Ngày 23/10/2026 — nguồn RC156 làm gọn F1 thành bảy mục theo việc cần làm,
 có tìm kiếm không dấu và minh họa phím/chuột. Thư viện bỏ số bài ở góc
 thanh công cụ; thùng rác nằm cuối hàng. Loa trên thẻ thẳng lề ảnh,

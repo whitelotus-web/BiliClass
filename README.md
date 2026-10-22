@@ -6,7 +6,13 @@
 
 **[Tải BiliClass cho Windows](https://github.com/whitelotus-web/BiliClass/releases)** · [RC155 đã kiểm chứng](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc155) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md)
 
-Mã nguồn **RC156 đang chờ giáo viên thử**, chưa tạo gói cài mới.
+Mã nguồn **RC157 đang chờ giáo viên thử**, chưa tạo gói cài mới.
+Chuyển đổi/tạo giọng nhiều bài giữ màn hình hoàn tất với từng kết quả,
+**Xem bài**, **Mở thư mục** và **Về Thư viện**; không trở về màn tải file
+trống. Giữ kết quả khi đổi trang, mở lại tool hoặc hủy chọn lượt mới.
+[Phạm vi RC157](docs/REVIEW_RC157.md).
+
+RC156 làm gọn hướng dẫn và thư viện:
 F1 có bốn bước bắt đầu, tìm kiếm không dấu và hình hướng dẫn phím/chuột.
 Thẻ thư viện đều chiều cao, các nút cùng hàng; loa thẳng lề phải ảnh,
 thùng rác ở cuối thanh công cụ. Trên máy phát triển, mở bản nguồn bằng

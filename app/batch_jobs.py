@@ -351,7 +351,11 @@ def run(directory, original, cancel, notify, *, process=None, retry=False):
                 persist(directory, state)
                 notify(copy.deepcopy(state))
                 current = None
-            state['phase'] = 'paused' if cancel.is_set() or state['phase'] == 'paused' else 'finished'
+            # A stop arriving after the last saved result has nothing left to
+            # interrupt. Keep it complete instead of a paused queue with no work.
+            all_done = all(row['status'] == 'done' for row in state['rows'])
+            state['phase'] = 'finished' if all_done else (
+                'paused' if cancel.is_set() or state['phase'] == 'paused' else 'finished')
             clock()
             persist(directory, state)
             notify(copy.deepcopy(state))

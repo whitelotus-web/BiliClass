@@ -70,8 +70,8 @@ class BatchQueue(QObject):
             if row['status'] == 'running':
                 row['elapsed_seconds'] = row.get('elapsed_seconds', 0)+age
         return {**snapshot, 'running': self._running, 'stopping': self._stopping,
-                'shown': self._shown and not complete, 'complete': complete, 'counts': counts, 'total': len(rows),
-                'canResume': not self._running and bool(counts['waiting']),
+                'shown': self._shown, 'complete': complete, 'counts': counts, 'total': len(rows),
+                'canResume': not self._running and (bool(counts['waiting']) or snapshot.get('phase') == 'paused'),
                 'canRetry': not self._running and bool(counts['failed'])}
 
     def available(self):
@@ -127,12 +127,22 @@ class BatchQueue(QObject):
 
     @Slot()
     def clear(self):
+        self._clear()
+
+    @Slot()
+    def finish(self):
+        if self.state['complete']:
+            self._clear(self.bridge.returnToLibrary)
+
+    def _clear(self, after=None):
         if not self.available():
             return
 
         def completed(_=None):
             self.data = {}
             self.changed.emit()
+            if after:
+                after()
         if self.data.get('revision'):
             state, directory = copy.deepcopy(self.data), self.bridge.library.directory
             self.bridge.launch(lambda: batch_jobs.dismiss(directory, state), completed,

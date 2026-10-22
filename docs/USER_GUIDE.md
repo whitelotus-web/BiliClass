@@ -1,6 +1,6 @@
 # BiliClass — Hướng dẫn sử dụng
 
-Hướng dẫn cập nhật theo mã nguồn RC156 · 23/10/2026
+Hướng dẫn cập nhật theo mã nguồn RC157 · 23/10/2026
 
 BiliClass chuyển bài giảng PowerPoint sang Việt–Anh hoặc tiếng Anh, tạo
 âm thanh Việt–Mỹ và hỗ trợ trình chiếu bằng Mascot. Bài giảng và giọng đọc
@@ -103,8 +103,17 @@ file PowerPoint: trong hộp chọn file, giữ **Ctrl** để chọn từng fil
 Danh sách đã bắt đầu được lưu trên máy. Nếu mở lại ứng dụng, Trang chủ
 vẫn là màn hình đầu; bấm **Mở hàng đợi** ở thanh trạng thái để tiếp tục.
 Danh sách mới chọn nhưng chưa bắt đầu chưa được lưu qua lần mở ứng dụng.
-Khi tất cả bài hoàn tất, hàng đợi tự ẩn để chọn lượt mới. Vào Thư viện
-để mở/tải các kết quả; lượt còn bài chờ hoặc lỗi vẫn được giữ.
+Khi tất cả bài hoàn tất, tool dừng ở màn hình **Đã chuyển đổi … bài giảng**
+hoặc **Đã tạo giọng đọc cho … bài giảng**. Mỗi bài có **Xem bài** và
+**Mở thư mục**. Bài đã lưu sẵn, không cần bấm lưu thêm. Chọn **Về Thư viện**
+khi đã xem xong, hoặc chọn chuyển đổi/tạo giọng cho bài khác. Nếu đóng
+hộp chọn file mà chưa chọn bài mới, kết quả lượt trước vẫn hiện.
+Lượt còn bài chờ hoặc lỗi vẫn giữ **Tiếp tục / Thử lại bài lỗi**.
+
+Nếu đã đổi trang hoặc đang xem một kết quả riêng, bấm **Lượt xử lý đã hoàn
+tất · Bấm để xem kết quả** ở thanh dưới để mở lại danh sách. Kết quả lượt
+cuối vẫn có thể mở lại sau khi khởi động ứng dụng, cho đến khi bấm **Về
+Thư viện** ở màn hình hoàn tất để đóng lượt đó.
 
 Lỗi riêng một bài được ghi ngay dưới tên file, các bài sau vẫn được xử
 lý. **Thử lại bài lỗi** chỉ chạy lại những bài chưa thành công. Thiếu

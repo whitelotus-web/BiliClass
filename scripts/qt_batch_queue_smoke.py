@@ -179,6 +179,9 @@ def main():
                 until(lambda: not bridge.busy)
                 assert bridge.batchQueue.state['counts']['done'] == 2, (bridge.batchQueue.state, bridge.message, calls)
                 assert bridge.batchQueue.state['counts']['failed'] == 1
+                partial_id = bridge.batchQueue.data['id']
+                bridge.batchQueue.finish()
+                assert bridge.batchQueue.data['id'] == partial_id, 'Cannot dismiss unfinished results as complete'
                 assert peak == 1
                 screenshots('conversion-partial')
                 failed = next(row for row in bridge.batchQueue.data['rows'] if row['status'] == 'failed')
@@ -197,18 +200,61 @@ def main():
                 until(lambda: not bridge.busy)
                 assert calls[before:] == [failed['id']]
                 assert bridge.batchQueue.state['counts']['done'] == 3
-            assert bridge.batchQueue.state['complete'] and not bridge.batchQueue.state['shown']
-            assert not c('conversionBatchPanel').isVisible()
-            assert not qml('creationBatch') and c('creationSourceArea').isVisible()
-            assert BatchQueue(bridge).state['complete'] and not BatchQueue(bridge).state['shown']
-            bridge.batchQueue.show()
+            assert bridge.batchQueue.state['complete'] and bridge.batchQueue.state['shown']
+            assert c('conversionBatchPanel').isVisible() and qml('creationBatchComplete')
+            assert not c('creationSourceArea').isVisible() and not c('conversionConfigurationFields').isVisible()
+            assert not c('creationFooter').isVisible()
+            assert c('batchLibrary_convert').isVisible() and c('batchNew_convert').isVisible()
+            assert 'Đã chuyển đổi 3' in c('batchHeading_convert').property('text')
+            restarted = BatchQueue(bridge)
+            assert restarted.state['complete'] and restarted.state['shown'], 'Restart retains completed results'
+            restarted.shutdown()
+            screenshots('conversion-finished')
+            qml('powerPointInputOpen.options = FileDialog.DontUseNativeDialog; true')
+            completed_id = bridge.batchQueue.data['id']
+            click(window, c('batchNew_convert'))
+            until(lambda: c('powerPointInputFileDialog').property('visible'))
+            qml('powerPointInputOpen.close(); true')
+            pump(80)
+            assert bridge.batchQueue.data['id'] == completed_id and qml('creationBatchComplete')
+            # A recoverable checkpoint error after saving the last file must
+            # still offer Resume, even when no rows are waiting.
+            bridge.batchQueue.data['phase'] = 'paused'
+            bridge.batchQueue.changed.emit()
             pump(60)
-            assert not c('conversionBatchPanel').isVisible(), 'Completed queue stays out of input'
-            bridge.batchQueue.clear()
-            until(lambda: not bridge.busy)
+            assert bridge.batchQueue.state['canResume'] and c('batchResume_convert').isVisible()
+            click(window, c('batchResume_convert'))
+            until(lambda: not bridge.busy and bridge.batchQueue.state['complete'])
+            bridge.batchQueue.hide()
+            pump(60)
+            assert not c('conversionBatchPanel').isVisible()
+            window.setProperty('page', 'home')
+            click(window, c('applicationStatusMessage'))
+            until(lambda: c('conversionBatchPanel').isVisible())
+            assert window.property('page') == 'new'
+            completed_row = bridge.batchQueue.data['rows'][0]
+            with patch.object(bridge, 'openLesson', side_effect=lambda identity: window.setProperty('page', 'result')) as opened_result:
+                click(window, c('batchResult_'+completed_row['id']))
+            opened_result.assert_called_once_with(completed_row['lesson_id'])
+            assert window.property('page') == 'result' and not bridge.batchQueue.state['shown']
+            click(window, c('applicationStatusMessage'))
+            until(lambda: window.property('page') == 'new' and c('conversionBatchPanel').isVisible())
+            assert bridge.batchQueue.state['counts']['done'] == 3
+            # The result screen remains after changing pages; leaving it is explicit.
+            with patch('app.batch_jobs.dismiss', side_effect=OSError('Không ghi được trạng thái thử; kết quả vẫn giữ.')):
+                click(window, c('batchLibrary_convert'))
+                until(lambda: not bridge.busy)
+            assert bridge.batchQueue.state['complete'] and window.property('page') == 'new'
+            assert c('conversionBatchPanel').isVisible()
+            c('operationErrorNotice').setProperty('visible', False)
+            click(window, c('batchLibrary_convert'))
+            until(lambda: not bridge.busy and window.property('page') == 'library')
             assert not bridge.batchQueue.data
-            assert not BatchQueue(bridge).data, 'Dismissal survives restart'
+            restarted = BatchQueue(bridge)
+            assert not restarted.data, 'Explicit finish survives restart'
+            restarted.shutdown()
             assert c('lessonTitle').property('text') != 'Tên theo từng file'
+            window.setProperty('page', 'new')
 
             # A selected single-language lesson must not restrict a new batch or get its position edited.
             old_path = folder/'Bài đang xem.pptx'
@@ -251,19 +297,47 @@ def main():
                 assert not c('narrationCreationOptions').isEnabled()
                 assert c('voiceBatchPanel').parentItem().parentItem() == c('lessonNarrationPanel')
                 screenshots('voice-running')
+                window.setProperty('page', 'home')
                 until(lambda: not bridge.busy, timeout=45)
+                assert window.property('page') == 'home', 'Background completion must not hijack the current page'
+                click(window, c('applicationStatusMessage'))
+                until(lambda: window.property('page') == 'voice')
             assert bridge.batchQueue.state['counts']['done'] == 2, bridge.batchQueue.state
             assert generated and not window.property('voiceResultShown')
             assert library.get(lesson['id']) == old_before
             for row in bridge.batchQueue.data['rows']:
                 assert Path(row['output']).is_file() and Path(row['output']).parent == folder
                 assert library.get(row['lesson_id'])['speaker_position'] == 'top_left'
-            assert bridge.batchQueue.state['complete'] and not bridge.batchQueue.state['shown']
-            assert not c('voiceBatchPanel').isVisible() and not qml('voiceBatch')
+            assert bridge.batchQueue.state['complete'] and bridge.batchQueue.state['shown']
+            assert c('voiceBatchPanel').isVisible() and qml('voiceBatchComplete')
+            assert not c('voiceSourceArea').isVisible() and not c('narrationCreationOptions').isVisible()
+            assert not c('creationFooter').isVisible()
+            assert c('batchLibrary_voice').isVisible() and c('batchNew_voice').isVisible()
+            assert 'Đã tạo giọng đọc cho 2' in c('batchHeading_voice').property('text')
             screenshots('voice-finished')
+            completed_id = bridge.batchQueue.data['id']
+            click(window, c('batchNew_voice'))
+            until(lambda: c('powerPointInputFileDialog').property('visible'))
+            qml('powerPointInputOpen.close(); true')
+            pump(80)
+            assert bridge.batchQueue.data['id'] == completed_id and qml('voiceBatchComplete')
             ready_id = bridge.batchQueue.data['rows'][0]['lesson_id']
-            bridge.batchQueue.clear()
-            until(lambda: not bridge.busy)
+            window.setProperty('page', 'home')
+            click(window, c('applicationStatusMessage'))
+            until(lambda: window.property('page') == 'voice' and c('voiceBatchPanel').isVisible())
+            completed_voice = bridge.batchQueue.data['rows'][0]
+            with patch.object(bridge, 'openLessonNarration', side_effect=lambda identity: window.setProperty('page', 'voice')) as opened_voice:
+                click(window, c('batchResult_'+completed_voice['id']))
+            opened_voice.assert_called_once_with(completed_voice['lesson_id'])
+            assert not bridge.batchQueue.state['shown'] and not c('voiceBatchPanel').isVisible()
+            click(window, c('applicationStatusMessage'))
+            until(lambda: c('voiceBatchPanel').isVisible())
+            click(window, c('batchLibrary_voice'))
+            until(lambda: not bridge.busy and window.property('page') == 'library')
+            restarted = BatchQueue(bridge)
+            assert not restarted.data
+            restarted.shutdown()
+            assert library.get(ready_id)
             # Publish one imported fixture as a library product so the actual
             # selection controls can queue its existing identity beside a ready lesson.
             pending = library.get(lesson['id'])
@@ -330,6 +404,13 @@ def main():
                 until(lambda: not bridge.busy)
             assert bridge.batchQueue.state['counts']['done'] == 24
             assert bridge.batchQueue.state['counts']['waiting'] == 1
+            with patch('app.batch_jobs.convert_one', return_value={}):
+                bridge.batchQueue.resume()
+                until(lambda: not bridge.busy and bridge.batchQueue.state['complete'])
+            pump(100)
+            assert c('batchRows_convert').property('contentY') <= 1, 'Completed list should start at the first result'
+            assert bridge.batchQueue.state['counts']['done'] == 25
+            assert window.grabWindow().save(str(report/'long-completed.png'))
             bridge.batchQueue.clear()
             until(lambda: not bridge.busy)
             assert all(path.read_bytes() == original[path.name] for path in sources)
@@ -340,7 +421,11 @@ def main():
                 stop_resume_checkpoint_and_restart=True, local_failure_continues=True, retry_only_failed=True,
                 exact_result_and_folder_buttons=True, narration_real_exports_with_fixture_wavs=True,
                 unrelated_selected_lesson_unchanged=True, sources_preserved=True, long_queue_follows_active_file=True,
-                finished_queues_hidden_and_stay_hidden_after_restart=True,
+                long_completed_queue_starts_at_first_result=True,
+                finished_queues_visible_until_explicit_finish=True, completion_restart_and_cross_page_return=True,
+                complete_results_open_each_exact_lesson=True, explicit_finish_keeps_saved_lessons=True,
+                cancel_new_file_preserves_results=True, background_completion_does_not_hijack_page=True,
+                finish_checkpoint_failure_preserves_results=True, paused_after_last_result_can_resume=True,
                 max_gui_gap_seconds=round(max(gaps, default=0), 3), qml_warnings=[])), encoding='utf-8')
             print('Sequential conversion and narration Qt flows passed.', flush=True)
         finally:

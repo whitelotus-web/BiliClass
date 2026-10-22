@@ -27,6 +27,24 @@ def batch(tmp_path, kind='convert', count=3):
     return rows
 
 
+@pytest.mark.parametrize('kind', ['convert', 'voice'])
+def test_stop_arriving_after_last_saved_result_does_not_leave_a_stuck_paused_queue(tmp_path, kind):
+    state = batch(tmp_path, kind=kind, count=2)
+    cancel = Event()
+    seen = []
+
+    def complete(directory, row, options, event, update):
+        seen.append(row['id'])
+        if len(seen) == 2:
+            event.set()
+        return {'lesson_id': 'saved-' + row['id']}
+
+    result = batch_jobs.run(tmp_path, state, cancel, lambda _: None, process=complete)
+    assert cancel.is_set() and len(seen) == 2
+    assert result['phase'] == 'finished' and all(row['status'] == 'done' for row in result['rows'])
+    assert batch_jobs.load(tmp_path, state['id'])['phase'] == 'finished'
+
+
 def test_elapsed_clock_keeps_per_file_time_and_excludes_pause_between_runs(tmp_path, monkeypatch):
     now = [100.0]
     monkeypatch.setattr(batch_jobs, 'monotonic', lambda: now[0])

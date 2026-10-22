@@ -275,7 +275,7 @@ with tempfile.TemporaryDirectory(prefix='biliclass-google-ui-', ignore_cleanup_e
     assert window.property('page') == 'voice' and bridge.lesson['id'] == completed_id
     guide = control('voiceWorkflowGuide')
     heading = control('voicePageHeading')
-    assert guide.isVisible() and 'giọng đọc và ngôn ngữ' in guide.property('text')
+    assert guide.isVisible() and 'Chọn giọng' in guide.property('text') and 'Tạo giọng đọc' in guide.property('text')
     assert guide.mapToScene(QPointF()).y() >= heading.mapToScene(QPointF()).y() + heading.height()
     assert window.grabWindow().save(str(reports / 'voice-instructions.png'))
     # A worker may remain attached after Office stops presenting; preview still works.
