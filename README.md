@@ -4,9 +4,9 @@
 
 ## Phiên bản và tải xuống
 
-**[Tải BiliClass cho Windows](https://github.com/whitelotus-web/BiliClass/releases)** · [RC151 đã kiểm chứng](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc151) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md)
+**[Tải BiliClass cho Windows](https://github.com/whitelotus-web/BiliClass/releases)** · [RC152 đã kiểm chứng](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc152) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md)
 
-Nguồn RC152 thay các icon tab theo mẫu, cho tab đang chọn nền xanh,
+RC152 thay các icon tab theo mẫu, cho tab đang chọn nền xanh,
 chữ/icon trắng, đuôi chồng nhẹ và bóng mỏng. Menu từng bài thêm
 **Mở trong Explorer** để tìm file đã lưu. [Phạm vi RC152](docs/BUILD_RC152.md).
 
@@ -44,7 +44,7 @@ và hiệu ứng nằm trong chi tiết; chỉ lỗi cụ thể chưa xử lý x
 nêu nổi bật. Hai công cụ Chuyển đổi và Tạo giọng đọc dùng chung cách
 hiển thị. [Phạm vi và kiểm chứng RC144](docs/BUILD_RC144.md).
 
-Gói RC151 đã phát hành từ commit `0111b31`, được kiểm tra ZIP, cài và
+Gói RC152 đã phát hành từ commit `b695a72`, được kiểm tra ZIP, cài và
 mở Trang chủ. Mã nguồn và gói tải có vòng phát hành riêng: phiên bản
 gói luôn được ghi rõ trong Releases và trong ứng dụng. Các mốc bên
 dưới là lịch sử, không phải phiên bản hiện tại.

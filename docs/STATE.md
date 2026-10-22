@@ -6,7 +6,9 @@ người dùng; loa Việt/Anh trên bài vẫn giữ nguyên. Ba chấm góc l�
 hơn; menu từng bài có Mở trong Explorer. 17 pytest, Qt sáng/tối,
 danh sách/thẻ và Explorer thật trên file thử đạt.
 [Phạm vi RC152](BUILD_RC152.md).
-[Trạng thái phát hành RC152: đang kiểm tra.]
+Đã phát hành từ `b695a72`; Source checks GitHub, bundle/ZIP,
+digest/tag, updater công khai, cài/mở Trang chủ từ Explorer đạt; hồ sơ,
+key, bài và 1752 WAV tham chiếu giữ nguyên.
 
 Ngày 22/10/2026 — RC151 thêm cạnh phải vát nhẹ cho tab kẹp file
 trong Thư viện, giữ chữ 13 px/icon, số bài và các chức năng RC150.

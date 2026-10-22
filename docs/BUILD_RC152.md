@@ -30,4 +30,10 @@ Kiểm chứng nguồn:
 - Ruff, compileall; Qt không có cảnh báo QML. Các luồng chuyển đổi,
   tổng hợp giọng và điều khiển PowerPoint không thay trong mốc này.
 
-[Trạng thái phát hành RC152: đang kiểm tra.]
+Đã phát hành từ `b695a72c3f8bb159e89130e06100222c7830c522`;
+[Source checks](https://github.com/whitelotus-web/BiliClass/actions/runs/39798542458) đạt cho đúng commit gói.
+[Gói RC152](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc152): 1,258,154,981 byte, SHA-256
+`35d60f615aab63315f4dcd3dd9a52ea7f20cb4d10ee28e34ab1941c41d462801`. 60 tệp QML/qmldir và bytecode
+khớp nguồn; ZIP/digest/tag và updater công khai đạt. Cài/mở Trang chủ
+từ Explorer, Mascot mặc định ẩn; hồ sơ/key, bài và
+1752 WAV tham chiếu giữ nguyên.
