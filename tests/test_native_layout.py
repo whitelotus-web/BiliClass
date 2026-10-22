@@ -8,6 +8,16 @@ from pptx.util import Inches, Pt
 from app.native_bilingual import assemble, extract
 
 
+@pytest.mark.parametrize('kind,rotation,text,expected', [(5,0,True,True), (5,90,True,False), (5,0,False,False), (13,0,True,False)])
+def test_measure_and_repair_accept_native_freeform_text_only(kind, rotation, text, expected):
+    from types import SimpleNamespace
+
+    from app.native_layout import fittable_text
+
+    shape = SimpleNamespace(Type=kind, Rotation=rotation, HasTextFrame=True, TextFrame2=SimpleNamespace(HasText=text))
+    assert bool(fittable_text(shape)) == expected
+
+
 def source(path, *, picture=False, cramped=False):
     deck = Presentation()
     deck.slide_width, deck.slide_height = Inches(13.333), Inches(7.5)

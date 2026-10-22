@@ -52,6 +52,29 @@ def test_text_to_local_pptx_paired_notes_and_idempotent_save(tmp_path, mode):
         assert len(library.list_lessons()) == 1
 
 
+def test_untranslated_picture_text_is_reported_alongside_editable_slide_text(tmp_path, monkeypatch):
+    from PIL import Image, ImageDraw
+
+    deck = Presentation()
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    slide.shapes.add_textbox(Inches(1), Inches(.5), Inches(8), Inches(1)).text = 'Cơ năng'
+    image = Image.new('RGB', (600, 80), 'white')
+    ImageDraw.Draw(image).text((12, 12), 'Exercise: explain the diagram.', fill='black')
+    picture = tmp_path/'question.png'
+    image.save(picture)
+    slide.shapes.add_picture(str(picture), Inches(1), Inches(2), width=Inches(7))
+    source = tmp_path/'picture-question.pptx'
+    deck.save(source)
+    monkeypatch.setattr('app.picture_ocr.extract_pictures', lambda *args, **kwargs: {
+        'rows': [], 'warnings': [], 'images': 1, 'text_pages': [1]})
+    KeyStore(tmp_path).add('AIza' + 'a' * 35)
+    job = prepare(tmp_path, config('source'), source)
+    lesson, _ = convert(tmp_path, job, Event(), ConversionProgress(job['folder'], lambda _: None),
+                        translator=Translator(tmp_path, transport=transport))
+    assert lesson['external_deck']['content_review']['image_pages'] == [1]
+    assert lesson['external_deck']['content_review']['coverage'] == 'unverified'
+
+
 def test_source_mode_keeps_native_editable_slides(tmp_path):
     source = tmp_path / 'original.pptx'
     deck = Presentation()
@@ -224,27 +247,33 @@ def test_confirmed_discard_is_durable_scoped_and_keeps_source_keys_and_usage(tmp
 @pytest.mark.parametrize('already_saved', [False, True])
 def test_dismissed_input_forgets_job_but_never_deletes_a_saved_lesson(tmp_path, monkeypatch, already_saved):
     from pathlib import Path
+
     from app.chatgpt_handoff import inspect_returned_deck
     from app.google_conversion import ConversionDiscarded, dismiss, load
 
     monkeypatch.setattr('app.slide_repair.repair_and_inspect', lambda path, *_args, **_kwargs:
                         {'path': str(path), 'inspection': inspect_returned_deck(path), 'changes': []})
-    store=KeyStore(tmp_path); store.add('AIza'+'a'*35)
+    store=KeyStore(tmp_path)
+    store.add('AIza'+'a'*35)
     job=prepare(tmp_path,config(),text='Năng lượng được bảo toàn.')
-    source=Path(job['folder'])/'source.txt'; original=source.read_bytes()
+    source=Path(job['folder'])/'source.txt'
+    original=source.read_bytes()
     lesson=None
     if already_saved:
         lesson,_=convert(tmp_path,job,Event(),ConversionProgress(job['folder'],lambda _:None),
                          translator=Translator(tmp_path,transport=transport))
-    usage=store.public(); encrypted=store.path.read_bytes()
+    usage=store.public()
+    encrypted=store.path.read_bytes()
     dismiss(tmp_path,job['folder'])
     dismiss(tmp_path,job['folder'])
     with closing(Library(tmp_path)) as library:
         assert library.setting('google_request_folder','')==''
         assert len(library.list_lessons(verify_audio=False))==int(already_saved)
-        if lesson:assert not library.get(lesson['id']).get('deleted_at')
+        if lesson:
+            assert not library.get(lesson['id']).get('deleted_at')
     if not already_saved:
-        with pytest.raises(ConversionDiscarded):load(tmp_path,job['folder'])
+        with pytest.raises(ConversionDiscarded):
+            load(tmp_path,job['folder'])
     else:
         assert load(tmp_path,job['folder'])['folder']==job['folder']
     assert source.read_bytes()==original and store.public()==usage and store.path.read_bytes()==encrypted

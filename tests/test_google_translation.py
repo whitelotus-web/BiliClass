@@ -8,6 +8,50 @@ from app.google_translation import KeyStore, TranslationProblem, Translator, chu
 KEY1, KEY2 = 'AIza' + 'a' * 35, 'AIza' + 'b' * 35
 
 
+def test_native_counts_are_visible_but_ids_and_context_caches_remain_distinct(tmp_path):
+    import re
+
+    translator = Translator(tmp_path)
+    translator.store.add(KEY1)
+    calls = []
+
+    def translate(rows, *_):
+        calls.extend(rows)
+        results = []
+        for row in rows:
+            match = re.search(r'(<span[^>]+id="BCLLOCK0END">([13])</span>)', row)
+            assert match, row
+            results.append('There ' + ('is ' if match[2] == '1' else 'are ') + match[1]
+                           + (' plane.' if match[2] == '1' else ' planes.'))
+        return results
+
+    translator.transport = translate
+    units = [dict(text='Có ⟦BLC0⟧ mặt phẳng.', numbers=[count], xml_locks={}) for count in ('1', '3')]
+    expected = ['There is ⟦BLC0⟧ plane.', 'There are ⟦BLC0⟧ planes.']
+    assert translator.translate_native(units, [], Event()) == expected
+    assert len(calls) == 2
+    assert translator.translate_native(list(reversed(units)), [], Event()) == list(reversed(expected))
+    assert len(calls) == 2, 'Cache identity must include the actual count'
+    payload, locks = protected_html('⟦BLC0⟧', native_values={'⟦BLC0⟧': '3'})
+    assert '>3</span>' in payload and unprotect(payload, locks) == '⟦BLC0⟧'
+    opaque, locks = protected_html('⟦BLC0⟧', native_values={'⟦BLC0⟧': '3'}, opaque_values=True)
+    assert '>3</span>' not in opaque and unprotect(opaque, locks) == '⟦BLC0⟧'
+
+
+def test_native_variable_count_is_contextual_only_in_math_and_remains_locked(tmp_path):
+    calls = []
+    translator = Translator(tmp_path, transport=lambda rows, *_: calls.extend(rows) or rows)
+    translator.store.add(KEY1)
+    translator.configure_terms('Toán', [])
+    unit = dict(text='Có ⟦BLC0⟧ tam giác.', numbers=['𝒏'], xml_locks={})
+    assert translator.translate_native([unit], [], Event()) == [unit['text']]
+    assert '>𝒏</span>' in calls[0]
+    calls.clear()
+    translator.configure_terms('Hóa học', [])
+    translator.translate_native([unit], [], Event())
+    assert '>𝒏</span>' not in calls[0]
+
+
 def test_key_auto_names_stay_stable_and_custom_names_do_not_change_usage(tmp_path):
     store = KeyStore(tmp_path)
     store.add(KEY1 + '\nTên dự án | ' + KEY2)
@@ -214,9 +258,11 @@ def test_invalid_numeric_repair_stops_after_one_attempt_and_never_caches(tmp_pat
 
 def test_cancel_before_numeric_repair_never_sends_the_retry(tmp_path):
     KeyStore(tmp_path).add(KEY1)
-    cancel=Event(); calls=[]
+    cancel=Event()
+    calls=[]
     def transport(rows,*_):
-        calls.append(rows); cancel.set()
+        calls.append(rows)
+        cancel.set()
         return [row+' 999' for row in rows]
     with pytest.raises(InterruptedError):
         Translator(tmp_path,transport=transport).translate(['Giá trị 12'],cancel)

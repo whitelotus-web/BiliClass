@@ -13,6 +13,8 @@ HEADINGS = {
     'kết luận': 'Conclusion', 'vận dụng': 'Application',
     'phiếu học tập': 'Worksheet', 'hướng dẫn về nhà': 'Homework',
     'hướng dẫn vẽ đồ thị': 'Graphing instructions',
+    'định nghĩa': 'Definition', 'nội dung': 'Contents', 'lời giải': 'Solution',
+    'bài giải': 'Solution', 'chú ý': 'Note', 'nhận xét': 'Observation',
 }
 # Whole headings only: sentence translations still keep their own grammar.
 # Geometry assumptions are axioms/postulates, not "recognizational properties".
@@ -24,9 +26,11 @@ MATH_HEADINGS = {
     'các ví dụ minh họa': 'Illustrative examples',
     'bài tập': 'Exercises',
 }
-_NUMBERED = re.compile(r'^(bài|bai|chương|chuong|câu|cau|mục|muc)\s*(\d+(?:\.\d+)*|[IVXLCDM]+|⟦BLC\d+⟧)(?!\w)', re.I)
+_NUMBERED = re.compile(r'^(phiếu học tập số|hoạt động|luyện tập|nhiệm vụ|vận dụng|ví dụ|hđ|bài|bai|chương|chuong|câu|cau|mục|muc)\s*(\d+(?:\.\d+)*|[IVXLCDM]+|⟦BLC\d+⟧)(?!\w)', re.I)
 _LABELS = {'bài':'Lesson', 'bai':'Lesson', 'chương':'Chapter', 'chuong':'Chapter',
-           'câu':'Question', 'cau':'Question', 'mục':'Section', 'muc':'Section'}
+           'câu':'Question', 'cau':'Question', 'mục':'Section', 'muc':'Section',
+           'hoạt động':'Activity', 'hđ':'Activity', 'luyện tập':'Practice',
+           'nhiệm vụ':'Task', 'vận dụng':'Application', 'ví dụ':'Example', 'phiếu học tập số':'Worksheet'}
 
 
 def numbered_heading(text):
@@ -50,6 +54,7 @@ class TermPolicy:
         self.terms = dict(TERMS.get(self.subject, {}))
         teacher_terms = {vi: next(iter(targets)) for vi, targets in candidates.items() if len(targets) == 1}
         self.terms.update(teacher_terms)
+        self.teacher_terms = teacher_terms
         self.identity_terms = {vi for vi,en in self.terms.items() if normalized(en) == vi and vi not in teacher_terms}
         self.ambiguous = [vi for vi, targets in candidates.items() if len(targets) > 1]
         for term in self.ambiguous:
@@ -80,6 +85,16 @@ class TermPolicy:
             return MATH_HEADINGS[key]
         if key in HEADINGS:
             return HEADINGS[key]
+        heading_key = key.rstrip(':.!? ').strip()
+        if heading_key in self.terms or heading_key in HEADINGS:
+            suffix = text.strip()[len(text.strip().rstrip(':.!? ')):].strip()
+            return self.terms.get(heading_key, HEADINGS.get(heading_key)) + suffix
+        if self.subject == 'toan':
+            from .math_translation import exact
+
+            value = exact(text)
+            if value is not None and not any(term in key for term in self.teacher_terms):
+                return value
         heading = numbered_heading(text)
         if heading:
             stripped = text.strip()
@@ -87,6 +102,13 @@ class TermPolicy:
             if re.fullmatch(r'\s*[:.)]?\s*', tail):
                 return heading[1] + tail.strip()
         return None
+
+    def postprocess(self, text, translated):
+        if self.subject == 'toan' and not any(term in normalized(text) for term in self.teacher_terms):
+            from .math_translation import terminology
+
+            return terminology(text, translated)
+        return translated
 
     def fingerprint(self, matches):
         raw = json.dumps([self.subject, sorted(matches.items())], ensure_ascii=False)

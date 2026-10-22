@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-VERSION = 5
+VERSION = 6
 
 
 def completion_current(lesson):
@@ -20,7 +20,6 @@ def complete_existing(library, lesson, cancel=None):
     quality = lesson.get('slide_quality', {})
     if lesson.get('voice_only') or not lesson.get('external_deck'):
         return lesson
-    stamp = lesson['source']['sha256']
     if completion_current(lesson):
         return lesson
     if not quality.get('counts', {}).get('FAIL'):

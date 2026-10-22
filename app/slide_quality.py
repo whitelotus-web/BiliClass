@@ -8,6 +8,7 @@ from .powerpoint_notes import read_text as read_notes
 from .slide_speech import native_shapes, objects, speech_problem
 
 MESSAGES = {
+    "source_review_note": "Có điểm cần kiểm tra ngay trong đề gốc; tool giữ nguyên giả thiết và đáp án.",
     "technical_text": "Có nhãn kỹ thuật hoặc ký tự bất thường; không đưa vào lời đọc.",
     "suspicious_code": "Có chuỗi nghi là mã rác; cần đối chiếu với nguồn.",
     "suspicious_character": "Có chữ thường lạc giữa tiêu đề; cần đối chiếu, không tự đọc.",

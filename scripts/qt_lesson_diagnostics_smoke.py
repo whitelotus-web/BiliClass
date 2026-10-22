@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from pptx import Presentation
 from pptx.util import Inches
-from PySide6.QtCore import QCoreApplication, QEvent
+from PySide6.QtCore import Q_ARG, QCoreApplication, QEvent, QMetaObject
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
@@ -59,7 +59,7 @@ def main():
         engine.load(RESOURCE_ROOT/'qml/Main.qml')
         assert engine.rootObjects(), warnings
         root = engine.rootObjects()[0]
-        report = Path('reports/rc140/lesson-checks')
+        report = Path('reports/rc141/lesson-checks')
         report.mkdir(parents=True, exist_ok=True)
         try:
             bridge._browser_state.update(phase='completed', lessonId=lesson['id'])
@@ -74,7 +74,11 @@ def main():
                     for width, height in ((1080, 700), (1366, 850)):
                         root.resize(width, height)
                         for expanded in (False, True):
-                            checks.setProperty('expanded', expanded)
+                            checks.setProperty('selected', 0)
+                            with patch.object(Bridge, 'previewConvertedSlide') as show:
+                                checks.setProperty('expanded', expanded)
+                                if expanded:
+                                    show.assert_called_once_with(2)
                             pump(150)
                             assert checks.isVisible() and checks.property('report')['failures'] == 1
                             assert checks.property('page')['slide'] == 2
@@ -91,6 +95,11 @@ def main():
                                 with patch.object(Bridge, 'previewConvertedSlide') as show:
                                     click(root, control(root, name+'View'))
                                     show.assert_called_once_with(2)
+                                with patch.object(Bridge, 'previewConvertedSlide') as show:
+                                    chooser = control(root, name+'Page')
+                                    assert QMetaObject.invokeMethod(chooser, 'activated', Q_ARG(int, 1))
+                                    show.assert_called_once_with(1)
+                                    assert checks.property('page')['slide'] == 1
                             assert root.grabWindow().save(str(report/f'{page}-{theme}-{width}-{expanded}.png'))
             assert source.read_bytes() == original
             assert not warnings, warnings

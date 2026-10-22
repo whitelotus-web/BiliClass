@@ -38,6 +38,15 @@ def test_image_review_is_plain_and_retained_without_a_layout_failure():
     assert layout({'external_deck': {'content_review': {'message': 'Cần xem ảnh.'}}})['image_note'] == 'Cần xem ảnh.'
 
 
+def test_source_review_keeps_exact_reason_and_does_not_invent_an_answer():
+    report = layout({'slide_quality': {'slides': [{'slide': 6, 'issues': [
+        {'code': 'source_review_note', 'severity': 'CHECK', 'excerpt': 'Kiểm tra giả thiết trong đề gốc.'}]}]}})
+    issue = report['pages'][0]['issues'][0]
+    assert report['failures'] == 0 and report['pages'][0]['slide'] == 6
+    assert issue['excerpt'] == 'Kiểm tra giả thiết trong đề gốc.'
+    assert 'giữ nguyên giả thiết và đáp án' in issue['message']
+
+
 def test_failed_shared_speech_lists_every_source_slide_and_language():
     inspection = {'profile': {'units': [
         {'locator': 'Slide 2', 'vi': 'Số một.', 'en': ''},

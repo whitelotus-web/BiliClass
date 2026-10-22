@@ -177,6 +177,7 @@ def extract(source, mode, *, preserve_design=False, same_slide=False):
                         unsupported.append(f'Slide {index}: nhãn nguồn trùng định dạng chuyển đổi')
                         continue
                     parts, numbers, xml_locks = [], [], {}
+                    math_words = False
                     for child in paragraph:
                         tag = etree.QName(child).localname
                         if tag in {'pPr','endParaRPr'}:
@@ -188,6 +189,23 @@ def extract(source, mode, *, preserve_design=False, same_slide=False):
                             child.find('a:rPr', NS).get('baseline', '0') != '0')
                         if preserve_design and etree.XPath('.//a:rPr/a:solidFill/*/a:alpha[@val="0"]|.//a:rPr/a:noFill',namespaces=NS)(child):
                             special = True  # Keep invisible source runs invisible, including private markers.
+                        if special and preserve_design:
+                            from .math_prose import fragments
+
+                            exposed = fragments(child)
+                            if exposed:
+                                math_words = True
+                                for kind, value in exposed:
+                                    if kind == 'text':
+                                        protected, locked = lock_numbers(value)
+                                        parts.append(TOKEN.sub(lambda m: f'⟦BLC{int(m.group()[4:-1])+len(numbers)}⟧', protected))
+                                        numbers.extend(locked)
+                                    else:
+                                        token = len(numbers)
+                                        numbers.append(paragraph_text(value))
+                                        xml_locks[str(token)] = _bytes(value).decode('utf-8')
+                                        parts.append(f'⟦BLC{token}⟧')
+                                continue
                         if special:
                             token = len(numbers)
                             numbers.append(paragraph_text(child))
@@ -205,7 +223,7 @@ def extract(source, mode, *, preserve_design=False, same_slide=False):
                     if len(text)>14000:
                         unsupported.append(f'Slide {index}: vùng nội dung cần xử lý trực quan')
                     language = language_of(raw)
-                    if (roman_label(raw) or equation_only(paragraph) or quantity_only(raw)
+                    if (roman_label(raw) or not math_words and equation_only(paragraph) or quantity_only(raw)
                             or re.fullmatch(r'(?:https?://|www\.|(?:facebook|youtube|mailto):)\S+', raw.strip(), re.I)):
                         language='neutral'
                     if same_slide and language != 'vi' and not TOKEN.sub('',text).strip():
@@ -229,7 +247,7 @@ def extract(source, mode, *, preserve_design=False, same_slide=False):
                         'slide':index,'shape_id':shape.shape_id,'body':body_index,'paragraph':paragraph_index,
                         'text':text,'numbers':numbers,'xml_locks':xml_locks,'language':language,
                         'raw':raw,'title':bool(shape_title),'title_height':title_height,'part':original_parts[index-1],
-                        'layout_height':layout_height,
+                        'layout_height':layout_height, **({'math_prose':True} if math_words else {}),
                         **({'clip_insets':_visible_insets(shape,visible_boxes[shape.shape_id],deck,visible_items)}
                            if shape.shape_id in visible_boxes and shape.shape_id not in moving and not shape.rotation else {}),
                         'font_size':round(_size(shape.text_frame,shape)*100) if shape.has_text_frame else 1800})
@@ -272,8 +290,12 @@ def translated_paragraph(original, text, unit, *, english=False, smaller=False):
     template = next((props for run in original.findall('a:r', NS)
                      if (props := run.find('a:rPr', NS)) is not None
                      and props.get('baseline', '0') == '0'), None)
+    if template is None and unit.get('math_prose'):
+        template=next(iter(original.findall('.//a:rPr', NS)), None)
     if template is None:
         template=original.find('a:pPr/a:defRPr',NS)
+    if template is None:
+        template=next(iter(original.findall('.//a:rPr', NS)), None)
     template = copy.deepcopy(template) if template is not None else etree.Element(f'{{{NS["a"]}}}rPr')
     template.tag=f'{{{NS["a"]}}}rPr'
     template.attrib.pop('baseline', None)
@@ -442,6 +464,11 @@ def assemble(source, destination, manifest, translations, mode):
                         smaller=not together and (effective_mode=='sentence_pairs' or title and
                         (effective_mode!='english_only' or not manifest.get('preserve_design'))))
                     if together:
+                        if unit.get('math_prose'):
+                            # Normal equation text is prose, not a formula. Let
+                            # Office wrap/fit it as text while restoring every
+                            # genuinely mathematical subtree from its XML lock.
+                            original = translated_paragraph(original,unit['text'],unit)
                         original = same_slide.style_paragraph(copy.deepcopy(original),unit['font_size'],title=title,label=unit.get('label',False),
                             canvas_scale=unit.get('canvas_scale', 1))
                         english = same_slide.style_paragraph(english,unit['font_size'],english=True,title=title,label=unit.get('label',False),

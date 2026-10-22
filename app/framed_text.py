@@ -162,6 +162,13 @@ def constrain_generated(tree, slide, width, height):
         # Keep already separated columns and their gap; only pull the pair into
         # its common vertical band and trim columns that cross the right edge.
         top, bottom = max(item['y'], panel['y']+inset), panel['y']+panel['h']-inset
+        canvas_scale = max(.5, min(4, height / (540 * 12700)))
+        for neighbor in items.values():
+            overlap = min(item['x']+item['w'], neighbor['x']+neighbor['w']) - max(item['x'], neighbor['x'])
+            if (neighbor['shape_id'] != key and neighbor['text'].strip() and not neighbor['hidden']
+                    and overlap > min(item['w'], neighbor['w']) * .3
+                    and neighbor['y'] > top + max(20*12700*canvas_scale, min(item['h']*.3, 60*12700*canvas_scale))):
+                bottom = min(bottom, neighbor['y'] - 12700)
         right = min(item['x']+item['w'], panel['x']+panel['w']-inset)
         for decoration in decorations:
             if (item['x'] < decoration['x'] < right and min(bottom, decoration['y']+decoration['h'])

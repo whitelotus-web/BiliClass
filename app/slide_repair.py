@@ -223,7 +223,7 @@ def _office_fit(path, target, targets, cancel):
     import pythoncom
     import win32com.client
 
-    from .native_layout import office_text_shapes
+    from .native_layout import fittable_text, office_text_shapes
 
     existing = any((p.info["name"] or "").lower() == "powerpnt.exe" for p in psutil.process_iter(["name"]))
     pythoncom.CoInitialize()
@@ -239,8 +239,7 @@ def _office_fit(path, target, targets, cancel):
             if cancel and cancel.is_set():
                 raise ValueError("Đã dừng sửa bài giảng; bản trước vẫn được giữ.")
             for shape in office_text_shapes(deck.Slides(number).Shapes):
-                if (shape.Id in ids and shape.Type in {1, 14, 17} and shape.Rotation == 0
-                        and shape.HasTextFrame and shape.TextFrame2.HasText):
+                if shape.Id in ids and fittable_text(shape):
                     shape.TextFrame2.AutoSize = 0
                     shape.TextFrame2.WordWrap = -1
                     text = shape.TextFrame2.TextRange

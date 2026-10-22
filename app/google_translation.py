@@ -331,7 +331,7 @@ def request(texts, key, source, target):
         raise TranslationProblem('api_result', 'Google Dịch trả kết quả chưa hợp lệ; phần đã xong vẫn được lưu.') from None
 
 
-def protected_html(text, terms=None, *, chemistry=False, opaque_values=False):
+def protected_html(text, terms=None, *, chemistry=False, opaque_values=False, native_values=None):
     # Protect arithmetic, LaTeX spans and native OOXML placeholder tokens.
     terms = terms or {}
     term_pattern = r'(?<!\w)(?:' + '|'.join(re.escape(t) for t in sorted(terms, key=len, reverse=True)) + r')(?!\w)' if terms else r'(?!)'
@@ -370,10 +370,12 @@ def protected_html(text, terms=None, *, chemistry=False, opaque_values=False):
         # can swallow surrounding nouns; keep the opaque token instead.
         chemical = match.group() in formulas
         term = normalized(match.group()) in terms
-        contextual = not chemical and ((term and not (opaque_values and re.search(r'\d', locks[-1]))) or
+        native_value = (native_values or {}).get(match.group())
+        contextual = not chemical and ((native_value is not None and not opaque_values) or
+            (term and not (opaque_values and re.search(r'\d', locks[-1]))) or
             (not opaque_values and not match.group().startswith(('⟦', '$'))))
         parts.append(('<span translate="no" class="notranslate" id="' + token + '">' +
-                      html.escape(locks[-1]) + '</span>') if contextual else
+                      html.escape(native_value if native_value is not None else locks[-1]) + '</span>') if contextual else
                      '<span translate="no" class="notranslate">' + token + '</span>')
         last = match.end()
     parts.append(html.escape(text[last:]))
@@ -452,23 +454,57 @@ class Translator:
 
         self.term_policy = TermPolicy(subject, rows)
 
-    def translate(self, texts, cancel, progress=None, *, source='vi', target='en'):
+    def translate_native(self, units, images, cancel, progress=None):
+        """Expose ordinary counts for grammar, retaining every immutable XML token."""
+        from lxml import etree
+
+        from .translation_batches import NUMBERS
+
+        hints = []
+        for unit in units:
+            counts = {}
+            for i, value in enumerate(unit['numbers']):
+                variable_count = (getattr(getattr(self, 'term_policy', None), 'subject', '') == 'toan'
+                    and re.fullmatch(r'[a-zA-Z]', unicodedata.normalize('NFKC', value))
+                    and re.search(r'⟦BLC' + str(i) + r'⟧\s+(?:tam giác|điểm|cạnh|mặt|đường)\b', unit['text']))
+                if not NUMBERS.fullmatch(value) and not variable_count:
+                    continue
+                xml = unit.get('xml_locks', {}).get(str(i))
+                if xml:
+                    try:
+                        node = etree.fromstring(xml.encode('utf-8'))
+                        if node.xpath('.//*[local-name()="alpha"][@val="0"]|.//*[local-name()="noFill"]'):
+                            continue
+                    except (ValueError, etree.XMLSyntaxError):
+                        continue
+                counts[f'⟦BLC{i}⟧'] = value
+            hints.append(counts)
+        return self.translate([u['text'] for u in units] + [row['text'] for row in images], cancel, progress,
+                              native_values=hints + [{} for _ in images])
+
+    def translate(self, texts, cancel, progress=None, *, source='vi', target='en', native_values=None):
         """Two bounded workers; unique chunks cached as soon as they validate."""
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
-        split = [[part for line in text.splitlines(keepends=True) for part in chunks(line)] for text in texts]
+        hints = native_values if native_values is not None else [{} for _ in texts]
+        if len(hints) != len(texts):
+            raise ValueError('Ngữ cảnh số liệu không khớp các đoạn dịch.')
+        split = [[(part, tuple(sorted((key, value) for key, value in context.items() if key in part)))
+                  for line in text.splitlines(keepends=True) for part in chunks(line)]
+                 for text, context in zip(texts, hints, strict=True)]
         unique = list(dict.fromkeys(part for parts in split for part in parts))
         values, pending = {}, []
         from .translation_terms import TermPolicy
 
         policy = getattr(self, 'term_policy', TermPolicy()) if source == 'vi' and target == 'en' else TermPolicy()
-        for text in unique:
+        for job in unique:
+            text, context = job
             if cancel.is_set():
                 raise InterruptedError('Đã dừng dịch.')
             exact = policy.exact(text)
             if exact is not None:
                 whitespace = re.fullmatch(r'(\s*)(.*?)(\s*)', text, re.S)
-                values[text] = whitespace[1] + exact + whitespace[3]
+                values[job] = whitespace[1] + exact + whitespace[3]
                 continue
             chemistry = policy.subject == 'hoa hoc'
             if chemistry:
@@ -476,10 +512,12 @@ class Translator:
                 from .chemical_notation import formula_spans, only_notation
 
                 if only_notation(text):
-                    values[text] = text
+                    values[job] = text
                     continue
             matches = policy.matches(text)
             namespace = 'google-nmt-context-v3|' + policy.fingerprint(matches) if matches else 'google-nmt-context-v3'
+            if context:
+                namespace += '|native-counts-v1|' + _digest(json.dumps(context, ensure_ascii=False))
             if chemistry and formula_spans(text):
                 namespace += '|' + notation_version
             if numeric_glyphs(text):
@@ -487,14 +525,14 @@ class Translator:
             cache_id = _digest(namespace + '|' + source + '|' + target + '|' + text)
             cached = self.store.cached(cache_id)
             if cached is not None:
-                values[text] = cached
+                values[job] = policy.postprocess(text, cached)
             elif not any(unicodedata.category(char).startswith('L') for char in text):
-                values[text] = text
+                values[job] = text
             else:
-                payload, locks = protected_html(text, matches, chemistry=chemistry)
+                payload, locks = protected_html(text, matches, chemistry=chemistry, native_values=dict(context))
                 if len(payload) > MAX_CHARS:
                     raise TranslationProblem('api_request', 'Một công thức/vùng nội dung quá dài; chia nhỏ trước khi dịch.')
-                pending.append((text, payload, locks, cache_id))
+                pending.append((text, payload, locks, cache_id, job))
         groups, batch, size = [], [], 0
         for item in pending:
             if batch and (size + len(item[1]) > MAX_CHARS or len(batch) >= MAX_ITEMS):
@@ -504,7 +542,7 @@ class Translator:
             size += len(item[1])
         if batch:
             groups.append(batch)
-        done, total = sum(len(t) for t in values), sum(len(t) for t in unique)
+        done, total = sum(len(t[0]) for t in values), sum(len(t[0]) for t in unique)
         if progress:
             progress(done, total)
 
@@ -551,6 +589,7 @@ class Translator:
 
                             if signature(result) != signature(item[0]):
                                 raise TranslationProblem('api_result', 'Bản dịch làm thay đổi công thức hóa học; chưa áp dụng kết quả này. Phần đã dịch đúng được giữ để tiếp tục.')
+                        result = policy.postprocess(item[0], result)
                         translated.append((item, result))
                     except TranslationProblem as exc:
                         exc.failed_text = item[0]
@@ -569,7 +608,7 @@ class Translator:
                             chemistry=policy.subject == 'hoa hoc', opaque_values=True)
                         if len(payload) > MAX_CHARS:
                             raise error
-                        repairs.append((item[0],payload,locks,item[3]))
+                        repairs.append((item[0],payload,locks,item[3],item[4]))
                     repaired = []
                     batch, size = [], 0
                     for item in repairs:
@@ -580,8 +619,8 @@ class Translator:
                         size += len(item[1])
                     if batch:
                         repaired.extend(run(batch,repairing=True))
-                    return [(item[0], value) for item, value in translated] + repaired
-                return [(item[0], value) for item, value in translated]
+                    return [(item[4], value) for item, value in translated] + repaired
+                return [(item[4], value) for item, value in translated]
 
         with ThreadPoolExecutor(max_workers=2, thread_name_prefix='google-translate') as executor:
             # Submit only two at a time, so a failure never queues the whole lesson.
@@ -591,9 +630,9 @@ class Translator:
                 future = next(as_completed(active))
                 active.remove(future)
                 try:
-                    for text, value in future.result():
-                        values[text] = value
-                        done += len(text)
+                    for job, value in future.result():
+                        values[job] = value
+                        done += len(job[0])
                     if progress:
                         progress(done, total)
                     if cancel.is_set():

@@ -1,5 +1,20 @@
 # Trạng thái BiliClass
 
+Ngày 22/10/2026 — nguồn RC141 rà bốn bản Toán mới trên bản sao:
+89 slide, 2.017 run ký hiệu và media nguồn giữ nguyên; không FAIL
+trong bộ đo hiện có, vẫn có CHECK cho ý nghĩa/ảnh/hiệu ứng. Sửa dịch
+số lượng qua cache có ngữ cảnh; câu chữ thường trong Office Math
+được dịch/dàn dòng, giữ cây công thức và màu/font; đọc đúng cỡ chữ.
+Căn hàng/nhãn trước hình và hỗ trợ tự fit chữ trong freeform.
+Mở chi tiết/chọn lỗi chuyển ảnh đúng slide ở cả hai công cụ.
+231 pytest liên quan, 40 ca thư viện có giao nhau, hai Qt smoke,
+Ruff và compileall đạt. Ba sản phẩm đã kiểm được lưu revision giữ
+nguồn/lịch sử; bản mới có giọng chỉ sửa bố cục, giữ lời/147 khóa WAV.
+Bản dịch cải thiện của các bản có giọng được thử riêng. Hai điểm
+cần đối chiếu ngay trong đề gốc được ghi theo slide, không sửa
+giả thiết. Xem [BUILD_RC141](BUILD_RC141.md); chưa phát hành gói
+tại thời điểm kiểm chứng nguồn. Không thêm hàng đợi/đồng bộ Save.
+
 Ngày 22/10/2026 — nguồn RC140 sửa khung cảnh báo khó đọc ở chế độ
 tối: bộ màu theo giao diện, chữ 13–14 px, tiêu đề tách lời nhắc với
 lỗi bố cục; lời nhắc chữ trong ảnh cùng khung ở cả hai công cụ.

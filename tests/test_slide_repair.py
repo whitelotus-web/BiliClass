@@ -255,12 +255,18 @@ def test_saved_correction_keeps_id_history_and_requires_new_teacher_confirmation
         lesson = library.create_external_lesson(config, source, inspection)
         result = normalize_titles(path, tmp_path, "parallel_columns")
         corrected = inspect_returned_deck(result["path"], conversion_format="parallel_columns")
+        corrected['layout_plan'] = [{'source_slide': n, 'role': 'bilingual'} for n in range(1, corrected['total']+1)]
+        corrected['content_review'] = {'coverage': 'unverified', 'image_pages': [1]}
         new_source = library.store_source(Path(result["path"]))
         changed = library.replace_external_presentation(lesson["id"], lesson["revision"], new_source, corrected)
         assert changed["id"] == lesson["id"] and changed["revision"] == lesson["revision"] + 1
         assert changed["segments"][0]["id"] == lesson["segments"][0]["id"]
         assert not any(s["approved"] for s in changed["segments"])
         assert changed["external_deck"]["reviewed_revision"] == 0
+        assert changed['external_deck']['layout_plan'] == corrected['layout_plan']
+        assert changed['external_deck']['content_review'] == corrected['content_review']
+        corrected['content_review']['image_pages'].append(99)
+        assert changed['external_deck']['content_review']['image_pages'] == [1]
         assert (library.directory / "sources" / source["file"]).read_bytes() == path.read_bytes()
         with pytest.raises(RevisionConflict):
             library.replace_external_presentation(lesson["id"], lesson["revision"], new_source, corrected)

@@ -382,7 +382,7 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
         # A photograph without detected text is not an untranslated paragraph.
         # An unavailable OCR pass leaves coverage unknown rather than complete.
         text_pages = picture_data.get('text_pages', image_pages)
-        needs_review = sorted({number for number in image_pages if number in text_pages}
+        needs_review = sorted(set(text_pages)
                               | {row['slide'] for row in picture_data['rows']})
         if needs_review:
             content_review = {
@@ -402,8 +402,11 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
         manifest['note_slides'] = sorted({row['slide'] for row in picture_data['rows']})
         pending = [u for u in units if u['language'] not in {'en', 'neutral'}]
         try:
-            translated = translator.translate([u['text'] for u in pending] +
-                                             [row['text'] for row in picture_data['rows']], cancel, notify)
+            if hasattr(translator, 'translate_native'):
+                translated = translator.translate_native(pending, picture_data['rows'], cancel, notify)
+            else:
+                translated = translator.translate([u['text'] for u in pending] +
+                                                 [row['text'] for row in picture_data['rows']], cancel, notify)
         except TranslationProblem as exc:
             from .lesson_diagnostics import translation_context
 

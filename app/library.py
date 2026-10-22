@@ -702,6 +702,9 @@ class Library:
         lesson["slide_quality"] = inspection["slide_quality"]
         if lesson.get("external_deck"):
             lesson["external_deck"]["review_notes"] = inspection.get("review_notes", [])
+            for key in ('layout_plan', 'content_review'):
+                if key in inspection:
+                    lesson['external_deck'][key] = copy.deepcopy(inspection[key])
         self._write(lesson)
         return lesson
 
@@ -759,6 +762,9 @@ class Library:
         lesson.pop("prepared", None)
         lesson["external_deck"].update(sha256=source["sha256"], reviewed_revision=0,
                                        text_signature=text_signature(lesson), review_notes=inspection.get("review_notes", []))
+        for key in ('layout_plan', 'content_review'):
+            if key in inspection:
+                lesson['external_deck'][key] = copy.deepcopy(inspection[key])
         for question in lesson.get("questions", []):
             question["approved"] = False
         if retain_audio:

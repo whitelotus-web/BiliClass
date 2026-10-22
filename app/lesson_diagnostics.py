@@ -4,6 +4,7 @@ from .slide_quality import MESSAGES
 
 INFORMATIONAL = {'visual_review', 'source_workspace', 'source_language_pair', 'source_motion_position'}
 ACTIONS = {
+    'source_review_note': 'Đối chiếu nhận xét với đề và hình gốc trước khi sử dụng bài.',
     'text_overflow': 'Tự căn lại khung chữ và đo lại bằng PowerPoint.',
     'panel_text_escape': 'Đưa cặp Việt–Anh vào trong dải nền rồi kiểm tra lại.',
     'possible_overlap': 'Đối chiếu vùng được nêu với hình slide; khung chữ có thể đang giao nhau.',

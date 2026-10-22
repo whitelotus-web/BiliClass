@@ -148,6 +148,31 @@ def test_inherited_group_fill_constrains_the_solution_inside_its_panel(tmp_path)
     assert not panels(slide, deck.slide_width, deck.slide_height)
 
 
+def test_oversized_source_answer_does_not_grow_over_the_next_activity(tmp_path):
+    deck = Presentation()
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    panel = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(.3), Inches(1), Inches(9), Inches(5))
+    panel.fill.solid()
+    panel.fill.fore_color.rgb = RGBColor.from_string('EFF6FF')
+    answer = slide.shapes.add_textbox(Inches(.8), Inches(1.5), Inches(8), Inches(3))
+    answer.text = 'Giải thích tại sao đường thẳng nằm trong mặt phẳng.\nHai điểm của đường thẳng thuộc mặt phẳng đó.'
+    next_heading = slide.shapes.add_textbox(Inches(.8), Inches(3.7), Inches(8), Inches(.4))
+    next_heading.text = 'Hoạt động 5'
+    source, target = tmp_path/'oversized.pptx', tmp_path/'paired.pptx'
+    deck.save(source)
+    manifest = extract(source, 'parallel_columns', same_slide=True)
+    values = {u['id']: {'en': u['text'].replace('Hoạt động', 'Activity') if u['shape_id']==next_heading.shape_id else 'The two points of the line lie in the plane, so the entire line lies in that plane.'} for u in manifest['units']}
+    assemble(source, target, manifest, values, 'parallel_columns')
+    result = Presentation(target)
+    tree = etree.fromstring(etree.tostring(result.slides[0]._element))
+    constrain_generated(tree, result.slides[0], result.slide_width, result.slide_height)
+    for shape in tree.xpath('.//p:sp[starts-with(p:nvSpPr/p:cNvPr/@name,"BCL_BODY ")]', namespaces=NS):
+        transform = shape.find('p:spPr/a:xfrm', NS)
+        top = int(transform.find('a:off', NS).get('y'))
+        bottom = top + int(transform.find('a:ext', NS).get('cy'))
+        assert bottom < next_heading.top
+
+
 def test_small_question_badge_keeps_its_frame_instead_of_expanding_into_question(tmp_path):
     deck = Presentation()
     deck.slide_width, deck.slide_height = Inches(26.666), Inches(15)

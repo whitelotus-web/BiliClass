@@ -68,6 +68,10 @@ def _bytes(tree):
 def _size(frame, shape):
     sizes = [value for p in frame.paragraphs for value in
              [p.font.size, *(run.font.size for run in p.runs)] if value]
+    # python-pptx's runs omit Office Math. Reading the real run size prevents
+    # a 48 pt equation from being treated as an 18 pt default and enlarged.
+    sizes.extend(int(value) * 127 for value in frame._txBody.xpath(
+        './/*[local-name()="oMath"]//*[local-name()="rPr"]/@sz'))
     if sizes:
         return max(sizes) / 12700
     if shape.is_placeholder:

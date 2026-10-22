@@ -133,6 +133,13 @@ def office_text_shapes(shapes):
             yield shape
 
 
+def fittable_text(shape):
+    # Publisher headings are often freeform shapes (msoFreeform = 5), with
+    # fully editable native text. Their outlines must stay untouched.
+    return (shape.Type in {1, 5, 14, 17} and not shape.Rotation
+            and shape.HasTextFrame and shape.TextFrame2.HasText)
+
+
 def _office_overflows(path, pages, cancel):
     """Measure translated frames read-only; never save an Office rewrite."""
     import pythoncom
@@ -152,7 +159,7 @@ def _office_overflows(path, pages, cancel):
             if cancel and cancel.is_set():
                 raise InterruptedError('Đã dừng căn chỉnh bài giảng.')
             for shape in office_text_shapes(deck.Slides(page).Shapes):
-                if shape.Type not in {1,14,17} or shape.Rotation or not shape.HasTextFrame or not shape.TextFrame2.HasText:
+                if not fittable_text(shape):
                     continue
                 text = shape.TextFrame2.TextRange
                 if text.BoundHeight > shape.Height+1 or text.BoundWidth > shape.Width+1:

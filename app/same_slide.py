@@ -8,6 +8,8 @@ from lxml import etree
 
 from .source_deck import NS
 
+_NUMBER_BADGE = re.compile(r'^\s*(?:Câu|Question|Hoạt động|Activity|Ví dụ|Example|Luyện tập|Practice)\s*\d+\s*$', re.I)
+
 
 def text_of(node):
     return "".join(node.xpath('.//*[local-name()="t"]/text()'))
@@ -155,7 +157,8 @@ def prepare(source, manifest):
                 if ox > x0 + w * 0.5 and oy < y + h and oy + oh > y + min(h, deck.slide_height * 0.1):
                     right = min(right, ox - 12700)
                 horizontal = min(x + w, ox + ow) - max(x, ox)
-                if (re.match(r'^\s*(?:Câu|Question)\s*\d+\s*$', other['text'], re.I)
+                badge = bool(_NUMBER_BADGE.fullmatch(other['text']))
+                if (badge
                         and ox < x + w * .25 and ox + ow > x0 and ox + ow < right
                         and min(y+h, oy+oh)-max(y, oy) > min(h, oh)*.3):
                     # A centered stem's source box can sit behind its numbered
@@ -163,6 +166,7 @@ def prepare(source, manifest):
                     x0 = max(x0, ox + ow + 6 * 12700)
                 if (
                     length > 100
+                    and not badge
                     and other["text"]
                     and len(other["text"]) < 35
                     and oy < y0 + h * 0.3
@@ -171,7 +175,8 @@ def prepare(source, manifest):
                     and horizontal > min(w, ow) * 0.5
                 ):
                     y0 = max(y0, oy + oh + 6 * 12700)
-                if horizontal > min(w, ow) * 0.3 and oy >= y + h - 12700 and oy > y0 + 127000:
+                if (other['text'] and horizontal > min(w, ow) * 0.3
+                        and oy > y0 + max(20 * 12700 * canvas_scale, min(h * .3, 60 * 12700 * canvas_scale))):
                     bottom = min(bottom, oy - 12700)
             fixed_caption = raster_backdrop and length < 130 and len(units) <= 2 and h < deck.slide_height * .25
             if fixed_caption:
@@ -190,7 +195,9 @@ def prepare(source, manifest):
             panel = owner(box, backgrounds) if not title and str(key) not in fixed_targets else None
             if panel:
                 interior = fit_box(box, panel)
-                x0, y0, width, height = (interior[name] for name in ('x', 'y', 'w', 'h'))
+                x0, y0 = max(x0, interior['x']), max(y0, interior['y'])
+                width = max(254000, min(interior['x'] + interior['w'], right) - x0)
+                height = max(127000, min(interior['y'] + interior['h'], bottom) - y0)
             # Translate world-coordinate adjustments back into a group's coordinates.
             sx, sy = shape.width / max(1, w), shape.height / max(1, h)
             geometry = {
@@ -238,6 +245,7 @@ def apply_geometry(shape, unit):
 def prefer_inline(units, translations):
     """Compare actual translated line costs rather than a single width cutoff."""
     from .native_layout import text_height
+    from .translation_batches import restore
 
     if units[0].get('inline_pair') or any(unit['title'] for unit in units):
         return True
@@ -245,17 +253,34 @@ def prefer_inline(units, translations):
     if not geometry:
         return False
     width,height=geometry['w']/12700,geometry['h']/12700
-    if width>=400:
-        return False
-    vi=en=stacked=0
-    for unit in units:
-        original,english=unit['raw'],translations[unit['id']]['en']
-        vi+=text_height(original,max(1,(width-12)/2),18)
-        en+=text_height(english,max(1,(width-12)/2),16)
-        stacked+=text_height(original,max(1,width-6),18)
-        if unit['language']!='neutral':
-            stacked+=text_height(english,max(1,width-6),16)
-    return stacked <= height*.95 and stacked < max(vi,en)*.9
+    canvas = units[0].get('canvas_scale', 1)
+    def costs(scale):
+        vi=en=stacked=0
+        for unit in units:
+            original=unit['raw']
+            english=restore(translations[unit['id']]['en'],unit.get('numbers',[]))
+            size=min(max(unit['font_size']/100,18*canvas),24*canvas)*scale
+            en_size=max(18*canvas, min(max(unit['font_size']/100,18*canvas),24*canvas)*.82)*scale
+            vi+=text_height(original,max(1,(width-12*canvas)/2),size)
+            en+=text_height(english,max(1,(width-12*canvas)/2),en_size)
+            stacked+=text_height(original,max(1,width-6*canvas),size)
+            if unit['language']!='neutral':
+                stacked+=text_height(english,max(1,width-6*canvas),en_size)
+        return max(vi,en),stacked
+    columns,stacked=costs(1)
+    if stacked <= height*.95 and stacked < columns*.9:
+        return True
+    # Wide, shallow answer bands often need some fitting either way. Compare
+    # the size retained by each arrangement instead of always forcing columns.
+    fitted=[0.,0.]
+    for step in range(20,3,-1):
+        scale=step/20
+        for index,cost in enumerate(costs(scale)):
+            if not fitted[index] and cost <= height*.95:
+                fitted[index]=scale
+        if all(fitted):
+            break
+    return fitted[1] > fitted[0]*1.1
 
 
 def fit(shape, fallback_size, *, title=False):
@@ -315,13 +340,21 @@ def fit(shape, fallback_size, *, title=False):
     scale = 1.0
     while scale > floor and needed(scale) > height:
         scale -= 0.025
+    scale = max(floor, scale)
+    # Office Math does not consistently honor DrawingML's fontScale. Apply
+    # the same fitted size to its run properties, leaving symbols/structure
+    # intact, rather than shrinking only the surrounding prose.
+    if body.xpath('.//*[local-name()="oMath"]') and scale < 1:
+        for node in body.xpath('.//a:rPr[@sz]|.//a:defRPr[@sz]|.//a:endParaRPr[@sz]', namespaces=NS):
+            node.set('sz', str(max(100, round(int(node.get('sz')) * scale))))
+        scale = 1.0
     for child in list(props):
         if etree.QName(child).localname in {"noAutofit", "normAutofit", "spAutoFit"}:
             props.remove(child)
     etree.SubElement(
         props,
         f"{{{NS['a']}}}normAutofit",
-        fontScale=str(round(max(floor, scale) * 100000)),
+        fontScale=str(round(scale * 100000)),
         lnSpcReduction="10000",
     )
 

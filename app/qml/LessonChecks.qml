@@ -11,6 +11,11 @@ Frame {
     property int selected: 0
     readonly property var page: pages.length ? pages[Math.min(selected, pages.length - 1)] : ({})
     signal viewRequested(int slide)
+    function showSelected() {
+        if (page.slide && !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !bridge.powerpointState.starting)
+            viewRequested(page.slide)
+    }
+    onExpandedChanged: { if (expanded) showSelected() }
     padding: 10
     visible: !!report.remaining || !!report.image_note
     background: Rectangle { objectName: checks.objectName + "Background"; radius: 10; color: AppTheme.warningSurface; border.color: AppTheme.warningLine }
@@ -40,7 +45,7 @@ Frame {
                     Layout.fillWidth: true; Layout.minimumWidth: 0
                     model: checks.pages.map(function(row) { return "Slide " + row.slide + (row.source_slide !== row.slide ? " · nguồn " + row.source_slide : "") + (row.failed ? " · Còn lỗi bố cục" : " · Cần đối chiếu") })
                     currentIndex: Math.min(checks.selected, checks.pages.length - 1)
-                    onActivated: function(index) { checks.selected = index }
+                    onActivated: function(index) { checks.selected = index; checks.showSelected() }
                 }
                 ActionButton { objectName: checks.objectName + "View"; text: "Xem slide"; implicitHeight: 32; enabled: !checks.bridge.busy && !checks.bridge.narrationBusy && !checks.bridge.powerpointState.active; onClicked: checks.viewRequested(checks.page.slide) }
                 ActionButton { objectName: checks.objectName + "Repair"; text: "Kiểm tra và tự sửa"; implicitHeight: 32; visible: !!checks.report.failures; enabled: !checks.bridge.busy && !checks.bridge.narrationBusy && !checks.bridge.powerpointState.opened && !checks.bridge.powerpointState.active; onClicked: checks.bridge.repairConvertedLesson() }
