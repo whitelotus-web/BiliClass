@@ -4,9 +4,9 @@
 
 ## Phiên bản và tải xuống
 
-**[Tải BiliClass cho Windows](https://github.com/whitelotus-web/BiliClass/releases)** · [RC152 đã kiểm chứng](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc152) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md)
+**[Tải BiliClass cho Windows](https://github.com/whitelotus-web/BiliClass/releases)** · [RC153 đã kiểm chứng](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc153) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md)
 
-Nguồn RC153 thống nhất đầu vào nhiều bài ở Chuyển đổi và Tạo giọng:
+RC153 thống nhất đầu vào nhiều bài ở Chuyển đổi và Tạo giọng:
 hàng đợi trên cấu hình, chọn từng bài để xem trước; mỗi bài có số
 slide, mở PowerPoint và nút bỏ riêng. Icon tab nhỏ hơn, thứ tự chồng
 đúng kiểu hồ sơ; màn khởi động gọn hơn. [Phạm vi RC153](docs/BUILD_RC153.md).
@@ -49,7 +49,7 @@ và hiệu ứng nằm trong chi tiết; chỉ lỗi cụ thể chưa xử lý x
 nêu nổi bật. Hai công cụ Chuyển đổi và Tạo giọng đọc dùng chung cách
 hiển thị. [Phạm vi và kiểm chứng RC144](docs/BUILD_RC144.md).
 
-Gói RC152 đã phát hành từ commit `b695a72`, được kiểm tra ZIP, cài và
+Gói RC153 đã phát hành từ commit `677dcf0`, được kiểm tra ZIP, cài và
 mở Trang chủ. Mã nguồn và gói tải có vòng phát hành riêng: phiên bản
 gói luôn được ghi rõ trong Releases và trong ứng dụng. Các mốc bên
 dưới là lịch sử, không phải phiên bản hiện tại.

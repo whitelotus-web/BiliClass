@@ -44,4 +44,10 @@ Kiểm chứng nguồn:
 - Ruff và compileall đạt. Không đánh giá lại chất lượng dịch hoặc
   giọng TTS trong thay đổi giao diện này.
 
-[Trạng thái phát hành RC153: đang kiểm tra.]
+Đã phát hành từ `677dcf0b5962f07905866dcaf0f4fe8e9c3a0185`;
+[Source checks](https://github.com/whitelotus-web/BiliClass/actions/runs/39801583014) đạt cho đúng commit gói.
+[Gói RC153](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc153): 1,258,163,219 byte, SHA-256
+`20144cf6c81c0269df54e05f38544e404b6fc48d96d2839fd304a83902c424cc`. 61 tệp QML/qmldir và bytecode
+khớp nguồn; ZIP/digest/tag và updater công khai đạt. Cài/mở Trang chủ
+từ Explorer, Mascot mặc định ẩn; hồ sơ/key, bài và
+1752 WAV tham chiếu giữ nguyên.

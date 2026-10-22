@@ -6,7 +6,9 @@ thông tin file ở nền, giữ nguyên xử lý lần lượt và hàng đợi
 tất tự ẩn. Tab chồng theo thứ tự trái trước/phải sau, tab chọn trên
 cùng; icon 18 px. Màn khởi động 860×484.
 [Phạm vi RC153](BUILD_RC153.md).
-[Trạng thái phát hành RC153: đang kiểm tra.]
+Đã phát hành từ `677dcf0`; Source checks GitHub, bundle/ZIP,
+digest/tag, updater công khai, cài/mở Trang chủ từ Explorer đạt; hồ sơ,
+key, bài và 1752 WAV tham chiếu giữ nguyên.
 
 Ngày 22/10/2026 — nguồn RC152 có tab hồ sơ nền xanh khi chọn,
 chữ/icon trắng, đuôi chồng nhẹ và bóng mỏng. Các icon theo mẫu
