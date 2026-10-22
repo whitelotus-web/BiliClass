@@ -8,7 +8,6 @@ from PIL import Image, ImageStat
 
 from .source_deck import NS
 
-
 _panel_cache = OrderedDict()
 _panel_cache_lock = RLock()
 
