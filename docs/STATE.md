@@ -6,7 +6,9 @@ bài. Bỏ tiêu đề hàng đợi đầu vào, chuyển lời nhắc xuống d
 sách. Mascot dùng wheel chuyển hiệu ứng/slide ngoài vùng âm lượng;
 cả hàng âm lượng chỉnh 5%. Hướng dẫn thêm hình chuột/mũi tên.
 [Phạm vi RC155](BUILD_RC155.md).
-[Trạng thái phát hành RC155: đang kiểm tra.]
+Đã phát hành từ `fe69c0e`; Source checks GitHub, bundle/ZIP,
+digest/tag, updater công khai, cài/mở Trang chủ từ Explorer đạt; hồ sơ,
+key, bài và 1752 WAV tham chiếu giữ nguyên.
 
 Ngày 22/10/2026 — nguồn RC154 chuyển nút trước/sau và số slide
 xuống ngay dưới hình thu nhỏ trong cả đầu vào một/nhiều bài,

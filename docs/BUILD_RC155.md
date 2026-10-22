@@ -47,4 +47,10 @@ Kiểm chứng nguồn:
 Không thay bộ dịch, OCR, TTS, nguồn/file thư viện hoặc các tab Cài đặt.
 Không đánh giá lại nội dung dịch/TTS trong chỉnh sửa giao diện này.
 
-[Trạng thái phát hành RC155: đang kiểm tra.]
+Đã phát hành từ `fe69c0e8fd5957d0f9e56b7b87bc20b5715db6ef`;
+[Source checks](https://github.com/whitelotus-web/BiliClass/actions/runs/39816791521) đạt cho đúng commit gói.
+[Gói RC155](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc155): 1,258,165,712 byte, SHA-256
+`c52d2eef3f57ebf646e4b84ab32490639790705fc6689ebf54aa902537f37207`. 62 tệp QML/qmldir và bytecode
+khớp nguồn; ZIP/digest/tag và updater công khai đạt. Cài/mở Trang chủ
+từ Explorer, Mascot mặc định ẩn; hồ sơ/key, bài và
+1752 WAV tham chiếu giữ nguyên.

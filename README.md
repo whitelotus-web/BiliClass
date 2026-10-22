@@ -4,9 +4,9 @@
 
 ## Phiên bản và tải xuống
 
-**[Tải BiliClass cho Windows](https://github.com/whitelotus-web/BiliClass/releases)** · [RC154 đã kiểm chứng](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc154) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md)
+**[Tải BiliClass cho Windows](https://github.com/whitelotus-web/BiliClass/releases)** · [RC155 đã kiểm chứng](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc155) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md)
 
-Nguồn RC155 cân chỉnh giao diện Chuyển đổi/Tạo giọng ở trạng thái
+RC155 cân chỉnh giao diện Chuyển đổi/Tạo giọng ở trạng thái
 chưa tải file, một bài và nhiều bài. Lăn chuột trong bảng Mascot
 chuyển hiệu ứng/slide; vùng âm lượng tăng/giảm 5%. Trợ giúp thêm
 hình chuột và chỉ dẫn trực quan. [Phạm vi RC155](docs/BUILD_RC155.md).
@@ -58,7 +58,7 @@ và hiệu ứng nằm trong chi tiết; chỉ lỗi cụ thể chưa xử lý x
 nêu nổi bật. Hai công cụ Chuyển đổi và Tạo giọng đọc dùng chung cách
 hiển thị. [Phạm vi và kiểm chứng RC144](docs/BUILD_RC144.md).
 
-Gói RC154 đã phát hành từ commit `5542cf6`, được kiểm tra ZIP, cài và
+Gói RC155 đã phát hành từ commit `fe69c0e`, được kiểm tra ZIP, cài và
 mở Trang chủ. Mã nguồn và gói tải có vòng phát hành riêng: phiên bản
 gói luôn được ghi rõ trong Releases và trong ứng dụng. Các mốc bên
 dưới là lịch sử, không phải phiên bản hiện tại.
