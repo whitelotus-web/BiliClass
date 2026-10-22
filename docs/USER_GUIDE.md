@@ -100,6 +100,8 @@ file PowerPoint: trong hộp chọn file, giữ **Ctrl** để chọn từng fil
 Danh sách đã bắt đầu được lưu trên máy. Nếu mở lại ứng dụng, Trang chủ
 vẫn là màn hình đầu; bấm **Mở hàng đợi** ở thanh trạng thái để tiếp tục.
 Danh sách mới chọn nhưng chưa bắt đầu chưa được lưu qua lần mở ứng dụng.
+Khi tất cả bài hoàn tất, hàng đợi tự ẩn để chọn lượt mới. Vào Thư viện
+để mở/tải các kết quả; lượt còn bài chờ hoặc lỗi vẫn được giữ.
 
 Lỗi riêng một bài được ghi ngay dưới tên file, các bài sau vẫn được xử
 lý. **Thử lại bài lỗi** chỉ chạy lại những bài chưa thành công. Thiếu
@@ -199,3 +201,12 @@ Bài đang chọn giữ nguyên khi thư viện đổi tên/sắp xếp hoặc c
 Nếu bài đã bị xóa, Mascot báo bài không còn trong thư viện và khóa
 nút mở; chọn bài khác hoặc khôi phục bài trong Thùng rác để tiếp tục.
 Chọn file rồi bấm Hủy không mở bài hay tạo giọng tự động.
+
+## Chọn nhiều bài ngay trong Tạo giọng — RC150
+
+Mở **Chọn bài trong thư viện**, tích các bài rồi bấm **Xong** và
+**Dùng … bài đã chọn**. Chọn một bài mở cấu hình một bài; chọn nhiều
+bài tạo danh sách xử lý lần lượt, dùng cấu hình giọng chung. Mỗi lượt
+tối đa 100 bài. Chọn bài chưa khởi động tạo giọng; bấm **Tạo giọng …
+bài** khi cấu hình xong. Các tab kẹp file trong Thư viện giữ số lượng
+bài và phân nhóm theo việc đã hoàn tất giọng đọc.

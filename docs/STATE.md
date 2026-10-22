@@ -1,5 +1,13 @@
 # Trạng thái BiliClass
 
+Ngày 22/10/2026 — nguồn RC150 thống nhất hộp chọn file có mục đích
+rõ ràng, chọn nhiều bài trong màn Tạo giọng bằng checkbox và tự ẩn
+hàng đợi hoàn tất ở cả hai công cụ. Lượt còn lỗi/chờ vẫn giữ để tiếp
+tục. Thư viện dùng tab kẹp file có icon/số bài. Một bài dùng workspace
+cũ, nhiều bài dùng hàng đợi xử lý lần lượt trên cùng bộ xử lý.
+[Phạm vi RC150](BUILD_RC150.md).
+[Trạng thái phát hành RC150: đang kiểm tra.]
+
 Ngày 22/10/2026 — nguồn RC149 sửa lỗi chọn bài trong Mascot theo vị
 trí dòng, giữ đúng ID khi thư viện làm mới/đổi thứ tự; khóa lựa chọn
 đã bị xóa và giữ lại khi khôi phục. Đã tái hiện mở nhầm trước sửa,

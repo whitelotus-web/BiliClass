@@ -53,13 +53,14 @@ class BatchQueue(QObject):
         counts = {status: sum(row['status'] == status for row in rows)
                   for status in ('waiting', 'running', 'done', 'failed')}
         snapshot = copy.deepcopy(self.data)
+        complete = bool(rows) and snapshot.get('phase') == 'finished' and counts['done'] == len(rows) and not self._running
         age = max(0, monotonic()-snapshot.get('clock_monotonic', monotonic())) if self._running and snapshot.get('phase') == 'running' else 0
         snapshot['elapsed_seconds'] = snapshot.get('elapsed_seconds', 0)+age
         for row in snapshot.get('rows', []):
             if row['status'] == 'running':
                 row['elapsed_seconds'] = row.get('elapsed_seconds', 0)+age
         return {**snapshot, 'running': self._running, 'stopping': self._stopping,
-                'shown': self._shown, 'counts': counts, 'total': len(rows),
+                'shown': self._shown and not complete, 'complete': complete, 'counts': counts, 'total': len(rows),
                 'canResume': not self._running and bool(counts['waiting']),
                 'canRetry': not self._running and bool(counts['failed'])}
 

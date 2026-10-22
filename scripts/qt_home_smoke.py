@@ -121,7 +121,7 @@ def main():
             click(window, c('homeWorkflowStep0'))
             assert window.property('page') == 'new' and c('navigationnew').property('selected')
             assert not c('navigationlibrary').property('selected')
-            QMetaObject.invokeMethod(c('creationFileDialog'), 'reject', Qt.DirectConnection)
+            QMetaObject.invokeMethod(c('powerPointInputFileDialog'), 'reject', Qt.DirectConnection)
             assert c('creationSourceArea').isVisible()
             art = c('chooseInputDocumentButtonIllustration')
             heading = control(c('creationSourceArea'), 'powerpointUploadHeading')
@@ -145,7 +145,7 @@ def main():
             assert window.property('page') == 'new'
             selected = window.property('selectedFile')
             assert selected.endswith('.pptx')
-            assert list(c('creationFileDialog').property('nameFilters')) == ['PowerPoint (*.pptx)']
+            assert list(c('powerPointInputFileDialog').property('nameFilters')) == ['PowerPoint (*.pptx)']
             for width, height in ((1080, 700), (1366, 850)):
                 window.resize(width, height)
                 c('creationScroll').property('contentItem').setProperty('contentY', 0)
@@ -164,10 +164,12 @@ def main():
             oversized = Path(folder)/'Quá lớn.pptx'
             with oversized.open('wb') as stream:
                 stream.truncate(200 * 1024**2 + 1)
+            window.setProperty('page', 'home')
             QMetaObject.invokeMethod(c('homeWelcome'), 'documentDropped', Qt.DirectConnection,
                                      Q_ARG('QVariant', [oversized.as_uri()]))
             until(lambda: '200 MB' in window.property('inputDocumentError'))
             assert not window.property('selectedFile')
+            window.setProperty('page', 'home')
             QMetaObject.invokeMethod(c('homeWelcome'), 'documentDropped', Qt.DirectConnection,
                                      Q_ARG('QVariant', [fixture.as_uri()]))
             until(lambda: not bridge.inputDocuments.busy and window.property('selectedFile') == selected)

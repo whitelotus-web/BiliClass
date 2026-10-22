@@ -127,7 +127,7 @@ def main():
             window.setProperty('page', 'new')
             pump(150)
             expression = QQmlExpression(engine.contextForObject(window), window,
-                'documentOpen.fileMode === FileDialog.OpenFiles && voicePresentationOpen.fileMode === FileDialog.OpenFiles')
+                'powerPointInputOpen.fileMode === FileDialog.OpenFiles')
             modes, undefined = expression.evaluate()
             assert not expression.hasError() and not undefined and modes, expression.error().toString()
             # selectedFiles is read-only in this installed Qt. Exercise the same
@@ -183,21 +183,28 @@ def main():
                 screenshots('conversion-partial')
                 failed = next(row for row in bridge.batchQueue.data['rows'] if row['status'] == 'failed')
                 assert 'Slide 2' in c('batchStatus_'+failed['id']).property('text')
+                row = bridge.batchQueue.data['rows'][0]
+                opened, folders = [], []
+                with patch.object(bridge, 'openLesson', side_effect=opened.append):
+                    click(window, c('batchResult_'+row['id']))
+                assert opened == [row['lesson_id']] and not bridge.batchQueue.state['shown']
+                bridge.batchQueue.show()
+                with patch('PySide6.QtGui.QDesktopServices.openUrl', side_effect=lambda url: folders.append(Path(url.toLocalFile())) or True):
+                    click(window, c('batchFolder_'+row['id']))
+                assert folders == [folder]
                 before = len(calls)
                 click(window, c('batchRetry_convert'))
                 until(lambda: not bridge.busy)
                 assert calls[before:] == [failed['id']]
                 assert bridge.batchQueue.state['counts']['done'] == 3
-            row = bridge.batchQueue.data['rows'][0]
-            opened, folders = [], []
-            with patch.object(bridge, 'openLesson', side_effect=opened.append):
-                click(window, c('batchResult_'+row['id']))
-            assert opened == [row['lesson_id']] and not bridge.batchQueue.state['shown']
+            assert bridge.batchQueue.state['complete'] and not bridge.batchQueue.state['shown']
+            assert not c('conversionBatchPanel').isVisible()
+            assert not qml('creationBatch') and c('creationSourceArea').isVisible()
+            assert BatchQueue(bridge).state['complete'] and not BatchQueue(bridge).state['shown']
             bridge.batchQueue.show()
-            with patch('PySide6.QtGui.QDesktopServices.openUrl', side_effect=lambda url: folders.append(Path(url.toLocalFile())) or True):
-                click(window, c('batchFolder_'+row['id']))
-            assert folders == [folder]
-            click(window, c('batchClear_convert'))
+            pump(60)
+            assert not c('conversionBatchPanel').isVisible(), 'Completed queue stays out of input'
+            bridge.batchQueue.clear()
             until(lambda: not bridge.busy)
             assert not bridge.batchQueue.data
             assert not BatchQueue(bridge).data, 'Dismissal survives restart'
@@ -251,6 +258,8 @@ def main():
             for row in bridge.batchQueue.data['rows']:
                 assert Path(row['output']).is_file() and Path(row['output']).parent == folder
                 assert library.get(row['lesson_id'])['speaker_position'] == 'top_left'
+            assert bridge.batchQueue.state['complete'] and not bridge.batchQueue.state['shown']
+            assert not c('voiceBatchPanel').isVisible() and not qml('voiceBatch')
             screenshots('voice-finished')
             ready_id = bridge.batchQueue.data['rows'][0]['lesson_id']
             bridge.batchQueue.clear()
@@ -331,6 +340,7 @@ def main():
                 stop_resume_checkpoint_and_restart=True, local_failure_continues=True, retry_only_failed=True,
                 exact_result_and_folder_buttons=True, narration_real_exports_with_fixture_wavs=True,
                 unrelated_selected_lesson_unchanged=True, sources_preserved=True, long_queue_follows_active_file=True,
+                finished_queues_hidden_and_stay_hidden_after_restart=True,
                 max_gui_gap_seconds=round(max(gaps, default=0), 3), qml_warnings=[])), encoding='utf-8')
             print('Sequential conversion and narration Qt flows passed.', flush=True)
         finally:

@@ -63,6 +63,8 @@ def main():
                 pump(100)
                 picker = control(root, 'voiceLibraryPicker')
                 assert picker.property('count') == 1
+                picker.setProperty('selectedIds', [identity])
+                pump(60)
                 click(root, control(root, 'selectVoiceLibraryLesson'))
                 until(lambda: not bridge.busy and bridge.lesson.get('id') == identity)
                 with patch.object(speech, 'synthesize_background', side_effect=render), \

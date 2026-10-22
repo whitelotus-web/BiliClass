@@ -139,7 +139,7 @@ def main():
                     failures.append("Native picker did not deliver a document to BiliClass")
                 app.exit(1)
             elif (window.property("selectedFileName") == path.name if path else
-                  not window.findChild(QObject, "creationFileDialog").property("visible")):
+                  not window.findChild(QObject, "powerPointInputFileDialog").property("visible")):
                 try:
                     assert native and not bridge.error, bridge.message
                     expected = path or sources[-1]

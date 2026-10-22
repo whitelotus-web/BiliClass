@@ -8,7 +8,7 @@ Rectangle {
     required property string kind
     property bool working: false
     readonly property var queueState: controller.state
-    readonly property bool applies: queueState.kind === kind && (queueState.total || 0) > 0
+    readonly property bool applies: queueState.kind === kind && (queueState.total || 0) > 0 && !queueState.complete
     readonly property int activeIndex: {
         const items = queueState.rows || []
         for (let index = 0; index < items.length; ++index) if (items[index].status === "running") return index

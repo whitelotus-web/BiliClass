@@ -289,7 +289,7 @@ def choose_document():
     # File chooser accepted event routes through the same validation path.
     picked = workspace / "Chọn ảnh #1.png"
     picked.write_bytes(b"image fixture")
-    dialog = window.findChild(QObject, "creationFileDialog")
+    dialog = window.findChild(QObject, "powerPointInputFileDialog")
     dialog.setProperty("selectedFile", QUrl.fromLocalFile(str(picked)))
     assert QMetaObject.invokeMethod(dialog, "accepted", Qt.DirectConnection)
     QTimer.singleShot(100, safe(lambda: chooser_checked(picked)))

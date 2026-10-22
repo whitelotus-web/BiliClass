@@ -28,6 +28,7 @@ LibraryVoiceBadge 1.0 LibraryVoiceBadge.qml
 Mascot 1.0 Mascot.qml
 MascotShortcuts 1.0 MascotShortcuts.qml
 NarrationConfiguration 1.0 NarrationConfiguration.qml
+NarrationLibraryPicker 1.0 NarrationLibraryPicker.qml
 NarrationReadyCard 1.0 NarrationReadyCard.qml
 NarrationScriptDialog 1.0 NarrationScriptDialog.qml
 NavigationIcon 1.0 NavigationIcon.qml

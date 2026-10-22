@@ -124,7 +124,8 @@ def main():
             if not selected:
                 picker = c('selectVoiceLibraryLesson')
                 gap = panel.mapToScene(QPointF()).y()-picker.mapToScene(QPointF(0,picker.height())).y()
-                assert 30 <= gap <= 70, gap
+                # The checkbox picker keeps a compact, visible gap above configuration.
+                assert 12 <= gap <= 70, gap
                 assert panel.height() >= 195, panel.height()
             language_layouts.append(dict(width=width, selected=selected, columns=columns,
                                          cell_width=language_cell.width(), row_width=row.width(), panel_height=panel.height()))
@@ -155,7 +156,7 @@ def main():
             pump(100)
             status = c('lessonStatus_' + lesson['id'])
             original_row = next(row for row in bridge.lessons if row['id'] == lesson['id'])
-            seen_fills = {}
+            seen_inks = {}
             for audio, label in [
                 ({'status': 'none'}, 'Chưa có giọng'),
                 ({'status': 'none', 'variants': [{'status': 'partial', 'ready': False}]}, 'Chưa có giọng'),
@@ -168,15 +169,15 @@ def main():
                     bridge.setApplicationTheme(mode)
                     status.setProperty('lessonRow', {**original_row, 'narration': audio})
                     pump(40)
-                    assert status.property('text') == label
-                    text = status.findChild(QObject, 'libraryVoicePillText')
-                    assert not text.property('truncated'), (label, text.width(), text.property('contentWidth'))
-                    fill = evaluate(status, 'background.color.toString()')
-                    ink = text.property('color').name()
-                    assert fill != ink
-                    seen_fills.setdefault(mode, {})[label] = fill
-            for fills in seen_fills.values():
-                assert len({fills[label] for label in ('Chưa có giọng', 'Có giọng Anh', 'Đang kiểm tra giọng…')}) == 3
+                    badge = c('lessonNarrationBadge_'+lesson['id'])
+                    assert badge.property('description') == label
+                    assert evaluate(status, 'background.color.a') == 0, 'Speaker status has no button fill'
+                    ink = badge.property('foreground').name()
+                    assert ink != root.color().name()
+                    assert badge.width() <= status.width() and badge.height() <= status.height()
+                    seen_inks.setdefault(mode, {})[label] = ink
+            for inks in seen_inks.values():
+                assert len({inks[label] for label in ('Chưa có giọng', 'Có giọng Anh', 'Đang kiểm tra giọng…')}) == 3
             status.setProperty('lessonRow', original_row)
             root.grabWindow().save(str(reports/'clear-library-status.png'))
             root.setProperty('page', 'settings')
@@ -331,6 +332,8 @@ def main():
             bridge._clear_narration_selection()
             pump(100)
             assert c('narrationSpeakerPosition').isEnabled()
+            c('voiceLibraryPicker').setProperty('selectedIds', [lesson['id']])
+            pump(60)
             assert c('selectVoiceLibraryLesson').isEnabled()
             assert c('applicationStatusMessage').property('text') == 'Mascot đã gán bài · Chưa trình chiếu'
             bridge.voice_controls.phase = 'playing'
