@@ -64,6 +64,7 @@ class Bridge(QObject):
     narrationResultRequested = Signal()
     lessonsChanged = Signal()
     libraryViewChanged = Signal()
+    deletionUndoChanged = Signal()
     statusChanged = Signal()
     browserStateChanged = Signal()
     conversionClockChanged = Signal()
@@ -227,6 +228,8 @@ class Bridge(QObject):
         self._conversion_report = []
         self._comparison = {}
         self._quick_result = {}
+        self._deleted_undo = {}
+        self._catalog.changed.connect(self.deletionUndoChanged)
         from .slide_preview import SlidePreview
 
         self.slidePreview=SlidePreview(library.directory,self)
@@ -414,6 +417,32 @@ class Bridge(QObject):
     def trashedLessons(self):
         return self._catalog.rows(trash=True)
 
+    def _undoable_deleted(self):
+        # These summaries are already in memory; match the exact deletion,
+        # never a later deletion of the same lesson by another app window.
+        return {row['id']: row['deleted_at'] for row in self._catalog.rows(trash=True)
+                if self._deleted_undo.get(row['id']) == row.get('deleted_at')}
+
+    @Property(int, notify=deletionUndoChanged)
+    def undoDeleteCount(self):
+        return len(self._undoable_deleted())
+
+    @Slot(result=bool)
+    def undoDeletion(self):
+        if self._busy or self.narrationBusy or self.powerpoint_worker or self.classroom.running:
+            self.inform('Hoàn tất tác vụ, trình chiếu hoặc lớp học trước khi hoàn tác xóa.', True)
+            return False
+        receipt = self._undoable_deleted()
+        if not receipt:
+            return False
+
+        def finished(count):
+            self._deleted_undo = {}
+            self.deletionUndoChanged.emit()
+            self.inform(f'Đã hoàn tác xóa, khôi phục {count} bài về thư viện.')
+
+        return self._change_library('restore', list(receipt), finished, 'Đang hoàn tác xóa…', expected_deleted=receipt)
+
     @Slot(float, result=str)
     @Slot(str, result=str)
     def lessonDateLabel(self, value):
@@ -507,13 +536,16 @@ class Bridge(QObject):
         if self._busy or self.narrationBusy or self.powerpoint_worker or self.classroom.running:
             self.inform("Kết thúc tác vụ, trình chiếu hoặc tiết học trước khi xóa bài.", True)
             return False
-        def finished(count):
-            if self._lesson.get("id") in lesson_ids:
+        def finished(receipt):
+            self._deleted_undo = receipt
+            self.deletionUndoChanged.emit()
+            if self._lesson.get("id") in receipt:
                 self.stopSpeech()
                 self._lesson, self._quick_result = {}, {}
                 self.selectionChanged.emit()
-            self.inform(f"Đã đưa {count} bài vào thùng rác. Có thể khôi phục từ Chia sẻ & quản lý.")
-        return self._change_library('trash', lesson_ids, finished, 'Đang đưa bài đã chọn vào thùng rác…')
+                self.navigate.emit('library')
+            self.inform(f"Đã đưa {len(receipt)} bài vào thùng rác. Bấm Hoàn tác xóa để khôi phục lần xóa này.")
+        return self._change_library('trash', lesson_ids, finished, 'Đang đưa bài đã chọn vào thùng rác…', with_receipt=True)
 
     @Slot(str)
     def restoreLesson(self, lesson_id):
@@ -540,13 +572,14 @@ class Bridge(QObject):
             self.inform(f'Đã xóa vĩnh viễn {count} bài khỏi thùng rác.')
         return self._change_library('purge', lesson_ids, finished, 'Đang xóa vĩnh viễn bài đã chọn…')
 
-    def _change_library(self, operation, identities, callback, message):
+    def _change_library(self, operation, identities, callback, message, *, with_receipt=False, expected_deleted=None):
         if (not isinstance(identities, list) or not identities or len(identities) > 10000
                 or any(not isinstance(identity, str) for identity in identities)):
             self.inform('Chọn ít nhất một bài giảng hợp lệ.', True, refresh=False)
             return False
         identities = list(dict.fromkeys(identities))
-        self.launch(lambda: library_actions.change(self.library.directory, operation, identities), callback,
+        self.launch(lambda: library_actions.change(self.library.directory, operation, identities,
+                                                  with_receipt=with_receipt, expected_deleted=expected_deleted), callback,
                     cancellable=False, message=message)
         return True
 

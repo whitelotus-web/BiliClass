@@ -13,12 +13,32 @@ class NarrationWorkspace(QObject):
         self.bridge = bridge
         self.index = 0
         self.identity = ''
+        self._created_playback = {}
         bridge.selectionChanged.connect(self._selection)
         bridge.narrationChanged.connect(self.changed)
         bridge.narrationPreferences.changed.connect(self.changed)
         bridge.changed.connect(self.changed)
         bridge.powerpointStateChanged.connect(self.changed)
         bridge.classroom.changed.connect(self.changed)
+        bridge.speechStateChanged.connect(self.changed)
+
+    @Property('QVariantMap', notify=changed)
+    def createdPlayback(self):
+        reader = self.bridge.english_reader
+        context = self._created_playback
+        if (reader.state not in {'preparing', 'reading', 'paused'}
+                or context.get('generation') != reader.generation
+                or context.get('lesson_id') != self.bridge._lesson.get('id')):
+            return {}
+        return {key: value for key, value in context.items() if key != 'generation'}
+
+    @Slot(int, str, str)
+    def toggleCreated(self, number, language, identity):
+        active = self.createdPlayback
+        if active and (active['slide'], active['language'], active['record_id']) == (number, language, identity):
+            self.bridge.stopSpeech()
+        else:
+            self.listenCreated(number, language, identity)
 
     @Property(str, notify=changed)
     def speakerPosition(self):
@@ -229,6 +249,10 @@ class NarrationWorkspace(QObject):
             return
         bridge.stopSpeech()
         bridge.english_reader.start(queue, speech.voice_for(record['voice'], language), record['rate'], cache_only=True)
+        self._created_playback = {'lesson_id': bridge._lesson['id'], 'record_id': identity,
+                                  'slide': number, 'language': language,
+                                  'generation': bridge.english_reader.generation}
+        self.changed.emit()
 
     @Slot(str)
     def exportAudio(self, url):

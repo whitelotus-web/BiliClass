@@ -51,10 +51,9 @@ ContentScrollView {
             ActionButton { objectName: "narrationResultNext"; text: "›"; implicitHeight: 34; enabled: !result.bridge.busy && (result.bridge.quickResult.slide || 1) < result.bridge.quickResult.total; onClicked: result.bridge.previewConvertedSlide(result.bridge.quickResult.slide + 1) }
         }
         Flow { objectName: "narrationResultListening"; Layout.fillWidth: false; Layout.alignment: Qt.AlignHCenter; Layout.minimumWidth: 0; Layout.maximumWidth: result.availableWidth; spacing: 10
-            Layout.preferredWidth: (listenEnglish.visible ? listenEnglish.implicitWidth + spacing : 0) + (listenVietnamese.visible ? listenVietnamese.implicitWidth + spacing : 0) + stopButton.implicitWidth
-            ActionButton { id: listenEnglish; objectName: "narrationResultListenEnglish"; text: "Nghe giọng Anh"; iconName: "play"; visible: result.record.mode !== "vi"; enabled: !result.bridge.busy; onClicked: result.bridge.narrationWorkspace.listenCreated(result.bridge.quickResult.slide || 1, "en", result.record.id) }
-            ActionButton { id: listenVietnamese; objectName: "narrationResultListenVietnamese"; text: "Nghe giọng Việt"; iconName: "play"; visible: result.record.mode !== "en"; enabled: !result.bridge.busy; onClicked: result.bridge.narrationWorkspace.listenCreated(result.bridge.quickResult.slide || 1, "vi", result.record.id) }
-            ActionButton { id: stopButton; objectName: "narrationResultStop"; text: "Dừng nghe"; danger: true; onClicked: result.bridge.stopSpeech() }
+            Layout.preferredWidth: (listenEnglish.visible ? listenEnglish.implicitWidth : 0) + (listenVietnamese.visible ? listenVietnamese.implicitWidth : 0) + (listenEnglish.visible && listenVietnamese.visible ? spacing : 0)
+            CreatedNarrationButton { id: listenEnglish; objectName: "narrationResultListenEnglish"; appBridge: result.bridge; language: "en"; slideNumber: result.bridge.quickResult.slide || 1; recordId: result.record.id || ""; visible: result.record.mode !== "vi" }
+            CreatedNarrationButton { id: listenVietnamese; objectName: "narrationResultListenVietnamese"; appBridge: result.bridge; language: "vi"; slideNumber: result.bridge.quickResult.slide || 1; recordId: result.record.id || ""; visible: result.record.mode !== "en" }
         }
     }
 }

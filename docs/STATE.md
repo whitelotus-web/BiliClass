@@ -1,5 +1,14 @@
 # Trạng thái BiliClass
 
+Ngày 22/10/2026 — nguồn RC145 gộp nghe/dừng theo đúng ngôn ngữ,
+slide và phiên phát; dùng chung ở kết quả/cấu hình, giữ kích thước.
+Thêm Hoàn tác xóa ngay cạnh Chia sẻ & quản lý cho lần xóa thành
+công gần nhất; biên nhận thời điểm xóa được kiểm trong khóa SQLite.
+Trang xem có icon xóa cạnh Tạo giọng đọc, dùng chung xác nhận,
+về Thư viện sau khi xóa và hiện hoàn tác. 65 pytest, Qt kết quả
+giọng, xóa/hoàn tác và độ phản hồi được kiểm; giữ nguồn/WAV.
+Chi tiết và phạm vi ở [BUILD_RC145.md](BUILD_RC145.md).
+
 Ngày 22/10/2026 — nguồn RC144 tự sửa từng ô bảng, đo lưới trước khi
 Office tự nới hàng và sửa tương phản trên nền đặc khi có bằng chứng.
 Giữ bản tốt nhất, đóng dấu phiên bản/hash để không lặp. Lỗi cụ thể

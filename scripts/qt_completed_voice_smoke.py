@@ -12,10 +12,11 @@ from unittest.mock import patch
 
 from pptx import Presentation
 from pptx.util import Inches
-from PySide6.QtCore import QCoreApplication, QEvent, QObject, QPointF, QUrl
+from PySide6.QtCore import QCoreApplication, QEvent, QObject, QPointF, Qt, QUrl
 from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
+from PySide6.QtTest import QTest
 
 from app.branding import configure_application
 from app.chatgpt_handoff import external_preview
@@ -24,7 +25,7 @@ from app.library import Library
 from app.paths import RESOURCE_ROOT
 from app.ui import Bridge
 from app.voice_import import import_presentation
-from scripts.qt_result_preview_mascot_smoke import control, pump, until
+from scripts.qt_result_preview_mascot_smoke import click, control, pump, until
 
 
 def main():
@@ -48,7 +49,8 @@ def main():
         presentation.save(source)
         lesson, _ = import_presentation(folder / 'data', source)
         library = Library(folder / 'data')
-        plan, _ = make_plan(lesson, 'both', {'voice': 'pair:truc-ly', 'rate': 0}, playback='both_controls')
+        plan, _ = make_plan(lesson, 'both', {'voice': 'pair:truc-ly', 'rate': 0})
+        library.set_setting('voice_options', {'voice': plan['voice'], 'rate': plan['rate']})
         for keys in plan['keys'].values():
             for key in keys:
                 target = library.directory / 'audio' / (key + '.wav')
@@ -120,13 +122,14 @@ def main():
                 parent = listening.parentItem()
                 assert abs(listening.mapToItem(parent, QPointF()).x() + listening.width()/2 - parent.width()/2) < 2
                 buttons = [c(name) for name in ('narrationResultListenEnglish',
-                           'narrationResultListenVietnamese', 'narrationResultStop') if c(name).isVisible()]
+                           'narrationResultListenVietnamese') if c(name).isVisible()]
                 bounds = [(button.mapToItem(parent, QPointF()).x(),
                            button.mapToItem(parent, QPointF(button.width(), 0)).x()) for button in buttons]
                 assert abs((bounds[0][0] + bounds[-1][1])/2 - parent.width()/2) < 2
                 assert bounds[0][0] >= 0 and bounds[-1][1] <= parent.width()
                 assert all(right + 8 <= following for (_, right), (following, _) in zip(bounds, bounds[1:]))
                 assert all(button.width() >= button.implicitWidth() for button in buttons)
+                assert all(not button.findChild(QObject, 'actionButtonLabel').property('truncated') for button in buttons)
 
             assert c('narrationResultDownload').property('text') == 'Tải PowerPoint có giọng'
             for width, height in sizes:
@@ -157,6 +160,75 @@ def main():
             check_listening_alignment()
             assert window.grabWindow().save(str(reports / 'completed-dark.png'))
             bridge.setApplicationTheme('light')
+            # Use valid cached WAVs and the real reader/queue, with a controllable
+            # output device. Never synthesize or alter the teacher's system audio.
+            class PreviewPlayer:
+                auto_finish = False
+
+                def play(self, path):
+                    self.path = path
+
+                def finished(self):
+                    return self.auto_finish
+
+                def stop(self):
+                    self.path = None
+
+            player = PreviewPlayer()
+            reader = bridge.english_reader
+            en, vi = c('narrationResultListenEnglish'), c('narrationResultListenVietnamese')
+            assert window.findChild(QObject, 'narrationResultStop') is None
+            assert window.findChild(QObject, 'stopCreatedNarration') is None
+            widths = [en.width(), vi.width()]
+            with patch.object(reader, 'player', player), patch('app.speech.synthesize', side_effect=AssertionError('Cached preview only')):
+                click(window, en)
+                assert reader.state == 'reading' and bridge.narrationWorkspace.createdPlayback['language'] == 'en'
+                assert en.property('text') == 'Dừng nghe' and en.property('symbol') == '■'
+                assert vi.property('text') == 'Nghe giọng Việt'
+                assert widths == [en.width(), vi.width()]
+                click(window, en)
+                assert reader.state == 'stopped' and en.property('text') == 'Nghe giọng Anh'
+                vi.forceActiveFocus(Qt.OtherFocusReason)
+                QTest.keyClick(window, Qt.Key_Space)
+                pump(50)
+                assert vi.property('text') == 'Dừng nghe' and en.property('text') == 'Nghe giọng Anh'
+                click(window, en)
+                assert bridge.narrationWorkspace.createdPlayback['language'] == 'en'
+                assert vi.property('text') == 'Nghe giọng Việt' and en.property('text') == 'Dừng nghe'
+                bridge.stopSpeech()
+                pump(50)
+                assert not bridge.narrationWorkspace.createdPlayback
+                click(window, vi)
+                player.auto_finish = True
+                until(lambda: reader.state == 'stopped')
+                assert vi.property('text') == 'Nghe giọng Việt'
+                player.auto_finish = False
+                for theme in ('dark', 'light'):
+                    bridge.setApplicationTheme(theme)
+                    for language, button in (('en', en), ('vi', vi)):
+                        bridge.stopSpeech()
+                        click(window, button)
+                        assert button.property('text') == 'Dừng nghe' and button.property('danger')
+                        check_listening_alignment()
+                        assert widths == [en.width(), vi.width()]
+                        assert window.grabWindow().save(str(reports / f'toggle-{theme}-{language}.png'))
+                        click(window, button)
+                        assert reader.state == 'stopped'
+                with patch.object(player, 'play', side_effect=RuntimeError('Fixture playback device unavailable')):
+                    click(window, en)
+                    assert reader.state == 'error' and en.property('text') == 'Nghe giọng Anh'
+                click(window, en)
+                queue, voice, rate = list(reader.queue), reader.voice, reader.rate
+                reader.start(queue, voice, rate, cache_only=True)
+                pump(50)
+                assert reader.state == 'reading' and not bridge.narrationWorkspace.createdPlayback
+                assert en.property('text') == 'Nghe giọng Anh', 'Other reader activity must not mark this button as playing'
+                bridge.stopSpeech()
+                click(window, en)
+                click(window, c('narrationResultNext'))
+                until(lambda: not bridge.previewBusy, timeout=90)
+                assert reader.state == 'stopped' and not bridge.narrationWorkspace.createdPlayback
+                assert en.property('text') == 'Nghe giọng Anh'
             bridge._powerpoint_state = {**initial_powerpoint_state, 'active': True, 'starting': False}
             bridge.powerpointStateChanged.emit()
             with patch.object(bridge, 'stopSpeech') as stopped:
@@ -173,6 +245,22 @@ def main():
             pump(100)
             assert c('downloadAfterNarrationButton').property('text') == 'Tải PowerPoint có giọng'
             assert c('voiceSlideThumbnail').isVisible()
+            c('toggleVoiceSlidePreview').clicked.emit()
+            until(lambda: not bridge.previewBusy, timeout=90)
+            pump(100)
+            assert c('createdNarrationListening').isVisible()
+            with patch.object(reader, 'player', player):
+                for name in ('listenCreatedEnglish', 'listenCreatedVietnamese'):
+                    button = c(name)
+                    assert button.isVisible() and button.isEnabled()
+                    initial_width = button.width()
+                    button.clicked.emit()
+                    pump(50)
+                    assert button.property('text') == 'Dừng nghe'
+                    assert button.width() == initial_width
+                    button.clicked.emit()
+                    assert reader.state == 'stopped'
+            c('toggleVoiceSlidePreview').clicked.emit()
             assert abs(c('voiceSlideThumbnail').width() / c('voiceSlideThumbnail').height() - 16/9) < .01
             c('toggleVoiceSlidePreview').clicked.emit()
             pump(60)
@@ -277,6 +365,8 @@ def main():
             (reports / 'result.json').write_text(json.dumps({'status': 'passed', 'automatic_preview': True,
                 'resume_exact_completed_variant_after_configuration_or_clear': True, 'centered_actions': True,
                 'centered_listening_all_language_modes': True, 'voiced_download_label': True,
+                'one_listen_stop_toggle_per_language': True, 'toggle_keyboard_and_stable_width': True,
+                'reset_on_finished_error_navigation_external_stop': True, 'reader_ownership_checked': True,
                 'tab_specific_recent_results_reopen_distinct_lessons': True,
                 'footer_primary_action_aligned_with_summary': True,
                 'preview_while_powerpoint_active': True, 'sizes': sizes, 'qml_warnings': warnings}), encoding='utf-8')

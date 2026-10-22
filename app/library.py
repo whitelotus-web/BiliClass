@@ -314,7 +314,7 @@ class Library:
     def trash_lesson(self, lesson_id):
         self.trash_lessons([lesson_id])
 
-    def trash_lessons(self, lesson_ids):
+    def trash_lessons(self, lesson_ids, *, with_receipt=False):
         if not isinstance(lesson_ids, list) or not lesson_ids or len(lesson_ids) > 10000 or any(not isinstance(i, str) for i in lesson_ids):
             raise ValueError('Chọn ít nhất một bài giảng hợp lệ.')
         identities = list(dict.fromkeys(lesson_ids))
@@ -333,7 +333,7 @@ class Library:
                 lesson['deleted_at'] = deleted_at
             self.db.executemany("UPDATE lessons SET content=? WHERE id=?",
                                 [(json.dumps(lesson, ensure_ascii=False), lesson['id']) for lesson in lessons])
-        return len(lessons)
+        return {lesson['id']: deleted_at for lesson in lessons} if with_receipt else len(lessons)
 
     def restore_lesson(self, lesson_id):
         self.restore_lessons([lesson_id])
@@ -347,12 +347,16 @@ class Library:
             raise ValueError('Danh sách đã thay đổi. Chỉ chọn bài còn trong thùng rác rồi thử lại.')
         return lessons
 
-    def restore_lessons(self, lesson_ids):
+    def restore_lessons(self, lesson_ids, *, expected_deleted=None):
         # Lock before checking the batch; a second app cannot restore/purge one
         # entry between validation and the write. All entries change together.
         with self.db:
             self.db.execute('BEGIN IMMEDIATE')
             lessons = self._trash_selection(lesson_ids)
+            if expected_deleted is not None and (
+                    set(expected_deleted) != {lesson['id'] for lesson in lessons}
+                    or any(expected_deleted[lesson['id']] != lesson['deleted_at'] for lesson in lessons)):
+                raise ValueError('Lần xóa này đã thay đổi. Mở Thùng rác trong Chia sẻ & quản lý để chọn bài cần khôi phục.')
             for lesson in lessons:
                 lesson.pop('deleted_at')
             self.db.executemany('UPDATE lessons SET content=? WHERE id=?',

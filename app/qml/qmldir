@@ -15,6 +15,7 @@ ConversionCompletionPreview 1.0 ConversionCompletionPreview.qml
 ConversionConfiguration 1.0 ConversionConfiguration.qml
 ConfigurationSummary 1.0 ConfigurationSummary.qml
 ConversionLayoutPreview 1.0 ConversionLayoutPreview.qml
+CreatedNarrationButton 1.0 CreatedNarrationButton.qml
 HelpDialog 1.0 HelpDialog.qml
 HomeLibraryOverview 1.0 HomeLibraryOverview.qml
 HomeWelcome 1.0 HomeWelcome.qml

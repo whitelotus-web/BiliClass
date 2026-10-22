@@ -104,10 +104,10 @@ def main():
             assert not selected() and len(bridge.trashedLessons) == 20
             change = library_actions.change
 
-            def slow_change(*args):
+            def slow_change(*args, **kwargs):
                 assert QThread.currentThread() != app.thread()
                 time.sleep(.9)
-                return change(*args)
+                return change(*args, **kwargs)
 
             with patch.object(library_actions, 'change', slow_change):
                 gaps.append(tracked(lambda: bridge.restoreLessons(identities[:20]),

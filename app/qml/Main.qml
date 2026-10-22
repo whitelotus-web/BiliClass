@@ -885,6 +885,7 @@ ApplicationWindow {
                                 Layout.fillWidth: true; spacing: 12
                                 Copy { objectName: "libraryDescription"; text: "Tìm đúng bài, chọn bản giọng và mở để dạy hoặc tải PowerPoint."; Layout.fillWidth: true }
                                 MainAction { id: libraryManagementAction; objectName: "libraryManagementButton"; text: "Chia sẻ & quản lý"; subtle: true; implicitHeight: 28; onClicked: libraryManagementMenu.popup() }
+                                MainAction { objectName: "undoLibraryDeletion"; text: "Hoàn tác xóa"; symbol: "↶"; implicitHeight: 28; visible: bridge.undoDeleteCount > 0; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !bridge.teachingTransitioning && !root.classroom.running; ToolTip.visible: hovered; ToolTip.text: "Khôi phục " + bridge.undoDeleteCount + " bài trong lần xóa gần nhất"; onClicked: bridge.undoDeletion() }
                                 Menu { id: libraryManagementMenu; parent: libraryManagementAction; x: parent.width - width; y: parent.height
                                     MenuItem { objectName: "importSharedLessonButton"; text: "Nhận gói bài từ giáo viên khác…"; onTriggered: packOpen.open() }
                                     MenuItem { text: "Thùng rác (" + bridge.trashedLessons.length + ")"; onTriggered: lessonTrashDialog.open() }
@@ -1658,11 +1659,12 @@ ApplicationWindow {
                         RowLayout {
                             objectName: "resultStatusActions"; visible: root.page !== "voice"; Layout.fillWidth: true; spacing: 0
                             Item { Layout.fillWidth: true }
-                            Flow { Layout.preferredWidth: Math.min(500, parent.width); spacing: 10
+                            Flow { Layout.preferredWidth: Math.min(550, parent.width); spacing: 10
                             MainAction { objectName: "convertCurrentLessonButton"; visible: !bridge.quickResult.path; text: "Xem trình chiếu"; primary: true; enabled: !bridge.busy; onClicked: bridge.convertCurrentLesson() }
                             MainAction { objectName: "useConvertedLessonButton"; visible: !!bridge.quickResult.path; text: "Mở PowerPoint"; primary: true; enabled: !bridge.busy && !bridge.previewBusy && !bridge.narrationBusy && !bridge.teachingTransitioning; onClicked: bridge.openTeachingLibraryLesson(root.lessonData.id) }
                             MainAction { objectName: "downloadPresentationButton"; visible: !!bridge.quickResult.path; text: "Tải PowerPoint"; iconName: "download"; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: finalPresentationSave.openSuggested() }
                             MainAction { objectName: "resultCreateNarrationButton"; visible: !!bridge.quickResult.path; text: "Tạo giọng đọc"; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: bridge.openLessonNarration(root.lessonData.id) }
+                            LibraryTrashButton { objectName: "resultDeleteLessonButton"; implicitHeight: 42; Accessible.name: "Xóa bài giảng " + (root.lessonData.title || ""); ToolTip.visible: hovered; ToolTip.text: "Xóa bài giảng"; visible: !!root.lessonData.id; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !bridge.teachingTransitioning && !root.classroom.running; onClicked: { deleteLessonDialog.lessonId = root.lessonData.id; deleteLessonDialog.lessonTitle = root.lessonData.title; deleteLessonDialog.open() } }
                             }
                         }
                         RowLayout { Layout.fillWidth: true; visible: root.resultDetails
@@ -1702,9 +1704,8 @@ ApplicationWindow {
                             RowLayout {
                                 objectName: "createdNarrationListening"; visible: root.page === "voice" && root.narrationComplete
                                 spacing: 8
-                                MainAction { objectName: "listenCreatedEnglish"; text: "Nghe Anh"; iconName: "play"; implicitHeight: 34; visible: root.narrationMode !== "vi"; enabled: !bridge.busy; ToolTip.visible: hovered; ToolTip.text: "Nghe giọng Anh đã tạo của slide đang xem"; onClicked: bridge.narrationWorkspace.listenCreated(bridge.quickResult.slide || 1, "en", root.narrationDraft.id) }
-                                MainAction { objectName: "listenCreatedVietnamese"; text: "Nghe Việt"; iconName: "play"; implicitHeight: 34; visible: root.narrationMode !== "en"; enabled: !bridge.busy; ToolTip.visible: hovered; ToolTip.text: "Nghe giọng Việt đã tạo của slide đang xem"; onClicked: bridge.narrationWorkspace.listenCreated(bridge.quickResult.slide || 1, "vi", root.narrationDraft.id) }
-                                MainAction { objectName: "stopCreatedNarration"; text: "Dừng nghe"; implicitHeight: 34; danger: true; symbol: "■"; onClicked: bridge.stopSpeech() }
+                                CreatedNarrationButton { objectName: "listenCreatedEnglish"; appBridge: root.bridgeRef; language: "en"; shortLabel: true; implicitHeight: 34; visible: root.narrationMode !== "vi"; slideNumber: bridge.quickResult.slide || 1; recordId: root.narrationDraft.id || "" }
+                                CreatedNarrationButton { objectName: "listenCreatedVietnamese"; appBridge: root.bridgeRef; language: "vi"; shortLabel: true; implicitHeight: 34; visible: root.narrationMode !== "en"; slideNumber: bridge.quickResult.slide || 1; recordId: root.narrationDraft.id || "" }
                             }
                         }
                         LessonChecks {
