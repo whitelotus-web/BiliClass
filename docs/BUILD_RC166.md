@@ -28,3 +28,19 @@ Qt và PowerPoint thật kiểm tra lại cả ba luồng mở từ Thư viện,
 và Tạo giọng: mascot khôi phục đúng bài, trước/sau giữ nguyên hình học kể
 cả slide không có giọng. File nguồn thử giữ nguyên. Ruff toàn bộ app,
 scripts, tests và compileall đạt.
+
+Bộ cài đầy đủ đã tạo từ commit nguồn
+`0aa16268a58729c2230d9281359ca4cdf2e378f2`, phiên bản `1.0.0rc166`,
+installer revision 2. Lưu riêng tại `F:\BiliClass-BoCai-RC166`, không
+đưa executable, model hoặc dữ liệu cá nhân vào Git. Kiểm tra khớp 189
+module ứng dụng, 254 tài nguyên, tổng 4.688 file trong gói.
+
+Đã cài thật bằng bộ cài này, mở Cài đặt, tạo giọng Việt/Anh, chạy pipeline
+trong runtime đóng gói và gỡ cài đặt giữ nguyên thư viện thử. Tất cả đạt
+trên máy kiểm chứng; chưa thay thế việc kiểm tra trên máy đích khác.
+Bằng chứng máy cục bộ: `reports/rc166/delivery-verification.json`.
+
+SHA-256 của setup (57.856 byte):
+`1defb532d1cd6c2265184f8de5e3f01d118be69f32aa025f95b4c5b42b271640`.
+SHA-256 của gói ZIP đầy đủ (1.259.533.750 byte):
+`1107b63782fa1f2c85f6801e34816cdeccf88ebb84752553ba9a99980d64fee3`.
