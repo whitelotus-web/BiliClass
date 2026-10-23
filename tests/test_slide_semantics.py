@@ -6,6 +6,16 @@ from app.native_bilingual import assemble, extract
 from app.slide_semantics import quantity_only
 
 
+@pytest.mark.parametrize('value',['F (N)','a (m/s²)','v (km/h)','t (s)'])
+def test_symbol_and_si_unit_axis_is_shared_between_languages(value):
+    assert quantity_only(value)
+
+
+@pytest.mark.parametrize('value',['Lực (N)','mass (kg)','F (khối lượng)','Gia tốc a (m/s²)'])
+def test_prose_next_to_a_unit_still_needs_translation(value):
+    assert not quantity_only(value)
+
+
 @pytest.mark.parametrize('value', ['12 kg', '24 m/s', '12,5 m/s²', '3.2e-3 V', '10 MPa', '20 °C'])
 def test_spaced_scientific_quantities_are_language_independent(value):
     assert quantity_only(value)

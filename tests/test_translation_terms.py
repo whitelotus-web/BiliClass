@@ -23,6 +23,32 @@ def test_exact_teacher_term_and_classroom_heading_need_no_api(tmp_path):
     assert not translator.store.public()
 
 
+@pytest.mark.parametrize('source,expected', [
+    ('DỰ ĐOÁN THỨ NHẤT','FIRST PREDICTION'),
+    ('Dự đoán thứ hai:','Second prediction:'),
+    ('Thí nghiệm thứ ba','Third experiment'),
+    ('HOẠT ĐỘNG THỨ TƯ','FOURTH ACTIVITY'),
+    ('Bước thứ bốn.','Fourth step.'),
+    ('Nhiệm vụ thứ mười','Tenth task'),
+])
+def test_ordinal_classroom_heading_keeps_words_without_adding_numeric_data(tmp_path,source,expected):
+    translator=Translator(tmp_path,transport=lambda *_:pytest.fail('Ordinal heading needs no API'))
+    assert translator.translate([source],Event())==[expected]
+    assert not translator.store.public()
+
+
+def test_ordinal_heading_keeps_teacher_override_and_does_not_assume_weekdays():
+    from app.translation_terms import TermPolicy
+
+    teacher=TermPolicy('Vật lý',[{'vi':'Dự đoán thứ nhất','en':'Initial hypothesis','locked':True}])
+    assert teacher.exact('DỰ ĐOÁN THỨ NHẤT')=='Initial hypothesis'
+    policy=TermPolicy()
+    assert policy.exact('Thứ hai') is None
+    assert policy.exact('Học vào thứ hai') is None
+    assert policy.exact('Dự đoán thứ nhất có đúng không?') is None
+    assert policy.exact('Dự đoán thứ hai: 6 N') is None
+
+
 @pytest.mark.parametrize('source,target', [('Bài 4:', 'Lesson 4:'), ('BÀI 12', 'LESSON 12'),
     ('Bai 4.1', 'Lesson 4.1'), ('Bài ⟦BLC0⟧:', 'Lesson ⟦BLC0⟧:'), ('Chương II', 'Chapter II')])
 def test_numbered_lesson_heading_is_local_and_never_becomes_song(tmp_path, source, target):

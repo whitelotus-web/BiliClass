@@ -99,6 +99,29 @@ def test_small_source_label_does_not_double_with_a_large_canvas(tmp_path):
     assert (paragraph.runs[0].font.size or paragraph.font.size).pt <= 24
 
 
+def test_small_running_footer_keeps_its_band_and_source_font_hierarchy(tmp_path):
+    deck=Presentation()
+    deck.slide_width,deck.slide_height=Inches(13.333),Inches(7.5)
+    slide=deck.slides.add_slide(deck.slide_layouts[6])
+    label=slide.shapes.add_textbox(Inches(.6),Inches(7.2),Inches(6),Inches(.22))
+    label.text='BILICLASS / BÀI GIẢNG MẪU TIẾNG VIỆT'
+    label.text_frame.paragraphs[0].font.size=Pt(8.2)
+    source=tmp_path/'running-footer.pptx'
+    deck.save(source)
+    before=source.read_bytes()
+    manifest=extract(source,'parallel_columns',same_slide=True)
+    unit=manifest['units'][0]
+    assert unit['label'] and not unit['title'] and unit['inline_pair']
+    output=assemble(source,tmp_path/'paired.pptx',manifest,
+                    {unit['id']:{'en':'BILICLASS / VIETNAMESE SAMPLE LESSON'}},'parallel_columns')
+    result=Presentation(output).slides[0].shapes[0]
+    assert (result.left,result.top,result.width,result.height)==(label.left,label.top,label.width,label.height)
+    assert 'BÀI GIẢNG MẪU' in result.text and 'VIETNAMESE SAMPLE LESSON' in result.text
+    sizes=[int(n.get('sz'))/100 for n in result._element.findall('.//a:defRPr',NS)]
+    assert max(sizes)<=8.2
+    assert source.read_bytes()==before
+
+
 def test_table_with_only_office_math_still_has_cell_geometry_and_reserves_a_solution_label(tmp_path):
     deck = Presentation()
     deck.slide_width, deck.slide_height = Inches(26.667), Inches(15)

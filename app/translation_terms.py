@@ -34,6 +34,13 @@ _LABELS = {'bài':'Lesson', 'bai':'Lesson', 'chương':'Chapter', 'chuong':'Chap
            'câu':'Question', 'cau':'Question', 'mục':'Section', 'muc':'Section',
            'hoạt động':'Activity', 'hđ':'Activity', 'luyện tập':'Practice',
            'nhiệm vụ':'Task', 'vận dụng':'Application', 'ví dụ':'Example', 'phiếu học tập số':'Worksheet'}
+_ORDINALS = {'nhất':'first', 'hai':'second', 'ba':'third', 'tư':'fourth', 'bốn':'fourth',
+             'năm':'fifth', 'sáu':'sixth', 'bảy':'seventh', 'tám':'eighth',
+             'chín':'ninth', 'mười':'tenth'}
+_ORDINAL_LABELS = {'dự đoán':'prediction', 'thí nghiệm':'experiment', 'hoạt động':'activity',
+                   'nhiệm vụ':'task', 'ví dụ':'example', 'bước':'step', 'trường hợp':'case'}
+_ORDINAL_HEADING = re.compile(
+    r'^(' + '|'.join(_ORDINAL_LABELS) + r')\s+thứ\s+(' + '|'.join(_ORDINALS) + r')$', re.I)
 
 
 def numbered_heading(text):
@@ -92,6 +99,13 @@ class TermPolicy:
         if heading_key in self.terms or heading_key in HEADINGS:
             suffix = text.strip()[len(text.strip().rstrip(':.!? ')):].strip()
             return self.terms.get(heading_key, HEADINGS.get(heading_key)) + suffix
+        # Google can turn "thứ nhất" into "number 1". Translate complete
+        # classroom labels locally, retaining words and the strict data guard.
+        # A bare "thứ hai" remains ambiguous (Monday); never lock it globally.
+        ordinal = _ORDINAL_HEADING.fullmatch(heading_key)
+        if ordinal:
+            suffix = text.strip()[len(text.strip().rstrip(':.!? ')):].strip()
+            return (_ORDINALS[ordinal[2]].capitalize() + ' ' + _ORDINAL_LABELS[ordinal[1]] + suffix)
         if self.subject == 'toan':
             from .math_translation import exact
 

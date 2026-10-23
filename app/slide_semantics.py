@@ -40,7 +40,10 @@ def quantity_only(text):
     number = r'[+−-]?(?:\d+(?:[.,]\d+)?|[.,]\d+)(?:[eE][+−-]?\d+)?'
     unit = r'(?:kg|mg|g|km|cm|mm|nm|m|ms|s|min|h|kHz|MHz|Hz|N|MPa|kPa|Pa|kJ|J|MW|kW|W|mV|V|mA|A|Ω|mol|K|°C|°F|rad|mL|ml|L|%)'
     power = r'(?:[²³]|\^[+−-]?\d+)?'
-    return bool(re.fullmatch(number + r'\s*' + unit + power + r'(?:\s*/\s*' + unit + power + r')?', text.strip()))
+    units = unit + power + r'(?:\s*/\s*' + unit + power + r')?'
+    quantity = number + r'\s*' + units
+    axis = r'[A-Za-zα-ωΑ-Ω]\s*\(\s*' + units + r'\s*\)'
+    return bool(re.fullmatch(r'(?:' + quantity + '|' + axis + ')', text.strip()))
 
 
 def heading_frame(shape, units, box, slide_height):

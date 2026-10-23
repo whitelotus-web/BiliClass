@@ -560,11 +560,11 @@ def assemble(source, destination, manifest, translations, mode):
                     for pair in coverage.get(index,[]):
                         if pair['source_shape']==shape_id:
                             pair['en_shape']=clone_id
-                    same_slide.fit(clone,max(u['font_size'] for u in units))
+                    same_slide.fit(clone,max(u['font_size'] for u in units),label=units[0].get('label',False))
                 elif manifest.get('version', 1) >= 2:
                     fit_body(clone, max(u['font_size'] for u in units))
             if together:
-                same_slide.fit(shape,max(u['font_size'] for u in units),title=title)
+                same_slide.fit(shape,max(u['font_size'] for u in units),title=title,label=units[0].get('label',False))
                 if shape.tag == f'{{{NS["p"]}}}graphicFrame':
                     same_slide.fit_cells(shape, max(u['font_size'] for u in units))
             elif manifest.get('version', 1) >= 2:

@@ -52,9 +52,9 @@ def style_paragraph(paragraph, source_size, *, english=False, title=False, label
     visible = bool(text_of(paragraph).strip())
     # A large slide canvas does not mean every small source label should grow
     # twofold. Preserve its hierarchy and use the readable floor in points.
-    minimum = (14 if label else 18) * min(1, canvas_scale)
+    minimum = min(source_size / 100, 14 * min(1, canvas_scale)) if label else 18 * min(1, canvas_scale)
     size = min(max(source_size / 100, minimum), (32 if title else 18 if label else 24) * canvas_scale)
-    target = max(minimum, size * (0.82 if english else 1))
+    target = size * .82 if english and label else max(minimum, size * (0.82 if english else 1))
     scale = target / max(1, source_size / 100)
     default = props.find("a:defRPr", NS)
     if default is None:
@@ -167,6 +167,8 @@ def prepare(source, manifest):
                 continue
             x, y, w, h = (box[name] for name in ("x", "y", "w", "h"))
             length = sum(len(u["raw"]) for u in units)
+            compact_caption = (max(u['font_size'] for u in units) <= 1400 * min(1, canvas_scale)
+                               and length < 140 and len(units) <= 2 and h < deck.slide_height * .055)
             title = bool(
                 units[0]["title"]
                 and length < 180
@@ -181,6 +183,8 @@ def prepare(source, manifest):
                 title = False  # A question/instruction block needs body columns, not a stacked heading.
             if re.match(r"^\s*(?:Câu|Bước|Question)\s*\d", units[0]["raw"], re.I):
                 title = False
+            if compact_caption:
+                title = False  # Small running headers keep their original band and hierarchy.
             x0, y0 = max(127000, x), max(127000, y)
             right, bottom = min(deck.slide_width - 127000, x + w), deck.slide_height - 127000
             for other in items:
@@ -241,7 +245,7 @@ def prepare(source, manifest):
                 "w": round(width * sx),
                 "h": round(height * sy),
             }
-            label = length < 25 and not title and h < 55 * 12700 * canvas_scale
+            label = compact_caption or length < 25 and not title and h < 55 * 12700 * canvas_scale
             if label:
                 # Question numbers and solution badges own small frames. The
                 # surrounding question band is not their shared text container.
@@ -318,7 +322,7 @@ def prefer_inline(units, translations):
     return fitted[1] > fitted[0]*1.1
 
 
-def fit(shape, fallback_size, *, title=False):
+def fit(shape, fallback_size, *, title=False, label=False):
     """Uniform type scaling keeps VI/EN hierarchy and native equation proportions."""
     from .native_layout import text_height
 
@@ -371,7 +375,10 @@ def fit(shape, fallback_size, *, title=False):
         for p in nonempty
         if p.find("a:pPr/a:defRPr", NS) is not None
     ]
-    floor = min(1, 18 / min(sizes, default=24))
+    # Running headers/footer captions already use small source type. Enlarging
+    # them to the body floor makes two-language labels spill from painted bands.
+    minimum = min(8, fallback_size / 100 * .65) if label else 18
+    floor = min(1, minimum / min(sizes, default=24))
     scale = 1.0
     while scale > floor and needed(scale) > height:
         scale -= 0.025
