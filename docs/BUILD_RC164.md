@@ -49,3 +49,28 @@ xem/trình chiếu; chuyển đổi cần mạng và key Google Cloud Translatio
 Đây là kiểm tra độc lập trên máy Windows hiện tại, chưa phải chứng nhận
 trên máy Windows sạch thứ hai. Không phát hành lên GitHub Releases trong
 lượt bàn giao local này. EXE/model/ZIP/báo cáo thử nằm ngoài Git.
+
+## Dung lượng và giữ môi trường sau bàn giao
+
+Gói đầy đủ 1,26 GB, khi cài khoảng 2,12 GB (đơn vị GB thập phân).
+Giọng Việt–Mỹ và OCR chiếm khoảng 826 MB trong ZIP, gần 66% gói nén.
+Dung lượng cài đặt khác với RAM sử dụng; bộ cài giữ đầy đủ model chạy
+ngoại tuyến theo yêu cầu bàn giao.
+
+Mã nguồn chuẩn tiếp tục ở F. Giữ nguyên thư mục bàn giao
+`F:\BiliClass-BoCai-RC164`, runtime đầy đủ `dist/rc164-full`, bản dự phòng
+`dist/rc155-input-consistency`, `.git`, cả hai virtual environment, model
+nguồn, thư viện cá nhân `F:\BiliClassData` và bản sao lưu của giáo viên.
+Cache runtime/giọng đang dùng trên C cũng được giữ; không chuyển mã nguồn
+sang C. ZIP/model/báo cáo và bản dựng tiếp tục nằm ngoài Git.
+
+Dọn các thư mục trung gian PyInstaller/C# đã hoàn tất; cache tải gói
+pip/npm/uv; bốn cache dependency nguồn cũ có metadata xác nhận thuộc dự án.
+Không xóa phiên đăng nhập, Downloads hoặc file PowerPoint của giáo viên.
+Số dung lượng thu hồi đo bằng dung lượng trống thực tế của ổ đĩa; không
+cộng kích thước biểu kiến của các bản hardlink thành dung lượng đã dọn.
+
+Sau dọn, pipeline nguồn với dữ liệu thử riêng đạt: DOCX/PPTX, mẫu bài,
+SQLite/lịch sử/gói bài, WAV Anh và Việt ngoại tuyến, tốc độ/cache,
+tiến trình lớp học và sao lưu/khôi phục. Qt mở Cài đặt thành công,
+không cảnh báo QML. Các báo cáo cục bộ nằm tại `reports/rc164/cleanup`.
