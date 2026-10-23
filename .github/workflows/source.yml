@@ -30,6 +30,7 @@ jobs:
         run: >-
           python -m pytest -q tests/test_backup_safety.py tests/test_library_location.py
           tests/test_window_geometry.py tests/test_startup_splash.py
+          tests/test_windows_installer.py
           tests/test_narration_preparation.py tests/test_narration_workspace.py
           tests/test_office_tasks.py tests/test_lesson_state.py tests/test_narration_preferences.py
           tests/test_support_report.py tests/test_slide_dependency_cache.py
