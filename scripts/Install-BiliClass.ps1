@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$InstallRoot = (Join-Path $env:LOCALAPPDATA 'Programs\BiliClass'),
     [switch]$NoShortcuts,
     [switch]$Uninstall,
@@ -8,6 +8,7 @@ param(
     [string]$ExpectedVersion = ''
 )
 $ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
 function Get-FileSha256([string]$Path) {
     $sha = [System.Security.Cryptography.SHA256]::Create()
     try {
@@ -19,27 +20,27 @@ function Get-FileSha256([string]$Path) {
 if ($WaitForProcessId -gt 0) {
     # The old version must finish before switching the shortcut to the new version.
     Wait-Process -Id $WaitForProcessId -Timeout 120 -ErrorAction SilentlyContinue
-    if (Get-Process -Id $WaitForProcessId -ErrorAction SilentlyContinue) { throw 'Close BiliClass before installing the update.' }
+    if (Get-Process -Id $WaitForProcessId -ErrorAction SilentlyContinue) { throw 'Hãy đóng BiliClass trước khi cài bản cập nhật.' }
 }
 $packageRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $installPath = [IO.Path]::GetFullPath($InstallRoot).TrimEnd('\')
 $markerPath = Join-Path $installPath '.biliclass-install.json'
-if ($installPath -eq [IO.Path]::GetPathRoot($installPath).TrimEnd('\')) { throw 'Cannot use a drive root.' }
-if (Test-Path -LiteralPath (Join-Path $installPath 'library.db')) { throw 'Select an application folder separate from the lesson library.' }
-if (-not $Uninstall -and (Test-Path -LiteralPath $installPath) -and -not (Test-Path -LiteralPath $markerPath) -and (Get-ChildItem -LiteralPath $installPath -Force | Select-Object -First 1)) { throw 'Use an empty folder or an existing verified BiliClass installation.' }
+if ($installPath -eq [IO.Path]::GetPathRoot($installPath).TrimEnd('\')) { throw 'Hãy tạo một thư mục riêng để cài BiliClass, ví dụ D:\BiliClass-App. Không chọn cả ổ đĩa.' }
+if (Test-Path -LiteralPath (Join-Path $installPath 'library.db')) { throw 'Đây là thư viện bài giảng. Hãy chọn một thư mục khác để cài ứng dụng, ví dụ D:\BiliClass-App.' }
+if (-not $Uninstall -and (Test-Path -LiteralPath $installPath) -and -not (Test-Path -LiteralPath $markerPath) -and (Get-ChildItem -LiteralPath $installPath -Force | Select-Object -First 1)) { throw ('Thư mục này đã có dữ liệu. Hãy chọn hoặc tạo một thư mục mới, trống hoàn toàn để cài BiliClass. Không chọn thư mục đang chứa bộ cài; dữ liệu hiện có được giữ nguyên. Thư mục đã chọn: ' + $installPath) }
 if (-not $Uninstall -and (Test-Path -LiteralPath $markerPath)) {
     $previousMarker = Get-Content -LiteralPath $markerPath -Raw | ConvertFrom-Json
-    if ($previousMarker.product -ne 'BiliClass' -or $previousMarker.root -ne $installPath) { throw 'Installation marker mismatch.' }
+    if ($previousMarker.product -ne 'BiliClass' -or $previousMarker.root -ne $installPath) { throw 'Chưa xác nhận được bản BiliClass trong thư mục này. Hãy chọn một thư mục mới để cài; dữ liệu hiện có được giữ nguyên.' }
 }
 $shortcutPath = Join-Path ([Environment]::GetFolderPath('Programs')) 'BiliClass.lnk'
 $desktopShortcutPath = Join-Path ([Environment]::GetFolderPath('Desktop')) 'BiliClass.lnk'
 $uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\BiliClass'
 if ($Uninstall) {
-    if (-not (Test-Path -LiteralPath $markerPath)) { throw 'Not a verified BiliClass installation.' }
+    if (-not (Test-Path -LiteralPath $markerPath)) { throw 'Đây không phải thư mục cài BiliClass đã được xác nhận. Chưa xóa dữ liệu.' }
     $marker = Get-Content -LiteralPath $markerPath -Raw | ConvertFrom-Json
-    if ($marker.product -ne 'BiliClass' -or $marker.root -ne $installPath) { throw 'Installation marker mismatch.' }
+    if ($marker.product -ne 'BiliClass' -or $marker.root -ne $installPath) { throw 'Thông tin bản cài BiliClass không khớp thư mục. Chưa xóa dữ liệu.' }
     $running = Get-Process BiliClass -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith($installPath + '\', [StringComparison]::OrdinalIgnoreCase) }
-    if ($running) { throw 'Close this BiliClass installation before uninstalling.' }
+    if ($running) { throw 'Hãy đóng bản BiliClass này trước khi gỡ cài đặt.' }
     if (-not $NoShortcuts -and (Test-Path -LiteralPath $uninstallKey)) {
         $registered = Get-ItemProperty -LiteralPath $uninstallKey
         if ($registered.InstallLocation -eq $installPath) { Remove-Item -LiteralPath $uninstallKey -Force }
@@ -64,48 +65,48 @@ if ($PackageZip) {
     foreach ($zipEntry in $archive.Entries) {
         if (-not $zipNames.Add($zipEntry.FullName) -or $zipEntry.FullName -match '(^/|\\|:|(^|/)\.\.?(/|$))') {
             $archive.Dispose()
-            throw 'Unsafe or repeated archive path.'
+            throw 'Gói cài có đường dẫn không hợp lệ hoặc trùng tên. Hãy chép lại bộ cài đầy đủ.'
         }
     }
     $manifestEntry = $archive.GetEntry('app-manifest.json')
-    if (-not $manifestEntry -or $manifestEntry.Length -gt 8MB) { $archive.Dispose(); throw 'Missing or oversized package manifest.' }
+    if (-not $manifestEntry -or $manifestEntry.Length -gt 8MB) { $archive.Dispose(); throw 'Gói cài thiếu hoặc sai bảng kiểm tra dữ liệu. Hãy chép lại bộ cài đầy đủ.' }
     $reader = New-Object IO.StreamReader($manifestEntry.Open(), [Text.Encoding]::UTF8)
     try { $manifest = $reader.ReadToEnd() | ConvertFrom-Json } finally { $reader.Dispose() }
 } else {
     $manifest = Get-Content -LiteralPath (Join-Path $packageRoot 'app-manifest.json') -Raw | ConvertFrom-Json
 }
 try {
-if ($manifest.product -ne 'BiliClass' -or $manifest.version -notmatch '^\d+\.\d+\.\d+(?:rc\d+)?$') { throw 'Invalid package manifest.' }
-if ($ExpectedVersion -and $manifest.version -ne $ExpectedVersion) { throw 'Package version differs from this installer.' }
+if ($manifest.product -ne 'BiliClass' -or $manifest.version -notmatch '^\d+\.\d+\.\d+(?:rc\d+)?$') { throw 'Thông tin gói cài không hợp lệ. Hãy chép lại bộ cài đầy đủ.' }
+if ($ExpectedVersion -and $manifest.version -ne $ExpectedVersion) { throw 'File ZIP khác phiên bản với bộ cài. Hãy chép đúng hai file EXE và ZIP cùng bộ.' }
 $fileEntries = @($manifest.files.PSObject.Properties)
-if ($fileEntries.Count -lt 1 -or $fileEntries.Count -gt 20000 -or -not $manifest.files.'BiliClass.exe') { throw 'Incomplete package manifest.' }
+if ($fileEntries.Count -lt 1 -or $fileEntries.Count -gt 20000 -or -not $manifest.files.'BiliClass.exe') { throw 'Gói cài chưa đầy đủ. Hãy chép lại bộ cài.' }
 $sourceRoot = [IO.Path]::GetFullPath((Join-Path $packageRoot 'BiliClass'))
 $names = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
 $requiredBytes = [long]64MB
 foreach ($entry in $fileEntries) {
-    if ($entry.Name -match '(^/|\\|:|(^|/)\.\.?(/|$))' -or -not $names.Add($entry.Name) -or $entry.Value -notmatch '^[a-fA-F0-9]{64}$') { throw 'Unsafe or repeated package path.' }
+    if ($entry.Name -match '(^/|\\|:|(^|/)\.\.?(/|$))' -or -not $names.Add($entry.Name) -or $entry.Value -notmatch '^[a-fA-F0-9]{64}$') { throw 'Gói cài có đường dẫn không hợp lệ hoặc trùng tên. Hãy chép lại bộ cài đầy đủ.' }
     $sourceFile = [IO.Path]::GetFullPath((Join-Path $sourceRoot $entry.Name))
-    if (-not $sourceFile.StartsWith($sourceRoot + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Unsafe package path.' }
+    if (-not $sourceFile.StartsWith($sourceRoot + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Đường dẫn trong gói cài không hợp lệ. Hãy chép lại bộ cài đầy đủ.' }
     if ($archive) {
         $zipEntry = $archive.GetEntry('BiliClass/' + $entry.Name)
-        if (-not $zipEntry) { throw ('Missing package file: ' + $entry.Name) }
+        if (-not $zipEntry) { throw ('Gói cài thiếu tệp. Hãy chép lại bộ cài đầy đủ. Tệp thiếu: ' + $entry.Name) }
         $requiredBytes += $zipEntry.Length
     } else {
-        if ((Get-FileSha256 $sourceFile) -ne $entry.Value) { throw ('Checksum mismatch: ' + $entry.Name) }
+        if ((Get-FileSha256 $sourceFile) -ne $entry.Value) { throw ('Tệp trong bộ cài bị thiếu hoặc thay đổi. Hãy chép lại bộ cài. Tệp: ' + $entry.Name) }
         $requiredBytes += (Get-Item -LiteralPath $sourceFile).Length
     }
 }
 $drive = New-Object IO.DriveInfo([IO.Path]::GetPathRoot($installPath))
-if ($drive.AvailableFreeSpace -lt $requiredBytes) { throw 'Not enough free space on the selected installation drive.' }
+if ($drive.AvailableFreeSpace -lt $requiredBytes) { throw ('Ổ cài chưa đủ dung lượng trống. Cần khoảng ' + [Math]::Round($requiredBytes / 1GB, 2) + ' GB trống; hãy chọn ổ khác hoặc giải phóng dung lượng rồi thử lại.') }
 $versionPath = Join-Path $installPath $manifest.version
-if (Test-Path -LiteralPath $versionPath) { throw 'This version is already installed. Uninstall or select a different install directory.' }
+if (Test-Path -LiteralPath $versionPath) { throw 'Phiên bản này đã có trong thư mục đã chọn. Hãy mở bản đã cài hoặc chọn một thư mục mới.' }
 $staging = Join-Path $installPath ('.staging-' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $staging -Force | Out-Null
 try {
 $completed = 0
 foreach ($entry in $fileEntries) {
     $target = [IO.Path]::GetFullPath((Join-Path $staging $entry.Name))
-    if (-not $target.StartsWith($staging + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Unsafe install path.' }
+    if (-not $target.StartsWith($staging + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Đường dẫn cài đặt không hợp lệ. Hãy chọn một thư mục mới.' }
     New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force | Out-Null
     if ($archive) {
         $inputStream = $archive.GetEntry('BiliClass/' + $entry.Name).Open()
@@ -113,7 +114,7 @@ foreach ($entry in $fileEntries) {
             $outputStream = [IO.File]::Create($target)
             try { $inputStream.CopyTo($outputStream) } finally { $outputStream.Dispose() }
         } finally { $inputStream.Dispose() }
-        if ((Get-FileSha256 $target) -ne $entry.Value) { throw ('Checksum mismatch: ' + $entry.Name) }
+        if ((Get-FileSha256 $target) -ne $entry.Value) { throw ('Tệp trong bộ cài bị thiếu hoặc thay đổi. Hãy chép lại bộ cài. Tệp: ' + $entry.Name) }
     } else {
         Copy-Item -LiteralPath (Join-Path $sourceRoot $entry.Name) -Destination $target
     }
@@ -151,7 +152,7 @@ if (-not $NoShortcuts) {
         # Match the process/window identity so Explorer resolves the group icon
         # after versioned executable paths change. This CLI opens no UI/library.
         $identityProcess = Start-Process -FilePath (Join-Path $versionPath 'BiliClass.exe') -ArgumentList @('--register-shortcut',('"' + $ownedShortcutPath + '"')) -WindowStyle Hidden -Wait -PassThru
-        if ($identityProcess.ExitCode -ne 0) { throw 'Could not register the BiliClass shortcut identity.' }
+        if ($identityProcess.ExitCode -ne 0) { throw 'Chưa tạo được biểu tượng BiliClass. Hãy đóng ứng dụng rồi thử cài lại vào một thư mục mới.' }
     }
     New-Item -Path $uninstallKey -Force | Out-Null
     $uninstallProperties = @{

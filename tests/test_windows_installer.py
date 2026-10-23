@@ -100,18 +100,30 @@ def test_wrong_version_foreign_folder_and_library_are_preserved(tmp_path):
     assert invoke(foreign_marker, package).returncode != 0
 
 
-def test_native_launcher_verifies_installs_and_rejects_changed_payload(tmp_path):
-    package, files = make_package(tmp_path)
+def compile_launcher(folder, package):
     metadata = dict(version=VERSION, payload=package.name, sha256=hashlib.sha256(package.read_bytes()).hexdigest())
-    info = tmp_path/'release.json'
+    info = folder/'release.json'
     info.write_text(json.dumps(metadata), encoding='utf-8')
-    executable = tmp_path/'Setup.exe'
+    executable = folder/'Setup.exe'
     csc = Path(os.environ['WINDIR'])/'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
     subprocess.run([str(csc), '/nologo', '/target:winexe', '/codepage:65001',
                     '/reference:System.Windows.Forms.dll', '/reference:System.Drawing.dll', '/reference:System.Web.Extensions.dll',
                     '/out:'+str(executable), '/resource:'+str(info)+',release.json',
                     '/resource:'+str(SCRIPT)+',Install-BiliClass.ps1', str(ROOT/'scripts/SetupLauncher.cs')],
                    check=True, capture_output=True, timeout=40)
+    return executable
+
+
+def native_failure(executable, target, temporary):
+    environment = dict(os.environ, TEMP=str(temporary), TMP=str(temporary))
+    result = subprocess.run([str(executable), '--install-test', str(target)], env=environment, timeout=40)
+    assert result.returncode != 0
+    return (temporary/'BiliClass-setup-error.txt').read_text(encoding='utf-8-sig')
+
+
+def test_native_launcher_verifies_installs_and_rejects_changed_payload(tmp_path):
+    package, files = make_package(tmp_path)
+    executable = compile_launcher(tmp_path, package)
     assert subprocess.run([str(executable), '--verify'], timeout=40).returncode == 0
     screenshot = tmp_path/'setup.png'
     assert subprocess.run([str(executable), '--smoke', str(screenshot)], timeout=40).returncode == 0
@@ -119,6 +131,61 @@ def test_native_launcher_verifies_installs_and_rejects_changed_payload(tmp_path)
     target = tmp_path/'Bản cài từ EXE'
     assert subprocess.run([str(executable), '--install-test', str(target)], timeout=40).returncode == 0
     assert (target/VERSION/'BiliClass.exe').read_bytes() == files['BiliClass.exe']
+    error = native_failure(executable, target, tmp_path)
+    assert 'đã có trong thư mục này' in error and 'CLIXML' not in error
     assert invoke(target, uninstall=True).returncode == 0
     package.write_bytes(package.read_bytes()+b'changed')
     assert subprocess.run([str(executable), '--verify'], timeout=40).returncode != 0
+    occupied = tmp_path/'Tài liệu khác'
+    occupied.mkdir()
+    original = occupied/'Bài giảng của tôi.pptx'
+    original.write_bytes(b'teacher source; preserve')
+    error = native_failure(executable, occupied, tmp_path)
+    assert 'Thư mục này đã có dữ liệu' in error and 'thư mục mới' in error
+    assert str(occupied) in error and 'CLIXML' not in error and 'schemas.microsoft.com' not in error
+    assert 'Gói dữ liệu chưa đầy đủ' not in error, 'Check the destination before hashing the large ZIP'
+    assert original.read_bytes() == b'teacher source; preserve'
+    assert sorted(p.name for p in occupied.iterdir()) == [original.name]
+
+
+def test_native_worker_error_preserves_vietnamese_without_xml_or_progress(tmp_path):
+    package, _ = make_package(tmp_path, bad_hash=True)
+    executable = compile_launcher(tmp_path, package)
+    target = tmp_path/'Ứng dụng mới'
+    error = native_failure(executable, target, tmp_path)
+    assert 'Tệp trong bộ cài bị thiếu hoặc thay đổi' in error and 'BiliClass.exe' in error
+    assert all(text not in error for text in ('CLIXML', 'schemas.microsoft.com', 'Preparing modules', 'BILICLASS_ERROR|'))
+    assert not (target/VERSION).exists() and not (target/'.biliclass-install.json').exists()
+    assert not list(target.glob('.staging-*'))
+    assert SCRIPT.read_bytes().startswith(b'\xef\xbb\xbf'), 'Windows PowerShell 5.1 must read Vietnamese script messages as UTF-8'
+
+
+def test_launcher_refresh_requires_clean_unchanged_application_source(tmp_path):
+    from scripts.package_installer import verify_source
+
+    def git(*args):
+        return subprocess.check_output(['git', *args], cwd=tmp_path, text=True).strip()
+
+    git('init', '-q')
+    git('config', 'user.email', 'fixture@example.invalid')
+    git('config', 'user.name', 'Installer fixture')
+    (tmp_path/'app').mkdir()
+    (tmp_path/'app/__init__.py').write_text('version = 164\n')
+    (tmp_path/'requirements-lock.txt').write_text('fixture == 1\n')
+    git('add', '.')
+    git('commit', '-qm', 'verified application')
+    application = git('rev-parse', 'HEAD')
+    (tmp_path/'SetupLauncher.cs').write_text('// setup-only change\n')
+    git('add', '.')
+    git('commit', '-qm', 'setup-only change')
+    with pytest.raises(ValueError, match='current source commit'):
+        verify_source(tmp_path, application)
+    assert verify_source(tmp_path, application, reuse_application=True) == git('rev-parse', 'HEAD')
+    (tmp_path/'requirements-lock.txt').write_text('fixture == 2\n')
+    git('add', '.')
+    git('commit', '-qm', 'different native dependency')
+    with pytest.raises(ValueError, match='application/runtime source changed'):
+        verify_source(tmp_path, application, reuse_application=True)
+    (tmp_path/'uncommitted.txt').write_text('not verified')
+    with pytest.raises(ValueError, match='Commit verified'):
+        verify_source(tmp_path, application, reuse_application=True)

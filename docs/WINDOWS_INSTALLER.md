@@ -10,6 +10,37 @@ giải nén ZIP. Thư viện, key dịch và bài cá nhân được lưu riêng
 cần Internet và key Google Cloud Translation; PowerPoint desktop vẫn
 là phần mềm cần có trên máy để xem và trình chiếu PowerPoint.
 
+Chọn một thư mục mới/trống, ví dụ `D:\BiliClass-App`. Không chọn thư mục
+đang chứa `BiliClass-Setup.exe` và ZIP hoặc thư mục tài liệu có sẵn.
+Nếu báo thư mục đã có dữ liệu, chọn/tạo thư mục mới; không xóa các file
+hiện có để làm trống thư mục đó.
+
+### RC164 — bộ cài 2
+
+Ảnh báo lỗi từ máy nhận cho thấy thư mục đích có dữ liệu và không có
+marker xác nhận bản BiliClass. Bộ cài cũ chặn ghi đè đúng, nhưng thông báo
+tiếng Anh bị trộn CLIXML của PowerShell nên khó đọc. Launcher mới kiểm tra
+thư mục trước khi đọc ZIP lớn, hướng dẫn bằng tiếng Việt và giữ nguyên
+các file ở thư mục chọn nhầm. Lỗi từ worker truyền riêng dưới dạng UTF-8;
+tiến trình PowerShell dùng OutputFormat Text và tắt progress mặc định,
+không đưa XML/raw stderr vào hộp thoại. Nhật ký kỹ thuật vẫn được lưu.
+Script PowerShell có UTF-8 BOM để Windows PowerShell 5.1 đọc đúng dấu Việt.
+
+Ứng dụng/model/ZIP vẫn là RC164 đã xác minh. Người đã nhận bộ cài cũ chỉ
+cần thay `BiliClass-Setup.exe` bằng bản trong `F:\BiliClass-BoCai-RC164-Setup2`,
+giữ nguyên `BiliClass-RC164-Windows.zip` cạnh EXE; không gửi lại ZIP.
+
+Chỉ làm mới launcher từ một gói app đã xác minh khi mã app/runtime không
+thay đổi và nguồn sạch đã commit:
+
+```powershell
+.venv/Scripts/python.exe scripts/package_installer.py --release dist/rc164-full --output F:/BiliClass-BoCai-RC164-Setup2 --reuse-application
+```
+
+BUILD_INFO ghi riêng commit ứng dụng, commit bộ cài và `installer_revision`.
+Chế độ này từ chối dùng lại ZIP nếu app, cấu hình phiên bản, dependency
+đã khóa hoặc spec runtime thay đổi; phải dựng lại app trong trường hợp đó.
+
 Launcher chứa phiên bản, commit nguồn và SHA-256 của payload. Nó kiểm
 tra toàn bộ ZIP trước khi cài. PowerShell giải nén trực tiếp vào thư mục
 staging duy nhất trên ổ đích, kiểm tra từng file theo manifest rồi đổi

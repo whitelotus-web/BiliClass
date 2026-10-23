@@ -31,6 +31,7 @@ internal static class SetupLauncher
             if (args.Length > 0 && args[0] == "--verify") { VerifyPayload(); return 0; }
             if (args.Length == 2 && args[0] == "--install-test")
             {
+                VerifyDestination(args[1]);
                 VerifyPayload();
                 Install(args[1], false, false, delegate(int progress, string message) { });
                 return 0;
@@ -72,10 +73,44 @@ internal static class SetupLauncher
 
     private static string Literal(string value) { return "'" + value.Replace("'", "''") + "'"; }
 
+    internal static string VerifyDestination(string directory)
+    {
+        if (String.IsNullOrWhiteSpace(directory)) throw new Exception("Hãy chọn thư mục cài BiliClass.");
+        string root = Path.GetFullPath(directory).TrimEnd(Path.DirectorySeparatorChar);
+        if (root == Path.GetPathRoot(root).TrimEnd(Path.DirectorySeparatorChar))
+            throw new Exception("Hãy tạo một thư mục riêng để cài BiliClass, ví dụ D:\\BiliClass-App. Không chọn cả ổ đĩa.");
+        if (File.Exists(root)) throw new Exception("Đường dẫn đã chọn là một tệp. Hãy chọn một thư mục mới để cài BiliClass.");
+        if (!Directory.Exists(root)) return root;
+        if (File.Exists(Path.Combine(root, "library.db")))
+            throw new Exception("Đây là thư viện bài giảng. Hãy chọn một thư mục khác để cài ứng dụng, ví dụ D:\\BiliClass-App.\n\n" + root);
+        string marker = Path.Combine(root, ".biliclass-install.json");
+        if (!File.Exists(marker))
+        {
+            using (var entries = Directory.EnumerateFileSystemEntries(root).GetEnumerator())
+                if (entries.MoveNext()) throw new Exception("Thư mục này đã có dữ liệu. Hãy chọn hoặc tạo một thư mục mới, trống hoàn toàn để cài BiliClass, ví dụ D:\\BiliClass-App.\n\nKhông chọn thư mục đang chứa bộ cài và không cần xóa dữ liệu hiện có.\n\nThư mục đã chọn: " + root);
+        }
+        else
+        {
+            bool verified = false;
+            try
+            {
+                var info = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(File.ReadAllText(marker, Encoding.UTF8));
+                object product, previousRoot;
+                verified = info != null && info.TryGetValue("product", out product) && Object.Equals(product, "BiliClass")
+                    && info.TryGetValue("root", out previousRoot) && previousRoot is string
+                    && String.Equals((string)previousRoot, root, StringComparison.OrdinalIgnoreCase);
+            }
+            catch { }
+            if (!verified) throw new Exception("Chưa xác nhận được bản BiliClass trong thư mục này. Hãy chọn một thư mục mới để cài; dữ liệu hiện có được giữ nguyên.\n\n" + root);
+        }
+        if (Directory.Exists(Path.Combine(root, Value("version"))))
+            throw new Exception("BiliClass " + Value("version") + " đã có trong thư mục này. Hãy mở bản đã cài hoặc chọn một thư mục mới.\n\n" + root);
+        return root;
+    }
+
     internal static void Install(string directory, bool shortcuts, bool launch, Action<int, string> progress)
     {
-        string root = Path.GetFullPath(directory).TrimEnd(Path.DirectorySeparatorChar);
-        if (root == Path.GetPathRoot(root).TrimEnd(Path.DirectorySeparatorChar)) throw new Exception("Hãy chọn một thư mục riêng để cài ứng dụng.");
+        string root = VerifyDestination(directory);
         string work = Path.Combine(Path.GetTempPath(), "BiliClassSetup-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(work);
         try
@@ -83,18 +118,21 @@ internal static class SetupLauncher
             string script = Path.Combine(work, "Install-BiliClass.ps1");
             using (var input = Assembly.GetExecutingAssembly().GetManifestResourceStream("Install-BiliClass.ps1"))
             using (var output = File.Create(script)) input.CopyTo(output);
-            string command = "$ErrorActionPreference='Stop';try { & " + Literal(script)
+            string command = "$ErrorActionPreference='Stop';$ProgressPreference='SilentlyContinue';"
+                + "[Console]::OutputEncoding=New-Object Text.UTF8Encoding($false);$OutputEncoding=[Console]::OutputEncoding;try { & " + Literal(script)
                 + " -InstallRoot " + Literal(root) + " -PackageZip " + Literal(Payload)
                 + " -ExpectedVersion " + Literal(Value("version"))
                 + (shortcuts ? "" : " -NoShortcuts") + (launch ? " -LaunchAfterInstall" : "")
-                + "; exit 0 } catch { [Console]::Error.WriteLine($_.Exception.Message);exit 1 }";
+                + "; exit 0 } catch { [Console]::Out.WriteLine('BILICLASS_ERROR|' + [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($_.Exception.Message)));exit 1 }";
             string powershell = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "WindowsPowerShell", "v1.0", "powershell.exe");
-            var start = new ProcessStartInfo(powershell, "-NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand "
+            var start = new ProcessStartInfo(powershell, "-NoProfile -NonInteractive -InputFormat Text -OutputFormat Text -ExecutionPolicy Bypass -EncodedCommand "
                 + Convert.ToBase64String(Encoding.Unicode.GetBytes(command)));
             start.UseShellExecute = false; start.CreateNoWindow = true;
             start.RedirectStandardOutput = true; start.RedirectStandardError = true;
+            start.StandardOutputEncoding = Encoding.UTF8; start.StandardErrorEncoding = Encoding.UTF8;
             var log = new StringBuilder();
             var errors = new StringBuilder();
+            string failure = null;
             using (var process = new Process())
             {
                 process.StartInfo = start;
@@ -102,6 +140,11 @@ internal static class SetupLauncher
                 {
                     if (line.Data == null) return;
                     lock (log) log.AppendLine(line.Data);
+                    if (line.Data.StartsWith("BILICLASS_ERROR|", StringComparison.Ordinal))
+                    {
+                        try { failure = Encoding.UTF8.GetString(Convert.FromBase64String(line.Data.Substring("BILICLASS_ERROR|".Length))); }
+                        catch (FormatException) { }
+                    }
                     if (line.Data.StartsWith("PROGRESS|"))
                     {
                         string[] parts = line.Data.Split('|'); int percent;
@@ -116,7 +159,8 @@ internal static class SetupLauncher
                 Directory.CreateDirectory(logFolder);
                 string logFile = Path.Combine(logFolder, "setup-" + DateTime.UtcNow.ToString("yyyyMMdd-HHmmss") + ".log");
                 File.WriteAllText(logFile, log.ToString() + errors.ToString(), Encoding.UTF8);
-                if (process.ExitCode != 0) throw new Exception("Chưa cài được ứng dụng. " + errors.ToString().Trim()
+                if (process.ExitCode != 0) throw new Exception((String.IsNullOrWhiteSpace(failure)
+                    ? "Chưa hoàn tất cài đặt. Hãy thử lại hoặc gửi tệp nhật ký bên dưới để kiểm tra." : failure.Trim())
                     + "\n\nChi tiết: " + logFile);
             }
         }
@@ -139,7 +183,7 @@ internal sealed class SetupForm : Form
 
     internal SetupForm()
     {
-        Text = "Cài đặt BiliClass " + SetupLauncher.Value("version");
+        Text = "Cài đặt BiliClass " + SetupLauncher.Value("version") + " · Bộ cài 2";
         Font = new Font("Segoe UI", 10);
         AutoScaleMode = AutoScaleMode.Dpi; ClientSize = new Size(650, 415);
         FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = false;
@@ -161,7 +205,7 @@ internal sealed class SetupForm : Form
         shortcuts = new CheckBox { Text = "Tạo biểu tượng trên Desktop và Start menu", Checked = true, Location = new Point(28, 218), AutoSize = true };
         launch = new CheckBox { Text = "Mở BiliClass sau khi cài xong", Checked = true, Location = new Point(28, 246), AutoSize = true };
         Controls.Add(shortcuts); Controls.Add(launch);
-        status = new Label { Text = "Bài giảng và thư viện cá nhân được giữ riêng với ứng dụng.", Location = new Point(28, 291), Size = new Size(593, 36) };
+        status = new Label { Text = "Chọn thư mục mới/trống để cài, khác thư mục đang chứa bộ cài.\nBài giảng và thư viện cá nhân được giữ riêng với ứng dụng.", Location = new Point(28, 291), Size = new Size(593, 36) };
         progress = new ProgressBar { Location = new Point(28, 333), Size = new Size(593, 14) };
         install = new Button { Text = "Cài đặt", Location = new Point(501, 365), Size = new Size(120, 34) };
         install.Click += BeginInstall;
@@ -176,6 +220,7 @@ internal sealed class SetupForm : Form
         status.Text = "Đang kiểm tra gói dữ liệu đầy đủ…"; progress.Style = ProgressBarStyle.Marquee;
         try
         {
+            SetupLauncher.VerifyDestination(root);
             await Task.Run(delegate
             {
                 SetupLauncher.VerifyPayload();

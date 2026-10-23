@@ -6,7 +6,25 @@ import json
 import os
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
+
+INSTALLER_REVISION = 2
+
+
+def verify_source(root, application_commit, *, reuse_application=False):
+    head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip()
+    if subprocess.check_output(['git', 'status', '--porcelain'], cwd=root, text=True).strip():
+        raise ValueError('Commit verified source changes before packaging the installer.')
+    if head != application_commit:
+        if not reuse_application:
+            raise ValueError('Package only a verified build of the current source commit, or explicitly reuse unchanged application source.')
+        changed = subprocess.check_output(
+            ['git', 'diff', '--name-only', application_commit, head, '--',
+             'app', 'pyproject.toml', 'requirements*.txt', 'scripts/build_runtime.spec'], cwd=root, text=True)
+        if changed.strip():
+            raise ValueError('Rebuild the application before packaging: application/runtime source changed: ' + changed.strip())
+    return head
 
 
 def digest(path):
@@ -18,6 +36,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--release', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--reuse-application', action='store_true',
+                        help='Update only the setup launcher when the verified application/runtime source is unchanged')
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     release = args.release.resolve(strict=True)
@@ -28,9 +48,9 @@ def main():
     build = json.loads((release / 'BiliClass/BUILD_INFO.json').read_text(encoding='utf-8-sig'))
     version = build['version']
     commit = build['source_commit']
-    head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip()
-    if head != commit or result['source_commit'] != commit or not result['zip_verified']:
-        raise ValueError('Package only a verified build of the current source commit.')
+    if result['source_commit'] != commit or not result['zip_verified']:
+        raise ValueError('Package only a verified application build.')
+    installer_commit = verify_source(root, commit, reuse_application=args.reuse_application)
     asset = Path(result['archive'])
     if not asset.resolve().is_relative_to(release) or digest(asset) != result['sha256']:
         raise ValueError('The complete release ZIP does not match the verified build.')
@@ -38,9 +58,11 @@ def main():
     if not csc.is_file():
         raise ValueError('The Windows .NET Framework compiler is required for the native launcher.')
     output.mkdir(parents=True)
-    work = release / '.installer-work'
-    work.mkdir()
+    work_root = release / '.installer-work'
+    work_root.mkdir(exist_ok=True)
+    work = Path(tempfile.mkdtemp(prefix=f'setup-{INSTALLER_REVISION}-', dir=work_root))
     metadata = dict(product='BiliClass', version=version, source_commit=commit,
+                    installer_source_commit=installer_commit, installer_revision=INSTALLER_REVISION,
                     payload=asset.name, sha256=result['sha256'], payload_bytes=asset.stat().st_size)
     metadata_path = work / 'release.json'
     metadata_path.write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding='utf-8')
@@ -53,7 +75,7 @@ def main():
         '[assembly: AssemblyProduct("BiliClass") ]\n'
         '[assembly: AssemblyCopyright("Copyright © 2026 Nguyễn Diệu Linh")]\n'
         f'[assembly: AssemblyFileVersion("{windows_version}")]\n'
-        f'[assembly: AssemblyInformationalVersion("{version}")]\n', encoding='utf-8-sig')
+        f'[assembly: AssemblyInformationalVersion("{version}+setup.{INSTALLER_REVISION}")]\n', encoding='utf-8-sig')
     executable = output / 'BiliClass-Setup.exe'
     subprocess.run([
         str(csc), '/nologo', '/target:winexe', '/platform:anycpu', '/optimize+', '/codepage:65001',
@@ -74,6 +96,7 @@ def main():
         f'BILICLASS {version} — BỘ CÀI ĐẦY ĐỦ\n\n'
         '1. Để các file trong thư mục này cạnh nhau. Không cần giải nén file ZIP.\n'
         '2. Bấm đúp BiliClass-Setup.exe, chọn thư mục cài rồi bấm Cài đặt.\n'
+        '   Chọn thư mục mới/trống, ví dụ D:\\BiliClass-App. Không chọn thư mục đang chứa bộ cài.\n'
         '3. Mở BiliClass từ Desktop hoặc Start menu. Bấm F1 để xem hướng dẫn.\n\n'
         'Có sẵn ứng dụng, giọng Việt–Mỹ, OCR, mẫu bài giảng, mascot và giấy phép.\n'
         'Không cần cài Python hoặc tải riêng bộ giọng.\n'
@@ -82,7 +105,14 @@ def main():
         'Thư viện, bài giảng và key cá nhân không nằm trong bộ cài.\n\n'
         'Gỡ cài đặt: mục BiliClass trong Ứng dụng của Windows, hoặc chạy\n'
         'Uninstall-BiliClass.cmd trong thư mục ứng dụng. Thư viện được giữ riêng.\n\n'
-        f'Mã nguồn: {commit}\n', encoding='utf-8-sig')
+        f'Mã nguồn ứng dụng: {commit}\n'
+        f'Mã nguồn bộ cài {INSTALLER_REVISION}: {installer_commit}\n', encoding='utf-8-sig')
+    (output / 'CAP_NHAT_BO_CAI.txt').write_text(
+        f'BILICLASS {version} — BỘ CÀI {INSTALLER_REVISION}\n\n'
+        'Nếu đã gửi bộ cài RC164 trước đó, chỉ cần gửi lại BiliClass-Setup.exe trong thư mục này.\n'
+        'Người nhận thay file Setup cũ bằng file mới, giữ nguyên BiliClass-RC164-Windows.zip cạnh EXE.\n'
+        'Không cần gửi/tải lại ZIP. Không giải nén ZIP. Chọn thư mục mới/trống để cài.\n'
+        'Không xóa dữ liệu trong thư mục đã chọn nhầm.\n', encoding='utf-8-sig')
     metadata['installer_sha256'] = digest(executable)
     metadata['installer_bytes'] = executable.stat().st_size
     (output / 'BUILD_INFO.json').write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding='utf-8')
