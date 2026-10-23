@@ -254,6 +254,7 @@ Item {
         AboutBiliClass {
             visible: page.activeTab === 1
             bridge: page.bridge
+            viewportHeight: contentScroll.availableHeight
             Layout.fillWidth: true; Layout.maximumWidth: 1440
             Layout.alignment: Qt.AlignHCenter
         }

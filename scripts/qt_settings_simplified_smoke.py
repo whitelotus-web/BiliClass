@@ -257,8 +257,22 @@ def main():
                     assert description.property('text') == ('Chuyển đổi bài giảng song ngữ, hỗ trợ trình chiếu\n'
                                                             'với giọng đọc, mascot trợ giảng và thư viện lưu trữ ngay trên máy.')
                     assert description.property('lineCount') == 2
-                    assert abs(center(description)-center(card if card.property('footerBelow') else info)) < 2
-                    assert description.y()+description.height() <= card.height()-23
+                    assert abs(center(description)-center(info)) < 2
+                    description_pos = description.mapToItem(card, QPointF())
+                    brand_end = brand.mapToItem(card, QPointF(0, brand.height())).y()
+                    assert abs(description_pos.y()-brand_end-12) < 1
+                    assert description_pos.y()+description.height() < version.mapToItem(card, QPointF()).y()
+                    copyright_block = c('aboutBiliClassCopyrightBlock')
+                    copyright_end = copyright_block.mapToItem(card, QPointF(0, copyright_block.height())).y()
+                    assert abs(card.height()-copyright_end-40) < 1, 'Copyright ends at the former bottom description position'
+                    if width == 1366:
+                        assert brand.width() >= info.width()*0.80 and logo.width() >= 140
+                    if width >= 1366:
+                        viewport = c('settingsContentScroll').property('contentItem')
+                        rights = c('aboutBiliClassRights')
+                        rights_pos = rights.mapToItem(viewport, QPointF())
+                        assert rights_pos.y()+rights.height() <= viewport.height()+1, 'Copyright is visible without scrolling on normal/large windows'
+                        assert card.height() <= viewport.height()+1
                     assert window.grabWindow().save(str(reports/f'{mode}-about-{width}.png'))
                 page.setProperty('activeTab', 5)
                 pump(100)
@@ -286,10 +300,12 @@ def main():
                 description = c('aboutBiliClassDescription')
                 assert description.property('lineCount') == 2
                 assert description.property('contentWidth') <= description.width()+1
-                assert abs(center(description)-center(card)) < 2
-                assert description.y()+description.height() <= card.height()-23
+                assert abs(center(description)-center(info)) < 2
+                description_pos = description.mapToItem(card, QPointF())
+                assert description_pos.x() >= -1 and description_pos.x()+description.width() <= card.width()+1
+                assert abs(description_pos.y()-c('aboutBiliClassBrand').mapToItem(card, QPointF(0, c('aboutBiliClassBrand').height())).y()-12) < 1
                 for item in info.findChildren(QQuickItem):
-                    if item.property('text'):
+                    if item.property('text') and item != description:
                         point = item.mapToItem(info, QPointF())
                         assert point.x() >= -1 and point.x()+item.width() <= info.width()+1
                         content_width = item.property('contentWidth')
@@ -357,7 +373,7 @@ def main():
                 'Voice actions remain next to rate controls at 1080/1366/1920, light/dark',
                 'Supplied mascot artwork loads; brand, version, updater and copyright fit the empty left area at 1080/1366/1920, light/dark',
                 '860-pixel laptop: logo and wrapped labels stay inside the left area; no horizontal overflow; contact reachable by scrolling',
-                'Updated description stays on two centered lines at all four window sizes; narrow windows place it below the artwork at readable font size',
+                'Larger centered brand fills the marked area; the two-line introduction sits 12 pixels below it, before version; copyright ends 40 pixels above the bottom',
                 'About updater still checks through the real slot; disabled during download, enabled again on completion (network mocked)',
                 'Mascot fills the content width; shortcut groups have equal columns on wide windows, stack on narrow windows and keep actions together at the right',
                 'Three main storage actions; advanced actions collapsed and reachable',
