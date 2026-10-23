@@ -1,4 +1,5 @@
 singleton AppTheme 1.0 AppTheme.qml
+AboutBiliClass 1.0 AboutBiliClass.qml
 ActionButton 1.0 ActionButton.qml
 AppearancePicker 1.0 AppearancePicker.qml
 AppPalette 1.0 AppPalette.qml

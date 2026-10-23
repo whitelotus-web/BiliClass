@@ -8,9 +8,10 @@ from pathlib import Path
 from unittest.mock import patch
 
 from PIL import Image
-from PySide6.QtCore import QCoreApplication, QEvent, QObject, QPointF, Qt, QUrl
+from PySide6.QtCore import QCoreApplication, QEvent, QObject, QPointF, QSize, Qt, QUrl
 from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
+from PySide6.QtQuick import QQuickItem
 from PySide6.QtQuickControls2 import QQuickStyle
 from PySide6.QtTest import QTest
 
@@ -227,16 +228,32 @@ def main():
                 window.resize(width, height)
                 page.setProperty('activeTab', 1)
                 pump(150)
-                card, brand = c('aboutBiliClassCard'), c('aboutBiliClassBrand')
-                assert abs(center(card)-center(brand)) < 2
-                version, copyright = c('aboutBiliClassVersion'), c('aboutBiliClassCopyright')
-                update = c('aboutCheckUpdate')
-                assert all(abs(center(item)-center(card)) < 2 for item in (version, copyright, update))
-                assert brand.mapToScene(QPointF()).y()+brand.height() < version.mapToScene(QPointF()).y()
-                assert update.mapToScene(QPointF()).y()+update.height() < copyright.mapToScene(QPointF()).y()
-                assert version.mapToScene(QPointF()).y()+version.height() < update.mapToScene(QPointF()).y()
-                assert copyright.width() >= 300
-                assert window.grabWindow().save(str(reports/f'about-{width}.png'))
+                for mode in ('light', 'dark'):
+                    bridge.setApplicationTheme(mode)
+                    pump(100)
+                    card, info, brand = (c(name) for name in ('aboutBiliClassCard', 'aboutBiliClassInfo', 'aboutBiliClassBrand'))
+                    artwork = c('aboutBiliClassArtwork')
+                    assert card.property('artworkReady'), 'Supplied artwork must load from app assets'
+                    assert artwork.width() == card.width() and artwork.height() == card.height()
+                    assert info.x() > 0 and info.x()+info.width() < card.width()*0.45, 'Leave both mascots unobstructed'
+                    assert info.y() >= 23 and info.y()+info.height() <= card.height()-23
+                    version, copyright = c('aboutBiliClassVersion'), c('aboutBiliClassCopyright')
+                    update = c('aboutCheckUpdate')
+                    assert all(abs(center(item)-center(info)) < 2 for item in (brand, version, copyright, update))
+                    # Measure the painted group, not a full-width layout that
+                    # could still leave its logo and text stuck to the left.
+                    logo, brand_text = c('aboutBiliClassLogo'), c('aboutBiliClassBrandText')
+                    group_center = (logo.mapToScene(QPointF()).x()+brand_text.mapToScene(QPointF(brand_text.width(), 0)).x())/2
+                    assert abs(group_center-center(info)) < 2
+                    brand_pos = brand.mapToItem(info, QPointF())
+                    assert brand_pos.x() >= 0 and brand_pos.x()+brand.width() <= info.width()+1
+                    assert brand.mapToScene(QPointF()).y()+brand.height() < version.mapToScene(QPointF()).y()
+                    assert update.mapToScene(QPointF()).y()+update.height() < copyright.mapToScene(QPointF()).y()
+                    assert version.mapToScene(QPointF()).y()+version.height() < update.mapToScene(QPointF()).y()
+                    assert copyright.width() >= 300
+                    assert version.property('color').name() == '#112650', 'Keep dark text readable on the light artwork in both themes'
+                    assert copyright.property('color').name() == '#112650'
+                    assert window.grabWindow().save(str(reports/f'{mode}-about-{width}.png'))
                 page.setProperty('activeTab', 5)
                 pump(100)
                 for name in ('settingsBackup', 'settingsRestore', 'relocateLibraryButton'):
@@ -250,6 +267,45 @@ def main():
                 for name in ('settingsOpenData', 'settingsOpenLibrary', 'settingsSupportReport', 'settingsReferenceButton'):
                     assert c(name).isVisible()
                 click(window, c('toggleDataOptions'))
+            # A high-DPI laptop can have fewer than 1080 logical pixels. Use a
+            # smaller test window without changing the actual Windows display.
+            window.setMinimumSize(QSize(860, 620))
+            window.resize(860, 620)
+            page.setProperty('activeTab', 1)
+            for mode in ('light', 'dark'):
+                bridge.setApplicationTheme(mode)
+                pump(150)
+                card, info = c('aboutBiliClassCard'), c('aboutBiliClassInfo')
+                assert info.x()+info.width() < card.width()*0.45
+                for item in info.findChildren(QQuickItem):
+                    if item.property('text'):
+                        point = item.mapToItem(info, QPointF())
+                        assert point.x() >= -1 and point.x()+item.width() <= info.width()+1
+                        content_width = item.property('contentWidth')
+                        if content_width is not None:
+                            assert content_width <= item.width()+1, item.property('text')
+                viewport = c('settingsContentScroll').property('contentItem')
+                assert viewport.property('contentWidth') <= c('settingsContentScroll').width()+1
+                assert window.grabWindow().save(str(reports/f'{mode}-about-laptop-top.png'))
+                viewport.setProperty('contentY', max(0, viewport.property('contentHeight')-viewport.height()))
+                pump(100)
+                contact = c('aboutBiliClassContact')
+                point = contact.mapToItem(viewport, QPointF())
+                assert point.y() >= 0 and point.y()+contact.height() <= viewport.height()+1
+                assert window.grabWindow().save(str(reports/f'{mode}-about-laptop-bottom.png'))
+            window.setMinimumSize(QSize(1080, 700))
+            window.resize(1366, 850)
+            page.setProperty('activeTab', 1)
+            pump(100)
+            update = c('aboutCheckUpdate')
+            bridge._set_update_state(downloading=True)
+            assert not update.isEnabled(), 'Do not start another check while downloading'
+            bridge._set_update_state(downloading=False)
+            with patch('app.ui.check_for_update', return_value=None) as check:
+                click(window, update)
+                until(lambda: bridge.update_worker is None)
+                assert check.call_count == 1 and check.call_args.kwargs == {'include_current': True}
+                assert update.isEnabled() and not bridge.updateState['checking']
             page.setProperty('activeTab', 2)
             pump(100)
             assert not c('voiceSaveStatus').isVisible(), 'Idle saved settings have no redundant hint'
@@ -288,7 +344,9 @@ def main():
                 'General profile/theme columns stack on narrow windows; preview card removed',
                 'Logo add/replace/remove updates image, buttons and saved asset',
                 'Voice actions remain next to rate controls at 1080/1366/1920, light/dark',
-                'Centered brand, version, update action and copyright in that vertical order',
+                'Supplied mascot artwork loads; brand, version, updater and copyright fit the empty left area at 1080/1366/1920, light/dark',
+                '860-pixel laptop: logo and wrapped labels stay inside the left area; no horizontal overflow; contact reachable by scrolling',
+                'About updater still checks through the real slot; disabled during download, enabled again on completion (network mocked)',
                 'Mascot fills the content width; shortcut groups have equal columns on wide windows, stack on narrow windows and keep actions together at the right',
                 'Three main storage actions; advanced actions collapsed and reachable',
                 'Profile fields still save; redundant voice hint hidden at rest',

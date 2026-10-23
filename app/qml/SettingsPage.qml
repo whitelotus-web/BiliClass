@@ -251,36 +251,11 @@ Item {
             }
         }
 
-        ColumnLayout {
-            visible: page.activeTab === 1; Layout.fillWidth: true; spacing: 14
-            Card {
-                objectName: "aboutBiliClassCard"; Layout.fillWidth: true; padding: 22
-                ColumnLayout { width: parent.width; spacing: 17
-                    RowLayout { objectName: "aboutBiliClassBrand"; Layout.alignment: Qt.AlignHCenter; spacing: 22
-                        Image { objectName: "aboutBiliClassLogo"; source: "../assets/brand/biliclass.svg"; sourceSize.width: 224; sourceSize.height: 224; Layout.preferredWidth: 88; Layout.preferredHeight: 88; fillMode: Image.PreserveAspectFit; Accessible.name: "Logo BiliClass" }
-                        ColumnLayout { spacing: 8
-                            Label { text: "Bili<span style='color:#ff7d2b'>Class</span>"; textFormat: Text.RichText; color: page.ink; font.pixelSize: 34; font.bold: true }
-                            Label { text: "CHUYỂN NGỮ THÔNG MINH\nNÂNG TẦM BÀI GIẢNG"; color: page.muted; font.pixelSize: 10; font.letterSpacing: 0.6 }
-                            Hint { text: bridge.appSubtitle; font.pixelSize: 16 }
-                        }
-                    }
-                    Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: page.line }
-                    ColumnLayout { Layout.fillWidth: true; Layout.maximumWidth: 820; Layout.alignment: Qt.AlignHCenter; spacing: 6
-                        Hint { text: "PHIÊN BẢN"; font.pixelSize: 10; font.letterSpacing: 1; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
-                        Title { objectName: "aboutBiliClassVersion"; text: bridge.appVersion; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
-                        Hint { text: bridge.developmentMode ? "Đang chạy từ mã nguồn" : "Ứng dụng BiliClass cho Windows"; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
-                        SoftButton { objectName: "aboutCheckUpdate"; Layout.alignment: Qt.AlignHCenter; text: bridge.updateState.checking ? "Đang kiểm tra…" : "Kiểm tra cập nhật"; iconName: "refresh"; enabled: !bridge.updateState.checking && !bridge.updateState.downloading; onClicked: bridge.checkForUpdates(false) }
-                    }
-                    ColumnLayout { Layout.fillWidth: true; Layout.maximumWidth: 820; Layout.alignment: Qt.AlignHCenter; spacing: 7
-                        Hint { text: "BẢN QUYỀN"; font.pixelSize: 10; font.letterSpacing: 1; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
-                        Title { objectName: "aboutBiliClassCopyright"; text: "Copyright © 2026 Nguyễn Diệu Linh"; font.pixelSize: 17; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
-                        Hint { text: "Giáo viên Tin học · Trường THPT Vân\u00a0Cốc"; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
-                        Hint { objectName: "aboutBiliClassContact"; text: "Liên hệ tác giả: 0972.360.036"; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
-                        Hint { text: "All rights reserved."; font.pixelSize: 11; Layout.topMargin: 4; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
-                    }
-                    Hint { text: "Chuyển tài liệu thành bài giảng Việt–Anh, trình chiếu và đồng hành cùng thầy cô với giọng đọc, mascot trợ giảng.\nThư viện bài giảng được lưu trên máy."; Layout.fillWidth: true; Layout.maximumWidth: 820; Layout.alignment: Qt.AlignHCenter; horizontalAlignment: Text.AlignHCenter }
-                }
-            }
+        AboutBiliClass {
+            visible: page.activeTab === 1
+            bridge: page.bridge
+            Layout.fillWidth: true; Layout.maximumWidth: 1440
+            Layout.alignment: Qt.AlignHCenter
         }
 
         ColumnLayout {
