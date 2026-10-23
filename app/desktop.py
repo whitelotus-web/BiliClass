@@ -117,7 +117,11 @@ def run(args):
 
     app.aboutToQuit.connect(hide_windows)
     width, height = (int(n) for n in args.size.split("x"))
-    window.resize(width, height)
+    from PySide6.QtCore import QSize
+
+    from .window_geometry import WindowGeometry
+
+    window_geometry = WindowGeometry(window, QSize(width, height))
     lesson_id = getattr(args, "lesson_id", None)
     if lesson_id:
         bridge.openLesson(lesson_id)
@@ -138,7 +142,7 @@ def run(args):
                     "screenshot": str(path),
                     "saved": saved,
                     "warnings": warnings,
-                    "size": [width, height],
+                    "size": [window.width(), window.height()],
                     "page": args.page,
                     "current_page": window.property('page'),
                     "experimental_teaching": bridge.experimentalTeaching,
@@ -172,6 +176,7 @@ def run(args):
     if not args.smoke:
         QTimer.singleShot(1500, cleanup_job.start)
     result = app.exec()
+    window_geometry._timer.stop()
     if watchdog is not None:
         watchdog.stop()
     if cleanup_job.isRunning():
