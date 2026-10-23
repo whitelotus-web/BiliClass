@@ -81,3 +81,23 @@ Thu hồi thực tế khoảng 4,9 GiB trên C và 5,2 GiB trên F; còn trống
 lượt khoảng 23,2 GiB và 20,8 GiB khi chốt kiểm tra. Hai EXE của runtime
 RC164 và RC155 dự phòng vẫn khớp manifest sau dọn. Đủ 4.687 file RC164,
 các SHA của thư mục bàn giao và lệnh xác minh payload của setup đều đạt.
+
+## RC164 — sửa bộ cài 2
+
+Sau ảnh lỗi từ máy nhận: thư mục cài đã có dữ liệu, thông báo bị trộn
+CLIXML. Commit `17ffd02cc77a1ddc96c8ef1fc654475fe6e4f9f0` sửa kiểm tra
+thư mục sớm, hướng dẫn tiếng Việt và luồng lỗi PowerShell. Không đổi app,
+model hoặc ZIP. Thư mục mới: `F:\BiliClass-BoCai-RC164-Setup2`.
+
+`BiliClass-Setup.exe` mới: 57.856 byte; SHA-256
+`16da05e2bf3fa20784d29bb5e094462812b03eae369e5f892213ee572cf3077b`.
+Người nhận chỉ thay EXE, giữ nguyên ZIP RC164 đã gửi. BUILD_INFO ghi riêng
+commit app cũ và commit launcher mới, `installer_revision: 2`.
+
+27 kiểm thử installer/package/updater đạt, Ruff/compileall đạt; Qt nguồn
+mở Cài đặt không cảnh báo. Chính EXE bàn giao mới được thử chặn thư mục
+có dữ liệu, cài đầy đủ ZIP, xác nhận dùng script mới, mở Cài đặt bản đã cài
+và gỡ giữ `library.db` thử. ZIP giữ nguyên SHA-256; chỉ tạo thêm hardlink
+trên F để tránh nhân đôi dung lượng. Đây vẫn là xác minh trên máy hiện tại;
+người nhận cần thử lại với thư mục cài mới/trống. Báo cáo ở
+`reports/rc164/setup2/delivery-verification.json` và trong thư mục bộ cài.
