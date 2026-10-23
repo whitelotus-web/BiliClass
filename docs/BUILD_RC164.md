@@ -74,3 +74,10 @@ Sau dọn, pipeline nguồn với dữ liệu thử riêng đạt: DOCX/PPTX, m�
 SQLite/lịch sử/gói bài, WAV Anh và Việt ngoại tuyến, tốc độ/cache,
 tiến trình lớp học và sao lưu/khôi phục. Qt mở Cài đặt thành công,
 không cảnh báo QML. Các báo cáo cục bộ nằm tại `reports/rc164/cleanup`.
+
+Kết quả dọn ngày 23/10/2026: 35 thư mục dựng trung gian, 55 EXE cũ
+trong các bản dựng đã xác minh và các cache kể trên; không có lỗi xóa.
+Thu hồi thực tế khoảng 4,9 GiB trên C và 5,2 GiB trên F; còn trống lần
+lượt khoảng 23,2 GiB và 20,8 GiB khi chốt kiểm tra. Hai EXE của runtime
+RC164 và RC155 dự phòng vẫn khớp manifest sau dọn. Đủ 4.687 file RC164,
+các SHA của thư mục bàn giao và lệnh xác minh payload của setup đều đạt.
