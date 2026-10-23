@@ -253,6 +253,12 @@ def main():
                     assert copyright.width() >= 300
                     assert version.property('color').name() == '#112650', 'Keep dark text readable on the light artwork in both themes'
                     assert copyright.property('color').name() == '#112650'
+                    description = c('aboutBiliClassDescription')
+                    assert description.property('text') == ('Chuyển đổi bài giảng song ngữ, hỗ trợ trình chiếu\n'
+                                                            'với giọng đọc, mascot trợ giảng và thư viện lưu trữ ngay trên máy.')
+                    assert description.property('lineCount') == 2
+                    assert abs(center(description)-center(card if card.property('footerBelow') else info)) < 2
+                    assert description.y()+description.height() <= card.height()-23
                     assert window.grabWindow().save(str(reports/f'{mode}-about-{width}.png'))
                 page.setProperty('activeTab', 5)
                 pump(100)
@@ -277,6 +283,11 @@ def main():
                 pump(150)
                 card, info = c('aboutBiliClassCard'), c('aboutBiliClassInfo')
                 assert info.x()+info.width() < card.width()*0.45
+                description = c('aboutBiliClassDescription')
+                assert description.property('lineCount') == 2
+                assert description.property('contentWidth') <= description.width()+1
+                assert abs(center(description)-center(card)) < 2
+                assert description.y()+description.height() <= card.height()-23
                 for item in info.findChildren(QQuickItem):
                     if item.property('text'):
                         point = item.mapToItem(info, QPointF())
@@ -346,6 +357,7 @@ def main():
                 'Voice actions remain next to rate controls at 1080/1366/1920, light/dark',
                 'Supplied mascot artwork loads; brand, version, updater and copyright fit the empty left area at 1080/1366/1920, light/dark',
                 '860-pixel laptop: logo and wrapped labels stay inside the left area; no horizontal overflow; contact reachable by scrolling',
+                'Updated description stays on two centered lines at all four window sizes; narrow windows place it below the artwork at readable font size',
                 'About updater still checks through the real slot; disabled during download, enabled again on completion (network mocked)',
                 'Mascot fills the content width; shortcut groups have equal columns on wide windows, stack on narrow windows and keep actions together at the right',
                 'Three main storage actions; advanced actions collapsed and reachable',

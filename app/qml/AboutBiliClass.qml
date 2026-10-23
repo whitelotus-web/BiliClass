@@ -10,8 +10,9 @@ Item {
     readonly property color muted: "#4a6284"
     readonly property bool compact: width < 900
     readonly property bool narrow: width < 650
+    readonly property bool footerBelow: information.width < 400
     readonly property bool artworkReady: artwork.status === Image.Ready
-    implicitHeight: Math.max(width * 941 / 1672, information.implicitHeight + 48)
+    implicitHeight: Math.max(width * 941 / 1672, information.implicitHeight + information.spacing + description.implicitHeight + 48)
 
     // The illustration has its own light palette, including in dark mode.
     // Fit the entire image so narrow windows never crop either mascot.
@@ -45,7 +46,8 @@ Item {
         objectName: "aboutBiliClassInfo"
         x: card.width * 0.025
         width: card.width * 0.42
-        anchors.verticalCenter: parent.verticalCenter
+        height: implicitHeight
+        y: (card.height - height - spacing - description.height) / 2
         spacing: card.compact ? 14 : 18
 
         Row {
@@ -58,7 +60,7 @@ Item {
                 objectName: "aboutBiliClassLogo"
                 source: "../assets/brand/biliclass.svg"
                 sourceSize.width: 224; sourceSize.height: 224
-                width: card.narrow ? 48 : card.compact ? 64 : 80
+                width: card.narrow ? 54 : card.compact ? 74 : 92
                 height: width
                 anchors.verticalCenter: parent.verticalCenter
                 fillMode: Image.PreserveAspectFit
@@ -75,7 +77,7 @@ Item {
                     text: "Bili<span style='color:#ff7d2b'>Class</span>"
                     textFormat: Text.RichText
                     color: card.ink
-                    font.pixelSize: card.narrow ? 24 : card.compact ? 30 : 34
+                    font.pixelSize: card.narrow ? 26 : card.compact ? 33 : 38
                     font.bold: true
                 }
                 Label {
@@ -83,7 +85,7 @@ Item {
                     width: parent.width
                     text: "CHUYỂN NGỮ THÔNG MINH\nNÂNG TẦM BÀI GIẢNG"
                     color: card.muted
-                    font.pixelSize: 10
+                    font.pixelSize: card.compact ? 10 : 11
                     font.letterSpacing: 0.4
                     wrapMode: Text.WordWrap
                 }
@@ -92,7 +94,7 @@ Item {
                     width: parent.width
                     text: card.bridge.appSubtitle
                     color: card.muted
-                    font.pixelSize: card.compact ? 13 : 14
+                    font.pixelSize: card.compact ? 14 : 15
                     wrapMode: Text.WordWrap
                 }
             }
@@ -137,9 +139,16 @@ Item {
             Caption { objectName: "aboutBiliClassContact"; text: "Liên hệ tác giả: 0972.360.036" }
             Caption { text: "All rights reserved."; font.pixelSize: 11; Layout.topMargin: 4 }
         }
-        Caption {
-            text: "Chuyển tài liệu thành bài giảng Việt–Anh, trình chiếu và đồng hành cùng thầy cô với giọng đọc, mascot trợ giảng.\nThư viện bài giảng được lưu trên máy."
-            font.pixelSize: 12
-        }
+    }
+    Caption {
+        id: description
+        objectName: "aboutBiliClassDescription"
+        // On small windows, place both lines below the artwork rather than
+        // shrinking this text or letting it wrap across the mascots.
+        width: card.footerBelow ? card.width - 48 : information.width
+        x: card.footerBelow ? 24 : information.x
+        y: information.y + information.height + information.spacing
+        text: "Chuyển đổi bài giảng song ngữ, hỗ trợ trình chiếu\nvới giọng đọc, mascot trợ giảng và thư viện lưu trữ ngay trên máy."
+        font.pixelSize: 12
     }
 }
