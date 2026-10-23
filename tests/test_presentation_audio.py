@@ -16,7 +16,8 @@ from app.presentation_audio import slide_audio
 from app.source_deck import NS, source_slide_parts
 
 
-def test_joined_audio_has_a_full_breath_between_paragraphs_and_keeps_the_recordings(tmp_path):
+@pytest.mark.parametrize('gap_ms', [0, 200, 400, 1100])
+def test_joined_audio_uses_selected_gap_only_between_paragraphs_and_keeps_recordings(tmp_path, gap_ms):
     from app.presentation_audio import joined_wav
 
     folder = tmp_path/'audio'
@@ -26,13 +27,14 @@ def test_joined_audio_has_a_full_breath_between_paragraphs_and_keeps_the_recordi
             wav.setparams((1, 2, 24000, 0, 'NONE', 'not compressed'))
             wav.writeframes(value.to_bytes(2, 'little')*2400)
     before = {p.name: p.read_bytes() for p in folder.iterdir()}
-    data, duration = joined_wav(tmp_path, ['first', 'second'])
+    data, duration = joined_wav(tmp_path, ['first', 'second'], gap_ms=gap_ms)
     with wave.open(BytesIO(data)) as wav:
         pcm = wav.readframes(wav.getnframes())
-        gap = pcm[2400*2:(2400+26400)*2]
-        assert len(gap) == 52800 and not any(gap)
-        assert pcm[(2400+26400)*2:(2400+26400+10)*2] == (202).to_bytes(2, 'little')*10
-        assert duration == 2400
+        silence = 24000 * gap_ms // 1000
+        gap = pcm[2400*2:(2400+silence)*2]
+        assert len(gap) == silence * 2 and not any(gap)
+        assert pcm[(2400+silence)*2:] == (202).to_bytes(2, 'little')*2400
+        assert duration == 200 + gap_ms
     assert before == {p.name: p.read_bytes() for p in folder.iterdir()}
 
 

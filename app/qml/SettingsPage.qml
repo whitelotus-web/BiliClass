@@ -370,6 +370,12 @@ Item {
                         }
                         Label { objectName: "settingsVoiceSpeedLabel"; text: Math.round([.82, .88, .94, 1, 1.06, 1.12, 1.18][page.draftRate + 3] * 100) + "%"; color: page.blue; font.weight: Font.Bold; font.pixelSize: 16 }
                     }
+                    RowLayout {
+                        Layout.fillWidth: true; spacing: 12
+                        Label { text: "Nghỉ giữa các đoạn đọc"; color: page.ink; font.weight: Font.DemiBold; Layout.fillWidth: true }
+                        ReadingGapPicker { objectName: "settingsReadingGap"; bridge: page.bridge; Layout.preferredWidth: 130 }
+                    }
+                    Hint { text: "Đổi ngay ở đây hoặc trên bảng Trợ giảng. 0,4 giây giúp đọc liền mạch hơn; không cần tạo lại giọng. Tải lại PowerPoint để cập nhật khoảng nghỉ trong file."; Layout.fillWidth: true }
                     Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: page.line; Layout.topMargin: 5; Layout.bottomMargin: 5 }
                     RowLayout {
                         objectName: "settingsVoiceActions"

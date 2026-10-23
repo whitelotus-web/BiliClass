@@ -97,6 +97,26 @@ def test_paragraph_gap_can_pause_and_cancel_without_late_playback(qt, tmp_path, 
     reader.shutdown()
 
 
+def test_adjusting_gap_reuses_recordings_without_restarting_the_current_paragraph(qt, tmp_path, monkeypatch):
+    calls = []
+    monkeypatch.setattr(speech, 'synthesize', lambda text, *_: calls.append(text) or {'path': text})
+    player = Player()
+    reader = EnglishReader(tmp_path, player=player)
+    try:
+        reader.start(['Heading', 'Body.'], 'english', 0)
+        wait(qt, lambda: reader.state == 'reading')
+        played = list(player.calls)
+        reader.set_gap_ms(200)
+        assert player.calls == played and calls == ['Heading']
+        assert reader.gap.interval() == 200
+        player.ended = True
+        reader._tick()
+        wait(qt, lambda: calls == ['Heading', 'Body.'] and reader.state == 'reading')
+        assert reader.position == 1
+    finally:
+        reader.shutdown()
+
+
 def test_cached_teaching_never_synthesizes_missing_audio(qt, tmp_path, monkeypatch):
     monkeypatch.setattr(speech, 'synthesize', lambda *_: pytest.fail('Teaching may only play existing audio'))
     reader = EnglishReader(tmp_path, player=Player())

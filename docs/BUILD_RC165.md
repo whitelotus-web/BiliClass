@@ -46,3 +46,18 @@ rồi mở bài lại.
 Đây là kiểm chứng trên máy hiện tại. Máy nhận vẫn cần thử lại RC165 với
 Office và cấu hình màn hình của chính máy đó. Bộ cài RC164 sửa lần 2 chỉ
 sửa trình cài đặt, không chứa các thay đổi ứng dụng RC165.
+
+## Bàn giao RC165 đã kiểm chứng
+
+Commit ứng dụng `dcc5b3c10ec3219cb8b2f68dc980eb25075ebce8`.
+Thư mục `F:\BiliClass-BoCai-RC165`. EXE cài 57.856 byte, SHA-256
+`4f6773610ebbefa9c83951081ffb1b9aaf264968e9f45313bef3bfed4a9608fe`.
+ZIP 1.259.529.665 byte, SHA-256
+`08905374d623860ada8bce2aafbf2af59efd14facf44c26022c6acf1ba6ae569`.
+
+Đối chiếu đủ 189 module app và 253 tài nguyên với nguồn; có đủ model,
+không có thư viện/key cá nhân. EXE setup thật cài đủ 4.687 file vào thư
+mục riêng trên F, mở Cài đặt không cảnh báo QML, tạo giọng Việt–Anh qua
+Qt và chạy pipeline EXE thật thành công. Gỡ bản thử giữ `library.db` thử.
+Các lượt này bỏ đường dẫn runtime/model phát triển và tắt tải model mạng.
+Báo cáo cục bộ: `reports/rc165/delivery-verification.json`.

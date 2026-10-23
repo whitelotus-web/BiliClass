@@ -118,3 +118,38 @@ def test_failed_write_keeps_live_value_and_previous_saved_setting(tmp_path, monk
     finally:
         preferences.shutdown()
         library.close()
+
+
+def test_reading_gap_changes_without_waiting_for_database_and_reopens_saved_choice(tmp_path, monkeypatch):
+    from app.narration_preferences import store_choices
+    from app.narration_timing import reading_gap
+
+    app = QCoreApplication.instance() or QCoreApplication([])
+    library = Library(tmp_path)
+    preferences = CompanionPreferences(library)
+    started, release = Event(), Event()
+
+    def store(directory, values):
+        started.set()
+        assert release.wait(3)
+        return store_choices(directory, values)
+
+    monkeypatch.setattr('app.companion_preferences.store_choices', store)
+    try:
+        assert preferences.reading_gap == 400
+        preferences.select_reading_gap(200)
+        pump_until(started.is_set)
+        assert preferences.reading_gap == reading_gap(tmp_path) == 200
+        assert library.setting('paragraph_gap_ms', None) is None
+        release.set()
+        pump_until(lambda: preferences.worker is None and not preferences.pending)
+        assert library.setting('paragraph_gap_ms', None) == 200
+        preferences.shutdown()
+        reopened = CompanionPreferences(library)
+        assert reopened.reading_gap == 200
+        reopened.shutdown()
+        app.processEvents()
+    finally:
+        release.set()
+        preferences.shutdown()
+        library.close()

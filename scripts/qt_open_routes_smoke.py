@@ -92,12 +92,18 @@ def main():
             show=office_call(lambda p=presentation:p.SlideShowSettings.Run())
             until(lambda:bridge.powerpointState.get('active'),timeout=30)
             assert bridge.companionCanRead and bridge.powerpointState.get('hwnd')
+            pump(100)
+            panel_geometry=(companion.x(),companion.y(),companion.width(),companion.height())
             companion.findChild(QObject,'companionNext').clicked.emit()
             until(lambda:bridge.powerpointState.get('slide')==2,timeout=30)
             assert int(show.View.Slide.SlideIndex)==2
+            pump(100)
+            assert panel_geometry==(companion.x(),companion.y(),companion.width(),companion.height()), 'Empty slide must not resize or reposition Mascot'
             companion.findChild(QObject,'companionPrevious').clicked.emit()
             until(lambda:bridge.powerpointState.get('slide')==1,timeout=30)
             assert int(show.View.Slide.SlideIndex)==1
+            pump(100)
+            assert panel_geometry==(companion.x(),companion.y(),companion.width(),companion.height())
             assert companion.grabWindow().save(str(out/(route+'.png')))
             del show,presentation,application
             checks.append(route+': hidden Mascot restored, exact lesson bound, native PowerPoint show and Mascot next/previous')

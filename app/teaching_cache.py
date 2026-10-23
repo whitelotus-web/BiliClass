@@ -7,10 +7,11 @@ from pathlib import Path
 from uuid import uuid4
 
 # Bump when managed audio/controls change, independently of cosmetic releases.
-FORMAT_VERSION = 3
+FORMAT_VERSION = 4
 
 
-def cache_key(lesson, source_sha256, directory):
+def cache_key(lesson, source_sha256, directory, *, gap_ms=None):
+    from .narration_timing import reading_gap
     from .speaker_layout import default_position, position
 
     record = lesson['narration']
@@ -21,7 +22,8 @@ def cache_key(lesson, source_sha256, directory):
         stamps.append((key, stat.st_size, stat.st_mtime_ns))
     selected = position(lesson.get('speaker_position', default_position(directory)))
     payload = dict(version=FORMAT_VERSION, lesson=lesson['id'], revision=lesson['revision'],
-                   source=source_sha256, record=record, position=selected, audio=stamps)
+                   source=source_sha256, record=record, position=selected, audio=stamps,
+                   gap_ms=reading_gap(directory) if gap_ms is None else gap_ms)
     return hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode('utf-8')).hexdigest()
 
 

@@ -10,7 +10,7 @@ from lxml import etree
 
 from .lesson_narration import MODES, audio_status, valid_key
 from .narration_script import segments as narration_segments
-from .narration_timing import PARAGRAPH_GAP_MS
+from .narration_timing import reading_gap
 from .powerpoint import slide_for_locator
 from .source_deck import NS, _bytes, _rels_path, _xml, source_slide_parts
 
@@ -72,12 +72,14 @@ def static_vietnamese(slide, lesson, number):
     return bool(texts) and all(text in visible for text in texts)
 
 
-def joined_wav(directory, keys):
+def joined_wav(directory, keys, *, gap_ms=None):
+    gap_ms = reading_gap(directory) if gap_ms is None else gap_ms
+    keys = list(keys)
     buffer = io.BytesIO()
     parameters = None
     total = 0
     with wave.open(buffer, "wb") as output:
-        for key in keys:
+        for index, key in enumerate(keys):
             with wave.open(str(Path(directory) / "audio" / (key + ".wav")), "rb") as source:
                 current = (source.getnchannels(), source.getsampwidth(), source.getframerate())
                 if parameters is None:
@@ -86,7 +88,7 @@ def joined_wav(directory, keys):
                 if current != parameters or source.getcomptype() != "NONE":
                     raise ValueError("Các đoạn voice khác định dạng. Tạo lại giọng đọc của bài.")
                 output.writeframes(source.readframes(source.getnframes()))
-                silence = current[2] * PARAGRAPH_GAP_MS // 1000
+                silence = current[2] * gap_ms // 1000 if index + 1 < len(keys) else 0
                 output.writeframes(b"\x00" * (silence * current[0] * current[1]))
                 total += source.getnframes() + silence
     return buffer.getvalue(), round(total / parameters[2] * 1000)
@@ -151,7 +153,7 @@ def media_shape(identity, language, box, audio_relation, media_relation, icon_re
     return picture
 
 
-def embed_audio(source, destination, lesson, directory, *, scope='full_slide', managed=False):
+def embed_audio(source, destination, lesson, directory, *, scope='full_slide', managed=False, gap_ms=None):
     from pptx import Presentation
 
     from .layout_regions import intersection
@@ -160,6 +162,7 @@ def embed_audio(source, destination, lesson, directory, *, scope='full_slide', m
     from .speaker_artwork import artwork
     from .speaker_layout import control_box, default_position, fixed_slots, position
 
+    gap_ms = reading_gap(directory) if gap_ms is None else gap_ms
     pages = slide_audio(lesson, directory, scope=scope)
     deck = Presentation(source)
     parts = source_slide_parts(source)
@@ -213,7 +216,7 @@ def embed_audio(source, destination, lesson, directory, *, scope='full_slide', m
         identity = max(int(v) for v in tree.xpath(".//p:cNvPr/@id", namespaces=NS))
         controls = []
         for language, keys in languages.items():
-            audio, duration = joined_wav(directory, keys)
+            audio, duration = joined_wav(directory, keys, gap_ms=gap_ms)
             audio_name = "ppt/media/biliclass-" + hashlib.sha256(audio).hexdigest() + ".wav"
             entries[audio_name] = audio
             audio_id = relation(NS["r"] + "/audio", "../media/" + Path(audio_name).name)

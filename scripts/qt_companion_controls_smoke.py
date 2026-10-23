@@ -118,12 +118,9 @@ def main():
                     assert all(item.isVisible() for item in audio)
                     assert [item.isEnabled() for item in audio] == [lang in languages for lang in ('en', 'vi')]
                     assert before == [(item.x(), item.y(), item.width(), item.height()) for item in audio]
-                    assert c('companionAudioHint').isVisible() == (not languages)
+                    assert c('companionAudioHint').isVisible()
                     assert bool(c('companionAudioHint').property('text')) == (not languages)
-                    if languages:
-                        assert companion.height() == height
-                    else:
-                        assert height < companion.height() <= height + 40, 'Only the missing-audio hint may add height'
+                    assert companion.height() == height, 'Missing audio must not resize the native panel'
                     assert all(item.property('iconName') == 'speaker' for item in audio)
                 for suffix in ('Auto', 'Visible', 'Full', 'Options'):
                     assert root.findChild(QObject, 'companionReading' + suffix) is None
@@ -139,6 +136,16 @@ def main():
                     pump(80)
                     assert geometry == (companion.x(), companion.y(), companion.height(),
                                         audio[0].mapToGlobal(QPointF()).y(), audio[0].width(), audio[0].height()), (pixels, state, geometry, companion.x(), companion.y(), companion.height(), audio[0].mapToGlobal(QPointF()).y(), audio[0].width(), audio[0].height())
+            gap_choice = c('companionReadingGap')
+            assert bridge.readingGapMs == bridge.english_reader.gap.interval() == 400
+            gap_choice.setProperty('currentIndex', 1)
+            gap_choice.activated.emit(1)
+            assert bridge.readingGapMs == bridge.english_reader.gap.interval() == 200
+            until(lambda: bridge._companion_preferences.worker is None and not bridge._companion_preferences.pending)
+            assert library.setting('paragraph_gap_ms', None) == 200
+            bridge.setReadingGapMs(400)
+            pump(30)
+            assert gap_choice.property('currentIndex') == 2
             if args.layout_only:
                 assert bridge.teachingSession.reading_scope == 'full_slide'
                 pump(100)

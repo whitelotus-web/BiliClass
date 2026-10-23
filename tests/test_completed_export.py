@@ -50,16 +50,16 @@ def test_teacher_edit_of_autosaved_file_is_kept_and_a_new_name_is_used(tmp_path)
         library.close()
 
 
-def test_old_pause_policy_is_reexported_without_regenerating_or_overwriting_audio(tmp_path, monkeypatch):
+def test_old_pause_policy_is_reexported_without_regenerating_or_overwriting_audio(tmp_path):
     library, lesson, source, preview = prepared(tmp_path)
     wavs = {p.name: p.read_bytes() for p in (library.directory/'audio').glob('*.wav')}
     try:
-        with monkeypatch.context() as patch:
-            patch.setattr('app.completed_export.PARAGRAPH_GAP_MS', 450)
-            old = save_finished(library.directory, lesson, preview)
+        library.set_setting('paragraph_gap_ms', 1100)
+        old = save_finished(library.directory, lesson, preview)
+        library.set_setting('paragraph_gap_ms', 400)
         fresh = save_finished(library.directory, lesson, preview)
         assert fresh['path'] == old['path'] and not fresh['reused'] and fresh['updated']
-        assert fresh['join_gap_ms'] == 1100 and Path(old['path']).is_file()
+        assert fresh['join_gap_ms'] == 400 and Path(old['path']).is_file()
         assert wavs == {p.name: p.read_bytes() for p in (library.directory/'audio').glob('*.wav')}
         assert save_finished(library.directory, lesson, preview)['reused']
     finally:

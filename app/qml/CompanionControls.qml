@@ -141,7 +141,9 @@ ColumnLayout {
         PanelAction { objectName: "companionEndShow"; text: "Kết thúc"; danger: true; enabled: !bridge.teachingTransitioning; visible: !!bridge.powerpointState.active && !!companion.session.bound; onClicked: bridge.navigatePowerPoint("end_show") }
     }
     Label {
-        objectName: "companionAudioHint"; visible: text.length > 0
+        // Reserve the status line while bound: ordinary slide changes must not
+        // resize a transparent native window and flash its backing texture.
+        objectName: "companionAudioHint"; visible: !!companion.session.bound || text.length > 0
         Layout.preferredHeight: Math.max(16, contentHeight); horizontalAlignment: Text.AlignHCenter
         text: bridge.busy && bridge.openingTeachingLesson ? "Đang chuẩn bị bài giảng…"
             : bridge.teachingTransitioning ? bridge.powerpointState.message || "Đang chuyển bài giảng…"
@@ -186,6 +188,11 @@ ColumnLayout {
             onPressedChanged: if (!pressed) bridge.focusTeachingPresentation()
         }
         Label { objectName: "companionVolumePercent"; text: (companion.reader.volume === undefined ? 80 : companion.reader.volume) + "%"; font.pixelSize: 12; color: AppTheme.adapt("#102e54") }
+    }
+    RowLayout {
+        visible: !!companion.session.bound; Layout.fillWidth: true; spacing: 8
+        Label { text: "Nghỉ giữa đoạn"; color: AppTheme.adapt("#667997"); font.pixelSize: 12; Layout.fillWidth: true }
+        ReadingGapPicker { objectName: "companionReadingGap"; bridge: controls.bridge; implicitHeight: controls.companion.controlHeight; Layout.preferredWidth: 112; font.pixelSize: controls.companion.controlFont }
     }
     GridLayout {
         objectName: "companionAudioControls"; visible: !!companion.session.bound || bridge.companionCanRead

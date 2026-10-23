@@ -68,3 +68,22 @@ def test_cosmetic_release_keeps_audio_cache_but_format_change_invalidates_it(tmp
     assert teaching_cache.cache_key(lesson, preview['sha256'], directory) == before
     monkeypatch.setattr(teaching_cache, 'FORMAT_VERSION', teaching_cache.FORMAT_VERSION + 1)
     assert teaching_cache.cache_key(lesson, preview['sha256'], directory) != before
+
+
+def test_gap_change_rebuilds_only_the_managed_derivative_and_keeps_original_audio(tmp_path):
+    from contextlib import closing
+
+    from app.library import Library
+
+    lesson, preview, directory, source = prepared_lesson(tmp_path)
+    original = source.read_bytes()
+    wavs = {p.name: p.read_bytes() for p in (directory/'audio').glob('*.wav')}
+    first = prepare_teaching(lesson, preview, directory)
+    before = teaching_cache.cache_key(lesson, preview['sha256'], directory)
+    with closing(Library(directory)) as library:
+        library.set_setting('paragraph_gap_ms', 200)
+    assert teaching_cache.cache_key(lesson, preview['sha256'], directory) != before
+    second = prepare_teaching(lesson, preview, directory)
+    assert first['gap_ms'] == 400 and second['gap_ms'] == 200
+    assert source.read_bytes() == original
+    assert wavs == {p.name: p.read_bytes() for p in (directory/'audio').glob('*.wav')}

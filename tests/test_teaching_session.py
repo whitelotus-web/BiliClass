@@ -260,6 +260,20 @@ def test_cached_fallback_waits_for_powerpoint_stop_and_rejects_late_slide(tmp_pa
     assert bridge.calls[-1][0] == 'message'
 
 
+def test_changed_live_gap_uses_saved_chunks_instead_of_the_older_embedded_pause(tmp_path, monkeypatch):
+    lesson, preview, directory, _ = prepared_lesson(tmp_path)
+    prepared = prepare_teaching(lesson, preview, directory)
+    bridge = FakeBridge(directory)
+    bridge.english_reader.gap = SimpleNamespace(interval=lambda: 200)
+    session = TeachingSession(bridge)
+    session.bind(prepared)
+    monkeypatch.setattr(speech, 'synthesize', lambda *_: pytest.fail('Changing pauses must reuse voice'))
+    session.read('vi')
+    assert session.pending_read and bridge.calls[-1][0] == 'stop_media'
+    session.office_event({'event': 'media_stopped', 'token': session.token})
+    assert bridge.calls[-1][1] == {'cache_only': True}
+
+
 def test_explicit_no_voice_and_independent_embedded_powerpoint_are_teachable(tmp_path):
     lesson, preview, directory, _ = prepared_lesson(tmp_path)
     with_voice = prepare_teaching(lesson, preview, directory)

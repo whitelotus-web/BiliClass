@@ -11,7 +11,7 @@ from .export_origin import destination
 from .lesson_files import save_presentation
 from .lesson_narration import audio_status, records, variant_id
 from .library import Library, RevisionConflict
-from .narration_timing import PARAGRAPH_GAP_MS
+from .narration_timing import reading_gap
 
 
 def digest(path):
@@ -34,6 +34,7 @@ def _save_product(directory, selected, preview, *, with_voice):
     if not identity:
         raise ValueError('Chưa có bản giọng hoàn tất để tự lưu PowerPoint.')
     with closing(Library(directory)) as library:
+        gap_ms = reading_gap(directory) if with_voice else 0
         lesson = library.get(selected['id'])
         if lesson['revision'] != selected['revision'] or lesson.get('source') != selected.get('source'):
             raise RevisionConflict('Bài giảng vừa thay đổi. Giọng đã tạo vẫn được giữ trong Thư viện.')
@@ -67,7 +68,8 @@ def _save_product(directory, selected, preview, *, with_voice):
                 pass
         if (isinstance(previous, dict) and previous.get('source_sha256') == preview.get('sha256')
                 and previous.get('revision') == lesson['revision'] and previous.get('audio_sha256') == audio_sha256
-                and previous.get('join_gap_ms') == (PARAGRAPH_GAP_MS if with_voice else 0)
+                and previous.get('join_gap_ms') == gap_ms
+                and (not with_voice or previous.get('join_gap_version') == 2)
                 and all(previous.get(key) == value for key, value in origin.items())):
             try:
                 path = Path(previous['path'])
@@ -112,7 +114,7 @@ def _save_product(directory, selected, preview, *, with_voice):
                     path = owned[0]
                     try:
                         save_presentation(lesson, preview, directory, path, with_voice=with_voice, report=report,
-                                          expected_sha256=owned[1], managed_output=chosen == fallback)
+                                          expected_sha256=owned[1], managed_output=chosen == fallback, gap_ms=gap_ms)
                         updated = True
                     except (FileExistsError, PermissionError):
                         kept = True  # A teacher edit or an open presentation gets a separate new output.
@@ -123,7 +125,7 @@ def _save_product(directory, selected, preview, *, with_voice):
                     try:
                         report = {}
                         save_presentation(lesson, preview, directory, path, with_voice=with_voice, report=report,
-                                          overwrite=False, managed_output=chosen == fallback)
+                                          overwrite=False, managed_output=chosen == fallback, gap_ms=gap_ms)
                         break
                     except FileExistsError:
                         continue  # Another window won this exact filename; never replace it.
@@ -133,7 +135,8 @@ def _save_product(directory, selected, preview, *, with_voice):
                          'source_sha256': preview['sha256'], 'path': str(path), 'sha256': digest(path),
                          'audio_sha256': audio_sha256, 'fallback': chosen == fallback, 'coverage': report,
                          'updated': updated, 'previous_kept': kept}
-                value['join_gap_ms'] = PARAGRAPH_GAP_MS if with_voice else 0
+                value['join_gap_ms'] = gap_ms
+                value['join_gap_version'] = 2
                 try:
                     library.set_setting(key, value)
                     library.set_setting(current_key, value)

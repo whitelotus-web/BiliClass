@@ -50,8 +50,10 @@ def prepare_original_teaching(lesson, directory):
 
 def _prepare_verified_teaching(lesson, preview, directory, path, data):
     from .lesson_narration import MODES, audio_status
+    from .narration_timing import reading_gap
     from .slideshow_controls import speaker_languages
 
+    gap_ms = reading_gap(directory)
     warning = ''
     owned_path = ''
     managed_key = None
@@ -63,7 +65,7 @@ def _prepare_verified_teaching(lesson, preview, directory, path, data):
 
         target = Path(directory) / 'temp/teaching' / (uuid4().hex + '.pptx')
         target.parent.mkdir(parents=True, exist_ok=True)
-        managed_key = teaching_cache.cache_key(lesson, preview['sha256'], directory)
+        managed_key = teaching_cache.cache_key(lesson, preview['sha256'], directory, gap_ms=gap_ms)
         cached = teaching_cache.load(directory, managed_key)
         if cached:
             try:
@@ -72,9 +74,9 @@ def _prepare_verified_teaching(lesson, preview, directory, path, data):
                 target.unlink(missing_ok=True)
                 raise
             return dict(lesson=lesson, preview=preview, path=str(target), speech=data,
-                        media=cached['media'], sha256=cached['sha256'], owned_path=str(target), warning=cached['warning'])
+                        media=cached['media'], sha256=cached['sha256'], owned_path=str(target), warning=cached['warning'], gap_ms=gap_ms)
         try:
-            coverage = embed_audio(path, target, lesson, directory, managed=True)
+            coverage = embed_audio(path, target, lesson, directory, managed=True, gap_ms=gap_ms)
             path = target
             owned_path = str(target)
             if coverage.get('unplaced_pages'):
@@ -100,7 +102,7 @@ def _prepare_verified_teaching(lesson, preview, directory, path, data):
         digest = hashlib.file_digest(stream, 'sha256').hexdigest()
     prepared = {'lesson': lesson, 'preview': preview, 'path': str(path), 'speech': data,
             'media': media, 'sha256': digest,
-            'owned_path': owned_path, 'warning': warning}
+            'owned_path': owned_path, 'warning': warning, 'gap_ms': gap_ms}
     if managed_key:
         try:
             teaching_cache.store(directory, managed_key, prepared)
@@ -461,7 +463,12 @@ class TeachingSession(QObject):
         if hasattr(getattr(self.bridge.english_reader, 'player', None), 'set_volume'):
             self.bridge.english_reader.player.set_volume(100 if self.system_volume.available else self.volume)
         worker = self.bridge.powerpoint_worker
+        from .narration_timing import PARAGRAPH_GAP_MS
+
+        timer = getattr(self.bridge.english_reader, 'gap', None)
+        cadence_matches = self.bound.get('gap_ms', PARAGRAPH_GAP_MS) == (timer.interval() if timer else PARAGRAPH_GAP_MS)
         if (self.reading_scope == 'full_slide' and self._read_batch == self._speech_items(language)
+                and (cadence_matches or not self.bound.get('lesson', {}).get('narration', {}).get('keys'))
                 and language in self.bound.get('media', {}).get(self.bridge._powerpoint_state.get('slide'), [])):
             self.native_state = 'preparing'
             worker.navigate('play_media', self._media_request())

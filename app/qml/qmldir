@@ -10,6 +10,7 @@ CompanionControls 1.0 CompanionControls.qml
 CompanionIcon 1.0 CompanionIcon.qml
 CompanionMenuItem 1.0 CompanionMenuItem.qml
 CompanionWindow 1.0 CompanionWindow.qml
+ReadingGapPicker 1.0 ReadingGapPicker.qml
 ContentScrollView 1.0 ContentScrollView.qml
 ConversionChoice 1.0 ConversionChoice.qml
 ConversionCompletionPreview 1.0 ConversionCompletionPreview.qml

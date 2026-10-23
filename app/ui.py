@@ -182,6 +182,7 @@ class Bridge(QObject):
         from .english_reader import EnglishReader
 
         self.english_reader = EnglishReader(library.directory / "audio", self)
+        self.english_reader.set_gap_ms(self._companion_preferences.reading_gap)
         self.english_reader.changed.connect(self.speechStateChanged)
         self.english_reader.speakingChanged.connect(self._english_speaking)
         self.english_reader.failed.connect(lambda message: self.inform(message, True))
@@ -2196,6 +2197,15 @@ class Bridge(QObject):
     @Property(int, notify=companionAppearanceChanged)
     def companionPanelOpacity(self):
         return self._companion_preferences.opacity
+
+    @Property(int, notify=companionAppearanceChanged)
+    def readingGapMs(self):
+        return self._companion_preferences.reading_gap
+
+    @Slot(int)
+    def setReadingGapMs(self, value):
+        self._companion_preferences.select_reading_gap(value)
+        self.english_reader.set_gap_ms(self._companion_preferences.reading_gap)
 
     @Property(bool, notify=companionAppearanceChanged)
     def mascotSaving(self):

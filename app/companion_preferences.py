@@ -20,6 +20,10 @@ class CompanionPreferences(QObject):
         self.directory = library.directory
         saved = library.setting('companion_panel_opacity', 100)
         self.opacity = max(30, min(100, saved)) if type(saved) is int else 100
+        from .narration_timing import PARAGRAPH_GAP_MS, select_gap, validated_gap
+
+        self.reading_gap = validated_gap(library.setting('paragraph_gap_ms', PARAGRAPH_GAP_MS))
+        select_gap(self.directory, self.reading_gap)
         self.worker = None
         self.pending = {}
         self._attempts = 0
@@ -48,6 +52,19 @@ class CompanionPreferences(QObject):
         self._attempts = 0
         self.flush()
         self.changed.emit()
+
+    def select_reading_gap(self, value):
+        from .narration_timing import select_gap, validated_gap
+
+        value = validated_gap(value)
+        if self._closed or value == self.reading_gap:
+            return
+        self.reading_gap = value
+        select_gap(self.directory, value)
+        self.pending['paragraph_gap_ms'] = value
+        self._attempts = 0
+        self.changed.emit()
+        self.flush()
 
     @Slot()
     def flush(self):
@@ -103,5 +120,5 @@ class CompanionPreferences(QObject):
             task.start()
             task.wait()
             if task.error:
-                self.failed.emit('Chưa lưu được độ trong suốt; cấu hình đã lưu trước đó được giữ nguyên.')
+                self.failed.emit('Chưa lưu được cài đặt trợ giảng; cấu hình đã lưu trước đó được giữ nguyên.')
             task.deleteLater()

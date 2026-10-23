@@ -1,6 +1,6 @@
 # BiliClass — Hướng dẫn sử dụng
 
-Hướng dẫn cập nhật theo mã nguồn RC165 · 23/10/2026
+Hướng dẫn cập nhật theo mã nguồn RC166 · 23/10/2026
 
 BiliClass chuyển bài giảng PowerPoint sang Việt–Anh hoặc tiếng Anh, tạo
 âm thanh Việt–Mỹ và hỗ trợ trình chiếu bằng Mascot. Bài giảng và giọng đọc
@@ -18,6 +18,12 @@ BiliClass chuyển bài giảng PowerPoint sang Việt–Anh hoặc tiếng Anh,
 Cần Windows 10/11 64-bit và PowerPoint desktop để trình chiếu. Chuyển đổi
 cần Internet và key Google Cloud Translation; tạo giọng chạy trên máy.
 Thư viện được lưu riêng với ứng dụng, tại nơi hiển thị trong **Cài đặt → Dữ liệu**.
+
+Để đổi nhịp đọc, chọn **Nghỉ giữa đoạn** ngay trên bảng Trợ giảng hoặc vào
+**Cài đặt → Giọng đọc**. Mặc định 0,4 giây; có thể chọn từ 0 đến 2 giây.
+Mascot dùng lại giọng đã lưu từ lần đọc tiếp theo, không cần tạo giọng lại.
+Muốn đổi khoảng nghỉ trong loa của file PowerPoint đã xuất, tải/xuất lại
+PowerPoint sau khi chọn khoảng nghỉ.
 
 ## Cài đặt lần đầu
 

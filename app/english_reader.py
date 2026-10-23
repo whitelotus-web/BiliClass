@@ -155,6 +155,11 @@ class EnglishReader(QObject):
             self.speakingChanged.emit(state == "reading")
         self.changed.emit()
 
+    def set_gap_ms(self, value):
+        from .narration_timing import validated_gap
+
+        self.gap.setInterval(validated_gap(value))
+
     def start(self, texts, voice, rate, *, cache_only=False):
         self.stop()
         self.cache_only = cache_only

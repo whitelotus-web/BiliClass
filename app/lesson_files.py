@@ -10,7 +10,7 @@ from .quick_conversion import verify_preview
 
 
 def save_presentation(lesson, preview, directory, destination, *, with_voice=False, report=None,
-                      overwrite=True, managed_output=False, expected_sha256=None):
+                      overwrite=True, managed_output=False, expected_sha256=None, gap_ms=None):
     source = verify_preview(lesson, preview, directory).resolve()
     destination = Path(destination).resolve()
     if destination.suffix.lower() != ".pptx":
@@ -46,7 +46,7 @@ def save_presentation(lesson, preview, directory, destination, *, with_voice=Fal
         if with_voice:
             from .presentation_audio import embed_audio
 
-            result = embed_audio(source, pending, lesson, directory)
+            result = embed_audio(source, pending, lesson, directory, gap_ms=gap_ms)
             if report is not None:
                 report.update(result)
         if overwrite:
