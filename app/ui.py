@@ -2350,8 +2350,8 @@ class Bridge(QObject):
 
     @Slot(QObject)
     def showCompanionForTeaching(self, window):
-        if self._companion_shown_this_session:
-            return
+        # A new explicit Open must restore the controller even when the teacher
+        # hid it earlier. F5/ending the same show does not emit powerpointStarted.
         window.setProperty('collapsed', not bool(self.teaching_session.bound))
         self.showCompanion(window, True)
 

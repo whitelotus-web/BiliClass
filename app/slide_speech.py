@@ -14,7 +14,7 @@ from .input_analysis import EN_WORDS, language_of
 from .powerpoint_notes import read_text as read_notes
 
 SCHEMA = 1
-EXTRACTION_VERSION = 2
+EXTRACTION_VERSION = 3
 VI_MARKS = set("ăâđêôơưáàảãạắằẳẵặấầẩẫậéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ")
 TERMS = set("velocity acceleration kinetic potential mechanical energy work power force momentum mass speed displacement amplitude frequency period equilibrium oscillation gravity gravitational spring elastic friction conservation joule watt definition conclusion evidence answer question activity exercise solution distance height horizontal vertical positive negative maximum minimum chapter lesson introduction summary objective objectives sequences arithmetic geometric progression cell photosynthesis noun verb water oxygen hydrogen carbon atom molecule electron proton neutron voltage current resistance derivative integral triangle rectangle square volume area history geography computer software hardware technology art music physical education language literature culture environment ecosystem temperature pressure density heat magnetic electric thermal chemical biology chemistry physics mathematics".split())
 KINDS = {"title", "body", "caption", "question", "option", "keyword"}
@@ -386,12 +386,23 @@ def inspect_slide(slide, number, mode="", notes_en="", bounds=None):
             segments.append({"id": "en-" + digest, "slide_id": slide.slide_id, "slide": number,
                              "english_text": text, "source": source, "kind": kind,
                              "status": "needs_review" if problem else "ready", "problem": problem,
-                             "visibility": visibility, "x": item["x"], "y": item["y"], "order": 0,
+                             "visibility": visibility, "x": item["x"], "y": item["y"], "w": item['w'], "h": item['h'], "order": 0,
                              "declared_order": declared_order})
     rank = {"title": 0, "body": 1, "caption": 2, "question": 3, "option": 4, "keyword": 1}
-    segments.sort(key=lambda s: (rank[s["kind"]], s["english_text"][0] if s["kind"] == "option" else "",
-                                 s["declared_order"] if s["declared_order"] is not None else s["y"],
-                                 s["x"], s["source"]["paragraph"]))
+    from .narration_order import PREFIX, same_line, visual_order
+
+    ordered = visual_order(segments)
+    visual = {id(item): index for index, item in enumerate(ordered)}
+
+    def priority(segment):
+        if (PREFIX.fullmatch(segment['english_text']) and any(
+                other['kind'] == 'title' and segment['x'] + segment.get('w', 0) <= other['x']
+                and same_line(segment, other) for other in ordered)):
+            return rank['title']
+        return rank[segment['kind']]
+
+    segments.sort(key=lambda s: (priority(s), s['english_text'][0] if s['kind'] == 'option' else '',
+                                 s['declared_order'] if s['declared_order'] is not None else 1001 + visual[id(s)]))
     for index, segment in enumerate(segments):
         segment["order"] = index
     native_text = normalized(" ".join(s["english_text"] for s in segments))

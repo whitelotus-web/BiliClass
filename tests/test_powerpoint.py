@@ -79,6 +79,21 @@ def test_window_binding_requires_exact_filename_and_rejects_ambiguity(monkeypatc
     assert slideshow_handle(path) == 0, 'Same-named decks must not bind arbitrarily'
 
 
+@pytest.mark.parametrize('title,expected', [
+    ('Lesson - PowerPoint', True),
+    ('PowerPoint Slide Show - Lesson', True),
+    ('PowerPoint Slide Show - Lesson.pptx', True),
+    ('Lesson [Chỉ đọc] - PowerPoint', True),
+    ('Lesson extra - PowerPoint', False),
+    ('Other - Lesson - PowerPoint', False),
+    ('Lesson - Extra.pptx - PowerPoint', False),
+])
+def test_office_titles_without_extension_or_show_brackets_are_exact(title, expected):
+    from app.powerpoint import _deck_window_title
+
+    assert _deck_window_title(title, 'Lesson.pptx') is expected
+
+
 @pytest.mark.parametrize('failure', ['missing', 'hidden', 'pid', 'title', 'class', 'hung', 'denied', 'none'])
 def test_focus_rejects_stale_unrelated_or_hung_office_windows(monkeypatch, failure):
     import win32gui

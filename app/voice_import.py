@@ -114,25 +114,31 @@ def refresh_native_speech(library, lesson, cancel=None):
     """Upgrade derived speech once, preserving explicit scripts and valid WAVs."""
     import copy
 
-    from pptx import Presentation
-
     from .lesson_completion import _retain_unchanged_audio
     from .narration_script import refresh_speech
     from .powerpoint import verified_presentation
-    from .slide_speech import EXTRACTION_VERSION, deck_speech
+    from .slide_speech import EXTRACTION_VERSION
 
     base = lesson.get('source_slide_speech') or lesson.get('slide_speech', {})
-    if lesson.get('voice_only') or not base or base.get('extraction_version') == EXTRACTION_VERSION:
+    if not base or base.get('extraction_version') == EXTRACTION_VERSION:
         return lesson
     if cancel and cancel.is_set():
         raise InterruptedError('Đã dừng chuẩn bị lời đọc.')
     before = copy.deepcopy(lesson)
     path = verified_presentation(lesson, library.directory)
-    data = deck_speech(path, Presentation(path), lesson.get('conversion_format', ''))
+    inspection = inspect_returned_deck(path, conversion_format=lesson.get('conversion_format', ''), narration_only=True)
+    data = inspection['slide_speech']
     if data['sha256'] != lesson['source']['sha256']:
         raise ValueError('PowerPoint đã thay đổi trong lúc đọc. Mở lại bài giảng.')
     if cancel and cancel.is_set():
         raise InterruptedError('Đã dừng chuẩn bị lời đọc.')
+    if _refresh_native_text(lesson, inspection['profile']['units']):
+        from .chatgpt_handoff import text_signature
+
+        lesson.update(revision=lesson['revision'] + 1, updated_at=now())
+        if lesson.get('external_deck'):
+            lesson['external_deck'].update(text_signature=text_signature(lesson), reviewed_revision=0)
+        lesson.pop('prepared', None)
     lesson['source_slide_speech'] = data
     refresh_speech(lesson)
     _retain_unchanged_audio(before, lesson)
@@ -145,6 +151,36 @@ def refresh_native_speech(library, lesson, cancel=None):
         library.db.rollback()
         raise
     return lesson
+
+
+def _refresh_native_text(lesson, units):
+    """Reorder identical native words only; explicit teacher scripts stay intact."""
+    import re
+    import unicodedata
+    from collections import Counter
+
+    by_locator = {unit['locator']: unit for unit in units}
+    changed = False
+
+    def words(text):
+        return Counter(re.findall(r'\w+|[^\w\s]', unicodedata.normalize('NFC', text)))
+
+    for segment in lesson.get('segments', []):
+        override = lesson.get('narration_script', {}).get(segment['id'], {})
+        candidate = by_locator.get(segment['locator'])
+        if not candidate or override.get('manual'):
+            continue
+        for language in ('vi', 'en'):
+            before = override.get(language, segment.get(language, ''))
+            after = candidate.get(language, '')
+            if before != after and words(before) == words(after):
+                if language in override:
+                    override[language] = after
+                else:
+                    segment[language] = after
+                segment['approved'] = False
+                changed = True
+    return changed
 
 
 def import_presentation(directory, path):
@@ -170,7 +206,7 @@ def import_presentation(directory, path):
             source = library.store_source(path)
             if source['sha256'] != digest:
                 raise ValueError('PowerPoint đã thay đổi trong lúc đọc. Chọn lại file trước khi tạo giọng.')
-            lesson = prepare(library, prepare_script(library, lesson))
+            lesson = refresh_native_speech(library, prepare(library, prepare_script(library, lesson)))
             remember_source(library, path, digest)
             if not is_automatic_product(library, lesson, path, digest):
                 bind_lesson(library, lesson, digest)

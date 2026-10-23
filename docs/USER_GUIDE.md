@@ -1,6 +1,6 @@
 # BiliClass — Hướng dẫn sử dụng
 
-Hướng dẫn cập nhật theo mã nguồn RC164 · 23/10/2026
+Hướng dẫn cập nhật theo mã nguồn RC165 · 23/10/2026
 
 BiliClass chuyển bài giảng PowerPoint sang Việt–Anh hoặc tiếng Anh, tạo
 âm thanh Việt–Mỹ và hỗ trợ trình chiếu bằng Mascot. Bài giảng và giọng đọc
@@ -9,7 +9,7 @@ BiliClass chuyển bài giảng PowerPoint sang Việt–Anh hoặc tiếng Anh,
 ## Cài và mở ứng dụng
 
 1. Trong thư mục bộ cài đầy đủ, chạy **BiliClass-Setup.exe**; giữ file ZIP
-   cạnh file cài, không cần giải nén. Chọn thư mục cài rồi bấm **Cài đặt**.
+   cạnh file cài, không cần giải nén. Chọn thư mục cài mới/trống rồi bấm **Cài đặt**.
    Với gói Windows tải từ kênh cập nhật cũ, giải nén toàn bộ và chạy **Setup.cmd**.
 2. Mở **BiliClass** từ Desktop hoặc Start menu. Gói cài đã có bộ giọng,
    không cần cài Python.

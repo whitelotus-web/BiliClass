@@ -17,9 +17,11 @@ def test_dense_slides_without_speakers_never_traverse_office_shapes(tmp_path):
         def __getattr__(self, name):
             raise AssertionError('Navigation must not scan source shapes: ' + name)
 
-    media, badges, other = prepare_controls(NoOfficeCalls(), path)
+    progress = []
+    media, badges, other = prepare_controls(NoOfficeCalls(), path, on_progress=lambda number,total:progress.append((number,total)))
     assert media == {slide.slide_id: ([], []) for slide in deck.slides}
     assert not badges and not other
+    assert progress == [(1,3),(2,3),(3,3)]
 
 
 def test_index_keeps_all_speakers_and_separate_control_positions(tmp_path):

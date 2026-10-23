@@ -68,7 +68,7 @@ def speaker_index(path):
     return result, other_media
 
 
-def prepare_controls(presentation, path, *, add_badges=True, overlay=False, on_warning=None):
+def prepare_controls(presentation, path, *, add_badges=True, overlay=False, on_warning=None, on_progress=None):
     """Resolve only indexed speakers once, on the private Office thread.
 
     Appending in-memory badges leaves original shape positions intact. The bound
@@ -77,7 +77,9 @@ def prepare_controls(presentation, path, *, add_badges=True, overlay=False, on_w
     """
     index, other_media = speaker_index(path)
     media, badges = {}, {}
-    for identity, records in index.items():
+    for number, (identity, records) in enumerate(index.items(), 1):
+        if on_progress:
+            on_progress(number, len(index))
         audio, boxes = [], []
         media[identity] = (audio, boxes)
         if not records:

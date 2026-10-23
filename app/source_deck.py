@@ -24,7 +24,7 @@ NS = {"a": "http://schemas.openxmlformats.org/drawingml/2006/main",
       "ct": "http://schemas.openxmlformats.org/package/2006/content-types"}
 
 
-def text_blocks(presentation):
+def text_blocks(presentation, *, narration_order=False):
     """Use exactly the same ordered source units for import and native export."""
     def leaves(shapes):
         for shape in shapes:
@@ -36,7 +36,16 @@ def text_blocks(presentation):
     blocks = []
     for index, slide in enumerate(presentation.slides, 1):
         units = []
-        for shape in sorted(leaves(slide.shapes), key=lambda value: (value.top, value.left)):
+        if narration_order:
+            from .narration_order import visual_order
+            from .slide_speech import objects
+
+            located = {obj['shape']._element: obj for obj in objects(slide) if not obj['hidden']}
+            shapes = [obj['shape'] for obj in visual_order(located.values())]
+        else:
+            # Export locators created by earlier versions remain unchanged.
+            shapes = sorted(leaves(slide.shapes), key=lambda value: (value.top, value.left))
+        for shape in shapes:
             if shape.has_text_frame:
                 text = shape.text.strip()
             elif shape.has_table:

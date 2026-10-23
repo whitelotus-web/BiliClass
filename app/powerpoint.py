@@ -47,7 +47,14 @@ def verified_presentation(lesson, library_directory):
 
 def _deck_window_title(title, path):
     # A stem substring can bind Lesson.pptx to Lesson extra.pptx instead.
-    return bool(re.search(r'(?:^|\[)' + re.escape(Path(path).name) + r'(?=$|\s|\])', title, re.IGNORECASE))
+    filename = Path(path).name
+    prefix = r'(?:^|\[|PowerPoint[^\[\r\n]*?\s[-–—]\s)'
+    if re.search(prefix + re.escape(filename) + r'(?=$|\s|\])', title, re.IGNORECASE):
+        return True
+    # Some Office/Windows configurations hide .pptx, or omit show-title
+    # brackets. Require a complete title component, never a loose stem match.
+    suffix = r'(?=\s*(?:\[[^\]]*\]\s*)?(?:$|\]|[-–—]\s+(?:Microsoft\s+)?PowerPoint\b))'
+    return bool(re.search(prefix + re.escape(Path(filename).stem) + suffix, title, re.IGNORECASE))
 
 
 def slideshow_handle(path):
@@ -275,7 +282,9 @@ def _office_session(path, initial_slide, commands, events, autostart=True, short
         try:
             slide_media, badges, other_media = prepare_controls(presentation, path, add_badges=overlay is not None,
                                                                  overlay=overlay is not None,
-                                                                 on_warning=controls_warning)
+                                                                 on_warning=controls_warning,
+                                                                 on_progress=lambda number, total: progress(
+                                                                     f'Đang gắn loa và Mascot · slide {number}/{total}…'))
             if badges and not other_media:
                 presentation.SlideShowSettings.ShowMediaControls = False
         except Exception:
@@ -549,6 +558,9 @@ class PowerPointSession(QThread):
                                   args=(self.path, self.initial_slide, commands, events, self.autostart, self.shortcuts), daemon=True)
         stopping = None
         started = time.monotonic()
+        last_progress = started
+        opening_stage = 'Đang khởi động kết nối PowerPoint…'
+        opening_timed_out = False
         ready = False
         try:
             process.start()
@@ -564,15 +576,32 @@ class PowerPointSession(QThread):
                     if "error" in state:
                         self.failed.emit(state["error"])
                     else:
+                        if state.get('starting') and state.get('message') != opening_stage:
+                            # Preparing speakers on a long deck can exceed 45s
+                            # while Office is making real, observable progress.
+                            last_progress = time.monotonic()
+                            opening_stage = state.get('message', opening_stage)
                         ready = ready or bool(state.get("active") or state.get("opened"))
                         self.stateChanged.emit(state)
                 except queue.Empty:
                     pass
                 if stopping is not None and time.monotonic() - stopping > 5:
+                    import logging
+
+                    logging.warning('PowerPoint helper stop timed out; ready=%s, startup_timeout=%s, stage=%s',
+                                    ready, opening_timed_out, opening_stage)
                     process.terminate()  # End only the private helper, never the user's Office process.
-                    self.failed.emit("PowerPoint không phản hồi. Đã ngắt kết nối; có thể đóng cửa sổ trình chiếu.")
+                    if not opening_timed_out:
+                        self.failed.emit("PowerPoint chưa đóng xong nên tool đã ngắt kết nối. Đóng hộp thoại/cửa sổ PowerPoint của bài này rồi mở bài lại; bài giảng đã lưu được giữ nguyên.")
                     break
-                if not ready and stopping is None and time.monotonic() - started > 45:
+                if not ready and stopping is None and time.monotonic() - last_progress > 45:
+                    import logging
+
+                    logging.warning('PowerPoint startup stalled for %.1fs (total %.1fs), stage=%s',
+                                    time.monotonic() - last_progress, time.monotonic() - started, opening_stage)
+                    opening_timed_out = True
+                    self.failed.emit('PowerPoint chưa phản hồi ở bước: ' + opening_stage
+                                     + ' Hãy đóng hộp thoại đang mở trong PowerPoint rồi bấm Mở PowerPoint để thử lại. Bài giảng và giọng đã lưu được giữ nguyên.')
                     commands.put(("stop", None))
                     stopping = time.monotonic()
             process.join(timeout=2)

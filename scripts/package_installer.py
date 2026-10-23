@@ -107,11 +107,15 @@ def main():
         'Uninstall-BiliClass.cmd trong thư mục ứng dụng. Thư viện được giữ riêng.\n\n'
         f'Mã nguồn ứng dụng: {commit}\n'
         f'Mã nguồn bộ cài {INSTALLER_REVISION}: {installer_commit}\n', encoding='utf-8-sig')
+    update_note = (
+        'Chỉ sửa bộ cài, ứng dụng/ZIP không đổi. Có thể chỉ gửi lại BiliClass-Setup.exe.\n'
+        f'Người nhận giữ nguyên {asset.name} cạnh EXE mới. Không cần gửi/tải lại ZIP.\n'
+        if args.reuse_application else
+        f'Đây là bản ứng dụng {version}. Gửi cả BiliClass-Setup.exe và {asset.name}.\n'
+        'Không ghép Setup mới với ZIP khác phiên bản. Giữ hai file cạnh nhau.\n')
     (output / 'CAP_NHAT_BO_CAI.txt').write_text(
-        f'BILICLASS {version} — BỘ CÀI {INSTALLER_REVISION}\n\n'
-        'Nếu đã gửi bộ cài RC164 trước đó, chỉ cần gửi lại BiliClass-Setup.exe trong thư mục này.\n'
-        'Người nhận thay file Setup cũ bằng file mới, giữ nguyên BiliClass-RC164-Windows.zip cạnh EXE.\n'
-        'Không cần gửi/tải lại ZIP. Không giải nén ZIP. Chọn thư mục mới/trống để cài.\n'
+        f'BILICLASS {version} — BỘ CÀI {INSTALLER_REVISION}\n\n' + update_note
+        + 'Không giải nén ZIP. Chọn thư mục mới/trống để cài.\n'
         'Không xóa dữ liệu trong thư mục đã chọn nhầm.\n', encoding='utf-8-sig')
     metadata['installer_sha256'] = digest(executable)
     metadata['installer_bytes'] = executable.stat().st_size

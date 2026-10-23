@@ -252,7 +252,7 @@ def inspect_returned_deck(path, source_path=None, conversion_format="", requeste
     deck = Presentation(path)
     if not 1 <= len(deck.slides) <= 1000:
         raise ValueError("PowerPoint cần từ 1 đến 1.000 slide.")
-    units = text_blocks(deck)
+    units = text_blocks(deck, narration_order=True)
     blocks, render_only, questions, review_notes = [], [], [], []
     narration_notes = {}
     source_total = None
