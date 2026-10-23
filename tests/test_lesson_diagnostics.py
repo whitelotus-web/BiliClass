@@ -24,7 +24,7 @@ def test_layout_explains_specific_pages_without_turning_generic_review_into_erro
     assert report['failures'] == 1 and report['remaining'] == 1 and report['notices'] == 1 and report['repaired'] == 1
     assert report['pages'][1]['source_slide'] == 1
     assert report['pages'][1]['issues'][0]['excerpt'] == 'Định nghĩa'
-    assert report['title'] == 'Tool chưa sửa xong bố cục'
+    assert report['title'] == 'Bố cục cần xem lại'
     assert layout({})['has_report'] is False
 
 
@@ -36,6 +36,13 @@ def test_image_review_is_plain_and_retained_without_a_layout_failure():
     assert 'Chưa phát hiện lỗi cụ thể trong phạm vi kiểm tra.' in report['summary']
     assert report['image_note'] == 'Chữ trong ảnh ở slide nguồn 1 chưa được xác minh đầy đủ; kết quả tự kiểm tra không chứng nhận phần này.'
     assert layout({'external_deck': {'content_review': {'message': 'Cần xem ảnh.'}}})['image_note'] == 'Cần xem ảnh.'
+
+
+def test_case_changes_do_not_claim_to_have_fixed_slide_geometry():
+    report = layout({'slide_quality': {'slides': [{'slide': 1, 'issues': []}],
+                     'local_repairs': [{'slide': 1, 'operation': 'align_translation_case'}]}})
+    assert report['repaired'] == 0
+    assert 'Đã tự căn chỉnh' not in report['summary']
 
 
 def test_source_review_keeps_exact_reason_and_does_not_invent_an_answer():

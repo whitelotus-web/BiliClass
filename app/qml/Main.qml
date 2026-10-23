@@ -87,7 +87,7 @@ ApplicationWindow {
         if (page === "chatgpt" && root.inlineConversion && bridge.browserState.phase !== "completed") { page = "new"; return }
         if (page === "new" && root.inlineConversionVisible) Qt.callLater(root.revealConversionProgress)
         if (page !== "library") root.endLibraryDrag()
-        if (page === "voice") { Qt.callLater(root.ensureVoiceThumbnail); Qt.callLater(function() { bridge.completeLegacyNarration() }) }
+        if (page === "voice") Qt.callLater(root.ensureVoiceThumbnail)
         if (page === "result") Qt.callLater(function() { if (root.page === "result") backToLibraryAction.forceActiveFocus(Qt.OtherFocusReason) })
         if (page === "chatgpt" && bridge.browserState.phase === "completed") bridge.restoreConversionResult()
         if (page === "glossary" || page === "knowledge") {
@@ -665,7 +665,6 @@ ApplicationWindow {
         }
         function onQuickResultChanged() { Qt.callLater(root.ensureVoiceThumbnail) }
         function onNarrationChanged() {
-            if (root.page === "voice") Qt.callLater(function() { bridge.completeLegacyNarration() })
             const job = bridge.narrationPreparation
             if (bridge.lessonNarration.ready && !job.running && !root.voiceResultDismissed) Qt.callLater(root.revealCompletedNarration)
             if (job.lesson_id !== root.lessonData.id) return
@@ -714,7 +713,6 @@ ApplicationWindow {
                 root.narrationRate = bridge.voiceSettings.rate || 0
             }
         }
-        function onVoiceCatalogChanged() { if (root.page === "voice") Qt.callLater(function() { bridge.completeLegacyNarration() }) }
         function onTeacherProfileSaved() { if (!root.creationSubjectOverridden) root.applyDefaultTeachingSubject() }
         function onComparisonReady() { comparisonDialog.open() }
         function onChanged() { root.rememberJobOrigin(); root.presentationContent = bridge.presentationContent(root.rescue); root.refreshTemplate(); root.showOperationError(); Qt.callLater(root.ensureVoiceThumbnail) }
@@ -1951,7 +1949,7 @@ ApplicationWindow {
                         RowLayout { Layout.fillWidth: true; visible: root.resultDetails
                             Copy { objectName: "lessonReviewSummary"; Layout.fillWidth: true; color: AppTheme.adapt("#a66318"); text: {
                                 const missing = (bridge.quickResult.missing || []).length;
-                                return missing ? missing + " phần còn thiếu nội dung song ngữ." : "BiliClass tự căn chỉnh bố cục khi chuyển đổi, mở hoặc tải bài giảng."
+                                return missing ? missing + " phần còn thiếu nội dung song ngữ." : "BiliClass căn bố cục khi chuyển đổi. Với bài đã lưu, bấm Thử căn lại nếu cần; mở bài không tự chạy sửa."
                             } }
                             MainAction { objectName: "resultDetailsButton"; text: root.resultDetails ? "Ẩn chi tiết" : "Xem chi tiết"; subtle: true; implicitHeight: 32; onClicked: root.resultDetails = !root.resultDetails }
                         }

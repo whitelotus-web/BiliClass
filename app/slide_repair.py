@@ -497,8 +497,10 @@ def repair_and_inspect(path, directory, *, source=None, mode="", style="source",
     from .office_tasks import render_quality
 
     current = Path(path)
+    layout_plan = copy.deepcopy(layout_plan)
     from .slide_typography import protect_tree
     from .source_deck import source_slide_parts
+    from .translation_case import align_pairs
 
     # Typography is applied before measurement. NBSP changes only a line-break
     # opportunity; the same normalized VI/EN pair hashes remain valid.
@@ -512,10 +514,12 @@ def repair_and_inspect(path, directory, *, source=None, mode="", style="source",
         for number, part in enumerate(source_slide_parts(current), 1):
             tree = etree.fromstring(archive.read(part))
             panel_changes = constrain_generated(tree, deck.slides[number-1], deck.slide_width, deck.slide_height)
+            case_changes = align_pairs(tree, layout_plan[number-1].get('pairs', [])) if layout_plan else []
             protected = protect_tree(tree)
-            if protected or panel_changes:
+            if protected or panel_changes or case_changes:
                 replacements[part] = etree.tostring(tree, xml_declaration=True, encoding='UTF-8', standalone=True)
             typography.extend({'slide': number, **row} for row in panel_changes)
+            typography.extend({'slide': number, **row} for row in case_changes)
             if protected:
                 typography.append({'slide': number, 'operation': 'keep_quantities_together'})
     if replacements:

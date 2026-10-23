@@ -376,6 +376,12 @@ def assemble(source, destination, manifest, translations, mode):
         raise ValueError('Không ghi đè PowerPoint nguồn.')
     if set(translations) != {u['id'] for u in manifest['units']}:
         raise ValueError('Chưa đủ bản dịch để dựng bài giảng.')
+    from .translation_case import align_case
+
+    # Also normalize cached/provider-independent translations before creating
+    # paragraphs, notes and coverage hashes, keeping all three in agreement.
+    translations = {u['id']: {**translations[u['id']], 'en': align_case(u['text'], translations[u['id']]['en'])}
+                    if u['language'] == 'vi' else translations[u['id']] for u in manifest['units']}
     with zipfile.ZipFile(source) as archive:
         entries = {item.filename:archive.read(item) for item in archive.infolist()}
     grouped = {}

@@ -106,9 +106,9 @@ def prepare_library_teaching(directory, identity, profile=None, cancel=None, *, 
     from .teaching_session import prepare_teaching
     from .voice_import import prepare_library_lesson
 
-    # Only a stored layout failure needs the bounded completion pass. Its
-    # version/hash stamp prevents repeating an unsuccessful pass on each open.
-    lesson, preview = prepare_library_lesson(directory, identity, profile, complete=True, cancel=cancel)
+    # Opening a saved product must never start Office layout repairs. The
+    # teacher can explicitly request those from the saved check report.
+    lesson, preview = prepare_library_lesson(directory, identity, profile, cancel=cancel)
     if narration is not None:
         def choice(record):
             return record.get('mode'), record.get('voice'), record.get('rate'), record.get('playback', 'separate')

@@ -149,11 +149,12 @@ def test_open_library_reuses_ready_voice_when_active_variant_is_incomplete(tmp_p
     assert not any(segment['approved'] for segment in result['lesson']['segments'])
 
 
-def test_open_saved_powerpoint_does_not_run_full_office_repair_or_change_the_saved_product(tmp_path, monkeypatch):
+@pytest.mark.parametrize('older', [False, True])
+def test_open_saved_powerpoint_does_not_run_full_office_repair_or_change_the_saved_product(tmp_path, monkeypatch, older):
     from app.lesson_completion import VERSION
 
     library, lesson, _ = converted(tmp_path)
-    lesson['slide_quality'].update(completion_version=VERSION, completion_sha256=lesson['source']['sha256'])
+    lesson['slide_quality'].update(completion_version=VERSION - int(older), completion_sha256=lesson['source']['sha256'])
     library._write(lesson)
     before = library.get(lesson['id'])
     monkeypatch.setattr('app.slide_repair.repair_and_inspect',
@@ -164,7 +165,7 @@ def test_open_saved_powerpoint_does_not_run_full_office_repair_or_change_the_sav
         result = prepare_library_teaching(library.directory, lesson['id'])
         assert result['path'] and result['lesson']['id'] == lesson['id']
         assert result['lesson']['slide_quality']['counts']['FAIL'] == 1
-        assert not result['warning'], 'Layout findings stay internal while completion still runs'
+        assert not result['warning'], 'Opening a saved product does not launch a new layout check'
         assert library.get(lesson['id'])['source'] == before['source']
         assert library.get(lesson['id'])['revision'] == before['revision']
     finally:
@@ -200,7 +201,7 @@ def test_open_and_narration_are_separate_entry_points(tmp_path, monkeypatch):
         library.close()
 
 
-def test_showing_a_completed_product_does_not_restart_the_layout_repair(tmp_path, monkeypatch):
+def test_opening_current_or_older_product_never_starts_layout_repair(tmp_path, monkeypatch):
     from PySide6.QtCore import QCoreApplication
 
     from app.lesson_completion import VERSION
@@ -219,7 +220,7 @@ def test_showing_a_completed_product_does_not_restart_the_layout_repair(tmp_path
         lesson['slide_quality']['completion_version'] = VERSION - 1
         bridge._show_lesson(lesson, load_preview=False)
         app.processEvents()
-        assert calls == [True]
+        assert not calls, 'Opening an older check report must not start an Office job'
     finally:
         for worker in (bridge._catalog, bridge.browserAI, bridge.slidePreview, bridge.libraryThumbnails,
                        bridge.narrationPreferences, bridge.narration_preparation, bridge.english_reader,

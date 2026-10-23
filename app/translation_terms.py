@@ -107,11 +107,13 @@ class TermPolicy:
         return None
 
     def postprocess(self, text, translated):
+        from .translation_case import align_case
+
         if self.subject == 'toan' and not any(term in normalized(text) for term in self.teacher_terms):
             from .math_translation import terminology
 
-            return terminology(text, translated)
-        return translated
+            translated = terminology(text, translated)
+        return align_case(text, translated, chemistry=self.subject == 'hoa hoc')
 
     def fingerprint(self, matches):
         raw = json.dumps([self.subject, sorted(matches.items())], ensure_ascii=False)

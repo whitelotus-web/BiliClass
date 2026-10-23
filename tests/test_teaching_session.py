@@ -95,7 +95,7 @@ def test_ready_voice_opens_powerpoint_without_approving_or_blocking_on_layout_wa
         assert saved['revision'] == lesson['revision']
         assert not any(row['approved'] for row in saved['segments'])
         assert saved['slide_quality']['counts']['FAIL'] == 1
-        assert completions == [lesson['id']], 'A known layout failure is completed on the worker before opening'
+        assert not completions, 'Opening a saved deck does not request another layout repair'
         assert source.read_bytes() == original
     finally:
         for worker in (bridge._catalog, bridge.browserAI, bridge.slidePreview, bridge.libraryThumbnails,

@@ -146,7 +146,7 @@ class GoogleSettings(QObject):
 
     @Slot()
     def shutdown(self):
-        if self._closed:
+        if getattr(self, '_closed', True):
             return
         self._closed = True
         self._timer.stop()

@@ -1,4 +1,4 @@
-"""Real Office cell fitting starts automatically; the teacher only opens the deck."""
+"""Opening stays idle; real Office fitting starts only after the repair click."""
 
 import hashlib
 import json
@@ -23,13 +23,13 @@ from app.office_tasks import render_quality
 from app.paths import RESOURCE_ROOT
 from app.slide_repair import failure_keys
 
-from .qt_result_preview_mascot_smoke import control, pump, until
+from .qt_result_preview_mascot_smoke import click, control, pump, until
 
 
 def main():
     app = QGuiApplication([])
     QQuickStyle.setStyle('Basic')
-    report = Path('reports/rc144/automatic-completion')
+    report = Path('reports/rc160/explicit-completion')
     report.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='biliclass-auto-fit-', ignore_cleanup_errors=True) as temporary:
         folder = Path(temporary)
@@ -80,9 +80,22 @@ def main():
         try:
             root.resize(1366, 850)
             bridge._browser_state.update(phase='completed', lessonId=lesson['id'])
-            # No click on Repair: the stale, failed layout starts completion itself.
+            # Merely opening and changing pages must not start Office repairs.
             bridge._show_lesson(lesson, external_preview(lesson, library.directory),
                                 destination='chatgpt', load_preview=False)
+            pump(500)
+            assert not bridge.busy and bridge.lesson['revision'] == lesson['revision']
+            with patch.object(bridge, '_create_narration') as synthesize, \
+                    patch.object(bridge, '_available_voice', return_value=True), \
+                    patch('app.lesson_narration.automatic_repair_choice', return_value={
+                        'mode': 'en', 'voice': 'vieneu:Mai Anh', 'rate': 0}):
+                root.setProperty('page', 'voice')
+                bridge.narrationChanged.emit()
+                bridge.voiceCatalogChanged.emit()
+                pump(700)
+                synthesize.assert_not_called()
+            assert not bridge.busy and not bridge.narrationBusy
+            click(root, control(root, 'voiceChecksRepair'))
             until(lambda: bridge.busy, timeout=10)
             until(lambda: not bridge.busy, timeout=120)
             (report / 'applied-quality.json').write_text(json.dumps(bridge.lesson.get('slide_quality'), indent=2))
@@ -91,7 +104,7 @@ def main():
             assert not failure_keys(final['slide_quality']), final['slide_quality']
             cells = [row for row in final['slide_quality']['local_repairs'] if row['operation'] == 'fit_table_cell']
             assert len(cells) == 2 and {tuple(row['cell']) for row in cells} == {(0, 0), (1, 0)}
-            assert final['slide_quality']['completion_version'] >= 7
+            assert final['slide_quality']['automatic_completion']['scope'] == 'structure_and_layout'
             assert bridge.lessonDiagnostics['attention'] == 0
             assert any(row['operation'] == 'improve_text_contrast' for row in final['slide_quality']['local_repairs'])
             output = Presentation(library.directory / 'sources' / final['source']['file'])
@@ -105,7 +118,8 @@ def main():
             assert not warnings, warnings
             assert root.grabWindow().save(str(report / 'completed.png'))
             result = dict(status='passed', initial_cell_errors=len(before), repaired_cells=len(cells),
-                          final_errors=0, automatic_without_repair_click=True, original_preserved=True,
+                          final_errors=0, idle_until_repair_click=True, no_automatic_narration=True,
+                          original_preserved=True,
                           solid_fill_contrast_corrected=True,
                           table_grid_other_cells_and_math_preserved=True, qml_warnings=warnings,
                           original_sha256=hashlib.sha256(original).hexdigest())

@@ -16,7 +16,7 @@ def test_geometry_headings_are_subject_scoped_and_exact_only(vi, en):
 def test_heading_correction_replaces_bad_cache_without_an_api_request(tmp_path):
     translator = Translator(tmp_path, transport=lambda *_: pytest.fail('Exact headings need no API'))
     translator.configure_terms('Toán', [])
-    assert translator.translate(['CÁC TÍNH CHẤT THỪA NHẬN'], Event()) == ['Basic axioms']
+    assert translator.translate(['CÁC TÍNH CHẤT THỪA NHẬN'], Event()) == ['BASIC AXIOMS']
     teacher = TermPolicy('Toán', [{'vi': 'các tính chất thừa nhận', 'en': 'Postulates', 'locked': True}])
     assert teacher.exact('CÁC TÍNH CHẤT THỪA NHẬN') == 'Postulates'
 

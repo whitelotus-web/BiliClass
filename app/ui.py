@@ -3030,12 +3030,12 @@ class Bridge(QObject):
 
             remaining = layout(self._lesson)['remaining']
             self.inform(result.get("message") or
-                        (f"Đã tự sửa và kiểm tra lại. Còn {failures} slide cần hoàn thiện; xem chi tiết." if failures
+                        (f"Đã căn và kiểm tra lại. Còn {failures} slide cần xem lại; xem chi tiết." if failures
                          else f"Đã kiểm tra lại. Còn {remaining} slide có vấn đề cụ thể; xem chi tiết xử lý." if remaining
                          else "Đã kiểm tra lại; chưa phát hiện lỗi trong các phép kiểm tra tự động."), bool(failures))
 
         self.launch(work, completed)
-        self.inform("Đang tự sửa và kiểm tra lại bài giảng…")
+        self.inform("Đang căn lại bố cục và kiểm tra bài giảng theo yêu cầu…")
 
     @Slot()
     def pauseEnglish(self):
@@ -3115,10 +3115,10 @@ class Bridge(QObject):
                                                      destination='voice', load_preview=False))
         self.inform('Đang nạp bài để cấu hình giọng đọc…', refresh=False)
 
-    def _show_lesson(self, lesson, preview=None, *, auto_repair=True, destination='result', load_preview=True):
+    def _show_lesson(self, lesson, preview=None, *, auto_repair=False, destination='result', load_preview=True):
         """Apply prepared UI data; file integrity checks belong to the worker."""
-        from .lesson_completion import needs_completion
-
+        # auto_repair is accepted for older internal callers, but viewing a
+        # lesson never authorizes a repair or speech synthesis job.
         if not self.teaching_session.bound:
             self.stopSpeech()
         self._conversion_report = []
@@ -3137,13 +3137,7 @@ class Bridge(QObject):
         self.selectionChanged.emit()
         if destination is not None:
             self.navigate.emit(destination)
-        if (auto_repair and needs_completion(lesson)
-                and lesson['id'] not in getattr(self,'_auto_reviewed',set())):
-            if not hasattr(self,'_auto_reviewed'):
-                self._auto_reviewed=set()
-            self._auto_reviewed.add(lesson['id'])
-            QTimer.singleShot(0,self.repairConvertedLesson)
-        elif load_preview and lesson.get('external_deck') and not self.quickResult.get('image'):
+        if load_preview and lesson.get('external_deck') and not self.quickResult.get('image'):
             self.previewConvertedSlide(1)
 
     @Slot(str)

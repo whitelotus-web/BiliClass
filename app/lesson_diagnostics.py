@@ -46,7 +46,8 @@ def layout(lesson):
         page['attention'] = any(issue['severity'] == 'FAIL' or issue['code'] in ACTIONABLE for issue in page['issues'])
     pages.sort(key=lambda row: (not row['attention'], not row['failed'], row['slide']))
     repairs = report.get('local_repairs', [])
-    fixed = {row['slide'] for row in repairs if row.get('slide') and row.get('operation') != 'keep_quantities_together'}
+    fixed = {row['slide'] for row in repairs if row.get('slide') and row.get('operation') not in
+             {'keep_quantities_together', 'align_translation_case'}}
     failures = sum(row['failed'] for row in pages)
     attention = sum(row['attention'] for row in pages)
     rendered = sum(bool(row.get('rendered')) for row in report.get('slides', []))
@@ -63,7 +64,7 @@ def layout(lesson):
     return dict(pages=pages, total=len(report.get('slides', [])), repaired=len(fixed), failures=failures,
                 remaining=attention, notices=sum(not row['attention'] for row in pages), has_report=bool(report),
                 attention=attention, rendered=rendered,
-                title='Tool chưa sửa xong bố cục' if failures else 'Chưa hoàn tất kiểm tra bằng PowerPoint'
+                title='Bố cục cần xem lại' if failures else 'Chưa hoàn tất kiểm tra bằng PowerPoint'
                       if render_failed else 'Có phần chưa hoàn thiện' if attention else 'Đã kiểm tra tự động',
                 image_note=image_note,
                 scope_note='Kiểm tra cấu trúc và bố cục; chưa xác minh toàn bộ ý nghĩa, chữ trong ảnh và hiệu ứng.',

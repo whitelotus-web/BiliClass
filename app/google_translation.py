@@ -511,7 +511,7 @@ class Translator:
             exact = policy.exact(text)
             if exact is not None:
                 whitespace = re.fullmatch(r'(\s*)(.*?)(\s*)', text, re.S)
-                values[job] = whitespace[1] + exact + whitespace[3]
+                values[job] = whitespace[1] + policy.postprocess(text, exact) + whitespace[3]
                 continue
             chemistry = policy.subject == 'hoa hoc'
             if chemistry:

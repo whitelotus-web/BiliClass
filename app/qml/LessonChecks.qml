@@ -41,7 +41,7 @@ Frame {
                 Label { objectName: checks.objectName + "Title"; text: checks.report.title || "Kiểm tra tự động"; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: checks.report.attention ? AppTheme.warningInk : AppTheme.ink; font.pixelSize: 14; font.weight: Font.DemiBold }
                 Label { objectName: checks.objectName + "Summary"; visible: !!checks.report.attention || checks.expanded; text: checks.report.summary || ""; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: AppTheme.ink; font.pixelSize: 13 }
             }
-            ActionButton { objectName: checks.objectName + "Repair"; text: "Tool thử hoàn thiện lại"; implicitHeight: 32; visible: !!checks.report.attention; enabled: !checks.bridge.busy && !checks.bridge.narrationBusy && !checks.bridge.powerpointState.opened && !checks.bridge.powerpointState.active; onClicked: checks.bridge.repairConvertedLesson() }
+            ActionButton { objectName: checks.objectName + "Repair"; text: "Thử căn lại"; implicitHeight: 32; visible: !!checks.report.attention; enabled: !checks.bridge.busy && !checks.bridge.narrationBusy && !checks.bridge.powerpointState.opened && !checks.bridge.powerpointState.active; onClicked: checks.bridge.repairConvertedLesson() }
             ActionButton { objectName: checks.objectName + "Toggle"; text: checks.expanded ? "Thu gọn" : checks.report.attention ? "Xem lỗi còn lại" : "Chi tiết và phạm vi"; implicitHeight: 30; onClicked: checks.expanded = !checks.expanded }
         }
         Label {

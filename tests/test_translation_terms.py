@@ -19,11 +19,11 @@ def test_clock_question_keeps_fraction_and_rotation_direction(direction, english
 def test_exact_teacher_term_and_classroom_heading_need_no_api(tmp_path):
     translator = Translator(tmp_path, transport=lambda *_: pytest.fail('Local wording must not call Google'))
     translator.configure_terms('Vật lý', [{'vi': 'động năng', 'en': 'Kinetic energy', 'locked': True}])
-    assert translator.translate(['động năng', 'VẬN DỤNG'], Event()) == ['Kinetic energy', 'Application']
+    assert translator.translate(['động năng', 'VẬN DỤNG'], Event()) == ['Kinetic energy', 'APPLICATION']
     assert not translator.store.public()
 
 
-@pytest.mark.parametrize('source,target', [('Bài 4:', 'Lesson 4:'), ('BÀI 12', 'Lesson 12'),
+@pytest.mark.parametrize('source,target', [('Bài 4:', 'Lesson 4:'), ('BÀI 12', 'LESSON 12'),
     ('Bai 4.1', 'Lesson 4.1'), ('Bài ⟦BLC0⟧:', 'Lesson ⟦BLC0⟧:'), ('Chương II', 'Chapter II')])
 def test_numbered_lesson_heading_is_local_and_never_becomes_song(tmp_path, source, target):
     translator = Translator(tmp_path, transport=lambda *_:pytest.fail('Heading should not call API'))
@@ -100,7 +100,7 @@ def test_contextual_payload_does_not_reuse_opaque_term_cache(tmp_path):
     translator = Translator(tmp_path, transport=lambda rows,*_: calls.extend(rows) or [s.replace('thay đổi.', 'changes.') for s in rows])
     translator.store.cache_many([(key, 'Bad word order from old opaque payload')])
     translator.configure_terms('Vật lý', [])
-    assert translator.translate([text], Event()) == ['velocity changes.']
+    assert translator.translate([text], Event()) == ['Velocity changes.']
     assert len(calls) == 1 and '>velocity</span>' in calls[0]
     assert translator.store.cached(key) == 'Bad word order from old opaque payload'
 
