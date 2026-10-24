@@ -146,7 +146,13 @@ def main():
                     card, actions, rate = c('multilingualVoiceCard'), c('settingsVoiceActions'), c('settingsVoiceRate')
                     action_pos = actions.mapToItem(card, QPointF())
                     rate_pos = rate.mapToItem(card, QPointF())
-                    assert 0 < action_pos.y()-(rate_pos.y()+rate.height()) < 40
+                    gap, help_text = c('settingsReadingGap'), c('settingsReadingGapHelp')
+                    gap_pos, help_pos = (item.mapToItem(card, QPointF()) for item in (gap, help_text))
+                    # RC166 added the reading-gap row and its explanation between
+                    # the speed control and actions. Keep actions near that context.
+                    assert gap_pos.y() > rate_pos.y()+rate.height()
+                    assert help_pos.y() >= gap_pos.y()+gap.height()
+                    assert 0 < action_pos.y()-(help_pos.y()+help_text.height()) < 40
                     assert action_pos.y()+actions.height() < card.height()
                     # Scroll on short windows, then verify every action is
                     # reachable without horizontal overflow or changing drafts.

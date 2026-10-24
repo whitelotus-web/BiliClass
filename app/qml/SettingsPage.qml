@@ -35,6 +35,7 @@ Item {
     Connections {
         target: page.bridge.googleSettings
         function onSaved(success) { if (success) { googleKeys.clear(); page.showGoogleKeyEntry = false } }
+        function onAzureSaved(success) { if (success) azureKey.clear() }
     }
     onActiveTabChanged: { if (!bridge.experimentalTeaching && activeTab === 4) { activeTab = 0; return } if (contentScroll.contentItem && contentScroll.contentItem.contentY !== undefined) contentScroll.contentItem.contentY = 0 }
     property string selectedMascot: bridge.settings.mascot
@@ -129,7 +130,7 @@ Item {
                 3: "Chọn bạn đồng hành, cách hiển thị và phím tắt khi dạy cùng Mascot.",
                 4: "Thiết lập mặc định cho lớp học và cách học sinh tham gia.",
                 5: "Quản lý nơi lưu bài giảng, sao lưu và khôi phục dữ liệu.",
-                6: bridge.googleTranslation ? "Thêm key Google Dịch và xem số ký tự còn lại của từng key." : "Kết nối tài khoản AI để chuyển đổi bài giảng."
+                6: bridge.googleTranslation ? "Chọn dịch vụ dịch, thêm key và theo dõi giới hạn sử dụng trên máy." : "Kết nối tài khoản AI để chuyển đổi bài giảng."
             })[page.activeTab] || "Thiết lập BiliClass trên máy này."
         }
 
@@ -375,7 +376,7 @@ Item {
                         Label { text: "Nghỉ giữa các đoạn đọc"; color: page.ink; font.weight: Font.DemiBold; Layout.fillWidth: true }
                         ReadingGapPicker { objectName: "settingsReadingGap"; bridge: page.bridge; Layout.preferredWidth: 130 }
                     }
-                    Hint { text: "Đổi ngay ở đây hoặc trên bảng Trợ giảng. 0,4 giây giúp đọc liền mạch hơn; không cần tạo lại giọng. Tải lại PowerPoint để cập nhật khoảng nghỉ trong file."; Layout.fillWidth: true }
+                    Hint { objectName: "settingsReadingGapHelp"; text: "Đổi ngay ở đây hoặc trên bảng Trợ giảng. 0,4 giây giúp đọc liền mạch hơn; không cần tạo lại giọng. Tải lại PowerPoint để cập nhật khoảng nghỉ trong file."; Layout.fillWidth: true }
                     Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: page.line; Layout.topMargin: 5; Layout.bottomMargin: 5 }
                     RowLayout {
                         objectName: "settingsVoiceActions"
@@ -571,7 +572,33 @@ Item {
             visible: bridge.googleTranslation && page.activeTab === 6; Layout.fillWidth: true; spacing: 14
             onVisibleChanged: if (visible) bridge.googleSettings.refresh()
             Card {
-                Layout.fillWidth: true
+                objectName: "translationProviderCard"; Layout.fillWidth: true
+                ColumnLayout { width: parent.width; spacing: 12
+                    Title { text: "Dịch vụ chuyển ngữ"; Layout.fillWidth: true }
+                    ButtonGroup { id: translationProviders }
+                    GridLayout { columns: width >= 660 ? 2 : 1; Layout.fillWidth: true; columnSpacing: 20; rowSpacing: 12
+                        ChoiceRadioButton {
+                            objectName: "translationProviderGoogle"; text: "Google Cloud Translation"
+                            Layout.fillWidth: true; implicitHeight: 44; highlightSelection: true
+                            ButtonGroup.group: translationProviders
+                            checked: bridge.googleSettings.state.provider === "google"
+                            enabled: bridge.googleSettings.ready && !bridge.busy && !bridge.batchQueue.running && !bridge.browserState.running
+                            onClicked: bridge.googleSettings.chooseProvider("google")
+                        }
+                        ChoiceRadioButton {
+                            objectName: "translationProviderAzure"; text: "Microsoft Azure Translator"
+                            Layout.fillWidth: true; implicitHeight: 44; highlightSelection: true
+                            ButtonGroup.group: translationProviders
+                            checked: bridge.googleSettings.state.provider === "azure"
+                            enabled: bridge.googleSettings.ready && !bridge.busy && !bridge.batchQueue.running && !bridge.browserState.running
+                            onClicked: bridge.googleSettings.chooseProvider("azure")
+                        }
+                    }
+                    Hint { objectName: "translationProviderHint"; Layout.fillWidth: true; text: "Bài mới dùng dịch vụ được chọn ở đây. Bài đang dở tiếp tục bằng dịch vụ đã dùng lúc bắt đầu." }
+                }
+            }
+            Card {
+                visible: bridge.googleSettings.state.provider === "google"; Layout.fillWidth: true
                 ColumnLayout { width: parent.width; spacing: 14
                     RowLayout { Layout.fillWidth: true; spacing: 12
                         Title { text: "Google Cloud Translation"; Layout.fillWidth: true }
@@ -626,7 +653,7 @@ Item {
                 }
             }
             Card {
-                Layout.fillWidth: true
+                visible: bridge.googleSettings.state.provider === "google"; Layout.fillWidth: true
                 ColumnLayout { width: parent.width; spacing: 13
                     RowLayout { Layout.fillWidth: true
                         Title { text: "Key đã lưu"; Layout.fillWidth: true }
@@ -649,6 +676,39 @@ Item {
                             }
                             SoftButton { objectName: "renameGoogleKey_" + modelData.id; text: "Đổi tên"; enabled: !bridge.busy; onClicked: { renameGoogleKey.keyId = modelData.id; keyDisplayName.text = modelData.customName; renameGoogleKey.open() } }
                             SoftButton { text: "Xóa key"; enabled: !bridge.busy; onClicked: bridge.googleSettings.remove(modelData.id) }
+                        }
+                    }
+                }
+            }
+            Card {
+                objectName: "azureTranslationCard"; visible: bridge.googleSettings.state.provider === "azure"; Layout.fillWidth: true
+                ColumnLayout { width: parent.width; spacing: 12
+                    Title { text: "Microsoft Azure Translator"; Layout.fillWidth: true }
+                    Hint { text: "Dùng tài nguyên Translator gói F0 để có hạn mức miễn phí 2 triệu ký tự/tháng. Chọn đúng gói trong Azure khi tạo tài nguyên."; Layout.fillWidth: true }
+                    GridLayout { Layout.fillWidth: true; columns: width >= 620 ? 2 : 1; columnSpacing: 16; rowSpacing: 12
+                        ColumnLayout { Layout.fillWidth: true; spacing: 8
+                            Label { text: "Tên tài nguyên (để dễ nhớ)"; color: page.ink; font.bold: true }
+                            Field { id: azureResource; objectName: "azureResourceName"; Layout.fillWidth: true; text: bridge.googleSettings.state.azure.resource; maximumLength: 80; placeholderText: "Ví dụ: BiliClass cá nhân"; readOnly: bridge.busy }
+                        }
+                        ColumnLayout { Layout.fillWidth: true; spacing: 8
+                            Label { text: "Region · mã vùng của tài nguyên"; color: page.ink; font.bold: true }
+                            Field { id: azureRegion; objectName: "azureRegion"; Layout.fillWidth: true; text: bridge.googleSettings.state.azure.region; maximumLength: 50; placeholderText: "Ví dụ: southeastasia hoặc global"; readOnly: bridge.busy }
+                        }
+                    }
+                    Label { text: "API key Azure"; color: page.ink; font.bold: true }
+                    Field { id: azureKey; objectName: "azureApiKey"; Layout.fillWidth: true; echoMode: TextInput.Password; maximumLength: 128; placeholderText: bridge.googleSettings.state.azure.configured ? "Đã lưu key · để trống để giữ key hiện tại" : "Dán Key 1 hoặc Key 2 từ Azure"; readOnly: bridge.busy }
+                    Hint { text: "Trong Azure: tạo Translator → chọn F0 → Keys and Endpoint → sao chép key và Region. Nếu tài nguyên là Global, nhập global."; Layout.fillWidth: true }
+                    Flow { Layout.fillWidth: true; spacing: 10
+                        SaveButton { objectName: "saveAzureTranslation"; text: "Lưu cấu hình Azure"; enabled: !bridge.busy && bridge.googleSettings.ready && !bridge.batchQueue.running && !bridge.browserState.running; onClicked: bridge.googleSettings.saveAzure(azureKey.text, azureRegion.text, azureResource.text) }
+                        SoftButton { objectName: "getAzureTranslationKey"; text: "Mở Azure"; onClicked: Qt.openUrlExternally("https://portal.azure.com/#create/Microsoft.CognitiveServicesTextTranslation") }
+                        SoftButton { objectName: "removeAzureTranslation"; text: "Xóa key Azure"; visible: bridge.googleSettings.state.azure.configured; enabled: !bridge.busy; onClicked: bridge.googleSettings.removeAzure() }
+                    }
+                    Hint { objectName: "azureTranslationMessage"; text: bridge.googleSettings.state.azure.message || (bridge.googleSettings.state.azure.configured ? "Đã lưu cấu hình. Key được mã hóa trên tài khoản Windows này." : "Chưa có cấu hình Azure. Điền thông tin ở trên rồi bấm Lưu."); Layout.fillWidth: true }
+                    Repeater { model: bridge.googleSettings.state.azure.keys
+                        delegate: ColumnLayout { required property var modelData; Layout.fillWidth: true; spacing: 8
+                            Hint { objectName: "azureTranslationRemaining"; text: "Giới hạn còn lại tại máy: " + Number(modelData.remaining).toLocaleString(Qt.locale("vi_VN"), "f", 0) + " / " + Number(bridge.googleSettings.state.azure.budget).toLocaleString(Qt.locale("vi_VN"), "f", 0) + " ký tự/tháng"; Layout.fillWidth: true }
+                            Hint { text: "Đây là bộ đếm trên máy, không phải số dư do Azure xác nhận. Thay key không đặt lại bộ đếm."; Layout.fillWidth: true; font.pixelSize: 11 }
+                            SoftButton { objectName: "recheckAzureTranslation"; visible: !!modelData.blocked; text: "Cho phép thử lại Azure"; enabled: !bridge.busy; onClicked: bridge.googleSettings.recheckAzure() }
                         }
                     }
                 }

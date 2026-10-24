@@ -88,8 +88,8 @@ def _crypt(data, decrypt=False):
 
 
 class KeyStore:
-    def __init__(self, directory):
-        self.root = Path(directory) / 'translation_api'
+    def __init__(self, directory, *, namespace='translation_api'):
+        self.root = Path(directory) / namespace
         self.root.mkdir(parents=True, exist_ok=True)
         self.path = self.root / 'keys.dpapi'
         with _LOCK, closing(self.connect()) as db:
@@ -448,12 +448,22 @@ def chunks(text, maximum=1000):
 
 
 class Translator:
-    def __init__(self, directory, budget=DEFAULT_BUDGET, transport=request):
-        self.store = KeyStore(directory)
+    cache_namespace = 'google-nmt-context-v3'
+    rotate_credentials = True
+
+    def __init__(self, directory, budget=DEFAULT_BUDGET, transport=request, *, store=None,
+                 maximum_budget=DEFAULT_BUDGET):
+        self.store = store if store is not None else KeyStore(directory)
         self.budget = int(budget)
-        if not 1 <= self.budget <= DEFAULT_BUDGET:
-            raise ValueError('Giới hạn cục bộ phải từ 1 đến 500.000 ký tự/dự án/tháng.')
+        if not 1 <= self.budget <= maximum_budget:
+            raise ValueError(f'Giới hạn cục bộ phải từ 1 đến {maximum_budget:,} ký tự/tháng.')
         self.transport = transport
+
+    def _send(self, texts, credential, source, target):
+        return self.transport(texts, credential['key'], source, target)
+
+    def _request_cost(self, texts):
+        return sum(map(len, texts))
 
     def configure_terms(self, subject, rows):
         from .translation_terms import TermPolicy
@@ -522,7 +532,7 @@ class Translator:
                     values[job] = text
                     continue
             matches = policy.matches(text)
-            namespace = 'google-nmt-context-v3|' + policy.fingerprint(matches) if matches else 'google-nmt-context-v3'
+            namespace = self.cache_namespace + ('|' + policy.fingerprint(matches) if matches else '')
             if context:
                 namespace += '|native-counts-v1|' + _digest(json.dumps(context, ensure_ascii=False))
             if chemistry and formula_spans(text):
@@ -602,7 +612,7 @@ class Translator:
             return repaired
 
         def run(group, *, repairing=False):
-            count = sum(len(item[1]) for item in group)
+            count = self._request_cost([item[1] for item in group])
             excluded = set()
             attempts = 0
             retry_key = None
@@ -611,11 +621,13 @@ class Translator:
                     raise InterruptedError('Đã dừng dịch.')
                 row = self.store.reserve(count, self.budget, excluded, only_key=retry_key)
                 try:
-                    response = self.transport([item[1] for item in group], row['key'], source, target)
+                    response = self._send([item[1] for item in group], row, source, target)
                 except TranslationProblem as exc:
                     if exc.code not in {'api_network', 'api_result'}:
                         self.store.reject(row, count, exc.code)
                     if exc.code in {'api_key', 'api_quota'}:
+                        if not self.rotate_credentials:
+                            raise
                         excluded.add(row['id'])
                         retry_key = None
                         continue  # advance only on a definite credential/quota rejection

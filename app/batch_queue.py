@@ -169,17 +169,21 @@ class BatchQueue(QObject):
         if self.data.get('phase') == 'draft':
             from .chatgpt_handoff import validate_config
             from .conversion_input import creation_config
+            from .translation_provider import PROVIDERS, snapshot
             try:
                 validate_config(creation_config('Tên theo từng file', options['subject'], options['education'],
                     options['grade'], options['format'], options['preset'], options['style'], options.get('notes', '')))
+                selection = snapshot(self.bridge.library.directory)
             except (ValueError, KeyError) as exc:
                 self.bridge.inform(str(exc), True, refresh=False)
                 return
-            self.data['options'] = {**options, 'budget': self.bridge.library.setting('google_character_budget', 500_000),
+            self.data['options'] = {**options, **selection,
+                                    'budget': self.bridge.library.setting('google_character_budget', 500_000),
                                     'bookends': self.bridge.library.setting('template_bookends', False)}
             self.data['summary'] = ('Tiếng Anh' if options['format'] == 'english_only' else 'Song ngữ Việt–Anh') + (
                 ' · Giữ thiết kế gốc' if options['style'] == 'source' else ' · Mẫu mới') + (
-                f" · {options['subject']} · {options['education']} {options['grade']}")
+                f" · {options['subject']} · {options['education']} {options['grade']}") + (
+                ' · ' + PROVIDERS[selection['translation_provider']])
         self._start()
 
     @Slot('QVariantMap')

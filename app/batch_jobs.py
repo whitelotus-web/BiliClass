@@ -201,16 +201,20 @@ def convert_one(directory, row, options, cancel, update):
                 if library.get(row['lesson_id'])['revision'] != row['lesson_revision']:
                     raise ValueError('Bài giảng đã sửa. Chọn lại file để tạo lượt xử lý mới.')
     else:
-        from .google_translation import KeyStore, TranslationProblem
+        from .translation_provider import require_credentials
 
-        if not KeyStore(directory).keys():
-            raise TranslationProblem('api_settings', 'Thêm API key trong Cài đặt → Google Dịch rồi tiếp tục hàng đợi.')
+        # Legacy queues have no engine field and must keep their RC167 Google route.
+        provider = options.get('translation_provider', 'google')
+        require_credentials(directory, provider)
         path = local_document(row['url'])
         if path.suffix.lower() != '.pptx':
             raise ValueError('Hàng đợi nhận file PowerPoint .pptx, tối đa 200 MB mỗi file.')
         config = validate_config(creation_config(path.stem[:180], options['subject'], options['education'],
             options['grade'], options['format'], options['preset'], options['style'], options.get('notes', '')))
         config['template_bookends'] = options.get('bookends', False)
+        config['translation_provider'] = provider
+        config['translation_budget'] = options.get('translation_budget',
+            options.get('budget', 500_000) if provider == 'google' else 2_000_000)
         job = prepare(directory, config, path)
         update({'folder': job['folder']}, True)
     progress = ConversionProgress(job['folder'], lambda value: update({

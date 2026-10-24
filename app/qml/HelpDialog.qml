@@ -65,7 +65,7 @@ Dialog {
             {title:"Tải, tìm nơi lưu hoặc xóa bài", body:"Bấm icon mũi tên tải để lưu bản PowerPoint. Bấm nút … của một bài → Mở trong Explorer để xem thư mục chứa bài. Icon thùng rác đưa bài vào thùng rác của tool; muốn khôi phục, mở nút ⋮ ở góc trên → Thùng rác."}
         ],
         [
-            {title:"Nhập thông tin và mã Google Dịch", body:"Trong Cài đặt → Chung, điền tên thầy cô, trường và môn. Trong Google Dịch, dán mã được cấp (key) rồi Lưu key. Chuyển đổi bài giảng cần mã này và kết nối Internet; nếu chưa có mã, bấm hướng dẫn ngay tại tab Google Dịch."},
+            {title:"Chọn dịch vụ dịch và lưu mã", body:"Trong Cài đặt → Chung, điền tên thầy cô, trường và môn. Trong Google Dịch, chọn Google Cloud hoặc Microsoft Azure rồi điền và lưu key tương ứng. Azure cần thêm Region (mã vùng). Chuyển đổi cần Internet; bài đang dở tiếp tục bằng dịch vụ đã chọn lúc bắt đầu."},
             {title:"Chọn giọng đọc và nhân vật", body:"Trong Giọng đọc, chọn giọng → Nghe thử → chỉnh tốc độ → Lưu. Trong Mascot, chọn nhân vật và kích thước vừa màn hình. Tool sẽ nhớ lựa chọn cho lần sau."},
             {title:"Sao lưu thư viện", body:"Mở Cài đặt → Dữ liệu → Sao lưu dữ liệu, rồi chọn nơi giữ bản sao. BiliClass cũng tự sao lưu theo lịch khi mở ứng dụng."},
             {title:"Khôi phục khi cần", body:"Chọn Khôi phục bản sao và chọn tệp sao lưu. Tool kiểm tra, mở thư viện khôi phục; thư viện trước vẫn được giữ."},

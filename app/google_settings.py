@@ -10,12 +10,16 @@ from .jobs import Job
 class GoogleSettings(QObject):
     changed = Signal()
     saved = Signal(bool)
+    azureSaved = Signal(bool)
 
     def __init__(self, bridge):
         super().__init__(bridge)
         self.bridge, self.directory = bridge, bridge.library.directory
         self._state = dict(keys=[], budget=DEFAULT_BUDGET, configured=False, message='',
-                           ocrReady=False, powerpointInstalled=False, health={})
+                           ocrReady=False, powerpointInstalled=False, health={}, provider='google',
+                           providerLabel='Google Cloud Translation', activeConfigured=False,
+                           azure=dict(configured=False, keys=[], region='global', resource='',
+                                      budget=2_000_000, message=''))
         from .translation_health import summarize
 
         self._state['health'] = summarize([], DEFAULT_BUDGET)
@@ -84,7 +88,8 @@ class GoogleSettings(QObject):
             self.refresh()
 
     def _operate(self, operation, values, message, *, saving=False):
-        if self._closed or self.bridge._busy or self._mutating:
+        if (self._closed or self.bridge._busy or self._mutating
+                or self.bridge.batchQueue.running or self.bridge._browser_running):
             return False
         self._generation += 1
         self._mutating = True
@@ -98,10 +103,12 @@ class GoogleSettings(QObject):
             self.changed.emit()
             if saving:
                 self.saved.emit(success)
+            if operation == 'azure_save':
+                self.azureSaved.emit(success)
             self.bridge.inform(message if success else result['error'], not success, refresh=False)
 
         self.bridge.launch(lambda: change(self.directory, operation, values), finished,
-                           cancellable=False, message='Đang lưu cấu hình Google Dịch…')
+                           cancellable=False, message='Đang lưu cấu hình dịch…')
         self.changed.emit()
         return True
 
@@ -124,6 +131,23 @@ class GoogleSettings(QObject):
     @Slot()
     def recheck(self):
         self._operate('recheck', (), 'Đã cho phép thử lại key ở lượt dịch tiếp theo. Bộ đếm ký tự được giữ nguyên.')
+
+    @Slot(str, result=bool)
+    def chooseProvider(self, provider):
+        return self._operate('provider', (provider,), 'Đã chọn dịch vụ cho bài mới. Bài đang dở giữ dịch vụ của lượt trước.')
+
+    @Slot(str, str, str, result=bool)
+    def saveAzure(self, key, region, name):
+        return self._operate('azure_save', (key, region, name),
+            'Đã lưu cấu hình Azure. Key được mã hóa trên tài khoản Windows này; cần chuyển đổi để kiểm tra kết nối.')
+
+    @Slot()
+    def removeAzure(self):
+        self._operate('azure_remove', (), 'Đã xóa key Azure. Lịch sử sử dụng và các bài giảng được giữ nguyên.')
+
+    @Slot()
+    def recheckAzure(self):
+        self._operate('azure_recheck', (), 'Đã cho phép thử lại Azure ở lượt dịch tiếp theo. Bộ đếm được giữ nguyên.')
 
     @Slot()
     def prepareOcr(self):

@@ -26,6 +26,10 @@ jobs:
           "pypdf>=6,<7" "qrcode[pil]>=8,<9" "pywin32>=308,<400" "numpy>=1.26,<3" "scipy>=1.13,<2"
       - run: python -m ruff check app scripts tests
       - run: python -m compileall -q app scripts
+      - name: Translation provider routing and RC167 compatibility (fake HTTP)
+        run: >-
+          python -m pytest -q tests/test_translation_provider.py
+          tests/test_google_translation.py tests/test_google_conversion.py
       - name: Portable storage, cache and narration contracts
         run: >-
           python -m pytest -q tests/test_backup_safety.py tests/test_library_location.py

@@ -17,10 +17,14 @@ from .google_translation import TranslationProblem, Translator, chunks
 def prepare(directory, config, source=None, text=''):
     from .document_limits import check_document_size
     from .storage_space import MIB, require_space
+    from .translation_provider import snapshot
 
     require_space(directory, (Path(source).stat().st_size * 4 if source else len(text.encode('utf-8')) * 4) + 128 * MIB)
 
-    config = {**config, 'provider': 'google_translate', 'request_id': uuid4().hex,
+    selection = snapshot(directory, config.get('translation_provider'))
+    if 'translation_budget' in config:
+        selection['translation_budget'] = config['translation_budget']
+    config = {**config, **selection, 'provider': 'google_translate', 'request_id': uuid4().hex,
               'adaptive_bilingual':config.get('conversion_format')=='parallel_columns'}
     folder = Path(directory) / 'google_jobs' / config['request_id']
     folder.mkdir(parents=True)
@@ -330,8 +334,11 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
     job = load(directory, job['folder'])
     folder, config = Path(job['folder']), dict(job['config'])
     if config['conversion_format'] == 'integrated_keywords':
-        raise TranslationProblem('api_settings', 'Google Dịch hỗ trợ Hai cột, Từng câu và Tiếng Anh 100%. Chọn một trong ba kiểu này.')
-    translator = translator or Translator(directory, budget)
+        raise TranslationProblem('api_settings', 'Dịch vụ chuyển ngữ hỗ trợ Hai cột, Từng câu và Tiếng Anh 100%. Chọn một trong ba kiểu này.')
+    if translator is None:
+        from .translation_provider import build_translator
+
+        translator = build_translator(directory, config, budget, Translator)
     if hasattr(translator, 'configure_terms'):
         with closing(Library(directory)) as library:
             translator.configure_terms(config.get('subject', ''), library.glossary())

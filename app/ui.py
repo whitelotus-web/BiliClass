@@ -977,8 +977,11 @@ class Bridge(QObject):
         try:
             config = validate_config(creation_config(title, subject, education, grade, mode, preset, style))
             config['template_bookends'] = self.library.setting('template_bookends', False)
+            from .translation_provider import snapshot
+
+            config.update(snapshot(self.library.directory))
             self._google_settings.refresh()
-            if not self._google_settings.loading and not self._google_settings.state.get('configured'):
+            if not self._google_settings.loading and not self._google_settings.state.get('activeConfigured'):
                 self.navigate.emit('browser-settings')
                 raise ValueError(self._google_settings.state.get('message') or
                                  'Thêm API key trong Cài đặt → Google Dịch trước khi chuyển đổi.')
@@ -999,10 +1002,9 @@ class Bridge(QObject):
                 self._run_google_conversion()
 
             def work():
-                from .google_translation import KeyStore, TranslationProblem
+                from .translation_provider import require_credentials
 
-                if not KeyStore(self.library.directory).keys():
-                    raise TranslationProblem('api_settings', 'Thêm API key trong Cài đặt → Google Dịch trước khi chuyển đổi.')
+                require_credentials(self.library.directory, config['translation_provider'])
                 path = local_document(file_url) if file_url else None
                 return prepare(self.library.directory, config, path, text)
 
