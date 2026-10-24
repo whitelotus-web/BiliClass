@@ -29,6 +29,7 @@ jobs:
       - name: Translation provider routing and RC167 compatibility (fake HTTP)
         run: >-
           python -m pytest -q tests/test_translation_provider.py
+          tests/test_alternative_translation.py
           tests/test_google_translation.py tests/test_google_conversion.py
       - name: Portable storage, cache and narration contracts
         run: >-

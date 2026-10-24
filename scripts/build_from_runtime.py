@@ -80,7 +80,7 @@ def main():
     bundle.mkdir()
     for name in manifest['files']:
         if (name in {'BiliClass.exe', 'BUILD_INFO.json', 'OCR_BUILD_INFO.json'}
-                or name.startswith(('_internal/app/qml/', '_internal/app/assets/', '_internal/app/student_web/'))):
+                or name.startswith(('_internal/app/qml/', '_internal/app/assets/', '_internal/app/student_web/', '_internal/app/resources/'))):
             continue
         source, target = baseline / 'BiliClass' / name, bundle / name
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -98,7 +98,7 @@ def main():
                 or 'Nguyễn Diệu Linh' not in win32api.GetFileVersionInfo(
                     str(bundle / 'BiliClass.exe'), resource + 'LegalCopyright')):
             raise ValueError('Executable Windows Details resource does not match this release.')
-    for folder in ('qml', 'assets', 'student_web'):
+    for folder in ('qml', 'assets', 'student_web', 'resources'):
         shutil.copytree(root / 'app' / folder, bundle / '_internal/app' / folder)
     added = {}
     if args.english_model:

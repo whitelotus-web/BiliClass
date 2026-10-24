@@ -232,7 +232,7 @@ class KeyStore:
             month = self.month()
             rows = self.keys()
             if not rows:
-                raise TranslationProblem('api_settings', 'Thêm Google Cloud Translation API key trong Cài đặt → Google Dịch.')
+                raise TranslationProblem('api_settings', 'Thêm Google Cloud Translation API key trong Cài đặt → Dịch thuật.')
             with db:
                 db.execute('BEGIN IMMEDIATE')
                 for row in rows:
@@ -450,6 +450,7 @@ def chunks(text, maximum=1000):
 class Translator:
     cache_namespace = 'google-nmt-context-v3'
     rotate_credentials = True
+    max_items = MAX_ITEMS
 
     def __init__(self, directory, budget=DEFAULT_BUDGET, transport=request, *, store=None,
                  maximum_budget=DEFAULT_BUDGET):
@@ -554,7 +555,7 @@ class Translator:
                 pending.append((text, payload, locks, cache_id, job))
         groups, batch, size = [], [], 0
         for item in pending:
-            if batch and (size + len(item[1]) > MAX_CHARS or len(batch) >= MAX_ITEMS):
+            if batch and (size + len(item[1]) > MAX_CHARS or len(batch) >= self.max_items):
                 groups.append(batch)
                 batch, size = [], 0
             batch.append(item)
@@ -668,7 +669,7 @@ class Translator:
                     repaired = []
                     batch, size = [], 0
                     for item in repairs:
-                        if batch and size + len(item[1]) > MAX_CHARS:
+                        if batch and (size + len(item[1]) > MAX_CHARS or len(batch) >= self.max_items):
                             repaired.extend(run(batch,repairing=True))
                             batch, size = [], 0
                         batch.append(item)

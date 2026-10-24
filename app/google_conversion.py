@@ -22,6 +22,8 @@ def prepare(directory, config, source=None, text=''):
     require_space(directory, (Path(source).stat().st_size * 4 if source else len(text.encode('utf-8')) * 4) + 128 * MIB)
 
     selection = snapshot(directory, config.get('translation_provider'))
+    if config.get('translation_profile') and config['translation_profile'] != selection.get('translation_profile'):
+        raise TranslationProblem('api_settings', 'URL/model dịch đã đổi so với hàng đợi. Khôi phục cấu hình cũ hoặc chọn lại file để bắt đầu lượt mới.')
     if 'translation_budget' in config:
         selection['translation_budget'] = config['translation_budget']
     config = {**config, **selection, 'provider': 'google_translate', 'request_id': uuid4().hex,

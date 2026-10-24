@@ -984,7 +984,7 @@ class Bridge(QObject):
             if not self._google_settings.loading and not self._google_settings.state.get('activeConfigured'):
                 self.navigate.emit('browser-settings')
                 raise ValueError(self._google_settings.state.get('message') or
-                                 'Thêm API key trong Cài đặt → Google Dịch trước khi chuyển đổi.')
+                                 'Lưu cấu hình dịch vụ đã chọn trong Cài đặt → Dịch thuật trước khi chuyển đổi.')
             if bool(file_url) == bool(text.strip()):
                 raise ValueError('Chọn một nguồn: tài liệu hoặc nội dung dán vào.')
             self._discard_conversion = False

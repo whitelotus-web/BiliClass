@@ -46,7 +46,7 @@ class AzureKeyStore(KeyStore):
                         raise ValueError()
                 return rows
             except (ValueError, OSError, TypeError):
-                raise TranslationProblem('api_settings', 'Chưa đọc được cấu hình Azure trên tài khoản Windows này. Nhập lại trong Cài đặt → Google Dịch.') from None
+                raise TranslationProblem('api_settings', 'Chưa đọc được cấu hình Azure trên tài khoản Windows này. Nhập lại trong Cài đặt → Dịch thuật.') from None
 
     def configure(self, key, region, name):
         key, name = key.strip(), name.strip()
@@ -76,7 +76,7 @@ class AzureKeyStore(KeyStore):
         try:
             return super().reserve(count, budget, excluded, only_key)
         except TranslationProblem as exc:
-            message = ('Thêm API key và Region Azure trong Cài đặt → Google Dịch.' if exc.code == 'api_settings' else
+            message = ('Thêm API key và Region Azure trong Cài đặt → Dịch thuật.' if exc.code == 'api_settings' else
                        'Azure đã đạt giới hạn cục bộ hoặc key chưa dùng được. Kiểm tra tài nguyên và hạn mức Azure; phần đã dịch được giữ lại.')
             raise TranslationProblem(exc.code, message) from None
 
@@ -132,7 +132,7 @@ def request(texts, key, source, target, region):
                 'api_network' if status >= 500 else 'api_request')
         if detail == '403001':
             code = 'api_quota'
-        raise TranslationProblem(code, 'Azure chưa nhận được yêu cầu hợp lệ. Kiểm tra API key, Region và hạn mức trong Cài đặt → Google Dịch.') from None
+        raise TranslationProblem(code, 'Azure chưa nhận được yêu cầu hợp lệ. Kiểm tra API key, Region và hạn mức trong Cài đặt → Dịch thuật.') from None
     except (urllib.error.URLError, TimeoutError, OSError):
         raise TranslationProblem('api_network', 'Kết nối Azure gián đoạn. Phần đã dịch được giữ lại để tiếp tục.') from None
     except (ValueError, KeyError, TypeError, IndexError):

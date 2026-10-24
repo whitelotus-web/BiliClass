@@ -99,11 +99,11 @@ def recognize(files, cancel, notify=None, *, timeout=300):
                 item = events.get(timeout=0.2)
             except queue.Empty:
                 if not process.is_alive():
-                    raise ValueError("Chưa nhận diện xong ảnh. Kiểm tra bộ OCR trong Cài đặt → Google Dịch.")
+                    raise ValueError("Chưa nhận diện xong ảnh. Kiểm tra bộ OCR trong Cài đặt → Dịch thuật.")
                 continue
             if "error" in item:
                 raise ValueError(
-                    "Bộ nhận diện chữ trong ảnh chưa sẵn sàng. Chuẩn bị OCR trong Cài đặt → Google Dịch."
+                    "Bộ nhận diện chữ trong ảnh chưa sẵn sàng. Chuẩn bị OCR trong Cài đặt → Dịch thuật."
                 )
             rows[item["key"]] = item["rows"]
             if notify:
@@ -206,7 +206,7 @@ def extract_pictures(source, directory, cancel, progress=None, *, recognizer=Non
             "rows": [],
             "images": len(pictures),
             "warnings": [
-                "Chưa có bộ OCR Việt–Anh; chữ trong ảnh chưa được dịch. Chuẩn bị OCR trong Cài đặt → Google Dịch."
+                "Chưa có bộ OCR Việt–Anh; chữ trong ảnh chưa được dịch. Chuẩn bị OCR trong Cài đặt → Dịch thuật."
             ],
         }
     cached = {}

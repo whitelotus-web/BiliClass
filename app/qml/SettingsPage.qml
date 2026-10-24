@@ -35,7 +35,13 @@ Item {
     Connections {
         target: page.bridge.googleSettings
         function onSaved(success) { if (success) { googleKeys.clear(); page.showGoogleKeyEntry = false } }
-        function onAzureSaved(success) { if (success) azureKey.clear() }
+        function onAlternativeSaved(provider, success) {
+            if (success) {
+                if (provider === "languageapp") languageAccess.clear()
+                else if (provider === "gemini") geminiKey.clear()
+                else if (provider === "deepl") deeplKey.clear()
+            }
+        }
     }
     onActiveTabChanged: { if (!bridge.experimentalTeaching && activeTab === 4) { activeTab = 0; return } if (contentScroll.contentItem && contentScroll.contentItem.contentY !== undefined) contentScroll.contentItem.contentY = 0 }
     property string selectedMascot: bridge.settings.mascot
@@ -65,6 +71,29 @@ Item {
         })
     }
     clip: true
+    Dialog {
+        id: languageGuide; objectName: "languageappGuide"
+        title: "Thiết lập dịch vụ dịch miễn phí"; modal: true; anchors.centerIn: parent
+        width: Math.min(620, page.width - 32); height: Math.min(620, page.height - 24)
+        footer: DialogButtonBox {
+            Button { text: "Đóng"; DialogButtonBox.buttonRole: DialogButtonBox.RejectRole }
+            onRejected: languageGuide.close()
+        }
+        contentItem: ContentScrollView {
+            id: languageGuideScroll
+            contentWidth: availableWidth
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+            ColumnLayout { width: languageGuideScroll.availableWidth; spacing: 14
+                Hint { Layout.fillWidth: true; text: "Chỉ làm một lần bằng tài khoản Google của thầy cô. Không cần đăng ký Google Cloud hoặc nhập thẻ." }
+                Hint { Layout.fillWidth: true; text: "1. Bấm Sao chép mã, rồi Mở Apps Script. Dán thay toàn bộ mã trong Code.gs.\n\n2. Vào Cài đặt dự án (bánh răng) → Thuộc tính tập lệnh → Thêm thuộc tính. Tên: BILICLASS_ACCESS_CODE. Giá trị: mã riêng ít nhất 16 ký tự (chữ, số, _ hoặc -). Ghi nhớ mã này.\n\n3. Bấm Triển khai → Bản triển khai mới → chọn Ứng dụng web. Thực thi bằng: Tôi. Ai có quyền truy cập: Mọi người.\n\n4. Cấp quyền cho chính dự án của thầy cô. Chỉ tiếp tục nếu tài khoản và mã triển khai đúng do thầy cô tạo. Một số tài khoản trường học không cho triển khai công khai; khi đó chọn Gemini hoặc Google Cloud.\n\n5. Sao chép URL ứng dụng web kết thúc bằng /exec vào ô Đường dẫn dịch vụ. Điền mã truy cập ở bước 2 rồi Lưu cấu hình.\n\n6. Thử một bài ngắn. Nếu sửa mã Apps Script về sau, cần cập nhật bản triển khai bằng phiên bản mới." }
+                Flow { Layout.fillWidth: true; spacing: 10
+                    SoftButton { text: "Sao chép mã"; onClicked: bridge.googleSettings.copyLanguageScript() }
+                    SoftButton { text: "Mở Apps Script"; onClicked: Qt.openUrlExternally("https://script.google.com/home/start") }
+                }
+                Hint { Layout.fillWidth: true; text: "Giữ kín mã truy cập và không nhúng mã/URL cá nhân vào bộ cài công khai. Các máy dùng cùng URL chia sẻ hạn mức của tài khoản triển khai." }
+            }
+        }
+    }
     Dialog {
         id: renameGoogleKey; objectName: "renameGoogleKeyDialog"
         property string keyId: ""
@@ -138,7 +167,7 @@ Item {
             Layout.fillWidth: true; spacing: 5
             Repeater {
                 model: [
-                    {name: "Chung", icon: "settings", tabId: 0}, {name: bridge.googleTranslation ? "Google Dịch" : "Browser AI", icon: "bilingual", tabId: 6},
+                    {name: "Chung", icon: "settings", tabId: 0}, {name: bridge.googleTranslation ? "Dịch thuật" : "Browser AI", icon: "bilingual", tabId: 6},
                     {name: "Giọng đọc", icon: "voice", tabId: 2}, {name: "Mascot", icon: "mascot", tabId: 3},
                     {name: "Lớp học", icon: "classroom", tabId: 4}, {name: "Dữ liệu", icon: "data", tabId: 5},
                     {name: "Thông tin BiliClass", icon: "about", tabId: 1}
@@ -578,7 +607,7 @@ Item {
                     ButtonGroup { id: translationProviders }
                     GridLayout { columns: width >= 660 ? 2 : 1; Layout.fillWidth: true; columnSpacing: 20; rowSpacing: 12
                         ChoiceRadioButton {
-                            objectName: "translationProviderGoogle"; text: "Google Cloud Translation"
+                            objectName: "translationProviderGoogle"; text: "1. Google Cloud Translation"
                             Layout.fillWidth: true; implicitHeight: 44; highlightSelection: true
                             ButtonGroup.group: translationProviders
                             checked: bridge.googleSettings.state.provider === "google"
@@ -586,15 +615,31 @@ Item {
                             onClicked: bridge.googleSettings.chooseProvider("google")
                         }
                         ChoiceRadioButton {
-                            objectName: "translationProviderAzure"; text: "Microsoft Azure Translator"
+                            objectName: "translationProviderLanguageApp"; text: "2. Google Apps Script · không cần thẻ"
                             Layout.fillWidth: true; implicitHeight: 44; highlightSelection: true
                             ButtonGroup.group: translationProviders
-                            checked: bridge.googleSettings.state.provider === "azure"
+                            checked: bridge.googleSettings.state.provider === "languageapp"
                             enabled: bridge.googleSettings.ready && !bridge.busy && !bridge.batchQueue.running && !bridge.browserState.running
-                            onClicked: bridge.googleSettings.chooseProvider("azure")
+                            onClicked: bridge.googleSettings.chooseProvider("languageapp")
+                        }
+                        ChoiceRadioButton {
+                            objectName: "translationProviderGemini"; text: "3. Gemini API · có gói miễn phí"
+                            Layout.fillWidth: true; implicitHeight: 44; highlightSelection: true
+                            ButtonGroup.group: translationProviders
+                            checked: bridge.googleSettings.state.provider === "gemini"
+                            enabled: bridge.googleSettings.ready && !bridge.busy && !bridge.batchQueue.running && !bridge.browserState.running
+                            onClicked: bridge.googleSettings.chooseProvider("gemini")
+                        }
+                        ChoiceRadioButton {
+                            objectName: "translationProviderDeepL"; text: "4. DeepL API Developer"
+                            Layout.fillWidth: true; implicitHeight: 44; highlightSelection: true
+                            ButtonGroup.group: translationProviders
+                            checked: bridge.googleSettings.state.provider === "deepl"
+                            enabled: bridge.googleSettings.ready && !bridge.busy && !bridge.batchQueue.running && !bridge.browserState.running
+                            onClicked: bridge.googleSettings.chooseProvider("deepl")
                         }
                     }
-                    Hint { objectName: "translationProviderHint"; Layout.fillWidth: true; text: "Bài mới dùng dịch vụ được chọn ở đây. Bài đang dở tiếp tục bằng dịch vụ đã dùng lúc bắt đầu." }
+                    Hint { objectName: "translationProviderHint"; Layout.fillWidth: true; text: "Chọn một dịch vụ rồi lưu cấu hình bên dưới. Bài mới chỉ dùng dịch vụ đã chọn; bài đang dở giữ dịch vụ lúc bắt đầu. Không tự chuyển sang dịch vụ khác." }
                 }
             }
             Card {
@@ -681,36 +726,65 @@ Item {
                 }
             }
             Card {
-                objectName: "azureTranslationCard"; visible: bridge.googleSettings.state.provider === "azure"; Layout.fillWidth: true
+                objectName: "languageappTranslationCard"; visible: bridge.googleSettings.state.provider === "languageapp"; Layout.fillWidth: true
                 ColumnLayout { width: parent.width; spacing: 12
-                    Title { text: "Microsoft Azure Translator"; Layout.fillWidth: true }
-                    Hint { text: "Dùng tài nguyên Translator gói F0 để có hạn mức miễn phí 2 triệu ký tự/tháng. Chọn đúng gói trong Azure khi tạo tài nguyên."; Layout.fillWidth: true }
-                    GridLayout { Layout.fillWidth: true; columns: width >= 620 ? 2 : 1; columnSpacing: 16; rowSpacing: 12
-                        ColumnLayout { Layout.fillWidth: true; spacing: 8
-                            Label { text: "Tên tài nguyên (để dễ nhớ)"; color: page.ink; font.bold: true }
-                            Field { id: azureResource; objectName: "azureResourceName"; Layout.fillWidth: true; text: bridge.googleSettings.state.azure.resource; maximumLength: 80; placeholderText: "Ví dụ: BiliClass cá nhân"; readOnly: bridge.busy }
-                        }
-                        ColumnLayout { Layout.fillWidth: true; spacing: 8
-                            Label { text: "Region · mã vùng của tài nguyên"; color: page.ink; font.bold: true }
-                            Field { id: azureRegion; objectName: "azureRegion"; Layout.fillWidth: true; text: bridge.googleSettings.state.azure.region; maximumLength: 50; placeholderText: "Ví dụ: southeastasia hoặc global"; readOnly: bridge.busy }
-                        }
-                    }
-                    Label { text: "API key Azure"; color: page.ink; font.bold: true }
-                    Field { id: azureKey; objectName: "azureApiKey"; Layout.fillWidth: true; echoMode: TextInput.Password; maximumLength: 128; placeholderText: bridge.googleSettings.state.azure.configured ? "Đã lưu key · để trống để giữ key hiện tại" : "Dán Key 1 hoặc Key 2 từ Azure"; readOnly: bridge.busy }
-                    Hint { text: "Trong Azure: tạo Translator → chọn F0 → Keys and Endpoint → sao chép key và Region. Nếu tài nguyên là Global, nhập global."; Layout.fillWidth: true }
+                    Title { text: "Google Apps Script · LanguageApp"; Layout.fillWidth: true }
+                    Hint { text: "Không cần thẻ hoặc key Google Cloud. Cần tài khoản Google để triển khai dịch vụ một lần. Nhiều máy dùng cùng URL sẽ chia sẻ hạn mức tài khoản chủ."; Layout.fillWidth: true }
+                    Label { text: "Đường dẫn dịch vụ đã triển khai"; color: page.ink; font.bold: true }
+                    Field { id: languageUrl; objectName: "languageappUrl"; Layout.fillWidth: true; text: bridge.googleSettings.state.alternatives.languageapp.option; maximumLength: 320; placeholderText: "https://script.google.com/macros/s/…/exec"; readOnly: bridge.busy }
+                    Label { text: "Mã truy cập riêng của dịch vụ"; color: page.ink; font.bold: true }
+                    Field { id: languageAccess; objectName: "languageappAccess"; Layout.fillWidth: true; echoMode: TextInput.Password; maximumLength: 200; placeholderText: bridge.googleSettings.state.alternatives.languageapp.configured ? "Đã lưu · để trống để giữ mã hiện tại" : "Mã đã đặt trong Apps Script (ít nhất 16 ký tự)"; readOnly: bridge.busy }
                     Flow { Layout.fillWidth: true; spacing: 10
-                        SaveButton { objectName: "saveAzureTranslation"; text: "Lưu cấu hình Azure"; enabled: !bridge.busy && bridge.googleSettings.ready && !bridge.batchQueue.running && !bridge.browserState.running; onClicked: bridge.googleSettings.saveAzure(azureKey.text, azureRegion.text, azureResource.text) }
-                        SoftButton { objectName: "getAzureTranslationKey"; text: "Mở Azure"; onClicked: Qt.openUrlExternally("https://portal.azure.com/#create/Microsoft.CognitiveServicesTextTranslation") }
-                        SoftButton { objectName: "removeAzureTranslation"; text: "Xóa key Azure"; visible: bridge.googleSettings.state.azure.configured; enabled: !bridge.busy; onClicked: bridge.googleSettings.removeAzure() }
+                        SaveButton { objectName: "saveLanguageApp"; text: "Lưu cấu hình"; enabled: !bridge.busy && bridge.googleSettings.ready; onClicked: bridge.googleSettings.saveAlternative("languageapp", languageAccess.text, languageUrl.text) }
+                        SoftButton { objectName: "languageappSetup"; text: "Hướng dẫn thiết lập"; onClicked: languageGuide.open() }
                     }
-                    Hint { objectName: "azureTranslationMessage"; text: bridge.googleSettings.state.azure.message || (bridge.googleSettings.state.azure.configured ? "Đã lưu cấu hình. Key được mã hóa trên tài khoản Windows này." : "Chưa có cấu hình Azure. Điền thông tin ở trên rồi bấm Lưu."); Layout.fillWidth: true }
-                    Repeater { model: bridge.googleSettings.state.azure.keys
-                        delegate: ColumnLayout { required property var modelData; Layout.fillWidth: true; spacing: 8
-                            Hint { objectName: "azureTranslationRemaining"; text: "Giới hạn còn lại tại máy: " + Number(modelData.remaining).toLocaleString(Qt.locale("vi_VN"), "f", 0) + " / " + Number(bridge.googleSettings.state.azure.budget).toLocaleString(Qt.locale("vi_VN"), "f", 0) + " ký tự/tháng"; Layout.fillWidth: true }
-                            Hint { text: "Đây là bộ đếm trên máy, không phải số dư do Azure xác nhận. Thay key không đặt lại bộ đếm."; Layout.fillWidth: true; font.pixelSize: 11 }
-                            SoftButton { objectName: "recheckAzureTranslation"; visible: !!modelData.blocked; text: "Cho phép thử lại Azure"; enabled: !bridge.busy; onClicked: bridge.googleSettings.recheckAzure() }
+                    Hint { text: "Google công bố 5.000 lượt dịch/ngày cho tài khoản cá nhân. Một đoạn gửi dịch là một lượt; đây không phải 5.000 bài. BiliClass đặt chặn cục bộ 4.500 đoạn/ngày UTC; mã triển khai chặn thêm 4.500 lượt trong ít nhất 24 giờ cho các máy dùng chung."; Layout.fillWidth: true }
+                }
+            }
+            Card {
+                objectName: "geminiTranslationCard"; visible: bridge.googleSettings.state.provider === "gemini"; Layout.fillWidth: true
+                ColumnLayout { width: parent.width; spacing: 12
+                    Title { text: "Gemini API"; Layout.fillWidth: true }
+                    Hint { text: "Lấy key miễn phí từ Google AI Studio. Chọn dự án Free, không bật thanh toán nếu muốn chỉ dùng miễn phí. Hạn mức tùy model/tài khoản; gói Free có thể dùng nội dung gửi lên để cải thiện sản phẩm Google."; Layout.fillWidth: true }
+                    Label { text: "Model dịch"; color: page.ink; font.bold: true }
+                    Field { id: geminiModel; objectName: "geminiModel"; Layout.fillWidth: true; text: bridge.googleSettings.state.alternatives.gemini.option; maximumLength: 90; placeholderText: "gemini-3.5-flash-lite"; readOnly: bridge.busy }
+                    Label { text: "API key Gemini · khác key Google Cloud Translation"; color: page.ink; font.bold: true }
+                    Field { id: geminiKey; objectName: "geminiApiKey"; Layout.fillWidth: true; echoMode: TextInput.Password; maximumLength: 200; placeholderText: bridge.googleSettings.state.alternatives.gemini.configured ? "Đã lưu · để trống để giữ key hiện tại" : "Dán key từ Google AI Studio"; readOnly: bridge.busy }
+                    Flow { Layout.fillWidth: true; spacing: 10
+                        SaveButton { objectName: "saveGemini"; text: "Lưu cấu hình"; enabled: !bridge.busy && bridge.googleSettings.ready; onClicked: bridge.googleSettings.saveAlternative("gemini", geminiKey.text, geminiModel.text) }
+                        SoftButton { text: "Mở Google AI Studio"; onClicked: Qt.openUrlExternally("https://aistudio.google.com/api-keys") }
+                    }
+                    Hint { text: "Giới hạn tại máy: 200.000 ký tự đầu vào/ngày UTC, gồm mã bảo vệ công thức. Đây không phải hạn mức token miễn phí do Google xác nhận. Bài đang dở cần giữ đúng model cũ để tiếp tục."; Layout.fillWidth: true }
+                }
+            }
+            Card {
+                objectName: "deeplTranslationCard"; visible: bridge.googleSettings.state.provider === "deepl"; Layout.fillWidth: true
+                ColumnLayout { width: parent.width; spacing: 12
+                    Title { text: "DeepL API Developer"; Layout.fillWidth: true }
+                    Hint { text: "Gói Developer hiện công bố không cần thẻ, có 1 triệu ký tự dùng thử tổng cộng, không làm mới mỗi tháng. Vẫn cần đăng ký và lấy API key riêng; quyền ngôn ngữ/hạn mức phụ thuộc tài khoản."; Layout.fillWidth: true }
+                    Label { text: "API key DeepL"; color: page.ink; font.bold: true }
+                    Field { id: deeplKey; objectName: "deeplApiKey"; Layout.fillWidth: true; echoMode: TextInput.Password; maximumLength: 200; placeholderText: bridge.googleSettings.state.alternatives.deepl.configured ? "Đã lưu · để trống để giữ key hiện tại" : "Dán key từ tài khoản DeepL API"; readOnly: bridge.busy }
+                    Flow { Layout.fillWidth: true; spacing: 10
+                        SaveButton { objectName: "saveDeepL"; text: "Lưu cấu hình"; enabled: !bridge.busy && bridge.googleSettings.ready; onClicked: bridge.googleSettings.saveAlternative("deepl", deeplKey.text, "developer") }
+                        SoftButton { text: "Mở DeepL API"; onClicked: Qt.openUrlExternally("https://www.deepl.com/en/developers") }
+                    }
+                    Hint { text: "Bộ đếm tại máy giữ tối đa 1 triệu ký tự cho đến khi dùng hết. Thay/xóa key không đặt lại bộ đếm. Gói API Free cũ và các gói trả phí có chính sách khác; BiliClass không tự nâng gói."; Layout.fillWidth: true }
+                }
+            }
+            Card {
+                id: alternativeStatus
+                visible: ["languageapp", "gemini", "deepl"].indexOf(bridge.googleSettings.state.provider) >= 0; Layout.fillWidth: true
+                property var selected: bridge.googleSettings.state.alternatives[bridge.googleSettings.state.provider] || {configured: false, keys: [], message: ""}
+                ColumnLayout { width: parent.width; spacing: 12
+                    Hint { objectName: "alternativeTranslationMessage"; Layout.fillWidth: true; text: alternativeStatus.selected.message || (alternativeStatus.selected.configured ? "Đã lưu cấu hình. Chưa xác nhận kết nối/hạn mức với dịch vụ; bắt đầu một bài để kiểm tra." : "Chưa thiết lập dịch vụ này. Điền thông tin và bấm Lưu cấu hình.") }
+                    Repeater { model: alternativeStatus.selected.keys
+                        delegate: ColumnLayout { required property var modelData; Layout.fillWidth: true; spacing: 6
+                            Hint { Layout.fillWidth: true; text: "Mã đã lưu: " + modelData.label }
+                            Hint { Layout.fillWidth: true; text: "Còn tại máy: " + Number(modelData.remaining).toLocaleString(Qt.locale("vi_VN"), "f", 0) + (bridge.googleSettings.state.provider === "languageapp" ? " đoạn/ngày UTC" : bridge.googleSettings.state.provider === "gemini" ? " ký tự/ngày UTC" : " ký tự tổng cộng") }
+                            SoftButton { text: "Cho phép thử lại"; visible: !!modelData.blocked; enabled: !bridge.busy; onClicked: bridge.googleSettings.recheckAlternative(bridge.googleSettings.state.provider) }
                         }
                     }
+                    SoftButton { text: "Xóa mã đã lưu"; visible: alternativeStatus.selected.configured; enabled: !bridge.busy; onClicked: bridge.googleSettings.removeAlternative(bridge.googleSettings.state.provider) }
                 }
             }
         }

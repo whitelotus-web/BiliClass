@@ -45,3 +45,6 @@ chatgpt_plan/
 google_jobs/
 translation_api/
 translation_azure/
+translation_languageapp/
+translation_gemini/
+translation_deepl/

@@ -1,4 +1,4 @@
-"""RC168 opt-in routing UI and Azure batch checkpoint checks with fake HTTP only."""
+"""RC168 opt-in routing UI and LanguageApp batch checkpoint checks with fake HTTP only."""
 
 import hashlib
 import json
@@ -15,7 +15,7 @@ from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
 
-from app.azure_translation import AzureTranslator
+from app.alternative_translation import AlternativeTranslator
 from app.branding import configure_application
 from app.google_conversion import load
 from app.google_translation import KeyStore
@@ -58,7 +58,7 @@ def main():
             return control(window, name)
 
         def fixture(self, rows, credential, source, target):
-            assert credential['key'] == 'a' * 32 and credential['region'] == 'global'
+            assert credential['key'] == 'a' * 32 and credential['option'].startswith('https://script.google.com/macros/s/')
             calls.append(len(rows))
             entered.set()
             assert release.wait(25), 'Fixture was not released'
@@ -70,24 +70,40 @@ def main():
             c('settingsPage').setProperty('activeTab', 6)
             pump(100)
             assert c('translationProviderGoogle').property('checked')
-            click(window, c('translationProviderAzure'))
-            until(lambda: not bridge.busy and bridge.googleSettings.state['provider'] == 'azure')
-            assert c('translationProviderAzure').property('checked')
+            # All three choices render and save masked credentials through real Qt controls.
+            for name, radio, field, save in [('gemini', 'Gemini', 'geminiApiKey', 'saveGemini'), ('deepl', 'DeepL', 'deeplApiKey', 'saveDeepL')]:
+                click(window, c('translationProvider' + radio))
+                until(lambda: not bridge.busy and bridge.googleSettings.state['provider'] == name)
+                c(field).setProperty('text', 'test_secret_do_not_use_1234567890')
+                click(window, c(save))
+                until(lambda: not bridge.busy)
+                assert bridge.googleSettings.state['activeConfigured']
+                assert not c(field).property('text')
+                assert 'test_secret_do_not_use_1234567890' not in json.dumps(bridge.googleSettings.state)
+                pump(100)
+                assert window.grabWindow().save(str(report / (name + '-settings.png')))
+            click(window, c('translationProviderLanguageApp'))
+            until(lambda: not bridge.busy and bridge.googleSettings.state['provider'] == 'languageapp')
+            assert c('translationProviderLanguageApp').property('checked')
             assert not c('saveGoogleApiKeys').isVisible()
-            assert c('azureTranslationCard').isVisible()
+            assert c('languageappTranslationCard').isVisible()
             assert not bridge.googleSettings.state['activeConfigured']
-            c('azureApiKey').setProperty('text', 'a' * 32)
-            c('azureResourceName').setProperty('text', 'Tài nguyên kiểm thử')
-            c('azureRegion').setProperty('text', 'global')
-            click(window, c('saveAzureTranslation'))
+            click(window, c('languageappSetup'))
+            pump(100)
+            assert c('languageappGuide').property('visible')
+            assert window.grabWindow().save(str(report / 'languageapp-setup-guide.png'))
+            c('languageappGuide').setProperty('visible', False)
+            c('languageappAccess').setProperty('text', 'a' * 32)
+            c('languageappUrl').setProperty('text', 'https://script.google.com/macros/s/' + 'A' * 40 + '/exec')
+            click(window, c('saveLanguageApp'))
             until(lambda: not bridge.busy)
             assert bridge.googleSettings.state['activeConfigured']
-            assert not c('azureApiKey').property('text')
+            assert not c('languageappAccess').property('text')
             assert 'a' * 32 not in json.dumps(bridge.googleSettings.state)
             assert google_file.read_bytes() == original_google
             for theme in ('light', 'dark'):
                 bridge.setApplicationTheme(theme)
-                for width, height in ((1080, 700), (1366, 850)):
+                for width, height in ((860, 650), (1080, 700), (1366, 850)):
                     window.resize(width, height)
                     # Bring the selection card back into the settings viewport.
                     parent = c('translationProviderCard').parentItem()
@@ -96,7 +112,7 @@ def main():
                             parent.setProperty('contentY', 0)
                         parent = parent.parentItem()
                     pump(100)
-                    assert window.grabWindow().save(str(report / f'azure-{theme}-{width}.png'))
+                    assert window.grabWindow().save(str(report / f'languageapp-{theme}-{width}.png'))
             sources = []
             for number in (12, 13):
                 deck = Presentation()
@@ -108,12 +124,12 @@ def main():
                 sources.append(path)
             source_hashes = [hashlib.sha256(path.read_bytes()).hexdigest() for path in sources]
             assert bridge.batchQueue.selectFiles('convert', [path.as_uri() for path in sources])
-            with patch.object(AzureTranslator, '_send', fixture):
+            with patch.object(AlternativeTranslator, '_send', fixture):
                 bridge.batchQueue.startConversion(dict(subject='Vật lý', education='THPT', grade='11',
                     format='parallel_columns', preset='standard', style='template'))
                 until(entered.is_set, timeout=60)
                 assert bridge.batchQueue.running
-                assert bridge.batchQueue.state['options']['translation_provider'] == 'azure'
+                assert bridge.batchQueue.state['options']['translation_provider'] == 'languageapp'
                 assert not bridge.googleSettings.chooseProvider('google'), 'Provider switched during work'
                 bridge.batchQueue.stop()
                 release.set()
@@ -122,24 +138,24 @@ def main():
                 assert bridge.googleSettings.chooseProvider('google')
                 until(lambda: not bridge.busy)
                 assert bridge.googleSettings.state['provider'] == 'google'
-                assert bridge.batchQueue.state['options']['translation_provider'] == 'azure'
+                assert bridge.batchQueue.state['options']['translation_provider'] == 'languageapp'
                 bridge.batchQueue.resume()
                 until(lambda: not bridge.busy and not bridge.batchQueue.running, timeout=180)
             state = bridge.batchQueue.state
             assert state['counts']['done'] == 2 and state['complete'], state
             for row in state['rows']:
-                assert load(library.directory, row['folder'])['config']['translation_provider'] == 'azure'
-                assert library.get(row['lesson_id'])['external_deck']['translation_provider'] == 'azure'
+                assert load(library.directory, row['folder'])['config']['translation_provider'] == 'languageapp'
+                assert library.get(row['lesson_id'])['external_deck']['translation_provider'] == 'languageapp'
             assert [hashlib.sha256(path.read_bytes()).hexdigest() for path in sources] == source_hashes
             assert KeyStore(library.directory).public()[0]['used'] == 0
             assert google_file.read_bytes() == original_google
             assert not warnings, warnings
-            result = dict(status='passed', api='fixture; no live Azure quality/speed claim', calls=len(calls),
+            result = dict(status='passed', api='fixture; no live LanguageApp quality/speed claim', calls=len(calls),
                 checks=['Google remains default; original key ciphertext unchanged',
-                        'Azure selection, masked save and secret clearing',
+                        'LanguageApp selection, masked save and secret clearing',
                         'light/dark at 1080 and 1366; zero QML warnings',
                         'provider cannot change while work runs',
-                        'two real PPTX inputs; stop/resume pins Azure after Settings selects Google',
+                        'two real PPTX inputs; stop/resume pins LanguageApp after Settings selects Google',
                         'completion retained; no Google usage; source PPTX unchanged'], qml_warnings=warnings)
             (report / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
             print(json.dumps(result, ensure_ascii=False))

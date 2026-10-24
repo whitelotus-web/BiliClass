@@ -32,13 +32,14 @@ def test_google_default_and_old_checkpoint_stay_google_after_azure_selected(tmp_
     raw.pop('translation_provider')
     raw.pop('translation_budget')
     (tmp_path / 'google_jobs' / raw['request_id'] / 'config.json').write_text(json.dumps(raw))
-    assert not change(tmp_path, 'provider', ('azure',))['error']
-    assert snapshot(tmp_path) == {'translation_provider': 'azure', 'translation_budget': 2_000_000}
+    with closing(Library(tmp_path)) as library:
+        library.set_setting('translation_provider', 'azure')  # An older RC168 installation.
+    assert snapshot(tmp_path) == {'translation_provider': 'google', 'translation_budget': 500_000}
     called = []
     result = build_translator(tmp_path, load(tmp_path, old['folder'])['config'], 123,
                               lambda *args: called.append(args) or 'google')
     assert result == 'google' and called == [(tmp_path, 123)]
-    new = prepare(tmp_path, config, text='Vật chuyển động.')
+    new = prepare(tmp_path, {**config, 'translation_provider': 'azure'}, text='Vật chuyển động.')
     assert new['config']['translation_provider'] == 'azure'
     assert not change(tmp_path, 'provider', ('google',))['error']
     assert load(tmp_path, new['folder'])['config']['translation_provider'] == 'azure'
@@ -194,8 +195,8 @@ def test_settings_mask_keys_and_inactive_corruption_does_not_break_google(tmp_pa
     AzureKeyStore(tmp_path).path.write_bytes(b'broken test credential')
     state = read_state(tmp_path)
     assert state['activeConfigured'] and state['azure']['message']
-    assert not change(tmp_path, 'provider', ('azure',))['error']
-    assert not read_state(tmp_path)['activeConfigured']
+    assert change(tmp_path, 'provider', ('azure',))['error']
+    assert not read_state(tmp_path, provider='azure')['activeConfigured']
     assert not change(tmp_path, 'azure_save', (AZURE_KEY, 'global', 'Đã sửa'))['error']
     assert read_state(tmp_path)['activeConfigured']
 
@@ -228,7 +229,7 @@ def test_azure_pptx_conversion_routes_pinned_engine_and_resumes_without_network(
     source = tmp_path / 'Thí nghiệm gốc.pptx'
     deck.save(source)
     original = source.read_bytes()
-    job = prepare(tmp_path, config, source)
+    job = prepare(tmp_path, {**config, 'translation_provider': 'azure'}, source)
     change(tmp_path, 'provider', ('google',))
     progress = ConversionProgress(job['folder'], lambda *_: None)
     lesson, preview = convert(tmp_path, job, Event(), progress)

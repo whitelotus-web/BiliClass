@@ -65,7 +65,7 @@ Dialog {
             {title:"Tải, tìm nơi lưu hoặc xóa bài", body:"Bấm icon mũi tên tải để lưu bản PowerPoint. Bấm nút … của một bài → Mở trong Explorer để xem thư mục chứa bài. Icon thùng rác đưa bài vào thùng rác của tool; muốn khôi phục, mở nút ⋮ ở góc trên → Thùng rác."}
         ],
         [
-            {title:"Chọn dịch vụ dịch và lưu mã", body:"Trong Cài đặt → Chung, điền tên thầy cô, trường và môn. Trong Google Dịch, chọn Google Cloud hoặc Microsoft Azure rồi điền và lưu key tương ứng. Azure cần thêm Region (mã vùng). Chuyển đổi cần Internet; bài đang dở tiếp tục bằng dịch vụ đã chọn lúc bắt đầu."},
+            {title:"Chọn dịch vụ dịch và lưu mã", body:"Trong Cài đặt → Chung, điền tên thầy cô, trường và môn. Trong Dịch thuật, chọn Google Cloud, Apps Script, Gemini hoặc DeepL rồi làm theo hướng dẫn bên dưới để lưu cấu hình. Apps Script không cần key Google Cloud nhưng cần triển khai một lần bằng tài khoản Google. Chuyển đổi cần Internet; bài đang dở tiếp tục bằng dịch vụ đã chọn lúc bắt đầu."},
             {title:"Chọn giọng đọc và nhân vật", body:"Trong Giọng đọc, chọn giọng → Nghe thử → chỉnh tốc độ → Lưu. Trong Mascot, chọn nhân vật và kích thước vừa màn hình. Tool sẽ nhớ lựa chọn cho lần sau."},
             {title:"Sao lưu thư viện", body:"Mở Cài đặt → Dữ liệu → Sao lưu dữ liệu, rồi chọn nơi giữ bản sao. BiliClass cũng tự sao lưu theo lịch khi mở ứng dụng."},
             {title:"Khôi phục khi cần", body:"Chọn Khôi phục bản sao và chọn tệp sao lưu. Tool kiểm tra, mở thư viện khôi phục; thư viện trước vẫn được giữ."},
@@ -73,7 +73,7 @@ Dialog {
         ],
         [
             {title:"Không chọn được bài PowerPoint", body:"Tool nhận bài có đuôi .pptx. Nếu bài là .ppt, mở bài bằng PowerPoint rồi lưu thành .pptx và chọn lại. Mỗi bài tối đa 200 MB."},
-            {title:"Chuyển đổi bị dừng hoặc báo lỗi", body:"Kiểm tra mạng và mã trong Cài đặt → Google Dịch. Sửa theo thông báo rồi bấm Tiếp tục hoặc Thử lại bài lỗi. Tool giữ phần đã làm; file gốc vẫn còn."},
+            {title:"Chuyển đổi bị dừng hoặc báo lỗi", body:"Kiểm tra mạng và mã trong Cài đặt → Dịch thuật. Sửa theo thông báo rồi bấm Tiếp tục hoặc Thử lại bài lỗi. Tool giữ phần đã làm; file gốc vẫn còn."},
             {title:"Nút tạo giọng hoặc loa bị mờ", body:"Hãy chọn bài trước. Nếu slide thiếu lời đọc, mở nút … cạnh Xem trước slide để xem và bổ sung lời. Loa trên trợ giảng chỉ dùng được khi đang trình chiếu và phần đó có giọng đã tạo."},
             {title:"Không nghe thấy tiếng", body:"Kiểm tra hàng Âm lượng trên trợ giảng và loa của máy. Thử bấm loa Anh hoặc Việt có sẵn; nếu bài chưa có giọng, quay lại Tạo giọng đọc bài giảng để tạo trước."},
             {title:"Không biết bài đã lưu ở đâu", body:"Vào Bài giảng → nút … của bài → Mở trong Explorer. Với bài vừa tạo, có thể dùng nút Mở thư mục ở phần hoàn tất. Muốn mang thư viện sang máy khác, xem mục Cài đặt và sao lưu."}

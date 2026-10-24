@@ -127,6 +127,7 @@ with tempfile.TemporaryDirectory(prefix='biliclass-google-ui-', ignore_cleanup_e
     window.setProperty('page', 'settings')
     pump(200)
     click('settingsTab6')
+    until(lambda: bridge.googleSettings.ready and not bridge.googleSettings.loading)
     assert not control('browserServiceChatGPT').isVisible()
     assert not control('browserServiceGemini').isVisible()
     control('googleApiKeys').setProperty('text', 'Project A | ' + 'AIza' + 'a'*35 + '\nProject B | ' + 'AIza' + 'b'*35)

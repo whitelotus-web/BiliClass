@@ -16,6 +16,7 @@ try {
       --add-data 'app/qml;app/qml' `
       --add-data 'app/assets;app/assets' `
       --add-data 'app/student_web;app/student_web' `
+      --add-data 'app/resources;app/resources' `
       --collect-data omegaconf --collect-submodules omegaconf --copy-metadata omegaconf `
       --collect-data antlr4 --collect-submodules antlr4 --copy-metadata antlr4-python3-runtime `
       --collect-data playwright --collect-binaries playwright --collect-submodules playwright --copy-metadata playwright `

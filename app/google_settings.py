@@ -11,6 +11,7 @@ class GoogleSettings(QObject):
     changed = Signal()
     saved = Signal(bool)
     azureSaved = Signal(bool)
+    alternativeSaved = Signal(str, bool)
 
     def __init__(self, bridge):
         super().__init__(bridge)
@@ -23,6 +24,11 @@ class GoogleSettings(QObject):
         from .translation_health import summarize
 
         self._state['health'] = summarize([], DEFAULT_BUDGET)
+        from .alternative_translation import DEFAULT_MODEL, LIMITS
+
+        self._state['alternatives'] = {name: dict(configured=False, keys=[], budget=budget, message='',
+            option=DEFAULT_MODEL if name == 'gemini' else 'developer' if name == 'deepl' else '')
+            for name, budget in LIMITS.items()}
         self.worker = None
         self._result = None
         self._pending = self._closed = self._mutating = False
@@ -105,6 +111,8 @@ class GoogleSettings(QObject):
                 self.saved.emit(success)
             if operation == 'azure_save':
                 self.azureSaved.emit(success)
+            if operation == 'alternative_save':
+                self.alternativeSaved.emit(values[0], success)
             self.bridge.inform(message if success else result['error'], not success, refresh=False)
 
         self.bridge.launch(lambda: change(self.directory, operation, values), finished,
@@ -135,6 +143,28 @@ class GoogleSettings(QObject):
     @Slot(str, result=bool)
     def chooseProvider(self, provider):
         return self._operate('provider', (provider,), 'Đã chọn dịch vụ cho bài mới. Bài đang dở giữ dịch vụ của lượt trước.')
+
+    @Slot(str, str, str, result=bool)
+    def saveAlternative(self, provider, secret, option):
+        return self._operate('alternative_save', (provider, secret, option),
+            'Đã lưu cấu hình dịch. Cần chuyển đổi bài để kiểm tra kết nối; mã được mã hóa trên tài khoản Windows này.')
+
+    @Slot(str)
+    def removeAlternative(self, provider):
+        self._operate('alternative_remove', (provider,), 'Đã xóa mã đã lưu. Bộ đếm và bài giảng được giữ nguyên.')
+
+    @Slot(str)
+    def recheckAlternative(self, provider):
+        self._operate('alternative_recheck', (provider,), 'Đã cho phép thử lại. Bộ đếm được giữ nguyên.')
+
+    @Slot()
+    def copyLanguageScript(self):
+        from pathlib import Path
+
+        from PySide6.QtGui import QGuiApplication
+
+        QGuiApplication.clipboard().setText((Path(__file__).parent / 'resources/languageapp.gs').read_text(encoding='utf-8'))
+        self.bridge.inform('Đã sao chép mã triển khai. Dán vào dự án Apps Script theo hướng dẫn.', refresh=False)
 
     @Slot(str, str, str, result=bool)
     def saveAzure(self, key, region, name):

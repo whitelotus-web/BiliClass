@@ -201,7 +201,7 @@ def convert_one(directory, row, options, cancel, update):
                 if library.get(row['lesson_id'])['revision'] != row['lesson_revision']:
                     raise ValueError('Bài giảng đã sửa. Chọn lại file để tạo lượt xử lý mới.')
     else:
-        from .translation_provider import require_credentials
+        from .translation_provider import maximum, require_credentials
 
         # Legacy queues have no engine field and must keep their RC167 Google route.
         provider = options.get('translation_provider', 'google')
@@ -214,7 +214,9 @@ def convert_one(directory, row, options, cancel, update):
         config['template_bookends'] = options.get('bookends', False)
         config['translation_provider'] = provider
         config['translation_budget'] = options.get('translation_budget',
-            options.get('budget', 500_000) if provider == 'google' else 2_000_000)
+            options.get('budget', 500_000) if provider == 'google' else maximum(provider))
+        if options.get('translation_profile'):
+            config['translation_profile'] = options['translation_profile']
         job = prepare(directory, config, path)
         update({'folder': job['folder']}, True)
     progress = ConversionProgress(job['folder'], lambda value: update({
