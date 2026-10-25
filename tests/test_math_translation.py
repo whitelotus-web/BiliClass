@@ -49,3 +49,59 @@ def test_center_clause_preserves_both_identifiers_and_their_distinct_roles():
     assert exact('⟦BLC0⟧ với ⟦BLC1⟧ là tâm hình bình hành ⟦BLC2⟧⟦BLC3⟧').endswith('⟦BLC2⟧⟦BLC3⟧')
     assert exact('⟦BLC0⟧ với ⟦BLC1⟧ là trung điểm ⟦BLC2⟧') == '⟦BLC0⟧, where ⟦BLC1⟧ is the midpoint of ⟦BLC2⟧'
     assert exact('+ Một mặt đáy là tứ giác ABCD.') == '+ The base is the quadrilateral ABCD.'
+
+
+@pytest.mark.parametrize('source,target', [
+    ('GÓC LƯỢNG GIÁC','TRIGONOMETRIC ANGLE'),
+    ('ĐƯỜNG TRÒN LƯỢNG GIÁC','UNIT CIRCLE'),
+    ('GIÁ TRỊ LƯỢNG GIÁC','TRIGONOMETRIC VALUE'),
+    ('HỆ THỨC CHASLES',"CHASLES' RELATION"),
+    ('GÓC BẸT','STRAIGHT ANGLE'),
+    ('SỐ ĐO CỦA GÓC LƯỢNG GIÁC','MEASURE OF A TRIGONOMETRIC ANGLE'),
+    ('HỆ THỨC CƠ BẢN GIỮA CÁC GIÁ TRỊ LƯỢNG GIÁC','FUNDAMENTAL TRIGONOMETRIC IDENTITIES')])
+def test_trigonometry_headings_bypass_bad_cached_machine_translations(tmp_path, source, target):
+    translator = Translator(tmp_path, transport=lambda *_: pytest.fail('Exact headings need no API'))
+    translator.configure_terms('Toán', [])
+    assert translator.translate([source], Event()) == [target]
+
+
+def test_geometry_ray_is_not_a_pulse_and_teacher_override_wins():
+    math = TermPolicy('Toán')
+    assert math.postprocess('Với ba tia tùy ý', 'Given three arbitrary pulses') == 'Given three arbitrary rays'
+    physics = TermPolicy('Vật lý')
+    assert physics.postprocess('Tia xung', 'A pulse') == 'A pulse'
+    teacher = TermPolicy('Toán', [{'vi':'góc lượng giác','en':'Directed angle','locked':True}])
+    assert teacher.exact('GÓC LƯỢNG GIÁC') == 'Directed angle'
+
+
+def test_angle_measure_prefix_is_an_immutable_math_label():
+    from app.google_translation import protected_html, unprotect
+
+    text='Do đó sđ⟦BLC0⟧ + sđ⟦BLC1⟧ = sđ⟦BLC2⟧.'
+    policy=TermPolicy('Toán')
+    payload, locks=protected_html(text, policy.matches(text))
+    assert locks.count('sđ') == 3
+    assert unprotect(payload.replace('Do đó','Therefore'),locks).count('sđ') == 3
+    assert TermPolicy('Vật lý').matches(text) == {}
+
+
+def test_mixed_native_angle_formula_keeps_operators_and_measure_prefix_without_api(tmp_path):
+    translator=Translator(tmp_path,transport=lambda *_: pytest.fail('Equation connective needs no API'))
+    translator.configure_terms('Toán',[])
+    source='Do đó ⟦BLC0⟧+ sđ⟦BLC1⟧ = sđ⟦BLC2⟧+⟦BLC3⟧.'
+    assert translator.translate([source],Event()) == ['Therefore, ⟦BLC0⟧+ sđ⟦BLC1⟧ = sđ⟦BLC2⟧+⟦BLC3⟧.']
+    # The equality sign can itself be inside an immutable OMML token.
+    native='Do đó ⟦BLC0⟧ sđ⟦BLC1⟧ ⟦BLC2⟧ sđ⟦BLC3⟧.'
+    assert translator.translate([native],Event()) == ['Therefore, ⟦BLC0⟧ sđ⟦BLC1⟧ ⟦BLC2⟧ sđ⟦BLC3⟧.']
+    assert TermPolicy('Toán').exact('Do đó ta có một góc bằng ⟦BLC0⟧.') is None
+
+
+def test_full_turn_angle_is_not_circumference_in_radians():
+    policy=TermPolicy('Toán')
+    assert policy.exact('Mặt khác, đường tròn có số đo bằng ⟦BLC0⟧ nên ta có ⟦BLC1⟧=⟦BLC2⟧ rad.') == (
+        'On the other hand, a full turn measures ⟦BLC0⟧, so ⟦BLC1⟧=⟦BLC2⟧ rad.')
+    assert policy.exact('Do đường tròn có độ dài là ⟦BLC0⟧ nên nó có số đo ⟦BLC1⟧ rad.') == (
+        'Since the circumference of the circle is ⟦BLC0⟧, a full turn measures ⟦BLC1⟧ rad.')
+    assert policy.exact('Mặt khác, đường tròn có số đo bằng ⟦BLC0⟧ nên ta có thêm một câu khác.') is None
+    assert policy.exact('Do đường tròn có độ dài là ⟦BLC0⟧ nên nó có số đo ⟦BLC1⟧.') == (
+        'Since the circumference of the circle is ⟦BLC0⟧, a full turn measures ⟦BLC1⟧.')

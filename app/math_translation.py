@@ -8,6 +8,22 @@ NUMBER = r'(?:⟦BLC\d+⟧|\d+)'
 def exact(text):
     source = ' '.join(text.split())
     token = r'⟦BLC\d+⟧'
+    # A formula can mix immutable OOXML tokens with ordinary runs for sđ,+,=.
+    # Translate the connective locally; sending those runs as prose let DeepL
+    # turn an equality into a list with commas and "and" while retaining digits.
+    match = re.fullmatch(r'(Do đó|Suy ra|Ta có)\s*:?\s+(.+)', source, re.I)
+    if match:
+        tail = match[2]
+        residue = re.sub(token + r'|sđ', '', tail, flags=re.I)
+        if re.search(token, tail) and re.fullmatch(r'[\s=+−*/^.,;:()°-]*', residue):
+            label = {'do đó':'Therefore, ', 'suy ra':'Hence, ', 'ta có':'We have '}
+            return label[match[1].casefold()] + tail
+    match = re.fullmatch(r'Mặt khác, đường tròn có số đo bằng (' + token + r') nên ta có (.+)', source, re.I)
+    if match and not re.search(r'[a-zA-ZÀ-ỹ]', re.sub(token + r'|rad', '', match[2])):
+        return f'On the other hand, a full turn measures {match[1]}, so {match[2]}'
+    match = re.fullmatch(r'Do đường tròn có độ dài là (' + token + r') nên nó có số đo (' + token + r')(\s*rad)?([.]?)', source, re.I)
+    if match:
+        return f'Since the circumference of the circle is {match[1]}, a full turn measures {match[2]}' + (match[3] or '') + match[4]
     match = re.fullmatch(r'Giải (phương trình|hệ phương trình)\s*:?\s*(' + token + r')([.]?)', source, re.I)
     if match:
         command = 'Solve the equation' if match[1].casefold() == 'phương trình' else 'Solve the system of equations'
@@ -47,6 +63,10 @@ def exact(text):
 
 
 def terminology(source, translated):
+    # A ray in geometry is not a pulse; keep this repair scoped to mathematical prose.
+    if re.search(r'\btia\b', source, re.I):
+        translated = re.sub(r'\bpulses\b', 'rays', translated, flags=re.I)
+        translated = re.sub(r'\bpulse\b', 'ray', translated, flags=re.I)
     if re.search(r'quay kim phút một khoảng bằng', source, re.I):
         translated = re.sub(r'rotating the minute hand by a distance equal to',
                             'rotating the minute hand through', translated, flags=re.I)

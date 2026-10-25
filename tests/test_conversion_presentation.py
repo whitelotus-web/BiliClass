@@ -45,3 +45,10 @@ def test_stop_keeps_progress_and_does_not_describe_deleting_the_work():
                               'stage': 'translate', 'percent': 40})
     assert stopping['displayStage'] == 'Đang dừng chuyển đổi' and stopping['percent'] == 40
     assert 'giữ lại' in stopping['displayMessage'] and 'xóa' not in stopping['displayMessage']
+
+
+def test_translation_setup_errors_show_specific_action_without_unrelated_azure_region():
+    for code, marker in [('api_billing','Free'), ('api_deployment','doPost'), ('api_model','model')]:
+        shown = display_state(dict(running=False, phase='error', errorCode=code, percent=26))
+        assert marker in shown['displayMessage'] and shown['percent'] == 26
+        assert 'Azure' not in shown['displayMessage']

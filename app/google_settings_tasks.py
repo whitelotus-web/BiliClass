@@ -117,7 +117,7 @@ def change(directory, operation, values):
                 azure.clear()
             else:
                 azure.recheck()
-        elif operation in {'alternative_save', 'alternative_remove', 'alternative_recheck'}:
+        elif operation in {'alternative_save', 'alternative_remove', 'alternative_recheck', 'alternative_check'}:
             from .alternative_translation import AlternativeStore
 
             alternative = AlternativeStore(directory, values[0])
@@ -125,6 +125,10 @@ def change(directory, operation, values):
                 alternative.configure(*values[1:])
             elif operation == 'alternative_remove':
                 alternative.clear()
+            elif operation == 'alternative_check':
+                from .alternative_translation import check_connection
+
+                check_connection(directory, values[0])
             else:
                 alternative.recheck()
         else:

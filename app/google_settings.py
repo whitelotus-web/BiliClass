@@ -116,7 +116,7 @@ class GoogleSettings(QObject):
             self.bridge.inform(message if success else result['error'], not success, refresh=False)
 
         self.bridge.launch(lambda: change(self.directory, operation, values), finished,
-                           cancellable=False, message='Đang lưu cấu hình dịch…')
+                           cancellable=False, message='Đang thử kết nối dịch vụ dịch…' if operation == 'alternative_check' else 'Đang lưu cấu hình dịch…')
         self.changed.emit()
         return True
 
@@ -156,6 +156,11 @@ class GoogleSettings(QObject):
     @Slot(str)
     def recheckAlternative(self, provider):
         self._operate('alternative_recheck', (provider,), 'Đã cho phép thử lại. Bộ đếm được giữ nguyên.')
+
+    @Slot(str, result=bool)
+    def checkAlternative(self, provider):
+        return self._operate('alternative_check', (provider,),
+            'Đã kết nối và nhận bản dịch câu thử. Kết quả này xác nhận dịch vụ dùng được lúc kiểm tra, chưa đánh giá chất lượng bài giảng.')
 
     @Slot()
     def copyLanguageScript(self):

@@ -181,6 +181,61 @@ def test_provider_errors_do_not_echo_secrets_or_lecture(monkeypatch, status, cod
     assert SECRET not in str(caught.value) and 'private lesson' not in str(caught.value)
 
 
+@pytest.mark.parametrize('body,marker', [(b'<html>Script function not found: doPost</html>', 'doPost'),
+    ('Lỗi Không tìm thấy hàm tập lệnh: doPost'.encode(), 'doPost'), (b'<html>Sign in to Google</html>', '')])
+def test_languageapp_html_errors_are_deployment_errors_not_bad_translation(monkeypatch, body, marker):
+    response = Response({})
+    response.raw = body
+    opener(monkeypatch, lambda _: response)
+    with pytest.raises(TranslationProblem) as caught:
+        api.languageapp_request(['hello'], {'key': SECRET, 'option': URL}, 'vi', 'en')
+    assert caught.value.code == 'api_deployment'
+    assert SECRET not in str(caught.value)
+    if marker:
+        assert marker in str(caught.value)
+
+
+def test_languageapp_login_redirect_is_actionable_without_following_login(monkeypatch):
+    def handler(request):
+        raise urllib.error.HTTPError(URL, 302, '', {'Location': 'https://accounts.google.com/login'}, io.BytesIO())
+    opener(monkeypatch, handler)
+    with pytest.raises(TranslationProblem) as caught:
+        api.languageapp_request(['hello'], {'key': SECRET, 'option': URL}, 'vi', 'en')
+    assert caught.value.code == 'api_deployment' and 'Mọi người' in str(caught.value)
+
+
+@pytest.mark.parametrize('status,code,marker', [(402,'api_billing','Free'), (404,'api_model','model')])
+def test_gemini_depleted_prepayment_and_unavailable_model_are_distinct(monkeypatch, status, code, marker):
+    def handler(request):
+        raise urllib.error.HTTPError(request.full_url, status, SECRET, {}, io.BytesIO(SECRET.encode()))
+    opener(monkeypatch, handler)
+    with pytest.raises(TranslationProblem) as caught:
+        api.gemini_request(['hello'], {'key':SECRET, 'option':api.DEFAULT_MODEL}, 'vi', 'en')
+    assert caught.value.code == code and marker in str(caught.value)
+    assert SECRET not in str(caught.value)
+
+
+@pytest.mark.parametrize('provider', SELECTABLE[1:])
+def test_connection_probe_is_fresh_counted_and_does_not_change_selection(tmp_path, monkeypatch, provider):
+    with closing(Library(tmp_path)):
+        pass
+    store = api.AlternativeStore(tmp_path, provider)
+    store.configure(SECRET, OPTIONS[provider])
+    calls = []
+    monkeypatch.setitem(api.TRANSPORTS, provider, lambda texts,*_: calls.append(texts) or ['Hello.'])
+    api.check_connection(tmp_path, provider)
+    api.check_connection(tmp_path, provider)
+    assert len(calls) == 2  # A cached old success must not hide a new account/quota error.
+    assert store.public()[0]['used'] == (2 if provider == 'languageapp' else 2*len('Xin chào.'))
+    assert snapshot(tmp_path)['translation_provider'] == 'google'
+    def fail(*_):
+        raise TranslationProblem('api_billing','Test billing failure')
+    monkeypatch.setitem(api.TRANSPORTS, provider, fail)
+    result = change(tmp_path, 'alternative_check', (provider,))
+    assert 'Test billing failure' == result['error']
+    assert store.public()[0]['used'] == (2 if provider == 'languageapp' else 2*len('Xin chào.'))
+
+
 @pytest.mark.parametrize('provider', SELECTABLE[1:])
 def test_rejection_does_not_fallback_or_consume_budget_and_cancel_is_immediate(tmp_path, provider):
     store = api.AlternativeStore(tmp_path, provider)

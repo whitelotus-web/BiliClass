@@ -15,6 +15,7 @@ from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
 
+from app.alternative_translation import TRANSPORTS as ALTERNATIVE_TRANSPORTS
 from app.alternative_translation import AlternativeTranslator
 from app.branding import configure_application
 from app.google_conversion import load
@@ -80,6 +81,13 @@ def main():
                 assert bridge.googleSettings.state['activeConfigured']
                 assert not c(field).property('text')
                 assert 'test_secret_do_not_use_1234567890' not in json.dumps(bridge.googleSettings.state)
+                def probe(texts, *_):
+                    assert texts == ['Xin chào.']
+                    return ['Hello.']
+                with patch.dict(ALTERNATIVE_TRANSPORTS, {name: probe}):
+                    click(window, c('check' + radio))
+                    until(lambda: not bridge.busy)
+                    assert 'Đã kết nối' in bridge.message
                 pump(100)
                 assert window.grabWindow().save(str(report / (name + '-settings.png')))
             click(window, c('translationProviderLanguageApp'))
@@ -100,6 +108,15 @@ def main():
             assert bridge.googleSettings.state['activeConfigured']
             assert not c('languageappAccess').property('text')
             assert 'a' * 32 not in json.dumps(bridge.googleSettings.state)
+            from app.google_translation import TranslationProblem
+
+            def missing_deployment(*_):
+                raise TranslationProblem('api_deployment', 'Bản triển khai chưa có doPost. Chọn Phiên bản mới.')
+            with patch.dict(ALTERNATIVE_TRANSPORTS, {'languageapp': missing_deployment}):
+                click(window, c('checkLanguageApp'))
+                until(lambda: not bridge.busy)
+                assert 'doPost' in bridge.message
+                assert bridge.googleSettings.state['provider'] == 'languageapp'
             assert google_file.read_bytes() == original_google
             for theme in ('light', 'dark'):
                 bridge.setApplicationTheme(theme)

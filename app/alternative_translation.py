@@ -122,6 +122,9 @@ def json_request(url, payload, headers, provider, *, script=False):
             # Never resend the POST body/access code to a redirect target.
             location = exc.headers.get('Location', '') if exc.headers else ''
             parts = urllib.parse.urlsplit(location)
+            if script and parts.hostname == 'accounts.google.com':
+                exc.close()
+                raise TranslationProblem('api_deployment', 'LanguageApp yêu cầu đăng nhập. Triển khai Ứng dụng web: Thực thi bằng Tôi, quyền truy cập Mọi người; dùng URL /exec của bản triển khai đó.') from None
             if (not script or exc.code not in {302, 303} or parts.scheme != 'https'
                     or parts.netloc != 'script.googleusercontent.com' or not parts.path.startswith('/macros/')):
                 raise
@@ -131,18 +134,36 @@ def json_request(url, payload, headers, provider, *, script=False):
             raw = response.read(1_000_001)
         if len(raw) > 1_000_000:
             raise ValueError()
-        result = json.loads(raw)
+        try:
+            result = json.loads(raw)
+        except (ValueError, UnicodeError):
+            if script:
+                # Google can return HTTP 200 HTML for a missing doPost or login page.
+                # Match only a known marker; never display raw HTML, URLs or account data.
+                if b'doPost' in raw:
+                    raise TranslationProblem('api_deployment', 'Bản Apps Script đang triển khai chưa có hàm doPost. Dán đầy đủ mã từ Hướng dẫn thiết lập, lưu rồi Triển khai → Quản lý bản triển khai → Chỉnh sửa → Phiên bản mới. Giữ URL /exec hiện tại.') from None
+                raise TranslationProblem('api_deployment', 'LanguageApp đang trả trang web thay vì bản dịch. Kiểm tra mã triển khai, chọn Thực thi bằng Tôi và quyền Mọi người; dùng URL /exec, không dùng /dev.') from None
+            raise
         if not isinstance(result, dict):
             raise ValueError()
         return result
     except urllib.error.HTTPError as exc:
-        code = ('api_key' if exc.code in {401, 403} else 'api_rate' if exc.code == 429 else
+        code = ('api_billing' if exc.code == 402 else 'api_model' if provider == 'gemini' and exc.code == 404 else
+                'api_key' if exc.code in {401, 403} else 'api_rate' if exc.code == 429 else
                 'api_quota' if exc.code == 456 else 'api_network' if exc.code >= 500 else 'api_request')
+        exc.close()
+        if code == 'api_billing':
+            action = ('Nếu muốn dùng miễn phí, nhập key thuộc dự án Free trong AI Studio; đổi model không tự đổi gói của key hiện tại.' if provider == 'gemini' else 'Kiểm tra gói dịch vụ và số dư của tài khoản đang dùng.')
+            raise TranslationProblem(code, LABELS[provider] + ' báo dự án đã hết số dư trả trước (HTTP 402). ' + action + ' BiliClass không tự nạp tiền hoặc bật thanh toán.') from None
+        if code == 'api_model':
+            raise TranslationProblem(code, 'Gemini không tìm thấy model đã chọn hoặc key chưa được cấp quyền model đó. Kiểm tra tên model trong Google AI Studio, lưu cấu hình rồi thử kết nối.') from None
         raise TranslationProblem(code, LABELS[provider] + ' chưa nhận yêu cầu. Kiểm tra cấu hình, quyền truy cập, model/ngôn ngữ và hạn mức trong Cài đặt → Dịch thuật.') from None
     except (urllib.error.URLError, TimeoutError, OSError):
         raise TranslationProblem('api_network', 'Kết nối ' + LABELS[provider] + ' gián đoạn. Phần đã dịch được giữ để tiếp tục.') from None
+    except TranslationProblem:
+        raise
     except (ValueError, TypeError):
-        raise TranslationProblem('api_result', LABELS[provider] + ' chưa trả JSON hợp lệ. Với LanguageApp, kiểm tra đã triển khai cho Mọi người, thực thi bằng tài khoản chủ.') from None
+        raise TranslationProblem('api_result', LABELS[provider] + ' chưa trả JSON hợp lệ; chưa áp dụng kết quả này.') from None
 
 
 def translated_values(rows, count):
@@ -202,6 +223,25 @@ def deepl_request(texts, credential, source, target):
 
 
 TRANSPORTS = {'languageapp': languageapp_request, 'gemini': gemini_request, 'deepl': deepl_request}
+
+
+def check_connection(directory, provider):
+    """A fresh tiny translation, not just a key save or model-list request.
+
+    Never use the translation cache: an old success cannot prove current access.
+    Count the probe conservatively without changing a lesson or selected provider.
+    """
+    store = AlternativeStore(directory, provider)
+    store.recheck()  # An explicit probe may retry a repaired key/deployment; usage is never reset.
+    texts = ['Xin chào.']
+    count = len(texts) if provider == 'languageapp' else sum(map(len, texts))
+    row = store.reserve(count, LIMITS[provider])
+    try:
+        translated_values(TRANSPORTS[provider](texts, row, 'vi', 'en'), len(texts))
+    except TranslationProblem as exc:
+        if exc.code not in {'api_network', 'api_result'}:
+            store.reject(row, count, exc.code)
+        raise
 
 
 class AlternativeTranslator(Translator):

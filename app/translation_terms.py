@@ -75,7 +75,7 @@ class TermPolicy:
         # Google from producing e.g. "molecular formula" or plural "atoms".
         # Keep noun definitions exact-only; teachers' explicit locks still win.
         inline_defaults = self.identity_terms | {'cộng hóa trị'} if self.subject == 'hoa hoc' else {
-            vi for vi in self.terms if ' ' in vi}
+            vi for vi in self.terms if ' ' in vi} | self.identity_terms
         self.inline_terms = {vi:en for vi,en in self.terms.items() if vi in teacher_terms or vi in inline_defaults}
         variants = {variant for term in self.inline_terms for variant in (term, term.replace('hóa','hoá'))}
         self.pattern = re.compile(r'(?<!\w)(?:' + '|'.join(re.escape(t) for t in sorted(variants, key=lambda t:(-len(t),t))) + r')(?!\w)', re.I) if variants else None
