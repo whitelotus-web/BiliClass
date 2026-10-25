@@ -58,6 +58,10 @@ phạm vi ở [tài liệu thuật ngữ](TRANSLATION_KNOWLEDGE_RC168.md).
 
 ## Chưa xác minh đầy đủ
 
+Đợt rà soát cơ chế và xử lý gián đoạn của cả bốn dịch vụ, gồm các lỗi đã sửa,
+kiểm tra API mới và tương thích gateway Apps Script v2/v3, được ghi riêng tại
+[Rà soát độ ổn định RC168](TRANSLATION_RELIABILITY_RC168.md).
+
 - Ngữ nghĩa của mọi bài thuộc mọi môn/lớp, mọi dạng thuật ngữ chuyên sâu.
 - Nội dung trong ảnh, chữ bị chia qua nhiều khung, câu rất dài và bố cục dày.
 - Đơn vị tiếng Việt nằm trong vùng công thức bất biến; tự sửa đáp án sai từ

@@ -23,6 +23,10 @@ def read_state(directory, store=None, *, provider=None):
         rows, google_error = [], str(exc)
     with closing(Library.read_only(directory)) as library:
         budget = library.setting('google_character_budget', DEFAULT_BUDGET)
+    if type(budget) is not int or not 1 <= budget <= DEFAULT_BUDGET:
+        # snapshot already validates the active budget. A damaged inactive
+        # Google preference must not prevent opening another service's controls.
+        budget = DEFAULT_BUDGET
     rows = [{**row, 'budget': budget, 'remaining': max(0, budget-row['used']-row['carryover']),
              'percent': min(100, (row['used']+row['carryover'])*100/max(1, budget))} for row in rows]
     from .local_ocr import model_paths

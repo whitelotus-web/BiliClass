@@ -1,4 +1,4 @@
-// BiliClass LanguageApp gateway v2. Replace ALL of Code.gs with this code.
+// BiliClass LanguageApp gateway v3. Replace ALL of Code.gs with this code.
 // The setup guide fills a private code automatically. Do not publish that code.
 // An empty setup code keeps support for the older Script Properties setup.
 // Deploy Web app: Execute as Me; Who has access: Anyone.
@@ -18,6 +18,7 @@ function doPost(e) {
   try {
     if (!e || !e.postData || e.postData.contents.length > 64000) return reply({error: 'request'});
     request = JSON.parse(e.postData.contents);
+    if (!request || typeof request !== 'object' || Array.isArray(request)) return reply({error: 'request'});
   } catch (_) { return reply({error: 'request'}); }
   const properties = PropertiesService.getScriptProperties();
   const code = BILICLASS_SETUP_CODE || properties.getProperty('BILICLASS_ACCESS_CODE');
@@ -45,10 +46,12 @@ function doPost(e) {
     properties.setProperty('BILICLASS_USAGE', JSON.stringify(ledger));
   } catch (_) { return reply({error: 'quota'}); }
   finally { lock.releaseLock(); }
+  const translations = [];
   try {
-    return reply({translations: texts.map(text => LanguageApp.translate(text, request.source, request.target, {contentType: 'html'}))});
+    for (const text of texts) translations.push(LanguageApp.translate(text, request.source, request.target, {contentType: 'html'}));
+    return reply({translations});
   } catch (error) {
     const message = String(error);
-    return reply({error: /short time|per second|rate/i.test(message) ? 'rate' : /quota|limit|too many times/i.test(message) ? 'quota' : 'service'});
+    return reply({error: /short time|per second|rate/i.test(message) ? 'rate' : /quota|limit|too many times/i.test(message) ? 'quota' : 'service', translations});
   }
 }

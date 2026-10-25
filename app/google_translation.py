@@ -9,16 +9,19 @@ history; it cannot be split retrospectively into individual key usage.
 import ctypes
 import hashlib
 import html
+import http.client
 import json
 import os
 import re
 import sqlite3
 import threading
+import time
 import unicodedata
 import urllib.error
 import urllib.request
 from contextlib import closing
 from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 
 ENDPOINT = 'https://translation.googleapis.com/language/translate/v2'
@@ -37,9 +40,45 @@ _UNIT_EXPRESSION = r'(?<!\w)(?:' + _UNIT + '/' + _UNIT + '|' + _UNIT_BASE + r'\s
 
 
 class TranslationProblem(ValueError):
-    def __init__(self, code, message):
+    def __init__(self, code, message, *, retry_after=None):
         super().__init__(message)
         self.code = code
+        self.retry_after = retry_after
+
+
+def _retry_after(headers):
+    """Read only the standard delay, never expose a provider's raw error body."""
+    value = headers.get('Retry-After', '') if headers else ''
+    if not isinstance(value, str) or len(value) > 100:
+        return None
+    try:
+        if value.strip().isdigit():
+            return min(int(value), 86400)
+        date = parsedate_to_datetime(value)
+        if date.tzinfo is not None:
+            return min(86400, max(0, (date - datetime.now(timezone.utc)).total_seconds()))
+    except (ValueError, TypeError, OverflowError):
+        pass
+    return None
+
+
+class _TranslationStop:
+    """Join user cancellation with a failed sibling, including nested repairs."""
+
+    def __init__(self, parent, failed):
+        self.parent, self.failed = parent, failed
+
+    def is_set(self):
+        return self.parent.is_set() or self.failed.is_set()
+
+    def wait(self, seconds):
+        end = time.monotonic() + seconds
+        while not self.is_set():
+            remaining = end - time.monotonic()
+            if remaining <= 0:
+                return False
+            self.failed.wait(min(.05, remaining))
+        return True
 
 
 def _digest(value):
@@ -306,6 +345,7 @@ def request(texts, key, source, target):
         return values
     except urllib.error.HTTPError as exc:
         status = exc.code
+        delay = _retry_after(exc.headers)
         # Never expose provider error text: it can echo a key or source text.
         if status == 429:
             code = 'api_rate'
@@ -320,14 +360,17 @@ def request(texts, key, source, target):
                     code = 'api_quota'
                 elif reasons & {'rateLimitExceeded'}:
                     code = 'api_rate'
-            except (ValueError, TypeError, AttributeError):
+            except (ValueError, TypeError, AttributeError, OSError, http.client.HTTPException):
                 pass
         elif status >= 500:
             code = 'api_network'
         else:
             code = 'api_request'
-        raise TranslationProblem(code, 'Google Dịch chưa nhận được yêu cầu hợp lệ. Kiểm tra key, bật Cloud Translation API, thanh toán và hạn mức của dự án.') from None
-    except (urllib.error.URLError, TimeoutError, OSError):
+        exc.close()
+        message = ('Google Dịch đang giới hạn tần suất. Chờ một lúc rồi tiếp tục; phần đã dịch được giữ lại.' if code == 'api_rate' else
+                   'Google Dịch chưa nhận được yêu cầu hợp lệ. Kiểm tra key, bật Cloud Translation API, thanh toán và hạn mức của dự án.')
+        raise TranslationProblem(code, message, retry_after=delay) from None
+    except (urllib.error.URLError, TimeoutError, OSError, http.client.HTTPException):
         raise TranslationProblem('api_network', 'Kết nối Google Dịch gián đoạn. Các phần đã dịch vẫn được lưu để tiếp tục.') from None
     except (ValueError, KeyError, TypeError):
         raise TranslationProblem('api_result', 'Google Dịch trả kết quả chưa hợp lệ; phần đã xong vẫn được lưu.') from None
@@ -469,6 +512,9 @@ class Translator:
     def _request_cost(self, texts):
         return sum(map(len, texts))
 
+    def _payload_size(self, text):
+        return len(text)
+
     def configure_terms(self, subject, rows, *, references=()):
         from .translation_terms import TermPolicy
 
@@ -527,6 +573,9 @@ class Translator:
         """Two bounded workers; unique chunks cached as soon as they validate."""
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
+        user_cancel = cancel
+        failed, failures, failure_lock = threading.Event(), [], threading.Lock()
+        cancel = _TranslationStop(cancel, failed)
         hints = native_values if native_values is not None else [{} for _ in texts]
         if len(hints) != len(texts):
             raise ValueError('Ngữ cảnh số liệu không khớp các đoạn dịch.')
@@ -580,16 +629,16 @@ class Translator:
                 values[job] = text
             else:
                 payload, locks = protected_html(text, matches, chemistry=chemistry, native_values=dict(context))
-                if len(payload) > MAX_CHARS:
+                if self._payload_size(payload) > MAX_CHARS:
                     raise TranslationProblem('api_request', 'Một công thức/vùng nội dung quá dài; chia nhỏ trước khi dịch.')
                 pending.append((text, payload, locks, cache_id, job))
         groups, batch, size = [], [], 0
         for item in pending:
-            if batch and (size + len(item[1]) > MAX_CHARS or len(batch) >= self.max_items):
+            if batch and (size + self._payload_size(item[1]) > MAX_CHARS or len(batch) >= self.max_items):
                 groups.append(batch)
                 batch, size = [], 0
             batch.append(item)
-            size += len(item[1])
+            size += self._payload_size(item[1])
         if batch:
             groups.append(batch)
         done, total = sum(len(t[0]) for t in values), sum(len(t[0]) for t in unique)
@@ -653,26 +702,49 @@ class Translator:
             excluded = set()
             attempts = 0
             retry_key = None
+            last_rejection = None
             while True:
                 if cancel.is_set():
                     raise InterruptedError('Đã dừng dịch.')
-                row = self.store.reserve(count, self.budget, excluded, only_key=retry_key)
+                try:
+                    row = self.store.reserve(count, self.budget, excluded, only_key=retry_key)
+                except TranslationProblem as exc:
+                    if exc.code == 'api_budget' and last_rejection is not None:
+                        raise last_rejection from None
+                    raise
                 try:
                     sender = self._send_repair if repairing else self._send
                     response = sender([item[1] for item in group], row, source, target)
                 except TranslationProblem as exc:
+                    # New LanguageApp gateways can return a successful prefix.
+                    # Keep only validated chunks, then pause without replaying it.
+                    partial = getattr(exc, 'partial_translations', [])
+                    if partial:
+                        accepted = []
+                        for item, value in zip(group, partial):
+                            try:
+                                accepted.append((item[3], checked(item, unprotect(value, item[2]), prose=_protected_text(value))))
+                            except TranslationProblem:
+                                pass
+                        self.store.cache_many(accepted)
+                        self.store.reject(row, 0, exc.code)  # Partial/ambiguous work remains charged.
+                        raise
                     if exc.code not in {'api_network', 'api_result'}:
                         self.store.reject(row, count, exc.code)
                     if exc.code in {'api_key', 'api_quota'}:
                         if not self.rotate_credentials:
                             raise
+                        last_rejection = exc
                         excluded.add(row['id'])
                         retry_key = None
                         continue  # advance only on a definite credential/quota rejection
                     if exc.code in {'api_network', 'api_rate'} and attempts < 2:
+                        delay = max(attempts + 1, exc.retry_after or 0)
+                        if delay > 5:
+                            raise  # Do not retry before the service's requested cooldown.
                         retry_key = row['id']
                         attempts += 1
-                        if cancel.wait(attempts):
+                        if cancel.wait(delay):
                             raise InterruptedError('Đã dừng dịch.')
                         continue
                     raise
@@ -703,26 +775,36 @@ class Translator:
                     for item, error in invalid:
                         payload, locks = protected_html(item[0], policy.matches(item[0]),
                             chemistry=policy.subject == 'hoa hoc', opaque_values=True)
-                        if len(payload) > MAX_CHARS:
+                        if self._payload_size(payload) > MAX_CHARS:
                             raise error
                         repairs.append((item[0],payload,locks,item[3],item[4]))
                     repaired = []
                     batch, size = [], 0
                     for item in repairs:
-                        if batch and (size + len(item[1]) > MAX_CHARS or len(batch) >= self.max_items):
+                        if batch and (size + self._payload_size(item[1]) > MAX_CHARS or len(batch) >= self.max_items):
                             repaired.extend(run(batch,repairing=True))
                             batch, size = [], 0
                         batch.append(item)
-                        size += len(item[1])
+                        size += self._payload_size(item[1])
                     if batch:
                         repaired.extend(run(batch,repairing=True))
                     return [(item[4], value) for item, value in translated] + repaired
                 return [(item[4], value) for item, value in translated]
 
+        def guarded_run(group):
+            try:
+                return run(group)
+            except BaseException as exc:
+                with failure_lock:
+                    if not failures:
+                        failures.append(exc)
+                    failed.set()
+                raise
+
         with ThreadPoolExecutor(max_workers=2, thread_name_prefix='google-translate') as executor:
             # Submit only two at a time, so a failure never queues the whole lesson.
             iterator = iter(groups)
-            active = {executor.submit(run, group) for group in [next(iterator, None), next(iterator, None)] if group}
+            active = {executor.submit(guarded_run, group) for group in [next(iterator, None), next(iterator, None)] if group}
             while active:
                 future = next(as_completed(active))
                 active.remove(future)
@@ -736,9 +818,12 @@ class Translator:
                         raise InterruptedError('Đã dừng dịch.')
                     group = next(iterator, None)
                     if group:
-                        active.add(executor.submit(run, group))
+                        active.add(executor.submit(guarded_run, group))
                 except BaseException:
+                    failed.set()
                     for other in active:
                         other.cancel()
+                    if failures and not user_cancel.is_set():
+                        raise failures[0]
                     raise
         return [''.join(values[part] for part in parts) for parts in split]

@@ -181,6 +181,9 @@ def test_stop_during_final_save_keeps_that_success_and_does_not_start_another_le
 
 
 @pytest.mark.parametrize('error', [TranslationProblem('api_key', 'Kiểm tra quyền dịch.'),
+                                 TranslationProblem('api_billing', 'Dự án hết số dư.'),
+                                 TranslationProblem('api_model', 'Model chưa dùng được.'),
+                                 TranslationProblem('api_deployment', 'Apps Script chưa có doPost.'),
                                  StorageProblem('Ổ đĩa chưa đủ chỗ.')])
 def test_global_failure_pauses_without_failing_every_input_and_retry_starts_at_same_file(tmp_path, error):
     calls = []

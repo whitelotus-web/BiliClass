@@ -1,5 +1,6 @@
 """Opt-in cloud adapters. Secrets, caches and local limits never cross providers."""
 
+import http.client
 import json
 import re
 import urllib.error
@@ -7,7 +8,16 @@ import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 
-from .google_translation import _LOCK, KeyStore, TranslationProblem, Translator, _atomic, _crypt, _digest
+from .google_translation import (
+    _LOCK,
+    KeyStore,
+    TranslationProblem,
+    Translator,
+    _atomic,
+    _crypt,
+    _digest,
+    _retry_after,
+)
 
 DEFAULT_MODEL = 'gemini-3.5-flash-lite'
 LIMITS = {'languageapp': 4500, 'gemini': 200_000, 'deepl': 1_000_000}
@@ -151,14 +161,17 @@ def json_request(url, payload, headers, provider, *, script=False):
         code = ('api_billing' if exc.code == 402 else 'api_model' if provider == 'gemini' and exc.code == 404 else
                 'api_key' if exc.code in {401, 403} else 'api_rate' if exc.code == 429 else
                 'api_quota' if exc.code == 456 else 'api_network' if exc.code >= 500 else 'api_request')
+        delay = _retry_after(exc.headers)
         exc.close()
         if code == 'api_billing':
             action = ('Nếu muốn dùng miễn phí, nhập key thuộc dự án Free trong AI Studio; đổi model không tự đổi gói của key hiện tại.' if provider == 'gemini' else 'Kiểm tra gói dịch vụ và số dư của tài khoản đang dùng.')
             raise TranslationProblem(code, LABELS[provider] + ' báo dự án đã hết số dư trả trước (HTTP 402). ' + action + ' BiliClass không tự nạp tiền hoặc bật thanh toán.') from None
         if code == 'api_model':
             raise TranslationProblem(code, 'Gemini không tìm thấy model đã chọn hoặc key chưa được cấp quyền model đó. Kiểm tra tên model trong Google AI Studio, lưu cấu hình rồi thử kết nối.') from None
-        raise TranslationProblem(code, LABELS[provider] + ' chưa nhận yêu cầu. Kiểm tra cấu hình, quyền truy cập, model/ngôn ngữ và hạn mức trong Cài đặt → Dịch thuật.') from None
-    except (urllib.error.URLError, TimeoutError, OSError):
+        message = (LABELS[provider] + ' đang giới hạn tần suất. Chờ một lúc rồi tiếp tục; phần đã dịch được giữ lại.' if code == 'api_rate' else
+                   LABELS[provider] + ' chưa nhận yêu cầu. Kiểm tra cấu hình, quyền truy cập, model/ngôn ngữ và hạn mức trong Cài đặt → Dịch thuật.')
+        raise TranslationProblem(code, message, retry_after=delay) from None
+    except (urllib.error.URLError, TimeoutError, OSError, http.client.HTTPException):
         raise TranslationProblem('api_network', 'Kết nối ' + LABELS[provider] + ' gián đoạn. Phần đã dịch được giữ để tiếp tục.') from None
     except TranslationProblem:
         raise
@@ -176,8 +189,15 @@ def languageapp_request(texts, credential, source, target):
     result = json_request(credential['option'], dict(texts=texts, source=source, target=target,
                           accessCode=credential['key']), {}, 'languageapp', script=True)
     if result.get('error'):
-        code = {'auth': 'api_key', 'quota': 'api_quota', 'rate': 'api_rate', 'request': 'api_request', 'service': 'api_network'}.get(result['error'], 'api_result')
-        raise TranslationProblem(code, 'LanguageApp chưa dịch được. Kiểm tra mã truy cập, bản triển khai và hạn mức tài khoản Google; phần đã xong được giữ lại.')
+        error = result['error']
+        code = {'auth': 'api_key', 'quota': 'api_quota', 'rate': 'api_rate', 'request': 'api_request', 'service': 'api_network'}.get(error, 'api_result') if isinstance(error, str) else 'api_result'
+        problem = TranslationProblem(code, 'LanguageApp chưa dịch được. Kiểm tra mã truy cập, bản triển khai và hạn mức tài khoản Google; phần đã xong được giữ lại.')
+        if 'translations' in result:
+            partial = result['translations']
+            if not isinstance(partial, list) or len(partial) >= len(texts):
+                raise TranslationProblem('api_result', 'LanguageApp trả kết quả dở dang sai cấu trúc; chưa áp dụng kết quả này.')
+            problem.partial_translations = translated_values(partial, len(partial))
+        raise problem
     return translated_values(result.get('translations'), len(texts))
 
 
@@ -209,7 +229,7 @@ def gemini_request(texts, credential, source, target):
         if not isinstance(rows, list) or any(type(row['index']) is not int or row['index'] != i for i, row in enumerate(rows)):
             raise ValueError()
         return translated_values([row['text'] for row in rows], len(texts))
-    except (ValueError, KeyError, IndexError, TypeError):
+    except (ValueError, KeyError, IndexError, TypeError, AttributeError):
         raise TranslationProblem('api_result', 'Gemini chưa trả đủ bản dịch (có thể bị cắt hoặc chặn). Chưa áp dụng kết quả này; phần đã xong được giữ lại.') from None
 
 
@@ -267,6 +287,8 @@ class AlternativeTranslator(Translator):
                          transport or TRANSPORTS[provider], store=store, maximum_budget=LIMITS[provider])
 
     def _send(self, texts, credential, source, target):
+        if _digest(self.provider + '|' + credential['option']) != self.profile:
+            raise TranslationProblem('api_settings', 'URL/model dịch đã đổi trong lúc xử lý. Khôi phục cấu hình cũ để tiếp tục hoặc bắt đầu lượt mới.')
         if source not in {'vi', 'en'} or target not in {'vi', 'en'}:
             raise TranslationProblem('api_settings', 'Chọn hướng dịch Việt–Anh hoặc Anh–Việt.')
         if self.provider in {'gemini', 'deepl'} and getattr(self, 'lesson_context', ''):
@@ -279,6 +301,10 @@ class AlternativeTranslator(Translator):
         # characters; the local guard continues to count translated HTML only.
         context = len(getattr(self, 'lesson_context', '')) if self.provider == 'gemini' else 0
         return len(texts) if self.provider == 'languageapp' else sum(map(len, texts)) + context
+
+    def _payload_size(self, text):
+        # JavaScript .length counts UTF-16 units; emoji need two, not one.
+        return sum(1 + (ord(char) > 0xffff) for char in text) if self.provider == 'languageapp' else len(text)
 
     def _send_repair(self, texts, credential, source, target):
         return self._send(texts, {**credential, 'repair': True} if self.provider == 'gemini' else credential, source, target)

@@ -18,7 +18,8 @@ from PySide6.QtCore import Qt, QUrl
 from .library import Library
 
 MAX_FILES = 100
-GLOBAL_ERRORS = {'storage', 'api_settings', 'api_budget', 'api_key', 'api_rate', 'api_quota', 'api_network'}
+GLOBAL_ERRORS = {'storage', 'api_settings', 'api_budget', 'api_key', 'api_rate', 'api_quota', 'api_network',
+                 'api_billing', 'api_model', 'api_deployment'}
 
 
 def _log_failure(context, error):

@@ -5,6 +5,7 @@ import json
 import tempfile
 from pathlib import Path
 from threading import Event
+from uuid import uuid4
 
 from app.google_translation import TranslationProblem
 from app.translation_knowledge import prepare
@@ -24,6 +25,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--library', required=True)
     parser.add_argument('--live', action='store_true', help='Use configured API credentials and a small amount of service quota')
+    parser.add_argument('--fresh', action='store_true', help='Use a separate probe cache so old successes cannot hide current service errors')
     parser.add_argument('--report', default='reports/rc168-expanded-live-reference/samples.json')
     args = parser.parse_args()
     if not args.live:
@@ -31,6 +33,7 @@ def main():
     report = Path(args.report)
     report.parent.mkdir(parents=True, exist_ok=True)
     rows = []
+    probe_id = uuid4().hex if args.fresh else ''
     with tempfile.TemporaryDirectory(prefix='reference-probe-', dir=report.parent) as temporary:
         for provider in SELECTABLE:
             try:
@@ -49,11 +52,21 @@ def main():
                     from app.google_translation import Translator
 
                     translator = build_translator(args.library, {'translation_provider': provider}, 500_000, Translator)
+                    calls = []
+                    transport = translator.transport
+
+                    def counted(*values):
+                        calls.append(True)
+                        return transport(*values)
+
+                    translator.transport = counted
+                    if probe_id:
+                        translator.cache_namespace += '|live-probe|' + probe_id
                     translator.configure_terms(subject, [])
                     translator.configure_knowledge(plan)
                     translated = translator.translate([heading, text], Event())
                     rows.append(dict(provider=provider, subject=subject, status='translated', source=[heading, text],
-                                     english=translated, reference_terms=len(plan['terms'])))
+                                     english=translated, reference_terms=len(plan['terms']), api_calls=len(calls)))
                 except (TranslationProblem, OSError, ValueError) as exc:
                     rows.append(dict(provider=provider, subject=subject, status='unavailable',
                                      code=getattr(exc, 'code', 'local_configuration')))
