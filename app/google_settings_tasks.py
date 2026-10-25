@@ -1,6 +1,5 @@
 """Disk/key work for Google settings. Run on a worker, publish masked rows only."""
 
-import json
 import os
 import sqlite3
 from contextlib import closing
@@ -120,14 +119,6 @@ def change(directory, operation, values):
             with closing(Library(directory)) as library:
                 library.set_setting('translation_provider', provider)
             return {'state': state, 'error': ''}
-        elif operation == 'knowledge_options':
-            enabled, online = values
-            if type(enabled) is not bool or type(online) is not bool:
-                raise ValueError('Lựa chọn thuật ngữ chưa hợp lệ.')
-            with closing(Library(directory)) as library:
-                with library.db:
-                    library.db.executemany('INSERT INTO settings VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
-                        [('translation_knowledge_enabled', json.dumps(enabled)), ('translation_knowledge_online', json.dumps(online))])
         elif operation in {'azure_save', 'azure_remove', 'azure_recheck'}:
             from .azure_translation import AzureKeyStore
 

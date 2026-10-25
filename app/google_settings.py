@@ -15,7 +15,6 @@ class GoogleSettings(QObject):
     languageSetupRequested = Signal()
     languageSetupPrepared = Signal()
     languageSetupChecked = Signal(bool, str)
-    knowledgeOptionsSaved = Signal(bool)
 
     def __init__(self, bridge):
         super().__init__(bridge)
@@ -126,8 +125,6 @@ class GoogleSettings(QObject):
                 self.azureSaved.emit(success)
             if operation == 'alternative_save':
                 self.alternativeSaved.emit(values[0], success)
-            if operation == 'knowledge_options':
-                self.knowledgeOptionsSaved.emit(success)
             self.bridge.inform(message if success else result['error'], not success, refresh=False)
             if completed:
                 completed(success, message if success else result['error'])
@@ -170,11 +167,6 @@ class GoogleSettings(QObject):
     def saveAlternative(self, provider, secret, option):
         return self._operate('alternative_save', (provider, secret, option),
             'Đã lưu cấu hình dịch. Bấm Thử kết nối để kiểm tra; mã được mã hóa trên tài khoản Windows này.')
-
-    @Slot(bool, bool, result=bool)
-    def saveKnowledgeOptions(self, enabled, online):
-        return self._operate('knowledge_options', (enabled, online),
-            'Đã lưu hỗ trợ thuật ngữ cho bài mới. Bài đang dở giữ cách đối chiếu ban đầu.')
 
     @Slot(str)
     def removeAlternative(self, provider):

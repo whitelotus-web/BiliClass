@@ -9,7 +9,7 @@ import pytest
 from app import alternative_translation as api
 from app import terminology_memory
 from app import translation_knowledge as context
-from app.google_settings_tasks import change, read_state
+from app.google_settings_tasks import read_state
 from app.google_translation import KeyStore, Translator
 from app.library import Library
 from app.school_subjects import CURRICULUM_SUBJECTS
@@ -41,8 +41,8 @@ def test_seed_all_subject_choices_compact_separate_and_idempotent(tmp_path):
     pack = seed_pack()
     assert set(CURRICULUM_SUBJECTS) <= set(SUBJECT_GROUPS)
     assert all(terms_for(subject) for subject in CURRICULUM_SUBJECTS)
-    assert statistics()['concepts'] >= 450
-    assert len(json.dumps(pack, ensure_ascii=False).encode()) < 600_000
+    assert statistics()['concepts'] >= 1100
+    assert len(json.dumps(pack, ensure_ascii=False).encode()) < 1_100_000
     assert not pack['manifest']['contains_full_text']
     assert all(entry['status'] == 'reference_only' for entry in pack['entries'])
     with closing(Library(tmp_path)) as library:
@@ -249,19 +249,22 @@ def test_prompt_bounded_valid_data_and_teacher_terms_win(tmp_path):
     assert context.review(value, [], [])['reused'] == 0
 
 
-def test_choices_saved_and_queue_keeps_original_policy(tmp_path):
+def test_automatic_reference_for_new_work_ignores_old_switches_and_preserves_queued_policy(tmp_path):
     from app.conversion_input import creation_config
     from app.google_conversion import prepare
 
-    with closing(Library(tmp_path)):
-        pass
-    original = snapshot(tmp_path)
-    assert not change(tmp_path, 'knowledge_options', (False, False))['error']
-    assert read_state(tmp_path)['knowledge']['enabled'] is False
-    assert snapshot(tmp_path)['translation_knowledge_version'] == 0
-    job = prepare(tmp_path, {**creation_config('Bài mới', 'Toán', 'THPT', '11', 'parallel_columns', 'standard', 'template'), **original}, text='đa thức')
-    assert job['config']['translation_knowledge_version'] == 1 and job['config']['translation_knowledge_online'] is True
-    assert change(tmp_path, 'knowledge_options', ('true', True))['error']
+    with closing(Library(tmp_path)) as library:
+        library.set_setting('translation_knowledge_enabled', False)
+        library.set_setting('translation_knowledge_online', False)
+    assert read_state(tmp_path)['knowledge']['enabled'] is True
+    assert snapshot(tmp_path)['translation_knowledge_version'] == 1
+    assert snapshot(tmp_path)['translation_knowledge_online'] is True
+    settings = creation_config('Bài mới', 'Toán', 'THPT', '11', 'parallel_columns', 'standard', 'template')
+    new = prepare(tmp_path, settings, text='đa thức')
+    assert new['config']['translation_knowledge_version'] == 1 and new['config']['translation_knowledge_online'] is True
+    pinned = dict(translation_knowledge_version=0, translation_knowledge_online=False)
+    old = prepare(tmp_path, {**settings, **pinned}, text='đa thức')
+    assert old['config']['translation_knowledge_version'] == 0 and old['config']['translation_knowledge_online'] is False
 
 
 def test_gemini_and_deepl_send_context_as_supported_fields(monkeypatch):
@@ -317,3 +320,165 @@ def test_cancel_before_prepare_does_not_create_context(tmp_path):
     with pytest.raises(InterruptedError):
         context.prepare(tmp_path, tmp_path, config(), [], cancel)
     assert not (tmp_path / 'terminology-context.json').exists()
+
+
+def test_all_groups_expanded_and_all_subjects_have_reference_domains():
+    from app.terminology_lookup import domain_markers
+    from app.terminology_seed import GROUPS, vocabulary
+    from app.terminology_seed_extra import EXTRA
+
+    assert set(EXTRA) == set(GROUPS)
+    for group, text in EXTRA.items():
+        assert len([row for row in text.replace('\n', ';').split(';') if row.strip()]) >= 20
+        assert len(vocabulary()[group]) > len([row for row in GROUPS[group][1].replace('\n', ';').split(';') if row.strip()])
+    assert all(domain_markers(subject) for subject in SUBJECT_GROUPS)
+    assert not domain_markers('Môn tùy biến chưa xác định')
+    assert 'chem' in domain_markers('Khoa học tự nhiên')
+    assert 'music' in domain_markers('Nghệ thuật')
+
+
+@pytest.mark.parametrize('subject,vi,en', [
+    ('Toán', 'phép tịnh tiến', 'translation'), ('Sinh học', 'dịch mã', 'translation'),
+    ('Vật lý', 'hiệu suất', 'efficiency'), ('Hóa học', 'điện phân', 'electrolysis'),
+    ('Tin học', 'xác thực', 'authentication'), ('Công nghệ', 'cảm biến', 'sensor'),
+    ('Lịch sử', 'tư liệu gốc', 'primary source'), ('Địa lí', 'múi giờ', 'time zone'),
+    ('Ngữ văn', 'độc thoại', 'monologue'), ('Tiếng Việt', 'từ đồng nghĩa', 'synonym'),
+    ('Ngoại ngữ 2', 'danh động từ', 'gerund'), ('Tiếng dân tộc thiểu số', 'ngữ cảnh', 'context'),
+    ('Âm nhạc', 'hợp âm ba', 'triad'), ('Mĩ thuật', 'phối cảnh một điểm tụ', 'one-point perspective'),
+    ('Giáo dục công dân', 'đồng cảm', 'empathy'), ('Đạo đức', 'tự trọng', 'self-respect'),
+    ('Giáo dục kinh tế và pháp luật', 'chi phí cơ hội', 'opportunity cost'),
+    ('Giáo dục thể chất', 'phát cầu', 'badminton serve'),
+    ('Hoạt động trải nghiệm', 'tư duy phản biện', 'critical thinking'),
+    ('Hoạt động trải nghiệm, hướng nghiệp', 'đào tạo nghề', 'vocational training'),
+    ('Nội dung giáo dục của địa phương', 'di sản tư liệu', 'documentary heritage'),
+    ('Giáo dục quốc phòng và an ninh', 'phòng thủ dân sự', 'civil defense'),
+    ('Khoa học tự nhiên', 'thẩm thấu', 'osmosis'), ('Tự nhiên và Xã hội', 'kính lúp', 'magnifying glass'),
+    ('Tin học và Công nghệ', 'cầu chì', 'fuse'), ('Lịch sử và Địa lí', 'phong hóa', 'weathering'),
+    ('Nghệ thuật', 'tranh màu nước', 'watercolor painting'),
+])
+def test_extended_reference_is_subject_scoped_and_heading_only(subject, vi, en):
+    policy = TermPolicy(subject, references=terms_for(subject))
+    assert policy.exact(vi) == en
+    assert vi not in policy.matches('Tìm hiểu về ' + vi + ' trong bài học.')
+
+
+def test_seed_upgrade_preserves_teacher_terms_and_lessons(tmp_path):
+    old = seed_pack()
+    old['manifest']['version'] = '2026.10.25.1'
+    old['entries'] = old['entries'][:20]
+    with closing(Library(tmp_path)) as library:
+        library.install_knowledge_pack(old)
+        library.save_term('Toán', 'cực trị', 'Teacher wording', True)
+        lesson = add_pair(library, 'Cho một hình tứ diện.', 'Consider a tetrahedron.')
+        assert ensure_seed(library)
+        assert library.get(lesson['id']) == lesson
+        assert library.glossary('Toán')[0]['en'] == 'Teacher wording'
+        assert library.knowledge_stats()['entries'] == statistics()['entries']
+        assert not ensure_seed(library)
+
+
+def test_new_lessons_learn_past_cached_first_items_without_extra_calls(tmp_path):
+    texts = ('đồng cấu nhóm', 'không gian vectơ', 'vành giao hoán', 'nhóm đối xứng',
+             'ánh xạ tuyến tính', 'đại số tuyến tính', 'dạng song tuyến tính')
+    calls = []
+    def resolve(term, subject, *_a, **_k):
+        calls.append(term)
+        return reference(term, subject)
+    first = plan(tmp_path, texts, online=True, resolver=resolve, source_sha256='lesson1')
+    assert len(calls) == first['new_lookups'] == first['new_references'] == 3
+    assert first['deferred'] and first['cached_references'] == 0
+    second = plan(tmp_path, texts, online=True, resolver=resolve, source_sha256='lesson2')
+    assert second['new_lookups'] == 3 and second['cached_references'] == 3
+    assert len(second['hints']) == 6 and calls[:3] == list(texts[:3])
+    assert len(calls) == len(set(calls))
+    # Same job resumes with its frozen state, rather than spending new requests.
+    assert plan(tmp_path, texts, online=True, resolver=lambda *_a, **_k: pytest.fail('Unexpected refresh'),
+                source_sha256='lesson2') == second
+    third = plan(tmp_path, texts, online=True, resolver=resolve, source_sha256='lesson3')
+    assert third['new_lookups'] <= 3 and third['cached_references'] == 6
+    assert len(third['hints']) >= 7 and len(calls) == len(set(calls))
+
+
+def test_known_misses_do_not_spend_lookup_allowance_again(tmp_path):
+    texts = ('đồng cấu nhóm', 'không gian vectơ', 'vành giao hoán', 'nhóm đối xứng')
+    calls = []
+    def resolve(term, *_a, **_k):
+        calls.append(term)
+        return None
+    first = plan(tmp_path, texts, online=True, resolver=resolve, source_sha256='lesson1')
+    second = plan(tmp_path, texts, online=True, resolver=resolve, source_sha256='lesson2')
+    assert first['new_lookups'] == 3 and second['new_lookups'] == 1
+    assert len(calls) == 4 and not second['deferred']
+    assert not second['hints'] and len(second['unresolved']) == 4
+
+
+def test_new_contextual_hints_are_not_crowded_out_by_seed_terms(tmp_path):
+    value = plan(tmp_path, ('; '.join(row['vi'] for row in terms_for('Toán')),))
+    value['hints'] = [reference()]
+    assert len(value['terms']) >= 24
+    assert json.loads(context.prompt_context(value))['reference_terms'][0]['vi'] == 'đồng cấu nhóm'
+
+
+@pytest.mark.parametrize('provider', ['google', 'languageapp', 'gemini', 'deepl'])
+@pytest.mark.parametrize('repair_succeeds', [True, False])
+def test_automatic_language_repair_is_bounded_and_keeps_valid_chunks(tmp_path, provider, repair_succeeds):
+    from app.alternative_translation import DEFAULT_MODEL, AlternativeStore, AlternativeTranslator
+    from app.google_translation import TranslationProblem
+
+    source = 'Nội dung của bài học được trình bày trong các ví dụ.'
+    good_source = 'Đây là ví dụ.'
+    calls = []
+    def transport(texts, credential, *_a):
+        calls.append((list(texts), credential))
+        return [('This is an example.' if 'Đây' in text else
+                 'The lesson content is presented through examples.' if len(calls) > 1 and repair_succeeds else
+                 'Content của bài học được trình bày trong các ví dụ.') for text in texts]
+    if provider == 'google':
+        KeyStore(tmp_path).add('AIza' + 'a'*35)
+        translator = Translator(tmp_path, transport=transport)
+    else:
+        option = ('https://script.google.com/macros/s/' + 'x'*30 + '/exec' if provider == 'languageapp' else
+                  DEFAULT_MODEL if provider == 'gemini' else 'developer')
+        AlternativeStore(tmp_path, provider).configure('a'*32, option)
+        translator = AlternativeTranslator(tmp_path, provider, transport=transport)
+    translator.configure_knowledge(plan(tmp_path, (source, good_source)))
+    if repair_succeeds:
+        assert translator.translate([source, good_source], Event()) == [
+            'The lesson content is presented through examples.', 'This is an example.']
+    else:
+        with pytest.raises(TranslationProblem, match='tiếng Việt'):
+            translator.translate([source, good_source], Event())
+    assert [len(texts) for texts, _ in calls] == [2, 1]
+    assert translator.translate([good_source], Event()) == ['This is an example.']
+    assert len(calls) == 2
+    if provider == 'gemini':
+        assert calls[1][1]['repair'] is True
+
+
+def test_language_guard_ignores_names_and_protected_vietnamese():
+    from app.google_translation import _protected_text, protected_html
+    from app.translation_quality import untranslated_prose
+
+    assert untranslated_prose('Probability có điều kiện mô tả khả năng xảy ra của một biến cố.')
+    assert not untranslated_prose('Nguyễn Văn An and Đà Nẵng are names in the source.')
+    payload, _ = protected_html('The phrase được giữ nguyên trong bài remains unchanged.',
+                                 {'được giữ nguyên trong bài': 'được giữ nguyên trong bài'})
+    assert not untranslated_prose(_protected_text(payload))
+    assert not untranslated_prose('Cells use RNA to synthesise proteins during translation.')
+
+
+def test_biology_countable_nouns_keep_heading_but_allow_sentence_inflection():
+    policy = TermPolicy('Sinh học')
+    assert policy.exact('tế bào') == 'cell'
+    assert 'tế bào' not in policy.matches('Tế bào sử dụng thông tin trên RNA.')
+    teacher = TermPolicy('Sinh học', [dict(vi='tế bào', en='custom cell', subject='Sinh học', locked=True)])
+    assert teacher.matches('Tế bào sử dụng RNA.')['tế bào'] == 'custom cell'
+
+
+def test_specific_reference_phrase_does_not_freeze_generic_inner_noun():
+    source = 'Xác suất có điều kiện mô tả khả năng xảy ra của một biến cố.'
+    policy = TermPolicy('Toán', references=terms_for('Toán'))
+    assert 'xác suất' not in policy.matches(source)
+    assert policy.exact('Xác suất có điều kiện') == 'conditional probability'
+    teacher = TermPolicy('Toán', [dict(vi='xác suất', en='teacher probability', subject='Toán', locked=True)], terms_for('Toán'))
+    assert teacher.matches(source)['xác suất'] == 'teacher probability'

@@ -6,24 +6,26 @@ References support the subject terminology; they do not certify each translation
 """
 
 import hashlib
+import unicodedata
 from functools import lru_cache
 
 from .subject_terms import subject_key
+from .terminology_seed_extra import EXTRA
 
-VERSION = '2026.10.25.1'
+VERSION = '2026.10.25.2'
 PACK_ID = 'biliclass-school-terminology'
 CURRICULUM_URL = 'https://congbao.chinhphu.vn/van-ban/thong-tu-so-17-2025-tt-bgddt-46255.htm'
 
 # Primary publishers and educational institutions. No downloaded textbook text.
 SOURCES = {
     'math': ('OpenStax · Algebra and Trigonometry', 'OpenStax, Rice University',
-             'https://openstax.org/books/algebra-and-trigonometry-2e/pages/1-key-terms'),
+             'https://openstax.org/books/algebra-and-trigonometry-2e/pages/index'),
     'physics': ('OpenStax · Physics', 'OpenStax, Rice University',
-                'https://openstax.org/books/physics/pages/1-key-terms'),
+                'https://openstax.org/books/physics/pages/index'),
     'chemistry': ('OpenStax · Chemistry 2e', 'OpenStax, Rice University',
-                  'https://openstax.org/books/chemistry-2e/pages/1-key-terms'),
+                  'https://openstax.org/books/chemistry-2e/pages/index'),
     'biology': ('OpenStax · Biology 2e', 'OpenStax, Rice University',
-                'https://openstax.org/books/biology-2e/pages/1-key-terms'),
+                'https://openstax.org/books/biology-2e/pages/index'),
     'computing': ('NIST · Computer Security Resource Center Glossary', 'NIST',
                   'https://csrc.nist.gov/glossary'),
     'technology': ('OpenStax · Physics · applications', 'OpenStax, Rice University',
@@ -44,7 +46,7 @@ SOURCES = {
     'citizenship': ('UNESCO · Global citizenship and peace education', 'UNESCO',
                     'https://www.unesco.org/en/global-citizenship-peace-education'),
     'economics': ('OpenStax · Principles of Economics 3e', 'OpenStax, Rice University',
-                  'https://openstax.org/books/principles-economics-3e/pages/1-key-terms'),
+                  'https://openstax.org/books/principles-economics-3e/pages/index'),
     'health': ('WHO · Physical activity', 'World Health Organization',
                'https://www.who.int/news-room/fact-sheets/detail/physical-activity'),
     'heritage': ('UNESCO · What is intangible cultural heritage?', 'UNESCO',
@@ -278,7 +280,12 @@ SUBJECT_GROUPS = {
 def vocabulary():
     groups = {}
     for key, (_, text) in GROUPS.items():
+        text += '\n' + EXTRA.get(key, '')
         pairs = [pair.strip() for pair in text.replace('\n', ';').split(';') if pair.strip()]
+        if any(pair.count('|') != 1 or not all(part.strip() for part in pair.split('|')) for pair in pairs):
+            raise ValueError('Cặp thuật ngữ nền chưa hợp lệ: ' + key)
+        if len({' '.join(unicodedata.normalize('NFC', pair.split('|')[0]).casefold().split()) for pair in pairs}) != len(pairs):
+            raise ValueError('Thuật ngữ nền trùng trong cùng nhóm: ' + key)
         groups[key] = [dict(vi=pair.split('|')[0], en=pair.split('|')[1], source=key) for pair in pairs]
     return groups
 
@@ -294,7 +301,8 @@ def terms_for(subject):
 
 def statistics():
     return dict(version=VERSION, subjects=len(SUBJECT_GROUPS), concepts=sum(len(rows) for rows in vocabulary().values()),
-                entries=sum(len(terms_for(subject)) for subject in SUBJECT_GROUPS))
+                entries=sum(len(terms_for(subject)) for subject in SUBJECT_GROUPS),
+                groups={key: len(rows) for key, rows in vocabulary().items()})
 
 
 def seed_pack():

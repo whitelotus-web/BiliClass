@@ -39,6 +39,8 @@ def main():
     with tempfile.TemporaryDirectory(prefix='bcl-provider-', ignore_cleanup_errors=True) as temporary:
         directory = Path(temporary)
         library = Library(directory / 'data')
+        library.set_setting('translation_knowledge_enabled', False)  # Old UI preferences no longer control new work.
+        library.set_setting('translation_knowledge_online', False)
         KeyStore(library.directory).add('AIza' + 'x' * 35)
         google_file = library.directory / 'translation_api/keys.dpapi'
         original_google = google_file.read_bytes()
@@ -72,14 +74,15 @@ def main():
             c('settingsPage').setProperty('activeTab', 6)
             pump(100)
             assert c('translationProviderGoogle').property('checked')
-            assert c('translationKnowledgeEnabled').property('checked')
-            assert c('translationKnowledgeOnline').property('checked')
+            for removed in ('translationKnowledgeCard', 'translationKnowledgeEnabled', 'translationKnowledgeOnline', 'saveTranslationKnowledge'):
+                try:
+                    c(removed)
+                except AssertionError:
+                    continue
+                raise AssertionError('Automatic references must not require a UI choice: ' + removed)
             assert library.knowledge_stats()['entries'] >= 1195
-            click(window, c('translationKnowledgeOnline'))
-            click(window, c('saveTranslationKnowledge'))
-            until(lambda: not bridge.busy)
             assert bridge.googleSettings.state['knowledge']['enabled']
-            assert not bridge.googleSettings.state['knowledge']['online']
+            assert bridge.googleSettings.state['knowledge']['online']
             for theme in ('light', 'dark'):
                 bridge.setApplicationTheme(theme)
                 pump(120)
@@ -213,15 +216,14 @@ def main():
                 sources.append(path)
             source_hashes = [hashlib.sha256(path.read_bytes()).hexdigest() for path in sources]
             assert bridge.batchQueue.selectFiles('convert', [path.as_uri() for path in sources])
-            with patch.object(AlternativeTranslator, '_send', fixture):
+            with patch('app.translation_knowledge.lookup', return_value=None), patch.object(AlternativeTranslator, '_send', fixture):
                 bridge.batchQueue.startConversion(dict(subject='Vật lý', education='THPT', grade='11',
                     format='parallel_columns', preset='standard', style='template'))
                 until(entered.is_set, timeout=60)
                 assert bridge.batchQueue.running
                 assert bridge.batchQueue.state['options']['translation_provider'] == 'languageapp'
                 assert bridge.batchQueue.state['options']['translation_knowledge_version'] == 1
-                assert bridge.batchQueue.state['options']['translation_knowledge_online'] is False
-                assert not bridge.googleSettings.saveKnowledgeOptions(False, True)
+                assert bridge.batchQueue.state['options']['translation_knowledge_online'] is True
                 assert not bridge.googleSettings.chooseProvider('google'), 'Provider switched during work'
                 bridge.batchQueue.stop()
                 release.set()
@@ -231,9 +233,6 @@ def main():
                 until(lambda: not bridge.busy)
                 assert bridge.googleSettings.state['provider'] == 'google'
                 assert bridge.batchQueue.state['options']['translation_provider'] == 'languageapp'
-                assert bridge.googleSettings.saveKnowledgeOptions(False, True)
-                until(lambda: not bridge.busy)
-                assert not bridge.googleSettings.state['knowledge']['enabled']
                 bridge.batchQueue.resume()
                 until(lambda: not bridge.busy and not bridge.batchQueue.running, timeout=180)
             state = bridge.batchQueue.state
@@ -241,7 +240,7 @@ def main():
             for row in state['rows']:
                 pinned = load(library.directory, row['folder'])['config']
                 assert pinned['translation_provider'] == 'languageapp'
-                assert pinned['translation_knowledge_version'] == 1 and pinned['translation_knowledge_online'] is False
+                assert pinned['translation_knowledge_version'] == 1 and pinned['translation_knowledge_online'] is True
                 lesson = library.get(row['lesson_id'])
                 assert lesson['external_deck']['translation_provider'] == 'languageapp'
                 assert lesson['external_deck']['terminology_review']['terms'] > 0
@@ -260,7 +259,8 @@ def main():
                         'first-time setup creates a private ready-to-paste script; invalid URL, doPost failure and retry success',
                         'light/dark at 1080 and 1366; zero QML warnings',
                         'provider cannot change while work runs',
-                        'reference settings save in Qt; queued reference policy survives Settings change and stop/resume',
+                        'reference layer runs automatically without UI switches; old disabled preferences do not disable new work',
+                        'queued reference policy survives provider change and stop/resume',
                         'reference summary bound to final PowerPoint; no automatic semantic approval',
                         'two real PPTX inputs; stop/resume pins LanguageApp after Settings selects Google',
                         'completion retained; no Google usage; source PPTX unchanged'], qml_warnings=warnings)

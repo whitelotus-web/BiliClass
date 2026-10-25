@@ -67,6 +67,11 @@ class TermPolicy:
             if row.get('status') == 'curated_reference' and row.get('vi') and row.get('en'):
                 self.terms.setdefault(normalized(row['vi']), row['en'])
         reference_only = set(self.terms) - original_terms
+        # A longer contextual phrase ("xác suất có điều kiện") must not have
+        # its generic inner noun ("xác suất") frozen separately. The provider
+        # needs the complete phrase to choose natural English word order.
+        context_terms = sorted((term for term in reference_only if ' ' in term), key=lambda term: (-len(term), term))
+        self.context_pattern = re.compile(r'(?<!\w)(?:' + '|'.join(re.escape(term) for term in context_terms) + r')(?!\w)', re.I) if context_terms else None
         teacher_terms = {vi: next(iter(targets)) for vi, targets in candidates.items() if len(targets) == 1}
         self.terms.update(teacher_terms)
         self.teacher_terms = teacher_terms
@@ -85,12 +90,24 @@ class TermPolicy:
         # Keep noun definitions exact-only; teachers' explicit locks still win.
         inline_defaults = self.identity_terms | {'cộng hóa trị'} if self.subject == 'hoa hoc' else {
             vi for vi in self.terms if ' ' in vi and vi not in reference_only} | self.identity_terms
+        if self.subject == 'sinh hoc':
+            # Live Google/LanguageApp returned "Cell use ..." because the
+            # immutable singular noun prevented the model choosing "Cells".
+            inline_defaults -= {'tế bào', 'màng sinh chất', 'nhân tế bào', 'nhiễm sắc thể',
+                                'hệ sinh thái', 'quần thể', 'quần xã'}
         self.inline_terms = {vi:en for vi,en in self.terms.items() if vi in teacher_terms or vi in inline_defaults}
         variants = {variant for term in self.inline_terms for variant in (term, term.replace('hóa','hoá'))}
         self.pattern = re.compile(r'(?<!\w)(?:' + '|'.join(re.escape(t) for t in sorted(variants, key=lambda t:(-len(t),t))) + r')(?!\w)', re.I) if variants else None
 
     def matches(self, text):
-        matches = {normalized(m.group()): self.inline_terms[normalized(m.group())] for m in self.pattern.finditer(unicodedata.normalize('NFC', text))} if self.pattern else {}
+        text = unicodedata.normalize('NFC', text)
+        contexts = [match.span() for match in self.context_pattern.finditer(text)] if self.context_pattern else []
+        matches = {}
+        for match in self.pattern.finditer(text) if self.pattern else ():
+            term = normalized(match.group())
+            if term not in self.teacher_terms and any(start <= match.start() and match.end() <= end for start, end in contexts):
+                continue
+            matches[term] = self.inline_terms[term]
         heading = numbered_heading(text)
         if heading and not any(normalized(heading[0]) in term for term in matches):
             matches[normalized(heading[0])] = heading[1]

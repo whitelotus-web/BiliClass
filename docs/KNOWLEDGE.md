@@ -2,10 +2,10 @@
 
 **Cập nhật RC168:** luồng chuyển đổi qua dịch vụ dịch có thêm
 [kho thuật ngữ theo môn và tra cứu tham khảo tự động](TRANSLATION_KNOWLEDGE_RC168.md).
-Kho mới có 495 khái niệm, 1.195 mục theo môn; đây là tham chiếu BiliClass biên
+Kho mở rộng có 1.152 khái niệm, 2.774 mục theo môn; đây là tham chiếu BiliClass biên
 soạn, không phải từ điển chính thức của Bộ. Các mô tả bên dưới là kho nền và
 luồng tra cứu cũ; phần tra cứu trực tiếp mới chỉ hoạt động trong lớp bổ sung
-RC168 khi bật lựa chọn tương ứng.
+RC168 và tự hoạt động khi bài mới cần đối chiếu thêm.
 
 Trang **Kho kiến thức** hoạt động offline, có tìm kiếm, lọc môn/cấp, nguồn gốc và nhập gói `.biliknowledge`. Gói tích hợp đầu tiên có 26 mục tra cứu và 4 nguồn tham khảo chính thức. Đây là gói khởi đầu về thuật ngữ giáo dục/danh mục môn THPT, chưa phải kho kiến thức đầy đủ cho mọi môn.
 

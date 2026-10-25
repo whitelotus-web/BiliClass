@@ -1,7 +1,7 @@
 """Select source-backed lesson context once, then freeze it for stop/resume.
 
-The reference layer is optional and never turns a machine answer into approved
-knowledge. Existing jobs without this version marker retain their old behavior.
+New work prepares references automatically in the background. It never turns a
+machine answer into approved knowledge. Existing jobs retain their old behavior.
 """
 
 import hashlib
@@ -20,19 +20,13 @@ from .terminology_memory import Memory
 from .terminology_seed import GROUPS, VERSION, terms_for, vocabulary
 
 MODE_VERSION = 1
+MAX_CANDIDATES = 12
+MAX_LOOKUPS = 3
 _MAX_TEXT = 180_000
 _FINGERPRINT_FIELDS = ('version', 'seed_version', 'subject', 'grade', 'title', 'terms', 'hints', 'memory')
 _STOP = {'các', 'những', 'một', 'hai', 'ba', 'của', 'được', 'trong', 'trên', 'dưới', 'theo', 'bằng',
          'cho', 'hãy', 'nêu', 'và', 'với', 'là', 'có', 'khi', 'nếu', 'thì', 'nào', 'tại', 'sao', 'bao',
          'bài', 'tập', 'câu', 'hỏi', 'hoạt', 'động', 'hướng', 'dẫn', 'bỏ', 'qua', 'việt', 'anh'}
-
-
-def options(library):
-    def boolean(name, default):
-        value = library.setting(name, default)
-        return value if type(value) is bool else default
-    return dict(translation_knowledge_version=MODE_VERSION if boolean('translation_knowledge_enabled', True) else 0,
-                translation_knowledge_online=boolean('translation_knowledge_online', True))
 
 
 def _key(text):
@@ -60,6 +54,12 @@ def _frozen_valid(plan, signature):
         return False
     if any(name not in plan for name in _FINGERPRINT_FIELDS):
         return False
+    for name, maximum in (('new_lookups', MAX_LOOKUPS), ('new_references', MAX_LOOKUPS), ('cached_references', MAX_CANDIDATES)):
+        if type(plan.get(name, 0)) is not int or not 0 <= plan.get(name, 0) <= maximum:
+            return False
+    deferred = plan.get('deferred', [])
+    if not isinstance(deferred, list) or len(deferred) > MAX_CANDIDATES or any(not isinstance(term, str) or len(term) > 100 for term in deferred):
+        return False
     if (not all(isinstance(plan.get(name), str) and len(plan[name]) <= maximum for name, maximum in
                 (('subject', 120), ('grade', 80), ('title', 160), ('seed_version', 40)))
             or type(plan.get('inferred')) is not bool or type(plan.get('online')) is not bool
@@ -67,7 +67,7 @@ def _frozen_valid(plan, signature):
         return False
     if plan.get('fingerprint') != _digest({key: plan[key] for key in _FINGERPRINT_FIELDS}):
         return False
-    if not isinstance(plan['terms'], list) or len(plan['terms']) > 96 or not isinstance(plan['hints'], list) or len(plan['hints']) > 3:
+    if not isinstance(plan['terms'], list) or len(plan['terms']) > 96 or not isinstance(plan['hints'], list) or len(plan['hints']) > MAX_CANDIDATES:
         return False
     allowed = terms_for(plan['subject'])
     if any(row not in allowed for row in plan['terms']):
@@ -77,7 +77,7 @@ def _frozen_valid(plan, signature):
     memory = plan['memory']
     return (isinstance(memory, dict) and len(memory) <= 64
             and all(valid_memory(vi, en) for vi, en in memory.items())
-            and isinstance(plan.get('unresolved'), list) and len(plan['unresolved']) <= 3
+            and isinstance(plan.get('unresolved'), list) and len(plan['unresolved']) <= MAX_CANDIDATES
             and all(isinstance(term, str) and len(term) <= 100 for term in plan['unresolved'])
             and isinstance(plan.get('warnings'), list) and len(plan['warnings']) <= 3
             and all(isinstance(warning, str) and len(warning) <= 300 for warning in plan['warnings'])
@@ -107,7 +107,7 @@ def infer_subject(text):
     return scores[0][1] if scores[0][0] >= 3 and scores[0][0] >= scores[1][0] + 2 else ''
 
 
-def candidates(rows, known):
+def candidates(rows, known, maximum=MAX_CANDIDATES):
     headings, fragments = [], Counter()
     for row in rows[:1000]:
         for line in row.get('text', '').splitlines():
@@ -128,9 +128,11 @@ def candidates(rows, known):
     ordered = headings + [term for term, count in fragments.most_common(24) if count >= 2]
     result = []
     for term in ordered:
-        if term not in result and not any(term in word or word in term for word in known):
+        # A more specific concept may contain a known noun ("vector space"
+        # contains "vector"). Only discard fragments of an already-known term.
+        if term not in result and not any(_contains(_key(word), term) for word in known):
             result.append(term)
-    return result[:3]
+    return result[:maximum]
 
 
 def _approved_memory(library, subject, grade, texts):
@@ -142,12 +144,16 @@ def _approved_memory(library, subject, grade, texts):
                        if subject_key(name) == subject_key(subject)]}
     condition = 'grade=? AND subject IN (' + ','.join('?' for _ in names) + ')'
     parameters = (grade, *sorted(names))
-    count, size = library.db.execute('SELECT COUNT(*),COALESCE(SUM(length(CAST(content AS BLOB))),0) FROM lessons WHERE ' + condition,
-                                     parameters).fetchone()
+    count = library.db.execute('SELECT COUNT(*) FROM lessons WHERE ' + condition, parameters).fetchone()[0]
     # Do not read an unbounded personal library or ignore older conflicting
     # approvals. Large scopes simply fall back to the reference glossary.
-    if count > 100 or size > 8 * 1024**2:
+    if count > 100:
         return found
+    size = 0
+    for row in library.db.execute('SELECT length(CAST(content AS BLOB)) FROM lessons WHERE ' + condition, parameters):
+        size += row[0]
+        if size > 8 * 1024**2:
+            return found
     rows = library.db.execute('SELECT subject,grade,content FROM lessons WHERE ' + condition + ' ORDER BY updated_at DESC', parameters)
     for row in rows:
         if subject_key(row['subject']) != subject_key(subject) or row['grade'] != grade:
@@ -155,7 +161,7 @@ def _approved_memory(library, subject, grade, texts):
         lesson = json.loads(row['content'])
         if not isinstance(lesson, dict) or lesson.get('deleted_at') or not isinstance(lesson.get('segments', []), list):
             continue
-        for segment in lesson.get('segments', [])[:1000]:
+        for segment in lesson.get('segments', []):
             if not isinstance(segment, dict):
                 continue
             vi, en = segment.get('vi', ''), segment.get('en', '')
@@ -205,7 +211,8 @@ def prepare(directory, folder, config, rows, cancel, progress=None, *, resolver=
     plan = dict(version=MODE_VERSION, seed_version=VERSION, signature=signature, subject=subject,
                 selected_subject=config.get('subject', ''), inferred=bool(inferred), grade=config.get('grade', ''),
                 title=config.get('title', '')[:160], terms=selected, hints=[], unresolved=[], memory={},
-                online=bool(config.get('translation_knowledge_online')), online_status='disabled', warnings=[])
+                online=bool(config.get('translation_knowledge_online')), online_status='disabled', warnings=[],
+                new_lookups=0, cached_references=0, new_references=0, deferred=[])
     from .library import Library
 
     try:
@@ -228,12 +235,18 @@ def prepare(directory, folder, config, rows, cancel, progress=None, *, resolver=
                 if record and record.get('status') == 'online_reference' and not valid_reference(record, term, subject):
                     record = None
                 if record is None:
-                    if time.monotonic() >= deadline:
+                    if time.monotonic() >= deadline or plan['new_lookups'] >= MAX_LOOKUPS:
                         plan['online_status'] = 'limited'
-                        break
+                        plan['deferred'].append(term)
+                        continue  # Cached items later in the lesson are still useful.
+                    plan['new_lookups'] += 1
                     record = resolver(term, subject, cancel, deadline=deadline)
                     record = record if valid_reference(record, term, subject) else dict(vi=term, en='', status='unresolved')
                     memory.remember(subject, term, record)
+                    if record['status'] == 'online_reference':
+                        plan['new_references'] += 1
+                elif record.get('status') == 'online_reference':
+                    plan['cached_references'] += 1
                 if record.get('status') == 'online_reference':
                     plan['hints'].append(record)
                 else:
@@ -258,7 +271,8 @@ def prepare(directory, folder, config, rows, cancel, progress=None, *, resolver=
     try:
         Memory(directory).record_lesson(config.get('request_id', signature), subject,
             dict(seed_version=VERSION, terms=[row['vi'] for row in selected[:40]],
-                 references=len(plan['hints']), unresolved=len(plan['unresolved']), approved_matched=len(plan['memory'])))
+                 references=len(plan['hints']), unresolved=len(plan['unresolved']), approved_matched=len(plan['memory']),
+                 new_references=plan['new_references'], new_lookups=plan['new_lookups'], deferred=len(plan['deferred'])))
     except (OSError, ValueError, sqlite3.DatabaseError):
         pass
     return plan
@@ -269,7 +283,9 @@ def prompt_context(plan):
     if not plan:
         return ''
     value = dict(subject=plan['subject'][:120], grade=plan['grade'][:80], title=plan['title'][:160], reference_terms=[])
-    for row in [*plan['terms'], *plan['hints']][:24]:
+    # Novel subject-matched references must not be crowded out by common seed
+    # headings. They remain contextual data, never hard translation locks.
+    for row in [*plan['hints'], *plan['terms']][:24]:
         pair = dict(vi=row['vi'], en=row['en'])
         value['reference_terms'].append(pair)
         if len(json.dumps(value, ensure_ascii=False)) > 5500:
@@ -298,6 +314,8 @@ def review(plan, rows, translations, *, memory_used=()):
     return dict(version=MODE_VERSION, seed_version=plan['seed_version'], subject=plan['subject'],
                 inferred=plan['inferred'], summary=_summary(plan, reused), terms=len(plan['terms']),
                 references=len(plan['hints']), reused=reused, memory_matches=len(plan['memory']), online_status=plan['online_status'],
+                new_lookups=plan.get('new_lookups', 0), new_references=plan.get('new_references', 0),
+                cached_references=plan.get('cached_references', 0), deferred=len(plan.get('deferred', [])),
                 unresolved=plan['unresolved'][:3], warnings=plan['warnings'], concerns=concerns[:12],
                 sources=list(dict.fromkeys(row['source_url'] for row in [*plan['terms'], *plan['hints']]))[:20],
                 scope='Đối chiếu thuật ngữ và dấu hiệu thiếu nội dung; chưa xác minh toàn bộ ý nghĩa hoặc đáp án.')

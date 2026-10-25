@@ -26,7 +26,7 @@ from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
 from PySide6.QtTest import QTest
 
-from app import google_conversion
+from app import google_conversion, translation_knowledge
 from app.branding import configure_application
 from app.google_translation import Translator
 from app.library import Library
@@ -66,6 +66,7 @@ def transport(texts, key, source, target):
 
 
 google_conversion.Translator = lambda directory, budget: Translator(directory, budget, transport=transport)
+translation_knowledge.lookup = lambda *_args, **_kwargs: None  # Automatic reference layer stays offline in this fixture.
 with tempfile.TemporaryDirectory(prefix='biliclass-google-ui-', ignore_cleanup_errors=True) as directory:
     directory = Path(directory)
     source = directory / 'source.pptx'
@@ -82,7 +83,6 @@ with tempfile.TemporaryDirectory(prefix='biliclass-google-ui-', ignore_cleanup_e
             box.text_frame.paragraphs[0].font.name = 'Arial'
     deck.save(source)
     library = Library(directory / 'library')
-    library.set_setting('translation_knowledge_online', False)  # Fixture only; no reference HTTP.
     library.set_setting('chatgpt_request_folder', 'old-browser-job-must-not-run')
     bridge = Bridge(library)
     bridge._browser_ai.signIn = lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError('Browser must stay disabled'))

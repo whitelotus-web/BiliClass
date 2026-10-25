@@ -463,6 +463,9 @@ class Translator:
     def _send(self, texts, credential, source, target):
         return self.transport(texts, credential['key'], source, target)
 
+    def _send_repair(self, texts, credential, source, target):
+        return self._send(texts, credential, source, target)
+
     def _request_cost(self, texts):
         return sum(map(len, texts))
 
@@ -474,6 +477,7 @@ class Translator:
         self.lesson_context = self.lesson_context_deepl = ''
         self.reviewed_memory = {}
         self.reviewed_reused = set()
+        self.reference_quality = False
         self._term_rows = list(rows)
         self.term_policy = TermPolicy(subject, self._term_rows, references)
 
@@ -484,8 +488,11 @@ class Translator:
         self.lesson_context = prompt_context(plan)
         self.lesson_context_deepl = prose_context(plan)
         self.reviewed_memory = plan['memory']
+        self.reference_quality = True
         self._context_base_namespace = getattr(self, '_context_base_namespace', self.cache_namespace)
-        self.cache_namespace = self._context_base_namespace + '|lesson-reference-v1|' + plan['fingerprint']
+        from .translation_quality import VERSION
+
+        self.cache_namespace = self._context_base_namespace + '|lesson-reference-v1|' + VERSION + '|' + plan['fingerprint']
 
     def translate_native(self, units, images, cancel, progress=None):
         """Expose ordinary counts for grammar, retaining every immutable XML token."""
@@ -589,10 +596,11 @@ class Translator:
         if progress:
             progress(done, total)
 
-        def checked(item, result):
+        def checked(item, result, *, prose=None):
             from collections import Counter
 
             from .translation_batches import NUMBERS
+            from .translation_quality import untranslated_prose
 
             whitespace = re.fullmatch(r'(\s*)(.*?)(\s*)', item[0], re.S)
             result = whitespace[1] + result.strip() + whitespace[3]
@@ -603,6 +611,11 @@ class Translator:
 
                 if signature(result) != signature(item[0]):
                     raise TranslationProblem('api_result', 'Bản dịch làm thay đổi công thức hóa học; chưa áp dụng kết quả này. Phần đã dịch đúng được giữ để tiếp tục.')
+            if (source == 'vi' and target == 'en' and getattr(self, 'reference_quality', False)
+                    and prose is not None and untranslated_prose(prose)):
+                problem = TranslationProblem('api_result', 'Bản Anh còn đoạn tiếng Việt chưa được dịch đủ; phần đã đạt được giữ để tiếp tục.')
+                problem.language_incomplete = True
+                raise problem
             return policy.postprocess(item[0], result)
 
         def repair_fragments(invalid):
@@ -645,7 +658,8 @@ class Translator:
                     raise InterruptedError('Đã dừng dịch.')
                 row = self.store.reserve(count, self.budget, excluded, only_key=retry_key)
                 try:
-                    response = self._send([item[1] for item in group], row, source, target)
+                    sender = self._send_repair if repairing else self._send
+                    response = sender([item[1] for item in group], row, source, target)
                 except TranslationProblem as exc:
                     if exc.code not in {'api_network', 'api_result'}:
                         self.store.reject(row, count, exc.code)
@@ -667,7 +681,7 @@ class Translator:
                 translated, invalid = [], []
                 for item, value in zip(group, response, strict=True):
                     try:
-                        result = checked(item, unprotect(value, item[2]))
+                        result = checked(item, unprotect(value, item[2]), prose=_protected_text(value))
                         translated.append((item, result))
                     except TranslationProblem as exc:
                         exc.failed_text = item[0]
@@ -675,6 +689,9 @@ class Translator:
                 self.store.cache_many([(item[3], value) for item, value in translated])
                 if invalid:
                     if repairing:
+                        incomplete = next((error for _, error in invalid if getattr(error, 'language_incomplete', False)), None)
+                        if incomplete:
+                            raise incomplete  # No out-of-context fragments for missing prose.
                         if not fragment_repair:
                             raise invalid[0][1]
                         return [(item[4], value) for item, value in translated] + repair_fragments(invalid)

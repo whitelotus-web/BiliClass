@@ -18,9 +18,6 @@ Item {
     property int activeTab: 0
     property bool showGoogleKeyEntry: false
     property bool showDataOptions: false
-    property bool draftKnowledgeEnabled: true
-    property bool draftKnowledgeOnline: true
-    property bool knowledgeDirty: false
     property string draftVoice: bridge.voiceSettings.voice
     property int draftRate: bridge.voiceSettings.rate
     readonly property var selectedVoicePair: bridge.voicePairDetails(draftVoice)
@@ -38,19 +35,6 @@ Item {
     Connections {
         target: page.bridge.googleSettings
         function onLanguageSetupRequested() { languageGuide.open() }
-        function onChanged() {
-            if (!page.knowledgeDirty) {
-                page.draftKnowledgeEnabled = page.bridge.googleSettings.state.knowledge.enabled
-                page.draftKnowledgeOnline = page.bridge.googleSettings.state.knowledge.online
-            }
-        }
-        function onKnowledgeOptionsSaved(success) {
-            if (success) {
-                page.knowledgeDirty = false
-                page.draftKnowledgeEnabled = page.bridge.googleSettings.state.knowledge.enabled
-                page.draftKnowledgeOnline = page.bridge.googleSettings.state.knowledge.online
-            }
-        }
         function onSaved(success) { if (success) { googleKeys.clear(); page.showGoogleKeyEntry = false } }
         function onAlternativeSaved(provider, success) {
             if (success) {
@@ -635,35 +619,6 @@ Item {
                         }
                     }
                     Hint { objectName: "translationProviderHint"; Layout.fillWidth: true; text: "Chọn một dịch vụ rồi lưu cấu hình bên dưới. Bài mới chỉ dùng dịch vụ đã chọn; bài đang dở giữ dịch vụ lúc bắt đầu. Không tự chuyển sang dịch vụ khác." }
-                }
-            }
-            Card {
-                objectName: "translationKnowledgeCard"; Layout.fillWidth: true
-                readonly property var knowledge: bridge.googleSettings.state.knowledge
-                ColumnLayout { width: parent.width; spacing: 10
-                    Title { text: "Thuật ngữ theo môn"; Layout.fillWidth: true }
-                    Hint { Layout.fillWidth: true; text: "Có sẵn " + bridge.googleSettings.state.knowledge.concepts + " khái niệm cơ bản cho " + bridge.googleSettings.state.knowledge.subjects + " lựa chọn môn và hoạt động giáo dục. Tool tự chọn phần liên quan đến bài; không cần nhập từng thuật ngữ." }
-                    CheckBox {
-                        objectName: "translationKnowledgeEnabled"; text: "Dùng thuật ngữ theo môn và câu đã duyệt"
-                        checked: page.draftKnowledgeEnabled
-                        enabled: bridge.googleSettings.ready && !bridge.busy && !bridge.batchQueue.running
-                        onToggled: { page.draftKnowledgeEnabled = checked; page.knowledgeDirty = true }
-                    }
-                    CheckBox {
-                        objectName: "translationKnowledgeOnline"; text: "Tra cứu thêm thuật ngữ mới trên mạng"
-                        checked: page.draftKnowledgeOnline
-                        enabled: page.draftKnowledgeEnabled && bridge.googleSettings.ready && !bridge.busy && !bridge.batchQueue.running
-                        onToggled: { page.draftKnowledgeOnline = checked; page.knowledgeDirty = true }
-                    }
-                    Hint { Layout.fillWidth: true; text: "Kho trên máy dùng được khi mất mạng. Tra cứu thêm chỉ gửi tối đa 3 cụm từ ngắn mỗi bài tới Wikidata, không gửi cả slide; có giới hạn thời gian và lưu lại để dùng sau. Mục tra cứu là gợi ý tham khảo, không tự trở thành thuật ngữ đã duyệt." }
-                    Hint { Layout.fillWidth: true; text: "Cặp Việt–Anh được biên soạn theo môn, không phải từ điển chính thức của Bộ GDĐT và chưa bao phủ toàn bộ chương trình. Kết quả vẫn cần xem lại trước khi dạy. Gemini và DeepL nhận thêm ngữ cảnh; Google và Apps Script dùng lớp thuật ngữ chung." }
-                    Hint { objectName: "translationKnowledgeStats"; Layout.fillWidth: true; text: "Đã ghi nhận " + bridge.googleSettings.state.knowledge.references + " mục tham khảo và " + bridge.googleSettings.state.knowledge.lessons + " lượt bài. Chỉ dùng lại câu trùng nội dung, cùng môn/lớp và đã được duyệt." }
-                    Hint { visible: !!text; Layout.fillWidth: true; text: bridge.googleSettings.state.knowledge.message || "" }
-                    SaveButton {
-                        objectName: "saveTranslationKnowledge"; text: "Lưu lựa chọn thuật ngữ"
-                        enabled: page.knowledgeDirty && bridge.googleSettings.ready && !bridge.busy && !bridge.batchQueue.running
-                        onClicked: bridge.googleSettings.saveKnowledgeOptions(page.draftKnowledgeEnabled, page.draftKnowledgeOnline)
-                    }
                 }
             }
             Card {

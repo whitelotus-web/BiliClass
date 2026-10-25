@@ -31,7 +31,22 @@ DOMAINS = {
     'giao duc the chat': ('sport', 'exercise', 'physical', 'thể thao'),
     'giao duc cong dan': ('ethic', 'civic', 'human right', 'societ', 'citizen', 'đạo đức'),
     'giao duc kinh te va phap luat': ('econom', 'law', 'legal', 'financ', 'kinh tế', 'pháp luật'),
+    'hoat dong trai nghiem, huong nghiep': ('career', 'occupation', 'education', 'learning', 'skill', 'employment', 'hướng nghiệp'),
+    'noi dung giao duc cua dia phuong': ('heritage', 'cultur', 'tradition', 'di sản', 'văn hóa'),
+    'giao duc quoc phong va an ninh': ('defen', 'militar', 'security', 'peacekeep', 'maritime', 'quốc phòng', 'an ninh'),
+    'khoa hoc': ('scien', 'physics', 'chem', 'biolog', 'experiment', 'measurement', 'khoa học'),
 }
+
+
+def domain_markers(subject):
+    """Integrated subjects inherit component evidence, never a guessed domain."""
+    direct = DOMAINS.get(subject_key(subject))
+    if direct:
+        return direct
+    from .terminology_seed import GROUPS, SUBJECT_GROUPS
+
+    groups = next((groups for name, groups in SUBJECT_GROUPS.items() if subject_key(name) == subject_key(subject)), ())
+    return tuple(dict.fromkeys(marker for group in groups for marker in DOMAINS.get(subject_key(GROUPS[group][0]), ())))
 
 
 def _domain_match(description, markers):
@@ -96,9 +111,9 @@ def lookup(term, subject, cancel, *, deadline=None, fetch=None):
         raise InterruptedError('Đã dừng tra cứu thuật ngữ.')
     if not _label(term, 90) or not 2 <= len(term.split()) <= 6 or re.search(r'\d|[@:/]', term):
         return None
-    markers = DOMAINS.get(subject_key(subject))
+    markers = domain_markers(subject)
     if not markers:
-        return None  # Do not invent expertise for an unknown or mixed subject.
+        return None  # Unknown custom subjects have no invented expertise.
     result = fetch(dict(action='wbsearchentities', language='vi', uselang='vi', type='item', search=term, limit='3'), deadline)
     search = result.get('search', []) if isinstance(result, dict) else []
     if not isinstance(search, list):

@@ -1,23 +1,22 @@
 # RC168 · Thuật ngữ theo môn và bộ nhớ tham khảo
 
-Trong **Cài đặt → Dịch thuật → Thuật ngữ theo môn**, có hai lựa chọn:
+Hỗ trợ thuật ngữ **tự chạy nền cho bài/hàng đợi mới**, không có ô tích chọn,
+nút lưu hay khung cấu hình riêng trong Cài đặt. Giáo viên chỉ chọn dịch vụ dịch.
+Tool tự chọn thuật ngữ liên quan, lấy môn/lớp/tên bài làm ngữ cảnh, dùng lại câu
+trùng đã duyệt và đối chiếu thêm tối đa ba cụm từ ngắn trên Wikidata khi cần.
+Mất mạng hoặc không tra được thì tiếp tục bằng kho trên máy. Dịch vụ dịch vẫn
+cần mạng theo cấu hình đã chọn.
 
-1. **Dùng thuật ngữ theo môn và câu đã duyệt**: tự chọn phần liên quan trong kho
-   nền, lấy môn/lớp/tên bài làm ngữ cảnh và dùng lại câu trùng đã được giáo viên
-   duyệt. Không cần giáo viên nhập danh sách thuật ngữ trước.
-2. **Tra cứu thêm thuật ngữ mới trên mạng**: đối chiếu tối đa ba cụm từ ngắn mỗi
-   bài với nhãn Việt/Anh và mô tả trên Wikidata. Có thể tắt để chỉ dùng kho trên
-   máy. Kho tích hợp và bộ nhớ câu đã duyệt không cần Internet; dịch vụ dịch vẫn
-   cần mạng theo cấu hình đã chọn.
-
-Bấm **Lưu lựa chọn thuật ngữ**. Lựa chọn được ghim cho bài/hàng đợi mới. Bài đang
-dở và các mục chưa chạy trong cùng hàng đợi giữ lựa chọn cũ. Hàng đợi/checkpoint
-trước tính năng này tiếp tục không dùng lớp bổ sung, kể cả khi Cài đặt đã bật.
-Không đổi dịch vụ, key hay hạn mức dịch vì bật/tắt thuật ngữ.
+Các công tắc bật/tắt đã lưu từ bản RC168 trước không còn ảnh hưởng bài mới.
+Bài đang dở và các mục chưa chạy trong cùng hàng đợi giữ chính sách lúc bắt
+đầu. Hàng đợi/checkpoint trước tính năng này tiếp tục không dùng lớp bổ sung.
+Không đổi dịch vụ, key, hạn mức hay bản dịch đã hoàn thành. Kết quả đối chiếu
+vẫn có trong Chi tiết và phạm vi khi cần xem, không yêu cầu người dùng thao tác
+trước khi chuyển đổi.
 
 ## Kho nạp sẵn và phạm vi
 
-Kho hiện có **495 khái niệm**, ánh xạ thành **1.195 mục theo môn** cho **30 lựa
+Kho hiện có **1.152 khái niệm**, ánh xạ thành **2.774 mục theo môn** cho **30 lựa
 chọn môn/hoạt động giáo dục** đang có trong ứng dụng. Môn tích hợp dùng chung
 nhóm kiến thức thành phần. Danh mục căn cứ chương trình phổ thông; xem
 [nguồn và phạm vi danh mục](SCHOOL_SUBJECTS.md) và
@@ -26,7 +25,7 @@ nhóm kiến thức thành phần. Danh mục căn cứ chương trình phổ th
 Đây là cặp thuật ngữ Việt–Anh do BiliClass biên soạn, **không phải từ điển chính
 thức của Bộ GDĐT**, không bao phủ mọi kiến thức của từng lớp và không phải
 chứng nhận mỗi cặp của nhà xuất bản. Nguồn tham khảo chuyên môn nằm trong
-`app/terminology_seed.py`, gồm OpenStax, NIST, British Council, National
+`app/terminology_seed.py`; phần mở rộng ở `app/terminology_seed_extra.py`, gồm OpenStax, NIST, British Council, National
 Geographic, Open Music Theory, Tate, UNESCO, WHO, ILO và Liên Hợp Quốc. Không
 tải/sao chép toàn văn sách giáo khoa. Các lựa chọn Ngoại ngữ/Tiếng dân tộc thiểu
 số chỉ có một số thuật ngữ ngôn ngữ học cơ bản Việt–Anh, không phải từ điển
@@ -64,6 +63,12 @@ Không có lời hứa mọi dịch vụ sẽ cho cùng bản dịch hoặc mọ
   bài/slide hoặc key sang Wikidata. Chỉ nhận nhãn/biệt danh tiếng Việt khớp,
   có nhãn Anh, mô tả phù hợp môn đã hỗ trợ và một nghĩa duy nhất. Không đoán
   nghĩa khi mơ hồ. Không chạy mã hay làm theo chỉ dẫn trong dữ liệu trả về.
+- Xem tối đa 12 ứng viên trong bài. Mục đã có tham chiếu hoặc đã ghi nhận chưa
+  tìm được không chiếm lại ba lượt tra cứu mới. Khi gặp lại nội dung ở bài mới,
+  tool có thể tiếp tục tới các mục chưa biết phía sau. Cùng một checkpoint vẫn
+  giữ ngữ cảnh đã chốt, không tự mở lượt tra cứu mới mỗi lần Tiếp tục.
+- Môn tích hợp và hoạt động giáo dục dùng dấu hiệu chuyên môn của nhóm thành
+  phần; môn tự nhập chưa xác định không được tự gán phạm vi chuyên môn.
 - Mục tra cứu có URL/ID nguồn và trạng thái **tham khảo**, không được đưa vào
   danh sách thuật ngữ khóa. Không đạt tiêu chí thì ghi nhận chưa tìm được,
   tiếp tục dịch bằng kho trên máy. Mất mạng/hỏng cache không chặn chuyển đổi.
@@ -74,6 +79,19 @@ Không có lời hứa mọi dịch vụ sẽ cho cùng bản dịch hoặc mọ
   dừng/tiếp tục; không tra lại mỗi lần resume. Cache bản dịch tách theo ngữ
   cảnh để không dùng nhầm môn/lớp. Ngân sách tra cứu mục tiêu khoảng 5 giây,
   mỗi yêu cầu có timeout, không có vòng lặp tự học vô hạn.
+
+Mục tra cứu mới được ưu tiên trong phần ngữ cảnh gửi tới Gemini/DeepL để không
+bị các thuật ngữ phổ biến chiếm hết chỗ. Cụm chuyên môn dài được giữ liền khi
+dịch: không khóa riêng “xác suất” bên trong “xác suất có điều kiện”. Danh từ
+đếm được của Sinh học như “tế bào” vẫn dịch chính xác khi đứng riêng, nhưng
+không bị ép số ít trong mọi câu; khóa riêng của giáo viên vẫn được tôn trọng.
+
+Lớp kiểm tra cho bài mới phát hiện đoạn Anh còn rõ nhiều từ ngữ pháp Việt ngoài
+vùng công thức/thuật ngữ được bảo vệ. Tool thử lại phần lỗi một lần, Gemini
+nhận chỉ dẫn sửa rõ hơn. Nếu vẫn không đạt, phần đã đúng được giữ trong cache
+và bài chưa được coi là hoàn tất. Không chuyển dịch vụ, không sửa bằng câu đoán
+và không thử vô hạn. Tên riêng đơn thuần không bị coi là văn bản chưa dịch.
+Kiểm tra này có chủ ý bảo thủ; chưa xác minh toàn bộ ngữ nghĩa hoặc mọi cụm ngắn.
 
 Đây là tích lũy dữ liệu tham khảo và dùng lại nội dung đã duyệt, **không huấn
 luyện lại mô hình**, không tự sửa mã nguồn và không biến một câu dịch máy thành
@@ -89,12 +107,12 @@ file mới. Chưa chứng nhận toàn bộ ngữ nghĩa, đáp án, công thứ
 Đo riêng lớp bổ sung trên máy phát triển ngày 25/10/2026, bằng
 `scripts/benchmark_translation_knowledge.py`:
 
-- JSON gói tham chiếu khoảng **0,43 MB**; tăng DB thư viện khoảng **0,44 MB**.
-- Bài giả lập 100 slide: chọn thuật ngữ khoảng **1,06 giây**, dùng checkpoint
-  khoảng **0,014 giây**, với `tracemalloc` đang bật.
-- Đỉnh cấp phát Python của đoạn đo khoảng **1,9 MB**; đây **không phải RAM toàn
+- JSON gói tham chiếu khoảng **0,98 MB**; tăng DB thư viện khoảng **1,03 MB**.
+- Bài giả lập 100 slide: chọn thuật ngữ khoảng **1,97 giây**, dùng checkpoint
+  khoảng **0,034 giây**, với `tracemalloc` đang bật.
+- Đỉnh cấp phát Python của đoạn đo khoảng **4,4 MB**; đây **không phải RAM toàn
   ứng dụng**, không đo PowerPoint hay model giọng đọc.
-- Context checkpoint khoảng **12 KB**; context gửi thử khoảng **1.311 ký tự**.
+- Context checkpoint khoảng **20 KB**; context gửi thử khoảng **1.515 ký tự**.
   Bộ nhớ tham khảo ban đầu khoảng **20 KB**. Không tải thêm model/phụ thuộc.
 - Một truy vấn công khai thật “không gian vectơ” nhận được nhãn *vector space*
   với nguồn `https://www.wikidata.org/wiki/Q125977`; không suy rộng thành mức
@@ -114,6 +132,8 @@ câu đã duyệt vẫn nằm trong dữ liệu bài và được sao lưu như 
 ```
 
 HTTP dịch trong kiểm tra tự động là fixture; không tuyên bố đã đánh giá chất
-lượng dịch thật của cả bốn nhà cung cấp qua mọi môn. Tính năng trên nhánh
+lượng dịch thật của cả bốn nhà cung cấp qua mọi môn. Bộ mẫu API thật ngắn trên
+ba môn và hai lỗi được sửa ghi ở [mức đã kiểm chứng](REVIEW_TRANSLATION_RC168.md).
+Tính năng trên nhánh
 `codex/translation-providers-rc168`; không đổi main/tag/bộ cài RC167 và không
 tạo bộ cài mới trong đợt này.

@@ -26,7 +26,7 @@ def validate(provider):
 
 
 def snapshot(directory, provider=None, *, include_profile=True):
-    from .translation_knowledge import MODE_VERSION, options
+    from .translation_knowledge import MODE_VERSION
 
     knowledge = dict(translation_knowledge_version=MODE_VERSION, translation_knowledge_online=True)
     if not (Path(directory) / 'library.db').exists():
@@ -35,7 +35,8 @@ def snapshot(directory, provider=None, *, include_profile=True):
         budget = ceiling
     else:
         with closing(Library.read_only(directory)) as library:
-            knowledge = options(library)
+            # New work uses automatic reference support. Old settings switches
+            # are no longer user choices; checkpoints retain their own flags.
             saved = library.setting('translation_provider', 'google')
             # Only new work migrates away from Azure. Explicit checkpoint routes stay pinned.
             provider = validate(provider if provider is not None else 'google' if saved == 'azure' else saved)
