@@ -259,6 +259,7 @@ class Bridge(QObject):
         from .word_ui import WordDocuments
 
         self._word_documents = WordDocuments(self)
+        self._word_documents.libraryChanged.connect(self._catalog.refresh_words)
         self._browser_ai = browser_ai_factory(self)
         if self.googleTranslation and hasattr(self._browser_ai, '_health_timer'):
             self._browser_ai._health_timer.stop()
@@ -372,6 +373,15 @@ class Bridge(QObject):
         return self._catalog.rows(self.lessonOrder)
 
     @Property('QVariantList', notify=lessonsChanged)
+    def libraryDocuments(self):
+        return self._catalog.documents(self.lessonOrder)
+
+    @Slot()
+    def refreshDocumentLibrary(self):
+        self._catalog.refresh()
+        self._catalog.refresh_words()
+
+    @Property('QVariantList', notify=lessonsChanged)
     def narrationSources(self):
         return [{**row, 'title': row['title'] if row.get('library_product', True)
                  else 'Đang chuẩn bị · ' + row['title']}
@@ -389,12 +399,12 @@ class Bridge(QObject):
     @Property('QVariantList', notify=lessonsChanged)
     def librarySubjects(self):
         from .library_view import options
-        return options(self.lessons, 'subject')
+        return options(self.libraryDocuments, 'subject')
 
     @Property('QVariantList', notify=lessonsChanged)
     def libraryGrades(self):
         from .library_view import options
-        return options(self.lessons, 'grade')
+        return options(self.libraryDocuments, 'grade')
 
     @Property('QVariantMap', notify=lessonsChanged)
     def librarySummary(self):
@@ -439,16 +449,16 @@ class Bridge(QObject):
 
     @Slot('QVariantList')
     def requestLibraryCovers(self, rows):
-        self.libraryThumbnails.request(rows)
+        self.libraryThumbnails.request([row for row in rows if row.get('document_type') != 'word'])
 
     @Property("QVariantList", notify=lessonsChanged)
     def trashedLessons(self):
-        return self._catalog.rows(trash=True)
+        return self._catalog.documents(trash=True)
 
     def _undoable_deleted(self):
         # These summaries are already in memory; match the exact deletion,
         # never a later deletion of the same lesson by another app window.
-        return {row['id']: row['deleted_at'] for row in self._catalog.rows(trash=True)
+        return {row['id']: row['deleted_at'] for row in self._catalog.documents(trash=True)
                 if self._deleted_undo.get(row['id']) == row.get('deleted_at')}
 
     @Property(int, notify=deletionUndoChanged)
@@ -534,6 +544,11 @@ class Bridge(QObject):
         folder = QUrl(self.downloadsDirectory).toLocalFile()
 
         if len(identities) == 1:
+            from .library_documents import word_id
+
+            if word_id(identities[0]):
+                row = next((row for row in self.libraryDocuments if row['id'] == identities[0]), {})
+                return QUrl.fromLocalFile(str(suggestion(folder, row.get('title', 'Bài Word'), 'Song ngữ', 'docx'))).toString()
             from .final_narration import preferred_ready
 
             lesson = self.library.get(identities[0])
@@ -606,8 +621,15 @@ class Bridge(QObject):
             self.inform('Chọn ít nhất một bài giảng hợp lệ.', True, refresh=False)
             return False
         identities = list(dict.fromkeys(identities))
-        self.launch(lambda: library_actions.change(self.library.directory, operation, identities,
-                                                  with_receipt=with_receipt, expected_deleted=expected_deleted), callback,
+        from .library_documents import change
+
+        def completed(result):
+            self._catalog.refresh()
+            self._catalog.refresh_words()
+            callback(result)
+
+        self.launch(lambda: change(self.library.directory, operation, identities, library_actions.change,
+                                  with_receipt=with_receipt, expected_deleted=expected_deleted), completed,
                     cancellable=False, message=message)
         return True
 
@@ -4084,7 +4106,7 @@ class Bridge(QObject):
         destination = QUrl(url).toLocalFile()
         self.rememberExportDirectory(url)
         self.launch(lambda: export(directory, identities, destination, with_voice, self.cancel_event),
-                    lambda result: self.inform(f"Đã tải {result['count']} bài · {result['voiced']} bài kèm giọng: {result['path']}" +
+                    lambda result: self.inform(f"Đã tải {result['count']} bài · {result['voiced']} PowerPoint kèm giọng: {result['path']}" +
                                               ('\n' + result['warnings'][0] if result.get('warnings') else '')))
 
 

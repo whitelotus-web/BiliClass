@@ -56,15 +56,20 @@ Item {
     ColumnLayout {
         anchors.fill: parent; spacing: page.compact ? 8 : 12
         RowLayout { Layout.fillWidth: true
+            Label { objectName: "wordPageHeading"; text: "Chuyển đổi bài giảng song ngữ"; color: AppTheme.ink; font.pixelSize: page.compact ? 24 : 27; font.weight: Font.Bold; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+            WordAction { objectName: "wordChooseFile"; text: "Chọn bài khác"; visible: !!page.documentState.id; enabled: page.available; onClicked: choose.open() }
+        }
+        RowLayout { Layout.fillWidth: true
             WordAction { objectName: "wordTabPowerPoint"; text: "PowerPoint"; onClicked: page.showPowerPoint() }
             WordAction { objectName: "wordTabWord"; text: "Word"; primary: true }
             Item { Layout.fillWidth: true }
         }
-        RowLayout { Layout.fillWidth: true
-            Label { text: "Chuyển đổi bài giảng Word"; color: AppTheme.ink; font.pixelSize: page.compact ? 22 : 25; font.weight: Font.Bold; wrapMode: Text.WordWrap; Layout.fillWidth: true }
-            WordAction { objectName: "wordChooseFile"; text: page.documentState.id ? "Chọn Word khác" : "Chọn file Word"; primary: !page.documentState.id; enabled: page.available; onClicked: choose.open() }
+        Hint { objectName: "wordWorkflowGuide"; text: "Chọn Word → Chọn vùng cần dịch → Chọn kiểu song ngữ → Xem và lưu Word."; font.pixelSize: 13; Layout.fillWidth: true }
+        WordUpload { objectName: "wordSourceArea"; visible: !page.documentState.id; Layout.fillWidth: true; busy: !page.available; reading: !!page.documentState.working; onChooseFile: choose.open(); onFileDropped: function(url) { page.word.openFile(url) } }
+        RowLayout { visible: !!page.documentState.id; Layout.fillWidth: true; spacing: 9
+            DocumentTypeBadge { word: true }
+            Label { text: page.documentState.title || ""; font.pixelSize: 13; color: AppTheme.ink; font.weight: Font.DemiBold; textFormat: Text.PlainText; elide: Text.ElideMiddle; Layout.fillWidth: true }
         }
-        Hint { text: page.documentState.title ? page.documentState.title + " · .docx · Chỉ chuyển đổi những vùng đã chọn" : "Chọn .docx → Chọn vùng cần dịch → Xem và sửa bản dịch → Lưu Word song ngữ"; Layout.fillWidth: true }
         Rectangle {
             visible: !!page.documentState.message; Layout.fillWidth: true
             implicitHeight: message.implicitHeight + 20; radius: 9
@@ -73,8 +78,15 @@ Item {
             Hint { id: message; anchors.fill: parent; anchors.margins: 10; text: page.documentState.message || ""; color: page.documentState.phase === "paused" ? AppTheme.warningInk : AppTheme.ink }
         }
         Hint { visible: (page.documentState.notices || []).length > 0; text: (page.documentState.notices || []).slice(-1).join(""); color: AppTheme.warning; font.pixelSize: 11; Layout.fillWidth: true }
-        GridLayout {
-            visible: !!page.documentState.id; Layout.fillWidth: true; columns: page.width >= 760 ? 4 : 2; columnSpacing: 12; rowSpacing: 8
+        Rectangle {
+            objectName: "wordConfiguration"; visible: !!page.documentState.id; Layout.fillWidth: true
+            implicitHeight: configuration.implicitHeight + (page.compact ? 18 : 26)
+            color: AppTheme.surface; radius: 14; border.color: AppTheme.line
+            ColumnLayout {
+            id: configuration; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: page.compact ? 9 : 13; spacing: page.compact ? 6 : 10
+            Label { text: "Cấu hình bài giảng"; color: AppTheme.ink; font.pixelSize: 15; font.weight: Font.DemiBold }
+            GridLayout {
+            Layout.fillWidth: true; columns: page.width >= 760 ? 4 : 2; columnSpacing: 12; rowSpacing: 8
             ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 2; spacing: 4
                 Hint { text: "Môn học" }
                 Choice { id: subject; objectName: "wordSubject"; model: page.appBridge.conversionSubjects; Layout.fillWidth: true; enabled: page.available }
@@ -95,6 +107,8 @@ Item {
                     Choice { id: density; objectName: "wordKeywordDensity"; visible: mode.currentIndex === 2; model: ["Ít", "Vừa phải", "Chuyên sâu"]; currentIndex: 1; Layout.fillWidth: true; enabled: page.available }
                 }
                 CheckBox { id: italic; objectName: "wordItalic"; text: "In nghiêng"; checked: true; enabled: page.available; palette.windowText: AppTheme.ink }
+            }
+            }
             }
         }
         Hint { visible: !!page.documentState.id; text: "Nội dung để chọn vùng; công thức và hình được giữ trong tệp Word. Thêm bản dịch có thể làm tăng số trang."; Layout.fillWidth: true; font.pixelSize: 11 }
@@ -180,11 +194,6 @@ Item {
             }
         }
         Item { visible: !page.documentState.id; Layout.fillHeight: true; Layout.fillWidth: true
-            Column { anchors.centerIn: parent; width: Math.min(parent.width - 40, 550); spacing: 14
-                Label { text: "Chọn đúng phần cần song ngữ"; width: parent.width; horizontalAlignment: Text.AlignHCenter; color: AppTheme.ink; font.pixelSize: 21; font.bold: true; wrapMode: Text.WordWrap }
-                Hint { text: "Chọn nhiều câu, đoạn hoặc vùng chữ rời nhau. Bài vẫn là Word và có thể chỉnh sửa như bình thường."; width: parent.width; horizontalAlignment: Text.AlignHCenter }
-                WordAction { text: "Chọn file Word (.docx)"; primary: true; anchors.horizontalCenter: parent.horizontalCenter; enabled: page.available; onClicked: choose.open() }
-            }
         }
         ProgressBar { objectName: "wordProgress"; visible: page.documentState.working; Layout.fillWidth: true; from: 0; to: 100; value: page.documentState.percent || 0; indeterminate: value <= 0 }
         Flow {
@@ -198,7 +207,7 @@ Item {
             WordAction { id: more; objectName: "wordMore"; visible: !!page.documentState.output_sha256; text: "⋮"; enabled: page.available; onClicked: moreMenu.popup()
                 Menu { id: moreMenu; MenuItem { objectName: "wordUndo"; text: "Khôi phục bản xuất trước"; enabled: !!page.documentState.has_previous; onTriggered: page.word.restorePrevious() } }
             }
-            WordAction { objectName: "wordGoLibrary"; text: "Thư viện Word"; enabled: page.available; onClicked: page.showLibrary() }
+            WordAction { objectName: "wordGoLibrary"; text: "Về thư viện"; enabled: page.available; onClicked: page.showLibrary() }
         }
         Hint { visible: page.word.draftsPending; text: "Có chỉnh sửa bản dịch/từ khóa. Bấm Lưu Word song ngữ để áp dụng."; Layout.fillWidth: true }
         Hint { visible: !!page.documentState.id && !page.configurationMatches; text: "Cấu hình đã đổi. Bấm Xem bản dịch để cập nhật trước khi lưu."; Layout.fillWidth: true }

@@ -50,6 +50,20 @@ class CatalogJob(QThread):
                     'audio_label': unknown['label'], 'audio_complete': 0, 'audio_total': 0}} for row in active], trash
 
 
+class WordCatalogJob(QThread):
+    def __init__(self, directory, parent):
+        super().__init__(parent)
+        self.directory, self.result = directory, None
+
+    def run(self):
+        from .library_documents import word_rows
+
+        try:
+            self.result = word_rows(self.directory), word_rows(self.directory, trash=True)
+        except (OSError, ValueError):
+            pass  # A Word catalog problem must not hide the PowerPoint library.
+
+
 class LibraryCatalog(QObject):
     changed = Signal()
 
@@ -57,8 +71,10 @@ class LibraryCatalog(QObject):
         super().__init__(parent)
         self.library = library
         self.worker = None
+        self.word_worker, self._word_pending = None, False
         self._active = []
         self._trash = []
+        self._words, self._word_trash = [], []
         self._revision = None
         self._pending = False
         self._closed = False
@@ -67,6 +83,7 @@ class LibraryCatalog(QObject):
         self.selected_narration = NarrationStatus(self)
         parent.destroyed.connect(self.shutdown)
         QTimer.singleShot(0, self.refresh)
+        QTimer.singleShot(0, self.refresh_words)
 
     def rows(self, order='updated_desc', *, trash=False, include_sources=False):
         rows = self._trash if trash else self._active
@@ -77,6 +94,41 @@ class LibraryCatalog(QObject):
             return sorted(rows, key=lambda row: (folded(row['title']), row['id']))
         field = 'updated_at' if order == 'updated_desc' else 'created_at'
         return sorted(rows, key=lambda row: (timestamp(row.get(field)), row['id']), reverse=order != 'created_asc')
+
+    def documents(self, order='updated_desc', *, trash=False):
+        rows = [{**row, 'document_type': 'powerpoint'} for row in self.rows(order, trash=trash)]
+        rows += self._word_trash if trash else self._words
+        if order == 'title_asc':
+            from .library_view import folded
+
+            return sorted(rows, key=lambda row: (folded(row['title']), row['id']))
+        field = 'updated_at' if order == 'updated_desc' else 'created_at'
+        return sorted(rows, key=lambda row: (timestamp(row.get(field)), row['id']), reverse=order != 'created_asc')
+
+    @Slot()
+    def refresh_words(self):
+        if self._closed or self.library._closed:
+            return
+        if self.word_worker is not None:
+            self._word_pending = True
+            return
+        self._word_pending = False
+        self.word_worker = WordCatalogJob(self.library.directory, self)
+        self.word_worker.finished.connect(self._words_finished)
+        self.word_worker.start()
+
+    @Slot()
+    def _words_finished(self):
+        worker = self.sender()
+        if worker is None or worker is not self.word_worker:
+            return
+        self.word_worker = None
+        if not self._closed and not self._word_pending and worker.result is not None:
+            self._words, self._word_trash = worker.result
+            self.changed.emit()
+        worker.deleteLater()
+        if self._word_pending and not self._closed:
+            self.refresh_words()
 
     @Slot()
     def refresh(self, force=False):
@@ -127,7 +179,12 @@ class LibraryCatalog(QObject):
     def shutdown(self):
         self._closed = True
         self._pending = False
+        self._word_pending = False
         self.selected_narration.shutdown()
+        if self.word_worker is not None:
+            worker, self.word_worker = self.word_worker, None
+            worker.wait()
+            worker.deleteLater()
         if self.worker is not None:
             worker, self.worker = self.worker, None
             worker.cancel.set()
@@ -138,7 +195,9 @@ class LibraryCatalog(QObject):
         self.shutdown()
         self.library = library
         self._active, self._trash = [], []
+        self._words, self._word_trash = [], []
         self._revision = None
         self._closed = False
         self.changed.emit()
         self.refresh()
+        self.refresh_words()

@@ -57,8 +57,10 @@ def locked(folder):
 def write(folder, job):
     job['updated_at'] = datetime.now(timezone.utc).isoformat()
     _atomic(Path(folder) / 'job.json', json.dumps(job, ensure_ascii=False).encode('utf-8'))
-    summary = {key: job.get(key, '') for key in ('id', 'title', 'phase', 'updated_at', 'subject',
-               'output_sha256', 'export_sha256', 'source_sha256', 'deleted_at')}
+    summary = {key: job.get(key, '') for key in ('id', 'title', 'phase', 'created_at', 'updated_at', 'subject', 'grade',
+               'output_sha256', 'export_sha256', 'source_sha256', 'deleted_at', 'purged_at')}
+    summary.update(catalog_version=2, selected_count=len(job.get('regions', [])),
+                   preview_text=' '.join(row.get('vi', '') for row in job.get('regions', [])[:2])[:450])
     try:
         _atomic(Path(folder) / 'summary.json', json.dumps(summary, ensure_ascii=False).encode('utf-8'))
     except OSError:
@@ -98,9 +100,15 @@ def catalog(directory, trash=False):
             if folder.is_symlink() or folder.is_junction() or path.stat().st_size > 24 * 1024**2:
                 continue
             job = json.loads(path.read_text(encoding='utf-8'))
-            if not isinstance(job, dict) or job.get('id') != folder.name or bool(job.get('deleted_at')) != trash:
+            if path == brief and isinstance(job, dict) and job.get('catalog_version') != 2:
+                job = json.loads(full.read_text(encoding='utf-8'))
+            if not isinstance(job, dict) or job.get('id') != folder.name or job.get('purged_at') or bool(job.get('deleted_at')) != trash:
                 continue
-            result.append({key: job.get(key, '') for key in ('id', 'title', 'phase', 'updated_at', 'subject', 'output_sha256', 'export_sha256', 'source_sha256')})
+            row = {key: job.get(key, '') for key in ('id', 'title', 'phase', 'created_at', 'updated_at', 'subject', 'grade',
+                   'output_sha256', 'export_sha256', 'source_sha256', 'deleted_at')}
+            row.update(selected_count=job.get('selected_count', len(job.get('regions', []))),
+                       preview_text=job.get('preview_text', ' '.join(part.get('vi', '') for part in job.get('regions', [])[:2])[:450]))
+            result.append(row)
         except (OSError, ValueError, TypeError):
             continue
     return sorted(result, key=lambda row: row['updated_at'], reverse=True)
@@ -137,6 +145,7 @@ def create(directory, source):
     if digest(folder / 'source.docx') != signature:
         raise ValueError('Nguồn Word thay đổi trong lúc tải; chọn lại tệp.')
     job = dict(id=identity, title=source.stem, source_original=str(source), source_sha256=signature,
+               created_at=datetime.now(timezone.utc).isoformat(),
                regions=[], options=dict(mode='below', color='1667B1', italic=True, density='normal'),
                phase='select', message='Bôi đen và thêm vùng, hoặc tích chọn câu/đoạn cần dịch.', subject='Toán', grade='11')
     write(folder, job)

@@ -132,7 +132,7 @@ def main():
                     window.resize(1366, 850)
                     click(window, c('wordGoLibrary'))
                     until(lambda: not bridge.busy)
-                    assert window.property('page') == 'word-library'
+                    assert window.property('page') == 'library' and window.property('libraryGroup') == 'word'
                     assert len(bridge.wordDocuments.library) == 1
                     assert library.list_lessons() == [], 'Word must not enter the PowerPoint library'
                     assert window.grabWindow().save(str(report / 'word-library.png'))
@@ -198,7 +198,7 @@ def main():
                 'Primary provider fails; configured fallback succeeds; original key unchanged',
                 'Editable review; save retains completion; source unchanged',
                 'Light/dark at 1080 and 1366; save control reachable; zero QML warnings',
-                'Word library is separate from PowerPoint; reopen retains the existing result',
+                'Word shares the library with PowerPoint while retaining independent storage; reopen keeps the result',
                 'All four modes export; keyword edit and undo keep matching review metadata',
                 'Stop while an HTTP fixture is pending retains source/selection; Resume reuses completed chunks',
                 'Return to PowerPoint keeps its source workflow'], calls=calls, qml_warnings=warnings,

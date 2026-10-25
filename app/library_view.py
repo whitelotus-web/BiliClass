@@ -24,6 +24,8 @@ def is_ready(row):
 
 
 def voice_matches(row, voice):
+    if row.get('document_type') == 'word':
+        return not voice  # Voice groups/filters apply to PowerPoint only.
     audio = row.get('narration', {})
     variants = audio.get('variants', [])
     if not variants and audio.get('mode') in {'en', 'vi', 'both'}:
@@ -46,6 +48,7 @@ def query(rows, text='', subject='', grade='', state='', voice='', page=1, page_
     selected = []
     for row in rows:
         haystack = folded(' '.join(str(row.get(k, '')) for k in ('title', 'subject', 'education_level', 'grade')))
+        haystack += ' word docx' if row.get('document_type') == 'word' else ' powerpoint pptx'
         if (any(word not in haystack for word in words) or subject and row['subject'] != subject
                 or grade and row['education_level'] + '|' + row['grade'] != grade
                 or state == 'ready' and not is_ready(row)
@@ -56,8 +59,12 @@ def query(rows, text='', subject='', grade='', state='', voice='', page=1, page_
         selected.append(row)
     groups = {'all': len(selected), 'none': sum(voice_matches(row, 'none') for row in selected),
               'ready': sum(voice_matches(row, 'ready') for row in selected)}
+    if any(row.get('document_type') == 'word' for row in rows) or group == 'word':
+        groups['word'] = sum(row.get('document_type') == 'word' for row in selected)
     if group in {'none', 'ready'}:
         selected = [row for row in selected if voice_matches(row, group)]
+    elif group == 'word':
+        selected = [row for row in selected if row.get('document_type') == 'word']
     pages = max(1, math.ceil(len(selected) / page_size))
     page = max(1, min(page, pages))
     start = (page - 1) * page_size

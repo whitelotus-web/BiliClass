@@ -5,7 +5,8 @@
 ## Phiên bản và tải xuống
 
 Nhánh thử **RC169** thêm [Word song ngữ theo vùng chọn và dịch vụ dự phòng](docs/WORD_RC169.md).
-Word có bốn kiểu trình bày, xem/sửa trước khi lưu và thư viện riêng. Dịch vụ chính
+Word có bốn kiểu trình bày, xem/sửa trước khi lưu và xuất hiện cùng PowerPoint
+trong thư viện, có icon W/P và tab lọc Word. Dịch vụ chính
 tạm lỗi sẽ thử dịch vụ đã cấu hình tiếp theo, giữ phần đã đạt. Đây là bản nguồn
 để dùng thử; chưa tạo bộ cài RC169 và không thay bộ cài RC167.
 

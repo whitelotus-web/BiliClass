@@ -83,6 +83,8 @@ ApplicationWindow {
         onClicked: root.backFromLesson()
     }
     onPageChanged: {
+        if (page === "word-library") { libraryGroup = "word"; page = "library"; return }
+        if (page === "library") bridge.refreshDocumentLibrary()
         if (!bridge.experimentalTeaching && (page === "classroom" || page === "reports")) { page = "home"; return }
         if (page === "chatgpt" && root.inlineConversion && bridge.browserState.phase !== "completed") { page = "new"; return }
         if (page === "new" && root.inlineConversionVisible) Qt.callLater(root.revealConversionProgress)
@@ -355,6 +357,7 @@ ApplicationWindow {
     onLibraryLargeChanged: coverRequests.restart()
     Timer { id: coverRequests; interval: 120; onTriggered: bridge.requestLibraryCovers(root.libraryLarge ? root.libraryResult.rows : []) }
     property var selectedLessons: []
+    readonly property var selectedPowerPoints: selectedLessons.filter(function(id) { return id.indexOf("word:") !== 0 })
     property string libraryGroup: ""
     property string librarySelectionAnchor: ""
     property var libraryCardItems: ({})
@@ -445,7 +448,30 @@ ApplicationWindow {
         libraryDownloadDialog.identities = identities.slice()
         libraryDownloadDialog.open()
     }
-    readonly property var libraryResult: bridge.queryLibraryGroup(bridge.lessons, search.text,
+    function openLibraryDocument(row) {
+        if (row.document_type === "word") {
+            if (row.output_sha256) bridge.wordDocuments.openOutput(row.word_id)
+            else bridge.wordDocuments.loadRecord(row.word_id)
+        } else bridge.openTeachingLibraryLesson(row.id)
+    }
+    function inspectLibraryDocument(row) {
+        if (row.document_type === "word") bridge.wordDocuments.loadRecord(row.word_id)
+        else bridge.openLesson(row.id)
+    }
+    function configureLibraryDocument(row) {
+        if (row.document_type === "word") bridge.wordDocuments.loadRecord(row.word_id)
+        else bridge.openLessonNarration(row.id)
+    }
+    function revealLibraryDocument(row) {
+        if (row.document_type === "word") bridge.wordDocuments.openFolder(row.word_id)
+        else bridge.openLessonFileLocation(row.id)
+    }
+    function libraryMetadata(row) {
+        const type = row.document_type === "word" ? "Word" : "PowerPoint"
+        const size = row.document_type === "word" ? (row.selected_count || 0) + " vùng dịch" : row.slides_count ? row.slides_count + " slide" : row.segments_count + " phần"
+        return type + " · " + row.subject + " · " + row.education_level + " " + row.grade + " · " + size
+    }
+    readonly property var libraryResult: bridge.queryLibraryGroup(bridge.libraryDocuments, search.text,
         subjectFilter.currentValue || "", gradeFilter.currentValue || "", stateFilter.currentValue || "", voiceFilter.currentValue || "", root.libraryPage, root.libraryGroup)
     function durationText(seconds) {
         const value = Math.max(0, Math.floor(seconds || 0))
@@ -998,19 +1024,13 @@ ApplicationWindow {
             Item {
                 objectName: "mainPageArea"
                 Layout.fillWidth: true; Layout.fillHeight: true
-                WordPage { objectName: "wordPage"; visible: root.page === "word"; anchors.fill: parent; anchors.margins: 25; appBridge: root.appBridge; onShowPowerPoint: root.go("new"); onShowLibrary: root.go("word-library") }
-                WordLibrary { objectName: "wordLibrary"; visible: root.page === "word-library"; anchors.fill: parent; anchors.margins: 25; appBridge: root.appBridge; onShowPowerPoint: root.go("library"); onCreateWord: root.go("word") }
+                WordPage { objectName: "wordPage"; visible: root.page === "word"; anchors.fill: parent; anchors.margins: 30; appBridge: root.appBridge; onShowPowerPoint: root.go("new"); onShowLibrary: { search.clear(); subjectFilter.currentIndex = 0; gradeFilter.currentIndex = 0; stateFilter.currentIndex = 0; voiceFilter.currentIndex = 0; root.libraryGroup = "word"; root.go("library") } }
                 Item {
                     id: libraryPinnedHeader; objectName: "libraryPinnedHeader"
                     anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right; anchors.margins: 30
                     height: libraryHeaderContent.implicitHeight; visible: root.page === "library"
                     ColumnLayout {
                         id: libraryHeaderContent; anchors.fill: parent; spacing: 12
-                        RowLayout { Layout.fillWidth: true
-                            WordAction { objectName: "libraryDocumentPowerPoint"; text: "PowerPoint"; primary: true }
-                            WordAction { objectName: "libraryDocumentWord"; text: "Word"; onClicked: root.go("word-library") }
-                            Item { Layout.fillWidth: true }
-                        }
                         ColumnLayout {
                             visible: root.page === "library"; Layout.fillWidth: true; spacing: 5
                             RowLayout {
@@ -1031,7 +1051,7 @@ ApplicationWindow {
                                     MenuItem { text: "Thùng rác (" + bridge.trashedLessons.length + ")"; onTriggered: lessonTrashDialog.open() }
                                 }
                             }
-                            Copy { objectName: "libraryDescription"; text: "Tìm đúng bài, chọn bản giọng và mở để dạy hoặc tải PowerPoint."; Layout.fillWidth: true }
+                            Copy { objectName: "libraryDescription"; text: "Bài giảng PowerPoint và tài liệu Word ở cùng một nơi. Chọn đúng loại bài để mở hoặc tải về."; Layout.fillWidth: true }
                         }
                         ColumnLayout {
                             visible: root.page === "library"; Layout.fillWidth: true; spacing: 0
@@ -1042,7 +1062,7 @@ ApplicationWindow {
                             spacing: -10
                             Repeater {
                                 id: libraryTabs
-                                model: [{key:"", label:"Tất cả", count:"all", icon:"../assets/actions/library-all.svg"}, {key:"none", label:"Chưa có giọng", count:"none", icon:"../assets/actions/speaker-off.svg"}, {key:"ready", label:"Đã có giọng", count:"ready", icon:"../assets/actions/speaker-ready.svg"}]
+                                model: [{key:"", label:"Tất cả", count:"all", icon:"../assets/actions/library-all.svg", subtitle:"PowerPoint và Word"}, {key:"none", label:"Chưa có giọng", count:"none", icon:"../assets/actions/speaker-off.svg", subtitle:"PowerPoint"}, {key:"ready", label:"Đã có giọng", count:"ready", icon:"../assets/actions/speaker-ready.svg", subtitle:"PowerPoint"}, {key:"word", label:"Word", count:"word", icon:"../assets/actions/document-word.svg", subtitle:"Tài liệu song ngữ"}]
                                 Button {
                                     id: libraryTab
                                     required property var modelData
@@ -1050,9 +1070,10 @@ ApplicationWindow {
                                     readonly property bool selected: root.libraryGroup === modelData.key
                                     objectName: "libraryTab_" + (modelData.key || "all")
                                     text: modelData.label + " (" + ((root.libraryResult.groups || {})[modelData.count] || 0) + ")"
-                                    implicitWidth: Math.max(150, tabContents.implicitWidth + 44); width: implicitWidth; height: 40
+                                    implicitWidth: Math.max(140, tabContents.implicitWidth + 36); width: implicitWidth; height: 48
                                     leftPadding: 16; rightPadding: 28; z: selected ? 100 : -index
                                     Accessible.role: Accessible.PageTab; Accessible.selected: selected
+                                    Accessible.name: modelData.subtitle + " · " + text
                                     background: Canvas {
                                         layer.enabled: true
                                         layer.effect: MultiEffect {
@@ -1086,28 +1107,31 @@ ApplicationWindow {
                                         spacing: 7
                                         ThemedImage {
                                             objectName: "libraryTabIcon_" + (libraryTab.modelData.key || "all")
-                                            source: libraryTab.modelData.icon; tintEnabled: true
+                                            source: libraryTab.modelData.icon; tintEnabled: libraryTab.modelData.key !== "word"
                                             darkTint: libraryTab.selected ? AppTheme.accentText : AppTheme.ink
                                             sourceSize.width: 64; sourceSize.height: 64; fillMode: Image.PreserveAspectFit
                                             Layout.preferredWidth: 18; Layout.preferredHeight: 18
                                             Accessible.ignored: true
                                         }
-                                        Label { text: libraryTab.text; color: libraryTab.selected ? AppTheme.accentText : AppTheme.ink; font.pixelSize: 13; font.weight: libraryTab.selected ? Font.Bold : Font.DemiBold }
+                                        Column { spacing: 1
+                                            Label { text: libraryTab.text; color: libraryTab.selected ? AppTheme.accentText : AppTheme.ink; font.pixelSize: 12; font.weight: libraryTab.selected ? Font.Bold : Font.DemiBold }
+                                            Label { text: libraryTab.modelData.subtitle; color: libraryTab.selected ? AppTheme.accentText : AppTheme.muted; font.pixelSize: 9 }
+                                        }
                                     }
                                     onClicked: {
-                                        if (modelData.key === "none" || voiceFilter.currentValue === "none") voiceFilter.currentIndex = 0
+                                        if (modelData.key === "word" || modelData.key === "none" || voiceFilter.currentValue === "none") voiceFilter.currentIndex = 0
                                         root.libraryGroup = modelData.key; root.libraryPage = 1
                                     }
                                 }
                             }
                             }
                             Item { Layout.fillWidth: true }
-                            MainAction { objectName: "libraryNarrateSelected"; text: "Tạo giọng đã chọn"; visible: root.selectedLessons.length > 0; implicitHeight: 32; enabled: !bridge.busy && !bridge.narrationBusy; ToolTip.visible: hovered; ToolTip.text: "Tạo giọng lần lượt cho bài chưa có giọng; bỏ qua bài đã hoàn tất"; onClicked: bridge.batchQueue.selectLessons(root.selectedLessons) }
+                            MainAction { objectName: "libraryNarrateSelected"; text: "Tạo giọng PowerPoint"; visible: root.selectedPowerPoints.length > 0; implicitHeight: 32; font.pixelSize: 11; enabled: !bridge.busy && !bridge.narrationBusy; ToolTip.visible: hovered; ToolTip.text: "Tạo giọng cho " + root.selectedPowerPoints.length + " bài PowerPoint đã chọn; tài liệu Word giữ nguyên."; onClicked: bridge.batchQueue.selectLessons(root.selectedPowerPoints) }
                         }
                         Rectangle {
                             Layout.fillWidth: true; implicitHeight: 1; color: AppTheme.line
                             Rectangle {
-                                readonly property var selectedTab: libraryTabs.itemAt(root.libraryGroup === "none" ? 1 : root.libraryGroup === "ready" ? 2 : 0)
+                                readonly property var selectedTab: libraryTabs.itemAt(root.libraryGroup === "none" ? 1 : root.libraryGroup === "ready" ? 2 : root.libraryGroup === "word" ? 3 : 0)
                                 x: selectedTab ? selectedTab.x + 1 : 0; width: selectedTab ? selectedTab.width - 2 : 0
                                 height: 1; color: AppTheme.accent
                             }
@@ -1156,7 +1180,7 @@ ApplicationWindow {
                                 LibraryFilter { id: subjectFilter; objectName: "librarySubjectFilter"; emptyLabel: "Môn học"; Layout.fillWidth: true; Layout.minimumWidth: 78; Layout.preferredWidth: 94; model: bridge.librarySubjects; textRole: "label"; valueRole: "id"; onActivated: root.libraryPage = 1 }
                                 LibraryFilter { id: gradeFilter; objectName: "libraryGradeFilter"; emptyLabel: "Khối lớp"; Layout.fillWidth: true; Layout.minimumWidth: 72; Layout.preferredWidth: 80; model: bridge.libraryGrades; textRole: "label"; valueRole: "id"; onActivated: root.libraryPage = 1 }
                                 LibraryFilter { id: stateFilter; objectName: "libraryStateFilter"; emptyLabel: "Trạng thái"; Layout.fillWidth: true; Layout.minimumWidth: 80; Layout.preferredWidth: 90; textRole: "label"; valueRole: "id"; model: [{id:"",label:"Tất cả trạng thái"},{id:"ready",label:"Đã duyệt nội dung"},{id:"review",label:"Cần xử lý"},{id:"draft",label:"Bản nháp"}]; onActivated: root.libraryPage = 1 }
-                                LibraryFilter { id: voiceFilter; objectName: "libraryVoiceFilter"; emptyLabel: "Giọng đọc"; Layout.fillWidth: true; Layout.minimumWidth: 78; Layout.preferredWidth: 92; textRole: "label"; valueRole: "id"; model: [{id:"",label:"Tất cả giọng đọc"},{id:"en",label:"Có bản giọng Anh"},{id:"vi",label:"Có bản giọng Việt"},{id:"both",label:"Có bản giọng Việt–Anh"},{id:"none",label:"Chưa có giọng"}]; onActivated: root.libraryPage = 1 }
+                                LibraryFilter { id: voiceFilter; objectName: "libraryVoiceFilter"; emptyLabel: "Giọng PowerPoint"; enabled: root.libraryGroup !== "word"; Layout.fillWidth: true; Layout.minimumWidth: 78; Layout.preferredWidth: 92; textRole: "label"; valueRole: "id"; model: [{id:"",label:"Tất cả giọng đọc PowerPoint"},{id:"en",label:"Có bản giọng Anh"},{id:"vi",label:"Có bản giọng Việt"},{id:"both",label:"Có bản giọng Việt–Anh"},{id:"none",label:"Chưa có giọng"}]; onActivated: root.libraryPage = 1 }
                             }
                             LibraryAction { objectName: "libraryClearFilters"; text: "↺"; font.pixelSize: 18; Layout.preferredWidth: 30; Accessible.name: "Xóa bộ lọc"; ToolTip.visible: hovered; ToolTip.text: "Xóa bộ lọc"; onClicked: { search.clear(); subjectFilter.currentIndex = 0; gradeFilter.currentIndex = 0; stateFilter.currentIndex = 0; voiceFilter.currentIndex = 0; root.libraryPage = 1 } }
                             LibraryCheck { objectName: "librarySelectAll"; text: "Chọn tất cả"; ToolTip.visible: hovered; ToolTip.delay: 600; ToolTip.text: "Chọn toàn bộ " + root.libraryResult.total + " bài khớp bộ lọc, kể cả các trang khác.\nĐổi bộ lọc sẽ bỏ chọn."; Accessible.description: ToolTip.text; checkState: !root.selectedLessons.length ? Qt.Unchecked : root.selectedLessons.length === root.libraryResult.total ? Qt.Checked : Qt.PartiallyChecked; nextCheckState: function() { return checkState === Qt.Checked ? Qt.Unchecked : Qt.Checked }; enabled: root.libraryResult.total > 0; onClicked: root.selectedLessons = checked ? root.libraryResult.ids.slice() : [] }
@@ -1202,16 +1226,16 @@ ApplicationWindow {
                                 ProgressBar { visible: bridge.updateState.downloading; Layout.fillWidth: true; value: bridge.updateState.progress / 100 }
                             }
                         }
-                        Surface { visible: root.page === "library" && bridge.lessons.length > 0 && root.libraryResult.total === 0; Layout.fillWidth: true; implicitHeight: 106
+                        Surface { visible: root.page === "library" && bridge.libraryDocuments.length > 0 && root.libraryResult.total === 0; Layout.fillWidth: true; implicitHeight: 106
                             ColumnLayout { anchors.fill: parent; anchors.margins: 20; spacing: 7
                                 Caption { text: "Không có bài phù hợp" }
                                 Copy { text: "Thử từ khóa ngắn hơn hoặc dùng Xóa bộ lọc để xem lại toàn bộ bài."; Layout.fillWidth: true }
                             }
                         }
                         Surface {
-                            visible: root.page === "library" && bridge.lessons.length === 0; Layout.fillWidth: true; implicitHeight: 202
+                            visible: root.page === "library" && bridge.libraryDocuments.length === 0; Layout.fillWidth: true; implicitHeight: 202
                             ColumnLayout { anchors.centerIn: parent; spacing: 13; Label { text: "Bài giảng đầu tiên bắt đầu từ đây"; color: root.ink; font.pixelSize: 19; font.weight: Font.DemiBold }
-                                Copy { text: "Chọn file PowerPoint (.pptx) trong Chuyển đổi bài giảng để bắt đầu."; Layout.alignment: Qt.AlignHCenter }
+                                Copy { text: "Chọn PowerPoint (.pptx) hoặc Word (.docx) trong Chuyển đổi bài giảng để bắt đầu."; Layout.alignment: Qt.AlignHCenter }
                                 MainAction { visible: root.page === "library"; text: "Chuyển đổi bài giảng"; primary: true; Layout.alignment: Qt.AlignHCenter; onClicked: root.go("new") } }
                         }
                         ColumnLayout {
@@ -1230,25 +1254,26 @@ ApplicationWindow {
                                         readonly property bool wideActions: width >= 1000
                                         columns: wideActions ? 5 : 4; columnSpacing: 12; rowSpacing: 6
                                         LibraryCheck { id: rowCheck; lessonIdentity: modelData.id; objectName: "lessonSelect_" + modelData.id; visible: root.page === "library"; Layout.column: 0; Layout.row: 0; Layout.rowSpan: lessonRow.wideActions ? 1 : 2; Layout.preferredWidth: 28; checked: root.selectedLessons.indexOf(modelData.id) >= 0; Accessible.name: "Chọn " + modelData.title; onClicked: root.selectLibraryLesson(modelData.id, checked) }
-                                        Rectangle { Layout.column: 1; Layout.row: 0; Layout.rowSpan: lessonRow.wideActions ? 1 : 2; width: 36; height: 38; radius: 8; color: AppTheme.adapt("#edf4ff"); Label { anchors.centerIn: parent; text: "VI\nEN"; color: root.blue; font.pixelSize: 12; font.weight: Font.Bold; lineHeight: 1.1 } }
+                                        DocumentTypeBadge { objectName: "lessonType_" + modelData.id; word: modelData.document_type === "word"; iconOnly: true; Layout.column: 1; Layout.row: 0; Layout.rowSpan: lessonRow.wideActions ? 1 : 2 }
                                         ColumnLayout { Layout.column: 2; Layout.row: 0; Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 3
                                             Label { objectName: "lessonTitle_" + modelData.id; text: modelData.title; color: root.ink; font.pixelSize: 15; font.weight: Font.DemiBold; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight; Layout.fillWidth: true; Layout.minimumWidth: 0 }
-                                            Copy { Layout.fillWidth: true; text: modelData.subject + "  ·  " + modelData.education_level + " " + modelData.grade + "  ·  " + (modelData.slides_count ? modelData.slides_count + " slide" : modelData.segments_count + " phần"); font.pixelSize: 12 }
+                                            Copy { Layout.fillWidth: true; text: root.libraryMetadata(modelData); font.pixelSize: 12 }
                                             LibraryContentWarning { id: rowContentWarning; objectName: "lessonContentWarning_" + modelData.id; showWarnings: bridge.experimentalTeaching; review: modelData.review || ({}); enabled: !bridge.busy; onRequestInspect: { root.libraryReviewTarget = modelData.id; bridge.openLesson(modelData.id) } Layout.fillWidth: true; Layout.minimumWidth: 0 }
                                             Copy { objectName: "lessonCreated_" + modelData.id; text: (modelData.created_at_estimated ? "Lưu: " : "Tạo: ") + bridge.lessonDateLabel(modelData.created_at); font.pixelSize: 10; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.topMargin: 8 }
                                         }
-                                        LessonStatus { id: rowStatus; lessonRow: modelData; Layout.column: 3; Layout.row: 0; Layout.minimumWidth: 96; Layout.preferredWidth: 96; Layout.maximumWidth: 96 }
+                                        LessonStatus { id: rowStatus; visible: modelData.document_type !== "word"; lessonRow: modelData; Layout.column: 3; Layout.row: 0; Layout.minimumWidth: 96; Layout.preferredWidth: 96; Layout.maximumWidth: 96 }
+                                        Copy { visible: modelData.document_type === "word"; text: modelData.word_label || ""; font.pixelSize: 11; Layout.column: 3; Layout.row: 0; Layout.preferredWidth: 100; Layout.maximumWidth: 100 }
                                         RowLayout {
                                         Layout.column: lessonRow.wideActions ? 4 : 2; Layout.row: lessonRow.wideActions ? 0 : 1; Layout.columnSpan: lessonRow.wideActions ? 1 : 2; Layout.fillWidth: !lessonRow.wideActions; spacing: 8
-                                        LibraryRowAction { id: rowOpen; objectName: "lessonOpen_" + modelData.id; text: bridge.openingTeachingLesson === modelData.id ? "Đang mở…" : "Mở PowerPoint"; Layout.minimumWidth: 128; Layout.preferredWidth: 128; Layout.maximumWidth: 128; primary: true; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.teachingTransitioning; ToolTip.visible: hovered; ToolTip.text: "Mở bài và gắn Mascot với bài này. Bấm F5 khi sẵn sàng trình chiếu."; onClicked: bridge.openTeachingLibraryLesson(modelData.id) }
-                                        LibraryRowAction { id: rowVoice; objectName: "lessonNarrate_" + modelData.id; text: "Tạo giọng đọc"; enabled: !bridge.busy && !bridge.narrationBusy; ToolTip.visible: hovered; ToolTip.text: "Chọn ngôn ngữ, giọng và vị trí loa; không mở PowerPoint."; onClicked: bridge.openLessonNarration(modelData.id) }
+                                        LibraryRowAction { id: rowOpen; objectName: "lessonOpen_" + modelData.id; text: modelData.document_type === "word" ? modelData.output_sha256 ? "Mở Word" : "Xem / tiếp tục" : bridge.openingTeachingLesson === modelData.id ? "Đang mở…" : "Mở PowerPoint"; Layout.minimumWidth: 128; Layout.preferredWidth: 128; Layout.maximumWidth: 128; primary: true; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.teachingTransitioning; ToolTip.visible: hovered; ToolTip.text: modelData.document_type === "word" ? "Mở tài liệu Word đã lưu hoặc tiếp tục phần đang chuẩn bị." : "Mở bài và gắn Mascot với bài này. Bấm F5 khi sẵn sàng trình chiếu."; onClicked: root.openLibraryDocument(modelData) }
+                                        LibraryRowAction { id: rowVoice; objectName: "lessonNarrate_" + modelData.id; text: modelData.document_type === "word" ? "Sửa song ngữ" : "Tạo giọng đọc"; enabled: !bridge.busy && !bridge.narrationBusy; ToolTip.visible: hovered; ToolTip.text: modelData.document_type === "word" ? "Xem vùng chọn, sửa bản dịch và lưu lại Word." : "Chọn ngôn ngữ, giọng và vị trí loa; không mở PowerPoint."; onClicked: root.configureLibraryDocument(modelData) }
                                         LibraryDownloadButton { id: rowDownload; objectName: "lessonDownload_" + modelData.id; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: root.downloadLibraryLessons([modelData.id]) }
                                         Item { visible: !lessonRow.wideActions; Layout.fillWidth: true }
                                         LibraryAction { id: rowMore; objectName: "lessonMore_" + modelData.id; text: "⋯"; font.pixelSize: 20; implicitHeight: 34; Accessible.name: "Thao tác với " + modelData.title; onClicked: rowMenu.popup() }
                                         Menu { id: rowMenu; parent: rowMore; x: parent.width - width; y: parent.height
-                                            MenuItem { objectName: "lessonPreview_" + modelData.id; text: "Xem bài giảng"; enabled: !bridge.busy && !bridge.narrationBusy; onTriggered: bridge.openLesson(modelData.id) }
-                                            MenuItem { objectName: "lessonReveal_" + modelData.id; text: "Mở trong Explorer"; enabled: !bridge.busy && !bridge.narrationBusy; onTriggered: bridge.openLessonFileLocation(modelData.id) }
-                                            MenuItem { objectName: "lessonEdit_" + modelData.id; text: "Đổi tên / thông tin bài"; enabled: !bridge.busy && !bridge.powerpointState.active; onTriggered: { metadataDialog.lessonData = modelData; metadataDialog.open() } }
+                                            MenuItem { objectName: "lessonPreview_" + modelData.id; text: modelData.document_type === "word" ? "Xem / sửa Word song ngữ" : "Xem bài giảng"; enabled: !bridge.busy && !bridge.narrationBusy; onTriggered: root.inspectLibraryDocument(modelData) }
+                                            MenuItem { objectName: "lessonReveal_" + modelData.id; text: "Mở trong Explorer"; enabled: !bridge.busy && !bridge.narrationBusy; onTriggered: root.revealLibraryDocument(modelData) }
+                                            MenuItem { objectName: "lessonEdit_" + modelData.id; visible: modelData.document_type !== "word"; text: "Đổi tên / thông tin bài"; enabled: !bridge.busy && !bridge.powerpointState.active; onTriggered: { metadataDialog.lessonData = modelData; metadataDialog.open() } }
                                         }
                                         LibraryTrashButton { id: rowDelete; objectName: "lessonDelete_" + modelData.id; Accessible.name: "Xóa bài giảng " + modelData.title; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !root.classroom.running; onClicked: { deleteLessonDialog.lessonId = modelData.id; deleteLessonDialog.lessonTitle = modelData.title; deleteLessonDialog.open() } }
 
@@ -1278,17 +1303,23 @@ ApplicationWindow {
                                         id: cardContent; anchors.fill: parent; anchors.margins: 14; spacing: 10
                                         RowLayout { Layout.fillWidth: true
                                             LibraryCheck { id: cardCheck; lessonIdentity: modelData.id; objectName: "lessonSelect_" + modelData.id; checked: root.selectedLessons.indexOf(modelData.id) >= 0; Accessible.name: "Chọn " + modelData.title; onClicked: root.selectLibraryLesson(modelData.id, checked) }
+                                            DocumentTypeBadge { objectName: "lessonType_" + modelData.id; word: modelData.document_type === "word" }
                                             Item { Layout.fillWidth: true }
-                                            LessonStatus { id: cardStatus; lessonRow: modelData; alignIconRight: true }
+                                            LessonStatus { id: cardStatus; visible: modelData.document_type !== "word"; lessonRow: modelData; alignIconRight: true }
+                                            Copy { visible: modelData.document_type === "word"; text: modelData.output_sha256 ? "Đã lưu" : "Đang chuẩn bị"; font.pixelSize: 10 }
                                         }
                                         Rectangle {
                                             objectName: "lessonCover_" + modelData.id
                                             Layout.fillWidth: true; implicitHeight: width * 9 / 16
                                             color: AppTheme.adapt("#e9eef5"); radius: 8; clip: true
-                                            Image { objectName: "lessonCoverImage_" + modelData.id; anchors.fill: parent; source: largeCard.cover.image; asynchronous: true; sourceSize.width: 640; sourceSize.height: 360; fillMode: Image.PreserveAspectFit }
-                                            Column { visible: !largeCard.cover.image; anchors.centerIn: parent; spacing: 6
+                                            Image { objectName: "lessonCoverImage_" + modelData.id; visible: modelData.document_type !== "word"; anchors.fill: parent; source: largeCard.cover.image; asynchronous: true; sourceSize.width: 640; sourceSize.height: 360; fillMode: Image.PreserveAspectFit }
+                                            Column { visible: modelData.document_type !== "word" && !largeCard.cover.image; anchors.centerIn: parent; spacing: 6
                                                 Label { text: largeCard.cover.loading ? "Đang tải ảnh slide…" : "Chưa có ảnh xem trước"; color: root.muted; font.pixelSize: 12; anchors.horizontalCenter: parent.horizontalCenter }
                                                 Label { text: "Mở bài để xem nội dung"; visible: !largeCard.cover.loading; color: root.muted; font.pixelSize: 11; anchors.horizontalCenter: parent.horizontalCenter }
+                                            }
+                                            Column { visible: modelData.document_type === "word"; anchors.centerIn: parent; width: parent.width - 34; spacing: 12
+                                                Image { source: "../assets/actions/document-word.svg"; width: 42; height: 47; anchors.horizontalCenter: parent.horizontalCenter; sourceSize.width: 96; sourceSize.height: 108 }
+                                                Label { width: parent.width; text: modelData.preview_text || "Tài liệu Word · Chọn để xem và chỉnh sửa song ngữ"; color: root.ink; font.pixelSize: 12; textFormat: Text.PlainText; wrapMode: Text.WordWrap; maximumLineCount: 3; elide: Text.ElideRight; horizontalAlignment: Text.AlignHCenter }
                                             }
                                         }
                                         FontMetrics { id: cardTitleMetrics; font: cardTitle.font }
@@ -1303,7 +1334,7 @@ ApplicationWindow {
                                             HoverHandler { id: cardTitleHover }
                                         }
                                         RowLayout { Layout.fillWidth: true; spacing: 10
-                                            Copy { objectName: "lessonCardMetadata_" + modelData.id; Layout.fillWidth: true; Layout.minimumWidth: 0; font.pixelSize: 12; wrapMode: Text.NoWrap; elide: Text.ElideRight; text: modelData.subject + " · " + modelData.education_level + " " + modelData.grade + " · " + (modelData.slides_count ? modelData.slides_count + " slide" : modelData.segments_count + " phần")
+                                            Copy { objectName: "lessonCardMetadata_" + modelData.id; Layout.fillWidth: true; Layout.minimumWidth: 0; font.pixelSize: 12; wrapMode: Text.NoWrap; elide: Text.ElideRight; text: root.libraryMetadata(modelData)
                                                 ToolTip.visible: metadataHover.hovered && truncated; ToolTip.text: text
                                                 HoverHandler { id: metadataHover }
                                             }
@@ -1311,15 +1342,15 @@ ApplicationWindow {
                                         }
                                         LibraryContentWarning { id: cardContentWarning; objectName: "lessonContentWarning_" + modelData.id; showWarnings: bridge.experimentalTeaching; review: modelData.review || ({}); enabled: !bridge.busy; onRequestInspect: { root.libraryReviewTarget = modelData.id; bridge.openLesson(modelData.id) } Layout.fillWidth: true; Layout.minimumWidth: 0 }
                                         Item { Layout.fillHeight: true; Layout.minimumHeight: 0 }
-                                        MainAction { id: cardOpen; objectName: "lessonOpen_" + modelData.id; text: bridge.openingTeachingLesson === modelData.id ? "Đang mở…" : "Mở PowerPoint"; primary: true; Layout.fillWidth: true; onClicked: bridge.openTeachingLibraryLesson(modelData.id); enabled: !bridge.busy && !bridge.narrationBusy && !bridge.teachingTransitioning }
+                                        MainAction { id: cardOpen; objectName: "lessonOpen_" + modelData.id; text: modelData.document_type === "word" ? modelData.output_sha256 ? "Mở Word" : "Xem / tiếp tục" : bridge.openingTeachingLesson === modelData.id ? "Đang mở…" : "Mở PowerPoint"; primary: true; Layout.fillWidth: true; onClicked: root.openLibraryDocument(modelData); enabled: !bridge.busy && !bridge.narrationBusy && !bridge.teachingTransitioning }
                                         RowLayout { Layout.fillWidth: true; spacing: 6
-                                            MainAction { id: cardVoice; objectName: "lessonNarrate_" + modelData.id; text: "Tạo giọng đọc"; Layout.fillWidth: true; onClicked: bridge.openLessonNarration(modelData.id); enabled: !bridge.busy && !bridge.narrationBusy }
+                                            MainAction { id: cardVoice; objectName: "lessonNarrate_" + modelData.id; text: modelData.document_type === "word" ? "Sửa song ngữ" : "Tạo giọng đọc"; Layout.fillWidth: true; onClicked: root.configureLibraryDocument(modelData); enabled: !bridge.busy && !bridge.narrationBusy }
                                             LibraryDownloadButton { id: cardDownload; objectName: "lessonDownload_" + modelData.id; implicitWidth: 40; implicitHeight: 40; onClicked: root.downloadLibraryLessons([modelData.id]); enabled: !bridge.busy && !bridge.narrationBusy }
                                             LibraryAction { id: largeCardMore; objectName: "lessonMore_" + modelData.id; text: "⋯"; font.pixelSize: 20; implicitHeight: 40; Accessible.name: "Thao tác với " + modelData.title; onClicked: largeCardMenu.popup() }
                                             Menu { id: largeCardMenu; parent: largeCardMore; x: parent.width - width; y: parent.height
-                                                MenuItem { objectName: "lessonPreview_" + modelData.id; text: "Xem bài giảng"; enabled: !bridge.busy && !bridge.narrationBusy; onTriggered: bridge.openLesson(modelData.id) }
-                                                MenuItem { objectName: "lessonReveal_" + modelData.id; text: "Mở trong Explorer"; enabled: !bridge.busy && !bridge.narrationBusy; onTriggered: bridge.openLessonFileLocation(modelData.id) }
-                                                MenuItem { objectName: "lessonEdit_" + modelData.id; text: "Đổi tên / thông tin bài"; enabled: !bridge.busy && !bridge.powerpointState.active; onTriggered: { metadataDialog.lessonData = modelData; metadataDialog.open() } }
+                                                MenuItem { objectName: "lessonPreview_" + modelData.id; text: modelData.document_type === "word" ? "Xem / sửa Word song ngữ" : "Xem bài giảng"; enabled: !bridge.busy && !bridge.narrationBusy; onTriggered: root.inspectLibraryDocument(modelData) }
+                                                MenuItem { objectName: "lessonReveal_" + modelData.id; text: "Mở trong Explorer"; enabled: !bridge.busy && !bridge.narrationBusy; onTriggered: root.revealLibraryDocument(modelData) }
+                                                MenuItem { objectName: "lessonEdit_" + modelData.id; visible: modelData.document_type !== "word"; text: "Đổi tên / thông tin bài"; enabled: !bridge.busy && !bridge.powerpointState.active; onTriggered: { metadataDialog.lessonData = modelData; metadataDialog.open() } }
                                             }
                                             LibraryTrashButton { id: largeCardDelete; objectName: "lessonDelete_" + modelData.id; implicitHeight: 40; Accessible.name: "Xóa bài giảng " + modelData.title; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !root.classroom.running; onClicked: { deleteLessonDialog.lessonId = modelData.id; deleteLessonDialog.lessonTitle = modelData.title; deleteLessonDialog.open() } }
                                         }
@@ -1368,16 +1399,16 @@ ApplicationWindow {
                     ColumnLayout {
                         width: creationScroll.availableWidth; spacing: root.inputSectionSpacing
                         RowLayout { Layout.fillWidth: true
+                            Heading { objectName: "creationPageHeading"; text: "Chuyển đổi bài giảng song ngữ"; font.pixelSize: root.tightCreation ? 24 : 27; Layout.fillWidth: true; Layout.minimumWidth: 0; wrapMode: Text.WordWrap }
+                            MainAction { objectName: root.selectedFile || root.creationBatch ? "chooseInputDocumentButton" : ""; visible: !root.creationBatchComplete && (!!root.selectedFile || root.creationBatch); text: "Chọn bài khác"; enabled: !bridge.busy && !bridge.inputDocuments.busy && !bridge.narrationBusy; onClicked: root.chooseInputDocuments("convert") }
+                            MainAction { objectName: "removeInputDocumentButton"; visible: !root.creationBatchComplete && (!!root.selectedFile || root.creationBatch); text: root.creationBatch ? "Hủy các bài đang chọn" : "Hủy bài đang chọn"; danger: true; symbol: "×"; enabled: !bridge.busy && !bridge.narrationBusy && (!root.creationBatch || root.batchState.phase === "draft"); onClicked: root.creationBatch ? bridge.batchQueue.clear() : root.removeInputDocument() }
+                        }
+                        RowLayout { Layout.fillWidth: true
                             WordAction { objectName: "conversionDocumentPowerPoint"; text: "PowerPoint"; primary: true }
                             WordAction { objectName: "conversionDocumentWord"; text: "Word"; onClicked: root.go("word") }
                             Item { Layout.fillWidth: true }
                         }
                         Copy { visible: !!bridge.googleSettings.state.serviceWarning; text: bridge.googleSettings.state.serviceWarning || ""; color: AppTheme.warning; Layout.fillWidth: true; font.pixelSize: 11 }
-                        RowLayout { Layout.fillWidth: true
-                            Heading { objectName: "creationPageHeading"; text: "Chuyển đổi bài giảng PowerPoint"; font.pixelSize: root.tightCreation ? 24 : 27; Layout.fillWidth: true; Layout.minimumWidth: 0; wrapMode: Text.WordWrap }
-                            MainAction { objectName: root.selectedFile || root.creationBatch ? "chooseInputDocumentButton" : ""; visible: !root.creationBatchComplete && (!!root.selectedFile || root.creationBatch); text: "Chọn bài khác"; enabled: !bridge.busy && !bridge.inputDocuments.busy && !bridge.narrationBusy; onClicked: root.chooseInputDocuments("convert") }
-                            MainAction { objectName: "removeInputDocumentButton"; visible: !root.creationBatchComplete && (!!root.selectedFile || root.creationBatch); text: root.creationBatch ? "Hủy các bài đang chọn" : "Hủy bài đang chọn"; danger: true; symbol: "×"; enabled: !bridge.busy && !bridge.narrationBusy && (!root.creationBatch || root.batchState.phase === "draft"); onClicked: root.creationBatch ? bridge.batchQueue.clear() : root.removeInputDocument() }
-                        }
                         Copy { objectName: "creationWorkflowGuide"; visible: !root.creationBatchComplete; text: "Chọn PowerPoint → Chọn kiểu chuyển đổi → Thiết kế bài giảng → Tạo bài giảng."; Layout.fillWidth: true }
                         PowerPointUpload {
                             objectName: "creationSourceArea"; enabled: root.page === "new"; visible: !root.selectedFile && !root.creationBatch; illustrated: true; compact: true; multiple: bridge.googleTranslation; Layout.fillWidth: true
@@ -2702,14 +2733,16 @@ ApplicationWindow {
     }
     Dialog { id: libraryDownloadDialog; objectName: "libraryDownloadDialog"; anchors.centerIn: parent; modal: true; title: "Tải " + identities.length + " bài giảng"; width: Math.min(root.width - 48, 530)
         property var identities: []
+        readonly property bool hasPowerPoint: identities.some(function(id) { return id.indexOf("word:") !== 0 })
+        readonly property bool singleWord: identities.length === 1 && !hasPowerPoint
         contentItem: ColumnLayout { spacing: 16
-            Copy { text: libraryDownloadDialog.identities.length > 1 ? "Các PowerPoint được gói trong một file ZIP. Mỗi bài có tên riêng và thông tin giọng đọc." : "Tải file PowerPoint của bài đã chọn."; Layout.fillWidth: true }
-            CheckBox { id: libraryDownloadVoice; objectName: "libraryDownloadVoice"; text: "Kèm bản giọng đã chọn, nếu đã tạo đủ"; checked: true }
-            Copy { text: "Bài chưa tạo đủ giọng sẽ tải không kèm âm thanh. Muốn đổi người đọc hoặc loại giọng, mở bài rồi chọn bản cần dùng trước khi tải."; Layout.fillWidth: true; font.pixelSize: 12 }
+            Copy { text: libraryDownloadDialog.identities.length > 1 ? "Các bài đã chọn được gói trong một file ZIP; Word giữ dạng .docx, PowerPoint giữ dạng .pptx." : libraryDownloadDialog.singleWord ? "Tải bản Word song ngữ đã lưu (.docx)." : "Tải file PowerPoint của bài đã chọn."; Layout.fillWidth: true }
+            CheckBox { id: libraryDownloadVoice; objectName: "libraryDownloadVoice"; visible: libraryDownloadDialog.hasPowerPoint; text: "PowerPoint: kèm bản giọng đã chọn, nếu đã tạo đủ"; checked: true }
+            Copy { visible: libraryDownloadDialog.hasPowerPoint; text: "PowerPoint chưa tạo đủ giọng sẽ tải không kèm âm thanh. Tài liệu Word không áp dụng giọng đọc."; Layout.fillWidth: true; font.pixelSize: 12 }
             RowLayout { Item { Layout.fillWidth: true } MainAction { text: "Hủy"; onClicked: libraryDownloadDialog.close() } MainAction { objectName: "confirmLibraryDownload"; text: "Chọn nơi lưu"; primary: true; enabled: !bridge.busy && !bridge.narrationBusy; onClicked: { libraryDownloadDialog.close(); libraryDownloadSave.openSuggested() } } }
         }
     }
-    SuggestedSaveDialog { id: libraryDownloadSave; objectName: "libraryDownloadSave"; title: "Lưu bài giảng"; currentFolder: bridge.downloadsDirectory; defaultSuffix: libraryDownloadDialog.identities.length > 1 ? "zip" : "pptx"; nameFilters: libraryDownloadDialog.identities.length > 1 ? ["Bộ bài giảng (*.zip)"] : ["PowerPoint (*.pptx)"]; suggestionProvider: function() { return bridge.libraryDownloadSuggestion(libraryDownloadDialog.identities, libraryDownloadVoice.checked) }; onAccepted: bridge.downloadLibraryPresentations(libraryDownloadDialog.identities, selectedFile.toString(), libraryDownloadVoice.checked) }
+    SuggestedSaveDialog { id: libraryDownloadSave; objectName: "libraryDownloadSave"; title: "Lưu bài giảng"; currentFolder: bridge.downloadsDirectory; defaultSuffix: libraryDownloadDialog.identities.length > 1 ? "zip" : libraryDownloadDialog.singleWord ? "docx" : "pptx"; nameFilters: libraryDownloadDialog.identities.length > 1 ? ["Bộ bài giảng (*.zip)"] : libraryDownloadDialog.singleWord ? ["Word (*.docx)"] : ["PowerPoint (*.pptx)"]; suggestionProvider: function() { return bridge.libraryDownloadSuggestion(libraryDownloadDialog.identities, libraryDownloadVoice.checked) }; onAccepted: bridge.downloadLibraryPresentations(libraryDownloadDialog.identities, selectedFile.toString(), libraryDownloadVoice.checked) }
     Dialog { id: lessonTrashDialog; objectName: "lessonTrashDialog"; anchors.centerIn: parent; modal: true; title: "Thùng rác bài giảng"; width: Math.min(root.width - 64, 880); height: Math.min(root.height - 64, 560)
         property var selected: []
         readonly property var identities: bridge.trashedLessons.map(function(row) { return row.id })
@@ -2745,6 +2778,7 @@ ApplicationWindow {
                     Repeater { model: bridge.trashedLessons
                         RowLayout { required property var modelData; Layout.fillWidth: true
                             LibraryCheck { objectName: "trashSelect_" + modelData.id; Layout.preferredWidth: 28; checked: lessonTrashDialog.selected.indexOf(modelData.id) >= 0; Accessible.name: "Chọn " + modelData.title; onClicked: lessonTrashDialog.choose(modelData.id, checked) }
+                            DocumentTypeBadge { word: modelData.document_type === "word"; iconOnly: true }
                             ColumnLayout { Layout.fillWidth: true; spacing: 4
                                 Caption { text: modelData.title; Layout.fillWidth: true; Layout.minimumWidth: 0; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight }
                                 Copy { text: "Xóa: " + bridge.lessonDateLabel(modelData.deleted_at); font.pixelSize: 11 }

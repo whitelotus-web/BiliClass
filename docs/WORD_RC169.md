@@ -14,7 +14,26 @@ Tag/bộ cài RC167 và nhánh RC168 được giữ nguyên.
 4. Xem cặp Việt–Anh bên phải, sửa bản Anh nếu cần. Chỉ khi đã xem trước
    đúng cấu hình mới có thể bấm **Lưu Word song ngữ**.
 5. Màn hoàn tất giữ lại **Mở Word đã lưu**, **Mở thư mục** và
-   **Thư viện Word**. Vào **Bài giảng → Word** để mở lại hoặc tiếp tục bài.
+   **Về thư viện**. Vào **Bài giảng → Word** để mở lại hoặc tiếp tục bài.
+
+Hai màn chuyển đổi dùng chung tiêu đề **Chuyển đổi bài giảng song ngữ**,
+hai tab **PowerPoint / Word** ở ngay dưới. Tab Word có khung tải/kéo thả
+và khung **Cấu hình bài giảng** theo phong cách PowerPoint; luồng xử lý,
+vùng chọn và checkpoint của hai công cụ vẫn độc lập.
+
+## Thư viện dùng chung
+
+- **Tất cả** gồm cả PowerPoint và Word. Mỗi bài có icon P/W và nhãn loại tệp,
+  dùng chung tìm kiếm, môn/khối, sắp xếp, phân trang, kiểu danh sách/thẻ.
+- **Chưa có giọng** và **Đã có giọng** có dòng phân loại **PowerPoint**;
+  không tính Word là bài chưa có giọng. Tab **Word** cùng cấp lọc tài liệu Word.
+- Word có **Mở Word** hoặc **Xem / tiếp tục**, **Sửa song ngữ**, tải `.docx`.
+  Khi chọn lẫn hai loại, **Tạo giọng PowerPoint** chỉ nhận các PowerPoint;
+  tải nhiều bài thành ZIP giữ `.pptx`/`.docx` tương ứng.
+- Thùng rác và Hoàn tác xóa nhận cả hai loại. Xóa vĩnh viễn Word chỉ dọn thư
+  mục do tool quản lý; giữ file gốc và các bản đã xuất ngoài thư viện.
+- Danh sách Word đọc từ summary trên luồng nền; không dựng ảnh bằng PowerPoint,
+  không quét lại toàn bộ âm thanh PowerPoint chỉ vì sửa/chọn vùng Word.
 
 | Kiểu | Kết quả |
 | --- | --- |
@@ -56,7 +75,7 @@ màn kết quả hoặc chuyển tự động sang công cụ tạo giọng.
 ## Lưu, mở lại và khôi phục
 
 Mỗi tài liệu có bản nguồn cố định và checkpoint riêng trong
-`<thư viện>/word_documents/<id>/`, tách khỏi danh sách PowerPoint.
+`<thư viện>/word_documents/<id>/`, tách khỏi bản ghi và luồng xử lý PowerPoint.
 Thư viện Word được mang theo khi sao lưu/khôi phục hoặc chuyển nơi lưu dữ liệu;
 không mang key dịch vào bản sao lưu.
 
@@ -71,7 +90,7 @@ Nếu giáo viên đã sửa bản xuất bên ngoài, tạo tên khác thay vì
 
 Menu **⋮ → Khôi phục bản xuất trước** khôi phục cả tệp và cấu hình/bản dịch
 tương ứng trong thư viện. Chỉ giữ một bản xuất trước; không sửa các bản ngoài
-thư viện khi hoàn tác. Thư viện Word có thùng rác và khôi phục riêng.
+thư viện khi hoàn tác. Thùng rác bài giảng hỗ trợ cả Word và PowerPoint.
 
 ## Dịch vụ dự phòng
 
