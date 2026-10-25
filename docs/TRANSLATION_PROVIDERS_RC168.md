@@ -26,20 +26,31 @@ ghim Azure vẫn tiếp tục bằng bộ kết nối cũ, không tự đổi d�
 
 ## Thiết lập LanguageApp
 
-Chọn phương án 2 → **Hướng dẫn thiết lập**:
+Lần đầu chọn phương án 2, hướng dẫn tự mở theo ba bước:
 
-1. Bấm **Sao chép mã**, mở Apps Script và dán thay nội dung `Code.gs`.
-2. Cài đặt dự án → Thuộc tính tập lệnh: thêm `BILICLASS_ACCESS_CODE` với mã
-   riêng 16–200 ký tự chữ/số/`_`/`-`. Không dùng API key Google làm mã này.
-3. Triển khai → Bản triển khai mới → Ứng dụng web. Thực thi bằng **Tôi**;
+1. Bấm **Sao chép mã đã chuẩn bị**, mở Apps Script và dán thay **toàn bộ**
+   `Code.gs`. Tool tự tạo mã truy cập ngẫu nhiên trên máy, chèn vào đoạn mã;
+   không cần viết doPost, chọn Chạy hoặc điền Thuộc tính tập lệnh.
+2. Triển khai → Bản triển khai mới → Ứng dụng web. Thực thi bằng **Tôi**;
    ai có quyền truy cập: **Mọi người**. Cấp quyền cho chính dự án đã tạo.
-4. Dán URL kết thúc `/exec` và mã riêng vào BiliClass rồi Lưu cấu hình.
-5. Thử một bài ngắn. Nếu sửa mã, cập nhật phiên bản của bản triển khai.
+3. Dán URL kết thúc `/exec` vào bước Kết nối → **Lưu và thử kết nối**.
+   Tool ghép đúng mã truy cập và thử dịch một câu; báo hoàn tất sau khi nhận
+   kết quả thật. Nếu lỗi, giữ URL/mã trong lần thiết lập để sửa và thử lại.
+
+Mã riêng chưa lưu chỉ ở trong bộ nhớ. Nếu đóng tool giữa chừng, cần bắt đầu
+lại và dán mã mới lên Google. Không thay cấu hình đang lưu chỉ bằng việc mở
+hướng dẫn hoặc sao chép mã. Nếu đã dịch được, tiếp tục dùng cấu hình cũ;
+không cần thiết lập lại sau mỗi bài hay mỗi lần khởi động máy. Cách nhập
+URL/mã thủ công và thuộc tính `BILICLASS_ACCESS_CODE` cũ vẫn được hỗ trợ.
 
 Tài khoản trường có thể bị quản trị viên hạn chế triển khai công khai.
 Không dùng URL chỉnh sửa hoặc `/dev`. Mã mẫu ở `app/resources/languageapp.gs`
 không chứa tài khoản/key/URL cá nhân. Giữ kín mã truy cập và URL; không nhúng
 dịch vụ cá nhân vào bộ cài công khai.
+
+Đoạn mã do hướng dẫn tạo riêng có chứa mã truy cập, chỉ dán vào dự án của
+chủ tài khoản, không công bố hoặc commit. Mở URL trong trình duyệt chỉ hiện
+lời hướng dẫn; nút Thử kết nối trong tool mới thử yêu cầu POST thật.
 
 Chặn tại máy: 4.500 đoạn/ngày UTC. Mã Apps Script có khóa đồng thời và sổ dùng
 chung tối đa 4.500 lượt trong ít nhất 24 giờ (bucket giữ 24–25 giờ để không xóa
@@ -82,6 +93,25 @@ hạn mức hoặc chất lượng dịch thật**. Giao diện hiển thị rõ
   Không coi nhánh là bản sao dữ liệu. Kiểm tra tự động dùng thư viện tạm.
 - Không thêm phụ thuộc Python/mô hình mới. Các đường build kèm mã Apps Script;
   không tạo bộ cài ở lần thay đổi này.
+
+## Chất lượng: phần dùng chung và phần riêng
+
+`Translator` là lớp xử lý chung, `AlternativeTranslator` kế thừa cho LanguageApp,
+Gemini và DeepL. Thuật ngữ theo môn và khóa của giáo viên, số ít/số nhiều, chữ
+hoa/thường, bảo vệ số liệu/công thức, kiểm tra kết quả và bố trí PowerPoint đều
+được dùng lại. Sửa lỗi tại những lớp này áp dụng cho các dịch vụ đã chọn; các
+bài hoàn thành trước đó không tự đổi. Muốn áp dụng thì chuyển đổi lại.
+
+Phần riêng là cách gửi/nhận yêu cầu, HTML được hỗ trợ, JSON/chỉ số Gemini,
+giới hạn độ dài, thời gian chờ và cách báo lỗi/quota của từng nhà cung cấp.
+Sửa prompt Gemini không thay Google/LanguageApp/DeepL. Không chuyển dịch vụ
+âm thầm hoặc dùng key của dịch vụ khác để chữa lỗi.
+
+Thử kết nối chỉ xác nhận một câu dịch được. Kiểm tra tự động có thể phát hiện
+thiếu đoạn, đổi số hoặc mất token, nhưng không chứng nhận mọi câu đúng nghĩa.
+Một bộ mẫu dùng chung cần có môn học, câu dài/ngắn, bảng, công thức, chữ trong
+ảnh và lỗi nguồn; đánh giá kết quả từng dịch vụ trên cùng nguồn trước khi coi
+một dịch vụ đạt yêu cầu. Không suy rộng từ một bài Toán sang toàn bộ môn học.
 
 ## Kiểm tra
 

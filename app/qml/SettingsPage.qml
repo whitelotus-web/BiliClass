@@ -34,6 +34,7 @@ Item {
     }
     Connections {
         target: page.bridge.googleSettings
+        function onLanguageSetupRequested() { languageGuide.open() }
         function onSaved(success) { if (success) { googleKeys.clear(); page.showGoogleKeyEntry = false } }
         function onAlternativeSaved(provider, success) {
             if (success) {
@@ -71,29 +72,7 @@ Item {
         })
     }
     clip: true
-    Dialog {
-        id: languageGuide; objectName: "languageappGuide"
-        title: "Thiết lập dịch vụ dịch miễn phí"; modal: true; anchors.centerIn: parent
-        width: Math.min(620, page.width - 32); height: Math.min(620, page.height - 24)
-        footer: DialogButtonBox {
-            Button { text: "Đóng"; DialogButtonBox.buttonRole: DialogButtonBox.RejectRole }
-            onRejected: languageGuide.close()
-        }
-        contentItem: ContentScrollView {
-            id: languageGuideScroll
-            contentWidth: availableWidth
-            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
-            ColumnLayout { width: languageGuideScroll.availableWidth; spacing: 14
-                Hint { Layout.fillWidth: true; text: "Chỉ làm một lần bằng tài khoản Google của thầy cô. Không cần đăng ký Google Cloud hoặc nhập thẻ." }
-                Hint { Layout.fillWidth: true; text: "1. Bấm Sao chép mã, rồi Mở Apps Script. Dán thay toàn bộ mã trong Code.gs.\n\n2. Vào Cài đặt dự án (bánh răng) → Thuộc tính tập lệnh → Thêm thuộc tính. Tên: BILICLASS_ACCESS_CODE. Giá trị: mã riêng ít nhất 16 ký tự (chữ, số, _ hoặc -). Ghi nhớ mã này.\n\n3. Bấm Triển khai → Bản triển khai mới → chọn Ứng dụng web. Thực thi bằng: Tôi. Ai có quyền truy cập: Mọi người.\n\n4. Cấp quyền cho chính dự án của thầy cô. Chỉ tiếp tục nếu tài khoản và mã triển khai đúng do thầy cô tạo. Một số tài khoản trường học không cho triển khai công khai; khi đó chọn Gemini hoặc Google Cloud.\n\n5. Sao chép URL ứng dụng web kết thúc bằng /exec vào ô Đường dẫn dịch vụ. Điền mã truy cập ở bước 2 rồi Lưu cấu hình.\n\n6. Thử một bài ngắn. Nếu sửa mã Apps Script về sau, cần cập nhật bản triển khai bằng phiên bản mới." }
-                Flow { Layout.fillWidth: true; spacing: 10
-                    SoftButton { text: "Sao chép mã"; onClicked: bridge.googleSettings.copyLanguageScript() }
-                    SoftButton { text: "Mở Apps Script"; onClicked: Qt.openUrlExternally("https://script.google.com/home/start") }
-                }
-                Hint { Layout.fillWidth: true; text: "Giữ kín mã truy cập và không nhúng mã/URL cá nhân vào bộ cài công khai. Các máy dùng cùng URL chia sẻ hạn mức của tài khoản triển khai." }
-            }
-        }
-    }
+    LanguageAppSetupDialog { id: languageGuide; bridge: page.bridge }
     Dialog {
         id: renameGoogleKey; objectName: "renameGoogleKeyDialog"
         property string keyId: ""
@@ -737,7 +716,7 @@ Item {
                     Flow { Layout.fillWidth: true; spacing: 10
                         SaveButton { objectName: "saveLanguageApp"; text: "Lưu cấu hình"; enabled: !bridge.busy && bridge.googleSettings.ready; onClicked: bridge.googleSettings.saveAlternative("languageapp", languageAccess.text, languageUrl.text) }
                         SoftButton { objectName: "checkLanguageApp"; text: "Thử kết nối"; enabled: !bridge.busy && bridge.googleSettings.state.alternatives.languageapp.configured; onClicked: bridge.googleSettings.checkAlternative("languageapp") }
-                        SoftButton { objectName: "languageappSetup"; text: "Hướng dẫn thiết lập"; onClicked: languageGuide.open() }
+                        SoftButton { objectName: "languageappSetup"; text: bridge.googleSettings.state.alternatives.languageapp.configured ? "Hướng dẫn thiết lập" : "Thiết lập từng bước"; enabled: !bridge.busy; onClicked: languageGuide.open() }
                     }
                     Hint { text: "Google công bố 5.000 lượt dịch/ngày cho tài khoản cá nhân. Một đoạn gửi dịch là một lượt; đây không phải 5.000 bài. BiliClass đặt chặn cục bộ 4.500 đoạn/ngày UTC; mã triển khai chặn thêm 4.500 lượt trong ít nhất 24 giờ cho các máy dùng chung."; Layout.fillWidth: true }
                 }

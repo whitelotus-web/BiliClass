@@ -342,11 +342,16 @@ def test_corrupt_inactive_usage_database_does_not_block_other_engines(tmp_path):
     assert not read_state(tmp_path)['activeConfigured']
 
 
-def test_apps_script_protocol_and_shared_rolling_quota():
+@pytest.mark.parametrize('prepared', [False, True])
+def test_apps_script_protocol_and_shared_rolling_quota(prepared):
     node = shutil.which('node')
     if not node:
         pytest.skip('Node required to execute deployed Apps Script protocol fixture')
     script = (Path(api.__file__).parent / 'resources/languageapp.gs').read_text(encoding='utf-8')
+    if prepared:
+        from app.languageapp_setup import prepared_script
+
+        script = prepared_script('test_secret_1234567890')
     harness = r'''
 const assert = require('node:assert/strict');
 let now = 1700000000000, usedCalls = 0;
@@ -355,10 +360,13 @@ Date = class extends RealDate { static now() { return now; } };
 const values = {BILICLASS_ACCESS_CODE: 'test_secret_1234567890'};
 const PropertiesService = {getScriptProperties: () => ({getProperty: k => values[k], setProperty: (k,v) => {values[k] = v;}})};
 const LockService = {getScriptLock: () => ({tryLock: () => true, releaseLock: () => {}})};
-const ContentService = {MimeType: {JSON: 'json'}, createTextOutput: text => ({setMimeType: () => JSON.parse(text)})};
+const ContentService = {MimeType: {JSON: 'json'}, createTextOutput: text => ({text, setMimeType: () => JSON.parse(text)})};
 const LanguageApp = {translate: (text, source, target, options) => {usedCalls++; assert.equal(options.contentType, 'html'); return text.replace('Xin chào', 'Hello');}};
 function post(body) {return doPost({postData: {contents: JSON.stringify(body)}});}
 const body = {accessCode: values.BILICLASS_ACCESS_CODE, source: 'vi', target: 'en', texts: ['Xin chào']};
+if (BILICLASS_SETUP_CODE) values.BILICLASS_ACCESS_CODE = 'old_property_must_not_override_setup';
+assert.ok(doGet().text.includes('Thử kết nối'));
+assert.ok(!doGet().text.includes(body.accessCode));
 assert.deepEqual(post({...body, accessCode: 'wrong'}), {error: 'auth'});
 assert.equal(usedCalls, 0);
 assert.deepEqual(post(body), {translations: ['Hello']});
@@ -374,3 +382,47 @@ console.log('passed');
     result = subprocess.run([node], input=script + '\n' + harness, text=True, capture_output=True, timeout=20)
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == 'passed'
+
+
+@pytest.mark.parametrize('code', ['', 'short', "x'*;" + 'a'*20, 'a b' + 'c'*20, 'á'*20])
+def test_setup_script_rejects_unusable_or_executable_access_codes(code):
+    from app.languageapp_setup import prepared_script
+
+    with pytest.raises(ValueError):
+        prepared_script(code)
+
+
+def test_setup_script_is_ready_to_paste_and_template_has_no_private_code():
+    from app.languageapp_setup import prepared_script
+
+    script = prepared_script(SECRET)
+    assert script.count('function doPost(e)') == 1
+    assert script.count(SECRET) == 1
+    assert 'function myFunction' not in script
+    assert SECRET not in (Path(api.__file__).parent / 'resources/languageapp.gs').read_text(encoding='utf-8')
+
+
+@pytest.mark.parametrize('provider', SELECTABLE)
+def test_shared_grammar_and_exact_clauses_reach_all_four_adapters(tmp_path, provider):
+    from app.google_translation import Translator
+
+    with closing(Library(tmp_path)):
+        pass
+    if provider == 'google':
+        KeyStore(tmp_path).add('AIza' + 'g' * 35)
+    else:
+        api.AlternativeStore(tmp_path, provider).configure(SECRET, OPTIONS[provider])
+    calls = []
+
+    def transport(texts, *_):
+        calls.extend(texts)
+        return [text.replace('Cho một ', 'Given a ').replace('hãy xét ', 'consider ') for text in texts]
+
+    translator = (Translator(tmp_path, transport=transport) if provider == 'google' else
+                  api.AlternativeTranslator(tmp_path, provider, transport=transport))
+    translator.configure_terms('Toán', [])
+    source = 'Cho một góc lượng giác, hãy xét ba góc lượng giác.'
+    assert translator.translate([source], Event()) == ['Given a trigonometric angle, consider three trigonometric angles.']
+    assert len(calls) == 1
+    assert translator.translate(['12 giờ 10 phút'], Event()) == ['12 h 10 min']
+    assert len(calls) == 1, 'Common exact corrections do not call any provider'

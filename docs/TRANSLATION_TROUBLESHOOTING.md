@@ -10,16 +10,30 @@ chạy nền, tính một ít hạn mức, không đổi dịch vụ đã chọn
 Đây là lỗi của bản Apps Script đang triển khai, không phải lỗi nội dung bài.
 Google có thể trả HTTP 200 nhưng nội dung là trang HTML báo lỗi.
 
-1. Trong BiliClass: Cài đặt → Dịch thuật → Apps Script → Hướng dẫn thiết lập
-   → Sao chép mã.
-2. Mở đúng dự án Apps Script đã tạo. Dán toàn bộ mã vào `Code.gs`, thay mã thử
+1. Trong BiliClass: Cài đặt → Dịch thuật → Apps Script → Thiết lập từng bước
+   (hoặc Hướng dẫn thiết lập nếu đã cấu hình). Bấm Sao chép mã đã chuẩn bị.
+   Tool tự tạo mã truy cập riêng trong bộ nhớ, chèn vào đoạn mã và giữ cùng mã
+   khi bấm Sao chép lại. Chưa thay cấu hình đang lưu ở bước này.
+2. Mở đúng dự án Apps Script đã tạo. Dán thay **toàn bộ** `Code.gs`, kể cả mã thử
    mặc định `myFunction`, rồi lưu. Không dán hàm doPost vào bên trong myFunction.
-3. Giữ thuộc tính tập lệnh `BILICLASS_ACCESS_CODE` trùng với mã đã lưu trong tool.
+3. Đoạn mã đã có doPost và mã truy cập; không cần viết hàm, chọn Chạy hoặc thêm
+   thuộc tính tập lệnh. Mẫu mới vẫn hỗ trợ thuộc tính `BILICLASS_ACCESS_CODE` cho
+   cách cài cũ nếu không dùng đoạn mã đã cá nhân hóa từ hướng dẫn.
 4. Triển khai → Quản lý bản triển khai → chọn bản hiện dùng → Chỉnh sửa (bút)
    → Phiên bản mới → Triển khai. Chỉ lưu mã mà không cập nhật phiên bản chưa đủ.
 5. Kiểm tra Thực thi bằng **Tôi**, Ai có quyền truy cập **Mọi người**.
 6. Giữ URL `/exec` nếu cập nhật bản hiện tại; nếu tạo bản triển khai khác thì
-   dán URL mới vào tool. Bấm Lưu cấu hình → Thử kết nối.
+   dùng URL mới. Dán vào bước 3 của hướng dẫn → Lưu và thử kết nối. Tool tự
+   ghép mã truy cập với đoạn mã ở bước 1 và thực sự dịch một câu thử.
+
+Nếu đóng tool giữa chừng trước khi lưu cấu hình, hãy bắt đầu lại từ bước 1
+và dán lại mã mới lên Google. Mã thiết lập chưa lưu không được ghi vào log
+hoặc file văn bản. Sau khi lưu thành công, cấu hình được mã hóa và dùng lại
+khi mở tool. Không cần triển khai cho mỗi bài hoặc mỗi lần khởi động máy.
+Đoạn mã cá nhân hóa chứa mã riêng, không đăng công khai hoặc đưa vào Git.
+
+Mở URL `/exec` trên trình duyệt chỉ gọi doGet, hiện lời nhắc kiểm tra trong
+BiliClass; đây không phải kiểm tra quyền truy cập hay chất lượng dịch.
 
 Bài đang dở ghim URL cũ. Nếu tạo URL mới, cần khôi phục URL cũ hoặc chọn lại
 file để bắt đầu lượt mới; không tự trộn hai bản dịch vụ trong cùng checkpoint.
@@ -54,3 +68,8 @@ dấu phẩy hoặc từ nối. Hai cách diễn đạt một vòng tròn đầy
 Thuật ngữ do giáo viên khóa vẫn được ưu tiên. Không tự sửa đáp án/công thức
 đã sai ở nguồn và không tự ghi lại bài đã hoàn thành. Chuyển đổi lại bằng bản
 mới nếu muốn áp dụng các sửa đổi; giữ bản trước để đối chiếu.
+
+Các sửa đổi tiếp theo giữ số nhiều trong cụm như “ba góc lượng giác”, “các
+góc hình học” thay vì ép mọi cụm về danh từ số ít trong từ điển. Nhãn giờ/phút
+độc lập giữ đủ đơn vị, không đoán đó là giờ trên đồng hồ hay khoảng thời gian.
+Mẫu câu nêu công thức độ dài cung không bị dịch “độ dài” thành “degree”.

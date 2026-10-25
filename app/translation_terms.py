@@ -69,6 +69,10 @@ class TermPolicy:
         self.ambiguous = [vi for vi, targets in candidates.items() if len(targets) > 1]
         for term in self.ambiguous:
             self.terms.pop(term, None)
+        if self.subject == 'toan':
+            from .math_translation import grammatical_terms
+
+            self.terms.update(grammatical_terms(self.terms, set(teacher_terms) | set(self.ambiguous)))
         # Short polysemous words (e.g. công) are exact-only. A teacher can
         # explicitly lock an inline use; defaults protect multiword terms.
         # In chemistry, locking a singular noun inside a larger phrase prevents

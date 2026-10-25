@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -92,15 +93,78 @@ def main():
                 assert window.grabWindow().save(str(report / (name + '-settings.png')))
             click(window, c('translationProviderLanguageApp'))
             until(lambda: not bridge.busy and bridge.googleSettings.state['provider'] == 'languageapp')
+            assert c('languageappGuide').property('visible'), 'First-time selection opens setup automatically'
             assert c('translationProviderLanguageApp').property('checked')
             assert not c('saveGoogleApiKeys').isVisible()
             assert c('languageappTranslationCard').isVisible()
             assert not bridge.googleSettings.state['activeConfigured']
-            click(window, c('languageappSetup'))
-            pump(100)
-            assert c('languageappGuide').property('visible')
+            assert not c('languageappSetupNext').property('enabled')
+            click(window, c('languageappCopySetup'))
+            code = QGuiApplication.clipboard().text()
+            assert 'function doPost(e)' in code
+            setup_secret = re.search(r"const BILICLASS_SETUP_CODE = '([A-Za-z0-9_-]+)';", code)[1]
+            assert len(setup_secret) == 32
+            click(window, c('languageappCopySetup'))
+            assert QGuiApplication.clipboard().text() == code, 'Copying again must keep the same private code'
+            assert not bridge.googleSettings.state['activeConfigured'], 'Copy is not a save'
+            assert setup_secret not in json.dumps(bridge.googleSettings.state)
             assert window.grabWindow().save(str(report / 'languageapp-setup-guide.png'))
-            c('languageappGuide').setProperty('visible', False)
+            click(window, c('languageappSetupNext'))
+            assert c('languageappGuide').property('step') == 1
+            assert window.grabWindow().save(str(report / 'languageapp-setup-deploy.png'))
+            click(window, c('languageappSetupNext'))
+            assert c('languageappGuide').property('step') == 2
+            c('languageappSetupUrl').setProperty('text', 'https://example.com/wrong')
+            click(window, c('languageappSetupNext'))
+            until(lambda: not bridge.busy)
+            assert c('languageappGuide').property('step') == 2
+            assert not bridge.googleSettings.state['activeConfigured']
+            c('languageappSetupUrl').setProperty('text', 'https://script.google.com/macros/s/' + 'A' * 40 + '/exec')
+            from app.google_translation import TranslationProblem
+
+            def missing_deployment(*_):
+                raise TranslationProblem('api_deployment', 'Bản triển khai chưa có doPost. Chọn Phiên bản mới.')
+            with patch.dict(ALTERNATIVE_TRANSPORTS, {'languageapp': missing_deployment}):
+                click(window, c('languageappSetupNext'))
+                until(lambda: not bridge.busy)
+                assert c('languageappGuide').property('step') == 2
+                assert 'doPost' in c('languageappSetupResult').property('text')
+                assert window.grabWindow().save(str(report / 'languageapp-setup-error.png'))
+
+            def setup_probe(texts, credential, *_):
+                assert texts == ['Xin chào.'] and credential['key'] == setup_secret
+                return ['Hello.']
+            with patch.dict(ALTERNATIVE_TRANSPORTS, {'languageapp': setup_probe}):
+                click(window, c('languageappSetupNext'))
+                until(lambda: not bridge.busy)
+                assert c('languageappGuide').property('step') == 3
+                assert bridge.googleSettings.state['activeConfigured']
+                assert setup_secret not in json.dumps(bridge.googleSettings.state)
+                assert window.grabWindow().save(str(report / 'languageapp-setup-complete.png'))
+            click(window, c('languageappSetupClose'))
+            QGuiApplication.clipboard().clear()
+            bridge.googleSettings.refresh()
+            until(lambda: not bridge.googleSettings.loading)
+            assert bridge.googleSettings.state['activeConfigured'], 'Saved configuration survives a refresh'
+            for theme in ('light', 'dark'):
+                bridge.setApplicationTheme(theme)
+                window.resize(860, 650)
+                pump(180)
+                old_step = c('languageappGuide').property('step')
+                click(window, c('languageappSetup'))
+                assert c('languageappGuide').property('step') == (0 if old_step == 3 else old_step), 'Reset prior success; retain an unfinished setup'
+                for step in range(3):
+                    c('languageappGuide').setProperty('step', step)
+                    pump(60)
+                    footer = c('languageappSetupNext')
+                    rect = footer.mapRectToScene(footer.boundingRect())
+                    assert rect.left() >= 0 and rect.right() <= window.width()
+                    assert rect.top() >= 0 and rect.bottom() <= window.height(), 'Footer must stay reachable on a small laptop'
+                    assert window.grabWindow().save(str(report / f'languageapp-guide-{theme}-860-step{step+1}.png'))
+                click(window, c('languageappSetupClose'))
+            window.resize(1366, 850)
+            bridge.setApplicationTheme('light')
+            pump(180)
             c('languageappAccess').setProperty('text', 'a' * 32)
             c('languageappUrl').setProperty('text', 'https://script.google.com/macros/s/' + 'A' * 40 + '/exec')
             click(window, c('saveLanguageApp'))
@@ -108,10 +172,6 @@ def main():
             assert bridge.googleSettings.state['activeConfigured']
             assert not c('languageappAccess').property('text')
             assert 'a' * 32 not in json.dumps(bridge.googleSettings.state)
-            from app.google_translation import TranslationProblem
-
-            def missing_deployment(*_):
-                raise TranslationProblem('api_deployment', 'Bản triển khai chưa có doPost. Chọn Phiên bản mới.')
             with patch.dict(ALTERNATIVE_TRANSPORTS, {'languageapp': missing_deployment}):
                 click(window, c('checkLanguageApp'))
                 until(lambda: not bridge.busy)
@@ -170,6 +230,7 @@ def main():
             result = dict(status='passed', api='fixture; no live LanguageApp quality/speed claim', calls=len(calls),
                 checks=['Google remains default; original key ciphertext unchanged',
                         'LanguageApp selection, masked save and secret clearing',
+                        'first-time setup creates a private ready-to-paste script; invalid URL, doPost failure and retry success',
                         'light/dark at 1080 and 1366; zero QML warnings',
                         'provider cannot change while work runs',
                         'two real PPTX inputs; stop/resume pins LanguageApp after Settings selects Google',

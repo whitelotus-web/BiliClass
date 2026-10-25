@@ -5,9 +5,41 @@ import re
 NUMBER = r'(?:⟦BLC\d+⟧|\d+)'
 
 
+def grammatical_terms(terms, excluded):
+    """Lock complete noun phrases so a singular glossary cannot erase plurality."""
+    plurals = {'góc lượng giác': 'trigonometric angles', 'góc hình học': 'geometric angles',
+               'giá trị lượng giác': 'trigonometric values', 'hàm số': 'functions',
+               'tia đầu': 'initial rays', 'tia cuối': 'terminal rays'}
+    prefixes = {'các': '', 'những': '', 'hai': 'two ', 'ba': 'three ', 'bốn': 'four ',
+                'năm': 'five ', 'sáu': 'six ', 'bảy': 'seven ', 'tám': 'eight ',
+                'chín': 'nine ', 'mười': 'ten '}
+    result = {}
+    for vi, en in plurals.items():
+        for prefix, english in prefixes.items():
+            phrase = prefix + ' ' + vi
+            if vi in terms and not any(term in phrase for term in excluded):
+                result[phrase] = english + en
+    return result
+
+
 def exact(text):
     source = ' '.join(text.split())
     token = r'⟦BLC\d+⟧'
+    # A bare hour/minute label may be a clock reading or a duration. Retain both
+    # units without guessing which interpretation the slide author intended.
+    match = re.fullmatch('(' + NUMBER + r')\s*giờ\s*(' + NUMBER + r')\s*phút', source, re.I)
+    if match:
+        return f'{match[1]} h {match[2]} min'
+    # This source template sometimes omits "dài". The arc-length formula makes
+    # the intended quantity explicit; never turn length into an angle in degrees.
+    variable = r'(?:⟦BLC\d+⟧|[A-Za-zΑ-ω])'
+    match = re.fullmatch(r'Một cung của đường tròn bán kính (' + variable + r') và có số đo (' + variable
+                        + r') thì có độ(?: dài)? là (⟦BLC\d+⟧|l\s*=\s*R\s*[.·×*]?\s*α)([.]?)', source, re.I)
+    if match:
+        return f'An arc of a circle with radius {match[1]} and measure {match[2]} has length {match[3]}' + match[4]
+    match = re.fullmatch(r'Số đo của các góc lượng giác tia đầu (' + token + r'),\s*tia cuối (' + token + r') là[:.]?', source, re.I)
+    if match:
+        return f'The measures of trigonometric angles with initial ray {match[1]} and terminal ray {match[2]} are'
     # A formula can mix immutable OOXML tokens with ordinary runs for sđ,+,=.
     # Translate the connective locally; sending those runs as prose let DeepL
     # turn an equality into a list with commas and "and" while retaining digits.

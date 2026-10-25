@@ -12,6 +12,9 @@ class GoogleSettings(QObject):
     saved = Signal(bool)
     azureSaved = Signal(bool)
     alternativeSaved = Signal(str, bool)
+    languageSetupRequested = Signal()
+    languageSetupPrepared = Signal()
+    languageSetupChecked = Signal(bool, str)
 
     def __init__(self, bridge):
         super().__init__(bridge)
@@ -34,6 +37,7 @@ class GoogleSettings(QObject):
         self._pending = self._closed = self._mutating = False
         self._generation = 0
         self._ready = False
+        self._language_setup_code = ''
         self._timer = QTimer(self)
         self._timer.setInterval(30_000)
         self._timer.timeout.connect(self.refresh)
@@ -52,6 +56,10 @@ class GoogleSettings(QObject):
     @Property(bool, notify=changed)
     def ready(self):
         return self._ready
+
+    @Property(bool, notify=languageSetupPrepared)
+    def languageSetupReady(self):
+        return bool(self._language_setup_code)
 
     @Slot()
     def refresh(self):
@@ -93,7 +101,7 @@ class GoogleSettings(QObject):
         if pending and not self._closed and not self._mutating:
             self.refresh()
 
-    def _operate(self, operation, values, message, *, saving=False):
+    def _operate(self, operation, values, message, *, saving=False, completed=None):
         if (self._closed or self.bridge._busy or self._mutating
                 or self.bridge.batchQueue.running or self.bridge._browser_running):
             return False
@@ -114,6 +122,8 @@ class GoogleSettings(QObject):
             if operation == 'alternative_save':
                 self.alternativeSaved.emit(values[0], success)
             self.bridge.inform(message if success else result['error'], not success, refresh=False)
+            if completed:
+                completed(success, message if success else result['error'])
 
         self.bridge.launch(lambda: change(self.directory, operation, values), finished,
                            cancellable=False, message='Đang thử kết nối dịch vụ dịch…' if operation == 'alternative_check' else 'Đang lưu cấu hình dịch…')
@@ -142,12 +152,17 @@ class GoogleSettings(QObject):
 
     @Slot(str, result=bool)
     def chooseProvider(self, provider):
-        return self._operate('provider', (provider,), 'Đã chọn dịch vụ cho bài mới. Bài đang dở giữ dịch vụ của lượt trước.')
+        def chosen(success, _):
+            if success and provider == 'languageapp' and not self._state['alternatives'][provider]['configured']:
+                self.languageSetupRequested.emit()
+
+        return self._operate('provider', (provider,), 'Đã chọn dịch vụ cho bài mới. Bài đang dở giữ dịch vụ của lượt trước.',
+                             completed=chosen)
 
     @Slot(str, str, str, result=bool)
     def saveAlternative(self, provider, secret, option):
         return self._operate('alternative_save', (provider, secret, option),
-            'Đã lưu cấu hình dịch. Cần chuyển đổi bài để kiểm tra kết nối; mã được mã hóa trên tài khoản Windows này.')
+            'Đã lưu cấu hình dịch. Bấm Thử kết nối để kiểm tra; mã được mã hóa trên tài khoản Windows này.')
 
     @Slot(str)
     def removeAlternative(self, provider):
@@ -162,14 +177,43 @@ class GoogleSettings(QObject):
         return self._operate('alternative_check', (provider,),
             'Đã kết nối và nhận bản dịch câu thử. Kết quả này xác nhận dịch vụ dùng được lúc kiểm tra, chưa đánh giá chất lượng bài giảng.')
 
-    @Slot()
+    @Slot(result=bool)
     def copyLanguageScript(self):
-        from pathlib import Path
+        import secrets
 
         from PySide6.QtGui import QGuiApplication
 
-        QGuiApplication.clipboard().setText((Path(__file__).parent / 'resources/languageapp.gs').read_text(encoding='utf-8'))
-        self.bridge.inform('Đã sao chép mã triển khai. Dán vào dự án Apps Script theo hướng dẫn.', refresh=False)
+        from .languageapp_setup import prepared_script
+
+        code = self._language_setup_code or secrets.token_urlsafe(24)
+        try:
+            QGuiApplication.clipboard().setText(prepared_script(code))
+        except (OSError, ValueError):
+            self.bridge.inform('Chưa sao chép được mã Apps Script. Hãy mở lại BiliClass rồi thử lại.', True, refresh=False)
+            return False
+        self._language_setup_code = code
+        self.languageSetupPrepared.emit()
+        self.bridge.inform('Đã sao chép toàn bộ mã, có sẵn doPost và mã truy cập riêng. Dán thay toàn bộ Code.gs.', refresh=False)
+        return True
+
+    @Slot(str, result=bool)
+    def saveLanguageSetup(self, url):
+        if not self._language_setup_code:
+            self.languageSetupChecked.emit(False, 'Quay lại bước 1 và bấm Sao chép mã trước.')
+            return False
+
+        def checked(success, message):
+            self.languageSetupChecked.emit(success, message)
+
+        def saved(success, message):
+            if not success:
+                checked(False, message)
+            elif not self._operate('alternative_check', ('languageapp',),
+                    'Đã kết nối và nhận bản dịch câu thử. Từ lần sau chỉ cần mở tool và dùng tiếp.', completed=checked):
+                checked(False, 'Đã lưu cấu hình. Bấm Lưu và thử kết nối khi tool xử lý xong.')
+
+        return self._operate('alternative_save', ('languageapp', self._language_setup_code, url),
+                             'Đã lưu cấu hình Apps Script. Đang thử kết nối…', completed=saved)
 
     @Slot(str, str, str, result=bool)
     def saveAzure(self, key, region, name):

@@ -1,8 +1,16 @@
-// BiliClass LanguageApp gateway v1. Paste into a new Apps Script project.
-// Project Settings > Script properties: BILICLASS_ACCESS_CODE = your private code
-// (16-200 letters, numbers, _ or -). Never put real codes in a shared repository.
+// BiliClass LanguageApp gateway v2. Replace ALL of Code.gs with this code.
+// The setup guide fills a private code automatically. Do not publish that code.
+// An empty setup code keeps support for the older Script Properties setup.
 // Deploy Web app: Execute as Me; Who has access: Anyone.
 // A deployment uses its owner's LanguageApp quota across ALL connected computers.
+const BILICLASS_SETUP_CODE = '';
+
+function doGet() {
+  return ContentService.createTextOutput('Điểm kết nối Apps Script của BiliClass. '
+    + 'Để kiểm tra dịch, hãy bấm Thử kết nối trong BiliClass → Cài đặt → Dịch thuật. '
+    + 'Không cần chọn doPost rồi bấm Chạy trong trình soạn mã.');
+}
+
 function doPost(e) {
   const reply = data => ContentService.createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
@@ -12,7 +20,7 @@ function doPost(e) {
     request = JSON.parse(e.postData.contents);
   } catch (_) { return reply({error: 'request'}); }
   const properties = PropertiesService.getScriptProperties();
-  const code = properties.getProperty('BILICLASS_ACCESS_CODE');
+  const code = BILICLASS_SETUP_CODE || properties.getProperty('BILICLASS_ACCESS_CODE');
   if (!code || !/^[A-Za-z0-9_-]{16,200}$/.test(code) || request.accessCode !== code)
     return reply({error: 'auth'});
   const texts = request.texts;

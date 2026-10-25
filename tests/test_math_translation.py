@@ -105,3 +105,39 @@ def test_full_turn_angle_is_not_circumference_in_radians():
     assert policy.exact('Mặt khác, đường tròn có số đo bằng ⟦BLC0⟧ nên ta có thêm một câu khác.') is None
     assert policy.exact('Do đường tròn có độ dài là ⟦BLC0⟧ nên nó có số đo ⟦BLC1⟧.') == (
         'Since the circumference of the circle is ⟦BLC0⟧, a full turn measures ⟦BLC1⟧.')
+
+
+def test_plural_glossary_keeps_singular_and_plural_in_the_same_sentence():
+    from app.google_translation import protected_html, unprotect
+
+    policy = TermPolicy('Toán')
+    source = 'Cho một góc lượng giác, xác định số đo của ba góc lượng giác và các góc hình học.'
+    matches = policy.matches(source)
+    assert matches['góc lượng giác'] == 'trigonometric angle'
+    assert matches['ba góc lượng giác'] == 'three trigonometric angles'
+    assert matches['các góc hình học'] == 'geometric angles'
+    html, locks = protected_html(source, matches)
+    result = unprotect(html, locks)
+    assert 'một trigonometric angle,' in result
+    assert 'three trigonometric angles' in result
+    assert 'geometric angles' in result
+    assert 'ba trigonometric angle' not in result
+    assert TermPolicy('Vật lý').matches('ba góc lượng giác') == {}
+    teacher = TermPolicy('Toán', [{'vi': 'góc lượng giác', 'en': 'directed angle', 'locked': True}])
+    assert teacher.matches('ba góc lượng giác') == {'góc lượng giác': 'directed angle'}
+
+
+@pytest.mark.parametrize('source,target', [
+    ('12 giờ 10 phút', '12 h 10 min'),
+    ('⟦BLC0⟧ giờ ⟦BLC1⟧ phút', '⟦BLC0⟧ h ⟦BLC1⟧ min'),
+    ('Một cung của đường tròn bán kính R và có số đo α  thì có độ là l=R.α',
+     'An arc of a circle with radius R and measure α has length l=R.α'),
+    ('Một cung của đường tròn bán kính ⟦BLC0⟧ và có số đo ⟦BLC1⟧ thì có độ dài là ⟦BLC2⟧.',
+     'An arc of a circle with radius ⟦BLC0⟧ and measure ⟦BLC1⟧ has length ⟦BLC2⟧.'),
+    ('Số đo của các góc lượng giác tia đầu ⟦BLC0⟧, tia cuối ⟦BLC1⟧ là',
+     'The measures of trigonometric angles with initial ray ⟦BLC0⟧ and terminal ray ⟦BLC1⟧ are')])
+def test_time_units_and_arc_length_are_not_lost_or_reinterpreted(tmp_path, source, target):
+    translator = Translator(tmp_path, transport=lambda *_: pytest.fail('Exact clause needs no API'))
+    translator.configure_terms('Toán', [])
+    assert translator.translate([source], Event()) == [target]
+    assert TermPolicy('Toán').exact('Một cung của đường tròn có độ là 30 độ.') is None
