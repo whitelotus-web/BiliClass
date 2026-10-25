@@ -61,12 +61,16 @@ def layout(lesson):
                   if image_pages else review.get('message', ''))
     checked = (f"Đã đo bố cục {rendered}/{len(report.get('slides', []))} slide bằng PowerPoint. " if rendered
                else f"Đã kiểm tra cấu trúc {len(report.get('slides', []))} slide. " if report else '')
+    terminology = (lesson.get('external_deck') or {}).get('terminology_review', {})
+    if not terminology.get('artifact_sha256') or terminology['artifact_sha256'] != (lesson.get('source') or {}).get('sha256'):
+        terminology = {}
     return dict(pages=pages, total=len(report.get('slides', [])), repaired=len(fixed), failures=failures,
                 remaining=attention, notices=sum(not row['attention'] for row in pages), has_report=bool(report),
                 attention=attention, rendered=rendered,
                 title='Bố cục cần xem lại' if failures else 'Chưa hoàn tất kiểm tra bằng PowerPoint'
                       if render_failed else 'Có phần chưa hoàn thiện' if attention else 'Đã kiểm tra tự động',
                 image_note=image_note,
+                terminology=terminology,
                 scope_note='Kiểm tra cấu trúc và bố cục; chưa xác minh toàn bộ ý nghĩa, chữ trong ảnh và hiệu ứng.',
                 summary=(f'Đã tự căn chỉnh {len(fixed)} slide. ' if fixed else '') + checked
                         + ('Chưa đo được bố cục bằng PowerPoint; bản đã xử lý được giữ để kiểm tra tiếp.' if render_failed

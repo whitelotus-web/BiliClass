@@ -82,6 +82,7 @@ with tempfile.TemporaryDirectory(prefix='biliclass-google-ui-', ignore_cleanup_e
             box.text_frame.paragraphs[0].font.name = 'Arial'
     deck.save(source)
     library = Library(directory / 'library')
+    library.set_setting('translation_knowledge_online', False)  # Fixture only; no reference HTTP.
     library.set_setting('chatgpt_request_folder', 'old-browser-job-must-not-run')
     bridge = Bridge(library)
     bridge._browser_ai.signIn = lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError('Browser must stay disabled'))

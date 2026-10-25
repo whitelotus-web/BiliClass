@@ -4,6 +4,11 @@
 
 ## Phiên bản và tải xuống
 
+Nhánh thử **RC168** thêm bốn lựa chọn dịch và
+[thuật ngữ theo môn, bộ nhớ tham khảo](docs/TRANSLATION_KNOWLEDGE_RC168.md).
+Kho nạp sẵn khoảng 0,43 MB, có thể tắt tra cứu online. RC167 vẫn được giữ làm
+mốc ổn định tạm; chưa đóng gói bộ cài mới cho phần nâng cấp này.
+
 **[Tải BiliClass cho Windows](https://github.com/whitelotus-web/BiliClass/releases)** · [RC155 đã kiểm chứng](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc155) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md)
 
 Mã nguồn **RC159 đang chờ giáo viên thử**, chưa tạo gói cài mới.

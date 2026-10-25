@@ -7,6 +7,7 @@ Vietnamese and English share each page, including bilingual continuations.
 import hashlib
 import json
 import shutil
+import sqlite3
 from contextlib import closing
 from pathlib import Path
 from uuid import uuid4
@@ -26,6 +27,12 @@ def prepare(directory, config, source=None, text=''):
         raise TranslationProblem('api_settings', 'URL/model dịch đã đổi so với hàng đợi. Khôi phục cấu hình cũ hoặc chọn lại file để bắt đầu lượt mới.')
     if 'translation_budget' in config:
         selection['translation_budget'] = config['translation_budget']
+    for field in ('translation_knowledge_version', 'translation_knowledge_online'):
+        if field in config:
+            selection[field] = config[field]  # Queues retain their initial reference policy.
+    if (type(selection['translation_knowledge_version']) is not int or selection['translation_knowledge_version'] not in (0, 1)
+            or type(selection['translation_knowledge_online']) is not bool):
+        raise TranslationProblem('api_settings', 'Lựa chọn thuật ngữ chưa hợp lệ; chọn lại cấu hình cho bài mới.')
     config = {**config, **selection, 'provider': 'google_translate', 'request_id': uuid4().hex,
               'adaptive_bilingual':config.get('conversion_format')=='parallel_columns'}
     folder = Path(directory) / 'google_jobs' / config['request_id']
@@ -373,6 +380,24 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
     warnings = []
     picture_data = {'rows': [], 'warnings': []}
     content_review = {}
+    knowledge_plan, terminology_report = None, {}
+
+    def prepare_references(rows):
+        if not config.get('translation_knowledge_version') or not hasattr(translator, 'configure_knowledge'):
+            return None
+        from .translation_knowledge import prepare
+
+        try:
+            plan = prepare(directory, folder, config, rows, cancel,
+                           lambda message: progress.stage('translate', message))
+            if plan:
+                translator.configure_knowledge(plan)
+            return plan
+        except InterruptedError:
+            raise
+        except (OSError, ValueError, sqlite3.DatabaseError):
+            warnings.append('Chưa chuẩn bị được bộ tham chiếu bổ sung; tiếp tục bằng thuật ngữ cơ bản của dịch vụ.')
+            return None
     if source.suffix == '.pptx':
         from pptx import Presentation
 
@@ -410,6 +435,8 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
         units = manifest['units']
         manifest['note_slides'] = sorted({row['slide'] for row in picture_data['rows']})
         pending = [u for u in units if u['language'] not in {'en', 'neutral'}]
+        knowledge_rows = pending + picture_data['rows']
+        knowledge_plan = prepare_references(knowledge_rows)
         try:
             if hasattr(translator, 'translate_native'):
                 translated = translator.translate_native(pending, picture_data['rows'], cancel, notify)
@@ -428,6 +455,11 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
                 location = f'Slide nguồn {slides}' if slides else 'Một đoạn nội dung'
                 raise TranslationProblem(exc.code, f'{location}: {exc} Vùng nội dung: “{context["excerpt"]}”') from exc
             raise
+        if knowledge_plan:
+            from .translation_knowledge import review
+
+            terminology_report = review(knowledge_plan, knowledge_rows, translated,
+                                         memory_used=getattr(translator, 'reviewed_reused', ()))
         values = {u['id']: {'en': u['text']} for u in units if u['language'] in {'en', 'neutral'}}
         values.update({u['id']: {'en': en} for u, en in zip(pending, translated[:len(pending)], strict=True)})
         progress.stage('assemble', 'Đang sắp xếp nội dung bài giảng.')
@@ -481,7 +513,14 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
         wanted = [index for index, text in enumerate(texts) if language_of(text) != 'en'
                   and (config.get('template_version') != 3 or needs_translation(text))]
         english = list(texts)
+        knowledge_rows = [dict(text=texts[i], locator=units[i][0]) for i in wanted] + [dict(text=config['title'])]
+        knowledge_plan = prepare_references(knowledge_rows)
         output = translator.translate([texts[i] for i in wanted] + [config['title']], cancel, notify)
+        if knowledge_plan:
+            from .translation_knowledge import review
+
+            terminology_report = review(knowledge_plan, knowledge_rows, output,
+                                         memory_used=getattr(translator, 'reviewed_reused', ()))
         for index, value in zip(wanted, output[:-1], strict=True):
             english[index] = value
         config['english_title'] = output[-1]
@@ -520,6 +559,10 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
     inspection=checked['inspection']
     if content_review:
         inspection['content_review'] = content_review
+    if terminology_report:
+        terminology_report['artifact_sha256'] = inspection.get('slide_speech', {}).get('sha256', '')
+        inspection['terminology_review'] = terminology_report
+        warnings.extend(terminology_report['warnings'])
     from .lesson_completion import VERSION
 
     inspection['slide_quality'].update(completion_version=VERSION,

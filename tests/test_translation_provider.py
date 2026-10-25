@@ -31,10 +31,13 @@ def test_google_default_and_old_checkpoint_stay_google_after_azure_selected(tmp_
     raw = json.loads((tmp_path / 'google_jobs' / old['config']['request_id'] / 'config.json').read_text())
     raw.pop('translation_provider')
     raw.pop('translation_budget')
+    raw.pop('translation_knowledge_version')
+    raw.pop('translation_knowledge_online')
     (tmp_path / 'google_jobs' / raw['request_id'] / 'config.json').write_text(json.dumps(raw))
     with closing(Library(tmp_path)) as library:
         library.set_setting('translation_provider', 'azure')  # An older RC168 installation.
-    assert snapshot(tmp_path) == {'translation_provider': 'google', 'translation_budget': 500_000}
+    assert snapshot(tmp_path) == {'translation_provider': 'google', 'translation_budget': 500_000,
+                                  'translation_knowledge_version': 1, 'translation_knowledge_online': True}
     called = []
     result = build_translator(tmp_path, load(tmp_path, old['folder'])['config'], 123,
                               lambda *args: called.append(args) or 'google')

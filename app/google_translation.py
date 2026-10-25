@@ -466,10 +466,26 @@ class Translator:
     def _request_cost(self, texts):
         return sum(map(len, texts))
 
-    def configure_terms(self, subject, rows):
+    def configure_terms(self, subject, rows, *, references=()):
         from .translation_terms import TermPolicy
 
-        self.term_policy = TermPolicy(subject, rows)
+        if hasattr(self, '_context_base_namespace'):
+            self.cache_namespace = self._context_base_namespace
+        self.lesson_context = self.lesson_context_deepl = ''
+        self.reviewed_memory = {}
+        self.reviewed_reused = set()
+        self._term_rows = list(rows)
+        self.term_policy = TermPolicy(subject, self._term_rows, references)
+
+    def configure_knowledge(self, plan):
+        from .translation_knowledge import prompt_context, prose_context
+
+        self.configure_terms(plan['subject'], getattr(self, '_term_rows', []), references=plan['terms'])
+        self.lesson_context = prompt_context(plan)
+        self.lesson_context_deepl = prose_context(plan)
+        self.reviewed_memory = plan['memory']
+        self._context_base_namespace = getattr(self, '_context_base_namespace', self.cache_namespace)
+        self.cache_namespace = self._context_base_namespace + '|lesson-reference-v1|' + plan['fingerprint']
 
     def translate_native(self, units, images, cancel, progress=None):
         """Expose ordinary counts for grammar, retaining every immutable XML token."""
@@ -512,6 +528,7 @@ class Translator:
                  for text, context in zip(texts, hints, strict=True)]
         unique = list(dict.fromkeys(part for parts in split for part in parts))
         values, pending = {}, []
+        from .translation_knowledge import valid_memory
         from .translation_terms import TermPolicy
 
         policy = getattr(self, 'term_policy', TermPolicy()) if source == 'vi' and target == 'en' else TermPolicy()
@@ -523,6 +540,12 @@ class Translator:
             if exact is not None:
                 whitespace = re.fullmatch(r'(\s*)(.*?)(\s*)', text, re.S)
                 values[job] = whitespace[1] + policy.postprocess(text, exact) + whitespace[3]
+                continue
+            remembered = getattr(self, 'reviewed_memory', {}).get(' '.join(text.split())) if source == 'vi' and target == 'en' else None
+            if remembered and valid_memory(text, remembered) and not any(term in text.casefold() for term in policy.teacher_terms):
+                self.reviewed_reused.add(' '.join(text.split()))
+                whitespace = re.fullmatch(r'(\s*)(.*?)(\s*)', text, re.S)
+                values[job] = whitespace[1] + remembered + whitespace[3]
                 continue
             chemistry = policy.subject == 'hoa hoc'
             if chemistry:

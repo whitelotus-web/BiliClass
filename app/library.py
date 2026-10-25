@@ -638,6 +638,7 @@ class Library:
                if config.get('provider') == 'google_translate' else {}),
             "review_notes": inspection.get("review_notes", []),
             **({'content_review': inspection['content_review']} if inspection.get('content_review') else {}),
+            **({'terminology_review': inspection['terminology_review']} if inspection.get('terminology_review') else {}),
             **({'layout_plan':inspection['layout_plan']} if inspection.get('layout_plan') else {}),
         }
         lesson["slide_speech"] = inspection.get("slide_speech", {})
@@ -1024,6 +1025,10 @@ class Library:
             return []
         result = []
         for entry in self.knowledge_entries(limit=50_000):
+            # The school seed contains exact noun headings. It is selected by
+            # the optional lesson layer, never turned into global inline locks.
+            if entry.get('pack_id') == 'biliclass-school-terminology':
+                continue
             if entry["subject"] not in (subject.strip(), "Chung"):
                 continue
             source_types = {source_row["source_type"] for source_row in entry["sources"]}

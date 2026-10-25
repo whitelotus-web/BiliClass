@@ -96,6 +96,11 @@ hạn mức hoặc chất lượng dịch thật**. Giao diện hiển thị rõ
 
 ## Chất lượng: phần dùng chung và phần riêng
 
+Lớp [thuật ngữ theo môn và bộ nhớ tham khảo](TRANSLATION_KNOWLEDGE_RC168.md)
+bổ sung kho nền Việt–Anh, ngữ cảnh bài, dùng lại câu đã duyệt và tra cứu có giới
+hạn. Có hai lựa chọn riêng tại Cài đặt → Dịch thuật; chỉ áp dụng lượt mới,
+không đổi dịch vụ đang chọn hay bản RC167.
+
 `Translator` là lớp xử lý chung, `AlternativeTranslator` kế thừa cho LanguageApp,
 Gemini và DeepL. Thuật ngữ theo môn và khóa của giáo viên, số ít/số nhiều, chữ
 hoa/thường, bảo vệ số liệu/công thức, kiểm tra kết quả và bố trí PowerPoint đều

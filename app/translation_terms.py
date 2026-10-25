@@ -53,7 +53,7 @@ def normalized(value):
 
 
 class TermPolicy:
-    def __init__(self, subject='', rows=()):
+    def __init__(self, subject='', rows=(), references=()):
         self.subject = subject_key(subject)
         candidates = {}
         for row in rows:
@@ -62,6 +62,11 @@ class TermPolicy:
             if row.get('locked') and row.get('vi', '').strip() and row.get('en', '').strip():
                 candidates.setdefault(normalized(row['vi']), set()).add(row['en'].strip())
         self.terms = dict(TERMS.get(self.subject, {}))
+        original_terms = set(self.terms)
+        for row in references:
+            if row.get('status') == 'curated_reference' and row.get('vi') and row.get('en'):
+                self.terms.setdefault(normalized(row['vi']), row['en'])
+        reference_only = set(self.terms) - original_terms
         teacher_terms = {vi: next(iter(targets)) for vi, targets in candidates.items() if len(targets) == 1}
         self.terms.update(teacher_terms)
         self.teacher_terms = teacher_terms
@@ -79,7 +84,7 @@ class TermPolicy:
         # Google from producing e.g. "molecular formula" or plural "atoms".
         # Keep noun definitions exact-only; teachers' explicit locks still win.
         inline_defaults = self.identity_terms | {'cộng hóa trị'} if self.subject == 'hoa hoc' else {
-            vi for vi in self.terms if ' ' in vi} | self.identity_terms
+            vi for vi in self.terms if ' ' in vi and vi not in reference_only} | self.identity_terms
         self.inline_terms = {vi:en for vi,en in self.terms.items() if vi in teacher_terms or vi in inline_defaults}
         variants = {variant for term in self.inline_terms for variant in (term, term.replace('hóa','hoá'))}
         self.pattern = re.compile(r'(?<!\w)(?:' + '|'.join(re.escape(t) for t in sorted(variants, key=lambda t:(-len(t),t))) + r')(?!\w)', re.I) if variants else None

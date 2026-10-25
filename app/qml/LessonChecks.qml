@@ -8,6 +8,7 @@ Frame {
     property bool expanded: false
     readonly property var report: bridge.lessonDiagnostics
     readonly property var pages: report.pages || []
+    readonly property var terminology: report.terminology || ({})
     property int selected: 0
     readonly property var page: pages.length ? pages[Math.min(selected, pages.length - 1)] : ({})
     signal viewRequested(int slide)
@@ -30,7 +31,7 @@ Frame {
     }
     onExpandedChanged: { if (expanded) showSelected() }
     padding: 10
-    visible: !!report.has_report || !!report.image_note
+    visible: !!report.has_report || !!report.image_note || !!terminology.summary
     background: Rectangle { objectName: checks.objectName + "Background"; radius: 10; color: checks.report.attention ? AppTheme.warningSurface : "transparent"; border.color: checks.report.attention ? AppTheme.warningLine : AppTheme.line }
     contentItem: ColumnLayout {
         spacing: 7
@@ -53,7 +54,16 @@ Frame {
         ColumnLayout {
             visible: checks.expanded; Layout.fillWidth: true; spacing: 6
             Label { objectName: checks.objectName + "Scope"; text: checks.report.scope_note || ""; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: AppTheme.ink; font.pixelSize: 13 }
+            Label { objectName: checks.objectName + "Terminology"; visible: !!text; text: checks.terminology.summary || ""; textFormat: Text.PlainText; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: AppTheme.ink; font.pixelSize: 13 }
+            Label { visible: !!checks.terminology.inferred; text: "Môn tham khảo được suy ra từ nội dung: " + (checks.terminology.subject || ""); textFormat: Text.PlainText; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: AppTheme.ink; font.pixelSize: 13 }
+            Repeater {
+                model: checks.terminology.concerns || []
+                Label { required property var modelData; text: (modelData.slide ? "Slide nguồn " + modelData.slide + ": " : "") + modelData.message + " “" + modelData.excerpt + "”"; textFormat: Text.PlainText; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: AppTheme.warningInk; font.pixelSize: 13 }
+            }
+            Label { visible: !!checks.terminology.unresolved && checks.terminology.unresolved.length > 0; text: "Chưa tìm được tham chiếu phù hợp: " + (checks.terminology.unresolved || []).join(", "); textFormat: Text.PlainText; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: AppTheme.ink; font.pixelSize: 13 }
+            Label { visible: !!checks.terminology.sources && checks.terminology.sources.length > 0; text: "Nguồn thuật ngữ tham khảo:\n" + (checks.terminology.sources || []).join("\n"); textFormat: Text.PlainText; Layout.fillWidth: true; wrapMode: Text.WrapAnywhere; color: AppTheme.ink; font.pixelSize: 12 }
             RowLayout {
+                visible: checks.pages.length > 0
                 Layout.fillWidth: true
                 ComboBox {
                     objectName: checks.objectName + "Page"

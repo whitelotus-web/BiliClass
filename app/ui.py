@@ -152,6 +152,9 @@ class Bridge(QObject):
         self.logger = configure_logging(library.directory)
         try:
             ensure_builtin_foundation(self.library)
+            from .terminology_seed import ensure_seed
+
+            ensure_seed(self.library)
         except Exception as exc:
             self.logger.warning("Could not install bundled knowledge foundation: %s", exc)
         self._lesson = {}

@@ -305,6 +305,8 @@ def test_real_pptx_conversion_uses_selected_adapter_without_modifying_source(tmp
     lesson, preview = google_conversion.convert(tmp_path, job, Event(), progress)
     assert calls and source.read_bytes() == original
     assert lesson['external_deck']['translation_provider'] == provider
+    assert lesson['external_deck']['terminology_review']['artifact_sha256'] == lesson['source']['sha256']
+    assert lesson['external_deck']['terminology_review']['terms'] > 0
     text = '\n'.join(shape.text for page in Presentation(preview['path']).slides for shape in page.shapes if shape.has_text_frame)
     assert 'The object has a velocity' in text and '12' in text
     assert ('Vật có vận tốc' in text) == (mode == 'parallel_columns')

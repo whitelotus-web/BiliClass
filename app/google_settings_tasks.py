@@ -1,5 +1,6 @@
 """Disk/key work for Google settings. Run on a worker, publish masked rows only."""
 
+import json
 import os
 import sqlite3
 from contextlib import closing
@@ -64,10 +65,22 @@ def read_state(directory, store=None, *, provider=None):
     result['alternatives'] = alternatives
     if provider in alternatives:
         result.update(activeConfigured=alternatives[provider]['configured'], message=alternatives[provider]['message'])
+    from pathlib import Path
+
+    from .terminology_seed import statistics
+
+    knowledge = {**statistics(), 'enabled': selection['translation_knowledge_version'] > 0,
+                 'online': selection['translation_knowledge_online'], 'references': 0, 'lessons': 0, 'unresolved': 0, 'message': ''}
+    if (Path(directory) / 'translation_knowledge/references.db').is_file():
+        from .terminology_memory import Memory
+
+        try:
+            knowledge.update(Memory(directory).stats())
+        except (OSError, ValueError, sqlite3.DatabaseError):
+            knowledge['message'] = 'Chưa đọc được bộ nhớ tham khảo; kho thuật ngữ tích hợp vẫn dùng được.'
+    result['knowledge'] = knowledge
     if os.name == 'nt':
         import winreg
-        from pathlib import Path
-
         for root in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
             try:
                 with winreg.OpenKey(root, r'SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\POWERPNT.EXE') as key:
@@ -107,6 +120,14 @@ def change(directory, operation, values):
             with closing(Library(directory)) as library:
                 library.set_setting('translation_provider', provider)
             return {'state': state, 'error': ''}
+        elif operation == 'knowledge_options':
+            enabled, online = values
+            if type(enabled) is not bool or type(online) is not bool:
+                raise ValueError('Lựa chọn thuật ngữ chưa hợp lệ.')
+            with closing(Library(directory)) as library:
+                with library.db:
+                    library.db.executemany('INSERT INTO settings VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+                        [('translation_knowledge_enabled', json.dumps(enabled)), ('translation_knowledge_online', json.dumps(online))])
         elif operation in {'azure_save', 'azure_remove', 'azure_recheck'}:
             from .azure_translation import AzureKeyStore
 

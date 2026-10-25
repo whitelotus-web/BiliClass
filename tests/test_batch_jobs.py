@@ -345,8 +345,12 @@ def test_real_conversion_batch_uses_each_title_and_exports_without_voice_without
     result = batch_jobs.run(directory, state, Event(), lambda _: None)
     assert [row['status'] for row in result['rows']] == ['done', 'done'], result
     for path, row in zip(paths, result['rows'], strict=True):
+        from app.google_conversion import load
+
+        assert load(directory, row['folder'])['config']['translation_knowledge_version'] == 0
         with closing(Library(directory)) as library:
             lesson = library.get(row['lesson_id'])
+            assert not lesson['external_deck'].get('terminology_review')
             assert lesson['title'] == path.stem and lesson['subject'] == 'Vật lý'
             assert not lesson['narration'].get('keys')
             from app.chatgpt_handoff import external_preview

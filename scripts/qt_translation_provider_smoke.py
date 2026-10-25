@@ -72,6 +72,18 @@ def main():
             c('settingsPage').setProperty('activeTab', 6)
             pump(100)
             assert c('translationProviderGoogle').property('checked')
+            assert c('translationKnowledgeEnabled').property('checked')
+            assert c('translationKnowledgeOnline').property('checked')
+            assert library.knowledge_stats()['entries'] >= 1195
+            click(window, c('translationKnowledgeOnline'))
+            click(window, c('saveTranslationKnowledge'))
+            until(lambda: not bridge.busy)
+            assert bridge.googleSettings.state['knowledge']['enabled']
+            assert not bridge.googleSettings.state['knowledge']['online']
+            for theme in ('light', 'dark'):
+                bridge.setApplicationTheme(theme)
+                pump(120)
+                assert window.grabWindow().save(str(report / f'knowledge-{theme}.png'))
             # All three choices render and save masked credentials through real Qt controls.
             for name, radio, field, save in [('gemini', 'Gemini', 'geminiApiKey', 'saveGemini'), ('deepl', 'DeepL', 'deeplApiKey', 'saveDeepL')]:
                 click(window, c('translationProvider' + radio))
@@ -207,6 +219,9 @@ def main():
                 until(entered.is_set, timeout=60)
                 assert bridge.batchQueue.running
                 assert bridge.batchQueue.state['options']['translation_provider'] == 'languageapp'
+                assert bridge.batchQueue.state['options']['translation_knowledge_version'] == 1
+                assert bridge.batchQueue.state['options']['translation_knowledge_online'] is False
+                assert not bridge.googleSettings.saveKnowledgeOptions(False, True)
                 assert not bridge.googleSettings.chooseProvider('google'), 'Provider switched during work'
                 bridge.batchQueue.stop()
                 release.set()
@@ -216,13 +231,25 @@ def main():
                 until(lambda: not bridge.busy)
                 assert bridge.googleSettings.state['provider'] == 'google'
                 assert bridge.batchQueue.state['options']['translation_provider'] == 'languageapp'
+                assert bridge.googleSettings.saveKnowledgeOptions(False, True)
+                until(lambda: not bridge.busy)
+                assert not bridge.googleSettings.state['knowledge']['enabled']
                 bridge.batchQueue.resume()
                 until(lambda: not bridge.busy and not bridge.batchQueue.running, timeout=180)
             state = bridge.batchQueue.state
             assert state['counts']['done'] == 2 and state['complete'], state
             for row in state['rows']:
-                assert load(library.directory, row['folder'])['config']['translation_provider'] == 'languageapp'
-                assert library.get(row['lesson_id'])['external_deck']['translation_provider'] == 'languageapp'
+                pinned = load(library.directory, row['folder'])['config']
+                assert pinned['translation_provider'] == 'languageapp'
+                assert pinned['translation_knowledge_version'] == 1 and pinned['translation_knowledge_online'] is False
+                lesson = library.get(row['lesson_id'])
+                assert lesson['external_deck']['translation_provider'] == 'languageapp'
+                assert lesson['external_deck']['terminology_review']['terms'] > 0
+                assert lesson['external_deck']['terminology_review']['artifact_sha256'] == lesson['source']['sha256']
+            bridge._lesson = lesson
+            bridge.changed.emit()
+            pump(100)
+            assert 'thuật ngữ nền' in c('voiceChecksTerminology').property('text')
             assert [hashlib.sha256(path.read_bytes()).hexdigest() for path in sources] == source_hashes
             assert KeyStore(library.directory).public()[0]['used'] == 0
             assert google_file.read_bytes() == original_google
@@ -233,6 +260,8 @@ def main():
                         'first-time setup creates a private ready-to-paste script; invalid URL, doPost failure and retry success',
                         'light/dark at 1080 and 1366; zero QML warnings',
                         'provider cannot change while work runs',
+                        'reference settings save in Qt; queued reference policy survives Settings change and stop/resume',
+                        'reference summary bound to final PowerPoint; no automatic semantic approval',
                         'two real PPTX inputs; stop/resume pins LanguageApp after Settings selects Google',
                         'completion retained; no Google usage; source PPTX unchanged'], qml_warnings=warnings)
             (report / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')

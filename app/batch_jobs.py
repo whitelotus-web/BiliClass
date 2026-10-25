@@ -217,6 +217,10 @@ def convert_one(directory, row, options, cancel, update):
             options.get('budget', 500_000) if provider == 'google' else maximum(provider))
         if options.get('translation_profile'):
             config['translation_profile'] = options['translation_profile']
+        # A queue pins this policy before its first item; legacy queues keep
+        # their previous behavior even if Settings enables the new layer.
+        config['translation_knowledge_version'] = options.get('translation_knowledge_version', 0)
+        config['translation_knowledge_online'] = options.get('translation_knowledge_online', False)
         job = prepare(directory, config, path)
         update({'folder': job['folder']}, True)
     progress = ConversionProgress(job['folder'], lambda value: update({

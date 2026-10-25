@@ -26,12 +26,16 @@ def validate(provider):
 
 
 def snapshot(directory, provider=None, *, include_profile=True):
+    from .translation_knowledge import MODE_VERSION, options
+
+    knowledge = dict(translation_knowledge_version=MODE_VERSION, translation_knowledge_online=True)
     if not (Path(directory) / 'library.db').exists():
         provider = validate(provider if provider is not None else 'google')
         ceiling = maximum(provider)
         budget = ceiling
     else:
         with closing(Library.read_only(directory)) as library:
+            knowledge = options(library)
             saved = library.setting('translation_provider', 'google')
             # Only new work migrates away from Azure. Explicit checkpoint routes stay pinned.
             provider = validate(provider if provider is not None else 'google' if saved == 'azure' else saved)
@@ -39,7 +43,7 @@ def snapshot(directory, provider=None, *, include_profile=True):
             budget = library.setting(provider + '_character_budget', ceiling)
     if type(budget) is not int or not 1 <= budget <= ceiling:
         raise TranslationProblem('api_settings', 'Giới hạn ký tự chưa hợp lệ. Lưu lại cấu hình dịch trong Cài đặt.')
-    result = {'translation_provider': provider, 'translation_budget': budget}
+    result = {'translation_provider': provider, 'translation_budget': budget, **knowledge}
     if include_profile and provider in SELECTABLE[1:]:
         from .alternative_translation import AlternativeStore
 
