@@ -19,7 +19,7 @@ MAX_BACKUP_FILES = 200000
 MAX_FILE_BYTES = 16 * 1024**3
 MAX_MANIFEST_BYTES = 32 * 1024**2
 CHUNK_BYTES = 1024**2
-BACKUP_TREES = ('sources', 'audio', 'assets', 'templates', 'custom_templates', 'google_jobs', 'chatgpt')
+BACKUP_TREES = ('sources', 'audio', 'assets', 'templates', 'custom_templates', 'google_jobs', 'chatgpt', 'word_documents')
 BACKUP_SCOPE = ('Bài, lịch sử, cấu hình, giọng, mẫu, tác vụ chuyển đổi và dữ liệu lớp; '
                 'không gồm model, key, phiên đăng nhập, cache.')
 

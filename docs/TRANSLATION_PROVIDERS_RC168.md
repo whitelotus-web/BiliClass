@@ -1,5 +1,10 @@
 # RC168: Dịch thuật với bốn lựa chọn
 
+Tài liệu này mô tả cơ chế RC168. **RC169** bổ sung dịch vụ dự phòng cho lượt
+mới; xem [quy tắc chuyển dịch vụ và giữ tiến độ](WORD_RC169.md#dịch-vụ-dự-phòng).
+Các mô tả “chỉ dịch vụ đã chọn/không chuyển dịch vụ” bên dưới vẫn áp dụng
+cho checkpoint cũ chưa có chính sách dự phòng.
+
 Nhánh thử nghiệm: `codex/translation-providers-rc168`. RC167 vẫn là mốc ổn định
 tạm: tag `v1.0.0rc167` tại `39b9fd554fcc0ca629b76c2695a9261b4cba2d04`.
 Không thay main, tag hoặc bộ cài RC167; chưa đóng gói bản mới.

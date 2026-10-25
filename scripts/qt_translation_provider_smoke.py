@@ -218,18 +218,28 @@ def main():
             assert bridge.batchQueue.selectFiles('convert', [path.as_uri() for path in sources])
             deployment_calls = []
 
-            def deployment_failure(*_):
-                deployment_calls.append(True)
+            def deployment_failure(self, *_):
+                deployment_calls.append(self.provider)
                 raise TranslationProblem('api_deployment', 'Bản triển khai chưa có doPost. Chọn Phiên bản mới.')
 
-            with patch('app.translation_knowledge.lookup', return_value=None), patch.object(AlternativeTranslator, '_send', deployment_failure):
+            from app.google_translation import Translator
+            from app.translation_failover import forget
+
+            def google_failure(*_):
+                raise TranslationProblem('api_network', 'Google fixture unavailable')
+
+            forget(library.directory, 'languageapp')  # Exercise this job's real failure path, independent of the earlier probe.
+            with patch('app.translation_knowledge.lookup', return_value=None), patch.object(AlternativeTranslator, '_send', deployment_failure), patch.object(Translator, '_send', google_failure):
                 bridge.batchQueue.startConversion(dict(subject='Vật lý', education='THPT', grade='11',
                     format='parallel_columns', preset='standard', style='template'))
                 until(lambda: not bridge.busy and not bridge.batchQueue.running, timeout=60)
-            assert len(deployment_calls) == 1
+            assert deployment_calls == ['languageapp', 'gemini', 'deepl'], deployment_calls
             assert bridge.batchQueue.state['phase'] == 'paused'
             assert all(row['status'] == 'waiting' for row in bridge.batchQueue.state['rows'])
-            assert 'doPost' in bridge.batchQueue.state['message']
+            assert bridge.batchQueue.state['message']
+            google_attempted = KeyStore(library.directory).public()[0]['used']
+            assert google_attempted > 0, 'An ambiguous network request must remain charged to its provider'
+            forget(library.directory, 'languageapp')  # Models a repaired deployment, not an extra live request.
             with patch('app.translation_knowledge.lookup', return_value=None), patch.object(AlternativeTranslator, '_send', fixture):
                 bridge.batchQueue.resume()
                 until(entered.is_set, timeout=60)
@@ -263,7 +273,7 @@ def main():
             pump(100)
             assert 'thuật ngữ nền' in c('voiceChecksTerminology').property('text')
             assert [hashlib.sha256(path.read_bytes()).hexdigest() for path in sources] == source_hashes
-            assert KeyStore(library.directory).public()[0]['used'] == 0
+            assert KeyStore(library.directory).public()[0]['used'] == google_attempted, 'Recovery must not repeat the failed fallback request'
             assert google_file.read_bytes() == original_google
             assert not warnings, warnings
             result = dict(status='passed', api='fixture; no live LanguageApp quality/speed claim', calls=len(calls),
@@ -272,12 +282,12 @@ def main():
                         'first-time setup creates a private ready-to-paste script; invalid URL, doPost failure and retry success',
                         'light/dark at 1080 and 1366; zero QML warnings',
                         'provider cannot change while work runs',
-                        'deployment failure pauses the queue after one request; later files stay waiting and resume after recovery',
+                        'all configured services unavailable pauses the queue; later files stay waiting and resume after recovery',
                         'reference layer runs automatically without UI switches; old disabled preferences do not disable new work',
                         'queued reference policy survives provider change and stop/resume',
                         'reference summary bound to final PowerPoint; no automatic semantic approval',
                         'two real PPTX inputs; stop/resume pins LanguageApp after Settings selects Google',
-                        'completion retained; no Google usage; source PPTX unchanged'], qml_warnings=warnings)
+                        'completion retained; fallback usage accounted once; source PPTX unchanged'], qml_warnings=warnings)
             (report / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
             print(json.dumps(result, ensure_ascii=False))
         finally:

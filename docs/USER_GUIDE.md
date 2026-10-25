@@ -1,6 +1,13 @@
 # BiliClass — Hướng dẫn sử dụng
 
-Hướng dẫn cập nhật theo mã nguồn RC167 · 23/10/2026
+Hướng dẫn bản cài RC167, bổ sung bản nguồn RC169 · 25/10/2026
+
+Trong bản nguồn **RC169**, vào **Chuyển đổi bài giảng → Word** để chọn các
+vùng của `.docx`, xem/sửa bản dịch rồi lưu Word song ngữ. **Bài giảng → Word**
+giữ tài liệu Word riêng. [Các bước và bốn kiểu trình bày](WORD_RC169.md).
+Tab **Google Dịch** nay mang tên **Dịch thuật**, có bốn dịch vụ; bài mới có
+thể dùng dịch vụ dự phòng đã thiết lập khi dịch vụ ưu tiên tạm lỗi.
+Những phần này chưa có trong bộ cài RC167.
 
 BiliClass chuyển bài giảng PowerPoint sang Việt–Anh hoặc tiếng Anh, tạo
 âm thanh Việt–Mỹ và hỗ trợ trình chiếu bằng Mascot. Bài giảng và giọng đọc

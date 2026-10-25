@@ -937,7 +937,7 @@ ApplicationWindow {
                             delegate: NavigationItem {
                                 required property var modelData
                                 objectName: "navigation" + modelData.key
-                                selected: root.page === modelData.key || (modelData.key === "library" && ["editor", "result"].indexOf(root.page) >= 0) || (modelData.key === "new" && root.page === "chatgpt") || (modelData.key === "classroom" && root.page === "reports")
+                                selected: root.page === modelData.key || (modelData.key === "library" && ["editor", "result", "word-library"].indexOf(root.page) >= 0) || (modelData.key === "new" && ["chatgpt", "word"].indexOf(root.page) >= 0) || (modelData.key === "classroom" && root.page === "reports")
                                 text: modelData.label; iconName: modelData.icon
                                 Layout.fillWidth: true
                                 onClicked: root.go(modelData.key)
@@ -998,12 +998,19 @@ ApplicationWindow {
             Item {
                 objectName: "mainPageArea"
                 Layout.fillWidth: true; Layout.fillHeight: true
+                WordPage { objectName: "wordPage"; visible: root.page === "word"; anchors.fill: parent; anchors.margins: 25; appBridge: root.appBridge; onShowPowerPoint: root.go("new"); onShowLibrary: root.go("word-library") }
+                WordLibrary { objectName: "wordLibrary"; visible: root.page === "word-library"; anchors.fill: parent; anchors.margins: 25; appBridge: root.appBridge; onShowPowerPoint: root.go("library"); onCreateWord: root.go("word") }
                 Item {
                     id: libraryPinnedHeader; objectName: "libraryPinnedHeader"
                     anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right; anchors.margins: 30
                     height: libraryHeaderContent.implicitHeight; visible: root.page === "library"
                     ColumnLayout {
                         id: libraryHeaderContent; anchors.fill: parent; spacing: 12
+                        RowLayout { Layout.fillWidth: true
+                            WordAction { objectName: "libraryDocumentPowerPoint"; text: "PowerPoint"; primary: true }
+                            WordAction { objectName: "libraryDocumentWord"; text: "Word"; onClicked: root.go("word-library") }
+                            Item { Layout.fillWidth: true }
+                        }
                         ColumnLayout {
                             visible: root.page === "library"; Layout.fillWidth: true; spacing: 5
                             RowLayout {
@@ -1360,6 +1367,12 @@ ApplicationWindow {
                     }
                     ColumnLayout {
                         width: creationScroll.availableWidth; spacing: root.inputSectionSpacing
+                        RowLayout { Layout.fillWidth: true
+                            WordAction { objectName: "conversionDocumentPowerPoint"; text: "PowerPoint"; primary: true }
+                            WordAction { objectName: "conversionDocumentWord"; text: "Word"; onClicked: root.go("word") }
+                            Item { Layout.fillWidth: true }
+                        }
+                        Copy { visible: !!bridge.googleSettings.state.serviceWarning; text: bridge.googleSettings.state.serviceWarning || ""; color: AppTheme.warning; Layout.fillWidth: true; font.pixelSize: 11 }
                         RowLayout { Layout.fillWidth: true
                             Heading { objectName: "creationPageHeading"; text: "Chuyển đổi bài giảng PowerPoint"; font.pixelSize: root.tightCreation ? 24 : 27; Layout.fillWidth: true; Layout.minimumWidth: 0; wrapMode: Text.WordWrap }
                             MainAction { objectName: root.selectedFile || root.creationBatch ? "chooseInputDocumentButton" : ""; visible: !root.creationBatchComplete && (!!root.selectedFile || root.creationBatch); text: "Chọn bài khác"; enabled: !bridge.busy && !bridge.inputDocuments.busy && !bridge.narrationBusy; onClicked: root.chooseInputDocuments("convert") }

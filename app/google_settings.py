@@ -36,6 +36,7 @@ class GoogleSettings(QObject):
 
         self._state['knowledge'] = {**statistics(), 'enabled': True, 'online': True,
                                    'references': 0, 'lessons': 0, 'unresolved': 0, 'message': ''}
+        self._state.update(services=[], fallbackConfigured=False, serviceWarning='')
         self.worker = None
         self._result = None
         self._pending = self._closed = self._mutating = False

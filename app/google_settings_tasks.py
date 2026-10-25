@@ -82,6 +82,11 @@ def read_state(directory, store=None, *, provider=None):
         except (OSError, ValueError, sqlite3.DatabaseError):
             knowledge['message'] = 'Chưa đọc được bộ nhớ tham khảo; kho thuật ngữ tích hợp vẫn dùng được.'
     result['knowledge'] = knowledge
+    from .translation_failover import service_states
+
+    result['services'] = service_states(directory)
+    result['fallbackConfigured'] = any(row['configured'] for row in result['services'])
+    result['serviceWarning'] = ' · '.join(row['label'] + ': ' + row['status'] for row in result['services'] if row['warning'])
     if os.name == 'nt':
         import winreg
         for root in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
@@ -104,12 +109,18 @@ def change(directory, operation, values):
                 store.add(text)
             with closing(Library(directory)) as library:
                 library.set_setting('google_character_budget', budget)
+            from .translation_failover import forget
+
+            forget(directory, 'google')
         elif operation == 'rename':
             store.rename(*values)
         elif operation == 'remove':
             store.remove(*values)
         elif operation == 'recheck':
             store.recheck()
+            from .translation_failover import forget
+
+            forget(directory, 'google')
         elif operation == 'provider':
             from .translation_provider import SELECTABLE, validate
 
@@ -139,6 +150,9 @@ def change(directory, operation, values):
             alternative = AlternativeStore(directory, values[0])
             if operation == 'alternative_save':
                 alternative.configure(*values[1:])
+                from .translation_failover import forget
+
+                forget(directory, values[0])
             elif operation == 'alternative_remove':
                 alternative.clear()
             elif operation == 'alternative_check':
@@ -147,6 +161,9 @@ def change(directory, operation, values):
                 check_connection(directory, values[0])
             else:
                 alternative.recheck()
+                from .translation_failover import forget
+
+                forget(directory, values[0])
         else:
             raise ValueError('Thao tác Google Dịch không hợp lệ.')
         state = read_state(directory, store)

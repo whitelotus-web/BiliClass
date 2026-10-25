@@ -49,3 +49,5 @@ translation_languageapp/
 translation_gemini/
 translation_deepl/
 translation_knowledge/
+word_documents/
+translation-service-health.json

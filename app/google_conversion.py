@@ -22,8 +22,9 @@ def prepare(directory, config, source=None, text=''):
 
     require_space(directory, (Path(source).stat().st_size * 4 if source else len(text.encode('utf-8')) * 4) + 128 * MIB)
 
-    selection = snapshot(directory, config.get('translation_provider'))
-    if config.get('translation_profile') and config['translation_profile'] != selection.get('translation_profile'):
+    selection = ({key: value for key, value in config.items() if key.startswith('translation_')}
+                 if config.get('translation_fallback_version') == 1 else snapshot(directory, config.get('translation_provider')))
+    if config.get('translation_fallback_version') != 1 and config.get('translation_profile') and config['translation_profile'] != selection.get('translation_profile'):
         raise TranslationProblem('api_settings', 'URL/model dịch đã đổi so với hàng đợi. Khôi phục cấu hình cũ hoặc chọn lại file để bắt đầu lượt mới.')
     if 'translation_budget' in config:
         selection['translation_budget'] = config['translation_budget']
@@ -347,7 +348,9 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
     if translator is None:
         from .translation_provider import build_translator
 
-        translator = build_translator(directory, config, budget, Translator)
+        translator = build_translator(directory, {**config, 'translation_work_folder': str(folder)}, budget, Translator)
+    if hasattr(translator, 'on_service_notice'):
+        translator.on_service_notice = lambda message: progress.stage('translate', message)
     if hasattr(translator, 'configure_terms'):
         with closing(Library(directory)) as library:
             translator.configure_terms(config.get('subject', ''), library.glossary())
@@ -570,6 +573,9 @@ def _convert(directory, job, cancel, progress, *, budget=500_000, translator=Non
     (folder/'automatic-layout-check.json').write_text(json.dumps({
         'changes':checked['changes'],'counts':inspection['slide_quality']['counts']}),encoding='utf-8')
     inspection['review_notes'] = list(dict.fromkeys(inspection['review_notes'] + warnings))
+    if getattr(translator, 'notices', None):
+        inspection['review_notes'].extend(translator.notices)
+    config['translation_services'] = getattr(translator, 'used_services', [config.get('translation_provider', 'google')])
     ready = {'source_sha256': job['config']['source_sha256'], 'job_config': job['config'], 'config': config,
              'artifact': target.resolve().relative_to(Path(directory).resolve()).as_posix(), 'inspection': inspection}
     pending = (folder / 'publish-ready.json').with_suffix('.tmp')

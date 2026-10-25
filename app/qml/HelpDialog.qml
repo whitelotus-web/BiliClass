@@ -43,7 +43,8 @@ Dialog {
     ]
     readonly property var workflows: [[],
         [
-            {title:"Chọn một hoặc nhiều bài", body:"Bấm Chọn file PowerPoint hoặc kéo bài từ thư mục vào khung tải lên. Muốn chọn nhiều bài: giữ phím Ctrl rồi bấm từng bài, sau đó bấm Mở. Mỗi bài tối đa 200 MB; mỗi lượt tối đa 100 bài."},
+            {title:"Chọn một hoặc nhiều bài", body:"Trong tab PowerPoint, bấm Chọn file PowerPoint hoặc kéo bài từ thư mục vào khung tải lên. Muốn chọn nhiều bài: giữ phím Ctrl rồi bấm từng bài, sau đó bấm Mở. Mỗi bài tối đa 200 MB; mỗi lượt tối đa 100 bài."},
+            {title:"Chỉ dịch phần cần thiết trong Word", body:"Chuyển đổi bài giảng → Word → chọn .docx. Tích câu/đoạn hoặc bôi đen rồi Thêm vùng bôi đen; chọn nhiều nơi rời nhau. Chọn kiểu trình bày → Xem bản dịch → sửa nếu cần → Lưu Word song ngữ. Tệp gốc được giữ; kết quả ở Thư viện → Word. Với từ khóa, có thể sửa tiếng Anh, để trống để bỏ hoặc bấm Thêm từ khóa."},
             {title:"Xem lại bài vừa chọn", body:"Ảnh slide nằm bên phải; bấm mũi tên dưới ảnh để xem slide khác. Với nhiều bài, bấm tên bài bên trái để đổi ảnh xem trước. Nút × nhỏ bỏ riêng bài đó; Chọn bài khác để chọn lại."},
             {title:"Chọn kiểu và thiết kế", body:"Chọn Song ngữ Việt–Anh hoặc Tiếng Anh 100%. Giữ thiết kế gốc hoặc chọn mẫu BiliClass; có thể Xem mẫu trước."},
             {title:"Chuyển đổi và lưu kết quả", body:"Chọn nhiều file: cấu hình dùng chung, tên bài lấy theo từng file; tool xử lý lần lượt và tự lưu kết quả cạnh file gốc. Nút Dừng ở thanh dưới, cạnh Đang xử lý. Dừng → Tiếp tục giữ phần đã làm. Thử lại bài lỗi chỉ chạy các bài chưa thành công; Xem bài mở đúng kết quả. Khi tất cả bài hoàn tất, màn hình giữ danh sách kết quả; bấm Về Thư viện hoặc Chuyển đổi bài khác khi sẵn sàng."}

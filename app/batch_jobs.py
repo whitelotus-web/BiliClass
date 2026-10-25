@@ -206,7 +206,7 @@ def convert_one(directory, row, options, cancel, update):
 
         # Legacy queues have no engine field and must keep their RC167 Google route.
         provider = options.get('translation_provider', 'google')
-        require_credentials(directory, provider)
+        require_credentials(directory, provider, options)
         path = local_document(row['url'])
         if path.suffix.lower() != '.pptx':
             raise ValueError('Hàng đợi nhận file PowerPoint .pptx, tối đa 200 MB mỗi file.')
@@ -218,6 +218,9 @@ def convert_one(directory, row, options, cancel, update):
             options.get('budget', 500_000) if provider == 'google' else maximum(provider))
         if options.get('translation_profile'):
             config['translation_profile'] = options['translation_profile']
+        for field in ('translation_fallback_version', 'translation_fallback'):
+            if field in options:
+                config[field] = options[field]
         # A queue pins this policy before its first item; legacy queues keep
         # their previous behavior even if Settings enables the new layer.
         config['translation_knowledge_version'] = options.get('translation_knowledge_version', 0)

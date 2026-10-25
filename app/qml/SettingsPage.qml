@@ -618,7 +618,13 @@ Item {
                             onClicked: bridge.googleSettings.chooseProvider("deepl")
                         }
                     }
-                    Hint { objectName: "translationProviderHint"; Layout.fillWidth: true; text: "Chọn một dịch vụ rồi lưu cấu hình bên dưới. Bài mới chỉ dùng dịch vụ đã chọn; bài đang dở giữ dịch vụ lúc bắt đầu. Không tự chuyển sang dịch vụ khác." }
+                    Hint { objectName: "translationProviderHint"; Layout.fillWidth: true; text: "Dịch vụ đã chọn được ưu tiên. Bài mới tự chuyển sang dịch vụ khác đã có cấu hình khi cần; bỏ qua bên chưa có key. Dùng hạn mức riêng của từng dịch vụ. Bài dở cũ giữ cơ chế lúc bắt đầu." }
+                    Repeater { model: bridge.googleSettings.state.services || []
+                        Label { required property var modelData; Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 11
+                            text: modelData.label + " · " + modelData.status
+                            color: modelData.warning ? AppTheme.adapt("#a76a1e") : page.muted
+                        }
+                    }
                 }
             }
             Card {

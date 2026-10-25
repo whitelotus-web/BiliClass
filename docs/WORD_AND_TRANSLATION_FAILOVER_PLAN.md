@@ -1,7 +1,7 @@
 # Đề xuất dịch dự phòng và Word song ngữ
 
-Ngày 25/10/2026. Trạng thái: thiết kế theo yêu cầu, **chưa triển khai các tính
-năng mới trong tài liệu này**. Mốc mã nguồn trước nâng cấp là RC168 commit
+Ngày 25/10/2026. Bản thiết kế ban đầu; phần triển khai và phạm vi thực tế đã
+được ghi tại [RC169: Word và dịch vụ dự phòng](WORD_RC169.md). Mốc trước nâng cấp là RC168 commit
 `1d452f087556e74a1f43b9a1b389179d94b46ede`; RC167 tiếp tục được giữ nguyên.
 
 ## 1. Dịch dự phòng và thông báo nhẹ

@@ -256,6 +256,9 @@ class Bridge(QObject):
         from .google_settings import GoogleSettings
 
         self._google_settings = GoogleSettings(self)
+        from .word_ui import WordDocuments
+
+        self._word_documents = WordDocuments(self)
         self._browser_ai = browser_ai_factory(self)
         if self.googleTranslation and hasattr(self._browser_ai, '_health_timer'):
             self._browser_ai._health_timer.stop()
@@ -697,6 +700,10 @@ class Bridge(QObject):
     def googleSettings(self):
         return self._google_settings
 
+    @Property(QObject, constant=True)
+    def wordDocuments(self):
+        return self._word_documents
+
     @Property("QVariantList", constant=True)
     def conversionFormats(self):
         from .conversion_formats import FORMATS
@@ -982,9 +989,9 @@ class Bridge(QObject):
             config['template_bookends'] = self.library.setting('template_bookends', False)
             from .translation_provider import snapshot
 
-            config.update(snapshot(self.library.directory))
+            config.update(snapshot(self.library.directory, include_fallback=True))
             self._google_settings.refresh()
-            if not self._google_settings.loading and not self._google_settings.state.get('activeConfigured'):
+            if not self._google_settings.loading and not self._google_settings.state.get('fallbackConfigured', self._google_settings.state.get('activeConfigured')):
                 self.navigate.emit('browser-settings')
                 raise ValueError(self._google_settings.state.get('message') or
                                  'Lưu cấu hình dịch vụ đã chọn trong Cài đặt → Dịch thuật trước khi chuyển đổi.')
@@ -1007,7 +1014,7 @@ class Bridge(QObject):
             def work():
                 from .translation_provider import require_credentials
 
-                require_credentials(self.library.directory, config['translation_provider'])
+                require_credentials(self.library.directory, config['translation_provider'], config)
                 path = local_document(file_url) if file_url else None
                 return prepare(self.library.directory, config, path, text)
 
@@ -2571,6 +2578,9 @@ class Bridge(QObject):
         worker, callback = self.worker, self.callback
         self.worker = self.callback = self.job_result = None
         try:
+            if getattr(worker, 'word_task', False):
+                callback(result or {'error': error, 'job': None})
+                return  # Word owns its retained review/completion state, including Stop.
             if self.cancel_event.is_set():
                 if self._discard_conversion:
                     from .google_conversion import discard

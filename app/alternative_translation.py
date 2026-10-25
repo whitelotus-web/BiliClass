@@ -17,6 +17,7 @@ from .google_translation import (
     _crypt,
     _digest,
     _retry_after,
+    network_problem,
 )
 
 DEFAULT_MODEL = 'gemini-3.5-flash-lite'
@@ -171,8 +172,8 @@ def json_request(url, payload, headers, provider, *, script=False):
         message = (LABELS[provider] + ' đang giới hạn tần suất. Chờ một lúc rồi tiếp tục; phần đã dịch được giữ lại.' if code == 'api_rate' else
                    LABELS[provider] + ' chưa nhận yêu cầu. Kiểm tra cấu hình, quyền truy cập, model/ngôn ngữ và hạn mức trong Cài đặt → Dịch thuật.')
         raise TranslationProblem(code, message, retry_after=delay) from None
-    except (urllib.error.URLError, TimeoutError, OSError, http.client.HTTPException):
-        raise TranslationProblem('api_network', 'Kết nối ' + LABELS[provider] + ' gián đoạn. Phần đã dịch được giữ để tiếp tục.') from None
+    except (urllib.error.URLError, TimeoutError, OSError, http.client.HTTPException) as exc:
+        raise network_problem('Kết nối ' + LABELS[provider] + ' gián đoạn. Phần đã dịch được giữ để tiếp tục.', exc) from None
     except TranslationProblem:
         raise
     except (ValueError, TypeError):
@@ -267,9 +268,15 @@ def check_connection(directory, provider):
     try:
         translated_values(TRANSPORTS[provider](texts, row, 'vi', 'en'), len(texts))
     except TranslationProblem as exc:
+        from .translation_failover import record
+
+        record(directory, provider, exc)
         if exc.code not in {'api_network', 'api_result'}:
             store.reject(row, count, exc.code)
         raise
+    from .translation_failover import record
+
+    record(directory, provider)
 
 
 class AlternativeTranslator(Translator):

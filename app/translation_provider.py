@@ -1,5 +1,6 @@
-"""Explicit opt-in routing. Legacy jobs always retain Google; no silent fallback."""
+"""New jobs opt into bounded fallback; older checkpoints retain their pinned route."""
 
+import sqlite3
 from contextlib import closing
 from pathlib import Path
 
@@ -25,7 +26,7 @@ def validate(provider):
     return provider
 
 
-def snapshot(directory, provider=None, *, include_profile=True):
+def snapshot(directory, provider=None, *, include_profile=True, include_fallback=False):
     from .translation_knowledge import MODE_VERSION
 
     knowledge = dict(translation_knowledge_version=MODE_VERSION, translation_knowledge_online=True)
@@ -48,11 +49,27 @@ def snapshot(directory, provider=None, *, include_profile=True):
     if include_profile and provider in SELECTABLE[1:]:
         from .alternative_translation import AlternativeStore
 
-        result['translation_profile'] = AlternativeStore(directory, provider).profile()
+        try:
+            result['translation_profile'] = AlternativeStore(directory, provider).profile()
+        except (OSError, ValueError, sqlite3.DatabaseError):
+            if not include_fallback:
+                raise
+    if include_fallback and provider in SELECTABLE:
+        from .translation_failover import routes
+
+        result.update(translation_fallback_version=1, translation_fallback=routes(directory, provider))
     return result
 
 
-def require_credentials(directory, provider):
+def require_credentials(directory, provider, config=None):
+    if config and config.get('translation_fallback_version') == 1:
+        for route in config.get('translation_fallback', []):
+            try:
+                require_credentials(directory, route['translation_provider'])
+                return
+            except (OSError, ValueError):
+                continue
+        raise TranslationProblem('api_settings', 'Thêm ít nhất một dịch vụ dịch trong Cài đặt → Dịch thuật.')
     validate(provider)
     if provider == 'azure':
         from .azure_translation import AzureKeyStore
@@ -69,6 +86,10 @@ def require_credentials(directory, provider):
 
 
 def build_translator(directory, config, legacy_budget, google_factory):
+    if config.get('translation_fallback_version') == 1:
+        from .translation_failover import RoutedTranslator
+
+        return RoutedTranslator(directory, config, google_factory)
     # Missing field means an RC167 checkpoint, even when Settings now selects Azure.
     provider = validate(config.get('translation_provider', 'google'))
     budget = config.get('translation_budget', legacy_budget if provider == 'google' else maximum(provider))

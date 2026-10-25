@@ -4,6 +4,11 @@
 
 ## Phiên bản và tải xuống
 
+Nhánh thử **RC169** thêm [Word song ngữ theo vùng chọn và dịch vụ dự phòng](docs/WORD_RC169.md).
+Word có bốn kiểu trình bày, xem/sửa trước khi lưu và thư viện riêng. Dịch vụ chính
+tạm lỗi sẽ thử dịch vụ đã cấu hình tiếp theo, giữ phần đã đạt. Đây là bản nguồn
+để dùng thử; chưa tạo bộ cài RC169 và không thay bộ cài RC167.
+
 Nhánh thử **RC168** thêm bốn lựa chọn dịch và
 [thuật ngữ theo môn, bộ nhớ tham khảo](docs/TRANSLATION_KNOWLEDGE_RC168.md).
 Kho mở rộng có 1.152 khái niệm, khoảng 0,98 MB dữ liệu tham chiếu, tự đối chiếu

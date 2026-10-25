@@ -173,7 +173,7 @@ class BatchQueue(QObject):
             try:
                 validate_config(creation_config('Tên theo từng file', options['subject'], options['education'],
                     options['grade'], options['format'], options['preset'], options['style'], options.get('notes', '')))
-                selection = snapshot(self.bridge.library.directory)
+                selection = snapshot(self.bridge.library.directory, include_fallback=True)
             except (ValueError, KeyError) as exc:
                 self.bridge.inform(str(exc), True, refresh=False)
                 return

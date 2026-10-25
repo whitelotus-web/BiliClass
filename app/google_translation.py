@@ -7,6 +7,7 @@ history; it cannot be split retrospectively into individual key usage.
 """
 
 import ctypes
+import errno
 import hashlib
 import html
 import http.client
@@ -60,6 +61,14 @@ def _retry_after(headers):
     except (ValueError, TypeError, OverflowError):
         pass
     return None
+
+
+def network_problem(message, error):
+    problem = TranslationProblem('api_network', message)
+    reason = getattr(error, 'reason', error)
+    problem.offline = (getattr(reason, 'errno', None) in {errno.ENETDOWN, errno.ENETUNREACH}
+                       or getattr(reason, 'winerror', None) in {10050, 10051})
+    return problem
 
 
 class _TranslationStop:
@@ -370,8 +379,8 @@ def request(texts, key, source, target):
         message = ('Google Dịch đang giới hạn tần suất. Chờ một lúc rồi tiếp tục; phần đã dịch được giữ lại.' if code == 'api_rate' else
                    'Google Dịch chưa nhận được yêu cầu hợp lệ. Kiểm tra key, bật Cloud Translation API, thanh toán và hạn mức của dự án.')
         raise TranslationProblem(code, message, retry_after=delay) from None
-    except (urllib.error.URLError, TimeoutError, OSError, http.client.HTTPException):
-        raise TranslationProblem('api_network', 'Kết nối Google Dịch gián đoạn. Các phần đã dịch vẫn được lưu để tiếp tục.') from None
+    except (urllib.error.URLError, TimeoutError, OSError, http.client.HTTPException) as exc:
+        raise network_problem('Kết nối Google Dịch gián đoạn. Các phần đã dịch vẫn được lưu để tiếp tục.', exc) from None
     except (ValueError, KeyError, TypeError):
         raise TranslationProblem('api_result', 'Google Dịch trả kết quả chưa hợp lệ; phần đã xong vẫn được lưu.') from None
 
@@ -515,6 +524,11 @@ class Translator:
     def _payload_size(self, text):
         return len(text)
 
+    def _record_completed(self, rows):
+        completed = getattr(self, 'completed_chunks', None)
+        if completed is not None:
+            completed.update(rows)
+
     def configure_terms(self, subject, rows, *, references=()):
         from .translation_terms import TermPolicy
 
@@ -641,6 +655,7 @@ class Translator:
             size += self._payload_size(item[1])
         if batch:
             groups.append(batch)
+        self._record_completed(values.items())
         done, total = sum(len(t[0]) for t in values), sum(len(t[0]) for t in unique)
         if progress:
             progress(done, total)
@@ -694,6 +709,7 @@ class Translator:
                     exc.failed_text = item[0]
                     raise
                 self.store.cache(item[3], value)
+                self._record_completed([(item[4], value)])
                 repaired.append((item[4], value))
             return repaired
 
@@ -727,6 +743,7 @@ class Translator:
                             except TranslationProblem:
                                 pass
                         self.store.cache_many(accepted)
+                        self._record_completed([(item[4], value) for item in group for key, value in accepted if key == item[3]])
                         self.store.reject(row, 0, exc.code)  # Partial/ambiguous work remains charged.
                         raise
                     if exc.code not in {'api_network', 'api_result'}:
@@ -738,7 +755,7 @@ class Translator:
                         excluded.add(row['id'])
                         retry_key = None
                         continue  # advance only on a definite credential/quota rejection
-                    if exc.code in {'api_network', 'api_rate'} and attempts < 2:
+                    if exc.code in {'api_network', 'api_rate'} and attempts < getattr(self, 'max_retries', 2):
                         delay = max(attempts + 1, exc.retry_after or 0)
                         if delay > 5:
                             raise  # Do not retry before the service's requested cooldown.
@@ -759,6 +776,7 @@ class Translator:
                         exc.failed_text = item[0]
                         invalid.append((item, exc))
                 self.store.cache_many([(item[3], value) for item, value in translated])
+                self._record_completed([(item[4], value) for item, value in translated])
                 if invalid:
                     if repairing:
                         incomplete = next((error for _, error in invalid if getattr(error, 'language_incomplete', False)), None)

@@ -35,6 +35,8 @@ def main():
             "library",
             "voice",
             "new",
+            "word",
+            "word-library",
             "result",
             "editor",
             "reference",

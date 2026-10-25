@@ -636,6 +636,7 @@ class Library:
             "conversion_format": config.get("conversion_format", ""),
             **({'translation_provider': config.get('translation_provider', 'google')}
                if config.get('provider') == 'google_translate' else {}),
+            **({'translation_services': config['translation_services']} if config.get('translation_services') else {}),
             "review_notes": inspection.get("review_notes", []),
             **({'content_review': inspection['content_review']} if inspection.get('content_review') else {}),
             **({'terminology_review': inspection['terminology_review']} if inspection.get('terminology_review') else {}),
