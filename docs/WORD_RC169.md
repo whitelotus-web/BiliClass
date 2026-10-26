@@ -7,19 +7,23 @@ Tag/bộ cài RC167 và nhánh RC168 được giữ nguyên.
 ## Dùng thử Word
 
 1. Vào **Chuyển đổi bài giảng → Word → Chọn file Word**, chọn `.docx`.
-2. Ở **Nội dung gốc**, chọn một trong hai cách:
-   - **Tích đoạn / câu**: tích các đoạn hoặc câu cần dịch, như giao diện cũ.
-   - **Bôi đen văn bản**: kéo chuột qua phần cần dịch, nhả chuột rồi bấm
+2. Ở **Nội dung gốc**, chọn một trong hai nút tròn:
+   - **Bôi đen văn bản** đứng trước và được chọn mặc định: kéo chuột qua phần cần dịch, nhả chuột rồi bấm
      **Chọn đoạn này để dịch** trong ô vừa hiện. Có thể quét qua nhiều đoạn.
      Tiếp tục bôi đen và xác nhận những phần rời nhau. Với bàn phím, chọn chữ
      rồi bấm **Thêm vùng** để mở ô xác nhận.
+   - **Tích đoạn/câu** đứng sau: chọn thêm nút tròn **Theo đoạn** hoặc
+     **Theo câu** ngay bên cạnh. Hai nút này chỉ sáng khi chọn Tích đoạn/câu.
    Danh sách bên phải giữ các vùng đã xác nhận; có thể bỏ từng vùng. Đổi cách
    chọn không xóa vùng đã chọn, vùng trùng/chồng được gộp. Chỉ bôi đen chưa
    gửi nội dung đi dịch; đoạn bị khóa/hình/công thức được giữ và có thông báo.
-3. Chọn môn, khối lớp và kiểu trình bày. Bấm **Chuyển đổi · N vùng**.
+3. Chọn môn, khối lớp và kiểu trình bày. Kiểm tra ô **Cấu hình đã chọn** ở
+   thanh dưới, bấm **Chuyển đổi** ở bên phải. Nút Dừng ở cạnh khi đang xử lý.
 4. Khi chuyển đổi thành công, tool **tự lưu** vào thư viện và cạnh file gốc,
    tên **`Tên gốc (Song ngu VI-EN).docx`**. Màn kết quả vẫn ở đó để xem cặp
-   Việt–Anh. Nếu sửa bản Anh/từ khóa, bấm **Lưu Word song ngữ** để lưu chỉnh sửa.
+   Việt–Anh. **Lưu Word song ngữ** và **Về bài giảng** chỉ hiện sau khi đã
+   chuyển đổi được; Lưu chỉ sáng khi có chỉnh sửa hoặc cần thử lưu lại.
+   Nếu sửa bản Anh/từ khóa, bấm **Lưu Word song ngữ** để lưu chỉnh sửa.
 5. Màn hoàn tất giữ lại **Mở Word đã lưu**, **Mở thư mục** và
    **Về thư viện**. Vào **Bài giảng → Word** để mở lại hoặc tiếp tục bài.
 

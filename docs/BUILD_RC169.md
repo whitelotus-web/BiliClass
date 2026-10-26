@@ -15,6 +15,9 @@ Mốc phát hành ngày 26/10/2026, giữ bản phát hành/tag RC167 trước �
   độ RC167 và cache âm thanh cũ giữ nguyên ý nghĩa; bản mới ghi tốc độ từng
   ngôn ngữ trong plan/cache/export và mascot phát đúng bản đã tạo.
 - Hai biểu tượng P/W dùng ảnh do giáo viên cung cấp; F1 và hướng dẫn cập nhật.
+- Chọn văn bản bằng hai nút tròn: bôi đen trước/mặc định, tích đoạn/câu sau;
+  Theo đoạn/Theo câu chỉ sáng trong chế độ tích. Thanh dưới có cấu hình đã
+  chọn và nút Chuyển đổi bên phải; các thao tác lưu/mở thư viện hiện khi có kết quả.
 
 Nguồn được kiểm tra với môi trường `.venv`: kiểm thử giọng đọc/caching,
 ngôn ngữ riêng, tạo/tiếp tục/tạo lại, Word và kiểu chữ, bốn dịch vụ dịch,

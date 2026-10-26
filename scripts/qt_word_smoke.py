@@ -130,6 +130,8 @@ def main():
                     assert c('wordConfiguration').isVisible() and c('wordSourceArea').isVisible()
                     assert c('wordConfiguration').mapToScene(c('wordConfiguration').boundingRect().topLeft()).y() > c('wordSourceArea').mapToScene(c('wordSourceArea').boundingRect().topLeft()).y()
                     assert not c('wordSelectAll').isEnabled() and not c('wordPreview').isEnabled()
+                    assert not c('wordSave').isVisible() and not c('wordGoLibrary').isVisible()
+                    assert c('wordConfigurationSummary').isVisible()
                     assert c('wordTextStyle').property('currentIndex') == 1
                     assert c('wordOriginalFont').property('checked') and not c('wordEnglishFont').isVisible()
                     assert c('wordEnglishColor').property('currentIndex') == 0
@@ -160,6 +162,13 @@ def main():
                     assert not warnings, warnings
                     assert window.grabWindow().save(str(report / 'word-loaded.png'))
                     click(window, c('wordShowDocument'))
+                    assert c('wordSelectByHighlight').property('checked')
+                    assert not c('wordScopeParagraphs').isEnabled() and not c('wordScopeSentences').isEnabled()
+                    click(window, c('wordSelectByCheckbox'))
+                    assert c('wordScopeParagraphs').isEnabled() and c('wordScopeSentences').isEnabled()
+                    click(window, c('wordScopeSentences'))
+                    assert c('wordScopeSentences').property('checked')
+                    click(window, c('wordScopeParagraphs'))
                     click(window, c('wordSelect_1'))
                     until(lambda: not bridge.busy)
                     assert bridge.wordDocuments.state['selected_count'] == 1
@@ -175,7 +184,7 @@ def main():
                     assert bridge.wordDocuments.state['selected_count'] == 2
                     # Switching to the continuous view retains checkbox regions. A real drag
                     # through an emoji paragraph offers confirmation only after release.
-                    c('wordSelectionMethod').setProperty('currentIndex', 1)
+                    click(window, c('wordSelectByHighlight'))
                     pump(100)
                     assert bridge.wordDocuments.state['selected_count'] == 2
                     content = bridge.wordDocuments.selectionText
@@ -187,7 +196,7 @@ def main():
                     click(window, c('wordAcceptHighlight'))
                     until(lambda: not bridge.busy)
                     assert bridge.wordDocuments.state['selected_count'] == 2, 'Duplicate highlights must merge'
-                    c('wordSelectionMethod').setProperty('currentIndex', 0)
+                    click(window, c('wordSelectByCheckbox'))
                     pump(80)
                     assert bridge.wordDocuments.state['selected_count'] == 2
                     assert not c('wordHighlightPopup').property('visible')
@@ -197,6 +206,8 @@ def main():
                     assert bridge.wordDocuments.state['phase'] == 'completed', bridge.wordDocuments.state['message']
                     assert Path(bridge.wordDocuments.state['export_path']).name == 'Bài chuyển động (Song ngu VI-EN).docx'
                     assert calls == ['google', 'languageapp'], calls
+                    assert c('wordSave').isVisible() and c('wordGoLibrary').isVisible()
+                    assert not c('wordSave').isEnabled(), 'Automatic save must not offer a redundant save'
                     assert window.grabWindow().save(str(report / 'word-review.png'))
                     region = bridge.wordDocuments.state['regions'][0]
                     bridge.wordDocuments.setDraft(region['id'], region['display_en'].replace('has a velocity', 'has a velocity of'))
@@ -218,6 +229,10 @@ def main():
                             save = c('wordOpenOutput')
                             rect = save.mapRectToScene(save.boundingRect())
                             assert rect.bottom() <= window.height() and rect.right() <= window.width(), rect
+                            summary, action = c('wordConfigurationSummary'), c('wordPreview')
+                            summary_rect, action_rect = summary.mapRectToScene(summary.boundingRect()), action.mapRectToScene(action.boundingRect())
+                            assert action_rect.left() > summary_rect.right() and action_rect.right() <= window.width()
+                            assert action_rect.bottom() <= window.height()
                             assert window.grabWindow().save(str(report / f'word-{theme}-{width}.png'))
                     window.resize(1366, 850)
                     click(window, c('wordGoLibrary'))
@@ -269,7 +284,7 @@ def main():
                     bridge.wordDocuments.addTextSelection(identity, 0, 5)
                     assert bridge.wordDocuments.state['selected_count'] == 0, 'An old document popup cannot select the new source'
                     assert 'Tài liệu đã đổi' in bridge.wordDocuments.state['message']
-                    c('wordSelectionMethod').setProperty('currentIndex', 1)
+                    click(window, c('wordSelectByHighlight'))
                     window.resize(1080, 700)
                     click(window, c('wordShowDocument'))
                     pump(80)
@@ -319,6 +334,8 @@ def main():
                 'One Word page keeps upload, configuration and document panels; pre-upload choices are retained',
                 'Original font/color and italic defaults; custom typography is remembered; editable lesson title restores',
                 'Successful conversion automatically saves beside source with the requested suffix; edits remain saveable',
+                'Radio choices: highlight first/default, checkbox second with paragraph/sentence enabled only in that mode',
+                'Right-aligned conversion action with selected-configuration summary; Save/library appear after translation',
                 'Native Word tab; paragraph checkbox and disjoint text selection after emoji',
                 'Mouse drag/release offers confirmation; disjoint highlights accumulate; duplicates merge; switching modes retains selections',
                 'Primary provider fails; configured fallback succeeds; original key unchanged',
