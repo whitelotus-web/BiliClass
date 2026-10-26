@@ -12,24 +12,33 @@ Ngày 26/10/2026. Bản mã nguồn để thử tiếp, trên nhánh
   dành chỗ cho bố cục. Biểu tượng A có vạch đỏ sát chân chữ; màu áp dụng
   vẫn lấy từ lựa chọn trong bảng màu hoặc giữ nguyên màu gốc.
 - **Cỡ chữ** nằm cạnh ô phông, có danh sách cỡ phổ biến và cho nhập trực
-  tiếp theo bước 0,5 pt. Ban đầu lấy cỡ tại các vùng được chọn; nhiều cỡ
-  được báo rõ và vẫn giữ cỡ riêng từng vùng khi xuất. Khi chưa chọn vùng,
-  ô hiện cỡ phổ biến trong tài liệu. Chọn cỡ khác sẽ nhớ cho bài mới;
-  chọn **Cỡ gốc** để quay về tự động. Bản Anh không còn tự giảm 1 pt.
+  tiếp theo bước 0,5 pt. Mặc định ô hiện **Size gốc**, tooltip **Size**;
+  vẫn lấy cỡ tại các vùng gốc khi xuất. Chọn cỡ khác sẽ nhớ cho bài mới;
+  chọn **Size gốc** để quay về tự động. Bản Anh không còn tự giảm 1 pt.
 - **Màu tiếng Anh** là nút A có gạch màu. Bảng chọn gồm màu chủ đề, màu tiêu
   chuẩn, màu khác và ô **Giữ nguyên màu gốc**. Màu gốc là mặc định ban đầu;
   các màu RGB được kiểm tra trước khi ghi vào Word.
 - **Kiểu chữ tiếng Anh** có B, I, U, gạch ngang, x₂, x². Các kiểu kết hợp
   được; chỉ số dưới và trên loại trừ nhau. Phông gốc, màu gốc, in nghiêng là
   các giá trị ban đầu; tài liệu mới lấy lựa chọn định dạng gần nhất.
-- Ô phông mặc định tự theo phông gốc và luôn cho chọn trực tiếp phông khác;
-  không có ô tích riêng. Chọn **Theo phông gốc** trong danh sách để trở về
-  tự động. Khi tự động, ô hiện phông lấy từ tài liệu (hoặc danh sách nếu có
-  nhiều phông); từng vùng vẫn giữ phông riêng khi xuất. Lựa chọn gần nhất
+- Ô phông mặc định hiện **Font gốc**, tooltip **Font**, luôn cho chọn trực
+  tiếp phông khác; không có ô tích riêng. Chọn **Font gốc** trong danh sách
+  để trở về tự động; từng vùng vẫn giữ phông riêng khi xuất. Lựa chọn gần nhất
   được nhớ cho bài mới, tài liệu cũ vẫn giữ cấu hình đã lưu.
 - **Bôi đen văn bản** đứng trước. **Tích chọn đoạn/câu** có hai ô vuông con
   **Theo đoạn / Theo câu**, chỉ bật khi chọn cách tích chọn. Hai ô loại trừ
   nhau để mỗi lần chỉ dùng một cách chia nội dung.
+  Thanh thao tác dùng hai hàng gọn: cách chọn và Đoạn/Câu ở hàng đầu;
+  Chọn tất cả/Bỏ chọn và thu phóng ở hàng sau. Hướng dẫn chuyển vào tooltip.
+  Nhả chuột hiện hai nút nhỏ **Chọn / Hủy**, không trích lại nội dung.
+  Chọn bằng bàn phím rồi Enter cũng mở khung xác nhận.
+- Bỏ hai dòng hướng dẫn lặp phía trên tài liệu. Chỉ hiện thông báo khi có
+  lỗi cần xử lý, bản xem cần dùng chữ thuần hoặc tác vụ đang dừng/tạm dừng.
+- **Chọn bài khác / × Hủy bài đang chọn** ở bên phải dòng tiêu đề, giống
+  PowerPoint và Tạo giọng đọc. Bỏ nút **Chọn vùng dịch** trong khung tệp.
+  Hủy chỉ đưa màn Word về trạng thái chưa chọn tệp; bài/checkpoint trong
+  thư viện và các file vẫn còn. Nếu có chỉnh sửa bản dịch chưa lưu thì
+  ứng dụng giữ bài lại và nhắc lưu trước khi đổi/hủy.
 - Bản xem trên nền giấy trắng có lề, cỡ chữ, phông, đậm/nghiêng, căn đoạn,
   hình nhúng và bảng. Có **− / Vừa khung / +** để đọc và chọn vùng. Ở cách
   tích chọn, từng phần cũng dùng định dạng gốc thay vì chỉ hiện chữ thuần.

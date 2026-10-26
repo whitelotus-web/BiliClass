@@ -9,20 +9,22 @@ Control {
     property alias editText: input.text
     property string error: ""
     property bool dirty: false
-    readonly property var commonSizes: ["Cỡ gốc", "8", "9", "10", "11", "12", "14", "16", "18", "20", "22", "24", "26", "28", "36", "48", "72"]
+    readonly property var commonSizes: ["Size gốc", "8", "9", "10", "11", "12", "14", "16", "18", "20", "22", "24", "26", "28", "36", "48", "72"]
     signal chosen()
-    implicitWidth: 60; implicitHeight: 38; padding: 2; hoverEnabled: true
+    implicitWidth: 82; implicitHeight: 38; padding: 2; hoverEnabled: true
     Accessible.name: "Cỡ chữ tiếng Anh"
-    ToolTip.visible: hovered || !!error && input.activeFocus
-    ToolTip.text: error || (pointSize > 0 ? "Cỡ tiếng Anh: " + pointSize + " pt. Chọn Cỡ gốc để theo từng vùng." : sourceSize === "Nhiều cỡ" ? "Vùng chọn có nhiều cỡ chữ; đang giữ cỡ riêng theo từng vùng gốc." : "Theo cỡ tại vùng gốc được chọn. Có thể chọn hoặc nhập cỡ mới, theo bước 0,5 pt.")
+    Accessible.description: error
+    ToolTip.visible: hovered
+    ToolTip.text: "Size"
     function refresh() {
-        input.text = pointSize > 0 ? pointSize.toString() : sourceSize === "Nhiều cỡ" ? "" : sourceSize
+        input.text = pointSize > 0 ? pointSize.toString() : "Size gốc"
         dirty = false
     }
     function commit(value) {
         const text = value.trim()
-        const size = text === "Cỡ gốc" ? 0 : Number(text.replace(",", "."))
-        if (text === "Cỡ gốc" || text && isFinite(size) && size >= 1 && size <= 1638 && Math.round(size * 2) === size * 2) {
+        const original = text === "Size gốc" || text === "Cỡ gốc"
+        const size = original ? 0 : Number(text.replace(",", "."))
+        if (original || text && isFinite(size) && size >= 1 && size <= 1638 && Math.round(size * 2) === size * 2) {
             pointSize = size
             error = ""
             refresh()
@@ -47,7 +49,7 @@ Control {
         TextField {
             id: input; objectName: "wordFontSizeInput"; Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.fillHeight: true
             leftPadding: 4; rightPadding: 0; topPadding: 0; bottomPadding: 0
-            font.pixelSize: 12; color: AppTheme.ink; placeholderText: "Cỡ"; selectByMouse: true
+            font.pixelSize: 12; color: AppTheme.ink; placeholderText: "Size gốc"; selectByMouse: true
             Accessible.name: "Nhập cỡ chữ tiếng Anh"
             background: Item { }
             onTextEdited: control.dirty = true
@@ -67,7 +69,7 @@ Control {
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
         height: Math.min(360, parent.height - 16)
         background: Rectangle { color: AppTheme.surface; radius: 7; border.color: AppTheme.line }
-        onOpened: { sizeList.currentIndex = Math.max(0, control.commonSizes.indexOf(control.pointSize > 0 ? control.pointSize.toString() : "Cỡ gốc")); sizeList.forceActiveFocus() }
+        onOpened: { sizeList.currentIndex = Math.max(0, control.commonSizes.indexOf(control.pointSize > 0 ? control.pointSize.toString() : "Size gốc")); sizeList.forceActiveFocus() }
         contentItem: ListView {
             id: sizeList; objectName: "wordFontSizeList"; clip: true; implicitHeight: contentHeight; model: control.commonSizes; keyNavigationEnabled: true
             ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }

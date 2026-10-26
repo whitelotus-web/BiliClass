@@ -11,7 +11,6 @@ Rectangle {
     readonly property bool loaded: fileName.length > 0
     signal chooseFile()
     signal fileDropped(string url)
-    signal showDocument()
     implicitHeight: content.implicitHeight + 28
     radius: 16; color: drop.containsDrag ? AppTheme.selected : AppTheme.surface
     border.color: drop.containsDrag ? AppTheme.blue : AppTheme.line
@@ -34,10 +33,6 @@ Rectangle {
             Label { text: upload.loaded ? upload.paragraphCount + " đoạn · Chỉ dịch phần được chọn · File gốc được giữ nguyên" : "Chọn hoặc kéo thả một file. Sau đó chọn những câu, đoạn cần dịch."; color: AppTheme.muted; font.pixelSize: 13; wrapMode: Text.WordWrap; horizontalAlignment: upload.loaded ? Text.AlignLeft : Text.AlignHCenter; Layout.fillWidth: true }
             WordAction { objectName: "wordUploadChoose"; visible: !upload.loaded; text: upload.busy ? "Chờ hoàn tất tác vụ…" : "Chọn file Word"; primary: true; implicitHeight: 44; font.pixelSize: 14; Layout.alignment: Qt.AlignHCenter; Layout.preferredWidth: 258; enabled: !upload.busy; onClicked: upload.chooseFile() }
             Label { visible: !upload.loaded; text: "Chỉ hỗ trợ tệp .docx tối đa 50 MB · Giữ nguyên file gốc"; color: AppTheme.muted; font.pixelSize: 12; wrapMode: Text.WordWrap; horizontalAlignment: Text.AlignHCenter; Layout.fillWidth: true }
-        }
-        ColumnLayout { visible: upload.loaded; spacing: 5
-            WordAction { objectName: "wordChooseFile"; text: "Chọn bài khác"; enabled: !upload.busy; onClicked: upload.chooseFile() }
-            WordAction { objectName: "wordShowDocument"; text: "Chọn vùng dịch ↓"; enabled: !upload.busy; onClicked: upload.showDocument() }
         }
     }
     DropArea {

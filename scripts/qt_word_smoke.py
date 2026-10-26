@@ -17,6 +17,7 @@ from PySide6.QtCore import (
     QCoreApplication,
     QEvent,
     QMetaObject,
+    QObject,
     QPointF,
     QRectF,
     Qt,
@@ -72,6 +73,10 @@ def main():
         def c(name):
             return control(window, name)
 
+        def show_document():
+            assert QMetaObject.invokeMethod(c('wordPage'), 'showDocument')
+            pump(80)
+
         def check_formatting_row():
             picker = 'wordKeywordDensity' if c('wordMode').property('currentIndex') == 2 else 'wordEnglishColor'
             parts = [c(name) for name in ('wordMode', picker, 'wordTextStyle', 'wordEnglishFont', 'wordFontSize')]
@@ -109,6 +114,8 @@ def main():
             assert not c('wordHighlightPopup').property('visible'), 'Confirmation must wait for mouse release'
             QTest.mouseRelease(window, Qt.LeftButton, Qt.NoModifier, last)
             until(lambda: c('wordHighlightPopup').property('visible'))
+            assert c('wordHighlightPopup').width() <= 140 and c('wordHighlightPopup').height() <= 44
+            assert c('wordAcceptHighlight').property('text') == 'Chọn'
             # At an end-of-line Qt may include the adjacent paragraph separator
             # when the caret rectangle is rounded to a physical screen pixel.
             expected = preview_text().encode('utf-16-le')[start * 2:end * 2].decode('utf-16-le')
@@ -152,6 +159,7 @@ def main():
                     assert not c('wordSelectAll').isEnabled() and not c('wordPreview').isEnabled()
                     assert not c('wordSave').isVisible() and not c('wordGoLibrary').isVisible()
                     assert c('wordConfigurationSummary').isVisible()
+                    assert not c('wordChooseFile').isVisible() and not c('wordDismissInput').isVisible()
                     assert c('wordTextStyle').property('italic') and not c('wordTextStyle').property('bold')
                     assert c('wordEnglishFont').isVisible() and c('wordEnglishFont').isEnabled()
                     assert c('wordEnglishFont').property('currentIndex') == 0
@@ -213,8 +221,16 @@ def main():
                     assert bridge.wordDocuments.state['subject'] == 'Vật lý' and bridge.wordDocuments.state['grade'] == '6'
                     assert bridge.wordDocuments.state['title'] == 'Chuyển động đều'
                     assert bridge.wordDocuments.state['options']['font'] == 'Arial'
+                    pump(80)
+                    assert not c('wordAttentionBanner').isVisible()
+                    assert window.findChild(QObject, 'wordShowDocument') is None
+                    heading_rect = c('wordPageHeading').mapRectToScene(c('wordPageHeading').boundingRect())
+                    change_rect = c('wordChooseFile').mapRectToScene(c('wordChooseFile').boundingRect())
+                    dismiss_rect = c('wordDismissInput').mapRectToScene(c('wordDismissInput').boundingRect())
+                    assert change_rect.left() >= heading_rect.right() and dismiss_rect.left() >= change_rect.right(), (heading_rect, change_rect, dismiss_rect)
+                    assert abs(heading_rect.center().y() - change_rect.center().y()) < 2
                     assert bridge.wordDocuments.sourceFontSize == '14'
-                    assert c('wordFontSize').property('pointSize') == 0 and c('wordFontSize').property('editText') == '14', {
+                    assert c('wordFontSize').property('pointSize') == 0 and c('wordFontSize').property('editText') == 'Size gốc', {
                         key: c('wordFontSize').property(key) for key in ('pointSize', 'editText', 'sourceSize', 'lastShown', 'activeFocus')}
                     click(window, c('wordFontSize'))
                     QTest.keyClick(window, Qt.Key_A, Qt.ControlModifier)
@@ -223,7 +239,7 @@ def main():
                     pump(50)
                     assert c('wordFontSize').property('pointSize') == 12.5
                     assert bridge.wordDocuments.formattingDefaults['font_size'] == 12.5
-                    assert QMetaObject.invokeMethod(c('wordFontSize'), 'commit', Q_ARG('QVariant', 'Cỡ gốc'))
+                    assert QMetaObject.invokeMethod(c('wordFontSize'), 'commit', Q_ARG('QVariant', 'Size gốc'))
                     assert c('wordFontSize').property('pointSize') == 0
                     click(window, c('wordFontSizeArrow'))
                     until(lambda: c('wordFontSizePopup').property('visible'))
@@ -236,12 +252,12 @@ def main():
                     pump(50)
                     assert not c('wordFontSizePopup').property('visible') and c('wordFontSize').property('pointSize') == 26
                     assert bridge.wordDocuments.formattingDefaults['font_size'] == 26
-                    assert QMetaObject.invokeMethod(c('wordFontSize'), 'commit', Q_ARG('QVariant', 'Cỡ gốc'))
+                    assert QMetaObject.invokeMethod(c('wordFontSize'), 'commit', Q_ARG('QVariant', 'Size gốc'))
                     c('wordEnglishFont').setProperty('currentIndex', 0)
                     assert QMetaObject.invokeMethod(c('wordEnglishFont'), 'activated', Q_ARG(int, 0))
                     assert c('wordEnglishFont').isVisible() and c('wordEnglishFont').isEnabled()
                     assert bridge.wordDocuments.sourceFonts
-                    assert all(family in c('wordEnglishFont').property('displayText') for family in bridge.wordDocuments.sourceFonts)
+                    assert c('wordEnglishFont').property('displayText') == 'Font gốc'
                     assert bridge.wordDocuments.formattingDefaults['font'] == ''
                     c('wordEnglishFont').setProperty('currentIndex', c('wordEnglishFont').property('model').index('Arial'))
                     assert QMetaObject.invokeMethod(c('wordEnglishFont'), 'activated', Q_ARG(int, c('wordEnglishFont').property('currentIndex')))
@@ -256,7 +272,10 @@ def main():
                     pump(120)
                     assert not warnings, warnings
                     assert window.grabWindow().save(str(report / 'word-loaded.png'))
-                    click(window, c('wordShowDocument'))
+                    show_document()
+                    text_rect = c('wordContinuousScroll').mapRectToScene(c('wordContinuousScroll').boundingRect())
+                    panel_rect = c('wordSourcePanel').mapRectToScene(c('wordSourcePanel').boundingRect())
+                    assert text_rect.top() - panel_rect.top() <= 120
                     assert c('wordSelectByHighlight').property('checked')
                     assert not c('wordScopeParagraphs').isEnabled() and not c('wordScopeSentences').isEnabled()
                     click(window, c('wordSelectByCheckbox'))
@@ -277,7 +296,7 @@ def main():
                     click(window, c('wordAddRange_2'))
                     until(lambda: not bridge.busy)
                     assert bridge.wordDocuments.state['selected_count'] == 2
-                    assert c('wordFontSize').property('pointSize') == 0 and c('wordFontSize').property('editText') == '14'
+                    assert c('wordFontSize').property('pointSize') == 0 and c('wordFontSize').property('editText') == 'Size gốc'
                     # Switching to the continuous view retains checkbox regions. A real drag
                     # through an emoji paragraph offers confirmation only after release.
                     click(window, c('wordSelectByHighlight'))
@@ -307,6 +326,10 @@ def main():
                     assert window.grabWindow().save(str(report / 'word-review.png'))
                     region = bridge.wordDocuments.state['regions'][0]
                     bridge.wordDocuments.setDraft(region['id'], region['display_en'].replace('has a velocity', 'has a velocity of'))
+                    draft_identity = bridge.wordDocuments.state['id']
+                    bridge.wordDocuments.dismissInput()
+                    assert bridge.wordDocuments.state['id'] == draft_identity
+                    assert bridge.wordDocuments.draftsPending and bridge.wordDocuments.state['attention_message']
                     pump(120)  # Save becomes visible after an automatically saved result.
                     click(window, c('wordSave'))
                     until(lambda: not bridge.busy)
@@ -381,9 +404,10 @@ def main():
                     bridge.wordDocuments.addTextSelection(identity, 0, 5)
                     assert bridge.wordDocuments.state['selected_count'] == 0, 'An old document popup cannot select the new source'
                     assert 'Tài liệu đã đổi' in bridge.wordDocuments.state['message']
+                    assert c('wordAttentionBanner').isVisible()
                     click(window, c('wordSelectByHighlight'))
                     window.resize(1080, 700)
-                    click(window, c('wordShowDocument'))
+                    show_document()
                     pump(80)
                     count_before_selecting = len(calls)
                     first_end = len('Vật có vận tốc 14 m/s.')
@@ -415,6 +439,7 @@ def main():
                     release.set()
                     until(lambda: not bridge.busy, timeout=30)
                     assert bridge.wordDocuments.state['phase'] == 'paused'
+                    assert c('wordAttentionBanner').isVisible()
                     assert not bridge.wordDocuments.state['working']
                     used = len(calls)
                     bridge.wordDocuments.preview(dict(mode='below'), 'Vật lý', '11')
@@ -438,7 +463,7 @@ def main():
                     bridge.wordDocuments.openFile(rich_source.as_uri())
                     until(lambda: not bridge.busy)
                     window.resize(1366, 850)
-                    click(window, c('wordShowDocument'))
+                    show_document()
                     assert '\ufffc' in preview_text() and preview_text().count('Vận tốc 12 m/s.') == 4
                     from PySide6.QtGui import QTextDocument
 
@@ -481,7 +506,7 @@ def main():
                     assert len(calls) == count_before_expanding, 'Selection and clearing must not contact translation services'
                     for width, height in ((1080, 700), (1366, 850)):
                         window.resize(width, height)
-                        click(window, c('wordShowDocument'))
+                        show_document()
                         click(window, c('wordExpandSource'))
                         until(lambda: c('wordExpandedDialog').property('visible'))
                         pump(50)
@@ -489,6 +514,17 @@ def main():
                         assert window.grabWindow().save(str(report / f'word-expanded-{width}.png'))
                         click(window, c('wordCollapseSource'))
                         until(lambda: not c('wordExpandedDialog').property('visible'))
+                    preserved_id = bridge.wordDocuments.state['id']
+                    preserved_title = bridge.wordDocuments.state['title']
+                    c('wordWorkflowScroll').property('contentItem').setProperty('contentY', 0)
+                    pump(60)
+                    click(window, c('wordDismissInput'))
+                    assert bridge.wordDocuments.state['id'] == '' and not bridge.wordDocuments.selectionText
+                    assert c('wordTitle').property('text') == '' and not c('wordChooseFile').isVisible()
+                    assert any(row['id'] == preserved_id for row in bridge.wordDocuments.library)
+                    bridge.wordDocuments.loadRecord(preserved_id)
+                    until(lambda: not bridge.busy)
+                    assert bridge.wordDocuments.state['id'] == preserved_id and bridge.wordDocuments.state['title'] == preserved_title
                     click(window, c('wordTabPowerPoint'))
                     assert window.property('page') == 'new'
                     assert c('creationSourceArea').isVisible()
