@@ -14,7 +14,7 @@ Item {
     signal showPowerPoint()
     signal showLibrary()
     property var modeCodes: ["below", "columns", "keywords", "english"]
-    property var colorCodes: ["original", "1667B1", "666666", "000000"]
+    property real previewZoom: 0
     property var densityCodes: ["few", "normal", "deep"]
     readonly property var fontNames: {
         const names = page.word.fontFamilies
@@ -26,17 +26,24 @@ Item {
     }
     function draftTitle() { return lessonTitle.text.trim() || page.documentState.source_title || page.documentState.title || "" }
     function draftFont() { return originalFont.checked ? "" : englishFont.currentText }
-    readonly property bool englishItalic: textStyle.currentIndex === 1 || textStyle.currentIndex === 3
-    readonly property bool englishBold: textStyle.currentIndex === 2 || textStyle.currentIndex === 3
+    readonly property bool englishItalic: textStyle.italic
+    readonly property bool englishBold: textStyle.bold
+    function restoreStyle(options) {
+        textStyle.bold = !!options.bold
+        textStyle.italic = options.italic === undefined || options.italic
+        textStyle.underline = !!options.underline
+        textStyle.strike = !!options.strike
+        textStyle.script = options.script || "normal"
+    }
     function restoreFormattingDefaults() {
         const options = page.word.formattingDefaults
-        englishColor.currentIndex = Math.max(0, colorCodes.indexOf(options.color || "original"))
-        textStyle.currentIndex = (options.bold ? 2 : 0) + (options.italic === undefined || options.italic ? 1 : 0)
+        englishColor.colorCode = options.color || "original"
+        restoreStyle(options)
         originalFont.checked = !options.font
         englishFont.currentIndex = Math.max(0, englishFont.model.indexOf(options.font || "Times New Roman"))
     }
     function rememberFormatting() { page.word.rememberFormatting(page.draftOptions()) }
-    Component.onCompleted: restoreFormattingDefaults()
+    Component.onCompleted: { restoreFormattingDefaults(); grade.currentIndex = Math.max(0, grade.model.indexOf("11")) }
     property string selectionMode: "highlight"
     property string selectionScope: "paragraphs"
     readonly property bool highlightSelection: selectionMode === "highlight"
@@ -50,7 +57,7 @@ Item {
         highlightPopup.documentIdentity = page.documentState.id
         highlightPopup.rangeStart = continuousText.selectionStart
         highlightPopup.rangeEnd = continuousText.selectionEnd
-        highlightPopup.excerpt = continuousText.selectedText
+        highlightPopup.excerpt = continuousText.selectedText.replace(/[\u2029\uFDD0\uFDD1]/g, "\n").replace(/\uFFFC/g, "[Hình]")
         const caret = continuousText.cursorRectangle
         const point = continuousText.mapToItem(page, caret.x, caret.y)
         highlightPopup.x = Math.max(12, Math.min(point.x + 8, page.width - highlightPopup.width - 12))
@@ -59,7 +66,7 @@ Item {
         highlightPopup.open()
     }
     function openDocument(url) {
-        word.openConfiguredFile(url, {options: draftOptions(), subject: subject.currentText, grade: grade.text, title: lessonTitle.text.trim()})
+        word.openConfiguredFile(url, {options: draftOptions(), subject: subject.currentText, grade: grade.currentText, title: lessonTitle.text.trim()})
     }
     function showDocument() {
         const flick = wordScroll.contentItem
@@ -67,27 +74,31 @@ Item {
         flick.contentY = Math.max(0, Math.min(documentPanels.y - 12, flick.contentHeight - flick.height))
     }
     readonly property bool configurationMatches: modeCodes[mode.currentIndex] === (page.documentState.options.mode || "below")
-        && colorCodes[englishColor.currentIndex] === (page.documentState.options.color || "original")
+        && englishColor.colorCode === (page.documentState.options.color || "original")
         && page.englishItalic === (page.documentState.options.italic === undefined ? true : page.documentState.options.italic)
         && page.englishBold === (page.documentState.options.bold || false)
+        && textStyle.underline === !!page.documentState.options.underline && textStyle.strike === !!page.documentState.options.strike
+        && textStyle.script === (page.documentState.options.script || "normal")
         && page.draftFont() === (page.documentState.options.font || "")
         && densityCodes[density.currentIndex] === (page.documentState.options.density || "normal")
-        && subject.currentText === (page.documentState.subject || "Toán") && grade.text === (page.documentState.grade || "11")
+        && subject.currentText === (page.documentState.subject || "Toán") && grade.currentText === (page.documentState.grade || "11")
         && page.draftTitle() === (page.documentState.title || "")
-    function draftOptions() { return {mode: modeCodes[mode.currentIndex], color: colorCodes[englishColor.currentIndex], italic: page.englishItalic, bold: page.englishBold, font: page.draftFont(), density: densityCodes[density.currentIndex]} }
+    function draftOptions() { return {mode: modeCodes[mode.currentIndex], color: englishColor.colorCode, italic: page.englishItalic, bold: page.englishBold, underline: textStyle.underline, strike: textStyle.strike, script: textStyle.script, font: page.draftFont(), density: densityCodes[density.currentIndex]} }
     function syncLoaded() {
         if (!page.documentState.id || shownIdentity === page.documentState.id) return
         highlightPopup.close()
         shownIdentity = page.documentState.id
         mode.currentIndex = Math.max(0, modeCodes.indexOf(page.documentState.options.mode || "below"))
-        englishColor.currentIndex = Math.max(0, colorCodes.indexOf(page.documentState.options.color || "original"))
+        englishColor.colorCode = page.documentState.options.color || "original"
         density.currentIndex = Math.max(0, densityCodes.indexOf(page.documentState.options.density || "normal"))
-        textStyle.currentIndex = (page.documentState.options.bold ? 2 : 0) + (page.documentState.options.italic === undefined || page.documentState.options.italic ? 1 : 0)
+        page.restoreStyle(page.documentState.options)
         originalFont.checked = !page.documentState.options.font
         englishFont.currentIndex = Math.max(0, englishFont.model.indexOf(page.documentState.options.font || "Times New Roman"))
         lessonTitle.text = page.documentState.title || ""
         subject.currentIndex = Math.max(0, appBridge.conversionSubjects.indexOf(page.documentState.subject || "Toán"))
-        grade.text = page.documentState.grade || "11"
+        education.currentIndex = education.model.indexOf(page.documentState.education_level || "THPT")
+        grade.currentIndex = Math.max(0, grade.model.indexOf(page.documentState.grade || "11"))
+        page.previewZoom = 0
     }
     Connections { target: page.word; function onChanged() { if (!page.available) highlightPopup.close(); page.syncLoaded() }
         function onConfigurationRestored() { page.shownIdentity = ""; page.syncLoaded() }
@@ -108,7 +119,11 @@ Item {
             Label { text: highlightPopup.excerpt.slice(0, 180); textFormat: Text.PlainText; color: AppTheme.muted; font.pixelSize: 11; wrapMode: Text.WordWrap; maximumLineCount: 3; elide: Text.ElideRight; Layout.fillWidth: true }
             RowLayout { Layout.fillWidth: true; spacing: 8
                 WordAction { objectName: "wordAcceptHighlight"; text: "Chọn đoạn này để dịch"; primary: true; Layout.fillWidth: true; enabled: page.available
-                    onClicked: { page.word.addTextSelection(highlightPopup.documentIdentity, highlightPopup.rangeStart, highlightPopup.rangeEnd); highlightPopup.close() }
+                    onClicked: {
+                        if (page.word.previewHtml) page.word.addPreviewSelection(highlightPopup.documentIdentity, continuousText.getText(0, continuousText.length), highlightPopup.rangeStart, highlightPopup.rangeEnd)
+                        else page.word.addTextSelection(highlightPopup.documentIdentity, highlightPopup.rangeStart, highlightPopup.rangeEnd)
+                        highlightPopup.close()
+                    }
                 }
                 WordAction { objectName: "wordDismissHighlight"; text: "Hủy"; onClicked: highlightPopup.close() }
             }
@@ -129,6 +144,13 @@ Item {
     component SelectionRadio: ChoiceRadioButton {
         implicitHeight: 32
         leftPadding: 0; rightPadding: 4; spacing: 5
+    }
+    component SelectionScope: CheckBox {
+        opacity: enabled ? 1 : .45; implicitHeight: 30; leftPadding: 0; rightPadding: 6
+        indicator: Rectangle { x: 0; y: (parent.height - height) / 2; width: 16; height: 16; radius: 3; color: parent.checked ? AppTheme.blue : AppTheme.surface; border.color: parent.visualFocus || parent.checked ? AppTheme.blue : AppTheme.muted
+            Text { anchors.centerIn: parent; text: "✓"; color: "white"; font.pixelSize: 12; visible: parent.parent.checked }
+        }
+        contentItem: Text { leftPadding: 22; text: parent.text; color: AppTheme.ink; font.pixelSize: 12; verticalAlignment: Text.AlignVCenter }
     }
     component Choice: ComboBox {
         implicitHeight: 38; font.pixelSize: 12; leftPadding: 0; rightPadding: 0
@@ -167,7 +189,7 @@ Item {
             id: configuration; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: page.compact ? 9 : 13; spacing: page.compact ? 6 : 10
             Label { text: "Cấu hình bài giảng"; color: AppTheme.ink; font.pixelSize: 15; font.weight: Font.DemiBold }
             GridLayout {
-            Layout.fillWidth: true; columns: 3; columnSpacing: 12; rowSpacing: 8
+            Layout.fillWidth: true; columns: page.width >= 680 ? 4 : 2; columnSpacing: 12; rowSpacing: 8
             ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 3; spacing: 4
                 Hint { text: "Tên bài học" }
                 TextField { id: lessonTitle; objectName: "wordTitle"; placeholderText: "Tên theo file Word"; maximumLength: 200; color: AppTheme.ink; implicitHeight: 38; Layout.fillWidth: true; enabled: page.available
@@ -178,13 +200,16 @@ Item {
                 Choice { id: subject; objectName: "wordSubject"; model: page.appBridge.conversionSubjects; currentIndex: Math.max(0, page.appBridge.conversionSubjects.indexOf("Toán")); Layout.fillWidth: true; enabled: page.available }
             }
             ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 1; spacing: 4
+                Hint { text: "Cấp học" }
+                Choice { id: education; objectName: "wordEducation"; model: ["THPT", "THCS", "Tiểu học"]; Layout.fillWidth: true; enabled: page.available; onActivated: grade.currentIndex = 0 }
+            }
+            ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 1; spacing: 4
                 Hint { text: "Khối lớp" }
-                TextField { id: grade; objectName: "wordGrade"; text: "11"; maximumLength: 20; color: AppTheme.ink; implicitHeight: 38; Layout.fillWidth: true; enabled: page.available
-                    background: Rectangle { color: AppTheme.field; radius: 8; border.color: AppTheme.line } }
+                Choice { id: grade; objectName: "wordGrade"; model: page.appBridge.educationGrades(education.currentText); currentIndex: 1; Layout.fillWidth: true; enabled: page.available }
             }
             }
             GridLayout {
-            Layout.fillWidth: true; columns: page.width >= 760 ? 4 : 2; columnSpacing: 12; rowSpacing: 8
+            Layout.fillWidth: true; columns: page.width >= 1000 ? 4 : 2; columnSpacing: 12; rowSpacing: 8
             ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 3; spacing: 4
                 Layout.alignment: Qt.AlignTop
                 Hint { text: "Kiểu chuyển đổi" }
@@ -192,12 +217,12 @@ Item {
             }
                 ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 1.3; Layout.alignment: Qt.AlignTop; spacing: 4
                     Hint { text: mode.currentIndex === 2 ? "Mức từ khóa" : "Màu tiếng Anh" }
-                    Choice { id: englishColor; objectName: "wordEnglishColor"; visible: mode.currentIndex !== 2; model: ["Giống bản gốc", "Xanh", "Xám", "Đen"]; Layout.fillWidth: true; enabled: page.available; onActivated: page.rememberFormatting() }
+                    WordColorPicker { id: englishColor; objectName: "wordEnglishColor"; visible: mode.currentIndex !== 2; Layout.preferredWidth: 84; enabled: page.available; onChosen: page.rememberFormatting() }
                     Choice { id: density; objectName: "wordKeywordDensity"; visible: mode.currentIndex === 2; model: ["Ít", "Vừa phải", "Chuyên sâu"]; currentIndex: 1; Layout.fillWidth: true; enabled: page.available }
                 }
             ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 1.8; Layout.alignment: Qt.AlignTop; spacing: 4
                 Hint { text: "Kiểu chữ tiếng Anh" }
-                Choice { id: textStyle; objectName: "wordTextStyle"; model: ["Bình thường", "In nghiêng", "In đậm", "Nghiêng – đậm"]; currentIndex: 1; Layout.fillWidth: true; enabled: page.available; onActivated: page.rememberFormatting() }
+                WordTextStyle { id: textStyle; objectName: "wordTextStyle"; Layout.minimumWidth: implicitWidth; enabled: page.available; onChosen: page.rememberFormatting() }
             }
             ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 2.3; Layout.alignment: Qt.AlignTop; spacing: 4
                 Hint { text: "Phông chữ tiếng Anh" }
@@ -216,23 +241,26 @@ Item {
             Hint { id: message; anchors.fill: parent; anchors.margins: 10; text: page.documentState.message || ""; color: page.documentState.phase === "paused" ? AppTheme.warningInk : AppTheme.ink }
         }
         Hint { visible: (page.documentState.notices || []).length > 0; text: (page.documentState.notices || []).slice(-1).join(""); color: AppTheme.warning; font.pixelSize: 11; Layout.fillWidth: true }
-        Hint { visible: !!page.documentState.id; text: "Nội dung để chọn vùng; công thức và hình được giữ trong tệp Word. Thêm bản dịch có thể làm tăng số trang."; Layout.fillWidth: true; font.pixelSize: 11 }
+        Hint { visible: !!page.documentState.id; text: page.documentState.preview_notice || "Xem định dạng, hình và bảng từ file gốc. Phân trang, hình nổi và công thức phức tạp cần đối chiếu trong Word."; Layout.fillWidth: true; font.pixelSize: 11 }
         RowLayout {
             id: documentPanels; objectName: "wordDocumentPanels"; Layout.fillWidth: true; spacing: 12
             Layout.preferredHeight: page.documentState.id ? Math.max(320, Math.min(560, page.height * .58)) : 210
             Layout.minimumHeight: Layout.preferredHeight; Layout.maximumHeight: Layout.preferredHeight
             Rectangle {
-                Layout.fillWidth: true; Layout.fillHeight: true; Layout.preferredWidth: 1; color: AppTheme.surface; radius: 11; border.color: AppTheme.line
+                Layout.fillWidth: true; Layout.fillHeight: true; Layout.preferredWidth: 1.3; color: AppTheme.surface; radius: 11; border.color: AppTheme.line
                 ColumnLayout { anchors.fill: parent; anchors.margins: 12; spacing: 8
                     Label { text: "Nội dung gốc"; font.bold: true; color: AppTheme.ink }
                     ButtonGroup { id: selectionMethods }
                     ButtonGroup { id: selectionScopes }
                     Flow { Layout.fillWidth: true; spacing: 4
                         SelectionRadio { objectName: "wordSelectByHighlight"; text: "Bôi đen văn bản"; checked: page.highlightSelection; ButtonGroup.group: selectionMethods; enabled: page.available; onClicked: page.selectionMode = "highlight" }
-                        Row { spacing: 3
+                        Column { spacing: 0
                             SelectionRadio { objectName: "wordSelectByCheckbox"; text: "Tích chọn đoạn/câu"; checked: !page.highlightSelection; ButtonGroup.group: selectionMethods; enabled: page.available; onClicked: page.selectionMode = "checkbox" }
-                            SelectionRadio { objectName: "wordScopeParagraphs"; text: "Theo đoạn"; checked: page.selectionScope === "paragraphs"; ButtonGroup.group: selectionScopes; enabled: page.available && !page.highlightSelection; onClicked: page.selectionScope = "paragraphs" }
-                            SelectionRadio { objectName: "wordScopeSentences"; text: "Theo câu"; checked: page.selectionScope === "sentences"; ButtonGroup.group: selectionScopes; enabled: page.available && !page.highlightSelection; onClicked: page.selectionScope = "sentences" }
+                            Row { leftPadding: 23; spacing: 8
+                                Rectangle { width: 2; height: 26; color: !page.highlightSelection ? AppTheme.blue : AppTheme.line }
+                                SelectionScope { objectName: "wordScopeParagraphs"; text: "Theo đoạn"; checked: page.selectionScope === "paragraphs"; ButtonGroup.group: selectionScopes; enabled: page.available && !page.highlightSelection; onClicked: page.selectionScope = "paragraphs" }
+                                SelectionScope { objectName: "wordScopeSentences"; text: "Theo câu"; checked: page.selectionScope === "sentences"; ButtonGroup.group: selectionScopes; enabled: page.available && !page.highlightSelection; onClicked: page.selectionScope = "sentences" }
+                            }
                         }
                     }
                     RowLayout { Layout.fillWidth: true
@@ -246,6 +274,11 @@ Item {
                         WordAction { objectName: "wordConfirmHighlight"; visible: page.highlightSelection && continuousText.selectedText.length > 0; text: "Thêm vùng"; enabled: page.available; onClicked: page.offerHighlightedText() }
                     }
                     Hint { visible: page.highlightSelection; text: "Bôi đen rồi nhả chuột để chọn vùng dịch. Các vùng đã xác nhận được giữ ở bên phải."; font.pixelSize: 11; Layout.fillWidth: true }
+                    RowLayout { visible: page.highlightSelection && !!page.documentState.id; spacing: 4
+                        WordAction { objectName: "wordZoomOut"; text: "−"; implicitHeight: 27; onClicked: page.previewZoom = Math.max(.4, paper.scale - .1) }
+                        WordAction { objectName: "wordZoomFit"; text: page.previewZoom === 0 ? "Vừa khung" : Math.round(paper.scale * 100) + "%"; implicitHeight: 27; onClicked: page.previewZoom = 0 }
+                        WordAction { objectName: "wordZoomIn"; text: "+"; implicitHeight: 27; onClicked: page.previewZoom = Math.min(1.5, paper.scale + .1) }
+                    }
                     ListView {
                         id: sources; objectName: "wordSourceList"; visible: !page.highlightSelection; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 9
                         model: { const revision = page.documentState; return page.word.items(page.selectionScope) }
@@ -254,37 +287,53 @@ Item {
                         delegate: Rectangle {
                             id: sourceRow; required property var modelData; required property int index
                             width: ListView.view.width - 12; height: sourceContents.implicitHeight + 16; radius: 8
-                            color: modelData.selected ? AppTheme.selected : AppTheme.surface; border.color: AppTheme.line
+                            color: "white"; border.color: modelData.selected ? AppTheme.blue : "#d5dbe4"; border.width: modelData.selected ? 2 : 1
                             ColumnLayout { id: sourceContents; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 8; spacing: 3
                                 RowLayout { Layout.fillWidth: true
                                     CheckBox { objectName: "wordSelect_" + sourceRow.index; checked: sourceRow.modelData.selected; enabled: page.available && sourceRow.modelData.editable
                                         onClicked: page.word.toggle(sourceRow.modelData.paragraph, sourceRow.modelData.start, sourceRow.modelData.end, checked) }
-                                    Hint { text: sourceRow.modelData.location; font.pixelSize: 10; Layout.fillWidth: true }
+                                    Hint { text: sourceRow.modelData.location; color: "#53647c"; font.pixelSize: 10; Layout.fillWidth: true }
                                 }
                                 TextArea {
                                     id: sourceText; objectName: "wordSourceText_" + sourceRow.index; Layout.fillWidth: true; implicitHeight: contentHeight + 12
-                                    text: sourceRow.modelData.text; textFormat: TextEdit.PlainText; readOnly: true; selectByMouse: true; persistentSelection: true; wrapMode: TextEdit.Wrap
-                                    color: AppTheme.ink; selectedTextColor: AppTheme.accentText; selectionColor: AppTheme.accent; font.pixelSize: 13
+                                    text: sourceRow.modelData.html || sourceRow.modelData.text; textFormat: sourceRow.modelData.html ? TextEdit.RichText : TextEdit.PlainText; readOnly: true; selectByMouse: true; persistentSelection: true; wrapMode: TextEdit.Wrap
+                                    color: "#202020"; selectedTextColor: "white"; selectionColor: "#1769d5"; font.pixelSize: 13
                                     background: Rectangle { color: "transparent" }
                                 }
                                 WordAction { objectName: "wordAddRange_" + sourceRow.index; text: "Thêm vùng bôi đen"; visible: sourceText.selectedText.length > 0; enabled: page.available && sourceRow.modelData.editable
-                                    onClicked: page.word.addRange(sourceRow.modelData.paragraph, sourceRow.modelData.start, sourceText.selectionStart, sourceText.selectionEnd) }
+                                    onClicked: {
+                                        if (sourceRow.modelData.html) page.word.addPreviewRange(page.documentState.id, sourceRow.modelData.paragraph, sourceRow.modelData.start, sourceRow.modelData.end, sourceText.getText(0, sourceText.length), sourceText.selectionStart, sourceText.selectionEnd)
+                                        else page.word.addRange(sourceRow.modelData.paragraph, sourceRow.modelData.start, sourceText.selectionStart, sourceText.selectionEnd)
+                                    } }
                                 Hint { visible: !sourceRow.modelData.editable; text: sourceRow.modelData.reason; font.pixelSize: 10; Layout.fillWidth: true }
                             }
                         }
                     }
                     ContentScrollView {
                         id: textScroll; objectName: "wordContinuousScroll"; visible: page.highlightSelection
-                        Layout.fillWidth: true; Layout.fillHeight: true; contentWidth: availableWidth
+                        Layout.fillWidth: true; Layout.fillHeight: true; implicitWidth: 0; implicitHeight: 0
+                        bottomPadding: page.previewZoom > 0 ? 18 : 0
+                        contentWidth: Math.max(availableWidth, paper.width * paper.scale + 16)
+                        contentHeight: Math.max(availableHeight, paper.height * paper.scale + 16)
+                        Item {
+                        width: textScroll.contentWidth; height: textScroll.contentHeight
+                        Rectangle {
+                        id: paper; objectName: "wordPreviewPaper"; width: page.documentState.id ? page.word.previewPageWidth : Math.max(100, textScroll.availableWidth - 16)
+                        height: Math.max(continuousText.implicitHeight, page.documentState.id ? width * 1.414 : 90)
+                        scale: page.documentState.id ? page.previewZoom || Math.min(1, (textScroll.availableWidth - 16) / width) : 1
+                        transformOrigin: Item.TopLeft; x: (parent.width - width * scale) / 2; y: 8
+                        color: "white"; border.color: "#d5dbe4"; border.width: 1
                         TextArea {
-                            id: continuousText; objectName: "wordContinuousText"; width: textScroll.availableWidth
-                            text: page.highlightSelection ? page.word.selectionText : ""; textFormat: TextEdit.PlainText
+                            id: continuousText; objectName: "wordContinuousText"; width: paper.width
+                            text: page.highlightSelection ? page.word.previewHtml || page.word.selectionText : ""; textFormat: page.word.previewHtml ? TextEdit.RichText : TextEdit.PlainText
                             placeholderText: "Tải file Word ở trên để bôi đen phần cần dịch."
                             readOnly: true; selectByMouse: true; persistentSelection: true; wrapMode: TextEdit.Wrap
                             Keys.onEscapePressed: function(event) { if (highlightPopup.visible) highlightPopup.close(); else event.accepted = false }
-                            enabled: page.available && !!page.documentState.id; color: AppTheme.ink
-                            selectedTextColor: AppTheme.accentText; selectionColor: AppTheme.accent; font.pixelSize: 13; padding: 9
-                            background: Rectangle { color: AppTheme.field; radius: 7 }
+                            enabled: page.available && !!page.documentState.id; color: "#202020"
+                            selectedTextColor: "white"; selectionColor: "#1769d5"; font.family: "Times New Roman"; font.pointSize: 12
+                            topPadding: page.documentState.id ? page.word.previewMargins[0] : 12; rightPadding: page.documentState.id ? page.word.previewMargins[1] : 12
+                            bottomPadding: page.documentState.id ? page.word.previewMargins[2] : 12; leftPadding: page.documentState.id ? page.word.previewMargins[3] : 12
+                            background: Item { }
                             PointHandler {
                                 acceptedButtons: Qt.LeftButton
                                 onActiveChanged: {
@@ -296,6 +345,8 @@ Item {
                                     else Qt.callLater(page.offerHighlightedText)
                                 }
                             }
+                        }
+                        }
                         }
                     }
                 }
@@ -319,7 +370,7 @@ Item {
                                 Label { text: selectedRow.modelData.vi; textFormat: Text.PlainText; color: AppTheme.ink; font.pixelSize: 13; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                                 TextArea {
                                     objectName: "wordEnglishDraft_" + selectedRow.index; visible: !!selectedRow.modelData.en && page.documentState.options.mode !== "keywords"; Layout.fillWidth: true; implicitHeight: contentHeight + 16
-                                    text: selectedRow.modelData.display_en || ""; textFormat: TextEdit.PlainText; wrapMode: TextEdit.Wrap; selectByMouse: true; color: englishColor.currentIndex === 2 ? AppTheme.muted : englishColor.currentIndex === 1 ? AppTheme.blue : AppTheme.ink; font.pixelSize: 13; font.italic: page.englishItalic; font.bold: page.englishBold; font.family: page.draftFont() || "Be Vietnam Pro"; enabled: page.available
+                                    text: selectedRow.modelData.display_en || ""; textFormat: TextEdit.PlainText; wrapMode: TextEdit.Wrap; selectByMouse: true; color: englishColor.inkColor; font.pixelSize: 13; font.italic: page.englishItalic; font.bold: page.englishBold; font.underline: textStyle.underline; font.strikeout: textStyle.strike; font.family: page.draftFont() || "Be Vietnam Pro"; enabled: page.available
                                     onTextChanged: if (activeFocus) page.word.setDraft(selectedRow.modelData.id, text)
                                     background: Rectangle { color: AppTheme.surface; radius: 6; border.color: AppTheme.line }
                                 }
@@ -360,13 +411,13 @@ Item {
             ConfigurationSummary {
                 objectName: "wordConfigurationSummary"; Layout.fillWidth: true; Layout.minimumWidth: 0
                 entries: [{key: "mode", text: mode.currentText, emphasis: true},
-                    {key: "subject", text: subject.currentText + (grade.text.trim() ? " · Khối " + grade.text.trim() : "")},
-                    {key: "format", text: textStyle.currentText + " · " + englishColor.currentText + " · " + (page.draftFont() || "Phông gốc")},
+                    {key: "subject", text: subject.currentText + " · " + education.currentText + " " + grade.currentText},
+                    {key: "format", text: textStyle.description + " · " + (englishColor.original ? "Màu gốc" : "#" + englishColor.colorCode) + " · " + (page.draftFont() || "Phông gốc")},
                     {key: "selection", text: (page.documentState.selected_count || 0) + " vùng đã chọn"}]
             }
             WordAction { objectName: "wordStop"; visible: page.documentState.working; text: "■ Dừng"; danger: true; onClicked: page.word.stop() }
-            WordAction { objectName: "wordPreview"; text: page.documentState.working ? "Đang xử lý…" : page.documentState.phase === "paused" ? "Tiếp tục chuyển đổi" : page.documentState.phase === "completed" ? "Chuyển đổi lại" : "Chuyển đổi"; primary: true; implicitHeight: 44
-                enabled: page.available && page.documentState.selected_count > 0; onClicked: page.word.preview(page.draftOptions(), subject.currentText, grade.text, page.draftTitle()) }
+            WordAction { objectName: "wordPreview"; text: page.documentState.working ? "Đang xử lý…" : page.documentState.phase === "paused" ? "Tiếp tục chuyển đổi" : page.documentState.phase === "completed" ? "Chuyển đổi lại" : "Chuyển đổi bài giảng"; primary: true; implicitHeight: 44
+                enabled: page.available && page.documentState.selected_count > 0; onClicked: page.word.preview(page.draftOptions(), subject.currentText, grade.currentText, page.draftTitle()) }
         }
     }
 }

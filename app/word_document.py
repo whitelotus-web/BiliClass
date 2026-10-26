@@ -38,6 +38,10 @@ def font_name(value):
     return value.strip()
 
 
+def valid_color(value):
+    return isinstance(value, str) and (value == 'original' or re.fullmatch('[0-9A-F]{6}', value) is not None)
+
+
 def parse_xml(raw):
     if b'<!DOCTYPE' in raw.upper() or b'<!ENTITY' in raw.upper():
         raise ValueError('Tệp Word có cấu trúc XML không hỗ trợ. Hãy lưu lại thành .docx bằng Word.')
@@ -212,6 +216,12 @@ class Package:
         formatting.extend((name, '1' if options.get('italic', True) else '0') for name in ('i', 'iCs'))
         if 'bold' in options:
             formatting.extend((name, '1' if options['bold'] else '0') for name in ('b', 'bCs'))
+        if 'underline' in options:
+            formatting.append(('u', 'single' if options['underline'] else 'none'))
+        if 'strike' in options:
+            formatting.append(('strike', '1' if options['strike'] else '0'))
+        if 'script' in options:
+            formatting.append(('vertAlign', 'baseline' if options['script'] == 'normal' else options['script']))
         for name, val in formatting:
             existing = style.find('w:' + name, NS)
             if existing is not None:
@@ -295,9 +305,10 @@ class Package:
     def render(self, regions, options):
         mode = options.get('mode', 'below')
         font_name(options.get('font', ''))
-        if any(key in options and type(options[key]) is not bool for key in ('italic', 'bold')):
+        if (any(key in options and type(options[key]) is not bool for key in ('italic', 'bold', 'underline', 'strike'))
+                or options.get('script', 'normal') not in {'normal', 'subscript', 'superscript'}):
             raise ValueError('Chọn kiểu chữ Word hợp lệ.')
-        if mode not in MODES or options.get('color', 'original') not in COLORS:
+        if mode not in MODES or not valid_color(options.get('color', 'original')):
             raise ValueError('Chọn kiểu trình bày Word hợp lệ.')
         checked = self.selection(regions)
         incoming = {row['id']: row for row in regions}

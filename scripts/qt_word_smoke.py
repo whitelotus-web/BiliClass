@@ -1,5 +1,6 @@
 """Disposable native Qt Word/failover workflow. No teacher files or live API."""
 
+import io
 import json
 import sys
 import tempfile
@@ -8,6 +9,8 @@ from threading import Event
 from unittest.mock import patch
 
 from docx import Document
+from docx.shared import Inches
+from PIL import Image
 from PySide6.QtCore import (
     Q_ARG,
     Q_RETURN_ARG,
@@ -69,6 +72,13 @@ def main():
         def c(name):
             return control(window, name)
 
+        def plain_text(text):
+            return QMetaObject.invokeMethod(text, 'getText', Qt.DirectConnection, Q_RETURN_ARG(str),
+                Q_ARG(int, 0), Q_ARG(int, text.property('length'))).replace('\u2029', '\n')
+
+        def preview_text():
+            return plain_text(c('wordContinuousText'))
+
         def drag_text(start, end):
             text = c('wordContinuousText')
 
@@ -92,7 +102,7 @@ def main():
             until(lambda: c('wordHighlightPopup').property('visible'))
             # At an end-of-line Qt may include the adjacent paragraph separator
             # when the caret rectangle is rounded to a physical screen pixel.
-            expected = text.property('text').encode('utf-16-le')[start * 2:end * 2].decode('utf-16-le')
+            expected = preview_text().encode('utf-16-le')[start * 2:end * 2].decode('utf-16-le')
             actual = text.property('selectedText').replace('\u2029', '\n')
             assert actual.strip() == expected.strip(), (actual, expected)
 
@@ -132,23 +142,43 @@ def main():
                     assert not c('wordSelectAll').isEnabled() and not c('wordPreview').isEnabled()
                     assert not c('wordSave').isVisible() and not c('wordGoLibrary').isVisible()
                     assert c('wordConfigurationSummary').isVisible()
-                    assert c('wordTextStyle').property('currentIndex') == 1
+                    assert c('wordTextStyle').property('italic') and not c('wordTextStyle').property('bold')
                     assert c('wordOriginalFont').property('checked') and not c('wordEnglishFont').isVisible()
-                    assert c('wordEnglishColor').property('currentIndex') == 0
+                    assert c('wordEnglishColor').property('colorCode') == 'original'
+                    assert c('wordPreview').property('text') == 'Chuyển đổi bài giảng'
+                    for level, classes in ((2, ['1', '2', '3', '4', '5']), (1, ['6', '7', '8', '9']), (0, ['10', '11', '12'])):
+                        c('wordEducation').setProperty('currentIndex', level)
+                        pump(30)
+                        assert c('wordGrade').property('model') == classes
+                    c('wordGrade').setProperty('currentIndex', 1)
+                    click(window, c('wordStyleSubscript'))
+                    assert c('wordTextStyle').property('script') == 'subscript'
+                    click(window, c('wordStyleSuperscript'))
+                    assert c('wordTextStyle').property('script') == 'superscript' and not c('wordStyleSubscript').property('checked')
+                    click(window, c('wordStyleSuperscript'))
+                    assert c('wordTextStyle').property('script') == 'normal'
+                    click(window, c('wordEnglishColor'))
+                    assert c('wordColorPalette').property('visible')
+                    assert window.grabWindow().save(str(report / 'word-color-palette.png'))
+                    click(window, c('wordColor_7030A0'))
+                    assert c('wordEnglishColor').property('colorCode') == '7030A0'
+                    click(window, c('wordEnglishColor'))
+                    click(window, c('wordKeepOriginalColor'))
+                    assert c('wordEnglishColor').property('colorCode') == 'original'
                     assert window.grabWindow().save(str(report / 'word-empty.png'))
                     c('wordTitle').setProperty('text', 'Chuyển động đều')
-                    c('wordTextStyle').setProperty('currentIndex', 3)
-                    assert QMetaObject.invokeMethod(c('wordTextStyle'), 'activated', Q_ARG(int, 3))
+                    c('wordTextStyle').setProperty('bold', True)
+                    assert QMetaObject.invokeMethod(c('wordTextStyle'), 'chosen')
                     click(window, c('wordOriginalFont'))
                     assert c('wordEnglishFont').isVisible()
                     c('wordEnglishFont').setProperty('currentIndex', bridge.wordDocuments.fontFamilies.index('Arial'))
                     assert QMetaObject.invokeMethod(c('wordEnglishFont'), 'activated', Q_ARG(int, c('wordEnglishFont').property('currentIndex')))
-                    c('wordEnglishColor').setProperty('currentIndex', 1)
-                    assert QMetaObject.invokeMethod(c('wordEnglishColor'), 'activated', Q_ARG(int, 1))
-                    assert bridge.wordDocuments.formattingDefaults == dict(color='1667B1', font='Arial', italic=True, bold=True)
+                    assert QMetaObject.invokeMethod(c('wordEnglishColor'), 'choose', Q_ARG('QVariant', '1667B1'))
+                    assert bridge.wordDocuments.formattingDefaults == dict(color='1667B1', font='Arial', italic=True, bold=True, underline=False, strike=False, script='normal')
                     assert window.grabWindow().save(str(report / 'word-custom-font.png'))
                     c('wordSubject').setProperty('currentIndex', bridge.conversionSubjects.index('Vật lý'))
-                    c('wordGrade').setProperty('text', '6')
+                    c('wordEducation').setProperty('currentIndex', 1)
+                    c('wordGrade').setProperty('currentIndex', 0)
                     c('wordMode').setProperty('currentIndex', 1)
                     assert QMetaObject.invokeMethod(c('wordPage'), 'openDocument', Q_ARG('QVariant', source.as_uri()))
                     until(lambda: not bridge.busy and bridge.wordDocuments.state['id'])
@@ -156,7 +186,8 @@ def main():
                     assert bridge.wordDocuments.state['subject'] == 'Vật lý' and bridge.wordDocuments.state['grade'] == '6'
                     assert bridge.wordDocuments.state['title'] == 'Chuyển động đều'
                     assert bridge.wordDocuments.state['options']['font'] == 'Arial'
-                    c('wordGrade').setProperty('text', '11')
+                    c('wordEducation').setProperty('currentIndex', 0)
+                    c('wordGrade').setProperty('currentIndex', 1)
                     c('wordMode').setProperty('currentIndex', 0)
                     pump(120)
                     assert not warnings, warnings
@@ -175,7 +206,7 @@ def main():
                     # Select precisely after an emoji; Qt offsets are UTF-16.
                     text = c('wordSourceText_2')
                     click(window, text)
-                    end = len(text.property('text').encode('utf-16-le')) // 2
+                    end = len(plain_text(text).encode('utf-16-le')) // 2
                     assert QMetaObject.invokeMethod(text, 'select', Q_ARG(int, 3), Q_ARG(int, end))
                     pump(20)
                     assert text.property('selectedText'), (text.property('text'), text.property('selectionStart'), text.property('selectionEnd'))
@@ -187,7 +218,7 @@ def main():
                     click(window, c('wordSelectByHighlight'))
                     pump(100)
                     assert bridge.wordDocuments.state['selected_count'] == 2
-                    content = bridge.wordDocuments.selectionText
+                    content = preview_text()
                     begin = len(content[:content.index('Vật có vận tốc 13')].encode('utf-16-le')) // 2
                     finish = begin + len('Vật có vận tốc 13 m/s.')
                     drag_text(begin, finish)
@@ -290,12 +321,12 @@ def main():
                     pump(80)
                     count_before_selecting = len(calls)
                     first_end = len('Vật có vận tốc 14 m/s.')
-                    drag_text(0, len(bridge.wordDocuments.selectionText))
+                    drag_text(0, len(preview_text().encode('utf-16-le')) // 2)
                     QTest.keyClick(window, Qt.Key_Escape)
                     pump(40)
                     assert not c('wordHighlightPopup').property('visible')
                     assert bridge.wordDocuments.state['selected_count'] == 0, 'Dismissing confirmation must not select or translate'
-                    drag_text(0, len(bridge.wordDocuments.selectionText))
+                    drag_text(0, len(preview_text().encode('utf-16-le')) // 2)
                     click(window, c('wordAcceptHighlight'))
                     until(lambda: not bridge.busy)
                     assert bridge.wordDocuments.state['selected_count'] == 2, 'A drag can span multiple Word paragraphs'
@@ -305,7 +336,7 @@ def main():
                     click(window, c('wordAcceptHighlight'))
                     until(lambda: not bridge.busy)
                     assert bridge.wordDocuments.state['selected_count'] == 1
-                    drag_text(first_end + 2, len(bridge.wordDocuments.selectionText))
+                    drag_text(first_end + 1, len(preview_text().encode('utf-16-le')) // 2)
                     click(window, c('wordAcceptHighlight'))
                     until(lambda: not bridge.busy)
                     assert bridge.wordDocuments.state['selected_count'] == 2
@@ -324,6 +355,38 @@ def main():
                     until(lambda: not bridge.busy, timeout=30)
                     assert bridge.wordDocuments.state['phase'] == 'completed', bridge.wordDocuments.state['message']
                     assert len(calls) == used, 'Resume must reuse the result cached while Stop was requested'
+                    # Confirm mappings in the actual QML rich-text importer, including
+                    # a picture object and repeated table cells (not only plain text).
+                    rich = Document()
+                    rich.add_heading('Bài học có hình và bảng', 0)
+                    picture = io.BytesIO()
+                    Image.new('RGB', (160, 80), '#39A6D6').save(picture, format='PNG')
+                    picture.seek(0)
+                    rich.add_paragraph('Hình minh họa: ').add_run().add_picture(picture, width=Inches(1.4))
+                    table = rich.add_table(rows=2, cols=2)
+                    for row in table.rows:
+                        for cell in row.cells:
+                            cell.text = 'Vận tốc 12 m/s.'
+                    rich_source = directory / 'Hình và bảng.docx'
+                    rich.save(rich_source)
+                    bridge.wordDocuments.openFile(rich_source.as_uri())
+                    until(lambda: not bridge.busy)
+                    window.resize(1366, 850)
+                    click(window, c('wordShowDocument'))
+                    assert '\ufffc' in preview_text() and preview_text().count('Vận tốc 12 m/s.') == 4
+                    from PySide6.QtGui import QTextDocument
+
+                    parsed_preview = QTextDocument()
+                    parsed_preview.setHtml(bridge.wordDocuments.previewHtml)
+                    (report / 'rich-text-map.json').write_text(json.dumps(dict(native=preview_text(),
+                        parsed=parsed_preview.toPlainText()), ensure_ascii=False, indent=2), encoding='utf-8')
+                    click(window, c('wordSelectAll'))
+                    until(lambda: c('wordHighlightPopup').property('visible'))
+                    click(window, c('wordAcceptHighlight'))
+                    until(lambda: not bridge.busy)
+                    assert bridge.wordDocuments.state['selected_count'] == 6, bridge.wordDocuments.state['message']
+                    assert {row['paragraph'] for row in bridge.wordDocuments.state['regions']} == {'p0', 'p1', 'p2', 'p3', 'p4', 'p5'}
+                    assert window.grabWindow().save(str(report / 'word-rich-paper.png'))
                     click(window, c('wordTabPowerPoint'))
                     assert window.property('page') == 'new'
                     assert c('creationSourceArea').isVisible()
@@ -334,7 +397,9 @@ def main():
                 'One Word page keeps upload, configuration and document panels; pre-upload choices are retained',
                 'Original font/color and italic defaults; custom typography is remembered; editable lesson title restores',
                 'Successful conversion automatically saves beside source with the requested suffix; edits remain saveable',
-                'Radio choices: highlight first/default, checkbox second with paragraph/sentence enabled only in that mode',
+                'Main radio choices; indented square paragraph/sentence choices enabled only in checkbox mode',
+                'Word-style color palette, original-color option, typography icons and dependent education/grade choices',
+                'Rich paper preview: native QML selection maps images and repeated table cells to original source ranges',
                 'Right-aligned conversion action with selected-configuration summary; Save/library appear after translation',
                 'Native Word tab; paragraph checkbox and disjoint text selection after emoji',
                 'Mouse drag/release offers confirmation; disjoint highlights accumulate; duplicates merge; switching modes retains selections',

@@ -28,6 +28,9 @@ class WordDocuments(QObject):
         from .word_selection import TextSelection
 
         self._text_selection, self._text_identity = TextSelection([]), ''
+        self._preview = None
+        self._preview_document = None
+        self._preview_excerpts = {}
         self.progressed.connect(self._progress)
 
     @Property('QVariantMap', notify=changed)
@@ -45,6 +48,18 @@ class WordDocuments(QObject):
     @Property(str, notify=sourceTextChanged)
     def selectionText(self):
         return self._text_selection.text
+
+    @Property(str, notify=sourceTextChanged)
+    def previewHtml(self):
+        return self._preview.html if self._preview else ''
+
+    @Property(float, notify=sourceTextChanged)
+    def previewPageWidth(self):
+        return self._preview.width if self._preview else 794.0
+
+    @Property('QVariantList', notify=sourceTextChanged)
+    def previewMargins(self):
+        return self._preview.margins if self._preview else [64, 64, 64, 64]
 
     @Property('QStringList', constant=True)
     def fontFamilies(self):
@@ -83,12 +98,22 @@ class WordDocuments(QObject):
         self._working = True
         self.changed.emit()
         directory = self.bridge.library.directory
+        prior_text_identity = self._text_identity
 
         def work():
             try:
                 job = action(directory)
-                return dict(job=jobs.public(directory, job) if job else None,
-                            library=jobs.catalog(directory, self._trash), error='')
+                preview, preview_notice = None, ''
+                if job and job['id'] != prior_text_identity:
+                    try:
+                        from .word_document import Package
+                        from .word_preview import Preview
+
+                        preview = Preview(Package(jobs.folder_for(directory, job['id']) / 'source.docx'))
+                    except Exception:
+                        preview_notice = 'Chưa hiện được định dạng gốc; vẫn có thể chọn và dịch ở chế độ văn bản.'
+                return dict(job=jobs.public(directory, job) if job else None, preview=preview,
+                            preview_notice=preview_notice, library=jobs.catalog(directory, self._trash), error='')
             except Exception as exc:
                 return dict(error=str(exc), job=None, library=jobs.catalog(directory, self._trash))
 
@@ -105,6 +130,10 @@ class WordDocuments(QObject):
 
                     self._text_selection = TextSelection(self._state['paragraphs'])
                     self._text_identity = self._state['id']
+                    self._preview = result.get('preview')
+                    self._preview_document = None
+                    self._preview_excerpts = {}
+                    self._state['preview_notice'] = result.get('preview_notice', '')
                     self.sourceTextChanged.emit()
                 if clear_drafts:
                     self._drafts.clear()
@@ -156,7 +185,13 @@ class WordDocuments(QObject):
         for row in self._state.get('paragraphs', []):
             regions = [part for part in self._state['regions'] if part['paragraph'] == row['id']]
             for part in row['sentences'] if scope == 'sentences' else [dict(start=0, end=len(row['text']), text=row['text'])]:
+                key, html = (row['id'], part['start'], part['end']), ''
+                if self._preview and row['id'] in self._preview.rows:
+                    if key not in self._preview_excerpts:
+                        self._preview_excerpts[key] = self._preview.excerpt(*key)
+                    html = self._preview_excerpts[key].html
                 result.append(dict(paragraph=row['id'], start=part['start'], end=part['end'], text=part['text'],
+                    html=html,
                     location=row['location'], editable=row['editable'], reason=row['reason'],
                     selected=any(region['start'] <= part['start'] and part['end'] <= region['end'] for region in regions)))
         return result
@@ -200,11 +235,61 @@ class WordDocuments(QObject):
             if not identity or identity != self._state['id'] or identity != self._text_identity:
                 raise ValueError('Tài liệu đã đổi; bôi đen lại phần cần dịch.')
             selected, skipped = self._text_selection.ranges(start, end)
-            rows = [*self._ranges(), *selected]
         except ValueError as exc:
             self._state['message'] = str(exc)
             self.changed.emit()
             return
+
+        self._add_selected_ranges(identity, selected, skipped)
+
+    @Slot(str, str, int, int)
+    def addPreviewSelection(self, identity, visible_text, start, end):
+        if not self.available():
+            return
+        try:
+            if not identity or identity != self._state['id'] or identity != self._text_identity or not self._preview:
+                raise ValueError('Tài liệu đã đổi; bôi đen lại phần cần dịch.')
+            from PySide6.QtGui import QTextDocument
+
+            if self._preview_document is None:
+                self._preview_document = QTextDocument()
+                self._preview_document.setHtml(self._preview.html)
+            from .word_preview import qt_text
+
+            if qt_text(visible_text) != qt_text(self._preview_document.toRawText()):
+                raise ValueError('Nội dung xem trước đã đổi; tải lại tài liệu rồi chọn lại vùng dịch.')
+            selected, skipped = self._preview.ranges(self._preview_document, start, end)
+        except (ValueError, AttributeError, RuntimeError) as exc:
+            self._state['message'] = str(exc)
+            self.changed.emit()
+            return
+        self._add_selected_ranges(identity, selected, skipped)
+
+    @Slot(str, str, int, int, str, int, int)
+    def addPreviewRange(self, identity, paragraph, base, limit, visible_text, start, end):
+        if not self.available():
+            return
+        try:
+            from PySide6.QtGui import QTextDocument
+
+            preview = self._preview_excerpts.get((paragraph, base, limit))
+            if identity != self._state['id'] or not preview:
+                raise ValueError('Tài liệu đã đổi; chọn lại phần cần dịch.')
+            document = QTextDocument()
+            document.setHtml(preview.html)
+            from .word_preview import qt_text
+
+            if qt_text(visible_text) != qt_text(document.toRawText()):
+                raise ValueError('Nội dung đã đổi; chọn lại phần văn bản.')
+            selected, skipped = preview.ranges(document, start, end)
+        except (ValueError, RuntimeError) as exc:
+            self._state['message'] = str(exc)
+            self.changed.emit()
+            return
+        self._add_selected_ranges(identity, selected, skipped)
+
+    def _add_selected_ranges(self, identity, selected, skipped):
+        rows = [*self._ranges(), *selected]
 
         def action(directory):
             job = jobs.selections(directory, identity, rows)

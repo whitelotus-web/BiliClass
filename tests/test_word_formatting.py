@@ -64,8 +64,8 @@ def test_saved_english_uses_selected_style_and_original_or_custom_font_color(pre
 
 def test_formatting_defaults_survive_reopen_and_apply_only_to_new_documents(prepared):
     directory, source, first, _ = prepared
-    assert jobs.formatting_defaults(directory) == dict(color='original', font='', italic=True, bold=False)
-    recent = dict(color='666666', font='Arial', italic=False, bold=True)
+    assert jobs.formatting_defaults(directory) == dict(color='original', font='', italic=True, bold=False, underline=False, strike=False, script='normal')
+    recent = dict(color='7030A0', font='Arial', italic=False, bold=True, underline=True, strike=True, script='superscript')
     jobs.formatting_defaults(directory, recent)
     assert jobs.formatting_defaults(directory) == recent
     other = source.with_name('Bài tiếp theo.docx')
@@ -78,6 +78,32 @@ def test_formatting_defaults_survive_reopen_and_apply_only_to_new_documents(prep
     assert jobs.create(directory, source)['options']['color'] == 'original'
     (jobs.root(directory) / 'formatting.json').write_text('broken', encoding='utf-8')
     assert jobs.formatting_defaults(directory)['color'] == 'original'
+
+
+@pytest.mark.parametrize('mode,script', [('below', 'subscript'), ('columns', 'superscript'), ('english', 'normal'), ('keywords', 'superscript')])
+def test_word_toolbar_styles_and_palette_color_reach_export_without_changing_source(tmp_path, mode, script):
+    document = Document()
+    document.add_paragraph('Vận tốc 12 m/s.')
+    source = tmp_path / 'source.docx'
+    document.save(source)
+    original = source.read_bytes()
+    package = Package(source)
+    region = package.selection([dict(paragraph='p0', start=0, end=len(package.rows[0]['text']))])[0]
+    region['en'] = 'Velocity 12 m/s.'
+    if mode == 'keywords':
+        region['annotations'] = keyword_annotations(region, {'vận tốc': 'velocity'})
+    output = tmp_path / 'output.docx'
+    package.save(output, [region], dict(mode=mode, color='7030A0', underline=True, strike=True, script=script))
+    exported = Package(output)
+    runs = [run for run in exported.tree.findall('.//w:r', NS)
+            if 'velocity' in ''.join(run.xpath('./w:t/text()', namespaces=NS)).lower()]
+    assert runs
+    for run in runs:
+        assert run.find('w:rPr/w:color', NS).get('{' + NS['w'] + '}val') == '7030A0'
+        assert run.find('w:rPr/w:u', NS).get('{' + NS['w'] + '}val') == 'single'
+        assert run.find('w:rPr/w:strike', NS).get('{' + NS['w'] + '}val') == '1'
+        assert run.find('w:rPr/w:vertAlign', NS).get('{' + NS['w'] + '}val') == ('baseline' if script == 'normal' else script)
+    assert source.read_bytes() == original
 
 
 class Translator:
