@@ -76,6 +76,22 @@ def test_source_font_display_reports_multiple_fonts_without_forcing_one_on_expor
     assert view.fonts == ['Arial', 'Times New Roman']
 
 
+def test_original_size_follows_selected_run_and_reports_mixed_sizes(tmp_path):
+    doc = Document()
+    doc.styles['Normal'].font.size = Pt(14)
+    doc.add_paragraph('Nội dung chính dùng cỡ mười bốn có độ dài lớn nhất.')
+    paragraph = doc.add_paragraph()
+    paragraph.add_run('Tiêu đề').font.size = Pt(26)
+    paragraph.add_run(' và nội dung').font.size = Pt(12)
+    source = tmp_path / 'sizes.docx'
+    doc.save(source)
+    view = Preview(Package(source))
+    assert view.selection_size([]) == '14'
+    assert view.selection_size([dict(paragraph='p1', start=0, end=7)]) == '26'
+    assert view.selection_size([dict(paragraph='p1', start=7, end=19)]) == '12'
+    assert view.selection_size([dict(paragraph='p1', start=0, end=19)]) == 'Nhiều cỡ'
+
+
 def test_selection_maps_repeated_table_cells_to_distinct_original_paragraphs(preview):
     package, view, document = preview
     selected, skipped = view.ranges(document, 0, document.characterCount() - 1)

@@ -41,6 +41,7 @@ Item {
         englishColor.colorCode = options.color || "original"
         restoreStyle(options)
         originalFont.checked = !options.font
+        englishSize.pointSize = options.font_size || 0
         englishFont.currentIndex = Math.max(0, englishFont.model.indexOf(options.font || "Times New Roman"))
     }
     function rememberFormatting() { page.word.rememberFormatting(page.draftOptions()) }
@@ -93,10 +94,11 @@ Item {
         && textStyle.underline === !!page.documentState.options.underline && textStyle.strike === !!page.documentState.options.strike
         && textStyle.script === (page.documentState.options.script || "normal")
         && page.draftFont() === (page.documentState.options.font || "")
+        && englishSize.pointSize === (page.documentState.options.font_size || 0)
         && densityCodes[density.currentIndex] === (page.documentState.options.density || "normal")
         && subject.currentText === (page.documentState.subject || "Toán") && grade.currentText === (page.documentState.grade || "11")
         && page.draftTitle() === (page.documentState.title || "")
-    function draftOptions() { return {mode: modeCodes[mode.currentIndex], color: englishColor.colorCode, italic: page.englishItalic, bold: page.englishBold, underline: textStyle.underline, strike: textStyle.strike, script: textStyle.script, font: page.draftFont(), density: densityCodes[density.currentIndex]} }
+    function draftOptions() { return {mode: modeCodes[mode.currentIndex], color: englishColor.colorCode, italic: page.englishItalic, bold: page.englishBold, underline: textStyle.underline, strike: textStyle.strike, script: textStyle.script, font: page.draftFont(), font_size: englishSize.pointSize, density: densityCodes[density.currentIndex]} }
     function syncLoaded() {
         if (!page.documentState.id || shownIdentity === page.documentState.id) return
         highlightPopup.close()
@@ -106,6 +108,7 @@ Item {
         density.currentIndex = Math.max(0, densityCodes.indexOf(page.documentState.options.density || "normal"))
         page.restoreStyle(page.documentState.options)
         originalFont.checked = !page.documentState.options.font
+        englishSize.pointSize = page.documentState.options.font_size || 0
         englishFont.currentIndex = Math.max(0, englishFont.model.indexOf(page.documentState.options.font || "Times New Roman"))
         lessonTitle.text = page.documentState.title || ""
         subject.currentIndex = Math.max(0, appBridge.conversionSubjects.indexOf(page.documentState.subject || "Toán"))
@@ -241,14 +244,14 @@ Item {
             }
             RowLayout {
             objectName: "wordFormattingToolbar"; Layout.fillWidth: true; spacing: 6
-            ColumnLayout { Layout.minimumWidth: mode.implicitWidth; Layout.preferredWidth: mode.implicitWidth; Layout.alignment: Qt.AlignTop; spacing: 4
+            ColumnLayout { Layout.fillWidth: true; Layout.minimumWidth: mode.implicitWidth; Layout.alignment: Qt.AlignTop; spacing: 4
                 Hint { text: "Kiểu chuyển đổi" }
                 ButtonGroup { id: conversionModes }
                 RowLayout {
-                    id: mode; objectName: "wordMode"; spacing: 4
+                    id: mode; objectName: "wordMode"; Layout.fillWidth: true; spacing: 4
                     property int currentIndex: 0
                     readonly property var model: ["Anh ngay dưới Việt", "Việt–Anh hai cột", "Từ khóa tiếng Anh", "Tiếng Anh 100% ở vùng chọn"]
-                    readonly property var shortLabels: [page.width < 950 ? "Dưới dòng" : "Anh dưới Việt", "Hai cột", "Từ khóa", "100% Anh"]
+                    readonly property var shortLabels: page.width < 950 ? ["Dưới", "Hai cột", "Từ khóa", "100% Anh"] : ["Anh dưới Việt", "Việt–Anh hai cột", "Từ khóa tiếng Anh", "100% Anh"]
                     readonly property string currentText: model[currentIndex] || model[0]
                     Repeater { model: mode.model
                         SelectionRadio {
@@ -256,6 +259,7 @@ Item {
                             id: conversionRadio
                             objectName: "wordMode_" + index; text: mode.shortLabels[index]
                             implicitHeight: 38; rightPadding: 0
+                            Layout.fillWidth: true
                             Accessible.name: modelData
                             ToolTip.visible: hovered; ToolTip.text: modelData
                             contentItem: Text { text: conversionRadio.text; leftPadding: 22; font.pixelSize: 12; font.weight: Font.DemiBold; color: AppTheme.ink; verticalAlignment: Text.AlignVCenter; wrapMode: Text.NoWrap }
@@ -265,30 +269,32 @@ Item {
                     }
                 }
             }
-                ColumnLayout { Layout.alignment: Qt.AlignTop; spacing: 4
-                    Hint { text: mode.currentIndex === 2 ? "Mức từ khóa" : "Màu tiếng Anh" }
+                ColumnLayout { Layout.alignment: Qt.AlignBottom; Layout.minimumWidth: 60; Layout.maximumWidth: 60; spacing: 4
                     WordColorPicker { id: englishColor; objectName: "wordEnglishColor"; visible: mode.currentIndex !== 2; Layout.preferredWidth: 60; enabled: page.available; onChosen: page.rememberFormatting() }
-                    Choice { id: density; objectName: "wordKeywordDensity"; visible: mode.currentIndex === 2; model: ["Ít", "Vừa phải", "Chuyên sâu"]; currentIndex: 1; Layout.preferredWidth: 86; enabled: page.available }
+                    Choice { id: density; objectName: "wordKeywordDensity"; visible: mode.currentIndex === 2; model: ["Ít", "Vừa", "Sâu"]; currentIndex: 1; Layout.preferredWidth: 60; enabled: page.available
+                        Accessible.name: "Mức từ khóa tiếng Anh"; ToolTip.visible: hovered; ToolTip.text: "Mức từ khóa tiếng Anh: " + ["Ít", "Vừa phải", "Chuyên sâu"][currentIndex]
+                        contentItem: Label { text: density.displayText; color: AppTheme.ink; font: density.font; verticalAlignment: Text.AlignVCenter; leftPadding: 8; rightPadding: 24; elide: Text.ElideRight }
+                    }
                 }
-            ColumnLayout { Layout.alignment: Qt.AlignTop; spacing: 4
-                Hint { text: "Kiểu chữ tiếng Anh" }
+            ColumnLayout { Layout.alignment: Qt.AlignBottom; spacing: 4
                 WordTextStyle { id: textStyle; objectName: "wordTextStyle"; compact: true; Layout.minimumWidth: implicitWidth; enabled: page.available; onChosen: page.rememberFormatting() }
             }
-            ColumnLayout { Layout.fillWidth: true; Layout.minimumWidth: 190; Layout.alignment: Qt.AlignTop; spacing: 4
-                Hint { text: "Phông chữ tiếng Anh" }
-                RowLayout { Layout.fillWidth: true; spacing: 4
+            ColumnLayout { Layout.alignment: Qt.AlignBottom; spacing: 4
+                RowLayout { spacing: 4
                 CheckBox { id: originalFont; objectName: "wordOriginalFont"; text: "Font gốc"; checked: true; implicitHeight: 38; enabled: page.available; leftPadding: 0; rightPadding: 0; spacing: 4; opacity: enabled ? 1 : .45
                     indicator: Rectangle { x: 0; y: (parent.height - height) / 2; width: 18; height: 18; radius: 3; color: originalFont.checked ? AppTheme.blue : AppTheme.field; border.color: originalFont.checked || originalFont.visualFocus ? AppTheme.blue : AppTheme.muted
                         Text { anchors.centerIn: parent; text: "✓"; font.pixelSize: 14; color: "white"; visible: originalFont.checked }
                     }
                     contentItem: Text { text: originalFont.text; leftPadding: 23; font.pixelSize: 12; color: AppTheme.ink; verticalAlignment: Text.AlignVCenter }
                     ToolTip.visible: hovered; ToolTip.text: "Dùng phông chữ tại vùng gốc được chọn. Bỏ tích để chọn phông mới cho phần tiếng Anh."; onToggled: page.rememberFormatting() }
-                Choice { id: englishFont; objectName: "wordEnglishFont"; model: page.fontNames; Layout.fillWidth: true; Layout.minimumWidth: 110
+                Choice { id: englishFont; objectName: "wordEnglishFont"; model: page.fontNames; Layout.preferredWidth: page.width < 950 ? 110 : 160; Layout.minimumWidth: Layout.preferredWidth; Layout.maximumWidth: Layout.preferredWidth
+                    Accessible.name: originalFont.checked ? "Phông gốc: " + page.sourceFontLabel : "Phông tiếng Anh: " + currentText
                     displayText: originalFont.checked ? page.sourceFontLabel : currentText
                     enabled: page.available && !originalFont.checked; onActivated: page.rememberFormatting()
                     ToolTip.visible: fontHover.hovered; ToolTip.text: originalFont.checked ? page.sourceFontLabel + (page.word.sourceFonts.length > 1 ? "\nMỗi vùng giữ đúng phông riêng trong bản gốc." : "") : currentText
                     HoverHandler { id: fontHover }
                 }
+                WordFontSize { id: englishSize; objectName: "wordFontSize"; sourceSize: page.word.sourceFontSize; Layout.preferredWidth: 60; enabled: page.available; onChosen: page.rememberFormatting() }
                 }
             }
             }
@@ -442,7 +448,7 @@ Item {
                                 Label { text: selectedRow.modelData.vi; textFormat: Text.PlainText; color: AppTheme.ink; font.pixelSize: 13; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                                 TextArea {
                                     objectName: "wordEnglishDraft_" + selectedRow.index; visible: !!selectedRow.modelData.en && page.documentState.options.mode !== "keywords"; Layout.fillWidth: true; implicitHeight: contentHeight + 16
-                                    text: selectedRow.modelData.display_en || ""; textFormat: TextEdit.PlainText; wrapMode: TextEdit.Wrap; selectByMouse: true; color: englishColor.inkColor; font.pixelSize: 13; font.italic: page.englishItalic; font.bold: page.englishBold; font.underline: textStyle.underline; font.strikeout: textStyle.strike; font.family: page.draftFont() || "Be Vietnam Pro"; enabled: page.available
+                                    text: selectedRow.modelData.display_en || ""; textFormat: TextEdit.PlainText; wrapMode: TextEdit.Wrap; selectByMouse: true; color: englishColor.inkColor; font.pointSize: englishSize.pointSize || Number(page.word.sourceFontSize) || 11; font.italic: page.englishItalic; font.bold: page.englishBold; font.underline: textStyle.underline; font.strikeout: textStyle.strike; font.family: page.draftFont() || "Be Vietnam Pro"; enabled: page.available
                                     onTextChanged: if (activeFocus) page.word.setDraft(selectedRow.modelData.id, text)
                                     background: Rectangle { color: AppTheme.surface; radius: 6; border.color: AppTheme.line }
                                 }
@@ -484,7 +490,7 @@ Item {
                 objectName: "wordConfigurationSummary"; Layout.fillWidth: true; Layout.minimumWidth: 0
                 entries: [{key: "mode", text: mode.currentText, emphasis: true},
                     {key: "subject", text: subject.currentText + " · " + education.currentText + " " + grade.currentText},
-                    {key: "format", text: textStyle.description + " · " + (englishColor.original ? "Màu gốc" : "#" + englishColor.colorCode) + " · " + (page.draftFont() || "Phông gốc")},
+                    {key: "format", text: textStyle.description + " · " + (englishColor.original ? "Màu gốc" : "#" + englishColor.colorCode) + " · " + (page.draftFont() || "Phông gốc") + " · " + (englishSize.pointSize ? englishSize.pointSize + " pt" : "Cỡ gốc")},
                     {key: "selection", text: (page.documentState.selected_count || 0) + " vùng đã chọn"}]
             }
             WordAction { objectName: "wordStop"; visible: page.documentState.working; text: "■ Dừng"; danger: true; onClicked: page.word.stop() }

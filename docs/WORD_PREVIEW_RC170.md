@@ -8,6 +8,14 @@ Ngày 26/10/2026. Bản mã nguồn để thử tiếp, trên nhánh
 - **Kiểu chuyển đổi**, bảng màu, các nút kiểu chữ và phông nằm trên một hàng
   cấu hình gọn. Bốn lựa chọn tròn dùng tên ngắn; rê chuột để xem tên đầy đủ.
   Ô cấu hình đã chọn vẫn ghi đầy đủ kiểu chuyển đổi.
+  Bỏ các nhãn lặp màu/kiểu/phông tiếng Anh; ô phông giới hạn chiều rộng để
+  dành chỗ cho bố cục. Biểu tượng A có vạch đỏ sát chân chữ; màu áp dụng
+  vẫn lấy từ lựa chọn trong bảng màu hoặc giữ nguyên màu gốc.
+- **Cỡ chữ** nằm cạnh ô phông, có danh sách cỡ phổ biến và cho nhập trực
+  tiếp theo bước 0,5 pt. Ban đầu lấy cỡ tại các vùng được chọn; nhiều cỡ
+  được báo rõ và vẫn giữ cỡ riêng từng vùng khi xuất. Khi chưa chọn vùng,
+  ô hiện cỡ phổ biến trong tài liệu. Chọn cỡ khác sẽ nhớ cho bài mới;
+  chọn **Cỡ gốc** để quay về tự động. Bản Anh không còn tự giảm 1 pt.
 - **Màu tiếng Anh** là nút A có gạch màu. Bảng chọn gồm màu chủ đề, màu tiêu
   chuẩn, màu khác và ô **Giữ nguyên màu gốc**. Màu gốc là mặc định ban đầu;
   các màu RGB được kiểm tra trước khi ghi vào Word.

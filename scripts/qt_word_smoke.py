@@ -9,7 +9,7 @@ from threading import Event
 from unittest.mock import patch
 
 from docx import Document
-from docx.shared import Inches
+from docx.shared import Inches, Pt
 from PIL import Image
 from PySide6.QtCore import (
     Q_ARG,
@@ -74,7 +74,7 @@ def main():
 
         def check_formatting_row():
             picker = 'wordKeywordDensity' if c('wordMode').property('currentIndex') == 2 else 'wordEnglishColor'
-            parts = [c(name) for name in ('wordMode', picker, 'wordTextStyle', 'wordOriginalFont', 'wordEnglishFont')]
+            parts = [c(name) for name in ('wordMode', picker, 'wordTextStyle', 'wordOriginalFont', 'wordEnglishFont', 'wordFontSize')]
             rectangles = [item.mapRectToScene(item.boundingRect()) for item in parts]
             assert max(rect.top() for rect in rectangles) - min(rect.top() for rect in rectangles) < 3, rectangles
             assert all(left.right() <= right.left() + 1 for left, right in zip(rectangles, rectangles[1:])), rectangles
@@ -136,6 +136,7 @@ def main():
                 with patch.object(Translator, '_send', lambda self, rows, credential, source, target:
                                   fake_google(rows) if not hasattr(self, 'provider') else real_send(self, rows, credential, source, target)):
                     document = Document()
+                    document.styles['Normal'].font.size = Pt(14)
                     document.add_heading('Bài học chuyển động', 0)
                     document.add_paragraph('Vật có vận tốc 12 m/s.')
                     document.add_paragraph('😀 Vật có vận tốc 13 m/s.')
@@ -203,7 +204,7 @@ def main():
                     c('wordEnglishFont').setProperty('currentIndex', bridge.wordDocuments.fontFamilies.index('Arial'))
                     assert QMetaObject.invokeMethod(c('wordEnglishFont'), 'activated', Q_ARG(int, c('wordEnglishFont').property('currentIndex')))
                     assert QMetaObject.invokeMethod(c('wordEnglishColor'), 'choose', Q_ARG('QVariant', '1667B1'))
-                    assert bridge.wordDocuments.formattingDefaults == dict(color='1667B1', font='Arial', italic=True, bold=True, underline=False, strike=False, script='normal')
+                    assert bridge.wordDocuments.formattingDefaults == dict(color='1667B1', font='Arial', italic=True, bold=True, underline=False, strike=False, script='normal', font_size=0)
                     assert window.grabWindow().save(str(report / 'word-custom-font.png'))
                     c('wordSubject').setProperty('currentIndex', bridge.conversionSubjects.index('Vật lý'))
                     c('wordEducation').setProperty('currentIndex', 1)
@@ -215,12 +216,39 @@ def main():
                     assert bridge.wordDocuments.state['subject'] == 'Vật lý' and bridge.wordDocuments.state['grade'] == '6'
                     assert bridge.wordDocuments.state['title'] == 'Chuyển động đều'
                     assert bridge.wordDocuments.state['options']['font'] == 'Arial'
+                    assert bridge.wordDocuments.sourceFontSize == '14'
+                    assert c('wordFontSize').property('pointSize') == 0 and c('wordFontSize').property('editText') == '14', {
+                        key: c('wordFontSize').property(key) for key in ('pointSize', 'editText', 'sourceSize', 'lastShown', 'activeFocus')}
+                    click(window, c('wordFontSize'))
+                    QTest.keyClick(window, Qt.Key_A, Qt.ControlModifier)
+                    for key in (Qt.Key_1, Qt.Key_2, Qt.Key_Period, Qt.Key_5, Qt.Key_Return):
+                        QTest.keyClick(window, key)
+                    pump(50)
+                    assert c('wordFontSize').property('pointSize') == 12.5
+                    assert bridge.wordDocuments.formattingDefaults['font_size'] == 12.5
+                    assert QMetaObject.invokeMethod(c('wordFontSize'), 'commit', Q_ARG('QVariant', 'Cỡ gốc'))
+                    assert c('wordFontSize').property('pointSize') == 0
+                    click(window, c('wordFontSizeArrow'))
+                    until(lambda: c('wordFontSizePopup').property('visible'))
+                    size_bounds = c('wordFontSizeList').mapRectToScene(c('wordFontSizeList').boundingRect())
+                    assert size_bounds.left() >= 0 and size_bounds.top() >= 0 and size_bounds.right() <= window.width() and size_bounds.bottom() <= window.height(), size_bounds
+                    assert window.grabWindow().save(str(report / 'word-size-list.png'))
+                    for _ in range(12):
+                        QTest.keyClick(window, Qt.Key_Down)
+                    QTest.keyClick(window, Qt.Key_Return)
+                    pump(50)
+                    assert not c('wordFontSizePopup').property('visible') and c('wordFontSize').property('pointSize') == 26
+                    assert bridge.wordDocuments.formattingDefaults['font_size'] == 26
+                    assert QMetaObject.invokeMethod(c('wordFontSize'), 'commit', Q_ARG('QVariant', 'Cỡ gốc'))
                     click(window, c('wordOriginalFont'))
                     assert c('wordEnglishFont').isVisible() and not c('wordEnglishFont').isEnabled()
                     assert bridge.wordDocuments.sourceFonts
                     assert all(family in c('wordEnglishFont').property('displayText') for family in bridge.wordDocuments.sourceFonts)
                     click(window, c('wordOriginalFont'))
                     assert c('wordEnglishFont').isEnabled() and c('wordEnglishFont').property('currentText') == 'Arial'
+                    pump(50)
+                    assert c('wordFontSize').property('pointSize') == 0, 'Viewing the original size must not save it as an explicit override'
+                    assert bridge.wordDocuments.formattingDefaults['font_size'] == 0
                     c('wordEducation').setProperty('currentIndex', 0)
                     c('wordGrade').setProperty('currentIndex', 1)
                     c('wordMode').setProperty('currentIndex', 0)
@@ -248,6 +276,7 @@ def main():
                     click(window, c('wordAddRange_2'))
                     until(lambda: not bridge.busy)
                     assert bridge.wordDocuments.state['selected_count'] == 2
+                    assert c('wordFontSize').property('pointSize') == 0 and c('wordFontSize').property('editText') == '14'
                     # Switching to the continuous view retains checkbox regions. A real drag
                     # through an emoji paragraph offers confirmation only after release.
                     click(window, c('wordSelectByHighlight'))
@@ -471,7 +500,8 @@ def main():
                 'Successful conversion automatically saves beside source with the requested suffix; edits remain saveable',
                 'Main radio choices; indented square paragraph/sentence choices enabled only in checkbox mode',
                 'Word-style color palette, original-color option, typography icons and dependent education/grade choices',
-                'Single formatting row: four conversion radios, color/keyword density, typography and original/custom font at laptop and desktop widths',
+                'Single formatting row: layouts, color/keyword density, typography, font and editable point size at laptop and desktop widths',
+                'Source size follows selected runs by default; typed half-point size is remembered and can return to original',
                 'Expanded source workspace: mouse selection, collapse retains ranges, clear-all from both panels, Escape closes',
                 'Rich paper preview: native QML selection maps images and repeated table cells to original source ranges',
                 'Right-aligned conversion action with selected-configuration summary; Save/library appear after translation',

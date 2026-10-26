@@ -43,6 +43,7 @@ class Preview:
         self.markup_budget = 8 * 1024**2
         self.theme_fonts = {'major': 'Cambria', 'minor': 'Calibri'}
         self.font_counts = Counter()
+        self.size_counts = Counter()
         self.by_element = {entry[0]: identity for identity, entry in package.paragraphs.items()}
         self.width, self.margins = 794, [64, 64, 64, 64]
         section = package.body.find('w:sectPr', NS)
@@ -75,6 +76,7 @@ class Preview:
             body = ''.join(self.block(child, archive) for child in package.body)
         self.html = '<html><body style="font-family:' + self.theme_fonts['minor'] + ';font-size:12pt;color:#202020">' + body + '</body></html>'
         self.fonts = [family for family, _ in self.font_counts.most_common()]
+        self.default_size = self.size_counts.most_common(1)[0][0] if self.size_counts else 11
         # Keep the XML tree out of the UI object and release decompressed images.
         del self.package, self.by_element, self.relationships, self.images
 
@@ -128,7 +130,7 @@ class Preview:
                     css.append(f'{style}:{max(-120, min(240, int(indent.get(tag(field))) / 15))}px')
         # The end position resolves defaults without adopting the first run's style.
         base = self.package.run_style(paragraph, len(row['text']))
-        chunks, segments, visible = [], [], ''
+        chunks, segments, sizes, visible = [], [], [], ''
         for atom in atoms:
             shown = normalized(atom['text'])
             image = self.image(atom['element'], archive) if atom['kind'] == 'object' else ''
@@ -144,12 +146,24 @@ class Preview:
                         if prior is not None:
                             style.remove(prior)
                         style.append(copy.deepcopy(child))
+                size_node = style.find('w:sz', NS)
+                point_size = int(size_node.get(tag('val'), '22')) / 2 if size_node is not None else 11
+                if atom['kind'] == 'text' and shown.strip():
+                    sizes.append((atom['start'], atom['end'], point_size))
+                    self.size_counts[point_size] += len(shown.strip())
                 markup = '<span style="' + escape(self.run_css(style, atom['kind'], len(shown)), quote=True) + '">' + escape(shown).replace('\n', '<br/>') + '</span>'
             segments.append((len(visible), len(visible) + len(shown), atom['start'], atom['end'], atom['text'], bool(image)))
             visible += shown
             chunks.append(markup)
-        self.rows[identity] = dict(source=row, visible=visible, segments=segments, chunks=chunks, css=';'.join(css))
+        self.rows[identity] = dict(source=row, visible=visible, segments=segments, sizes=sizes, chunks=chunks, css=';'.join(css))
         return '<p style="' + ';'.join(css) + '"><a name="blc_' + identity + '"></a>' + ''.join(chunks) + '</p>'
+
+    def selection_size(self, regions):
+        values = {size for region in regions for start, end, size in self.rows.get(region['paragraph'], {}).get('sizes', [])
+                  if start < region['end'] and region['start'] < end}
+        if len(values) > 1:
+            return 'Nhiều cỡ'
+        return format(next(iter(values), self.default_size), 'g')
 
     def run_css(self, style, kind, weight=0):
         css = []

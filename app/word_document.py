@@ -2,6 +2,7 @@
 
 import copy
 import hashlib
+import math
 import re
 import unicodedata
 import zipfile
@@ -40,6 +41,14 @@ def font_name(value):
 
 def valid_color(value):
     return isinstance(value, str) and (value == 'original' or re.fullmatch('[0-9A-F]{6}', value) is not None)
+
+
+def font_size(value):
+    if type(value) not in (int, float) or not math.isfinite(value):
+        raise ValueError('Nhập cỡ chữ bằng số; chọn Cỡ gốc để giữ cỡ của vùng được chọn.')
+    if value != 0 and (not 1 <= value <= 1638 or value * 2 != int(value * 2)):
+        raise ValueError('Cỡ chữ từ 1 đến 1638 pt, theo bước 0,5 pt.')
+    return float(value)
 
 
 def parse_xml(raw):
@@ -233,11 +242,15 @@ class Package:
             if existing is not None:
                 style.remove(existing)
             style.append(node('rFonts', ascii=family, hAnsi=family, eastAsia=family, cs=family))
-        size = style.find('w:sz', NS)
-        if size is not None:
-            size.set(tag('val'), str(max(18, min(144, int(size.get(tag('val'), '22')) - 2))))
-        else:
-            style.append(node('sz', val=20))
+        point_size = font_size(options.get('font_size', 0))
+        if point_size:
+            for name in ('sz', 'szCs'):
+                prior = style.find('w:' + name, NS)
+                if prior is not None:
+                    style.remove(prior)
+                style.append(node(name, val=int(point_size * 2)))
+        elif style.find('w:sz', NS) is None:
+            style.append(node('sz', val=22))
         atoms = self.atoms(original)
         protected = [atom for atom in atoms if atom['kind'] in {'math', 'object'} and region['start'] <= atom['start'] and atom['end'] <= region['end']]
         for part in re.split(r'(⟦BLC\d+⟧)', value):
@@ -305,6 +318,7 @@ class Package:
     def render(self, regions, options):
         mode = options.get('mode', 'below')
         font_name(options.get('font', ''))
+        font_size(options.get('font_size', 0))
         if (any(key in options and type(options[key]) is not bool for key in ('italic', 'bold', 'underline', 'strike'))
                 or options.get('script', 'normal') not in {'normal', 'subscript', 'superscript'}):
             raise ValueError('Chọn kiểu chữ Word hợp lệ.')

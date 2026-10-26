@@ -65,6 +65,10 @@ class WordDocuments(QObject):
     def sourceFonts(self):
         return self._preview.fonts if self._preview else []
 
+    @Property(str, notify=changed)
+    def sourceFontSize(self):
+        return self._preview.selection_size(self._state.get('regions', [])) if self._preview else ''
+
     @Property('QStringList', constant=True)
     def fontFamilies(self):
         from PySide6.QtGui import QFontDatabase

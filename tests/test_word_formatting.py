@@ -4,7 +4,7 @@ from threading import Event
 
 import pytest
 from docx import Document
-from docx.shared import RGBColor
+from docx.shared import Pt, RGBColor
 
 from app import word_jobs as jobs
 from app.library import Library
@@ -64,8 +64,8 @@ def test_saved_english_uses_selected_style_and_original_or_custom_font_color(pre
 
 def test_formatting_defaults_survive_reopen_and_apply_only_to_new_documents(prepared):
     directory, source, first, _ = prepared
-    assert jobs.formatting_defaults(directory) == dict(color='original', font='', italic=True, bold=False, underline=False, strike=False, script='normal')
-    recent = dict(color='7030A0', font='Arial', italic=False, bold=True, underline=True, strike=True, script='superscript')
+    assert jobs.formatting_defaults(directory) == dict(color='original', font='', italic=True, bold=False, underline=False, strike=False, script='normal', font_size=0)
+    recent = dict(color='7030A0', font='Arial', italic=False, bold=True, underline=True, strike=True, script='superscript', font_size=26)
     jobs.formatting_defaults(directory, recent)
     assert jobs.formatting_defaults(directory) == recent
     other = source.with_name('Bài tiếp theo.docx')
@@ -103,6 +103,29 @@ def test_word_toolbar_styles_and_palette_color_reach_export_without_changing_sou
         assert run.find('w:rPr/w:u', NS).get('{' + NS['w'] + '}val') == 'single'
         assert run.find('w:rPr/w:strike', NS).get('{' + NS['w'] + '}val') == '1'
         assert run.find('w:rPr/w:vertAlign', NS).get('{' + NS['w'] + '}val') == ('baseline' if script == 'normal' else script)
+    assert source.read_bytes() == original
+
+
+@pytest.mark.parametrize('mode', ['below', 'columns', 'english', 'keywords'])
+@pytest.mark.parametrize('size', [0, 12.5, 26])
+def test_size_keeps_source_by_default_and_applies_explicit_points_in_all_modes(tmp_path, mode, size):
+    document = Document()
+    document.styles['Normal'].font.size = Pt(14)
+    document.add_paragraph().add_run('Vận tốc 12 m/s.').font.size = Pt(18)
+    source = tmp_path / 'source.docx'
+    document.save(source)
+    original = source.read_bytes()
+    package = Package(source)
+    region = package.selection([dict(paragraph='p0', start=0, end=len(package.rows[0]['text']))])[0]
+    region['en'] = 'Velocity 12 m/s.'
+    if mode == 'keywords':
+        region['annotations'] = keyword_annotations(region, {'vận tốc': 'velocity'})
+    output = tmp_path / 'output.docx'
+    package.save(output, [region], dict(mode=mode, font_size=size))
+    translated = [run for run in Package(output).tree.findall('.//w:r', NS)
+                  if 'velocity' in ''.join(run.xpath('./w:t/text()', namespaces=NS)).lower()]
+    assert translated
+    assert all(run.find('w:rPr/w:sz', NS).get('{' + NS['w'] + '}val') == str(int((size or 18) * 2)) for run in translated)
     assert source.read_bytes() == original
 
 
@@ -159,7 +182,8 @@ def test_stop_before_autosave_does_not_publish_a_result(prepared):
     assert not (jobs.folder_for(directory, job['id']) / 'result.docx').exists()
 
 
-@pytest.mark.parametrize('options', [dict(font='Arial\n'), dict(font='a' * 121), dict(bold='yes'), dict(color='invalid')])
+@pytest.mark.parametrize('options', [dict(font='Arial\n'), dict(font='a' * 121), dict(bold='yes'), dict(color='invalid'),
+    *[dict(font_size=value) for value in (-1, .5, 12.2, 1639, float('nan'), float('inf'), True, '26')]])
 def test_invalid_typography_cannot_be_saved(options):
     with pytest.raises(ValueError):
         jobs.options_for(options)

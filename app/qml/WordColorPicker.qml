@@ -27,9 +27,9 @@ Button {
         colors.open()
     }
     contentItem: RowLayout { spacing: 8
-        Column { Layout.alignment: Qt.AlignHCenter; spacing: 0
-            Text { text: "A"; font.family: "Georgia"; font.pixelSize: 22; font.bold: true; color: AppTheme.ink; anchors.horizontalCenter: parent.horizontalCenter }
-            Rectangle { width: 24; height: 4; radius: 1; color: picker.inkColor; border.width: picker.original ? 1 : 0; border.color: AppTheme.line }
+        Item { implicitWidth: 24; implicitHeight: 26; Layout.alignment: Qt.AlignVCenter
+            Text { id: colorLetter; text: "A"; font.family: "Georgia"; font.pixelSize: 22; font.bold: true; color: AppTheme.ink; anchors.horizontalCenter: parent.horizontalCenter }
+            Rectangle { width: 24; height: 3; radius: 1; y: colorLetter.baselineOffset + 1; color: "#e53935" }
         }
         Text { text: "⌄"; color: AppTheme.muted; font.pixelSize: 16 }
     }

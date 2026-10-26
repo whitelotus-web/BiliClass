@@ -185,11 +185,12 @@ def title_for(value, fallback):
 
 
 def options_for(value):
-    from .word_document import MODES, valid_color
+    from .word_document import MODES, font_size, valid_color
 
     result = dict(mode=value.get('mode', 'below'), color=value.get('color', 'original'),
                   italic=value.get('italic', True), bold=value.get('bold', False),
                   underline=value.get('underline', False), strike=value.get('strike', False), script=value.get('script', 'normal'),
+                  font_size=font_size(value.get('font_size', 0)),
                   font=font_name(value.get('font', '')), density=value.get('density', 'normal'))
     if (result['mode'] not in MODES or not valid_color(result['color'])
             or any(type(result[key]) is not bool for key in ('italic', 'bold', 'underline', 'strike'))
@@ -213,7 +214,7 @@ def formatting_defaults(directory, value=None):
             result = options_for({})
     else:
         result = options_for(value)
-    result = {key: result[key] for key in ('color', 'italic', 'bold', 'underline', 'strike', 'script', 'font')}
+    result = {key: result[key] for key in ('color', 'italic', 'bold', 'underline', 'strike', 'script', 'font', 'font_size')}
     if saving:
         _atomic(path, json.dumps(result, ensure_ascii=False).encode('utf-8'))
     return result
