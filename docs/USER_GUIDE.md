@@ -16,6 +16,9 @@ chữ, mặc định **Không màu**; màu tô sáng áp dụng cho phần tiế
 Các lựa chọn định dạng được nhớ cho bài mới. Bản xem giúp chọn chữ, không
 thay thế hoàn toàn cách Word phân trang. File gốc không bị ghi đè; phần
 không được chọn trong bản xuất giữ nguyên nội dung và định dạng gốc.
+Bấm **A kèm tẩy** để đặt lại màu xanh, in nghiêng, không đậm/gạch chân/
+gạch ngang/tô sáng, Font gốc và Size gốc. Nút này không đổi kiểu chuyển đổi
+hoặc phạm vi dịch.
 
 Trong **RC169**, vào **Chuyển đổi bài giảng → Word** để tích chọn đoạn/câu
 hoặc bôi đen nhiều vùng của `.docx`. Nhả chuột rồi xác nhận vùng cần dịch.

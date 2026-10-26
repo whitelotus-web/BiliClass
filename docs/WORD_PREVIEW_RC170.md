@@ -29,6 +29,9 @@ Ngày 26/10/2026. Bản mã nguồn để thử tiếp, trên nhánh
   Bảng 15 màu và Không màu áp dụng cho phần Anh khi xuất cả bốn kiểu;
   giữ lựa chọn gần nhất và dùng thuộc tính tô sáng chuẩn Word. Màu này
   độc lập với dấu xanh báo vùng đã chọn trong bản gốc.
+- Nút **A kèm tẩy — Đặt lại định dạng** đưa về xanh `1667B1`, in nghiêng,
+  không đậm/gạch chân/gạch ngang/tô sáng, Font gốc và Size gốc. Không đổi
+  kiểu chuyển đổi hoặc phạm vi dịch; cấu hình đặt lại được nhớ cho bài mới.
 - Ô phông mặc định hiện **Font gốc**, tooltip **Font**, luôn cho chọn trực
   tiếp phông khác; không có ô tích riêng. Chọn **Font gốc** trong danh sách
   để trở về tự động; từng vùng vẫn giữ phông riêng khi xuất. Lựa chọn gần nhất

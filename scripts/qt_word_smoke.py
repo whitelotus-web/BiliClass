@@ -91,7 +91,7 @@ def main():
 
         def check_formatting_row():
             picker = 'wordKeywordDensity' if c('wordMode').property('currentIndex') == 2 else 'wordEnglishColor'
-            parts = [c(name) for name in ('wordMode', picker, 'wordEnglishHighlight', 'wordTextStyle', 'wordEnglishFont', 'wordFontSize')]
+            parts = [c(name) for name in ('wordMode', picker, 'wordEnglishHighlight', 'wordTextStyle', 'wordEnglishFont', 'wordFontSize', 'wordResetFormatting')]
             rectangles = [item.mapRectToScene(item.boundingRect()) for item in parts]
             assert max(rect.center().y() for rect in rectangles) - min(rect.center().y() for rect in rectangles) < 2, rectangles
             assert all(left.right() <= right.left() + 1 for left, right in zip(rectangles, rectangles[1:])), rectangles
@@ -651,6 +651,22 @@ def main():
                     bridge.wordDocuments.loadRecord(preserved_id)
                     until(lambda: not bridge.busy)
                     assert bridge.wordDocuments.state['id'] == preserved_id and bridge.wordDocuments.state['title'] == preserved_title
+                    c('wordTextStyle').setProperty('bold', True)
+                    c('wordTextStyle').setProperty('underline', True)
+                    c('wordTextStyle').setProperty('strike', True)
+                    assert QMetaObject.invokeMethod(c('wordEnglishHighlight'), 'choose', Q_ARG('QVariant', 'FFFF00'))
+                    assert QMetaObject.invokeMethod(c('wordEnglishColor'), 'choose', Q_ARG('QVariant', '7030A0'))
+                    assert QMetaObject.invokeMethod(c('wordFontSize'), 'commit', Q_ARG('QVariant', '26'))
+                    c('wordWorkflowScroll').property('contentItem').setProperty('contentY', 0)
+                    pump(80)
+                    mode_before_reset = c('wordMode').property('currentIndex')
+                    click(window, c('wordResetFormatting'))
+                    assert bridge.wordDocuments.formattingDefaults == dict(color='1667B1', highlight='none', font='',
+                        italic=True, bold=False, underline=False, strike=False, script='normal', font_size=0)
+                    assert c('wordMode').property('currentIndex') == mode_before_reset
+                    assert c('wordEnglishFont').property('displayText') == 'Font gốc'
+                    assert c('wordFontSize').property('editText') == 'Size gốc'
+                    assert window.grabWindow().save(str(report / 'word-reset-formatting.png'))
                     click(window, c('wordTabPowerPoint'))
                     assert window.property('page') == 'new'
                     assert c('creationSourceArea').isVisible()

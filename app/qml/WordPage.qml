@@ -49,6 +49,16 @@ Item {
         englishFont.currentIndex = page.selectedFont ? Math.max(0, englishFont.model.indexOf(page.selectedFont)) : 0
     }
     function rememberFormatting() { page.word.rememberFormatting(page.draftOptions()) }
+    function resetFormatting() {
+        englishColor.colorCode = "1667B1"
+        englishHighlight.colorCode = "none"
+        page.restoreStyle({italic: true})
+        page.selectedFont = ""
+        englishFont.currentIndex = 0
+        englishSize.pointSize = 0
+        englishSize.refresh()
+        page.rememberFormatting()
+    }
     Component.onCompleted: { restoreFormattingDefaults(); grade.currentIndex = Math.max(0, grade.model.indexOf("11")) }
     property string selectionMode: "highlight"
     property string selectionScope: "paragraphs"
@@ -301,7 +311,7 @@ Item {
             }
             Item {
             id: formattingToolbar; objectName: "wordFormattingToolbar"; Layout.fillWidth: true; implicitHeight: conversionOptions.implicitHeight
-            readonly property real minimumControlsWidth: 60 + englishHighlight.implicitWidth + textStyle.implicitWidth + englishFont.Layout.preferredWidth + englishSize.implicitWidth + 20
+            readonly property real minimumControlsWidth: 60 + englishHighlight.implicitWidth + textStyle.implicitWidth + englishFont.Layout.preferredWidth + englishSize.implicitWidth + resetFormat.implicitWidth + 24
             ColumnLayout { id: conversionOptions; objectName: "wordConversionOptions"; width: Math.max(0, Math.min((formattingToolbar.width - 25) / 2, formattingToolbar.width - formattingToolbar.minimumControlsWidth - 25)); height: implicitHeight; spacing: 4
                 Hint { text: "Kiểu chuyển đổi" }
                 ButtonGroup { id: conversionModes }
@@ -353,6 +363,7 @@ Item {
                 WordFontSize { id: englishSize; objectName: "wordFontSize"; sourceSize: page.word.sourceFontSize; Layout.preferredWidth: 82; enabled: page.available; onChosen: page.rememberFormatting() }
                 }
             }
+            WordResetFormatting { id: resetFormat; objectName: "wordResetFormatting"; Layout.preferredWidth: 30; Layout.preferredHeight: 28; Layout.maximumHeight: 28; Layout.alignment: Qt.AlignVCenter; enabled: page.available; onClicked: page.resetFormatting() }
             }
             }
             }
