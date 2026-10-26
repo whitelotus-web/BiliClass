@@ -111,7 +111,7 @@ def prepare_library_teaching(directory, identity, profile=None, cancel=None, *, 
     lesson, preview = prepare_library_lesson(directory, identity, profile, cancel=cancel)
     if narration is not None:
         def choice(record):
-            return record.get('mode'), record.get('voice'), record.get('rate'), record.get('playback', 'separate')
+            return record.get('mode'), record.get('voice'), record.get('rate'), record.get('en_rate', record.get('rate')), record.get('playback', 'separate')
 
         lesson['narration'] = next((record for record in records(lesson).values()
                                     if choice(record) == choice(narration)), narration)

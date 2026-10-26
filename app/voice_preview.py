@@ -9,6 +9,7 @@ from uuid import uuid4
 
 from . import speech
 from .paths import RESOURCE_ROOT
+from .voice_rates import valid_rate
 
 SAMPLE_TEXT = "Xin chào các em. Let's learn together."
 VI_SAMPLE_TEXT = (
@@ -51,10 +52,10 @@ def bundled_sample(text, voice):
     return None
 
 
-def preview(text, voice, rate, directory, *, cancel=None):
+def preview(text, voice, rate, directory, *, cancel=None, en_rate=None):
     if voice in speech.PAIRS_BY_ID:
-        return pair_preview(text, voice, rate, directory, cancel=cancel)
-    if voice not in {v['id'] for v in speech.VIENEU_VOICES} | set(speech.ENGLISH_VOICES) or type(rate) is not int or not -3 <= rate <= 3:
+        return pair_preview(text, voice, rate, directory, cancel=cancel, en_rate=en_rate)
+    if voice not in {v['id'] for v in speech.VIENEU_VOICES} | set(speech.ENGLISH_VOICES) or type(rate) is not int or not valid_rate(rate):
         raise ValueError('Chọn giọng và tốc độ hợp lệ để nghe thử.')
     source = bundled_sample(text, voice)
     if cancel is not None and cancel.is_set():
@@ -83,18 +84,21 @@ def preview(text, voice, rate, directory, *, cancel=None):
     return {'path': str(destination), 'cached': False}
 
 
-def pair_preview(text, voice, rate, directory, *, cancel=None):
+def pair_preview(text, voice, rate, directory, *, cancel=None, en_rate=None):
     from .input_analysis import language_of
 
     root = Path(directory)
     root.mkdir(parents=True, exist_ok=True)
-    if type(rate) is not int or not -3 <= rate <= 3:
+    if type(rate) is not int or not valid_rate(rate):
         raise ValueError('Chọn tốc độ hợp lệ để nghe thử.')
-    key = pair_preview_key(text, voice, rate)
+    en_rate = rate if en_rate is None else en_rate
+    if not valid_rate(en_rate):
+        raise ValueError('Chọn tốc độ tiếng Anh hợp lệ để nghe thử.')
+    key = pair_preview_key(text, voice, rate, en_rate)
     target = root/(key+'.wav')
     if speech.valid_audio(target):
         return {'path': str(target), 'cached': True}
-    source = bundled_sample(text, voice)
+    source = bundled_sample(text, voice) if en_rate == rate else None
     if source:
         if rate == 0:
             return {'path': str(source), 'cached': True}
@@ -111,7 +115,7 @@ def pair_preview(text, voice, rate, directory, *, cancel=None):
         if not sentence.strip():
             continue
         language = 'vi' if language_of(sentence) == 'vi' else 'en'
-        files.append(preview(sentence, speech.voice_for(voice, language), rate, directory, cancel=cancel)['path'])
+        files.append(preview(sentence, speech.voice_for(voice, language), rate if language == 'vi' else en_rate, directory, cancel=cancel)['path'])
     if not files:
         raise ValueError('Nhập câu nghe thử tiếng Việt hoặc tiếng Anh.')
     pending = root/(uuid4().hex+'.wav')
@@ -132,5 +136,8 @@ def pair_preview(text, voice, rate, directory, *, cancel=None):
     return {'path': str(target), 'cached': False}
 
 
-def pair_preview_key(text, voice, rate):
-    return hashlib.sha256(json.dumps([text, voice, rate, speech.VIENEU_VERSION, speech.ENGLISH_VERSION]).encode()).hexdigest()
+def pair_preview_key(text, voice, rate, en_rate=None):
+    value = [text, voice, rate, speech.VIENEU_VERSION, speech.ENGLISH_VERSION]
+    if en_rate is not None and en_rate != rate:
+        value.append(en_rate)
+    return hashlib.sha256(json.dumps(value).encode()).hexdigest()

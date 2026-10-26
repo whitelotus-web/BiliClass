@@ -20,17 +20,18 @@ Item {
     property bool showDataOptions: false
     property string draftVoice: bridge.voiceSettings.voice
     property int draftRate: bridge.voiceSettings.rate
+    property int draftEnglishRate: bridge.voiceSettings.en_rate === undefined ? bridge.voiceSettings.rate : bridge.voiceSettings.en_rate
     readonly property var selectedVoicePair: bridge.voicePairDetails(draftVoice)
     function pairPreviewText() { return [vietnameseSample.text.trim(), englishSample.text.trim()].filter(function(value) { return !!value }).join("\n") }
     function chooseVoicePair(vi, en) { bridge.stopSpeech(); draftVoice = bridge.composeVoicePair(vi, en) }
-    readonly property bool voiceDirty: draftVoice !== bridge.voiceSettings.voice || draftRate !== bridge.voiceSettings.rate
+    readonly property bool voiceDirty: draftVoice !== bridge.voiceSettings.voice || draftRate !== bridge.voiceSettings.rate || draftEnglishRate !== (bridge.voiceSettings.en_rate === undefined ? bridge.voiceSettings.rate : bridge.voiceSettings.en_rate)
     readonly property string draftTeachingSubject: (teachingSubjects.currentText === "Khác" ? otherTeachingSubject.text : teachingSubjects.currentText).trim()
     readonly property bool profileDirty: (teacherName.text.trim() || "Thầy cô") !== bridge.settings.teacher
         || schoolName.text.trim() !== bridge.settings.school || draftTeachingSubject !== bridge.defaultTeachingSubject
     function previewActive(kind) { return bridge.voiceUiState.kind === kind && ["preparing", "playing"].indexOf(bridge.voiceUiState.phase) >= 0 }
     Connections {
         target: page.bridge
-        function onVoiceSettingsChanged() { page.draftVoice = page.bridge.voiceSettings.voice; page.draftRate = page.bridge.voiceSettings.rate }
+        function onVoiceSettingsChanged() { page.draftVoice = page.bridge.voiceSettings.voice; page.draftRate = page.bridge.voiceSettings.rate; page.draftEnglishRate = page.bridge.voiceSettings.en_rate === undefined ? page.draftRate : page.bridge.voiceSettings.en_rate }
     }
     Connections {
         target: page.bridge.googleSettings
@@ -357,7 +358,7 @@ Item {
                                 SoftButton { objectName: "previewEnglishVoice"; text: page.previewActive("en") ? "Dừng" : "Nghe thử"; iconName: page.previewActive("en") ? "pause" : "play"; implicitHeight: 44
                                     Layout.preferredWidth: 120; Layout.minimumWidth: 120
                                     enabled: page.previewActive("en") || !!page.selectedVoicePair.en && !!englishSample.text.trim()
-                                    onClicked: page.previewActive("en") ? bridge.stopSpeech() : bridge.previewNarrationLanguage("en", page.draftVoice, page.draftRate, englishSample.text)
+                                    onClicked: page.previewActive("en") ? bridge.stopSpeech() : bridge.previewNarrationLanguage("en", page.draftVoice, page.draftEnglishRate, englishSample.text)
                                 }
                             }
                             TextArea {
@@ -368,17 +369,15 @@ Item {
                             }
                         }
                     }
-                    RowLayout { Layout.fillWidth: true; spacing: 12
-                        Label { text: "Tốc độ đọc"; color: page.ink; font.weight: Font.DemiBold }
-                        Slider {
-                            id: voiceRate; objectName: "settingsVoiceRate"; Layout.fillWidth: true
-                            from: -3; to: 3; stepSize: 1; snapMode: Slider.SnapAlways
-                            value: page.draftRate; onMoved: page.draftRate = Math.round(value)
-                            enabled: bridge.multilingualVoices.length > 0
-                            Accessible.name: "Tốc độ đọc từ 82 đến 118 phần trăm"
+                    GridLayout { Layout.fillWidth: true; columns: page.width >= 760 ? 2 : 1; columnSpacing: 24; rowSpacing: 10
+                        ReadingSpeedControl { bridge: page.bridge; rate: page.draftRate; language: "tiếng Việt"; sliderName: "settingsVoiceRate"; labelName: "settingsVoiceSpeedLabel"; Layout.fillWidth: true; Layout.preferredWidth: 1
+                            onEdited: function(rate) { bridge.stopSpeech(); page.draftRate = rate }
                         }
-                        Label { objectName: "settingsVoiceSpeedLabel"; text: Math.round([.82, .88, .94, 1, 1.06, 1.12, 1.18][page.draftRate + 3] * 100) + "%"; color: page.blue; font.weight: Font.Bold; font.pixelSize: 16 }
+                        ReadingSpeedControl { bridge: page.bridge; rate: page.draftEnglishRate; language: "tiếng Anh"; sliderName: "settingsEnglishVoiceRate"; labelName: "settingsEnglishVoiceSpeedLabel"; Layout.fillWidth: true; Layout.preferredWidth: 1
+                            onEdited: function(rate) { bridge.stopSpeech(); page.draftEnglishRate = rate }
+                        }
                     }
+                    Hint { text: "Mỗi ngôn ngữ có tốc độ riêng. 100% là bình thường; 75–88% đọc chậm hơn. Mức 60% có thể nghe kéo dài; nên bấm Nghe thử trước khi lưu."; Layout.fillWidth: true }
                     RowLayout {
                         Layout.fillWidth: true; spacing: 12
                         Label { text: "Nghỉ giữa các đoạn đọc"; color: page.ink; font.weight: Font.DemiBold; Layout.fillWidth: true }
@@ -389,9 +388,9 @@ Item {
                     RowLayout {
                         objectName: "settingsVoiceActions"
                         Layout.fillWidth: true; spacing: 10
-                        SoftButton { objectName: "previewMultilingualVoice"; text: page.previewActive("pair") ? "Dừng" : "Nghe cả cặp"; iconName: page.previewActive("pair") ? "pause" : "play"; Layout.preferredWidth: 140; Layout.minimumWidth: 140; enabled: page.previewActive("pair") || !!page.draftVoice && !!page.pairPreviewText(); onClicked: page.previewActive("pair") ? bridge.stopSpeech() : bridge.previewMultilingualVoice(page.draftVoice, page.draftRate, page.pairPreviewText()) }
+                        SoftButton { objectName: "previewMultilingualVoice"; text: page.previewActive("pair") ? "Dừng" : "Nghe cả cặp"; iconName: page.previewActive("pair") ? "pause" : "play"; Layout.preferredWidth: 140; Layout.minimumWidth: 140; enabled: page.previewActive("pair") || !!page.draftVoice && !!page.pairPreviewText(); onClicked: page.previewActive("pair") ? bridge.stopSpeech() : bridge.previewMultilingualVoice(page.draftVoice, page.draftRate, page.pairPreviewText(), page.draftEnglishRate) }
                         Item { Layout.fillWidth: true }
-                        SaveButton { objectName: "saveMultilingualVoice"; text: bridge.voiceUiState.saving ? "Đang lưu…" : "Lưu cặp giọng và tốc độ"; enabled: !bridge.voiceUiState.saving && !!page.draftVoice; onClicked: bridge.saveMultilingualVoice(page.draftVoice, page.draftRate) }
+                        SaveButton { objectName: "saveMultilingualVoice"; text: bridge.voiceUiState.saving ? "Đang lưu…" : "Lưu cặp giọng và tốc độ"; enabled: !bridge.voiceUiState.saving && !!page.draftVoice; onClicked: bridge.saveMultilingualVoice(page.draftVoice, page.draftRate, page.draftEnglishRate) }
                     }
                     Hint { objectName: "voiceSaveStatus"; visible: !!text; text: bridge.voiceUiState.saving || bridge.voiceUiState.saveError ? bridge.voiceUiState.saveMessage : page.voiceDirty ? "Chưa lưu thay đổi · " + (page.selectedVoicePair.name || "") : bridge.voiceUiState.saveMessage || ""; color: bridge.voiceUiState.saveError ? AppTheme.adapt("#ba581a") : page.voiceDirty ? page.muted : AppTheme.adapt("#168567"); Layout.fillWidth: true }
                     Hint { objectName: "voicePreviewStatus"; visible: !!bridge.voiceUiState.message; text: bridge.voiceUiState.message; Layout.fillWidth: true }

@@ -3,6 +3,7 @@
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from .narration_script import segments as narration_segments
+from .voice_rates import rate_for
 
 
 class NarrationWorkspace(QObject):
@@ -243,12 +244,12 @@ class NarrationWorkspace(QObject):
         if not queue:
             bridge.inform('Slide này không có lời đọc đã lưu cho ngôn ngữ đang chọn.', refresh=False)
             return
-        if any(speech.audio_key(part, speech.voice_for(record['voice'], lang), record['rate']) not in record['keys'].get(lang, [])
+        if any(speech.audio_key(part, speech.voice_for(record['voice'], lang), rate_for(record, lang)) not in record['keys'].get(lang, [])
                for lang in wanted for part in texts[lang]):
             bridge.inform('Lời đọc đã thay đổi. Tạo lại phần còn thiếu trước khi nghe bản đã lưu.', True, refresh=False)
             return
         bridge.stopSpeech()
-        bridge.english_reader.start(queue, speech.voice_for(record['voice'], language), record['rate'], cache_only=True)
+        bridge.english_reader.start(queue, speech.voice_for(record['voice'], language), rate_for(record, language), cache_only=True)
         self._created_playback = {'lesson_id': bridge._lesson['id'], 'record_id': identity,
                                   'slide': number, 'language': language,
                                   'generation': bridge.english_reader.generation}

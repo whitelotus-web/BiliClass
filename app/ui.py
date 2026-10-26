@@ -36,6 +36,7 @@ from .storage import configure_logging, restore_backup
 from .teaching import TeachingBridge
 from .text_quality import review_warnings
 from .updater import check_for_update, download_and_stage, launch_install
+from .voice_rates import rate_choices, rate_for, valid_rate
 
 RESOURCES = RESOURCE_ROOT  # Retained for source smoke scripts; no M0 runtime dependency.
 
@@ -1322,7 +1323,7 @@ class Bridge(QObject):
         if not identity:
             return
         value = dict(lesson_id=lesson['id'], variant_id=identity, title=lesson['title'],
-                     mode=record['mode'], voice=record['voice'], rate=record.get('rate', 0))
+                     mode=record['mode'], voice=record['voice'], rate=record.get('rate', 0), en_rate=rate_for(record, 'en'))
         if value != self._recent_narration_result:
             self._recent_narration_result = value
             self.recentNarrationChanged.emit()
@@ -1405,7 +1406,8 @@ class Bridge(QObject):
         self.downloadLibraryPresentations([self._lesson['id']], url, True)
 
     @Slot('QVariantList', str, int, result='QVariantMap')
-    def narrationCreationChoices(self, rows, voice, rate):
+    @Slot('QVariantList', str, int, int, result='QVariantMap')
+    def narrationCreationChoices(self, rows, voice, rate, en_rate=None):
         from .lesson_narration import creation_choices
 
         # Reuse the selected product's existing check and the background catalog
@@ -1414,7 +1416,7 @@ class Bridge(QObject):
         if live.get('running'):
             from .lesson_narration import variant_id
             live = {**live, 'id': variant_id(self._lesson.get('narration'))}
-        return creation_choices(self._lesson, voice, rate, rows, live)
+        return creation_choices(self._lesson, voice, rate, rows, live, en_rate=en_rate)
 
     @Property(str, notify=narrationChanged)
     def selectedNarrationVariant(self):
@@ -1443,7 +1445,7 @@ class Bridge(QObject):
 
     @Slot(str)
     def createLessonNarration(self, mode):
-        self.createLessonNarrationWithVoice(mode, self.voiceSettings.get('voice', ''), self.voiceSettings['rate'])
+        self.createLessonNarrationWithVoice(mode, self.voiceSettings.get('voice', ''), self.voiceSettings['rate'], self.voiceSettings.get('en_rate', self.voiceSettings['rate']))
 
     @Property('QVariantMap', notify=selectionChanged)
     def narrationInputLanguages(self):
@@ -1474,8 +1476,9 @@ class Bridge(QObject):
         return getattr(self, '_narration_import_name', '') if self._busy else ''
 
     @Slot(str, str, int)
-    def createLessonNarrationWithVoice(self, mode, voice, rate):
-        self._create_narration(mode, voice, rate)
+    @Slot(str, str, int, int)
+    def createLessonNarrationWithVoice(self, mode, voice, rate, en_rate=None):
+        self._create_narration(mode, voice, rate, en_rate=en_rate)
 
     @Slot()
     def completeLegacyNarration(self):
@@ -1491,31 +1494,35 @@ class Bridge(QObject):
         if not choice:
             return
         self._automatic_narration_repairs.add(attempt)
-        self._create_narration(choice['mode'], choice['voice'], choice['rate'])
+        self._create_narration(choice['mode'], choice['voice'], choice['rate'], en_rate=choice.get('en_rate'))
 
     @Slot(str, int, str, str, int, bool)
-    def confirmExistingNarration(self, lesson_id, revision, mode, voice, rate, regenerate):
+    @Slot(str, int, str, str, int, bool, int)
+    def confirmExistingNarration(self, lesson_id, revision, mode, voice, rate, regenerate, en_rate=None):
         request = getattr(self, '_narration_confirmation', None)
-        if request != (lesson_id, revision, mode, voice, rate) or (
+        if request != (lesson_id, revision, mode, voice, rate, en_rate) or (
                 self._lesson.get('id'), self._lesson.get('revision')) != (lesson_id, revision):
             self.inform('Bài hoặc cấu hình đã thay đổi. Bấm Tạo giọng đọc để kiểm tra lại.', True, refresh=False)
             return
         self._narration_confirmation = None
         if regenerate:
-            self._create_narration(mode, voice, rate, regenerate=True)
+            self._create_narration(mode, voice, rate, regenerate=True, en_rate=en_rate)
         else:
             from .lesson_narration import make_plan, variant_id
 
-            plan, _ = make_plan(self._lesson, mode, {'voice': voice, 'rate': rate})
+            options = {'voice': voice, 'rate': rate}
+            if en_rate is not None:
+                options['en_rate'] = en_rate
+            plan, _ = make_plan(self._lesson, mode, options)
             self.selectNarrationVariant(variant_id(plan))
             self.inform('Đã chọn bản giọng có sẵn để tải hoặc dạy.', refresh=False)
 
-    def _create_narration(self, mode, voice, rate, *, regenerate=False):
+    def _create_narration(self, mode, voice, rate, *, regenerate=False, en_rate=None):
         from .narration_preparation import prepare_request
 
         if not self._lesson or not self.narration_workspace.available():
             return
-        if not self._available_voice(voice) or type(rate) is not int or not -3 <= rate <= 3:
+        if not self._available_voice(voice) or not valid_rate(rate) or en_rate is not None and not valid_rate(en_rate):
             self.inform("Chọn giọng và tốc độ hợp lệ trước khi tạo âm thanh.", True)
             return
         identity, revision, directory = self._lesson['id'], self._lesson['revision'], self.library.directory
@@ -1525,9 +1532,9 @@ class Bridge(QObject):
                 return
             self._narration_preferences.select(mode)
             if result.get('already_created'):
-                self._narration_confirmation = (identity, revision, mode, voice, rate)
+                self._narration_confirmation = (identity, revision, mode, voice, rate, en_rate)
                 self.narrationAlreadyCreated.emit(dict(lesson_id=identity, revision=revision,
-                    mode=mode, voice=voice, rate=rate, title=next((v.get('name', voice) for v in self.multilingualVoices if v['id'] == voice), voice)))
+                    mode=mode, voice=voice, rate=rate, en_rate=en_rate, title=next((v.get('name', voice) for v in self.multilingualVoices if v['id'] == voice), voice)))
                 self.inform('Cấu hình giọng này đã sẵn sàng. Chọn dùng bản có sẵn hoặc xác nhận tạo lại.', refresh=False)
                 return
             self._lesson = result['lesson']
@@ -1536,8 +1543,9 @@ class Bridge(QObject):
             self.inform("Đang tạo giọng đọc trên máy. PowerPoint đã được lưu."
                         if self.narrationPreparation.get("running") else self.narrationPreparation.get("message", "Giọng đọc sẵn sàng."))
         self.stopSpeech()
+        arguments = {} if en_rate is None else dict(en_rate=en_rate)
         self.launch(lambda: prepare_request(directory, identity, revision, mode, voice, rate, regenerate,
-                                             self.cancel_event), ready)
+                                             self.cancel_event, **arguments), ready)
         self.inform('Đang chuẩn bị giọng đọc…', refresh=False)
 
     @Slot()
@@ -1688,7 +1696,7 @@ class Bridge(QObject):
         if not self._lesson.get("external_deck") and "narration" not in self._lesson:
             return dict(self.voiceSettings)
         status = self.lessonNarration
-        return {"voice": status.get("voice", ""), "rate": status.get("rate", 0),
+        return {"voice": status.get("voice", ""), "rate": status.get("rate", 0), "en_rate": status.get("en_rate", status.get("rate", 0)),
                 **{lang: speech.voice_for(status.get("voice", ""), lang) if lang in status.get("languages", []) else "" for lang in ("vi", "en")}}
 
 
@@ -2082,6 +2090,14 @@ class Bridge(QObject):
     def history(self):
         return self.library.history(self._lesson["id"]) if self._lesson else []
 
+
+    @Property('QVariantList', constant=True)
+    def voiceSpeedChoices(self):
+        return rate_choices()
+
+    @Slot(int, result=str)
+    def voiceSpeedLabel(self, rate):
+        return next((row['label'] for row in rate_choices() if row['rate'] == rate), '100%')
 
     @Property("QVariantList", notify=voiceCatalogChanged)
     def multilingualVoices(self):
@@ -2735,11 +2751,15 @@ class Bridge(QObject):
             self.inform(str(exc), True)
 
     @Slot(str, int)
-    def saveMultilingualVoice(self, voice, rate):
-        if not self._available_voice(voice) or not -3 <= rate <= 3:
+    @Slot(str, int, int)
+    def saveMultilingualVoice(self, voice, rate, en_rate=None):
+        if not self._available_voice(voice) or not valid_rate(rate) or en_rate is not None and not valid_rate(en_rate):
             self.inform("Chọn giọng và tốc độ hợp lệ trước khi lưu.", True, refresh=False)
             return
-        self.voice_controls.save(voice, rate)
+        if en_rate is None:
+            self.voice_controls.save(voice, rate)
+        else:
+            self.voice_controls.save(voice, rate, en_rate)
 
     def _voice_saved(self):
         self.voiceSettingsChanged.emit()
@@ -2755,8 +2775,9 @@ class Bridge(QObject):
             self.inform('Chưa phát được câu mẫu. Kiểm tra thiết bị loa của Windows.', True, refresh=False)
 
     @Slot(str, int, str)
-    def previewMultilingualVoice(self, voice, rate, sample):
-        if not self._available_voice(voice) or not -3 <= rate <= 3:
+    @Slot(str, int, str, int)
+    def previewMultilingualVoice(self, voice, rate, sample, en_rate=None):
+        if not self._available_voice(voice) or not valid_rate(rate) or en_rate is not None and not valid_rate(en_rate):
             self.inform("Chọn giọng và tốc độ hợp lệ để nghe thử.", True, refresh=False)
             return
         sample = sample.strip()
@@ -2764,13 +2785,13 @@ class Bridge(QObject):
             self.inform("Câu nghe thử cần từ 1 đến 1000 ký tự.", True, refresh=False)
             return
         self.stopSpeech()
-        self.voice_controls.preview(sample, voice, rate, kind='pair')
+        self.voice_controls.preview(sample, voice, rate, kind='pair', en_rate=en_rate)
 
     @Slot(str, str, int, str)
     def previewNarrationLanguage(self, language, voice, rate, sample):
         if language not in {'vi', 'en'} or not self._available_voice(voice):
             return
-        if type(rate) is not int or not -3 <= rate <= 3 or not 1 <= len(sample.strip()) <= 1000:
+        if type(rate) is not int or not valid_rate(rate) or not 1 <= len(sample.strip()) <= 1000:
             return
         self.stopSpeech()
         self.voice_controls.preview(sample, speech.voice_for(voice, language), rate, kind=language)
@@ -2833,7 +2854,7 @@ class Bridge(QObject):
             return
         voices = self._lesson_voice_settings()
         voice = voices[language]
-        text, rate = self._reading_text(language), voices["rate"]
+        text, rate = self._reading_text(language), rate_for(voices, language)
         if not voice and (self._lesson.get("external_deck") or "narration" in self._lesson):
             self.inform("Bài này chưa chọn giọng đọc cho ngôn ngữ này. Chọn Tạo giọng đọc ở màn bài giảng.", True)
             return
@@ -2939,7 +2960,7 @@ class Bridge(QObject):
             self.inform("Slide này chưa có nội dung tiếng Anh để đọc." if not slide.get("englishSpeechSegments")
                         else "Phần tiếng Anh đang ẩn hoặc cần kiểm tra; chưa có lời đọc được xác minh.", True)
             return
-        self.english_reader.start([s["english_text"] for s in segments], voice, voices["rate"])
+        self.english_reader.start([s["english_text"] for s in segments], voice, rate_for(voices, 'en'))
         if slide.get("issues"):
             self.inform("Đọc phần tiếng Anh xác định được trên slide. Chữ trong ảnh/ký hiệu/hiệu ứng chưa rõ vẫn cần kiểm tra.")
 
@@ -3099,7 +3120,7 @@ class Bridge(QObject):
         if self._lesson.get("external_deck"):
             self.createLessonNarration(language)
             return
-        voice, rate = self.voiceSettings[language], self.voiceSettings["rate"]
+        voice, rate = self.voiceSettings[language], rate_for(self.voiceSettings, language)
         if not voice:
             self.inform("Chọn giọng đọc trong Cài đặt trước khi chuẩn bị âm thanh.", True)
             return

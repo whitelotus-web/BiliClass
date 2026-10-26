@@ -5,7 +5,8 @@ from itertools import zip_longest
 from .slide_speech import speech_chunks, speech_problem
 
 
-def narration_tasks(inspection, voices):
+def narration_tasks(inspection, voices, *, include_rates=False):
+    from .voice_rates import rate_for
     data = inspection.get("slide_speech")
     if data:
         vietnamese = [(unit["vi"], "vi") for unit in inspection["profile"]["units"] if unit["vi"].strip()]
@@ -24,7 +25,7 @@ def narration_tasks(inspection, voices):
                 if speech_problem(part) in {'technical_text', 'suspicious_code', 'suspicious_character'}:
                     skipped += 1
                 else:
-                    tasks.append((part, voices[language]))
+                    tasks.append((part, voices[language], rate_for(voices, language)) if include_rates else (part, voices[language]))
         except ValueError:
             skipped += 1
     duplicates = len(tasks)
@@ -37,10 +38,10 @@ def prepare_narration(inspection, voices, directory, cancel, progress):
     from . import speech
     from .conversion_progress import emit_progress
 
-    tasks, skipped, duplicates = narration_tasks(inspection, voices)
+    tasks, skipped, duplicates = narration_tasks(inspection, voices, include_rates=True)
     complete, cached, errors = 0, 0, []
     emit_progress(progress, "audio", f"Chuẩn bị {len(tasks)} đoạn giọng đọc khác nhau…", 0, len(tasks))
-    for index, (text, voice) in enumerate(tasks, 1):
+    for index, (text, voice, rate) in enumerate(tasks, 1):
         if cancel.is_set():
             break
         if len(text) > 5000:
@@ -48,7 +49,7 @@ def prepare_narration(inspection, voices, directory, cancel, progress):
             continue
         emit_progress(progress, "audio", f"Chuẩn bị giọng đọc {index}/{len(tasks)}…", index-1, len(tasks))
         try:
-            result = speech.synthesize(text, voice, voices["rate"], directory)
+            result = speech.synthesize(text, voice, rate, directory)
             cached += bool(result and result.get("cached"))
             complete += 1
         except Exception:

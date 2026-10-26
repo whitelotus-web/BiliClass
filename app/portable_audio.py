@@ -6,6 +6,7 @@ import wave
 from pathlib import Path
 
 from .speech import audio_key, valid_audio, voice_for
+from .voice_rates import rate_for, valid_rate
 
 
 def text_hash(text):
@@ -52,13 +53,13 @@ def collect_audio(library, lesson):
             # A machine can export its prepared WAVs even if its model was
             # removed. Preserve old-language cached audio without offering
             # those legacy engines as new voice choices.
-            candidates = [(narration.get("voice", ""), narration.get("rate", 0)),
-                          (selections["voice"], selections["rate"]),
-                          (saved.get("voice", ""), saved.get("rate", 0)),
+            candidates = [(narration.get("voice", ""), rate_for(narration, language)),
+                          (selections["voice"], rate_for(selections, language)),
+                          (saved.get("voice", ""), rate_for(saved, language)),
                           (library.setting("voice_" + language, ""), library.setting("voice_rate", 0))]
             path = None
             for voice, rate in candidates:
-                if not isinstance(voice, str) or not voice or type(rate) is not int or not -3 <= rate <= 3:
+                if not isinstance(voice, str) or not voice or type(rate) is not int or not valid_rate(rate):
                     continue
                 voice = voice_for(voice, language)
                 path = available_audio(library.directory, segment[language], language, voice, rate)
@@ -95,7 +96,7 @@ def validate_audio(records, segments, payloads):
         digest = hashlib.sha256(data).hexdigest()
         if filename != digest + ".wav" or item.get("sha256") != digest or item.get("text_sha256") != text_hash(segment[language]):
             raise ValueError("Âm thanh không khớp nội dung hoặc checksum.")
-        if not isinstance(item.get("voice"), str) or len(item["voice"]) > 1000 or type(item.get("rate")) is not int or not -3 <= item["rate"] <= 3:
+        if not isinstance(item.get("voice"), str) or len(item["voice"]) > 1000 or type(item.get("rate")) is not int or not valid_rate(item["rate"]):
             raise ValueError("Giọng/tốc độ âm thanh không hợp lệ.")
         try:
             with wave.open(io.BytesIO(data), "rb") as wav:

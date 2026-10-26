@@ -63,8 +63,10 @@ class VoiceControls(QObject):
                 'saveError': self.save_error, 'phase': self.phase, 'message': self.message,
                 'previewSeconds': self.preview_seconds, 'saveSeconds': self.save_seconds, 'kind': self.kind}
 
-    def save(self, voice, rate):
+    def save(self, voice, rate, en_rate=None):
         self.pending_save = {'voice': voice, 'rate': rate}
+        if en_rate is not None:
+            self.pending_save.update(vi_rate=rate, en_rate=en_rate)
         if self.save_worker is not None:
             return
         self._start_save()
@@ -97,11 +99,11 @@ class VoiceControls(QObject):
             self.saved.emit()
         task.deleteLater()
 
-    def preview(self, text, voice, rate, *, kind='pair'):
+    def preview(self, text, voice, rate, *, kind='pair', en_rate=None):
         self.stop()
         self.kind = kind
         self.phase, self.message = 'preparing', 'Đang chuẩn bị câu nghe thử…'
-        request = self.generation, text, voice, rate
+        request = self.generation, text, voice, rate, en_rate
         self.changed.emit()
         if len(self.preview_workers) >= 2:
             self.pending = request  # Only the latest request survives rapid clicks.
@@ -111,8 +113,9 @@ class VoiceControls(QObject):
     def _start_preview(self, request):
         from .voice_preview import preview
 
-        generation, text, voice, rate = request
-        task = VoiceTask(lambda cancel: preview(text, voice, rate, self.directory / 'audio', cancel=cancel), self)
+        generation, text, voice, rate, en_rate = request
+        arguments = {} if en_rate is None else dict(en_rate=en_rate)
+        task = VoiceTask(lambda cancel: preview(text, voice, rate, self.directory / 'audio', cancel=cancel, **arguments), self)
         task.generation = generation
         task.finished.connect(self._preview_finished)
         self.preview_workers.append(task)

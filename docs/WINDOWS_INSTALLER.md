@@ -7,10 +7,15 @@ giấy phép. Không cần Python hoặc tải model riêng trên máy nhận.
 
 Người dùng giữ cả thư mục bộ cài, mở EXE và chọn thư mục cài. Không cần
 giải nén ZIP. Thư viện, key dịch và bài cá nhân được lưu riêng. Chuyển đổi
-cần Internet và key Google Cloud Translation; PowerPoint desktop vẫn
+cần Internet và một dịch vụ đã cấu hình trong Cài đặt → Dịch thuật;
+PowerPoint desktop vẫn
 là phần mềm cần có trên máy để xem và trình chiếu PowerPoint.
 
-Chọn một thư mục mới/trống, ví dụ `D:\BiliClass-App`. Không chọn thư mục
+Lần đầu chọn một thư mục mới/trống, ví dụ `D:\BiliClass-App`. Cập nhật có
+thể dùng đúng thư mục ứng dụng cũ có marker BiliClass; phiên bản mới được
+cài trong thư mục riêng và dữ liệu thư viện/key nằm ngoài nơi cài app.
+Kiểm thử RC167 → RC169 xác nhận dữ liệu thử và key/cài đặt giữ nguyên.
+Không chọn thư mục
 đang chứa `BiliClass-Setup.exe` và ZIP hoặc thư mục tài liệu có sẵn.
 Nếu báo thư mục đã có dữ liệu, chọn/tạo thư mục mới; không xóa các file
 hiện có để làm trống thư mục đó.

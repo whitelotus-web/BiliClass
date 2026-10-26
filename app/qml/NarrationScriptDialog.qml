@@ -7,6 +7,7 @@ Dialog {
     property var workspace
     property string voice: ""
     property int rate: 0
+    property int enRate: rate
     property bool working: false
     property var currentSlide: ({})
     readonly property bool editable: !!workspace && workspace.summary.editable
@@ -47,7 +48,7 @@ Dialog {
                 TextArea { id: english; objectName: "narrationScriptEnglish"; readOnly: !dialog.editable || dialog.working; selectByMouse: true; wrapMode: TextEdit.Wrap; placeholderText: "Nhập lời đọc tiếng Anh cho slide này"; font.pixelSize: 14 }
             }
             ActionButton { objectName: "previewNarrationScriptVietnamese"; text: "Nghe thử lời Việt"; enabled: !dialog.working && !dialog.dirty && !!vietnamese.text.trim() && !!dialog.voice; onClicked: dialog.workspace.preview("vi", dialog.voice, dialog.rate) }
-            ActionButton { objectName: "previewNarrationScriptEnglish"; text: "Nghe thử lời Anh"; enabled: !dialog.working && !dialog.dirty && !!english.text.trim() && !!dialog.voice; onClicked: dialog.workspace.preview("en", dialog.voice, dialog.rate) }
+            ActionButton { objectName: "previewNarrationScriptEnglish"; text: "Nghe thử lời Anh"; enabled: !dialog.working && !dialog.dirty && !!english.text.trim() && !!dialog.voice; onClicked: dialog.workspace.preview("en", dialog.voice, dialog.enRate) }
         }
         Label { text: "Nghe thử tối đa 250 ký tự đầu với giọng và tốc độ đang chọn."; color: AppTheme.adapt("#667997"); font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap }
         RowLayout { Layout.fillWidth: true

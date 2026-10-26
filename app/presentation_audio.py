@@ -13,6 +13,7 @@ from .narration_script import segments as narration_segments
 from .narration_timing import reading_gap
 from .powerpoint import slide_for_locator
 from .source_deck import NS, _bytes, _rels_path, _xml, source_slide_parts
+from .voice_rates import rate_for
 
 
 def slide_audio(lesson, directory, *, scope='full_slide'):
@@ -47,7 +48,7 @@ def slide_audio(lesson, directory, *, scope='full_slide'):
                 for part in speech_chunks(unit["vi"])
             ]
         for language, texts in languages.items():
-            keys = [speech.audio_key(text, speech.voice_for(record["voice"], language), record["rate"]) for text in texts]
+            keys = [speech.audio_key(text, speech.voice_for(record["voice"], language), rate_for(record, language)) for text in texts]
             if not keys:
                 continue
             if any(key not in record["keys"][language] or not valid_key(directory, key) for key in keys):

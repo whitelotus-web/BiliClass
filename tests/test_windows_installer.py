@@ -15,7 +15,7 @@ VERSION = '1.0.0rc164'
 pytestmark = pytest.mark.skipif(os.name != 'nt', reason='Native Windows installer')
 
 
-def make_package(folder, *, bad_hash=False, unsafe=None, missing=False, duplicate=False):
+def make_package(folder, *, bad_hash=False, unsafe=None, missing=False, duplicate=False, version=VERSION):
     files = {'BiliClass.exe': b'fixture exe; not executed',
              '_internal/app/qml/Main.qml': 'Nội dung thử'.encode(),
              'models/vieneu-hf/config.json': b'{}'}
@@ -27,7 +27,7 @@ def make_package(folder, *, bad_hash=False, unsafe=None, missing=False, duplicat
         files[unsafe] = b'escape'
     target = folder/'package.zip'
     with zipfile.ZipFile(target, 'w', zipfile.ZIP_DEFLATED) as archive:
-        archive.writestr('app-manifest.json', json.dumps(dict(product='BiliClass', version=VERSION, files=hashes)))
+        archive.writestr('app-manifest.json', json.dumps(dict(product='BiliClass', version=version, files=hashes)))
         for name, data in files.items():
             if not (missing and name == 'BiliClass.exe'):
                 archive.writestr('BiliClass/'+name, data)
@@ -66,6 +66,38 @@ def test_direct_zip_install_and_uninstall_preserves_separate_library(tmp_path):
     assert not list((target/VERSION).glob('.staging-*'))
     assert invoke(target, uninstall=True).returncode == 0
     assert not target.exists() and (data/'library.db').read_bytes() == b'preserve teacher data'
+
+
+def test_rc167_to_rc169_upgrade_keeps_old_program_and_teacher_data_key_settings(tmp_path):
+    from contextlib import closing
+
+    from app.google_translation import KeyStore
+    from app.library import Library
+
+    data = tmp_path / 'Thư viện giáo viên'
+    with closing(Library(data)) as library:
+        lesson = library.create('Bài giảng đã có', 'Toán', 'THPT', '11', [('Mở đầu', 'Nội dung giữ nguyên.')])
+        library.set_setting('voice_options', dict(voice='pair:north-female', rate=-2))
+        library.set_setting('teacher', 'Giáo viên thử nâng cấp')
+    KeyStore(data).add('AIza' + 'a' * 35)
+    (data / 'audio').mkdir(exist_ok=True)
+    (data / 'audio/teacher.wav').write_bytes(b'teacher audio fixture')
+    before = {path.relative_to(data): path.read_bytes() for path in data.rglob('*') if path.is_file()}
+    application = tmp_path / 'BiliClass-App'
+    for version in ('1.0.0rc167', '1.0.0rc169'):
+        folder = tmp_path / version
+        folder.mkdir()
+        package, _ = make_package(folder, version=version)
+        result = invoke(application, package, version=version)
+        assert result.returncode == 0, result.stderr
+    assert (application / '1.0.0rc167/BiliClass.exe').is_file()
+    assert (application / '1.0.0rc169/BiliClass.exe').is_file()
+    marker = json.loads((application / '.biliclass-install.json').read_text(encoding='utf-8-sig'))
+    assert marker['version'] == '1.0.0rc169'
+    assert before == {path.relative_to(data): path.read_bytes() for path in data.rglob('*') if path.is_file()}
+    with closing(Library(data)) as library:
+        assert library.get(lesson['id'])['title'] == 'Bài giảng đã có'
+        assert library.setting('voice_options', {})['rate'] == -2
 
 
 @pytest.mark.parametrize('options', [dict(bad_hash=True), dict(missing=True), dict(unsafe='../escape.txt'),

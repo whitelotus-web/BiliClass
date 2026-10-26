@@ -157,7 +157,7 @@ ApplicationWindow {
                 teacherNotesInput.text = options.notes || ""
             } else {
                 root.narrationMode = options.mode; root.narrationVoice = options.voice
-                root.narrationRate = options.rate; root.batchSpeakerPosition = options.position
+                root.narrationRate = options.rate; root.narrationEnglishRate = options.en_rate === undefined ? options.rate : options.en_rate; root.batchSpeakerPosition = options.position
             }
         }
         if (batchState.complete) {
@@ -195,7 +195,8 @@ ApplicationWindow {
         narrationOptionsPinned = false
         narrationMode = bridge.lessonNarration.mode
         narrationVoice = bridge.lessonNarration.voice
-        narrationRate = bridge.lessonNarration.rate || 0
+        narrationRate = bridge.lessonNarration.mode === "en" ? bridge.voiceSettings.rate : (bridge.lessonNarration.rate || 0)
+        narrationEnglishRate = bridge.lessonNarration.mode === "vi" ? bridge.voiceSettings.en_rate : (bridge.lessonNarration.en_rate === undefined ? bridge.lessonNarration.rate || 0 : bridge.lessonNarration.en_rate)
         if (!voiceResultDismissed) voiceResultShown = true
         bridge.rememberNarrationResult()
         voicePreviewExpanded = true
@@ -234,8 +235,9 @@ ApplicationWindow {
     property string narrationMode: bridge.narrationPreferences.mode
     property string narrationVoice: bridge.voiceSettings.voice || ""
     property int narrationRate: bridge.voiceSettings.rate || 0
+    property int narrationEnglishRate: bridge.voiceSettings.en_rate === undefined ? narrationRate : bridge.voiceSettings.en_rate
     property bool narrationOptionsPinned: false
-    readonly property var narrationDrafts: bridge.narrationCreationChoices(bridge.narrationVariants, root.narrationVoice, root.narrationRate)
+    readonly property var narrationDrafts: bridge.narrationCreationChoices(bridge.narrationVariants, root.narrationVoice, root.narrationRate, root.narrationEnglishRate)
     readonly property var narrationDraft: !root.narrationOptionsPinned && bridge.lessonNarration.ready && bridge.lessonNarration.mode === root.narrationMode ? bridge.lessonNarration : narrationDrafts[root.narrationMode] || ({})
     readonly property var narrationAvailable: bridge.narrationAvailableModes(bridge.narrationVariants)
     readonly property bool narrationAllCreated: !!narrationAvailable.both
@@ -338,7 +340,8 @@ ApplicationWindow {
                 ? available.en ? "en" : "vi" : preferred
             const voice = bridge.lessonNarration.voice || record.voice || bridge.voiceSettings.voice || ""
             root.narrationVoice = bridge.multilingualVoices.some(function(row) { return row.id === voice }) ? voice : bridge.voiceSettings.voice || ""
-            root.narrationRate = record.voice ? record.rate : bridge.voiceSettings.rate
+            root.narrationRate = record.voice && record.mode !== "en" ? record.rate : bridge.voiceSettings.rate
+            root.narrationEnglishRate = record.voice && record.mode !== "vi" ? (record.en_rate === undefined ? record.rate : record.en_rate) : bridge.voiceSettings.en_rate
         }
     function prepareTeaching(identity) {
         if (bridge.busy || bridge.narrationBusy) return
@@ -625,7 +628,7 @@ ApplicationWindow {
             return
         }
         bridge.batchQueue.startNarration({mode: root.narrationMode, voice: root.narrationVoice,
-            rate: root.narrationRate, position: root.batchSpeakerPosition})
+            rate: root.narrationRate, en_rate: root.narrationEnglishRate, position: root.batchSpeakerPosition})
     }
     function showConversionExample(index) {
         conversionExample.formatIndex = index
@@ -684,7 +687,7 @@ ApplicationWindow {
         function onBrowserStateChanged() { if (!bridge.browserState.running) cancelConversionDialog.close() }
         function onNarrationResultRequested() {
             const recent = bridge.recentNarrationResult
-            root.narrationMode = recent.mode; root.narrationVoice = recent.voice; root.narrationRate = recent.rate
+            root.narrationMode = recent.mode; root.narrationVoice = recent.voice; root.narrationRate = recent.mode === "en" ? bridge.voiceSettings.rate : recent.rate; root.narrationEnglishRate = recent.mode === "vi" ? bridge.voiceSettings.en_rate : (recent.en_rate === undefined ? recent.rate : recent.en_rate)
             root.narrationOptionsPinned = false; root.voiceResultDismissed = false
             root.voiceResultShown = true; root.voicePreviewExpanded = true
             Qt.callLater(root.revealCompletedNarration)
@@ -737,6 +740,7 @@ ApplicationWindow {
             if (!(root.lessonData.narration || {}).voice) {
                 root.narrationVoice = bridge.voiceSettings.voice || ""
                 root.narrationRate = bridge.voiceSettings.rate || 0
+                root.narrationEnglishRate = bridge.voiceSettings.en_rate === undefined ? root.narrationRate : bridge.voiceSettings.en_rate
             }
         }
         function onTeacherProfileSaved() { if (!root.creationSubjectOverridden) root.applyDefaultTeachingSubject() }
@@ -1736,12 +1740,13 @@ ApplicationWindow {
                                 subject: root.creationSubject; education: educationInput.currentText; grade: gradeInput.currentText
                             }
                             NarrationConfiguration {
+                                appBridge: bridge
                                 objectName: "narrationConfiguration"; visible: root.page === "voice" && (!root.voiceBatch || root.batchState.phase === "draft"); Layout.fillWidth: true; Layout.minimumWidth: 0
                                 batchCount: root.voiceBatch ? root.batchState.total : 0
                                 mode: root.narrationMode
                                 voiceName: (bridge.multilingualVoices.find(function(v) { return v.id === root.narrationVoice }) || {}).name || ""
                                 pairLabel: bridge.voicePairDetails(root.narrationVoice).label || ""
-                                rate: root.narrationRate; readable: root.narrationReadableSlides; total: root.narrationEligibleSlides
+                                rate: root.narrationRate; enRate: root.narrationEnglishRate; readable: root.narrationReadableSlides; total: root.narrationEligibleSlides
                                 vietnameseSlides: root.narrationCoverage.vi || 0; englishSlides: root.narrationCoverage.en || 0
                                 hasLesson: !!bridge.quickResult.path && !root.voiceBatch
                                 positionLabel: speakerPositionChoice.currentText
@@ -1768,7 +1773,7 @@ ApplicationWindow {
                                 enabled: root.voiceBatch ? !bridge.busy && !bridge.narrationBusy && (root.batchState.phase === "draft" ? !!root.narrationVoice : !!root.batchState.canResume || !!root.batchState.canRetry || root.batchState.phase === "finished") : !!bridge.quickResult.path && !!root.narrationDraft.total && !!root.narrationVoice && !root.narrationDraft.ready && bridge.narrationWorkspace.configurationEnabled
                                 onClicked: {
                                     if (root.voiceBatch) root.runVoiceBatch()
-                                    else bridge.createLessonNarrationWithVoice(root.narrationMode, root.narrationVoice, root.narrationRate)
+                                    else bridge.createLessonNarrationWithVoice(root.narrationMode, root.narrationVoice, root.narrationRate, root.narrationEnglishRate)
                                 }
                             }
                             MainAction { objectName: "cancelLessonNarrationButton"; danger: true; symbol: "■"; text: bridge.lessonNarration.stopping ? "Đang dừng…" : "Dừng"; enabled: !bridge.lessonNarration.stopping; visible: (root.page === "voice" || root.page === "result") && !!bridge.lessonNarration.running; onClicked: bridge.cancelLessonNarration() }
@@ -2073,13 +2078,21 @@ ApplicationWindow {
                                         ToolTip.visible: hovered; ToolTip.text: "Chọn cặp giọng Việt–Mỹ. Mỗi ngôn ngữ có một người đọc riêng."
                                         model: bridge.multilingualVoices; textRole: "name"; valueRole: "id"
                                         currentIndex: Math.max(0, bridge.multilingualVoices.map(function(v) { return v.id }).indexOf(root.narrationVoice))
-                                        enabled: !bridge.busy && !bridge.narrationBusy; onActivated: { bridge.stopSpeech(); root.narrationVoice = currentValue; bridge.saveMultilingualVoice(root.narrationVoice, root.narrationRate); if (root.page === "voice") root.narrationOptionsPinned = true }
+                                        enabled: !bridge.busy && !bridge.narrationBusy; onActivated: { bridge.stopSpeech(); root.narrationVoice = currentValue; bridge.saveMultilingualVoice(root.narrationVoice, root.narrationRate, root.narrationEnglishRate); if (root.page === "voice") root.narrationOptionsPinned = true }
                                     }
-                                    Choice { objectName: "lessonNarrationRateChoice"; Layout.preferredWidth: 100; model: ["82%", "88%", "94%", "100%", "106%", "112%", "118%"]
-                                        Accessible.name: "Tốc độ đọc"; hoverEnabled: true
-                                        ToolTip.visible: hovered; ToolTip.text: "Tốc độ đọc: 100% là bình thường; số nhỏ hơn đọc chậm hơn."
-                                        currentIndex: root.narrationRate + 3; enabled: !bridge.busy && !bridge.narrationBusy
-                                        onActivated: { bridge.stopSpeech(); root.narrationRate = currentIndex - 3; bridge.saveMultilingualVoice(root.narrationVoice, root.narrationRate); if (root.page === "voice") root.narrationOptionsPinned = true }
+                                    Choice { objectName: "lessonNarrationRateChoice"; Layout.preferredWidth: 122; visible: root.narrationMode !== "en"
+                                        model: bridge.voiceSpeedChoices; textRole: "label"; valueRole: "rate"
+                                        displayText: "Việt " + currentText; Accessible.name: "Tốc độ đọc tiếng Việt"
+                                        currentIndex: model.map(function(row) { return row.rate }).indexOf(root.narrationRate)
+                                        enabled: !bridge.busy && !bridge.narrationBusy
+                                        onActivated: { bridge.stopSpeech(); root.narrationRate = currentValue; bridge.saveMultilingualVoice(root.narrationVoice, root.narrationRate, root.narrationEnglishRate); root.narrationOptionsPinned = true }
+                                    }
+                                    Choice { objectName: "lessonNarrationEnglishRateChoice"; Layout.preferredWidth: 122; visible: root.narrationMode !== "vi"
+                                        model: bridge.voiceSpeedChoices; textRole: "label"; valueRole: "rate"
+                                        displayText: "Anh " + currentText; Accessible.name: "Tốc độ đọc tiếng Anh"
+                                        currentIndex: model.map(function(row) { return row.rate }).indexOf(root.narrationEnglishRate)
+                                        enabled: !bridge.busy && !bridge.narrationBusy
+                                        onActivated: { bridge.stopSpeech(); root.narrationEnglishRate = currentValue; bridge.saveMultilingualVoice(root.narrationVoice, root.narrationRate, root.narrationEnglishRate); root.narrationOptionsPinned = true }
                                     }
                                     MainAction { objectName: "previewLessonNarrationVoice"; text: root.narrationPreviewActive ? "Dừng" : "Nghe thử"; iconName: root.narrationPreviewActive ? "pause" : "play"; enabled: !!root.narrationVoice && !bridge.narrationBusy
                                         ToolTip.visible: hovered
@@ -2087,8 +2100,8 @@ ApplicationWindow {
                                         onClicked: {
                                             if (root.narrationPreviewActive) { bridge.stopSpeech(); return }
                                             const samples = bridge.voicePreviewSamples
-                                            if (root.narrationMode === "both") bridge.previewMultilingualVoice(root.narrationVoice, root.narrationRate, samples.vi + "\n" + samples.en)
-                                            else bridge.previewNarrationLanguage(root.narrationMode, root.narrationVoice, root.narrationRate, samples[root.narrationMode])
+                                            if (root.narrationMode === "both") bridge.previewMultilingualVoice(root.narrationVoice, root.narrationRate, samples.vi + "\n" + samples.en, root.narrationEnglishRate)
+                                            else bridge.previewNarrationLanguage(root.narrationMode, root.narrationVoice, root.narrationMode === "en" ? root.narrationEnglishRate : root.narrationRate, samples[root.narrationMode])
                                         }
                                     }
                                 }
@@ -2162,11 +2175,12 @@ ApplicationWindow {
                                         : "Bài hiện có lời tiếng Anh. Muốn tạo cả hai giọng, cần có thêm lời tiếng Việt."
                                 }
                                 NarrationConfiguration {
+                                appBridge: bridge
                                     objectName: "completedNarrationConfiguration"; visible: root.narrationComplete && root.page !== "voice"; Layout.fillWidth: true
                                     mode: root.narrationMode
                                     voiceName: (bridge.multilingualVoices.find(function(v) { return v.id === root.narrationVoice }) || {}).name || ""
                                     pairLabel: bridge.voicePairDetails(root.narrationVoice).label || ""
-                                    rate: root.narrationRate; readable: root.narrationReadableSlides; total: root.narrationEligibleSlides
+                                    rate: root.narrationRate; enRate: root.narrationEnglishRate; readable: root.narrationReadableSlides; total: root.narrationEligibleSlides
                                     vietnameseSlides: root.narrationCoverage.vi || 0; englishSlides: root.narrationCoverage.en || 0
                                     hasLesson: !!bridge.quickResult.path
                                     positionLabel: speakerPositionChoice.currentText
@@ -2563,7 +2577,7 @@ ApplicationWindow {
             Copy { text: "Đang sao chép và kiểm tra. BiliClass sẽ mở lại khi hoàn tất."; Layout.alignment: Qt.AlignHCenter }
         }
     }
-    NarrationScriptDialog { id: narrationScript; workspace: bridge.narrationWorkspace; appBridge: bridge; voice: root.narrationVoice; rate: root.narrationRate; working: bridge.busy || bridge.narrationBusy }
+    NarrationScriptDialog { id: narrationScript; workspace: bridge.narrationWorkspace; appBridge: bridge; voice: root.narrationVoice; rate: root.narrationRate; enRate: root.narrationEnglishRate; working: bridge.busy || bridge.narrationBusy }
     SuggestedSaveDialog { id: finalPresentationSave; objectName: "finalPresentationSaveDialog"; title: "Tải PowerPoint"; nameFilters: ["PowerPoint (*.pptx)"]; defaultSuffix: "pptx"; currentFolder: bridge.downloadsDirectory; suggestionProvider: function() { return root.lessonData.id ? bridge.libraryDownloadSuggestion([root.lessonData.id], true) : "" }; onAccepted: bridge.downloadFinalPresentation(selectedFile.toString()) }
     SuggestedSaveDialog { id: narrationAudioSave; objectName: "narrationAudioSaveDialog"; title: "Lưu audio theo slide"; nameFilters: ["Audio theo slide (*.zip)"]; defaultSuffix: "zip"; currentFolder: bridge.downloadsDirectory; suggestionProvider: function() { return bridge.exportSuggestion("zip") }; onAccepted: bridge.narrationWorkspace.exportAudio(selectedFile.toString()) }
     FileDialog {
@@ -2603,8 +2617,8 @@ ApplicationWindow {
             Copy { Layout.fillWidth: true; text: "Tạo lại sẽ tổng hợp âm thanh mới cho cấu hình này. Bản cũ được giữ cho đến khi tạo xong."; font.pixelSize: 12 }
             Flow { Layout.fillWidth: true; spacing: 8
                 MainAction { text: "Đóng"; onClicked: existingNarration.close() }
-                MainAction { objectName: "regenerateExistingNarration"; text: "Tạo lại"; danger: true; onClicked: { const c = existingNarration.selection; existingNarration.close(); bridge.confirmExistingNarration(c.lesson_id, c.revision, c.mode, c.voice, c.rate, true) } }
-                MainAction { objectName: "useExistingNarration"; text: "Dùng bản có sẵn"; primary: true; onClicked: { const c = existingNarration.selection; existingNarration.close(); bridge.confirmExistingNarration(c.lesson_id, c.revision, c.mode, c.voice, c.rate, false) } }
+                MainAction { objectName: "regenerateExistingNarration"; text: "Tạo lại"; danger: true; onClicked: { const c = existingNarration.selection; existingNarration.close(); if (c.en_rate === undefined || c.en_rate === null) bridge.confirmExistingNarration(c.lesson_id, c.revision, c.mode, c.voice, c.rate, true); else bridge.confirmExistingNarration(c.lesson_id, c.revision, c.mode, c.voice, c.rate, true, c.en_rate) } }
+                MainAction { objectName: "useExistingNarration"; text: "Dùng bản có sẵn"; primary: true; onClicked: { const c = existingNarration.selection; existingNarration.close(); if (c.en_rate === undefined || c.en_rate === null) bridge.confirmExistingNarration(c.lesson_id, c.revision, c.mode, c.voice, c.rate, false); else bridge.confirmExistingNarration(c.lesson_id, c.revision, c.mode, c.voice, c.rate, false, c.en_rate) } }
             }
         }
     }

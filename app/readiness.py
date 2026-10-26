@@ -4,6 +4,7 @@ import hashlib
 from pathlib import Path
 
 from .portable_audio import available_audio
+from .voice_rates import rate_for
 
 
 def text_readiness(lesson, directory):
@@ -58,7 +59,7 @@ def assess(lesson, directory, voices, selections, rate):
     for language, label in (("en", "tiếng Anh"), ("vi", "tiếng Việt")):
         selected = selections.get(language, "")
         cached = sum(
-            bool(available_audio(directory, s[language], language, selected, rate))
+            bool(available_audio(directory, s[language], language, selected, rate_for({'rate': rate, **selections}, language)))
             for s in segments
             if s[language].strip() and s.get("approved")
         )

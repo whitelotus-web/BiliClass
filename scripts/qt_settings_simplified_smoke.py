@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from PIL import Image
-from PySide6.QtCore import QCoreApplication, QEvent, QObject, QPointF, QSize, Qt, QUrl
+from PySide6.QtCore import QCoreApplication, QEvent, QMetaObject, QObject, QPointF, QSize, Qt, QUrl
 from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuick import QQuickItem
@@ -60,6 +60,32 @@ def main():
             window.setProperty('page', 'settings')
             page = c('settingsPage')
             pump(150)
+            page.setProperty('activeTab', 2)
+            pump(120)
+            assert bridge.voiceSettings['rate'] == bridge.voiceSettings['en_rate'] == 0
+            c('settingsVoiceRate').setProperty('value', -4)
+            assert QMetaObject.invokeMethod(c('settingsVoiceRate'), 'moved', Qt.DirectConnection)
+            assert page.property('draftRate') == -4 and page.property('draftEnglishRate') == 0
+            c('settingsEnglishVoiceRate').setProperty('value', -6)
+            assert QMetaObject.invokeMethod(c('settingsEnglishVoiceRate'), 'moved', Qt.DirectConnection)
+            assert page.property('draftRate') == -4 and page.property('draftEnglishRate') == -6
+            assert bridge.voiceSettings['rate'] == bridge.voiceSettings['en_rate'] == 0, 'Draft speed changes wait for Save'
+            assert c('settingsVoiceSpeedLabel').property('currentText') == '75%'
+            assert c('settingsEnglishVoiceSpeedLabel').property('currentText') == '60%'
+            calls = []
+            with patch.object(bridge.voice_controls, 'preview', lambda text, voice, rate, **kwargs: calls.append((voice, rate, kwargs))):
+                click(window, c('previewVietnameseVoice'))
+                click(window, c('previewEnglishVoice'))
+                click(window, c('previewMultilingualVoice'))
+            assert [row[1] for row in calls] == [-4, -6, -4]
+            assert calls[-1][2]['en_rate'] == -6
+            click(window, c('saveMultilingualVoice'))
+            until(lambda: bridge.voice_controls.save_worker is None)
+            assert bridge.voiceSettings['vi_rate'] == -4 and bridge.voiceSettings['en_rate'] == -6
+            assert not page.property('voiceDirty')
+            assert window.grabWindow().save(str(reports / 'separate-language-speeds.png'))
+            page.setProperty('activeTab', 0)
+            pump(80)
             heading = c('settingsPageTitle')
             conversion_heading = c('creationPageHeading')
             assert heading.property('font').pixelSize() == conversion_heading.property('font').pixelSize()
@@ -341,7 +367,8 @@ def main():
                 assert update.isEnabled() and not bridge.updateState['checking']
             page.setProperty('activeTab', 2)
             pump(100)
-            assert not c('voiceSaveStatus').isVisible(), 'Idle saved settings have no redundant hint'
+            assert not page.property('voiceDirty')
+            assert 'Đã lưu' in c('voiceSaveStatus').property('text'), 'Keep the explicit Save confirmation'
             # A failed restore cannot switch libraries or quit. A verified backup
             # then restores the real fixture and requests one clean restart.
             invalid = directory/'broken.bcbackup'

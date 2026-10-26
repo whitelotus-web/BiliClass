@@ -12,6 +12,7 @@ from .narration_script import segments as narration_segments
 from .powerpoint import slide_for_locator
 from .presentation_audio import joined_wav
 from .slide_speech import speech_chunks
+from .voice_rates import rate_for
 
 
 def export_audio(lesson, directory, destination):
@@ -46,7 +47,7 @@ def export_audio(lesson, directory, destination):
         exported = []
         with zipfile.ZipFile(pending, 'w', zipfile.ZIP_DEFLATED, compresslevel=1) as archive:
             for number, languages in sorted(pages.items()):
-                keys = {language: [speech.audio_key(text, speech.voice_for(record['voice'], language), record['rate']) for text in texts]
+                keys = {language: [speech.audio_key(text, speech.voice_for(record['voice'], language), rate_for(record, language)) for text in texts]
                         for language, texts in languages.items() if texts}
                 for language, values in keys.items():
                     if any(key not in record['keys'].get(language, []) or not valid_key(directory, key) for key in values):
@@ -62,7 +63,7 @@ def export_audio(lesson, directory, destination):
                 f"{unit['locator']}\nVI: {unit['vi']}\nEN: {unit['en']}" for unit in narration_segments(lesson)))
             archive.writestr('manifest.json', json.dumps({
                 'version': 1, 'title': lesson['title'], 'mode': record['mode'],
-                'voice': record['voice'], 'rate': record['rate'], 'files': exported,
+                'voice': record['voice'], 'rate': record['rate'], 'en_rate': rate_for(record, 'en'), 'files': exported,
                 'playback': 'Phát thủ công theo slide; tệp audio không tự đồng bộ hiệu ứng PowerPoint.'},
                 ensure_ascii=False, indent=2))
         os.replace(pending, target)

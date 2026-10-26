@@ -14,6 +14,7 @@ from weakref import WeakValueDictionary
 
 from .voice_pairs import ALL_PAIRS, ENGLISH_VERSION, ENGLISH_VOICES, PAIRS, selection_for, voice_for
 from .voice_pairs import BY_ID as PAIRS_BY_ID
+from .voice_rates import speed_for, valid_rate
 
 VIENEU_VERSION = "vieneu-v3-turbo-onnx-fp32-61b85e3-3.8.3-multilingual-wsola1"
 VIENEU_VOICES = (
@@ -37,7 +38,7 @@ _SECOND_ENGINE_LOCK = Lock()
 _AUDIO_LOCKS_LOCK = Lock()
 _AUDIO_LOCKS = WeakValueDictionary()
 _ISOLATED_SYNTHESIS = False
-# Keep adjustments modest: very slow inference can sound less natural.
+# Retain the old tuple for existing consumers; new rates use speed_for().
 _SPEEDS = (0.82, 0.88, 0.94, 1.0, 1.06, 1.12, 1.18)
 
 
@@ -87,10 +88,15 @@ def voice_settings(library, voices=None):
     if ids and selected in {row['id'] for row in ALL_PAIRS} and selected not in ids:
         ids.append(selected)
     voice = selected if selected in ids else ids[0] if ids else ""
-    rate = rate if type(rate) is int and -3 <= rate <= 3 else 0
+    rate = rate if type(rate) is int and valid_rate(rate) else 0
     # A stable pair identity keeps saved audio independent of later preferences.
-    return {"voice": voice, "vi": voice_for(voice, 'vi'), "en": voice_for(voice, 'en'), "rate": rate,
-            "index": ids.index(voice) if voice else -1, "speed": _SPEEDS[rate + 3]}
+    separate = saved if isinstance(saved, dict) else {}
+    vi_rate, en_rate = (separate.get(lang + '_rate', rate) for lang in ('vi', 'en'))
+    vi_rate = vi_rate if valid_rate(vi_rate) else rate
+    en_rate = en_rate if valid_rate(en_rate) else rate
+    return {"voice": voice, "vi": voice_for(voice, 'vi'), "en": voice_for(voice, 'en'), "rate": vi_rate,
+            'vi_rate': vi_rate, 'en_rate': en_rate,
+            "index": ids.index(voice) if voice else -1, "speed": speed_for(vi_rate)}
 
 
 def audio_key(text, voice_id, rate):
@@ -158,7 +164,7 @@ def _secondary_vieneu_engine(root):
 
 def narration_workers(tasks):
     """An extra model pays off only for a long uncached CPU narration job."""
-    if os.environ.get('BILICLASS_NARRATION_WORKERS')=='1' or len(tasks)<48 or sum(len(t) for t,_ in tasks)<3000:
+    if os.environ.get('BILICLASS_NARRATION_WORKERS')=='1' or len(tasks)<48 or sum(len(task[0]) for task in tasks)<3000:
         return 1
     try:
         import psutil
@@ -199,7 +205,7 @@ def _synthesize_vieneu_local(text, voice_id, rate, temporary):
     if rate:
         from .voice_speed import time_stretch_audio
 
-        samples = time_stretch_audio(samples, rate=_SPEEDS[rate + 3])
+        samples = time_stretch_audio(samples, rate=speed_for(rate))
     pcm = (np.clip(samples, -1.0, 1.0) * 32767).astype("<i2")
     with wave.open(str(temporary), "wb") as writer:
         writer.setparams((1, 2, 48000, 0, "NONE", "not compressed"))
@@ -279,7 +285,7 @@ def _audio_turn(key):
 def synthesize(text, voice_id, rate, directory):
     if not text.strip() or len(text) > 5000:
         raise ValueError("Giọng đọc nhận từ 1 đến 5.000 ký tự mỗi đoạn.")
-    if type(rate) is not int or not -3 <= rate <= 3:
+    if type(rate) is not int or not valid_rate(rate):
         raise ValueError("Tốc độ giọng đọc không hợp lệ.")
     if voice_id not in _VIENEU_BY_ID and voice_id not in ENGLISH_VOICES:
         raise ValueError("Chọn cặp giọng Việt–Mỹ trong Cài đặt → Giọng đọc.")
@@ -336,7 +342,7 @@ def _speed_variant(original, rate, destination):
         if (reader.getnchannels(), reader.getsampwidth(), reader.getframerate()) != (1, 2, 48000):
             raise ValueError("Âm thanh gốc chưa đúng định dạng giọng đọc.")
         samples = np.frombuffer(reader.readframes(reader.getnframes()), dtype="<i2").astype(np.float32) / 32768
-    adjusted = time_stretch_audio(samples, _SPEEDS[rate + 3])
+    adjusted = time_stretch_audio(samples, speed_for(rate))
     pcm = (np.clip(adjusted, -1.0, 1.0) * 32767).astype("<i2")
     with wave.open(str(destination), "wb") as writer:
         writer.setparams((1, 2, 48000, 0, "NONE", "not compressed"))

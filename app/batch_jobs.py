@@ -273,7 +273,7 @@ def narrate_one(directory, row, options, cancel, update):
         raise InterruptedError()
     store_lesson_position(directory, lesson['id'], options['position'])
     prepared = prepare_request(Path(directory), lesson['id'], lesson['revision'], options['mode'],
-                               options['voice'], options['rate'], False, cancel)
+                               options['voice'], options['rate'], False, cancel, en_rate=options.get('en_rate'))
     with closing(Library(directory)) as library:
         if prepared.get('already_created'):
             plan, _ = make_plan(lesson, options['mode'], options)

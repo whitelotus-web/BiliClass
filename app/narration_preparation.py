@@ -15,7 +15,7 @@ from . import speech
 from .browser_audio import narration_tasks
 
 
-def prepare_request(directory, identity, revision, mode, voice, rate, regenerate, cancel):
+def prepare_request(directory, identity, revision, mode, voice, rate, regenerate, cancel, *, en_rate=None):
     """Plan, verify an existing voice and save metadata outside the GUI thread."""
     from contextlib import closing
 
@@ -29,7 +29,10 @@ def prepare_request(directory, identity, revision, mode, voice, rate, regenerate
             raise RevisionConflict('Bài đã thay đổi. Chọn lại bài trước khi tạo giọng đọc.')
         if mode == 'both' and not all(any(s.get(lang, '').strip() for s in segments(lesson)) for lang in ('vi', 'en')):
             raise ValueError('Bản Song ngữ cần có cả lời Việt và Anh. Bài một ngôn ngữ hãy chọn đúng ngôn ngữ đang có.')
-        plan, selected = make_plan(lesson, mode, {'voice': voice, 'rate': rate})
+        options = {'voice': voice, 'rate': rate}
+        if en_rate is not None:
+            options['en_rate'] = en_rate
+        plan, selected = make_plan(lesson, mode, options)
         if not plan['total']:
             raise ValueError('Chưa có nội dung đọc phù hợp cho ngôn ngữ đã chọn.')
         existing = records(lesson).get(variant_id(plan))
@@ -60,14 +63,14 @@ class NarrationJob(QThread):
         self.publish_directory = None
 
     def prepare(self):
-        self.tasks, self.skipped, self.duplicates = narration_tasks(self.inspection, self.voices)
+        self.tasks, self.skipped, self.duplicates = narration_tasks(self.inspection, self.voices, include_rates=True)
         self.total = len(self.tasks)
         missing = []
-        for text, voice in self.tasks:
+        for text, voice, rate in self.tasks:
             if self.cancel.is_set():
                 raise InterruptedError()
-            if not speech.valid_audio(Path(self.directory) / (speech.audio_key(text, voice, self.rate) + '.wav')):
-                missing.append((text, voice))
+            if not speech.valid_audio(Path(self.directory) / (speech.audio_key(text, voice, rate) + '.wav')):
+                missing.append((text, voice, rate))
         self.initial_cached = self.total - len(missing)
         self.tasks = missing
         self.parallelism = speech.narration_workers(missing)
@@ -108,7 +111,7 @@ class NarrationJob(QThread):
                             if slot not in busy and tasks:
                                 task=tasks.popleft()
                                 function=speech.synthesize_secondary if slot else speech.synthesize_background
-                                future=pool.submit(function,*task,self.rate,self.directory,self.cancel)
+                                future=pool.submit(function,*task,self.directory,self.cancel)
                                 futures[future]=slot,task
                     if not futures:
                         if stopping or not tasks:
@@ -179,7 +182,7 @@ class NarrationJob(QThread):
             if failed_tasks:
                 from .lesson_diagnostics import failed_speech
 
-                self.result['failed_segments'] = failed_speech(self.inspection, self.voices, failed_tasks)
+                self.result['failed_segments'] = failed_speech(self.inspection, self.voices, [task[:2] for task in failed_tasks])
 
 
 class NarrationPreparation(QObject):
@@ -222,7 +225,7 @@ class NarrationPreparation(QObject):
         self.worker.paused.set() if self.paused else self.worker.paused.clear()
         self.state = {**(metadata or {}), "lesson_id": lesson_id, "running": True,
                       "complete": self.worker.initial_cached, "cached": self.worker.initial_cached, "failed": 0,
-                      "voice": voices.get("voice", ""), "rate": voices["rate"],
+                      "voice": voices.get("voice", ""), "rate": (metadata or {}).get('rate', voices["rate"]),
                       "total": (metadata or {}).get('total', self.worker.total),
                       "skipped": (metadata or {}).get('skipped', self.worker.skipped),
                       "duplicates": self.worker.duplicates, "cancelled": False,

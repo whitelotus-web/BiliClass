@@ -1,15 +1,26 @@
 # BiliClass — Hướng dẫn sử dụng
 
-Hướng dẫn bản cài RC167, bổ sung bản nguồn RC169 · 25/10/2026
+Hướng dẫn bản cài RC169 · 26/10/2026
 
-Trong bản nguồn **RC169**, vào **Chuyển đổi bài giảng → Word** để chọn các
-vùng của `.docx`, xem/sửa bản dịch rồi lưu Word song ngữ. **Bài giảng → Tất cả**
+Trong **RC169**, vào **Chuyển đổi bài giảng → Word** để tích chọn đoạn/câu
+hoặc bôi đen nhiều vùng của `.docx`. Nhả chuột rồi xác nhận vùng cần dịch.
+Khi chuyển đổi thành công, bài tự lưu cạnh nguồn với hậu tố **(Song ngu VI-EN)**
+và trong thư viện; có thể sửa bản Anh rồi bấm Lưu để cập nhật.
+Tên bài học sửa được; định dạng màu/phông/kiểu chữ nhớ lựa chọn gần nhất.
+Ban đầu màu/phông giống vùng gốc, bản Anh in nghiêng. **Bài giảng → Tất cả**
 gồm cả PowerPoint và Word, phân biệt bằng icon P/W. Tab **Word** lọc riêng tài
 liệu Word; hai tab giọng đọc chỉ áp dụng cho PowerPoint.
-[Các bước và bốn kiểu trình bày](WORD_RC169.md).
+Xem thêm các bước và bốn kiểu trình bày trong **Hướng dẫn · F1** của tool.
 Tab **Google Dịch** nay mang tên **Dịch thuật**, có bốn dịch vụ; bài mới có
 thể dùng dịch vụ dự phòng đã thiết lập khi dịch vụ ưu tiên tạm lỗi.
-Những phần này chưa có trong bộ cài RC167.
+Những phần này là bổ sung so với RC167.
+
+Trong **Cài đặt → Giọng đọc**, tốc độ Việt và Anh chỉnh riêng, mặc định lần
+đầu 100%. Có các mức 60%, 70%, 75%, 82%, 88%, 94%, 100%, 106%, 112%, 118%.
+Bấm Nghe thử từng giọng hoặc Nghe cả cặp, rồi **Lưu cặp giọng và tốc độ** để
+nhớ cho lần sau. Bài đã có giọng giữ cấu hình đã tạo; chọn tốc độ mới rồi tạo
+lại nếu muốn đổi âm thanh trong file PowerPoint. Chỉnh tốc độ giữ cao độ;
+mức rất chậm có thể nghe kéo dài âm tiết, nên thử khoảng 75–88% trước.
 
 BiliClass chuyển bài giảng PowerPoint sang Việt–Anh hoặc tiếng Anh, tạo
 âm thanh Việt–Mỹ và hỗ trợ trình chiếu bằng Mascot. Bài giảng và giọng đọc
@@ -23,6 +34,10 @@ BiliClass chuyển bài giảng PowerPoint sang Việt–Anh hoặc tiếng Anh,
 2. Mở **BiliClass** từ Desktop hoặc Start menu. Gói cài đã có bộ giọng,
    không cần cài Python.
 3. Khi có bản cập nhật, vào **Cài đặt → Thông tin BiliClass → Kiểm tra cập nhật**.
+   Cập nhật từ RC167 giữ thư viện và key cá nhân ở nơi lưu dữ liệu hiện có;
+   chương trình mới nằm trong thư mục phiên bản riêng. Nếu cài thủ công, có
+   thể chọn đúng thư mục ứng dụng BiliClass cũ đã được bộ cài quản lý; không
+   chọn thư mục thư viện bài giảng làm nơi cài chương trình.
 
 Cần Windows 10/11 64-bit và PowerPoint desktop để trình chiếu. Chuyển đổi
 cần Internet và key Google Cloud Translation; tạo giọng chạy trên máy.

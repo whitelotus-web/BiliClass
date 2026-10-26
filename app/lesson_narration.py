@@ -8,6 +8,7 @@ from pathlib import Path
 from . import speech
 from .browser_audio import narration_tasks
 from .narration_script import segments as narration_segments
+from .voice_rates import rate_for, rates_label, valid_rate, valid_rates
 
 MODES = {"en": ("en",), "vi": ("vi",), "both": ("vi", "en")}
 LABELS = {"en": "Tiếng Anh", "vi": "Tiếng Việt", "both": "Việt + Anh"}
@@ -16,11 +17,13 @@ LABELS = {"en": "Tiếng Anh", "vi": "Tiếng Việt", "both": "Việt + Anh"}
 def variant_id(record):
     if (not isinstance(record, dict) or not isinstance(record.get('mode'), str) or record.get('mode') not in MODES
             or not isinstance(record.get('signature'), str) or not isinstance(record.get('voice'), str)
-            or type(record.get('rate')) is not int or not -3 <= record['rate'] <= 3
+            or type(record.get('rate')) is not int or not valid_rates(record)
             or record.get('playback', 'separate') not in ('separate', 'both_controls')):
         return ''
     value = {key: record.get(key) for key in ('signature', 'mode', 'voice', 'rate')}
     value['playback'] = record.get('playback', 'separate')
+    if record.get('mode') == 'both' and rate_for(record, 'en') != record['rate']:
+        value['en_rate'] = rate_for(record, 'en')
     return hashlib.sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()
 
 
@@ -39,9 +42,8 @@ def variant_title(record):
     voice = next((v['name'] for v in (*speech.VIENEU_VOICES, *speech.ALL_PAIRS) if v['id'] == record.get('voice')),
                  speech.ENGLISH_VOICES.get(record.get('voice'), ('Giọng đọc đã lưu',))[0])
     mode = 'Việt + Anh · hai loa riêng' if record.get('mode') == 'both' else LABELS.get(record.get('mode'), '')
-    rate = record.get('rate', 0)
-    speed = round(speech._SPEEDS[rate + 3] * 100) if type(rate) is int and -3 <= rate <= 3 else 100
-    return f'{mode} · {voice} · {speed}%'
+    speed = rates_label(record, record.get('mode', 'both')) if valid_rates(record) else '100%'
+    return f'{mode} · {voice} · {speed}'
 
 
 def variant_statuses(lesson, directory, fallback_voices=None, *, cancel=None):
@@ -66,9 +68,9 @@ def library_audio_status(lesson, directory, fallback_voices=None, *, cancel=None
     return {**active, 'variants': variants}
 
 
-def creation_choices(lesson, voice, rate, verified=(), live=None):
+def creation_choices(lesson, voice, rate, verified=(), live=None, *, en_rate=None):
     """Describe the three exact products using published audio checks, no I/O."""
-    if not lesson or voice not in {v['id'] for v in (*speech.VIENEU_VOICES, *speech.ALL_PAIRS)} or type(rate) is not int or not -3 <= rate <= 3:
+    if not lesson or voice not in {v['id'] for v in (*speech.VIENEU_VOICES, *speech.ALL_PAIRS)} or type(rate) is not int or not valid_rate(rate):
         return {}
     saved = records(lesson)
     checked = {row['id']: row for row in verified if row.get('id')}
@@ -77,7 +79,10 @@ def creation_choices(lesson, voice, rate, verified=(), live=None):
     result = {}
     context = {}
     for mode in MODES:
-        plan, _ = make_plan(lesson, mode, {'voice': voice, 'rate': rate}, _context=context)
+        options = {'voice': voice, 'rate': rate}
+        if en_rate is not None:
+            options['en_rate'] = en_rate
+        plan, _ = make_plan(lesson, mode, options, _context=context)
         identity = variant_id(plan)
         stored, state = saved.get(identity), checked.get(identity)
         if not plan['total']:
@@ -123,6 +128,8 @@ def _plan_signature(lesson, context):
 def make_plan(lesson, mode, voices, *, playback='separate', _context=None):
     if mode not in MODES:
         raise ValueError("Chọn tiếng Anh, tiếng Việt hoặc Việt + Anh.")
+    if not valid_rates(voices):
+        raise ValueError('Chọn tốc độ hợp lệ cho từng ngôn ngữ.')
     selected = {**voices, **{lang: speech.voice_for(voices.get("voice", ""), lang) if lang in MODES[mode] else ""
                             for lang in ("vi", "en")}}
     keys = {}
@@ -130,20 +137,24 @@ def make_plan(lesson, mode, voices, *, playback='separate', _context=None):
     context = {} if _context is None else _context
     tasks_by_language = context.setdefault('plans', {})
     for lang in MODES[mode]:
-        identity = lang, selected.get(lang, ''), selected['rate']
+        language_rate = rate_for(selected, lang)
+        identity = lang, selected.get(lang, ''), language_rate
         if identity not in tasks_by_language:
             tasks, omitted, _ = narration_tasks(inspection_for(lesson), {**selected, **{other: ""
                                                       for other in ("vi", "en") if other != lang}})
-            tasks_by_language[identity] = ([speech.audio_key(text, voice, selected["rate"])
+            tasks_by_language[identity] = ([speech.audio_key(text, voice, language_rate)
                                           for text, voice in tasks], omitted)
         language_keys, omitted = tasks_by_language[identity]
         keys[lang] = list(language_keys)
         skipped += omitted
     if playback not in {'separate', 'both_controls'}:
         raise ValueError('Kiểu phát giọng không hợp lệ.')
-    return {"version": 2, "mode": mode, "signature": _plan_signature(lesson, context), 'playback': playback,
-            "voice": selected.get("voice", ""), "rate": selected["rate"], "keys": keys,
-            "total": len(set(key for items in keys.values() for key in items)), "skipped": skipped}, selected
+    record = {"version": 2, "mode": mode, "signature": _plan_signature(lesson, context), 'playback': playback,
+              "voice": selected.get("voice", ""), "rate": rate_for(selected, 'en' if mode == 'en' else 'vi'), "keys": keys,
+              "total": len(set(key for items in keys.values() for key in items)), "skipped": skipped}
+    if mode == 'both' and rate_for(selected, 'en') != record['rate']:
+        record['en_rate'] = rate_for(selected, 'en')
+    return record, selected
 
 
 @lru_cache(maxsize=4096)
@@ -181,7 +192,7 @@ def automatic_repair_choice(lesson, status=None):
         # stale content, and let the normal worker create only missing keys.
         if (status and status.get('id') == variant_id(record)
                 and status.get('status') in {'partial', 'pending'} and status.get('total', 0) > 0):
-            return {'mode': record['mode'], 'voice': record['voice'], 'rate': record['rate']}
+            return {key: record[key] for key in ('mode', 'voice', 'rate', 'en_rate') if key in record}
         return None
     if not any(clean_artifacts(row[lang]) != row[lang]
                for row in narration_segments(lesson) for lang in MODES[record['mode']]):
@@ -199,7 +210,7 @@ def automatic_repair_choice(lesson, status=None):
     new = set(key for values in plan['keys'].values() for key in values)
     if len(old) != record['total'] or len(new - old) > 8:
         return None
-    return {'mode': record['mode'], 'voice': record['voice'], 'rate': record['rate']}
+    return {key: record[key] for key in ('mode', 'voice', 'rate', 'en_rate') if key in record}
 
 
 def audio_status(lesson, directory, fallback_voices=None, *, cancel=None, _context=None):
@@ -230,12 +241,12 @@ def audio_status(lesson, directory, fallback_voices=None, *, cancel=None, _conte
     if record.get("signature") != _plan_signature(lesson, context):
         return {**empty, "status": "stale", "mode": mode, "label": "Giọng đọc cần cập nhật"}
     if (not isinstance(record.get("voice"), str) or type(record.get("rate")) is not int
-            or not -3 <= record["rate"] <= 3):
+            or not valid_rates(record)):
         return empty
     keys = record.get("keys", {})
     if not isinstance(keys, dict) or any(not isinstance(keys.get(lang, []), list) for lang in MODES[mode]):
         return empty
-    expected, _ = make_plan(lesson, mode, {"voice": record["voice"], "rate": record["rate"]}, _context=context)
+    expected, _ = make_plan(lesson, mode, record, _context=context)
     if keys != expected["keys"]:
         return {**empty, "status": "stale", "mode": mode, "label": "Giọng đọc cần cập nhật"}
     all_keys = set(k for lang in MODES[mode] for k in keys.get(lang, []) if isinstance(k, str))
@@ -260,7 +271,8 @@ def audio_status(lesson, directory, fallback_voices=None, *, cancel=None, _conte
     ready = bool(all_keys) and all(lang in ready_languages for lang in MODES[mode]) and not record.get("skipped")
     status = "ready" if ready else "partial" if complete else "pending"
     return {"status": status, "mode": mode, "ready": ready, "complete": complete, "total": len(all_keys),
-            "voice": record.get("voice", ""), "rate": record.get("rate", 0), "skipped": record.get("skipped", 0),
+            "voice": record.get("voice", ""), "rate": record.get("rate", 0),
+            'en_rate': rate_for(record, 'en'), "skipped": record.get("skipped", 0),
             'id': variant_id(record), 'title': variant_title(record), 'playback': record.get('playback', 'separate'),
             "languages": list(MODES[mode]), "ready_languages": ready_languages,
             "label": "Có giọng " + LABELS[mode] if ready else "Giọng đọc chưa đủ" if complete else "Chưa tạo xong giọng đọc"}

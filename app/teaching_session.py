@@ -13,6 +13,7 @@ from . import speech
 from .powerpoint import slide_for_locator, slide_segment_indexes
 from .reading_progress import ReadingProgress
 from .slide_speech import speech_chunks, visible_segments
+from .voice_rates import rate_for
 
 
 def prepare_teaching(lesson, preview, directory):
@@ -342,7 +343,7 @@ class TeachingSession(QObject):
             items = self._speech_items(language, settled_seconds=float('inf'))
             texts = [item[1] for item in items]
             voice = speech.voice_for(record.get('voice', ''), language)
-            wanted = [speech.audio_key(text, voice, record.get('rate', 0)) for text in texts]
+            wanted = [speech.audio_key(text, voice, rate_for(record, language)) for text in texts]
             return bool(texts) and all(key in keys and valid_key(self.bridge.library.directory, key) for key in wanted)
         vi, en = available('vi'), available('en')
         return {'vi': vi, 'en': en, 'both': False}
@@ -423,14 +424,14 @@ class TeachingSession(QObject):
         texts = [item[1] for item in items]
         keys = record.get('keys', {}).get(language, [])
         voice = speech.voice_for(record.get('voice', ''), language)
-        wanted = [speech.audio_key(text, voice, record.get('rate', 0)) for text in texts]
+        wanted = [speech.audio_key(text, voice, rate_for(record, language)) for text in texts]
         if not texts or not all(key in keys and valid_key(self.bridge.library.directory, key) for key in wanted):
             return False
         self._read_batch = items
         self._batch_language = language
         self._batch_slide = self.bridge._powerpoint_state.get('slide_id')
         self.pending_read = (self.token, self.bridge._powerpoint_state['slide'],
-                             self.bridge._powerpoint_state.get('slide_id'), texts, voice, record['rate'])
+                             self.bridge._powerpoint_state.get('slide_id'), texts, voice, rate_for(record, language))
         self.native_state = 'preparing'
         self.bridge.powerpoint_worker.navigate('stop_media', self._media_request())
         return True

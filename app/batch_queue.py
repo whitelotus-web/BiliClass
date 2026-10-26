@@ -7,6 +7,7 @@ from time import monotonic
 from PySide6.QtCore import Property, QObject, Qt, QTimer, Signal, Slot
 
 from . import batch_jobs
+from .voice_rates import rates_label, valid_rates
 
 
 class BatchQueue(QObject):
@@ -194,16 +195,15 @@ class BatchQueue(QObject):
             from .speaker_layout import POSITIONS
             if (options.get('mode') not in {'vi', 'en', 'both'}
                     or not self.bridge._available_voice(options.get('voice', ''))
-                    or type(options.get('rate')) is not int or not -3 <= options['rate'] <= 3
+                    or type(options.get('rate')) is not int or not valid_rates(options)
                     or options.get('position') not in POSITIONS):
                 self.bridge.inform('Chọn ngôn ngữ, giọng, tốc độ và vị trí loa hợp lệ.', True, refresh=False)
                 return
             self.data['options'] = dict(options)
             name = next((row['name'] for row in self.bridge.multilingualVoices if row['id'] == options['voice']), 'Giọng đã chọn')
-            from . import speech
 
             self.data['summary'] = {'en': 'Tiếng Anh', 'vi': 'Tiếng Việt', 'both': 'Việt + Anh'}[options['mode']] + (
-                f" · {name} · {round(speech._SPEEDS[options['rate']+3]*100)}% · {POSITIONS[options['position']]}")
+                f" · {name} · {rates_label(options, options['mode'])} · {POSITIONS[options['position']]}")
         self._start()
 
     @Slot()

@@ -60,7 +60,7 @@ def render(text, voice, rate, temporary):
     import numpy as np
     from scipy.signal import resample_poly
 
-    from .speech import _SPEEDS
+    from .voice_rates import speed_for
     from .voice_speed import time_stretch_audio
     from .voice_threads import blas_budget
 
@@ -72,7 +72,7 @@ def render(text, voice, rate, temporary):
         raise RuntimeError('Chưa tạo được âm thanh tiếng Anh hợp lệ.')
     samples = resample_poly(samples, 2, 1).astype(np.float32)
     if rate:
-        samples = time_stretch_audio(samples, _SPEEDS[rate+3])
+        samples = time_stretch_audio(samples, speed_for(rate))
     with wave.open(str(temporary), 'wb') as writer:
         writer.setparams((1, 2, 48000, 0, 'NONE', 'not compressed'))
         writer.writeframes((np.clip(samples, -1, 1)*32767).astype('<i2').tobytes())

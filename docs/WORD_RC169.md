@@ -1,7 +1,7 @@
 # RC169: Word song ngữ và dịch vụ dự phòng
 
-Ngày 25/10/2026 · Nhánh `codex/word-bilingual-rc169`.
-Đây là bản mã nguồn để giáo viên dùng thử; chưa tạo bộ cài RC169.
+Ngày 26/10/2026 · Nhánh `codex/word-bilingual-rc169`.
+Mốc RC169 được chuẩn bị đóng gói sau khi kiểm tra nguồn và nâng cấp từ RC167.
 Tag/bộ cài RC167 và nhánh RC168 được giữ nguyên.
 
 ## Dùng thử Word
