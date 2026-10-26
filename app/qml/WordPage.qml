@@ -14,6 +14,7 @@ Item {
     signal showPowerPoint()
     signal showLibrary()
     property var modeCodes: ["below", "columns", "keywords", "english"]
+    readonly property string selectedModeCode: page.modeCodes[mode.currentIndex]
     property real previewZoom: 0
     property var densityCodes: ["few", "normal", "deep"]
     property string selectedFont: ""
@@ -65,6 +66,7 @@ Item {
     readonly property bool highlightSelection: selectionMode === "highlight"
     readonly property bool wholeDocument: !!documentState.whole_document
     readonly property bool canSelect: page.available && !page.wholeDocument
+    onWholeDocumentChanged: if (wholeDocument) { highlightPopup.close(); sourceDialog.close() }
     readonly property bool resultVisible: !page.documentState.working && page.documentState.can_export && (page.documentState.phase === "completed" || page.documentState.phase === "review")
     onSelectionModeChanged: { if (highlightPopup) highlightPopup.close(); if (continuousText) continuousText.deselect(); if (highlightSelection) previewZoom = 0 }
     onVisibleChanged: if (!visible) { if (highlightPopup) highlightPopup.close(); if (sourceDialog) sourceDialog.close() }
@@ -289,6 +291,7 @@ Item {
             pointSize: englishSize.pointSize || Number(page.word.sourceFontSize) || 12
             textColor: englishColor.original ? "#17263b" : englishColor.inkColor
             highlight: englishHighlight.colorCode
+            mode: page.selectedModeCode
             bold: textStyle.bold; italic: textStyle.italic; underline: textStyle.underline; strike: textStyle.strike
         }
         }
@@ -388,6 +391,7 @@ Item {
         Hint { visible: (page.documentState.notices || []).length > 0; text: (page.documentState.notices || []).slice(-1).join(""); color: AppTheme.warning; font.pixelSize: 11; Layout.fillWidth: true }
         RowLayout {
             id: documentPanels; objectName: "wordDocumentPanels"; Layout.fillWidth: true; spacing: 12
+            enabled: !page.wholeDocument; opacity: page.wholeDocument ? .5 : 1
             // The page scrolls the configuration away; the document then fills
             // the available height without resizing or jumping while reading.
             Layout.preferredHeight: page.documentState.id ? Math.max(320, wordScroll.availableHeight - 12) : 210

@@ -196,8 +196,8 @@ def main():
                     demo = c('wordFormatPreview')
                     assert not demo.isVisible()
                     assert abs(c('wordSourceArea').width() - c('wordSourcePreviewRow').width()) <= 1
-                    assert c('wordDemoEnglish').property('text') == 'Energy is conserved.'
-                    assert c('wordDemoVietnamese').property('text') == 'Năng lượng được bảo toàn.'
+                    assert c('wordDemoEnglish').property('text') == 'Explore new ideas.'
+                    assert c('wordDemoVietnamese').property('text') == 'Khám phá ý tưởng mới.'
                     assert not c('wordChooseFile').isVisible() and not c('wordDismissInput').isVisible()
                     assert c('wordTextStyle').property('italic') and not c('wordTextStyle').property('bold')
                     assert c('wordEnglishFont').isVisible() and c('wordEnglishFont').isEnabled()
@@ -273,6 +273,24 @@ def main():
                     pump(80)
                     assert not c('wordAttentionBanner').isVisible()
                     assert demo.isVisible() and demo.width() <= 300
+                    assert demo.height() <= 110
+                    assert c('wordDemoHeading').property('text') == 'Xem trước song ngữ'
+                    saved_mode = c('wordMode').property('currentIndex')
+                    for demo_mode in range(4):
+                        c('wordMode').setProperty('currentIndex', demo_mode)
+                        pump(60)
+                        assert demo.property('mode') == ('below', 'columns', 'keywords', 'english')[demo_mode]
+                        assert c('wordDemoVietnamese').isVisible() == (demo_mode in (0, 1))
+                        assert c('wordDemoEnglish').isVisible() == (demo_mode != 2)
+                        assert c('wordDemoKeywords').isVisible() == (demo_mode == 2)
+                        assert c('wordDemoColumnDivider').isVisible() == (demo_mode == 1)
+                        if demo_mode == 1:
+                            vi = c('wordDemoVietnamese').mapRectToScene(c('wordDemoVietnamese').boundingRect())
+                            en = c('wordDemoEnglish').mapRectToScene(c('wordDemoEnglish').boundingRect())
+                            assert vi.right() < en.left() and abs(vi.top() - en.top()) <= 1
+                        assert window.grabWindow().save(str(report / f'word-bilingual-sample-{demo_mode}.png'))
+                    c('wordMode').setProperty('currentIndex', saved_mode)
+                    assert not calls, 'All four sample layouts must render without a translation request'
                     assert window.findChild(QObject, 'wordShowDocument') is None
                     heading_rect = c('wordPageHeading').mapRectToScene(c('wordPageHeading').boundingRect())
                     change_rect = c('wordChooseFile').mapRectToScene(c('wordChooseFile').boundingRect())
@@ -424,6 +442,8 @@ def main():
                     click(window, c('wordWholeDocument'))
                     until(lambda: not bridge.busy)
                     assert bridge.wordDocuments.state['whole_document']
+                    assert not c('wordDocumentPanels').isEnabled() and c('wordDocumentPanels').opacity() == .5
+                    assert c('wordFormatPreview').isEnabled() and c('wordPreview').isEnabled()
                     assert bridge.wordDocuments.state['selected_count'] == 4
                     assert not c('wordSelectAll').isEnabled() and not c('wordClearAllRanges').isEnabled()
                     assert not c('wordSelectByCheckbox').isEnabled() and not c('wordContinuousText').property('selectByMouse')
@@ -434,6 +454,7 @@ def main():
                     click(window, c('wordWholeDocument'))
                     until(lambda: not bridge.busy)
                     assert not bridge.wordDocuments.state['whole_document']
+                    assert c('wordDocumentPanels').isEnabled() and c('wordDocumentPanels').opacity() == 1
                     assert bridge.wordDocuments._ranges() == manual_ranges
                     assert c('wordSelectByCheckbox').isEnabled()
                     assert window.grabWindow().save(str(report / 'word-persistent-selections.png'))
