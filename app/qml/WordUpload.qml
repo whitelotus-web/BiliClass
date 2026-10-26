@@ -6,27 +6,38 @@ Rectangle {
     id: upload
     property bool busy: false
     property bool reading: false
+    property string fileName: ""
+    property int paragraphCount: 0
+    readonly property bool loaded: fileName.length > 0
     signal chooseFile()
     signal fileDropped(string url)
+    signal showDocument()
     implicitHeight: content.implicitHeight + 28
     radius: 16; color: drop.containsDrag ? AppTheme.selected : AppTheme.surface
     border.color: drop.containsDrag ? AppTheme.blue : AppTheme.line
     border.width: drop.containsDrag ? 2 : 1
     RowLayout {
         id: content; anchors.horizontalCenter: parent.horizontalCenter; anchors.top: parent.top; anchors.topMargin: 14
-        width: Math.min(parent.width - 44, 840); spacing: 24
+        width: upload.loaded ? parent.width - 28 : Math.min(parent.width - 44, 840); spacing: upload.loaded ? 16 : 24
         Image {
-            source: "../assets/actions/document-word.svg"; fillMode: Image.PreserveAspectFit
-            sourceSize.width: 128; sourceSize.height: 144
-            Layout.preferredWidth: 220; Layout.preferredHeight: 110
+            objectName: "wordUploadIllustration"
+            source: "../assets/word-convert.png"; fillMode: Image.PreserveAspectFit
+            // Clip in decoded-image coordinates, after the proportional size reduction.
+            sourceClipRect: Qt.rect(32, 37, 386, 224)
+            sourceSize.width: 440; sourceSize.height: 294; smooth: true; mipmap: true
+            Layout.preferredWidth: upload.loaded ? 95 : 220; Layout.preferredHeight: upload.loaded ? 56 : 118
             Accessible.ignored: true
         }
         ColumnLayout {
             Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 7
-            Label { text: upload.reading ? "Đang đọc tài liệu Word…" : upload.busy ? "Đang có tác vụ khác" : "Tải lên bài giảng Word (.docx)"; color: AppTheme.blue; font.pixelSize: 19; font.bold: true; wrapMode: Text.WordWrap; horizontalAlignment: Text.AlignHCenter; Layout.fillWidth: true }
-            Label { text: "Chọn hoặc kéo thả một file. Sau đó chọn những câu, đoạn cần dịch."; color: AppTheme.muted; font.pixelSize: 13; wrapMode: Text.WordWrap; horizontalAlignment: Text.AlignHCenter; Layout.fillWidth: true }
-            WordAction { objectName: "wordUploadChoose"; text: upload.busy ? "Chờ hoàn tất tác vụ…" : "Chọn file Word"; primary: true; implicitHeight: 44; font.pixelSize: 14; Layout.alignment: Qt.AlignHCenter; Layout.preferredWidth: 258; enabled: !upload.busy; onClicked: upload.chooseFile() }
-            Label { text: "Chỉ hỗ trợ tệp .docx tối đa 50 MB · Giữ nguyên file gốc"; color: AppTheme.muted; font.pixelSize: 12; wrapMode: Text.WordWrap; horizontalAlignment: Text.AlignHCenter; Layout.fillWidth: true }
+            Label { text: upload.reading ? "Đang đọc tài liệu Word…" : upload.busy ? "Đang có tác vụ khác" : upload.loaded ? upload.fileName : "Tải lên bài giảng Word (.docx)"; textFormat: Text.PlainText; color: AppTheme.blue; font.pixelSize: upload.loaded ? 16 : 19; font.bold: true; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideMiddle; horizontalAlignment: upload.loaded ? Text.AlignLeft : Text.AlignHCenter; Layout.fillWidth: true }
+            Label { text: upload.loaded ? upload.paragraphCount + " đoạn · Chỉ dịch phần được chọn · File gốc được giữ nguyên" : "Chọn hoặc kéo thả một file. Sau đó chọn những câu, đoạn cần dịch."; color: AppTheme.muted; font.pixelSize: 13; wrapMode: Text.WordWrap; horizontalAlignment: upload.loaded ? Text.AlignLeft : Text.AlignHCenter; Layout.fillWidth: true }
+            WordAction { objectName: "wordUploadChoose"; visible: !upload.loaded; text: upload.busy ? "Chờ hoàn tất tác vụ…" : "Chọn file Word"; primary: true; implicitHeight: 44; font.pixelSize: 14; Layout.alignment: Qt.AlignHCenter; Layout.preferredWidth: 258; enabled: !upload.busy; onClicked: upload.chooseFile() }
+            Label { visible: !upload.loaded; text: "Chỉ hỗ trợ tệp .docx tối đa 50 MB · Giữ nguyên file gốc"; color: AppTheme.muted; font.pixelSize: 12; wrapMode: Text.WordWrap; horizontalAlignment: Text.AlignHCenter; Layout.fillWidth: true }
+        }
+        ColumnLayout { visible: upload.loaded; spacing: 5
+            WordAction { objectName: "wordChooseFile"; text: "Chọn bài khác"; enabled: !upload.busy; onClicked: upload.chooseFile() }
+            WordAction { objectName: "wordShowDocument"; text: "Chọn vùng dịch ↓"; enabled: !upload.busy; onClicked: upload.showDocument() }
         }
     }
     DropArea {

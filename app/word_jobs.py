@@ -126,7 +126,7 @@ def public(directory, job, *, paragraphs=True):
     return result
 
 
-def create(directory, source):
+def create(directory, source, *, preferences=None):
     from .storage_space import MIB, require_space
 
     source = Path(source).resolve()
@@ -137,6 +137,10 @@ def create(directory, source):
     for row in catalog(directory):
         if signature in {row.get('source_sha256'), row.get('output_sha256'), row.get('export_sha256')}:
             return read(directory, row['id'])
+    preferences = preferences or {}
+    options = options_for(preferences.get('options', {}))
+    subject = str(preferences.get('subject', 'Toán')).strip()[:120] or 'Toán'
+    grade = str(preferences.get('grade', '11')).strip()[:80]
     require_space(directory, source.stat().st_size * 3 + 32 * MIB)
     identity = uuid4().hex
     folder = folder_for(directory, identity)
@@ -146,8 +150,8 @@ def create(directory, source):
         raise ValueError('Nguồn Word thay đổi trong lúc tải; chọn lại tệp.')
     job = dict(id=identity, title=source.stem, source_original=str(source), source_sha256=signature,
                created_at=datetime.now(timezone.utc).isoformat(),
-               regions=[], options=dict(mode='below', color='1667B1', italic=True, density='normal'),
-               phase='select', message='Bôi đen và thêm vùng, hoặc tích chọn câu/đoạn cần dịch.', subject='Toán', grade='11')
+               regions=[], options=options,
+               phase='select', message='Bôi đen và thêm vùng, hoặc tích chọn câu/đoạn cần dịch.', subject=subject, grade=grade)
     write(folder, job)
     return job
 

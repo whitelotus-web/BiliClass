@@ -21,6 +21,13 @@ hai tab **PowerPoint / Word** ở ngay dưới. Tab Word có khung tải/kéo th
 và khung **Cấu hình bài giảng** theo phong cách PowerPoint; luồng xử lý,
 vùng chọn và checkpoint của hai công cụ vẫn độc lập.
 
+Giao diện Word ngày 26/10 dùng cùng một trang cuộn: **Tải tệp → Cấu hình →
+Nội dung gốc / Bản dịch xem trước**. Cấu hình hiện cả khi chưa chọn tệp;
+các lựa chọn này được giữ khi tải tài liệu mới. Khi mở lại tài liệu đã lưu,
+tool khôi phục cấu hình và vùng chọn của chính bài đó. Khung tải thu gọn
+sau khi nhận file, có nút **Chọn vùng dịch ↓**; các nút xem/lưu/dừng vẫn ở
+thanh dưới. Ảnh minh họa Word dùng tài sản được giáo viên cung cấp.
+
 ## Thư viện dùng chung
 
 - **Tất cả** gồm cả PowerPoint và Word. Mỗi bài có icon P/W và nhãn loại tệp,

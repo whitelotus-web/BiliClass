@@ -86,11 +86,23 @@ def main():
                     window.setProperty('page', 'new')
                     click(window, c('conversionDocumentWord'))
                     assert window.property('page') == 'word'
-                    bridge.wordDocuments.openFile(source.as_uri())
+                    assert c('wordConfiguration').isVisible() and c('wordSourceArea').isVisible()
+                    assert c('wordConfiguration').mapToScene(c('wordConfiguration').boundingRect().topLeft()).y() > c('wordSourceArea').mapToScene(c('wordSourceArea').boundingRect().topLeft()).y()
+                    assert not c('wordSelectAll').isEnabled() and not c('wordPreview').isEnabled()
+                    assert window.grabWindow().save(str(report / 'word-empty.png'))
+                    c('wordSubject').setProperty('currentIndex', bridge.conversionSubjects.index('Vật lý'))
+                    c('wordGrade').setProperty('text', '6')
+                    c('wordMode').setProperty('currentIndex', 1)
+                    assert QMetaObject.invokeMethod(c('wordPage'), 'openDocument', Q_ARG('QVariant', source.as_uri()))
                     until(lambda: not bridge.busy and bridge.wordDocuments.state['id'])
+                    assert bridge.wordDocuments.state['options']['mode'] == 'columns'
+                    assert bridge.wordDocuments.state['subject'] == 'Vật lý' and bridge.wordDocuments.state['grade'] == '6'
+                    c('wordGrade').setProperty('text', '11')
+                    c('wordMode').setProperty('currentIndex', 0)
                     pump(120)
                     assert not warnings, warnings
                     assert window.grabWindow().save(str(report / 'word-loaded.png'))
+                    click(window, c('wordShowDocument'))
                     click(window, c('wordSelect_1'))
                     until(lambda: not bridge.busy)
                     assert bridge.wordDocuments.state['selected_count'] == 1
@@ -194,6 +206,7 @@ def main():
                     assert KeyStore(library.directory).path.read_bytes() == original_key
                     assert not warnings, warnings
             result = dict(status='passed', api='fixture only', checks=[
+                'One Word page keeps upload, configuration and document panels; pre-upload choices are retained',
                 'Native Word tab; paragraph checkbox and disjoint text selection after emoji',
                 'Primary provider fails; configured fallback succeeds; original key unchanged',
                 'Editable review; save retains completion; source unchanged',

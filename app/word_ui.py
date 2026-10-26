@@ -84,12 +84,19 @@ class WordDocuments(QObject):
 
     @Slot(str)
     def openFile(self, url):
+        self._open_file(url)
+
+    @Slot(str, 'QVariantMap')
+    def openConfiguredFile(self, url, preferences):
+        self._open_file(url, copy.deepcopy(preferences))
+
+    def _open_file(self, url, preferences=None):
         parsed = QUrl(url)
         if not parsed.isLocalFile():
             self._state['message'] = 'Chọn tệp Word trên máy tính.'
             self.changed.emit()
             return
-        self._launch(lambda directory: jobs.create(directory, parsed.toLocalFile()), clear_drafts=True, restore_configuration=True)
+        self._launch(lambda directory: jobs.create(directory, parsed.toLocalFile(), preferences=preferences), clear_drafts=True, restore_configuration=True)
 
     @Slot(str)
     def loadRecord(self, identity):
