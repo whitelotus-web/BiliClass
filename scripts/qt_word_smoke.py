@@ -74,7 +74,7 @@ def main():
 
         def check_formatting_row():
             picker = 'wordKeywordDensity' if c('wordMode').property('currentIndex') == 2 else 'wordEnglishColor'
-            parts = [c(name) for name in ('wordMode', picker, 'wordTextStyle', 'wordOriginalFont', 'wordEnglishFont', 'wordFontSize')]
+            parts = [c(name) for name in ('wordMode', picker, 'wordTextStyle', 'wordEnglishFont', 'wordFontSize')]
             rectangles = [item.mapRectToScene(item.boundingRect()) for item in parts]
             assert max(rect.top() for rect in rectangles) - min(rect.top() for rect in rectangles) < 3, rectangles
             assert all(left.right() <= right.left() + 1 for left, right in zip(rectangles, rectangles[1:])), rectangles
@@ -153,11 +153,9 @@ def main():
                     assert not c('wordSave').isVisible() and not c('wordGoLibrary').isVisible()
                     assert c('wordConfigurationSummary').isVisible()
                     assert c('wordTextStyle').property('italic') and not c('wordTextStyle').property('bold')
-                    assert c('wordOriginalFont').property('checked') and c('wordEnglishFont').isVisible()
-                    assert not c('wordEnglishFont').isEnabled()
-                    font_rect = c('wordEnglishFont').mapRectToScene(c('wordEnglishFont').boundingRect())
-                    original_rect = c('wordOriginalFont').mapRectToScene(c('wordOriginalFont').boundingRect())
-                    assert font_rect.left() >= original_rect.right() and abs(font_rect.top() - original_rect.top()) < 2
+                    assert c('wordEnglishFont').isVisible() and c('wordEnglishFont').isEnabled()
+                    assert c('wordEnglishFont').property('currentIndex') == 0
+                    assert QMetaObject.invokeMethod(c('wordPage'), 'draftFont', Q_RETURN_ARG('QVariant')) == ''
                     for choice in range(4):
                         click(window, c('wordMode_' + str(choice)))
                         assert c('wordMode').property('currentIndex') == choice
@@ -199,9 +197,8 @@ def main():
                     c('wordTitle').setProperty('text', 'Chuyển động đều')
                     c('wordTextStyle').setProperty('bold', True)
                     assert QMetaObject.invokeMethod(c('wordTextStyle'), 'chosen')
-                    click(window, c('wordOriginalFont'))
                     assert c('wordEnglishFont').isVisible()
-                    c('wordEnglishFont').setProperty('currentIndex', bridge.wordDocuments.fontFamilies.index('Arial'))
+                    c('wordEnglishFont').setProperty('currentIndex', c('wordEnglishFont').property('model').index('Arial'))
                     assert QMetaObject.invokeMethod(c('wordEnglishFont'), 'activated', Q_ARG(int, c('wordEnglishFont').property('currentIndex')))
                     assert QMetaObject.invokeMethod(c('wordEnglishColor'), 'choose', Q_ARG('QVariant', '1667B1'))
                     assert bridge.wordDocuments.formattingDefaults == dict(color='1667B1', font='Arial', italic=True, bold=True, underline=False, strike=False, script='normal', font_size=0)
@@ -240,12 +237,16 @@ def main():
                     assert not c('wordFontSizePopup').property('visible') and c('wordFontSize').property('pointSize') == 26
                     assert bridge.wordDocuments.formattingDefaults['font_size'] == 26
                     assert QMetaObject.invokeMethod(c('wordFontSize'), 'commit', Q_ARG('QVariant', 'Cỡ gốc'))
-                    click(window, c('wordOriginalFont'))
-                    assert c('wordEnglishFont').isVisible() and not c('wordEnglishFont').isEnabled()
+                    c('wordEnglishFont').setProperty('currentIndex', 0)
+                    assert QMetaObject.invokeMethod(c('wordEnglishFont'), 'activated', Q_ARG(int, 0))
+                    assert c('wordEnglishFont').isVisible() and c('wordEnglishFont').isEnabled()
                     assert bridge.wordDocuments.sourceFonts
                     assert all(family in c('wordEnglishFont').property('displayText') for family in bridge.wordDocuments.sourceFonts)
-                    click(window, c('wordOriginalFont'))
+                    assert bridge.wordDocuments.formattingDefaults['font'] == ''
+                    c('wordEnglishFont').setProperty('currentIndex', c('wordEnglishFont').property('model').index('Arial'))
+                    assert QMetaObject.invokeMethod(c('wordEnglishFont'), 'activated', Q_ARG(int, c('wordEnglishFont').property('currentIndex')))
                     assert c('wordEnglishFont').isEnabled() and c('wordEnglishFont').property('currentText') == 'Arial'
+                    assert bridge.wordDocuments.formattingDefaults['font'] == 'Arial'
                     pump(50)
                     assert c('wordFontSize').property('pointSize') == 0, 'Viewing the original size must not save it as an explicit override'
                     assert bridge.wordDocuments.formattingDefaults['font_size'] == 0

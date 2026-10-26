@@ -16,17 +16,19 @@ Item {
     property var modeCodes: ["below", "columns", "keywords", "english"]
     property real previewZoom: 0
     property var densityCodes: ["few", "normal", "deep"]
+    property string selectedFont: ""
+    readonly property string recentFont: page.word.formattingDefaults.font || ""
     readonly property var fontNames: {
         const names = page.word.fontFamilies
-        const saved = page.documentState.options.font || ""
-        const recent = page.word.formattingDefaults.font || ""
+        const saved = page.selectedFont
+        const recent = page.recentFont
         let result = saved && names.indexOf(saved) < 0 ? [saved].concat(names) : names
         if (recent && result.indexOf(recent) < 0) result = [recent].concat(result)
-        return result
+        return ["Theo phông gốc"].concat(result)
     }
     readonly property string sourceFontLabel: !page.documentState.id ? "Phông trong tài liệu" : !page.word.sourceFonts.length ? "Theo vùng gốc" : page.word.sourceFonts.length === 1 ? page.word.sourceFonts[0] : "Nhiều phông: " + page.word.sourceFonts.join(", ")
     function draftTitle() { return lessonTitle.text.trim() || page.documentState.source_title || page.documentState.title || "" }
-    function draftFont() { return originalFont.checked ? "" : englishFont.currentText }
+    function draftFont() { return page.selectedFont }
     readonly property bool englishItalic: textStyle.italic
     readonly property bool englishBold: textStyle.bold
     function restoreStyle(options) {
@@ -40,9 +42,9 @@ Item {
         const options = page.word.formattingDefaults
         englishColor.colorCode = options.color || "original"
         restoreStyle(options)
-        originalFont.checked = !options.font
+        page.selectedFont = options.font || ""
         englishSize.pointSize = options.font_size || 0
-        englishFont.currentIndex = Math.max(0, englishFont.model.indexOf(options.font || "Times New Roman"))
+        englishFont.currentIndex = page.selectedFont ? Math.max(0, englishFont.model.indexOf(page.selectedFont)) : 0
     }
     function rememberFormatting() { page.word.rememberFormatting(page.draftOptions()) }
     Component.onCompleted: { restoreFormattingDefaults(); grade.currentIndex = Math.max(0, grade.model.indexOf("11")) }
@@ -107,9 +109,9 @@ Item {
         englishColor.colorCode = page.documentState.options.color || "original"
         density.currentIndex = Math.max(0, densityCodes.indexOf(page.documentState.options.density || "normal"))
         page.restoreStyle(page.documentState.options)
-        originalFont.checked = !page.documentState.options.font
+        page.selectedFont = page.documentState.options.font || ""
         englishSize.pointSize = page.documentState.options.font_size || 0
-        englishFont.currentIndex = Math.max(0, englishFont.model.indexOf(page.documentState.options.font || "Times New Roman"))
+        englishFont.currentIndex = page.selectedFont ? Math.max(0, englishFont.model.indexOf(page.selectedFont)) : 0
         lessonTitle.text = page.documentState.title || ""
         subject.currentIndex = Math.max(0, appBridge.conversionSubjects.indexOf(page.documentState.subject || "Toán"))
         education.currentIndex = education.model.indexOf(page.documentState.education_level || "THPT")
@@ -281,17 +283,13 @@ Item {
             }
             ColumnLayout { Layout.alignment: Qt.AlignBottom; spacing: 4
                 RowLayout { spacing: 4
-                CheckBox { id: originalFont; objectName: "wordOriginalFont"; text: "Font gốc"; checked: true; implicitHeight: 38; enabled: page.available; leftPadding: 0; rightPadding: 0; spacing: 4; opacity: enabled ? 1 : .45
-                    indicator: Rectangle { x: 0; y: (parent.height - height) / 2; width: 18; height: 18; radius: 3; color: originalFont.checked ? AppTheme.blue : AppTheme.field; border.color: originalFont.checked || originalFont.visualFocus ? AppTheme.blue : AppTheme.muted
-                        Text { anchors.centerIn: parent; text: "✓"; font.pixelSize: 14; color: "white"; visible: originalFont.checked }
-                    }
-                    contentItem: Text { text: originalFont.text; leftPadding: 23; font.pixelSize: 12; color: AppTheme.ink; verticalAlignment: Text.AlignVCenter }
-                    ToolTip.visible: hovered; ToolTip.text: "Dùng phông chữ tại vùng gốc được chọn. Bỏ tích để chọn phông mới cho phần tiếng Anh."; onToggled: page.rememberFormatting() }
                 Choice { id: englishFont; objectName: "wordEnglishFont"; model: page.fontNames; Layout.preferredWidth: page.width < 950 ? 110 : 160; Layout.minimumWidth: Layout.preferredWidth; Layout.maximumWidth: Layout.preferredWidth
-                    Accessible.name: originalFont.checked ? "Phông gốc: " + page.sourceFontLabel : "Phông tiếng Anh: " + currentText
-                    displayText: originalFont.checked ? page.sourceFontLabel : currentText
-                    enabled: page.available && !originalFont.checked; onActivated: page.rememberFormatting()
-                    ToolTip.visible: fontHover.hovered; ToolTip.text: originalFont.checked ? page.sourceFontLabel + (page.word.sourceFonts.length > 1 ? "\nMỗi vùng giữ đúng phông riêng trong bản gốc." : "") : currentText
+                    Accessible.name: page.selectedFont ? "Phông tiếng Anh: " + page.selectedFont : "Phông gốc: " + page.sourceFontLabel
+                    displayText: page.selectedFont || page.sourceFontLabel
+                    enabled: page.available
+                    onModelChanged: currentIndex = page.selectedFont ? Math.max(0, model.indexOf(page.selectedFont)) : 0
+                    onActivated: { page.selectedFont = currentIndex > 0 ? currentText : ""; page.rememberFormatting() }
+                    ToolTip.visible: fontHover.hovered; ToolTip.text: page.selectedFont || page.sourceFontLabel + "\nChọn phông khác trực tiếp, hoặc Theo phông gốc để giữ phông riêng từng vùng."
                     HoverHandler { id: fontHover }
                 }
                 WordFontSize { id: englishSize; objectName: "wordFontSize"; sourceSize: page.word.sourceFontSize; Layout.preferredWidth: 60; enabled: page.available; onChosen: page.rememberFormatting() }

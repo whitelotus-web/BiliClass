@@ -22,9 +22,11 @@ Ngày 26/10/2026. Bản mã nguồn để thử tiếp, trên nhánh
 - **Kiểu chữ tiếng Anh** có B, I, U, gạch ngang, x₂, x². Các kiểu kết hợp
   được; chỉ số dưới và trên loại trừ nhau. Phông gốc, màu gốc, in nghiêng là
   các giá trị ban đầu; tài liệu mới lấy lựa chọn định dạng gần nhất.
-- Ô phông luôn hiện bên cạnh **Font gốc**. Khi tích, ô chỉ đọc và hiện
-  phông lấy từ tài liệu (hoặc danh sách nếu có nhiều phông); từng vùng vẫn
-  giữ phông riêng khi xuất. Bỏ tích để chọn phông mới, giữ lựa chọn gần nhất.
+- Ô phông mặc định tự theo phông gốc và luôn cho chọn trực tiếp phông khác;
+  không có ô tích riêng. Chọn **Theo phông gốc** trong danh sách để trở về
+  tự động. Khi tự động, ô hiện phông lấy từ tài liệu (hoặc danh sách nếu có
+  nhiều phông); từng vùng vẫn giữ phông riêng khi xuất. Lựa chọn gần nhất
+  được nhớ cho bài mới, tài liệu cũ vẫn giữ cấu hình đã lưu.
 - **Bôi đen văn bản** đứng trước. **Tích chọn đoạn/câu** có hai ô vuông con
   **Theo đoạn / Theo câu**, chỉ bật khi chọn cách tích chọn. Hai ô loại trừ
   nhau để mỗi lần chỉ dùng một cách chia nội dung.
