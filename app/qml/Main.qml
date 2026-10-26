@@ -1402,18 +1402,18 @@ ApplicationWindow {
                     }
                     ColumnLayout {
                         width: creationScroll.availableWidth; spacing: root.inputSectionSpacing
-                        RowLayout { Layout.fillWidth: true
-                            Heading { objectName: "creationPageHeading"; text: "Chuyển đổi bài giảng song ngữ"; font.pixelSize: root.tightCreation ? 24 : 27; Layout.fillWidth: true; Layout.minimumWidth: 0; wrapMode: Text.WordWrap }
-                            MainAction { objectName: root.selectedFile || root.creationBatch ? "chooseInputDocumentButton" : ""; visible: !root.creationBatchComplete && (!!root.selectedFile || root.creationBatch); text: "Chọn bài khác"; enabled: !bridge.busy && !bridge.inputDocuments.busy && !bridge.narrationBusy; onClicked: root.chooseInputDocuments("convert") }
-                            MainAction { objectName: "removeInputDocumentButton"; visible: !root.creationBatchComplete && (!!root.selectedFile || root.creationBatch); text: root.creationBatch ? "Hủy các bài đang chọn" : "Hủy bài đang chọn"; danger: true; symbol: "×"; enabled: !bridge.busy && !bridge.narrationBusy && (!root.creationBatch || root.batchState.phase === "draft"); onClicked: root.creationBatch ? bridge.batchQueue.clear() : root.removeInputDocument() }
-                        }
+                        Heading { objectName: "creationPageHeading"; text: "Chuyển đổi bài giảng song ngữ"; font.pixelSize: root.tightCreation ? 24 : 27; Layout.fillWidth: true; Layout.minimumWidth: 0; wrapMode: Text.WordWrap }
                         RowLayout { Layout.fillWidth: true
                             ConversionDocumentTab { objectName: "conversionDocumentPowerPoint"; selected: true }
                             ConversionDocumentTab { objectName: "conversionDocumentWord"; word: true; onClicked: root.go("word") }
                             Item { Layout.fillWidth: true }
                         }
                         Copy { visible: !!bridge.googleSettings.state.serviceWarning; text: bridge.googleSettings.state.serviceWarning || ""; color: AppTheme.warning; Layout.fillWidth: true; font.pixelSize: 11 }
-                        Copy { objectName: "creationWorkflowGuide"; visible: !root.creationBatchComplete; text: "Chọn PowerPoint → Chọn kiểu chuyển đổi → Thiết kế bài giảng → Tạo bài giảng."; Layout.fillWidth: true }
+                        RowLayout { objectName: "creationWorkflowActions"; visible: !root.creationBatchComplete; Layout.fillWidth: true; spacing: 6
+                            Copy { objectName: "creationWorkflowGuide"; text: "Chọn PowerPoint → Chọn kiểu chuyển đổi → Thiết kế bài giảng → Tạo bài giảng."; Layout.fillWidth: true; Layout.minimumWidth: 0 }
+                            MainAction { objectName: root.selectedFile || root.creationBatch ? "chooseInputDocumentButton" : ""; visible: !!root.selectedFile || root.creationBatch; text: "Chọn bài khác"; enabled: !bridge.busy && !bridge.inputDocuments.busy && !bridge.narrationBusy; onClicked: root.chooseInputDocuments("convert") }
+                            MainAction { objectName: "removeInputDocumentButton"; visible: !!root.selectedFile || root.creationBatch; text: root.creationBatch ? "Hủy các bài đang chọn" : "Hủy bài đang chọn"; danger: true; symbol: "×"; enabled: !bridge.busy && !bridge.narrationBusy && (!root.creationBatch || root.batchState.phase === "draft"); onClicked: root.creationBatch ? bridge.batchQueue.clear() : root.removeInputDocument() }
+                        }
                         PowerPointUpload {
                             objectName: "creationSourceArea"; enabled: root.page === "new"; visible: !root.selectedFile && !root.creationBatch; illustrated: true; compact: true; multiple: bridge.googleTranslation; Layout.fillWidth: true
                             chooseObjectName: root.selectedFile || root.creationBatch ? "" : "chooseInputDocumentButton"
@@ -1863,12 +1863,12 @@ ApplicationWindow {
                     ColumnLayout {
                         width: resultScroll.availableWidth; spacing: root.page === "voice" ? root.inputSectionSpacing : 18
                         ColumnLayout { visible: root.page === "voice"; Layout.fillWidth: true; spacing: 12
-                            RowLayout { Layout.fillWidth: true
-                                Heading { objectName: "voicePageHeading"; text: "Tạo giọng đọc bài giảng"; font.pixelSize: root.tightCreation ? 24 : 27; Layout.fillWidth: true; Layout.minimumWidth: 0 }
+                            Heading { objectName: "voicePageHeading"; text: "Tạo giọng đọc bài giảng"; font.pixelSize: root.tightCreation ? 24 : 27; Layout.fillWidth: true; Layout.minimumWidth: 0 }
+                            RowLayout { objectName: "voiceWorkflowActions"; visible: !root.voiceBatchComplete; Layout.fillWidth: true; spacing: 6
+                                Copy { objectName: "voiceWorkflowGuide"; text: "Chọn PowerPoint hoặc bài trong thư viện → Chọn giọng và ngôn ngữ → Tạo giọng đọc."; Layout.fillWidth: true; Layout.minimumWidth: 0 }
                                 MainAction { objectName: "changeVoiceSource"; visible: !root.voiceBatchComplete && (!!bridge.quickResult.path || root.voiceBatch); text: !root.voiceBatch && root.voiceSourceExpanded ? "Thu gọn" : "Chọn bài khác"; enabled: !bridge.busy && !bridge.narrationBusy && !bridge.powerpointState.active && !bridge.teachingTransitioning; onClicked: { if (root.voiceBatch) root.chooseInputDocuments("voice"); else root.voiceSourceExpanded = !root.voiceSourceExpanded } }
                                 MainAction { objectName: "dismissVoiceLesson"; visible: !root.voiceBatchComplete && (root.voiceBatch || !!bridge.quickResult.path); danger: true; symbol: "×"; text: root.voiceBatch ? "Hủy các bài đang chọn" : bridge.lessonNarration.stopping ? "Đang hủy…" : "Hủy bài đang chọn"; Accessible.description: "Bỏ bài đang chọn khỏi màn tạo giọng; bài đã lưu vẫn còn trong thư viện."; enabled: !bridge.busy && !bridge.lessonNarration.stopping && !bridge.powerpointState.active && !bridge.teachingTransitioning && (!root.voiceBatch || root.batchState.phase === "draft"); onClicked: { if (root.voiceBatch) bridge.batchQueue.clear(); bridge.dismissNarrationLesson() } }
                             }
-                            Copy { objectName: "voiceWorkflowGuide"; visible: !root.voiceBatchComplete; text: "Chọn PowerPoint hoặc bài trong thư viện → Chọn giọng và ngôn ngữ → Tạo giọng đọc."; Layout.fillWidth: true }
                             PowerPointUpload { objectName: "voiceSourceArea"; enabled: root.page === "voice"; visible: !root.voiceBatch && (!bridge.quickResult.path || root.voiceSourceExpanded); illustrated: true; compact: true; multiple: true; Layout.fillWidth: true; chooseObjectName: "chooseVoicePresentation"; dropObjectName: "voicePresentationDrop"; busy: bridge.busy || bridge.narrationBusy; loadingFileName: bridge.narrationImportName
                                 illustrationSource: "../assets/powerpoint-narration.png"; illustrationClipRect: Qt.rect(40, 200, 1408, 750)
                                 onChooseFile: root.chooseInputDocuments("voice")

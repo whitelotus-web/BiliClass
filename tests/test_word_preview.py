@@ -101,6 +101,26 @@ def test_selection_maps_repeated_table_cells_to_distinct_original_paragraphs(pre
                for region in selected)
 
 
+def test_confirmed_highlights_preserve_text_styles_and_distinguish_identical_table_cells(preview):
+    from app.word_highlights import SourceHighlights
+
+    package, view, document = preview
+    before = document.toHtml()
+    first = dict(paragraph='p0', start=0, end=len(package.rows[0]['text']))
+    positions = view.selected_positions(document, [first])
+    assert positions == [(0, length(package.rows[0]['text']))]
+    highlighter = SourceHighlights(document)
+    highlighter.set_ranges(positions)
+    assert document.firstBlock().layout().formats()[0].format.background().color().name() == '#dbeafe'
+    table_region = dict(paragraph='p4', start=0, end=len(package.rows[4]['text']))
+    cell_positions = view.selected_positions(document, [table_region])
+    selected, _ = view.ranges(document, *cell_positions[0])
+    assert selected == [table_region]
+    highlighter.set_ranges(cell_positions)
+    assert not document.firstBlock().layout().formats()
+    assert document.toHtml() == before
+
+
 def test_selection_after_emoji_and_across_linebreaks_is_not_offset_by_rich_formatting(preview):
     package, view, document = preview
     first = document.firstBlock()

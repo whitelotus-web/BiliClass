@@ -33,6 +33,10 @@ class WordDocuments(QObject):
         self._preview = None
         self._preview_document = None
         self._preview_excerpts = {}
+        self._font_families = None
+        self._highlighter = self._highlight_document = self._highlight_wrapper = None
+        self._highlight_identity = ''
+        self._groups_cache = (None, None, [])
         self.progressed.connect(self._progress)
 
     @Property('QVariantMap', notify=changed)
@@ -40,7 +44,42 @@ class WordDocuments(QObject):
         attention = self._attention or self._state.get('preview_notice', '')
         if not attention and self._state.get('phase') == 'paused':
             attention = self._state.get('message', '')
-        return {**self._state, 'working': self._working, 'attention_message': attention}
+        groups = self.reviewGroups
+        return {**self._state, 'working': self._working, 'attention_message': attention, 'group_count': len(groups)}
+
+    @Property('QVariantList', notify=changed)
+    def reviewGroups(self):
+        paragraphs, regions = self._state.get('paragraphs', []), self._state.get('regions', [])
+        if self._groups_cache[0] is not paragraphs or self._groups_cache[1] is not regions:
+            from .word_selection import review_groups
+
+            self._groups_cache = (paragraphs, regions, review_groups(paragraphs, regions))
+        return self._groups_cache[2]
+
+    @Slot(str)
+    def removeGroup(self, identity):
+        group = next((row for row in self.reviewGroups if row['id'] == identity), None)
+        if not group:
+            return
+        removed = {row['id'] for row in group['members']}
+        rows = [{key: row[key] for key in ('paragraph', 'start', 'end')} for row in self._state['regions'] if row['id'] not in removed]
+        current = self._state['id']
+        self._launch(lambda directory: jobs.selections(directory, current, rows), selection_only=True)
+
+    @Slot(str, result=int)
+    def rangePosition(self, identity):
+        region = next((row for row in self._state['regions'] if row['id'] == identity), None)
+        if not region or not self._highlight_document:
+            return -1
+        if self._preview:
+            positions = self._preview.selected_positions(self._highlight_document, [region])
+            return positions[0][0] if positions else -1
+        from .word_preview import length, normalized
+
+        for left, _, row, _ in self._text_selection.spans:
+            if row['id'] == region['paragraph']:
+                return length(self._text_selection.text[:left]) + length(normalized(row['text'][:region['start']]))
+        return -1
 
     def _show_error(self, message):
         self._state['message'] = self._attention = message
@@ -80,11 +119,20 @@ class WordDocuments(QObject):
 
     @Property('QStringList', constant=True)
     def fontFamilies(self):
+        if self._font_families is not None:
+            return self._font_families
         from PySide6.QtGui import QFontDatabase
 
         families = [name for name in QFontDatabase.families() if not name.startswith('@') and not QFontDatabase.isPrivateFamily(name)]
         preferred = ['Times New Roman', 'Arial', 'Calibri', 'Aptos', 'Be Vietnam Pro']
-        return [name for name in preferred if name in families] + sorted(set(families) - set(preferred), key=str.casefold)
+        self._font_families = [name for name in preferred if name in families] + sorted(set(families) - set(preferred), key=str.casefold)
+        return self._font_families
+
+    @Slot(result='QStringList')
+    def listFontFamilies(self):
+        # A returned sequence is a copy in QML. A property-backed QStringList
+        # rereads the Python getter for each indexOf/concat element access.
+        return self.fontFamilies
 
     @Property('QVariantMap', notify=formattingDefaultsChanged)
     def formattingDefaults(self):
@@ -108,7 +156,7 @@ class WordDocuments(QObject):
         self._state.update(value)
         self.changed.emit()
 
-    def _launch(self, action, *, clear_drafts=False, navigate=False, restore_configuration=False):
+    def _launch(self, action, *, clear_drafts=False, navigate=False, restore_configuration=False, selection_only=False):
         if not self.available():
             return
         self._working = True
@@ -129,7 +177,8 @@ class WordDocuments(QObject):
                         preview = Preview(Package(jobs.folder_for(directory, job['id']) / 'source.docx'))
                     except Exception:
                         preview_notice = 'Chưa hiện được định dạng gốc; vẫn có thể chọn và dịch ở chế độ văn bản.'
-                return dict(job=jobs.public(directory, job) if job else None, preview=preview,
+                public = jobs.public(directory, job, paragraphs=not (selection_only and job['id'] == prior_text_identity)) if job else None
+                return dict(job=public, preview=preview,
                             preview_notice=preview_notice, library=jobs.catalog(directory, self._trash), error='')
             except Exception as exc:
                 return dict(error=str(exc), job=None, library=jobs.catalog(directory, self._trash))
@@ -141,6 +190,10 @@ class WordDocuments(QObject):
                 self._formatting_defaults = defaults
                 self.formattingDefaultsChanged.emit()
             if result.get('job'):
+                if 'paragraphs' not in result['job']:
+                    result['job']['paragraphs'] = self._state.get('paragraphs', [])
+                if result['job']['id'] == self._text_identity:
+                    result['job']['preview_notice'] = self._state.get('preview_notice', '')
                 self._state = result['job']
                 self._attention = ''
                 if self._text_identity != self._state['id']:
@@ -153,6 +206,7 @@ class WordDocuments(QObject):
                     self._preview_excerpts = {}
                     self._state['preview_notice'] = result.get('preview_notice', '')
                     self.sourceTextChanged.emit()
+                self._refresh_highlights()
                 if clear_drafts:
                     self._drafts.clear()
                     self._keywords.clear()
@@ -167,7 +221,8 @@ class WordDocuments(QObject):
             if result.get('job') and restore_configuration:
                 self.configurationRestored.emit()
             self.bridge.inform('', refresh=False)
-            self.bridge.googleSettings.refresh()
+            if not selection_only:
+                self.bridge.googleSettings.refresh()
 
         self.bridge.launch(work, finished, message='Đang xử lý tài liệu Word…')
         self.bridge.worker.word_task = True
@@ -215,6 +270,7 @@ class WordDocuments(QObject):
         self._text_selection, self._text_identity = TextSelection([]), ''
         self._preview = self._preview_document = None
         self._preview_excerpts = {}
+        self._detach_highlights()
         self.sourceTextChanged.emit()
         self.changed.emit()
         self.workspaceReset.emit()
@@ -244,24 +300,117 @@ class WordDocuments(QObject):
     def _ranges(self):
         return [{key: row[key] for key in ('paragraph', 'start', 'end')} for row in self._state['regions']]
 
+    @Slot(bool)
+    def setWholeDocument(self, enabled):
+        if not self.available() or not self._state['id'] or enabled == bool(self._state.get('whole_document')):
+            return
+        if self.draftsPending:
+            self._show_error('Có chỉnh sửa bản dịch chưa lưu. Bấm Lưu Word song ngữ trước khi đổi phạm vi dịch.')
+            return
+        identity = self._state['id']
+        self._launch(lambda directory: jobs.selections(directory, identity, [], whole_document=enabled), selection_only=True)
+
+    def _detach_highlights(self):
+        from shiboken6 import isValid
+
+        if self._highlighter and isValid(self._highlighter):
+            self._highlighter.setDocument(None)
+            self._highlighter.deleteLater()
+        self._highlighter = self._highlight_document = self._highlight_wrapper = None
+        self._highlight_identity = ''
+
+    @Slot(QObject, str)
+    def bindPreviewDocument(self, wrapper, identity):
+        if not identity or identity != self._state['id'] or not wrapper:
+            return
+        document = wrapper.textDocument()
+        if document == self._highlight_document and identity == self._highlight_identity:
+            return
+        self._detach_highlights()
+        from .word_highlights import SourceHighlights
+
+        self._highlight_wrapper, self._highlight_document, self._highlight_identity = wrapper, document, identity
+        self._highlighter = SourceHighlights(document)
+        self._refresh_highlights()
+
+    def _refresh_highlights(self):
+        from shiboken6 import isValid
+
+        if not self._highlighter or self._highlight_identity != self._state['id']:
+            return
+        if not isValid(self._highlighter) or not isValid(self._highlight_document):
+            self._detach_highlights()
+            return
+        if self._preview:
+            positions = self._preview.selected_positions(self._highlight_document, self._state['regions'])
+        else:
+            from .word_preview import length, normalized
+
+            positions = []
+            for left, _, row, _ in self._text_selection.spans:
+                base = length(self._text_selection.text[:left])
+                positions.extend((base + length(normalized(row['text'][:region['start']])),
+                                  base + length(normalized(row['text'][:region['end']])))
+                    for region in self._state['regions'] if region['paragraph'] == row['id'])
+        self._highlighter.set_ranges(positions)
+
+    def _visible_ranges(self, identity, wrapper, start, end):
+        if not identity or identity != self._state['id'] or identity != self._text_identity:
+            raise ValueError('Tài liệu đã đổi; bôi đen lại phần cần dịch.')
+        if self._preview:
+            return self._preview.ranges(wrapper.textDocument(), start, end)
+        return self._text_selection.ranges(start, end)
+
+    @Slot(str, QObject, int, int, result=str)
+    def highlightAction(self, identity, wrapper, start, end):
+        try:
+            selected, _ = self._visible_ranges(identity, wrapper, start, end)
+            covered = all(any(old['paragraph'] == row['paragraph'] and old['start'] <= row['start'] and old['end'] >= row['end']
+                              for old in self._state['regions']) for row in selected)
+            return 'remove' if covered else 'add'
+        except (ValueError, RuntimeError, AttributeError) as exc:
+            self._show_error(str(exc))
+            return ''
+
+    @Slot(str, QObject, int, int, bool)
+    def applyHighlight(self, identity, wrapper, start, end, remove):
+        if not self.available():
+            return
+        try:
+            selected, skipped = self._visible_ranges(identity, wrapper, start, end)
+        except (ValueError, RuntimeError, AttributeError) as exc:
+            self._show_error(str(exc))
+            return
+        if not remove:
+            self._add_selected_ranges(identity, selected, skipped)
+            return
+        rows = self._ranges()
+        for selection in selected:
+            rows = self._subtract(rows, selection['paragraph'], selection['start'], selection['end'])
+        self._launch(lambda directory: jobs.selections(directory, identity, rows), selection_only=True)
+
+    @staticmethod
+    def _subtract(rows, paragraph, start, end):
+        updated = []
+        for row in rows:
+            if row['paragraph'] != paragraph or row['end'] <= start or row['start'] >= end:
+                updated.append(row)
+            else:
+                if row['start'] < start:
+                    updated.append({**row, 'end': start})
+                if row['end'] > end:
+                    updated.append({**row, 'start': end})
+        return updated
+
     @Slot(str, int, int, bool)
     def toggle(self, paragraph, start, end, selected):
         rows = self._ranges()
         if selected:
             rows.append(dict(paragraph=paragraph, start=start, end=end))
         else:
-            updated = []
-            for row in rows:
-                if row['paragraph'] != paragraph or row['end'] <= start or row['start'] >= end:
-                    updated.append(row)
-                else:
-                    if row['start'] < start:
-                        updated.append({**row, 'end': start})
-                    if row['end'] > end:
-                        updated.append({**row, 'start': end})
-            rows = updated
+            rows = self._subtract(rows, paragraph, start, end)
         identity = self._state['id']
-        self._launch(lambda directory: jobs.selections(directory, identity, rows))
+        self._launch(lambda directory: jobs.selections(directory, identity, rows), selection_only=True)
 
     @Slot(str, int, int, int)
     def addRange(self, paragraph, base, start, end):
@@ -338,24 +487,24 @@ class WordDocuments(QObject):
                 job['message'] += f' Giữ nguyên {skipped} đoạn chỉ có hình/công thức hoặc đang khóa; các đoạn đó chưa được chọn để dịch.'
             return job
 
-        self._launch(action)
+        self._launch(action, selection_only=True)
 
     @Slot(str)
     def removeRange(self, identity):
         rows = [row for row in self._ranges() if f"{row['paragraph']}:{row['start']}:{row['end']}" != identity]
         current = self._state['id']
-        self._launch(lambda directory: jobs.selections(directory, current, rows))
+        self._launch(lambda directory: jobs.selections(directory, current, rows), selection_only=True)
 
     @Slot()
     def clearSelection(self):
         identity = self._state['id']
-        self._launch(lambda directory: jobs.selections(directory, identity, []), clear_drafts=True)
+        self._launch(lambda directory: jobs.selections(directory, identity, []), clear_drafts=True, selection_only=True)
 
     @Slot(str)
     def selectAll(self, scope):
         rows = [dict(paragraph=row['paragraph'], start=row['start'], end=row['end']) for row in self.items(scope) if row['editable']]
         identity = self._state['id']
-        self._launch(lambda directory: jobs.selections(directory, identity, rows))
+        self._launch(lambda directory: jobs.selections(directory, identity, rows), selection_only=True)
 
     @Slot(str, str)
     def setDraft(self, identity, value):

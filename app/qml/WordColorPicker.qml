@@ -33,7 +33,7 @@ Button {
         }
         Text { text: "⌄"; color: AppTheme.muted; font.pixelSize: 16 }
     }
-    background: Rectangle { radius: 7; color: picker.hovered ? AppTheme.selected : AppTheme.field; border.color: picker.activeFocus ? AppTheme.blue : AppTheme.line }
+    background: Rectangle { radius: 7; color: picker.hovered || colors.visible || !picker.original ? AppTheme.selected : "transparent"; border.width: picker.activeFocus || colors.visible || !picker.original ? 1 : 0; border.color: AppTheme.blue }
     Popup {
         id: colors; objectName: "wordColorPalette"; parent: Overlay.overlay; width: 296; padding: 12
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside

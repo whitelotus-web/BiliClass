@@ -1,6 +1,21 @@
 # BiliClass — Hướng dẫn sử dụng
 
-Hướng dẫn bản cài RC169 · 26/10/2026
+Hướng dẫn bản cài RC170 · 26/10/2026
+
+RC170 bổ sung bản xem Word có định dạng, ảnh nhúng và bảng để chọn nội dung.
+Nhả chuột rồi bấm **Chọn**; phần đã xác nhận giữ nền xanh nhạt. Quét lại
+phần đã chọn để **Bỏ chọn**. Các đoạn liền nhau gộp thành một vùng bên phải;
+bấm tên hoặc nội dung vùng để tìm đúng chỗ trong bản gốc. **Dịch toàn bộ**
+cạnh tên tệp chọn toàn bộ phần chữ có thể dịch và khóa cách chọn riêng;
+bỏ tích để khôi phục các vùng chọn thủ công trước đó. Chỉ bấm
+**Chuyển đổi bài giảng** mới gửi dịch. Hình/công thức và phần khóa được giữ nguyên.
+
+Chọn **Font gốc / Size gốc** để theo từng vùng; hoặc chọn font và cỡ riêng.
+Các nút B/I/U/gạch ngang chỉ có khung khi bật. Sau màu chữ A là tô sáng
+chữ, mặc định **Không màu**; màu tô sáng áp dụng cho phần tiếng Anh khi xuất.
+Các lựa chọn định dạng được nhớ cho bài mới. Bản xem giúp chọn chữ, không
+thay thế hoàn toàn cách Word phân trang. File gốc không bị ghi đè; phần
+không được chọn trong bản xuất giữ nguyên nội dung và định dạng gốc.
 
 Trong **RC169**, vào **Chuyển đổi bài giảng → Word** để tích chọn đoạn/câu
 hoặc bôi đen nhiều vùng của `.docx`. Nhả chuột rồi xác nhận vùng cần dịch.

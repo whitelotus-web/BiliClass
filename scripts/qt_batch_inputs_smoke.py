@@ -83,8 +83,27 @@ def main():
                           c(name).width(), c(name).height()) for key, name in names.items()}
 
         def same_geometry(first, second, scope):
+            # Conversion has PowerPoint/Word tabs; Voice starts directly with
+            # its guide. Compare the workspace relative to that shared row.
+            vertical_offset = second['guide'][1] - first['guide'][1]
             for key in first:
-                assert all(abs(a-b) <= 1 for a, b in zip(first[key], second[key])), (scope, key, first[key], second[key])
+                expected = tuple(value + (vertical_offset if index == 1 and key != 'heading' else 0)
+                    for index, value in enumerate(first[key]))
+                assert all(abs(a-b) <= 1 for a, b in zip(expected, second[key])), (scope, key, expected, second[key])
+
+        def check_input_actions(kind, source_panel):
+            prefix = 'creation' if kind == 'convert' else 'voice'
+            choose = c('chooseInputDocumentButton' if kind == 'convert' else 'changeVoiceSource')
+            cancel = c('removeInputDocumentButton' if kind == 'convert' else 'dismissVoiceLesson')
+            heading, guide = c(prefix + 'PageHeading'), c(prefix + 'WorkflowGuide')
+            bounds = [item.mapRectToScene(item.boundingRect()) for item in (choose, cancel, heading, guide, c(source_panel))]
+            change_rect, cancel_rect, heading_rect, guide_rect, source_rect = bounds
+            assert choose.isVisible() and cancel.isVisible()
+            assert guide_rect.right() <= change_rect.left() < cancel_rect.left() and change_rect.right() <= cancel_rect.left()
+            assert abs(change_rect.center().y() - guide_rect.center().y()) <= 1
+            assert abs(cancel_rect.center().y() - guide_rect.center().y()) <= 1
+            assert heading_rect.bottom() < change_rect.top() < cancel_rect.bottom() < source_rect.top()
+            assert cancel_rect.right() <= root.width(), bounds
 
         def resize(width, height):
             root.resize(width, height)
@@ -135,6 +154,7 @@ def main():
                         bridge.setApplicationTheme(theme)
                         for width, height in ((1080, 700), (1366, 850)):
                             resize(width, height)
+                            check_input_actions(kind, source_panel)
                             list_view, thumbnail = c('batchInputRows_'+kind), c('batchInputThumbnail_'+kind)
                             assert thumbnail.mapToScene(QPointF()).x() >= list_view.mapToScene(QPointF(list_view.width(), 0)).x()
                             assert abs(thumbnail.width()/thumbnail.height()-16/9) < .01
@@ -207,6 +227,7 @@ def main():
                     bridge.setApplicationTheme(theme)
                     for width, height in ((1080, 700), (1366, 850)):
                         resize(width, height)
+                        check_input_actions('convert', 'creationLessonOverview')
                         single_geometry[theme, width] = geometry(dict(
                             guide='creationWorkflowGuide', title='creationSelectedLessonTitle', info='creationSelectedLessonInfo',
                             state='creationInputState', summary='creationSelectedSlideCount', open='creationOpenPowerPoint',
@@ -233,6 +254,7 @@ def main():
                         bridge.setApplicationTheme(theme)
                         for width, height in ((1080, 700), (1366, 850)):
                             resize(width, height)
+                            check_input_actions('voice', 'voiceLessonOverview')
                             measured = geometry(dict(
                                 guide='voiceWorkflowGuide', title='resultLessonTitle', info='voiceSelectedLessonInfo',
                                 state='lessonWorkflowState', summary='voiceSourceSummary', open='voiceTeachWithoutNarration',
@@ -252,6 +274,7 @@ def main():
                 slide_navigation_and_expand=True, metadata_real_pptx=True, sources_and_library_preserved=True,
                 navigation_under_thumbnail_single_and_multiple=True, scroll_to_fourth_input=True,
                 matched_empty_single_and_batch_geometry_between_tools=True, queue_hint_below_rows=True,
+                input_actions_beside_guide_above_selected_source=True,
                 light_dark_1080_1366=True, qml_warnings=[])), encoding='utf-8')
             print('Batch input selection, preview race and layout Qt checks passed.', flush=True)
         finally:

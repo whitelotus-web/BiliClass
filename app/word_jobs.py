@@ -166,11 +166,21 @@ def create(directory, source, *, preferences=None):
     return job
 
 
-def selections(directory, identity, rows):
+def selections(directory, identity, rows, *, whole_document=None):
     folder = folder_for(directory, identity)
     with locked(folder):
         job = read(directory, identity)
         package = Package(folder / 'source.docx')
+        if whole_document is None and job.get('whole_document'):
+            raise ValueError('Bỏ tích Dịch toàn bộ trước khi chọn riêng nội dung.')
+        if whole_document is True:
+            if not job.get('whole_document'):
+                job['manual_selection'] = [{key: row[key] for key in ('paragraph', 'start', 'end')} for row in job['regions']]
+            rows = [dict(paragraph=row['id'], start=0, end=len(row['text'])) for row in package.rows if row['editable']]
+        elif whole_document is False:
+            rows = job.pop('manual_selection', rows)
+        if whole_document is not None:
+            job['whole_document'] = whole_document
         selected = package.selection(rows)
         old = {row['id']: row for row in job['regions']}
         job['regions'] = [{**row, **{key: value for key, value in old.get(row['id'], {}).items()
@@ -185,14 +195,15 @@ def title_for(value, fallback):
 
 
 def options_for(value):
-    from .word_document import MODES, font_size, valid_color
+    from .word_document import HIGHLIGHTS, MODES, font_size, valid_color
 
-    result = dict(mode=value.get('mode', 'below'), color=value.get('color', 'original'),
+    result = dict(mode=value.get('mode', 'below'), color=value.get('color', 'original'), highlight=value.get('highlight', 'none'),
                   italic=value.get('italic', True), bold=value.get('bold', False),
                   underline=value.get('underline', False), strike=value.get('strike', False), script=value.get('script', 'normal'),
                   font_size=font_size(value.get('font_size', 0)),
                   font=font_name(value.get('font', '')), density=value.get('density', 'normal'))
     if (result['mode'] not in MODES or not valid_color(result['color'])
+            or not isinstance(result['highlight'], str) or result['highlight'] != 'none' and result['highlight'] not in HIGHLIGHTS
             or any(type(result[key]) is not bool for key in ('italic', 'bold', 'underline', 'strike'))
             or result['script'] not in {'normal', 'subscript', 'superscript'} or result['density'] not in {'few', 'normal', 'deep'}):
         raise ValueError('Cấu hình trình bày Word chưa hợp lệ.')
@@ -214,7 +225,7 @@ def formatting_defaults(directory, value=None):
             result = options_for({})
     else:
         result = options_for(value)
-    result = {key: result[key] for key in ('color', 'italic', 'bold', 'underline', 'strike', 'script', 'font', 'font_size')}
+    result = {key: result[key] for key in ('color', 'highlight', 'italic', 'bold', 'underline', 'strike', 'script', 'font', 'font_size')}
     if saving:
         _atomic(path, json.dumps(result, ensure_ascii=False).encode('utf-8'))
     return result

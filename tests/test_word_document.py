@@ -116,6 +116,46 @@ def test_overlap_merge_unicode_positions_and_decimal_sentences(source):
     assert sentences[0]['text'] == 'Giá trị 1.5 m.'
 
 
+@pytest.mark.parametrize('reverse', [False, True])
+def test_fifth_then_overlapping_fourth_fifth_keeps_source_order_and_existing_translation(tmp_path, reverse):
+    source = tmp_path / 'five.docx'
+    doc = Document()
+    for number in range(1, 6):
+        doc.add_paragraph(f'Đoạn thứ {number}.')
+    doc.save(source)
+    directory = tmp_path / 'data'
+    job = jobs.create(directory, source)
+    package = Package(source)
+    fourth, fifth = [dict(paragraph=row['id'], start=0, end=len(row['text'])) for row in package.rows[3:5]]
+    job = jobs.selections(directory, job['id'], [fifth])
+    job['regions'][0]['en'] = 'Paragraph 5.'
+    jobs.write(jobs.folder_for(directory, job['id']), job)
+    added = [fifth, fourth] if reverse else [fourth, fifth]
+    job = jobs.selections(directory, job['id'], [fifth, *added])
+    assert [row['paragraph'] for row in job['regions']] == ['p3', 'p4']
+    assert job['regions'][1]['en'] == 'Paragraph 5.'
+    assert len(job['regions']) == 2
+
+
+def test_whole_document_locks_manual_selection_and_restores_it_when_disabled(source, tmp_path):
+    directory = tmp_path / 'data'
+    job = jobs.create(directory, source)
+    package = Package(source)
+    manual = [dict(paragraph='p1', start=0, end=12)]
+    jobs.selections(directory, job['id'], manual)
+    all_text = jobs.selections(directory, job['id'], [], whole_document=True)
+    assert all_text['whole_document'] is True
+    assert len(all_text['regions']) == sum(row['editable'] for row in package.rows)
+    assert all_text['manual_selection'] == manual
+    assert not any(row.get('en') for row in all_text['regions']), 'Choosing a scope must never call a translator'
+    with pytest.raises(ValueError, match='Bỏ tích'):
+        jobs.selections(directory, job['id'], [])
+    restored = jobs.selections(directory, job['id'], [], whole_document=False)
+    assert restored['whole_document'] is False
+    assert [{key: row[key] for key in ('paragraph', 'start', 'end')} for row in restored['regions']] == manual
+    assert not any(row.get('paragraph') == package.rows[-1]['id'] for row in all_text['regions'])
+
+
 def test_keyword_density_combining_accents_overlap_and_no_duplicate_annotation():
     row = dict(vi='Gia tốc của dao động điều hòa. Gia tốc luôn hướng về vị trí cân bằng.')
     terms = {'gia tốc': 'acceleration', 'dao động điều hòa': 'simple harmonic motion', 'dao động': 'oscillation', 'vị trí cân bằng': 'equilibrium position'}

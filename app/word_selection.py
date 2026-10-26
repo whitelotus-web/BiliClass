@@ -3,6 +3,27 @@
 from .word_document import utf16_position
 
 
+def review_groups(paragraphs, regions):
+    """Group adjacent display ranges while keeping the saved DOCX edits separate."""
+    rows = {row['id']: (index, row['text']) for index, row in enumerate(paragraphs)}
+    groups, previous = [], None
+    for index, region in enumerate(regions):
+        order, source = rows[region['paragraph']]
+        adjacent = previous and (
+            previous['paragraph'] == region['paragraph'] and previous['end'] == region['start']
+            or rows[previous['paragraph']][0] + 1 == order
+            and previous['end'] == len(rows[previous['paragraph']][1]) and region['start'] == 0)
+        member = {**region, 'review_index': index}
+        if not adjacent:
+            groups.append(dict(id=region['id'], members=[], vi=''))
+        group = groups[-1]
+        separator = '\n' if previous and previous['paragraph'] != region['paragraph'] else ''
+        group['vi'] += (separator if group['members'] else '') + region['vi']
+        group['members'].append(member)
+        previous = region
+    return groups
+
+
 class TextSelection:
     def __init__(self, paragraphs):
         parts, self.spans, position = [], [], 0

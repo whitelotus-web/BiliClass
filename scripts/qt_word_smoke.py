@@ -25,7 +25,7 @@ from PySide6.QtCore import (
     QUrl,
 )
 from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication, QWheelEvent
-from PySide6.QtQml import QQmlApplicationEngine
+from PySide6.QtQml import QQmlApplicationEngine, QQmlExpression
 from PySide6.QtQuickControls2 import QQuickStyle
 from PySide6.QtTest import QTest
 
@@ -91,12 +91,28 @@ def main():
 
         def check_formatting_row():
             picker = 'wordKeywordDensity' if c('wordMode').property('currentIndex') == 2 else 'wordEnglishColor'
-            parts = [c(name) for name in ('wordMode', picker, 'wordTextStyle', 'wordEnglishFont', 'wordFontSize')]
+            parts = [c(name) for name in ('wordMode', picker, 'wordEnglishHighlight', 'wordTextStyle', 'wordEnglishFont', 'wordFontSize')]
             rectangles = [item.mapRectToScene(item.boundingRect()) for item in parts]
-            assert max(rect.top() for rect in rectangles) - min(rect.top() for rect in rectangles) < 3, rectangles
+            assert max(rect.center().y() for rect in rectangles) - min(rect.center().y() for rect in rectangles) < 2, rectangles
             assert all(left.right() <= right.left() + 1 for left, right in zip(rectangles, rectangles[1:])), rectangles
             toolbar = c('wordFormattingToolbar').mapRectToScene(c('wordFormattingToolbar').boundingRect())
             assert rectangles[-1].right() <= toolbar.right() + 1 <= window.width(), rectangles[-1]
+            layout_group, style_group = [c(name) for name in ('wordConversionOptions', 'wordFormattingOptions')]
+            left, right = [item.mapRectToScene(item.boundingRect()) for item in (layout_group, style_group)]
+            assert left.right() < right.left() and left.left() == toolbar.left()
+            assert abs(right.right() - toolbar.right()) <= 1
+            if toolbar.width() >= 2 * c('wordFormattingToolbar').property('minimumControlsWidth') + 25:
+                assert abs(left.width() - right.width()) <= 1, (left, right)
+            for index in range(4):
+                radio = c('wordMode_' + str(index))
+                rect = radio.mapRectToScene(radio.boundingRect())
+                assert left.left() <= rect.left() < rect.right() <= left.right() + 1, (index, rect, left)
+            assert all(rect.left() >= right.left() for rect in rectangles[1:])
+            for name in ('wordStyleBold', 'wordStyleItalic', 'wordStyleUnderline', 'wordStyleStrike'):
+                button = c(name)
+                assert button.height() == 28 and button.width() <= 27
+                border_width = QQmlExpression(engine.rootContext(), button, 'background.border.width').evaluate()[0]
+                assert border_width == int(button.property('checked') or button.property('visualFocus'))
 
         def plain_text(text):
             return QMetaObject.invokeMethod(text, 'getText', Qt.DirectConnection, Q_RETURN_ARG(str),
@@ -125,12 +141,17 @@ def main():
                 QTest.mouseMove(window, first + (last - first) * (step / 5), 20)
             assert not c('wordHighlightPopup').property('visible'), 'Confirmation must wait for mouse release'
             QTest.mouseRelease(window, Qt.LeftButton, Qt.NoModifier, last)
-            until(lambda: c('wordHighlightPopup').property('visible'))
+            try:
+                until(lambda: c('wordHighlightPopup').property('visible'))
+            except AssertionError:
+                window.grabWindow().save(str(report / 'selection-failure.png'))
+                raise AssertionError(dict(start=start, end=end, first=(first.x(), first.y()), last=(last.x(), last.y()),
+                    text=text.property('selectedText'), state=bridge.wordDocuments.state.get('attention_message')))
             assert c('wordHighlightPopup').width() <= 140 and c('wordHighlightPopup').height() <= 44
-            assert c('wordAcceptHighlight').property('text') == 'Chọn'
+            assert c('wordAcceptHighlight').property('text') in ('Chọn', 'Bỏ chọn')
             # At an end-of-line Qt may include the adjacent paragraph separator
             # when the caret rectangle is rounded to a physical screen pixel.
-            expected = preview_text().encode('utf-16-le')[start * 2:end * 2].decode('utf-16-le')
+            expected = preview_text().encode('utf-16-le')[min(start, end) * 2:max(start, end) * 2].decode('utf-16-le')
             actual = text.property('selectedText').replace('\u2029', '\n')
             assert actual.strip() == expected.strip(), (actual, expected)
 
@@ -183,7 +204,7 @@ def main():
                     radio_rows = [c('wordMode_' + str(index)).mapToScene(QPointF()).y() for index in range(4)]
                     assert max(radio_rows) - min(radio_rows) < 2
                     click(window, c('wordMode_0'))
-                    for width, height in ((1080, 700), (1366, 850)):
+                    for width, height in ((1080, 700), (1366, 850), (1760, 990)):
                         window.resize(width, height)
                         pump(100)
                         for index in (0, 2):
@@ -191,19 +212,27 @@ def main():
                             pump(30)
                             check_formatting_row()
                             assert window.grabWindow().save(str(report / f'word-toolbar-{width}-{index}.png'))
+                    window.resize(1366, 850)
+                    pump(80)
                     c('wordMode').setProperty('currentIndex', 0)
                     assert c('wordEnglishColor').property('colorCode') == 'original'
+                    assert c('wordEnglishHighlight').property('colorCode') == 'none'
+                    click(window, c('wordEnglishHighlight'))
+                    assert c('wordHighlightPalette').property('visible')
+                    click(window, c('wordHighlight_FFFF00'))
+                    assert bridge.wordDocuments.formattingDefaults['highlight'] == 'FFFF00'
+                    click(window, c('wordEnglishHighlight'))
+                    assert window.grabWindow().save(str(report / 'word-highlight-palette.png'))
+                    click(window, c('wordHighlightNone'))
+                    assert bridge.wordDocuments.formattingDefaults['highlight'] == 'none'
                     assert c('wordPreview').property('text') == 'Chuyển đổi bài giảng'
                     for level, classes in ((2, ['1', '2', '3', '4', '5']), (1, ['6', '7', '8', '9']), (0, ['10', '11', '12'])):
                         c('wordEducation').setProperty('currentIndex', level)
                         pump(30)
                         assert c('wordGrade').property('model') == classes
                     c('wordGrade').setProperty('currentIndex', 1)
-                    click(window, c('wordStyleSubscript'))
-                    assert c('wordTextStyle').property('script') == 'subscript'
-                    click(window, c('wordStyleSuperscript'))
-                    assert c('wordTextStyle').property('script') == 'superscript' and not c('wordStyleSubscript').property('checked')
-                    click(window, c('wordStyleSuperscript'))
+                    assert window.findChild(QObject, 'wordStyleSubscript') is None
+                    assert window.findChild(QObject, 'wordStyleSuperscript') is None
                     assert c('wordTextStyle').property('script') == 'normal'
                     click(window, c('wordEnglishColor'))
                     assert c('wordColorPalette').property('visible')
@@ -221,7 +250,7 @@ def main():
                     c('wordEnglishFont').setProperty('currentIndex', c('wordEnglishFont').property('model').index('Arial'))
                     assert QMetaObject.invokeMethod(c('wordEnglishFont'), 'activated', Q_ARG(int, c('wordEnglishFont').property('currentIndex')))
                     assert QMetaObject.invokeMethod(c('wordEnglishColor'), 'choose', Q_ARG('QVariant', '1667B1'))
-                    assert bridge.wordDocuments.formattingDefaults == dict(color='1667B1', font='Arial', italic=True, bold=True, underline=False, strike=False, script='normal', font_size=0)
+                    assert bridge.wordDocuments.formattingDefaults == dict(color='1667B1', highlight='none', font='Arial', italic=True, bold=True, underline=False, strike=False, script='normal', font_size=0)
                     assert window.grabWindow().save(str(report / 'word-custom-font.png'))
                     c('wordSubject').setProperty('currentIndex', bridge.conversionSubjects.index('Vật lý'))
                     c('wordEducation').setProperty('currentIndex', 1)
@@ -239,8 +268,13 @@ def main():
                     heading_rect = c('wordPageHeading').mapRectToScene(c('wordPageHeading').boundingRect())
                     change_rect = c('wordChooseFile').mapRectToScene(c('wordChooseFile').boundingRect())
                     dismiss_rect = c('wordDismissInput').mapRectToScene(c('wordDismissInput').boundingRect())
-                    assert change_rect.left() >= heading_rect.right() and dismiss_rect.left() >= change_rect.right(), (heading_rect, change_rect, dismiss_rect)
-                    assert abs(heading_rect.center().y() - change_rect.center().y()) < 2
+                    guide_rect = c('wordWorkflowGuide').mapRectToScene(c('wordWorkflowGuide').boundingRect())
+                    source_rect = c('wordSourceArea').mapRectToScene(c('wordSourceArea').boundingRect())
+                    assert change_rect.top() > heading_rect.bottom() and dismiss_rect.left() >= change_rect.right(), (heading_rect, change_rect, dismiss_rect)
+                    assert guide_rect.right() <= change_rect.left()
+                    assert abs(change_rect.center().y() - guide_rect.center().y()) <= 1
+                    assert abs(dismiss_rect.center().y() - guide_rect.center().y()) <= 1
+                    assert source_rect.top() > dismiss_rect.bottom()
                     assert bridge.wordDocuments.sourceFontSize == '14'
                     assert c('wordFontSize').property('pointSize') == 0 and c('wordFontSize').property('editText') == 'Size gốc', {
                         key: c('wordFontSize').property(key) for key in ('pointSize', 'editText', 'sourceSize', 'lastShown', 'activeFocus')}
@@ -314,6 +348,15 @@ def main():
                     panel_rect = c('wordSourcePanel').mapRectToScene(c('wordSourcePanel').boundingRect())
                     assert text_rect.top() - panel_rect.top() <= 120
                     assert c('wordSelectByHighlight').property('checked')
+                    assert c('wordZoomFit').property('text') == '100%'
+                    click(window, c('wordZoomIn'))
+                    assert c('wordZoomFit').property('text') == '110%'
+                    click(window, c('wordZoomOut'))
+                    assert c('wordZoomFit').property('text') == '100%'
+                    click(window, c('wordZoomOut'))
+                    assert c('wordZoomFit').property('text') == '90%'
+                    click(window, c('wordZoomFit'))
+                    assert c('wordZoomFit').property('text') == '100%'
                     assert not c('wordScopeParagraphs').isEnabled() and not c('wordScopeSentences').isEnabled()
                     click(window, c('wordSelectByCheckbox'))
                     assert c('wordScopeParagraphs').isEnabled() and c('wordScopeSentences').isEnabled()
@@ -345,9 +388,42 @@ def main():
                     drag_text(begin, finish)
                     assert calls == [], 'Highlighting must not send text to a provider'
                     assert window.grabWindow().save(str(report / 'word-highlight-popup.png'))
+                    assert c('wordAcceptHighlight').property('text') == 'Bỏ chọn'
                     click(window, c('wordAcceptHighlight'))
                     until(lambda: not bridge.busy)
-                    assert bridge.wordDocuments.state['selected_count'] == 2, 'Duplicate highlights must merge'
+                    assert bridge.wordDocuments.state['selected_count'] == 1
+                    drag_text(begin, finish)
+                    assert c('wordAcceptHighlight').property('text') == 'Chọn'
+                    click(window, c('wordAcceptHighlight'))
+                    until(lambda: not bridge.busy)
+                    assert bridge.wordDocuments.state['selected_count'] == 2
+                    assert bridge.wordDocuments._highlighter.ranges
+                    assert len(bridge.wordDocuments.reviewGroups) == 2
+                    click(window, c('wordLocateRange_1'))
+                    pump(80)
+                    position = bridge.wordDocuments.rangePosition(bridge.wordDocuments.reviewGroups[1]['id'])
+                    rect = QMetaObject.invokeMethod(c('wordContinuousText'), 'positionToRectangle', Qt.DirectConnection,
+                        Q_RETURN_ARG(QRectF), Q_ARG(int, position))
+                    mapped = c('wordContinuousText').mapRectToScene(rect)
+                    source_view = c('wordContinuousScroll').mapRectToScene(c('wordContinuousScroll').boundingRect())
+                    assert source_view.top() <= mapped.top() and mapped.bottom() <= source_view.bottom(), (mapped, source_view)
+                    manual_ranges = bridge.wordDocuments._ranges()
+                    click(window, c('wordWholeDocument'))
+                    until(lambda: not bridge.busy)
+                    assert bridge.wordDocuments.state['whole_document']
+                    assert bridge.wordDocuments.state['selected_count'] == 4
+                    assert not c('wordSelectAll').isEnabled() and not c('wordClearAllRanges').isEnabled()
+                    assert not c('wordSelectByCheckbox').isEnabled() and not c('wordContinuousText').property('selectByMouse')
+                    assert len(bridge.wordDocuments.reviewGroups) == 1
+                    assert bridge.wordDocuments.reviewGroups[0]['vi'].count('\n') == 3
+                    assert window.grabWindow().save(str(report / 'word-whole-document.png'))
+                    assert not calls, 'Dịch toàn bộ selects text but waits for the conversion button'
+                    click(window, c('wordWholeDocument'))
+                    until(lambda: not bridge.busy)
+                    assert not bridge.wordDocuments.state['whole_document']
+                    assert bridge.wordDocuments._ranges() == manual_ranges
+                    assert c('wordSelectByCheckbox').isEnabled()
+                    assert window.grabWindow().save(str(report / 'word-persistent-selections.png'))
                     click(window, c('wordSelectByCheckbox'))
                     pump(80)
                     assert bridge.wordDocuments.state['selected_count'] == 2
@@ -544,6 +620,19 @@ def main():
                     for width, height in ((1080, 700), (1366, 850)):
                         window.resize(width, height)
                         show_document()
+                        click(window, c('wordSelectByCheckbox'))
+                        pump(80)
+                        assert c('wordSourceList').property('contentHeight') > c('wordSourceList').height()
+                        assert c('wordSourceListBar').isVisible()
+                        assert c('wordSourceListBar').property('contentItem').opacity() == 1
+                        row = c('wordSourceText_0').parentItem().parentItem()
+                        row_rect = row.mapRectToScene(row.boundingRect())
+                        click(window, c('wordSelectByHighlight'))
+                        pump(80)
+                        paper_rect = c('wordPreviewPaper').mapRectToScene(c('wordPreviewPaper').boundingRect())
+                        assert abs(paper_rect.width() - row_rect.width()) <= 1, (paper_rect, row_rect)
+                        assert abs(paper_rect.left() - row_rect.left()) <= 1, (paper_rect, row_rect)
+                        assert window.grabWindow().save(str(report / f'word-fit-width-{width}.png'))
                         click(window, c('wordExpandSource'))
                         until(lambda: c('wordExpandedDialog').property('visible'))
                         pump(50)
@@ -579,6 +668,9 @@ def main():
                 'Expanded source workspace: mouse selection, collapse retains ranges, clear-all from both panels, Escape closes',
                 'Scrolling reveals a full-height reading workspace before moving the source text; reverse returns to setup; conversion footer stays fixed',
                 'Rich paper preview: native QML selection maps images and repeated table cells to original source ranges',
+                'Confirmed highlights remain on the immutable source; reselecting offers Remove; overlapping ranges retain source order without duplicates',
+                'Adjacent selected paragraphs form one review group; clicking a group scrolls the source to its matching text',
+                'Whole-document checkbox locks manual selectors, waits for Convert, preserves skipped objects and restores the previous manual selection',
                 'Right-aligned conversion action with selected-configuration summary; Save/library appear after translation',
                 'Native Word tab; paragraph checkbox and disjoint text selection after emoji',
                 'Mouse drag/release offers confirmation; disjoint highlights accumulate; duplicates merge; switching modes retains selections',

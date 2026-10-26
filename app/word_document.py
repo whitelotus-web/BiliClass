@@ -17,6 +17,10 @@ NS = {'w': W, 'm': M}
 XML_SPACE = '{http://www.w3.org/XML/1998/namespace}space'
 MODES = ('below', 'columns', 'keywords', 'english')
 COLORS = {'original', '1667B1', '666666', '000000'}
+HIGHLIGHTS = dict(zip(('FFFF00', '00FF00', '00FFFF', 'FF00FF', '0000FF', 'FF0000', '000080', '008080',
+                      '008000', '800080', '800000', '808000', '808080', 'C0C0C0', '000000'),
+                     ('yellow', 'green', 'cyan', 'magenta', 'blue', 'red', 'darkBlue', 'darkCyan',
+                      'darkGreen', 'darkMagenta', 'darkRed', 'darkYellow', 'darkGray', 'lightGray', 'black'), strict=True))
 TOKEN = re.compile(r'⟦BLC(\d+)⟧')
 UNSAFE = {'ins', 'del', 'moveFrom', 'moveTo', 'bookmarkStart', 'bookmarkEnd', 'commentRangeStart',
           'commentRangeEnd', 'fldChar', 'instrText', 'fldSimple', 'sdt', 'altChunk'}
@@ -144,8 +148,8 @@ class Package:
         return result
 
     def selection(self, rows):
-        if not isinstance(rows, list) or len(rows) > 2000:
-            raise ValueError('Chọn tối đa 2.000 vùng trong một lượt.')
+        if not isinstance(rows, list) or len(rows) > 5000:
+            raise ValueError('Chọn tối đa 5.000 vùng trong một lượt.')
         groups = {}
         for selected in rows:
             identifier = selected.get('paragraph')
@@ -221,6 +225,15 @@ class Package:
         numbering.append(node('numId', val=0))
         props.append(numbering)
         style = self.run_style(original, region['start'])
+        if 'highlight' in options:
+            highlight = options['highlight']
+            if not isinstance(highlight, str) or highlight != 'none' and highlight not in HIGHLIGHTS:
+                raise ValueError('Chọn màu tô sáng hợp lệ.')
+            for prior in list(style):
+                if prior.tag in {tag('highlight'), tag('shd')}:
+                    style.remove(prior)
+            if highlight != 'none':
+                style.append(node('highlight', val=HIGHLIGHTS[highlight]))
         formatting = [] if options.get('color', 'original') == 'original' else [('color', options['color'])]
         formatting.extend((name, '1' if options.get('italic', True) else '0') for name in ('i', 'iCs'))
         if 'bold' in options:

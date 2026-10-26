@@ -64,8 +64,8 @@ def test_saved_english_uses_selected_style_and_original_or_custom_font_color(pre
 
 def test_formatting_defaults_survive_reopen_and_apply_only_to_new_documents(prepared):
     directory, source, first, _ = prepared
-    assert jobs.formatting_defaults(directory) == dict(color='original', font='', italic=True, bold=False, underline=False, strike=False, script='normal', font_size=0)
-    recent = dict(color='7030A0', font='Arial', italic=False, bold=True, underline=True, strike=True, script='superscript', font_size=26)
+    assert jobs.formatting_defaults(directory) == dict(color='original', highlight='none', font='', italic=True, bold=False, underline=False, strike=False, script='normal', font_size=0)
+    recent = dict(color='7030A0', highlight='FFFF00', font='Arial', italic=False, bold=True, underline=True, strike=True, script='superscript', font_size=26)
     jobs.formatting_defaults(directory, recent)
     assert jobs.formatting_defaults(directory) == recent
     other = source.with_name('Bài tiếp theo.docx')
@@ -103,6 +103,27 @@ def test_word_toolbar_styles_and_palette_color_reach_export_without_changing_sou
         assert run.find('w:rPr/w:u', NS).get('{' + NS['w'] + '}val') == 'single'
         assert run.find('w:rPr/w:strike', NS).get('{' + NS['w'] + '}val') == '1'
         assert run.find('w:rPr/w:vertAlign', NS).get('{' + NS['w'] + '}val') == ('baseline' if script == 'normal' else script)
+    assert source.read_bytes() == original
+
+
+@pytest.mark.parametrize('highlight,expected', [('none', None), ('FFFF00', 'yellow'), ('00FFFF', 'cyan')])
+@pytest.mark.parametrize('mode', ['below', 'columns', 'english', 'keywords'])
+def test_text_highlight_only_applies_to_generated_english(prepared, tmp_path, mode, highlight, expected):
+    _, source, _, region = prepared
+    original = source.read_bytes()
+    region['en'] = 'Velocity 12 m/s.'
+    if mode == 'keywords':
+        region['annotations'] = keyword_annotations(region, {'vận tốc': 'velocity'})
+    output = tmp_path / 'highlight.docx'
+    Package(source).save(output, [region], dict(mode=mode, highlight=highlight))
+    tree = Package(output).tree
+    translated = [run for run in tree.findall('.//w:r', NS) if 'velocity' in ''.join(run.xpath('./w:t/text()', namespaces=NS)).lower()]
+    assert translated
+    for run in translated:
+        marker = run.find('w:rPr/w:highlight', NS)
+        assert marker is None if expected is None else marker.get('{' + NS['w'] + '}val') == expected
+    untouched = [run for run in tree.findall('.//w:r', NS) if 'Giữ nguyên phần này.' in ''.join(run.xpath('./w:t/text()', namespaces=NS))]
+    assert untouched and all(run.find('w:rPr/w:highlight', NS) is None for run in untouched)
     assert source.read_bytes() == original
 
 

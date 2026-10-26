@@ -1,6 +1,6 @@
 import pytest
 
-from app.word_selection import TextSelection
+from app.word_selection import TextSelection, review_groups
 
 
 def paragraph(identity, text, editable=True):
@@ -51,3 +51,18 @@ def test_paragraph_separators_are_not_new_translation_regions():
     selection = TextSelection([paragraph('p0', 'Một'), paragraph('p1', 'Hai')])
     with pytest.raises(ValueError, match='chưa có phần chữ'):
         selection.ranges(3, 5)
+
+
+def test_review_groups_merge_adjacent_paragraphs_and_extend_in_source_order():
+    paragraphs = [paragraph('p' + str(index), f'Đoạn {index + 1}') for index in range(7)]
+
+    def region(index):
+        text = paragraphs[index]['text']
+        return dict(id=f'p{index}:0:{len(text)}', paragraph=f'p{index}', start=0, end=len(text), vi=text)
+
+    first = review_groups(paragraphs, [region(index) for index in range(5)])
+    assert len(first) == 1 and first[0]['vi'] == '\n'.join(row['text'] for row in paragraphs[:5])
+    extended = review_groups(paragraphs, [region(index) for index in range(7)])
+    assert len(extended) == 1 and len(extended[0]['members']) == 7
+    disjoint = review_groups(paragraphs, [region(index) for index in (0, 2, 3, 4)])
+    assert len(disjoint) == 2 and [row['paragraph'] for row in disjoint[1]['members']] == ['p2', 'p3', 'p4']

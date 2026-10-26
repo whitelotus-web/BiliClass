@@ -8,9 +8,11 @@ Rectangle {
     property bool reading: false
     property string fileName: ""
     property int paragraphCount: 0
+    property bool wholeDocument: false
     readonly property bool loaded: fileName.length > 0
     signal chooseFile()
     signal fileDropped(string url)
+    signal wholeDocumentToggled(bool checked)
     implicitHeight: content.implicitHeight + 28
     radius: 16; color: drop.containsDrag ? AppTheme.selected : AppTheme.surface
     border.color: drop.containsDrag ? AppTheme.blue : AppTheme.line
@@ -29,10 +31,15 @@ Rectangle {
         }
         ColumnLayout {
             Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 7
-            Label { text: upload.reading ? "Đang đọc tài liệu Word…" : upload.busy ? "Đang có tác vụ khác" : upload.loaded ? upload.fileName : "Tải lên bài giảng Word (.docx)"; textFormat: Text.PlainText; color: AppTheme.blue; font.pixelSize: upload.loaded ? 16 : 19; font.bold: true; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideMiddle; horizontalAlignment: upload.loaded ? Text.AlignLeft : Text.AlignHCenter; Layout.fillWidth: true }
-            Label { text: upload.loaded ? upload.paragraphCount + " đoạn · Chỉ dịch phần được chọn · File gốc được giữ nguyên" : "Chọn hoặc kéo thả một file. Sau đó chọn những câu, đoạn cần dịch."; color: AppTheme.muted; font.pixelSize: 13; wrapMode: Text.WordWrap; horizontalAlignment: upload.loaded ? Text.AlignLeft : Text.AlignHCenter; Layout.fillWidth: true }
+            Label { text: upload.loaded ? upload.fileName : upload.reading ? "Đang đọc tài liệu Word…" : upload.busy ? "Đang có tác vụ khác" : "Tải lên bài giảng Word (.docx)"; textFormat: Text.PlainText; color: AppTheme.blue; font.pixelSize: upload.loaded ? 16 : 19; font.bold: true; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideMiddle; horizontalAlignment: upload.loaded ? Text.AlignLeft : Text.AlignHCenter; Layout.fillWidth: true }
+            Label { text: upload.loaded ? upload.paragraphCount + " đoạn · " + (upload.wholeDocument ? "Dịch toàn bộ phần chữ" : "Chỉ dịch phần được chọn") + " · File gốc được giữ nguyên" : "Chọn hoặc kéo thả một file. Sau đó chọn những câu, đoạn cần dịch."; color: AppTheme.muted; font.pixelSize: 13; wrapMode: Text.WordWrap; horizontalAlignment: upload.loaded ? Text.AlignLeft : Text.AlignHCenter; Layout.fillWidth: true }
             WordAction { objectName: "wordUploadChoose"; visible: !upload.loaded; text: upload.busy ? "Chờ hoàn tất tác vụ…" : "Chọn file Word"; primary: true; implicitHeight: 44; font.pixelSize: 14; Layout.alignment: Qt.AlignHCenter; Layout.preferredWidth: 258; enabled: !upload.busy; onClicked: upload.chooseFile() }
             Label { visible: !upload.loaded; text: "Chỉ hỗ trợ tệp .docx tối đa 50 MB · Giữ nguyên file gốc"; color: AppTheme.muted; font.pixelSize: 12; wrapMode: Text.WordWrap; horizontalAlignment: Text.AlignHCenter; Layout.fillWidth: true }
+        }
+        CheckBox { objectName: "wordWholeDocument"; visible: upload.loaded; text: "Dịch toàn bộ"; checked: upload.wholeDocument; enabled: !upload.busy
+            palette.windowText: AppTheme.ink
+            ToolTip.visible: hovered; ToolTip.text: "Dịch toàn bộ phần chữ có thể chỉnh sửa. Hình, công thức và phần đang khóa được giữ nguyên."
+            onClicked: upload.wholeDocumentToggled(checked)
         }
     }
     DropArea {

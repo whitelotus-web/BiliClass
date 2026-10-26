@@ -310,6 +310,40 @@ class Preview:
             raise ValueError('Vùng bôi đen chưa có phần chữ dịch được. Hình, công thức và đoạn đang khóa được giữ nguyên.')
         return result, skipped
 
+    def selected_positions(self, document, regions):
+        groups = {}
+        for region in regions:
+            groups.setdefault(region['paragraph'], []).append(region)
+        result = []
+        block = document.begin()
+        while block.isValid():
+            identity, fragment = '', block.begin()
+            while not fragment.atEnd():
+                for name in fragment.fragment().charFormat().anchorNames():
+                    match = ANCHOR.fullmatch(name)
+                    if match:
+                        identity = match[1]
+                        break
+                fragment += 1
+            row = self.rows.get(identity)
+            if identity in groups and row and normalized(block.text()) == row['visible']:
+                for region in groups[identity]:
+                    left = self.visible_position(row, region['start'])
+                    right = self.visible_position(row, region['end'])
+                    result.append((block.position() + length(row['visible'][:left]),
+                                   block.position() + length(row['visible'][:right])))
+            block = block.next()
+        return result
+
+    @staticmethod
+    def visible_position(row, position):
+        for left, right, begin, finish, text, image in row['segments']:
+            if begin <= position <= finish:
+                if image:
+                    return right if position > begin else left
+                return left + len(normalized(text[:position - begin]))
+        return len(row['visible'])
+
     @staticmethod
     def source_position(row, position, end):
         for left, right, begin, finish, text, image in row['segments']:
