@@ -284,7 +284,7 @@ Item {
             onChooseFile: choose.open()
             onFileDropped: function(url) { page.openDocument(url) }
         }
-        WordFormatPreview { objectName: "wordFormatPreview"; Layout.preferredWidth: page.width < 950 ? 264 : 300; Layout.minimumWidth: Layout.preferredWidth; Layout.maximumWidth: Layout.preferredWidth; Layout.fillHeight: true
+        WordFormatPreview { objectName: "wordFormatPreview"; visible: !!page.documentState.id; Layout.preferredWidth: page.width < 950 ? 264 : 300; Layout.minimumWidth: Layout.preferredWidth; Layout.maximumWidth: Layout.preferredWidth; Layout.fillHeight: true
             family: page.draftFont() || (page.word.sourceFonts.length ? page.word.sourceFonts[0] : "Times New Roman")
             pointSize: englishSize.pointSize || Number(page.word.sourceFontSize) || 12
             textColor: englishColor.original ? "#17263b" : englishColor.inkColor

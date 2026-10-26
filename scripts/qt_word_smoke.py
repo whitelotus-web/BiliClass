@@ -194,7 +194,8 @@ def main():
                     assert not c('wordSave').isVisible() and not c('wordGoLibrary').isVisible()
                     assert c('wordConfigurationSummary').isVisible()
                     demo = c('wordFormatPreview')
-                    assert demo.isVisible() and demo.width() <= 300
+                    assert not demo.isVisible()
+                    assert abs(c('wordSourceArea').width() - c('wordSourcePreviewRow').width()) <= 1
                     assert c('wordDemoEnglish').property('text') == 'Energy is conserved.'
                     assert c('wordDemoVietnamese').property('text') == 'Năng lượng được bảo toàn.'
                     assert not c('wordChooseFile').isVisible() and not c('wordDismissInput').isVisible()
@@ -271,6 +272,7 @@ def main():
                     assert bridge.wordDocuments.state['options']['font'] == 'Arial'
                     pump(80)
                     assert not c('wordAttentionBanner').isVisible()
+                    assert demo.isVisible() and demo.width() <= 300
                     assert window.findChild(QObject, 'wordShowDocument') is None
                     heading_rect = c('wordPageHeading').mapRectToScene(c('wordPageHeading').boundingRect())
                     change_rect = c('wordChooseFile').mapRectToScene(c('wordChooseFile').boundingRect())
@@ -672,6 +674,7 @@ def main():
                     click(window, c('wordDismissInput'))
                     assert bridge.wordDocuments.state['id'] == '' and not bridge.wordDocuments.selectionText
                     assert c('wordTitle').property('text') == '' and not c('wordChooseFile').isVisible()
+                    assert not demo.isVisible()
                     assert any(row['id'] == preserved_id for row in bridge.wordDocuments.library)
                     bridge.wordDocuments.loadRecord(preserved_id)
                     until(lambda: not bridge.busy)

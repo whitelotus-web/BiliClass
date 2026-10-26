@@ -6,7 +6,9 @@ Bản nguồn thử tiếp sau tag/bộ cài RC170, nhánh
 - Cụm màu/kiểu chữ/font/size/đặt lại được căn giữa nửa bên phải của hàng
   cấu hình, giữ các nút thẳng hàng ở kích thước laptop và desktop.
 - Ô **Xem trước định dạng** bên phải khung tệp, ngoài ô **Dịch toàn bộ**,
-  thẳng mép phải bên dưới nút hủy. Dùng cặp câu mẫu Việt–Anh cố định; font,
+  thẳng mép phải bên dưới nút hủy. Chỉ hiện khi đã tải bài Word thành công;
+  khi chưa tải hoặc hủy bài, ô ẩn và khung tải dùng toàn bộ chiều ngang.
+  Dùng cặp câu mẫu Việt–Anh cố định; font,
   cỡ, màu, tô sáng, đậm/nghiêng/gạch chân/gạch ngang đổi ngay theo cấu hình.
   Nền giấy trắng thể hiện màu chữ trong tài liệu ở cả giao diện sáng/tối.
   Ô nhỏ có thể cuộn khi chọn cỡ chữ lớn. Không gọi dịch vụ và không thay
