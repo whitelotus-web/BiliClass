@@ -42,6 +42,11 @@ Ngày 26/10/2026. Bản mã nguồn để thử tiếp, trên nhánh
 - Bản xem trên nền giấy trắng có lề, cỡ chữ, phông, đậm/nghiêng, căn đoạn,
   hình nhúng và bảng. Có **− / Vừa khung / +** để đọc và chọn vùng. Ở cách
   tích chọn, từng phần cũng dùng định dạng gốc thay vì chỉ hiện chữ thuần.
+- Cuộn đến vùng tài liệu sẽ dành gần hết chiều cao cho hai khung gốc và
+  bản dịch; phần tải/cấu hình nằm phía trên và cuộn khỏi vùng nhìn.
+  Lăn chuột trên tài liệu đưa khung vào đủ tầm nhìn trước rồi mới cuộn
+  chữ bên trong. Lăn ngược ở đầu tài liệu để trở lại phần cấu hình.
+  Thanh cấu hình đã chọn và nút chuyển đổi vẫn ở dưới, không cuộn đi.
 - **Phóng to để chọn** mở rộng vùng gốc trong ứng dụng. **Xong / Thu gọn**
   đưa cùng vùng đọc về vị trí cũ, giữ các vùng đã xác nhận và vị trí cuộn.
   Bấm Escape để đóng cửa sổ mở rộng.

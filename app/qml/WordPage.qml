@@ -77,6 +77,27 @@ Item {
         flick.cancelFlick()
         flick.contentY = Math.max(0, Math.min(documentPanels.y - 12, flick.contentHeight - flick.height))
     }
+    function scrollWorkspace(event, inner) {
+        event.accepted = false
+        if (!page.documentState.id || event.modifiers & Qt.ControlModifier) return
+        const delta = event.pixelDelta.y || event.angleDelta.y / 120 * 80
+        if (!delta || Math.abs(event.angleDelta.x) > Math.abs(event.angleDelta.y)) return
+        const flick = wordScroll.contentItem
+        const top = Math.max(0, Math.min(documentPanels.y - 12, flick.contentHeight - flick.height))
+        // Bring the whole reading workspace into view before scrolling its text.
+        // Reverse at the start of the document to return to the configuration.
+        highlightPopup.close()
+        if (!sourceDialog.visible && ((delta < 0 && flick.contentY < top - 1) || (delta > 0 && inner.atYBeginning && flick.contentY > 0))) {
+            flick.cancelFlick()
+            flick.contentY = Math.max(0, Math.min(top, flick.contentY - delta))
+        } else {
+            // Route each wheel event to one viewport, including in the popup.
+            inner.cancelFlick()
+            const origin = inner.originY || 0
+            inner.contentY = Math.max(origin, Math.min(origin + Math.max(0, inner.contentHeight - inner.height), inner.contentY - delta))
+        }
+        event.accepted = true
+    }
     property real sourceScrollFraction: 0
     function rememberSourceScroll() {
         const flick = page.highlightSelection ? textScroll.contentItem : sources
@@ -308,7 +329,9 @@ Item {
         Hint { visible: (page.documentState.notices || []).length > 0; text: (page.documentState.notices || []).slice(-1).join(""); color: AppTheme.warning; font.pixelSize: 11; Layout.fillWidth: true }
         RowLayout {
             id: documentPanels; objectName: "wordDocumentPanels"; Layout.fillWidth: true; spacing: 12
-            Layout.preferredHeight: page.documentState.id ? Math.max(320, Math.min(560, page.height * .58)) : 210
+            // The page scrolls the configuration away; the document then fills
+            // the available height without resizing or jumping while reading.
+            Layout.preferredHeight: page.documentState.id ? Math.max(320, wordScroll.availableHeight - 12) : 210
             Layout.minimumHeight: Layout.preferredHeight; Layout.maximumHeight: Layout.preferredHeight
             Rectangle {
                 id: sourcePanel; objectName: "wordSourcePanel"
@@ -348,6 +371,7 @@ Item {
                     }
                     ListView {
                         id: sources; objectName: "wordSourceList"; visible: !page.highlightSelection; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 9
+                        WheelHandler { target: null; onWheel: function(event) { page.scrollWorkspace(event, sources) } }
                         model: { const revision = page.documentState; return page.word.items(page.selectionScope) }
                         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
                         Hint { visible: !page.documentState.id; anchors.centerIn: parent; width: parent.width - 24; horizontalAlignment: Text.AlignHCenter; text: "Tải file Word ở trên để xem nội dung và chọn phần cần dịch." }
@@ -378,6 +402,7 @@ Item {
                     }
                     ContentScrollView {
                         id: textScroll; objectName: "wordContinuousScroll"; visible: page.highlightSelection
+                        WheelHandler { target: null; onWheel: function(event) { page.scrollWorkspace(event, textScroll.contentItem) } }
                         Layout.fillWidth: true; Layout.fillHeight: true; implicitWidth: 0; implicitHeight: 0
                         bottomPadding: page.previewZoom > 0 ? 18 : 0
                         contentWidth: Math.max(availableWidth, paper.width * paper.scale + 16)
@@ -428,7 +453,8 @@ Item {
                     }
                     Hint { text: !page.documentState.id ? "Bản dịch sẽ hiện tại đây sau khi chọn vùng và chuyển đổi." : page.documentState.can_export ? "Xem phần Việt và chỉnh bản Anh trước khi lưu." : page.documentState.selected_count ? "Tiếp tục chọn vùng hoặc bấm Chuyển đổi ở thanh dưới để xem bản Anh." : page.highlightSelection ? "Bôi đen bên trái, nhả chuột rồi bấm Chọn." : "Tích chọn đoạn/câu hoặc thêm vùng bôi đen ở bên trái."; Layout.fillWidth: true }
                     ListView {
-                        objectName: "wordReviewList"; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 10; model: page.documentState.regions
+                        id: reviewList; objectName: "wordReviewList"; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 10; model: page.documentState.regions
+                        WheelHandler { target: null; onWheel: function(event) { page.scrollWorkspace(event, reviewList) } }
                         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
                         delegate: Rectangle {
                             id: selectedRow; required property var modelData; required property int index

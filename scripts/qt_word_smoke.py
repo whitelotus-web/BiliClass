@@ -18,12 +18,13 @@ from PySide6.QtCore import (
     QEvent,
     QMetaObject,
     QObject,
+    QPoint,
     QPointF,
     QRectF,
     Qt,
     QUrl,
 )
-from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication
+from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication, QWheelEvent
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
 from PySide6.QtTest import QTest
@@ -75,6 +76,17 @@ def main():
 
         def show_document():
             assert QMetaObject.invokeMethod(c('wordPage'), 'showDocument')
+            pump(80)
+
+        def wheel_document(delta):
+            area = c('wordContinuousScroll')
+            viewport = c('wordWorkflowScroll')
+            rect = area.mapRectToScene(area.boundingRect()).intersected(viewport.mapRectToScene(viewport.boundingRect()))
+            assert rect.height() > 10, rect
+            position = rect.center()
+            event = QWheelEvent(position, QPointF(window.mapToGlobal(position.toPoint())),
+                QPoint(), QPoint(0, delta), Qt.NoButton, Qt.NoModifier, Qt.NoScrollPhase, False)
+            QCoreApplication.sendEvent(window, event)
             pump(80)
 
         def check_formatting_row():
@@ -272,6 +284,31 @@ def main():
                     pump(120)
                     assert not warnings, warnings
                     assert window.grabWindow().save(str(report / 'word-loaded.png'))
+                    # Mouse wheel first brings the workspace above the fold,
+                    # then scrolls within the document; reverse returns to setup.
+                    outer = c('wordWorkflowScroll').property('contentItem')
+                    inner = c('wordContinuousScroll').property('contentItem')
+                    footer_y = c('wordFooterPrimaryRow').mapToScene(QPointF()).y()
+                    for _ in range(12):
+                        wheel_document(-120)
+                        panel_top = c('wordDocumentPanels').mapToScene(QPointF()).y()
+                        viewport_top = c('wordWorkflowScroll').mapToScene(QPointF()).y()
+                        if panel_top <= viewport_top + 13:
+                            break
+                    assert abs(panel_top - viewport_top - 12) < 2, (panel_top, viewport_top)
+                    assert c('wordDocumentPanels').height() >= c('wordWorkflowScroll').height() - 25
+                    assert inner.property('contentY') <= 1, 'Show the workspace before scrolling source text'
+                    assert window.grabWindow().save(str(report / 'word-reading-workspace.png'))
+                    wheel_document(-120)
+                    assert inner.property('contentY') > 0, 'Wheel must scroll the document after the workspace is in view'
+                    previous_outer_y = outer.property('contentY')
+                    for _ in range(10):
+                        wheel_document(120)
+                        if outer.property('contentY') < previous_outer_y - 1:
+                            break
+                    assert outer.property('contentY') < previous_outer_y - 1, 'Wheel up at the document start returns to configuration'
+                    assert c('wordFooterPrimaryRow').mapToScene(QPointF()).y() == footer_y
+                    assert bridge.wordDocuments.state['selected_count'] == 0
                     show_document()
                     text_rect = c('wordContinuousScroll').mapRectToScene(c('wordContinuousScroll').boundingRect())
                     panel_rect = c('wordSourcePanel').mapRectToScene(c('wordSourcePanel').boundingRect())
@@ -540,6 +577,7 @@ def main():
                 'Single formatting row: layouts, color/keyword density, typography, font and editable point size at laptop and desktop widths',
                 'Source size follows selected runs by default; typed half-point size is remembered and can return to original',
                 'Expanded source workspace: mouse selection, collapse retains ranges, clear-all from both panels, Escape closes',
+                'Scrolling reveals a full-height reading workspace before moving the source text; reverse returns to setup; conversion footer stays fixed',
                 'Rich paper preview: native QML selection maps images and repeated table cells to original source ranges',
                 'Right-aligned conversion action with selected-configuration summary; Save/library appear after translation',
                 'Native Word tab; paragraph checkbox and disjoint text selection after emoji',
