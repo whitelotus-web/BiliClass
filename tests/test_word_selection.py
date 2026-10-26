@@ -1,6 +1,6 @@
 import pytest
 
-from app.word_selection import TextSelection, review_groups
+from app.word_selection import TextSelection, complete_word_ranges, review_groups
 
 
 def paragraph(identity, text, editable=True):
@@ -51,6 +51,31 @@ def test_paragraph_separators_are_not_new_translation_regions():
     selection = TextSelection([paragraph('p0', 'Một'), paragraph('p1', 'Hai')])
     with pytest.raises(ValueError, match='chưa có phần chữ'):
         selection.ranges(3, 5)
+
+
+@pytest.mark.parametrize('text,fragment,expected', [
+    ('Nguyễn Văn An', 'Ng', 'Nguyễn'),
+    ('😀 Nguyễn Văn An', 'uyễ', 'Nguyễn'),
+    ('Nguye\u0302\u0303n Văn An', 'ye\u0302', 'Nguye\u0302\u0303n'),
+    ('Bộ ESP32 đang hoạt động.', 'SP3', 'ESP32'),
+    ('Đây là câu một. Đây là câu hai.', 'câu mộ', 'câu một'),
+    ('Giữ nguyên câu sau.', 'Giữ nguyên', 'Giữ nguyên'),
+])
+def test_clipped_words_are_completed_without_extending_sentences(text, fragment, expected):
+    rows = [paragraph('p0', text)]
+    selected = dict(paragraph='p0', start=text.index(fragment), end=text.index(fragment) + len(fragment))
+    before = selected.copy()
+    region = complete_word_ranges(rows, [selected])[0]
+    assert text[region['start']:region['end']] == expected
+    assert selected == before and rows[0]['text'] == text
+
+
+def test_completion_keeps_utf16_offsets_after_emoji():
+    text = '😀 Nguyễn Văn An'
+    selection = TextSelection([paragraph('p0', text)])
+    regions, _ = selection.ranges(utf16(text[:2]), utf16(text[:4]))
+    full = complete_word_ranges([paragraph('p0', text)], regions)
+    assert full == [dict(paragraph='p0', start=2, end=8)]
 
 
 def test_review_groups_merge_adjacent_paragraphs_and_extend_in_source_order():

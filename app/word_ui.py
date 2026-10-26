@@ -358,19 +358,38 @@ class WordDocuments(QObject):
         if not identity or identity != self._state['id'] or identity != self._text_identity:
             raise ValueError('Tài liệu đã đổi; bôi đen lại phần cần dịch.')
         if self._preview:
-            return self._preview.ranges(wrapper.textDocument(), start, end)
-        return self._text_selection.ranges(start, end)
+            selected, skipped = self._preview.ranges(wrapper.textDocument(), start, end)
+        else:
+            selected, skipped = self._text_selection.ranges(start, end)
+        from .word_selection import complete_word_ranges
+
+        return complete_word_ranges(self._state['paragraphs'], selected), skipped
 
     @Slot(str, QObject, int, int, result=str)
     def highlightAction(self, identity, wrapper, start, end):
+        return self.highlightBounds(identity, wrapper, start, end).get('action', '')
+
+    @Slot(str, QObject, int, int, result='QVariantMap')
+    def highlightBounds(self, identity, wrapper, start, end):
         try:
             selected, _ = self._visible_ranges(identity, wrapper, start, end)
             covered = all(any(old['paragraph'] == row['paragraph'] and old['start'] <= row['start'] and old['end'] >= row['end']
                               for old in self._state['regions']) for row in selected)
-            return 'remove' if covered else 'add'
+            if self._preview:
+                positions = self._preview.selected_positions(wrapper.textDocument(), selected)
+            else:
+                from .word_preview import length, normalized
+
+                positions = []
+                for left, _, row, _ in self._text_selection.spans:
+                    base = length(self._text_selection.text[:left])
+                    positions.extend((base + length(normalized(row['text'][:region['start']])),
+                                      base + length(normalized(row['text'][:region['end']])))
+                        for region in selected if region['paragraph'] == row['id'])
+            return dict(action='remove' if covered else 'add', start=min(left for left, _ in positions), end=max(right for _, right in positions))
         except (ValueError, RuntimeError, AttributeError) as exc:
             self._show_error(str(exc))
-            return ''
+            return {}
 
     @Slot(str, QObject, int, int, bool)
     def applyHighlight(self, identity, wrapper, start, end, remove):
@@ -479,6 +498,9 @@ class WordDocuments(QObject):
         self._add_selected_ranges(identity, selected, skipped)
 
     def _add_selected_ranges(self, identity, selected, skipped):
+        from .word_selection import complete_word_ranges
+
+        selected = complete_word_ranges(self._state['paragraphs'], selected)
         rows = [*self._ranges(), *selected]
 
         def action(directory):

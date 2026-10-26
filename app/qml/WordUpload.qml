@@ -18,7 +18,7 @@ Rectangle {
     border.color: drop.containsDrag ? AppTheme.blue : AppTheme.line
     border.width: drop.containsDrag ? 2 : 1
     RowLayout {
-        id: content; anchors.horizontalCenter: parent.horizontalCenter; anchors.top: parent.top; anchors.topMargin: 14
+        id: content; anchors.horizontalCenter: parent.horizontalCenter; anchors.verticalCenter: parent.verticalCenter
         width: upload.loaded ? parent.width - 28 : Math.min(parent.width - 44, 840); spacing: upload.loaded ? 16 : 24
         Image {
             objectName: "wordUploadIllustration"
@@ -26,7 +26,7 @@ Rectangle {
             // Clip in decoded-image coordinates, after the proportional size reduction.
             sourceClipRect: Qt.rect(32, 37, 386, 224)
             sourceSize.width: 440; sourceSize.height: 294; smooth: true; mipmap: true
-            Layout.preferredWidth: upload.loaded ? 95 : 220; Layout.preferredHeight: upload.loaded ? 56 : 118
+            Layout.preferredWidth: upload.loaded ? 95 : upload.width < 650 ? 110 : 220; Layout.preferredHeight: upload.loaded ? 56 : 118
             Accessible.ignored: true
         }
         ColumnLayout {

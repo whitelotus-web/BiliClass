@@ -72,9 +72,10 @@ Item {
     onHeightChanged: if (highlightPopup) highlightPopup.close()
     function offerHighlightedText() {
         if (!page.visible || !page.canSelect || !page.highlightSelection || !page.documentState.id || !continuousText.selectedText.trim()) return
-        const action = page.word.highlightAction(page.documentState.id, continuousText.textDocument, continuousText.selectionStart, continuousText.selectionEnd)
-        if (!action) return
-        highlightPopup.removeSelected = action === "remove"
+        const bounds = page.word.highlightBounds(page.documentState.id, continuousText.textDocument, continuousText.selectionStart, continuousText.selectionEnd)
+        if (!bounds.action) return
+        continuousText.select(bounds.start, bounds.end)
+        highlightPopup.removeSelected = bounds.action === "remove"
         highlightPopup.documentIdentity = page.documentState.id
         highlightPopup.rangeStart = continuousText.selectionStart
         highlightPopup.rangeEnd = continuousText.selectionEnd
@@ -273,14 +274,23 @@ Item {
             WordAction { objectName: "wordChooseFile"; visible: !!page.documentState.id; text: "Chọn bài khác"; enabled: page.available; onClicked: choose.open() }
             WordAction { objectName: "wordDismissInput"; visible: !!page.documentState.id; text: "× Hủy bài đang chọn"; Accessible.name: "Hủy bài đang chọn"; danger: true; enabled: page.available; onClicked: page.word.dismissInput() }
         }
+        RowLayout { objectName: "wordSourcePreviewRow"; Layout.fillWidth: true; spacing: 12
         WordUpload {
-            objectName: "wordSourceArea"; Layout.fillWidth: true; busy: !page.available; reading: !!page.documentState.working
+            objectName: "wordSourceArea"; Layout.fillWidth: true; Layout.fillHeight: true; Layout.minimumWidth: 0; busy: !page.available; reading: !!page.documentState.working
             fileName: page.documentState.id ? page.documentState.title + ".docx" : ""
             paragraphCount: (page.documentState.paragraphs || []).length
             wholeDocument: page.wholeDocument
             onWholeDocumentToggled: function(checked) { highlightPopup.close(); page.word.setWholeDocument(checked) }
             onChooseFile: choose.open()
             onFileDropped: function(url) { page.openDocument(url) }
+        }
+        WordFormatPreview { objectName: "wordFormatPreview"; Layout.preferredWidth: page.width < 950 ? 264 : 300; Layout.minimumWidth: Layout.preferredWidth; Layout.maximumWidth: Layout.preferredWidth; Layout.fillHeight: true
+            family: page.draftFont() || (page.word.sourceFonts.length ? page.word.sourceFonts[0] : "Times New Roman")
+            pointSize: englishSize.pointSize || Number(page.word.sourceFontSize) || 12
+            textColor: englishColor.original ? "#17263b" : englishColor.inkColor
+            highlight: englishHighlight.colorCode
+            bold: textStyle.bold; italic: textStyle.italic; underline: textStyle.underline; strike: textStyle.strike
+        }
         }
         Rectangle {
             objectName: "wordConfiguration"; Layout.fillWidth: true
@@ -311,7 +321,7 @@ Item {
             }
             Item {
             id: formattingToolbar; objectName: "wordFormattingToolbar"; Layout.fillWidth: true; implicitHeight: conversionOptions.implicitHeight
-            readonly property real minimumControlsWidth: 60 + englishHighlight.implicitWidth + textStyle.implicitWidth + englishFont.Layout.preferredWidth + englishSize.implicitWidth + resetFormat.implicitWidth + 24
+            readonly property real minimumControlsWidth: 60 + englishHighlight.implicitWidth + textStyle.implicitWidth + englishFont.Layout.preferredWidth + englishSize.implicitWidth + resetFormat.implicitWidth + 28
             ColumnLayout { id: conversionOptions; objectName: "wordConversionOptions"; width: Math.max(0, Math.min((formattingToolbar.width - 25) / 2, formattingToolbar.width - formattingToolbar.minimumControlsWidth - 25)); height: implicitHeight; spacing: 4
                 Hint { text: "Kiểu chuyển đổi" }
                 ButtonGroup { id: conversionModes }
@@ -364,6 +374,7 @@ Item {
                 }
             }
             WordResetFormatting { id: resetFormat; objectName: "wordResetFormatting"; Layout.preferredWidth: 30; Layout.preferredHeight: 28; Layout.maximumHeight: 28; Layout.alignment: Qt.AlignVCenter; enabled: page.available; onClicked: page.resetFormatting() }
+                Item { Layout.fillWidth: true }
             }
             }
             }
@@ -513,9 +524,11 @@ Item {
                             width: ListView.view.width - 12; height: selectedContents.implicitHeight + 20; radius: 8; color: AppTheme.field; border.color: AppTheme.line
                             ColumnLayout { id: selectedContents; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 10; spacing: 5
                                 RowLayout { Layout.fillWidth: true
-                                    WordAction { objectName: "wordLocateRange_" + selectedRow.index; text: "Vùng " + (selectedRow.index + 1); implicitHeight: 26; font.pixelSize: 11; Layout.fillWidth: true; enabled: page.available; onClicked: page.jumpToRange(selectedRow.modelData.id)
+                                    WordAction { objectName: "wordLocateRange_" + selectedRow.index; text: "Vùng " + (selectedRow.index + 1); implicitHeight: 24; leftPadding: 7; rightPadding: 7; font.pixelSize: 11; enabled: page.available; onClicked: page.jumpToRange(selectedRow.modelData.id)
                                         ToolTip.visible: hovered; ToolTip.text: "Xem vùng này trong nội dung gốc" }
-                                    WordAction { objectName: "wordRemoveRange_" + selectedRow.index; text: "Bỏ vùng"; implicitHeight: 28; enabled: page.canSelect; onClicked: page.word.removeGroup(selectedRow.modelData.id) }
+                                    Item { Layout.fillWidth: true }
+                                    WordAction { objectName: "wordRemoveRange_" + selectedRow.index; text: "×"; Accessible.name: "Bỏ vùng " + (selectedRow.index + 1); implicitWidth: 26; implicitHeight: 26; leftPadding: 0; rightPadding: 0; font.pixelSize: 18; enabled: page.canSelect; onClicked: page.word.removeGroup(selectedRow.modelData.id)
+                                        ToolTip.visible: hovered; ToolTip.text: "Bỏ vùng chọn" }
                                 }
                                 Label { text: selectedRow.modelData.vi; textFormat: Text.PlainText; color: AppTheme.ink; font.pixelSize: 13; wrapMode: Text.WordWrap; Layout.fillWidth: true
                                     TapHandler { enabled: page.available; onTapped: page.jumpToRange(selectedRow.modelData.id) }

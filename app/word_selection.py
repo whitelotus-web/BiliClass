@@ -1,6 +1,27 @@
 """Map the continuous Word reading view back to immutable paragraph ranges."""
 
+import unicodedata
+
 from .word_document import utf16_position
+
+
+def complete_word_ranges(paragraphs, ranges):
+    """Extend clipped edge words without selecting extra sentences or rows."""
+    text_by_id = {row['id']: row['text'] for row in paragraphs}
+
+    def word_character(char):
+        return char.isalnum() or char == '_' or unicodedata.category(char).startswith('M')
+
+    result = []
+    for region in ranges:
+        text = text_by_id[region['paragraph']]
+        start, end = region['start'], region['end']
+        while 0 < start < len(text) and word_character(text[start]) and word_character(text[start - 1]):
+            start -= 1
+        while 0 < end < len(text) and word_character(text[end - 1]) and word_character(text[end]):
+            end += 1
+        result.append({**region, 'start': start, 'end': end})
+    return result
 
 
 def review_groups(paragraphs, regions):

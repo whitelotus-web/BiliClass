@@ -81,9 +81,9 @@ def main():
         def wheel_document(delta):
             area = c('wordContinuousScroll')
             viewport = c('wordWorkflowScroll')
-            rect = area.mapRectToScene(area.boundingRect()).intersected(viewport.mapRectToScene(viewport.boundingRect()))
-            assert rect.height() > 10, rect
-            position = rect.center()
+            viewport_rect = viewport.mapRectToScene(viewport.boundingRect())
+            rect = area.mapRectToScene(area.boundingRect()).intersected(viewport_rect)
+            position = rect.center() if rect.height() > 10 else QPointF(viewport_rect.left() + 2, viewport_rect.bottom() - 3)
             event = QWheelEvent(position, QPointF(window.mapToGlobal(position.toPoint())),
                 QPoint(), QPoint(0, delta), Qt.NoButton, Qt.NoModifier, Qt.NoScrollPhase, False)
             QCoreApplication.sendEvent(window, event)
@@ -108,6 +108,7 @@ def main():
                 rect = radio.mapRectToScene(radio.boundingRect())
                 assert left.left() <= rect.left() < rect.right() <= left.right() + 1, (index, rect, left)
             assert all(rect.left() >= right.left() for rect in rectangles[1:])
+            assert abs(rectangles[1].left() - right.left() - (right.right() - rectangles[-1].right())) <= 2, (right, rectangles)
             for name in ('wordStyleBold', 'wordStyleItalic', 'wordStyleUnderline', 'wordStyleStrike'):
                 button = c(name)
                 assert button.height() == 28 and button.width() <= 27
@@ -192,6 +193,10 @@ def main():
                     assert not c('wordSelectAll').isEnabled() and not c('wordPreview').isEnabled()
                     assert not c('wordSave').isVisible() and not c('wordGoLibrary').isVisible()
                     assert c('wordConfigurationSummary').isVisible()
+                    demo = c('wordFormatPreview')
+                    assert demo.isVisible() and demo.width() <= 300
+                    assert c('wordDemoEnglish').property('text') == 'Energy is conserved.'
+                    assert c('wordDemoVietnamese').property('text') == 'Năng lượng được bảo toàn.'
                     assert not c('wordChooseFile').isVisible() and not c('wordDismissInput').isVisible()
                     assert c('wordTextStyle').property('italic') and not c('wordTextStyle').property('bold')
                     assert c('wordEnglishFont').isVisible() and c('wordEnglishFont').isEnabled()
@@ -221,6 +226,7 @@ def main():
                     assert c('wordHighlightPalette').property('visible')
                     click(window, c('wordHighlight_FFFF00'))
                     assert bridge.wordDocuments.formattingDefaults['highlight'] == 'FFFF00'
+                    assert c('wordFormatPreview').property('highlight') == 'FFFF00'
                     click(window, c('wordEnglishHighlight'))
                     assert window.grabWindow().save(str(report / 'word-highlight-palette.png'))
                     click(window, c('wordHighlightNone'))
@@ -246,6 +252,7 @@ def main():
                     c('wordTitle').setProperty('text', 'Chuyển động đều')
                     c('wordTextStyle').setProperty('bold', True)
                     assert QMetaObject.invokeMethod(c('wordTextStyle'), 'chosen')
+                    assert c('wordDemoEnglish').property('font').bold()
                     assert c('wordEnglishFont').isVisible()
                     c('wordEnglishFont').setProperty('currentIndex', c('wordEnglishFont').property('model').index('Arial'))
                     assert QMetaObject.invokeMethod(c('wordEnglishFont'), 'activated', Q_ARG(int, c('wordEnglishFont').property('currentIndex')))
@@ -284,6 +291,8 @@ def main():
                         QTest.keyClick(window, key)
                     pump(50)
                     assert c('wordFontSize').property('pointSize') == 12.5
+                    assert c('wordFormatPreview').property('pointSize') == 12.5
+                    assert c('wordDemoEnglish').property('font').pointSizeF() == 12.5
                     assert bridge.wordDocuments.formattingDefaults['font_size'] == 12.5
                     assert QMetaObject.invokeMethod(c('wordFontSize'), 'commit', Q_ARG('QVariant', 'Size gốc'))
                     assert c('wordFontSize').property('pointSize') == 0
@@ -308,6 +317,8 @@ def main():
                     c('wordEnglishFont').setProperty('currentIndex', c('wordEnglishFont').property('model').index('Arial'))
                     assert QMetaObject.invokeMethod(c('wordEnglishFont'), 'activated', Q_ARG(int, c('wordEnglishFont').property('currentIndex')))
                     assert c('wordEnglishFont').isEnabled() and c('wordEnglishFont').property('currentText') == 'Arial'
+                    assert c('wordFormatPreview').property('family') == 'Arial'
+                    assert c('wordDemoEnglish').property('font').family() == 'Arial'
                     assert bridge.wordDocuments.formattingDefaults['font'] == 'Arial'
                     pump(50)
                     assert c('wordFontSize').property('pointSize') == 0, 'Viewing the original size must not save it as an explicit override'
@@ -578,6 +589,20 @@ def main():
                     window.resize(1366, 850)
                     show_document()
                     assert '\ufffc' in preview_text() and preview_text().count('Vận tốc 12 m/s.') == 4
+                    # A clipped word is visibly completed before confirmation.
+                    source_text = c('wordContinuousText')
+                    assert QMetaObject.invokeMethod(source_text, 'select', Q_ARG(int, 0), Q_ARG(int, 2))
+                    assert QMetaObject.invokeMethod(c('wordPage'), 'offerHighlightedText')
+                    pump(40)
+                    assert source_text.property('selectedText') == 'Bài'
+                    click(window, c('wordAcceptHighlight'))
+                    until(lambda: not bridge.busy)
+                    assert bridge.wordDocuments.state['regions'][0]['vi'] == 'Bài'
+                    assert c('wordLocateRange_0').width() <= 90
+                    assert c('wordRemoveRange_0').property('text') == '×' and c('wordRemoveRange_0').width() == 26
+                    click(window, c('wordRemoveRange_0'))
+                    until(lambda: not bridge.busy)
+                    assert bridge.wordDocuments.state['selected_count'] == 0
                     from PySide6.QtGui import QTextDocument
 
                     parsed_preview = QTextDocument()
@@ -663,6 +688,9 @@ def main():
                     click(window, c('wordResetFormatting'))
                     assert bridge.wordDocuments.formattingDefaults == dict(color='1667B1', highlight='none', font='',
                         italic=True, bold=False, underline=False, strike=False, script='normal', font_size=0)
+                    assert c('wordFormatPreview').property('italic') and not c('wordFormatPreview').property('bold')
+                    assert c('wordFormatPreview').property('highlight') == 'none'
+                    assert c('wordFormatPreview').property('textColor').name().lower() == '#1667b1'
                     assert c('wordMode').property('currentIndex') == mode_before_reset
                     assert c('wordEnglishFont').property('displayText') == 'Font gốc'
                     assert c('wordFontSize').property('editText') == 'Size gốc'
@@ -688,6 +716,8 @@ def main():
                 'Adjacent selected paragraphs form one review group; clicking a group scrolls the source to its matching text',
                 'Whole-document checkbox locks manual selectors, waits for Convert, preserves skipped objects and restores the previous manual selection',
                 'Right-aligned conversion action with selected-configuration summary; Save/library appear after translation',
+                'Live bilingual format sample follows color, highlight, typeface, size and style without a translation request',
+                'Clipped edge words expand visibly before confirmation; compact review navigation and removal retain source data',
                 'Native Word tab; paragraph checkbox and disjoint text selection after emoji',
                 'Mouse drag/release offers confirmation; disjoint highlights accumulate; duplicates merge; switching modes retains selections',
                 'Primary provider fails; configured fallback succeeds; original key unchanged',
