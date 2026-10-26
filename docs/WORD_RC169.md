@@ -7,10 +7,16 @@ Tag/bộ cài RC167 và nhánh RC168 được giữ nguyên.
 ## Dùng thử Word
 
 1. Vào **Chuyển đổi bài giảng → Word → Chọn file Word**, chọn `.docx`.
-2. Tích câu/đoạn muốn dịch. Muốn chọn một phần, bôi đen chữ rồi bấm
-   **Thêm vùng bôi đen**. Tiếp tục chọn những phần rời nhau ở nơi khác.
-   Danh sách bên phải giữ các vùng đã chọn; có thể bỏ từng vùng.
-3. Chọn môn, khối lớp và kiểu trình bày. Bấm **Xem bản dịch · N vùng**.
+2. Ở **Nội dung gốc**, chọn một trong hai cách:
+   - **Tích đoạn / câu**: tích các đoạn hoặc câu cần dịch, như giao diện cũ.
+   - **Bôi đen văn bản**: kéo chuột qua phần cần dịch, nhả chuột rồi bấm
+     **Chọn đoạn này để dịch** trong ô vừa hiện. Có thể quét qua nhiều đoạn.
+     Tiếp tục bôi đen và xác nhận những phần rời nhau. Với bàn phím, chọn chữ
+     rồi bấm **Thêm vùng** để mở ô xác nhận.
+   Danh sách bên phải giữ các vùng đã xác nhận; có thể bỏ từng vùng. Đổi cách
+   chọn không xóa vùng đã chọn, vùng trùng/chồng được gộp. Chỉ bôi đen chưa
+   gửi nội dung đi dịch; đoạn bị khóa/hình/công thức được giữ và có thông báo.
+3. Chọn môn, khối lớp và kiểu trình bày. Bấm **Chuyển đổi · N vùng**.
 4. Xem cặp Việt–Anh bên phải, sửa bản Anh nếu cần. Chỉ khi đã xem trước
    đúng cấu hình mới có thể bấm **Lưu Word song ngữ**.
 5. Màn hoàn tất giữ lại **Mở Word đã lưu**, **Mở thư mục** và

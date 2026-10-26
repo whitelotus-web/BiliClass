@@ -8,10 +8,21 @@ from threading import Event
 from unittest.mock import patch
 
 from docx import Document
-from PySide6.QtCore import Q_ARG, QCoreApplication, QEvent, QMetaObject, QUrl
+from PySide6.QtCore import (
+    Q_ARG,
+    Q_RETURN_ARG,
+    QCoreApplication,
+    QEvent,
+    QMetaObject,
+    QPointF,
+    QRectF,
+    Qt,
+    QUrl,
+)
 from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
+from PySide6.QtTest import QTest
 
 from app.alternative_translation import TRANSPORTS, AlternativeStore
 from app.branding import configure_application
@@ -48,12 +59,41 @@ def main():
         window = engine.rootObjects()[0]
         window.resize(1366, 850)
         window.show()
+        window.requestActivate()
+        until(window.isActive)
         entered, release = Event(), Event()
         calls = []
         blocked = [False]
 
         def c(name):
             return control(window, name)
+
+        def drag_text(start, end):
+            text = c('wordContinuousText')
+
+            def point(position):
+                rect = QMetaObject.invokeMethod(text, 'positionToRectangle', Qt.DirectConnection,
+                    Q_RETURN_ARG(QRectF), Q_ARG(int, position))
+                return text.mapToScene(QPointF(rect.x(), rect.center().y())).toPoint()
+
+            first, last = point(start), point(end)
+            QTest.mouseMove(window, first)
+            pump(30)
+            # Advance QTest's simulated input timestamp, too. A real-time event
+            # loop wait alone can turn repeated drags into double/triple clicks.
+            QTest.mousePress(window, Qt.LeftButton, Qt.NoModifier, first,
+                QGuiApplication.styleHints().mouseDoubleClickInterval() + 40)
+            pump(20)
+            for step in range(1, 6):
+                QTest.mouseMove(window, first + (last - first) * (step / 5), 20)
+            assert not c('wordHighlightPopup').property('visible'), 'Confirmation must wait for mouse release'
+            QTest.mouseRelease(window, Qt.LeftButton, Qt.NoModifier, last)
+            until(lambda: c('wordHighlightPopup').property('visible'))
+            # At an end-of-line Qt may include the adjacent paragraph separator
+            # when the caret rectangle is rounded to a physical screen pixel.
+            expected = text.property('text').encode('utf-16-le')[start * 2:end * 2].decode('utf-16-le')
+            actual = text.property('selectedText').replace('\u2029', '\n')
+            assert actual.strip() == expected.strip(), (actual, expected)
 
         def fake_google(*_):
             calls.append('google')
@@ -116,6 +156,24 @@ def main():
                     click(window, c('wordAddRange_2'))
                     until(lambda: not bridge.busy)
                     assert bridge.wordDocuments.state['selected_count'] == 2
+                    # Switching to the continuous view retains checkbox regions. A real drag
+                    # through an emoji paragraph offers confirmation only after release.
+                    c('wordSelectionMethod').setProperty('currentIndex', 1)
+                    pump(100)
+                    assert bridge.wordDocuments.state['selected_count'] == 2
+                    content = bridge.wordDocuments.selectionText
+                    begin = len(content[:content.index('Vật có vận tốc 13')].encode('utf-16-le')) // 2
+                    finish = begin + len('Vật có vận tốc 13 m/s.')
+                    drag_text(begin, finish)
+                    assert calls == [], 'Highlighting must not send text to a provider'
+                    assert window.grabWindow().save(str(report / 'word-highlight-popup.png'))
+                    click(window, c('wordAcceptHighlight'))
+                    until(lambda: not bridge.busy)
+                    assert bridge.wordDocuments.state['selected_count'] == 2, 'Duplicate highlights must merge'
+                    c('wordSelectionMethod').setProperty('currentIndex', 0)
+                    pump(80)
+                    assert bridge.wordDocuments.state['selected_count'] == 2
+                    assert not c('wordHighlightPopup').property('visible')
                     c('wordSubject').setProperty('currentIndex', bridge.conversionSubjects.index('Vật lý'))
                     click(window, c('wordPreview'))
                     until(lambda: not bridge.busy, timeout=30)
@@ -181,12 +239,41 @@ def main():
                     # New source, pending request: Stop must retain the input and checkpoint.
                     document = Document()
                     document.add_paragraph('Vật có vận tốc 14 m/s.')
+                    document.add_paragraph('Vật có vận tốc 15 m/s.')
                     stop_source = directory / 'Bài dừng tiếp tục.docx'
                     document.save(stop_source)
                     bridge.wordDocuments.openFile(stop_source.as_uri())
                     until(lambda: not bridge.busy)
-                    bridge.wordDocuments.selectAll('paragraphs')
+                    bridge.wordDocuments.addTextSelection(identity, 0, 5)
+                    assert bridge.wordDocuments.state['selected_count'] == 0, 'An old document popup cannot select the new source'
+                    assert 'Tài liệu đã đổi' in bridge.wordDocuments.state['message']
+                    c('wordSelectionMethod').setProperty('currentIndex', 1)
+                    window.resize(1080, 700)
+                    click(window, c('wordShowDocument'))
+                    pump(80)
+                    count_before_selecting = len(calls)
+                    first_end = len('Vật có vận tốc 14 m/s.')
+                    drag_text(0, len(bridge.wordDocuments.selectionText))
+                    QTest.keyClick(window, Qt.Key_Escape)
+                    pump(40)
+                    assert not c('wordHighlightPopup').property('visible')
+                    assert bridge.wordDocuments.state['selected_count'] == 0, 'Dismissing confirmation must not select or translate'
+                    drag_text(0, len(bridge.wordDocuments.selectionText))
+                    click(window, c('wordAcceptHighlight'))
                     until(lambda: not bridge.busy)
+                    assert bridge.wordDocuments.state['selected_count'] == 2, 'A drag can span multiple Word paragraphs'
+                    click(window, c('wordClearSelection'))
+                    until(lambda: not bridge.busy)
+                    drag_text(0, first_end)
+                    click(window, c('wordAcceptHighlight'))
+                    until(lambda: not bridge.busy)
+                    assert bridge.wordDocuments.state['selected_count'] == 1
+                    drag_text(first_end + 2, len(bridge.wordDocuments.selectionText))
+                    click(window, c('wordAcceptHighlight'))
+                    until(lambda: not bridge.busy)
+                    assert bridge.wordDocuments.state['selected_count'] == 2
+                    assert len(calls) == count_before_selecting
+                    assert window.grabWindow().save(str(report / 'word-highlight-selected.png'))
                     blocked[0] = True
                     bridge.wordDocuments.preview(dict(mode='below'), 'Vật lý', '11')
                     until(entered.is_set, timeout=30)
@@ -208,6 +295,7 @@ def main():
             result = dict(status='passed', api='fixture only', checks=[
                 'One Word page keeps upload, configuration and document panels; pre-upload choices are retained',
                 'Native Word tab; paragraph checkbox and disjoint text selection after emoji',
+                'Mouse drag/release offers confirmation; disjoint highlights accumulate; duplicates merge; switching modes retains selections',
                 'Primary provider fails; configured fallback succeeds; original key unchanged',
                 'Editable review; save retains completion; source unchanged',
                 'Light/dark at 1080 and 1366; save control reachable; zero QML warnings',

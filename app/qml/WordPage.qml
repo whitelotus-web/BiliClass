@@ -16,6 +16,23 @@ Item {
     property var modeCodes: ["below", "columns", "keywords", "english"]
     property var colorCodes: ["1667B1", "666666", "000000"]
     property var densityCodes: ["few", "normal", "deep"]
+    readonly property bool highlightSelection: selectionMethod.currentIndex === 1
+    onVisibleChanged: if (!visible && highlightPopup) highlightPopup.close()
+    onWidthChanged: if (highlightPopup) highlightPopup.close()
+    onHeightChanged: if (highlightPopup) highlightPopup.close()
+    function offerHighlightedText() {
+        if (!page.visible || !page.available || !page.highlightSelection || !page.documentState.id || !continuousText.selectedText.trim()) return
+        highlightPopup.documentIdentity = page.documentState.id
+        highlightPopup.rangeStart = continuousText.selectionStart
+        highlightPopup.rangeEnd = continuousText.selectionEnd
+        highlightPopup.excerpt = continuousText.selectedText
+        const caret = continuousText.cursorRectangle
+        const point = continuousText.mapToItem(page, caret.x, caret.y)
+        highlightPopup.x = Math.max(12, Math.min(point.x + 8, page.width - highlightPopup.width - 12))
+        const below = point.y + caret.height + 8
+        highlightPopup.y = Math.max(12, Math.min(below + highlightPopup.height <= page.height - 12 ? below : point.y - highlightPopup.height - 8, page.height - highlightPopup.height - 12))
+        highlightPopup.open()
+    }
     function openDocument(url) {
         word.openConfiguredFile(url, {options: draftOptions(), subject: subject.currentText, grade: grade.text})
     }
@@ -32,6 +49,7 @@ Item {
     function draftOptions() { return {mode: modeCodes[mode.currentIndex], color: colorCodes[englishColor.currentIndex], italic: italic.checked, density: densityCodes[density.currentIndex]} }
     function syncLoaded() {
         if (!page.documentState.id || shownIdentity === page.documentState.id) return
+        highlightPopup.close()
         shownIdentity = page.documentState.id
         mode.currentIndex = Math.max(0, modeCodes.indexOf(page.documentState.options.mode || "below"))
         englishColor.currentIndex = Math.max(0, colorCodes.indexOf(page.documentState.options.color || "1667B1"))
@@ -40,10 +58,31 @@ Item {
         subject.currentIndex = Math.max(0, appBridge.conversionSubjects.indexOf(page.documentState.subject || "Toán"))
         grade.text = page.documentState.grade || "11"
     }
-    Connections { target: page.word; function onChanged() { page.syncLoaded() }
+    Connections { target: page.word; function onChanged() { if (!page.available) highlightPopup.close(); page.syncLoaded() }
         function onConfigurationRestored() { page.shownIdentity = ""; page.syncLoaded() }
     }
     FileDialog { id: choose; objectName: "wordFileDialog"; title: "Chọn bài giảng Word"; nameFilters: ["Bài giảng Word (*.docx)"]; onAccepted: page.openDocument(selectedFile.toString()) }
+    Pane {
+        id: highlightPopup; objectName: "wordHighlightPopup"; z: 100; visible: false
+        property string documentIdentity: ""
+        property int rangeStart: 0
+        property int rangeEnd: 0
+        property string excerpt: ""
+        width: Math.min(340, page.width - 24); padding: 10
+        function open() { visible = true }
+        function close() { if (visible) { visible = false; continuousText.deselect() } }
+        Accessible.name: "Xác nhận vùng văn bản cần dịch"
+        background: Rectangle { color: AppTheme.surface; radius: 10; border.color: AppTheme.blue }
+        contentItem: ColumnLayout { spacing: 8
+            Label { text: highlightPopup.excerpt.slice(0, 180); textFormat: Text.PlainText; color: AppTheme.muted; font.pixelSize: 11; wrapMode: Text.WordWrap; maximumLineCount: 3; elide: Text.ElideRight; Layout.fillWidth: true }
+            RowLayout { Layout.fillWidth: true; spacing: 8
+                WordAction { objectName: "wordAcceptHighlight"; text: "Chọn đoạn này để dịch"; primary: true; Layout.fillWidth: true; enabled: page.available
+                    onClicked: { page.word.addTextSelection(highlightPopup.documentIdentity, highlightPopup.rangeStart, highlightPopup.rangeEnd); highlightPopup.close() }
+                }
+                WordAction { objectName: "wordDismissHighlight"; text: "Hủy"; onClicked: highlightPopup.close() }
+            }
+        }
+    }
     Dialog {
         id: keywordDialog; property string regionIdentity: ""; title: "Thêm từ khóa vào vùng chọn"; modal: true
         anchors.centerIn: parent; width: Math.min(440, page.width - 30); standardButtons: Dialog.Ok | Dialog.Cancel
@@ -135,15 +174,29 @@ Item {
                 Layout.fillWidth: true; Layout.fillHeight: true; Layout.preferredWidth: 1; color: AppTheme.surface; radius: 11; border.color: AppTheme.line
                 ColumnLayout { anchors.fill: parent; anchors.margins: 12; spacing: 8
                     RowLayout { Layout.fillWidth: true
-                        Label { text: "Nội dung gốc"; font.bold: true; color: AppTheme.ink; Layout.fillWidth: true }
-                        Choice { id: scope; objectName: "wordSelectionScope"; model: ["Theo đoạn", "Theo câu"]; enabled: !!page.documentState.id; Layout.preferredWidth: 150 }
+                        Label { text: "Nội dung gốc"; font.bold: true; color: AppTheme.ink }
+                        Choice {
+                            id: selectionMethod; objectName: "wordSelectionMethod"; model: ["Tích đoạn / câu", "Bôi đen văn bản"]
+                            enabled: page.available; Layout.fillWidth: true; Layout.preferredWidth: 155; Layout.minimumWidth: 110
+                            Accessible.name: "Cách chọn văn bản"
+                            ToolTip.visible: hovered; ToolTip.text: currentIndex === 0 ? "Tích chọn từng đoạn hoặc câu cần dịch" : "Bôi đen, nhả chuột rồi xác nhận vùng cần dịch"
+                            onCurrentIndexChanged: { if (highlightPopup) highlightPopup.close(); if (continuousText) continuousText.deselect() }
+                        }
+                        Choice { id: scope; objectName: "wordSelectionScope"; visible: !page.highlightSelection; model: ["Theo đoạn", "Theo câu"]; enabled: page.available && !!page.documentState.id; Layout.preferredWidth: 110 }
                     }
                     RowLayout { Layout.fillWidth: true
-                        WordAction { objectName: "wordSelectAll"; text: "Chọn tất cả"; enabled: page.available && !!page.documentState.id; onClicked: page.word.selectAll(scope.currentIndex === 1 ? "sentences" : "paragraphs") }
+                        WordAction { objectName: "wordSelectAll"; text: page.highlightSelection ? "Bôi đen tất cả" : "Chọn tất cả"; enabled: page.available && !!page.documentState.id
+                            onClicked: {
+                                if (page.highlightSelection) { continuousText.forceActiveFocus(); continuousText.selectAll(); Qt.callLater(page.offerHighlightedText) }
+                                else page.word.selectAll(scope.currentIndex === 1 ? "sentences" : "paragraphs")
+                            }
+                        }
                         WordAction { objectName: "wordClearSelection"; text: "Bỏ chọn"; enabled: page.available && page.documentState.selected_count > 0; onClicked: page.word.clearSelection() }
+                        WordAction { objectName: "wordConfirmHighlight"; visible: page.highlightSelection && continuousText.selectedText.length > 0; text: "Thêm vùng"; enabled: page.available; onClicked: page.offerHighlightedText() }
                     }
+                    Hint { visible: page.highlightSelection; text: "Bôi đen rồi nhả chuột để chọn vùng dịch. Các vùng đã xác nhận được giữ ở bên phải."; font.pixelSize: 11; Layout.fillWidth: true }
                     ListView {
-                        id: sources; objectName: "wordSourceList"; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 9
+                        id: sources; objectName: "wordSourceList"; visible: !page.highlightSelection; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 9
                         model: { const revision = page.documentState; return page.word.items(scope.currentIndex === 1 ? "sentences" : "paragraphs") }
                         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
                         Hint { visible: !page.documentState.id; anchors.centerIn: parent; width: parent.width - 24; horizontalAlignment: Text.AlignHCenter; text: "Tải file Word ở trên để xem nội dung và chọn phần cần dịch." }
@@ -169,13 +222,38 @@ Item {
                             }
                         }
                     }
+                    ContentScrollView {
+                        id: textScroll; objectName: "wordContinuousScroll"; visible: page.highlightSelection
+                        Layout.fillWidth: true; Layout.fillHeight: true; contentWidth: availableWidth
+                        TextArea {
+                            id: continuousText; objectName: "wordContinuousText"; width: textScroll.availableWidth
+                            text: page.highlightSelection ? page.word.selectionText : ""; textFormat: TextEdit.PlainText
+                            placeholderText: "Tải file Word ở trên để bôi đen phần cần dịch."
+                            readOnly: true; selectByMouse: true; persistentSelection: true; wrapMode: TextEdit.Wrap
+                            Keys.onEscapePressed: function(event) { if (highlightPopup.visible) highlightPopup.close(); else event.accepted = false }
+                            enabled: page.available && !!page.documentState.id; color: AppTheme.ink
+                            selectedTextColor: AppTheme.accentText; selectionColor: AppTheme.accent; font.pixelSize: 13; padding: 9
+                            background: Rectangle { color: AppTheme.field; radius: 7 }
+                            PointHandler {
+                                acceptedButtons: Qt.LeftButton
+                                onActiveChanged: {
+                                    if (active) {
+                                        highlightPopup.close()
+                                        continuousText.cursorPosition = continuousText.positionAt(point.position.x, point.position.y)
+                                        continuousText.forceActiveFocus()
+                                    }
+                                    else Qt.callLater(page.offerHighlightedText)
+                                }
+                            }
+                        }
+                    }
                 }
             }
             Rectangle {
                 Layout.fillWidth: true; Layout.fillHeight: true; Layout.preferredWidth: 1; color: AppTheme.surface; radius: 11; border.color: AppTheme.line
                 ColumnLayout { anchors.fill: parent; anchors.margins: 12; spacing: 8
                     Label { objectName: "wordSelectedCount"; text: page.documentState.id ? "Đã chọn " + (page.documentState.selected_count || 0) + " vùng" : "Bản dịch xem trước"; font.bold: true; color: AppTheme.ink }
-                    Hint { text: !page.documentState.id ? "Bản dịch sẽ hiện tại đây sau khi chọn vùng và chuyển đổi." : page.documentState.selected_count ? "Xem phần Việt và chỉnh bản Anh trước khi lưu." : "Bôi đen rồi bấm Thêm vùng bôi đen, hoặc tích chọn ở bên trái."; Layout.fillWidth: true }
+                    Hint { text: !page.documentState.id ? "Bản dịch sẽ hiện tại đây sau khi chọn vùng và chuyển đổi." : page.documentState.can_export ? "Xem phần Việt và chỉnh bản Anh trước khi lưu." : page.documentState.selected_count ? "Tiếp tục chọn vùng hoặc bấm Chuyển đổi ở thanh dưới để xem bản Anh." : page.highlightSelection ? "Bôi đen bên trái, nhả chuột rồi bấm Chọn đoạn này để dịch." : "Tích chọn đoạn/câu hoặc thêm vùng bôi đen ở bên trái."; Layout.fillWidth: true }
                     ListView {
                         objectName: "wordReviewList"; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 10; model: page.documentState.regions
                         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
@@ -216,7 +294,7 @@ Item {
         ProgressBar { objectName: "wordProgress"; visible: page.documentState.working; Layout.fillWidth: true; from: 0; to: 100; value: page.documentState.percent || 0; indeterminate: value <= 0 }
         Flow {
             Layout.fillWidth: true; spacing: 8
-            WordAction { objectName: "wordPreview"; text: page.documentState.phase === "paused" ? "Tiếp tục chuyển đổi" : page.documentState.phase === "completed" ? "Chuyển đổi lại" : "Xem bản dịch · " + (page.documentState.selected_count || 0) + " vùng"; primary: page.documentState.phase !== "completed"
+            WordAction { objectName: "wordPreview"; text: page.documentState.phase === "paused" ? "Tiếp tục chuyển đổi" : page.documentState.phase === "completed" ? "Chuyển đổi lại" : "Chuyển đổi · " + (page.documentState.selected_count || 0) + " vùng"; primary: page.documentState.phase !== "completed"
                 enabled: page.available && page.documentState.selected_count > 0; onClicked: page.word.preview(page.draftOptions(), subject.currentText, grade.text) }
             WordAction { objectName: "wordSave"; visible: !!page.documentState.id && (page.documentState.phase !== "completed" || page.word.draftsPending); text: "Lưu Word song ngữ"; primary: page.documentState.phase === "review"; enabled: page.available && page.documentState.can_export && page.configurationMatches; onClicked: page.word.save() }
             WordAction { objectName: "wordStop"; visible: page.documentState.working; text: "■ Dừng"; danger: true; onClicked: page.word.stop() }
@@ -228,6 +306,6 @@ Item {
             WordAction { objectName: "wordGoLibrary"; text: "Về thư viện"; enabled: page.available; onClicked: page.showLibrary() }
         }
         Hint { visible: page.word.draftsPending; text: "Có chỉnh sửa bản dịch/từ khóa. Bấm Lưu Word song ngữ để áp dụng."; Layout.fillWidth: true }
-        Hint { visible: !!page.documentState.id && !page.configurationMatches; text: "Cấu hình đã đổi. Bấm Xem bản dịch để cập nhật trước khi lưu."; Layout.fillWidth: true }
+        Hint { visible: !!page.documentState.id && !page.configurationMatches; text: "Cấu hình đã đổi. Bấm Chuyển đổi để cập nhật trước khi lưu."; Layout.fillWidth: true }
     }
 }

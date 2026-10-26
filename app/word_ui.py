@@ -15,6 +15,7 @@ class WordDocuments(QObject):
     draftsChanged = Signal()
     progressed = Signal(object)
     configurationRestored = Signal()
+    sourceTextChanged = Signal()
 
     def __init__(self, bridge):
         super().__init__(bridge)
@@ -22,6 +23,9 @@ class WordDocuments(QObject):
         self._state = dict(id='', phase='empty', regions=[], paragraphs=[], message='', selected_count=0, can_export=False, options={})
         self._library, self._drafts, self._keywords = [], {}, {}
         self._working, self._trash = False, False
+        from .word_selection import TextSelection
+
+        self._text_selection, self._text_identity = TextSelection([]), ''
         self.progressed.connect(self._progress)
 
     @Property('QVariantMap', notify=changed)
@@ -35,6 +39,10 @@ class WordDocuments(QObject):
     @Property(bool, notify=draftsChanged)
     def draftsPending(self):
         return bool(self._drafts or self._keywords)
+
+    @Property(str, notify=sourceTextChanged)
+    def selectionText(self):
+        return self._text_selection.text
 
     def available(self):
         return not (self.bridge.busy or self.bridge.narrationBusy or self.bridge.batchQueue.running or self._working)
@@ -63,6 +71,12 @@ class WordDocuments(QObject):
             self._working = False
             if result.get('job'):
                 self._state = result['job']
+                if self._text_identity != self._state['id']:
+                    from .word_selection import TextSelection
+
+                    self._text_selection = TextSelection(self._state['paragraphs'])
+                    self._text_identity = self._state['id']
+                    self.sourceTextChanged.emit()
                 if clear_drafts:
                     self._drafts.clear()
                     self._keywords.clear()
@@ -148,6 +162,28 @@ class WordDocuments(QObject):
         except (ValueError, StopIteration) as exc:
             self._state['message'] = str(exc) or 'Chọn lại vùng văn bản.'
             self.changed.emit()
+
+    @Slot(str, int, int)
+    def addTextSelection(self, identity, start, end):
+        if not self.available():
+            return
+        try:
+            if not identity or identity != self._state['id'] or identity != self._text_identity:
+                raise ValueError('Tài liệu đã đổi; bôi đen lại phần cần dịch.')
+            selected, skipped = self._text_selection.ranges(start, end)
+            rows = [*self._ranges(), *selected]
+        except ValueError as exc:
+            self._state['message'] = str(exc)
+            self.changed.emit()
+            return
+
+        def action(directory):
+            job = jobs.selections(directory, identity, rows)
+            if skipped:
+                job['message'] += f' Giữ nguyên {skipped} đoạn chỉ có hình/công thức hoặc đang khóa; các đoạn đó chưa được chọn để dịch.'
+            return job
+
+        self._launch(action)
 
     @Slot(str)
     def removeRange(self, identity):
