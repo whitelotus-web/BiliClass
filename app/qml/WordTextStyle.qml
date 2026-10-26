@@ -4,6 +4,7 @@ import QtQuick.Layouts
 
 RowLayout {
     id: styles; spacing: 2
+    property bool compact: false
     property bool bold: false
     property bool italic: true
     property bool underline: false
@@ -21,7 +22,7 @@ RowLayout {
     signal chosen()
     implicitHeight: 38
     component StyleButton: Button {
-        implicitWidth: 31; implicitHeight: 36; padding: 3
+        implicitWidth: styles.compact ? 27 : 31; implicitHeight: 36; padding: 3
         property string hint: ""
         Accessible.name: hint
         ToolTip.visible: hovered; ToolTip.text: hint

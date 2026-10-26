@@ -72,6 +72,15 @@ def main():
         def c(name):
             return control(window, name)
 
+        def check_formatting_row():
+            picker = 'wordKeywordDensity' if c('wordMode').property('currentIndex') == 2 else 'wordEnglishColor'
+            parts = [c(name) for name in ('wordMode', picker, 'wordTextStyle', 'wordOriginalFont', 'wordEnglishFont')]
+            rectangles = [item.mapRectToScene(item.boundingRect()) for item in parts]
+            assert max(rect.top() for rect in rectangles) - min(rect.top() for rect in rectangles) < 3, rectangles
+            assert all(left.right() <= right.left() + 1 for left, right in zip(rectangles, rectangles[1:])), rectangles
+            toolbar = c('wordFormattingToolbar').mapRectToScene(c('wordFormattingToolbar').boundingRect())
+            assert rectangles[-1].right() <= toolbar.right() + 1 <= window.width(), rectangles[-1]
+
         def plain_text(text):
             return QMetaObject.invokeMethod(text, 'getText', Qt.DirectConnection, Q_RETURN_ARG(str),
                 Q_ARG(int, 0), Q_ARG(int, text.property('length'))).replace('\u2029', '\n')
@@ -151,9 +160,19 @@ def main():
                     for choice in range(4):
                         click(window, c('wordMode_' + str(choice)))
                         assert c('wordMode').property('currentIndex') == choice
+                        check_formatting_row()
                     radio_rows = [c('wordMode_' + str(index)).mapToScene(QPointF()).y() for index in range(4)]
                     assert max(radio_rows) - min(radio_rows) < 2
                     click(window, c('wordMode_0'))
+                    for width, height in ((1080, 700), (1366, 850)):
+                        window.resize(width, height)
+                        pump(100)
+                        for index in (0, 2):
+                            c('wordMode').setProperty('currentIndex', index)
+                            pump(30)
+                            check_formatting_row()
+                            assert window.grabWindow().save(str(report / f'word-toolbar-{width}-{index}.png'))
+                    c('wordMode').setProperty('currentIndex', 0)
                     assert c('wordEnglishColor').property('colorCode') == 'original'
                     assert c('wordPreview').property('text') == 'Chuyển đổi bài giảng'
                     for level, classes in ((2, ['1', '2', '3', '4', '5']), (1, ['6', '7', '8', '9']), (0, ['10', '11', '12'])):
@@ -273,6 +292,7 @@ def main():
                         for width, height in ((1080, 700), (1366, 850)):
                             window.resize(width, height)
                             pump(100)
+                            check_formatting_row()
                             save = c('wordOpenOutput')
                             rect = save.mapRectToScene(save.boundingRect())
                             assert rect.bottom() <= window.height() and rect.right() <= window.width(), rect
@@ -451,7 +471,7 @@ def main():
                 'Successful conversion automatically saves beside source with the requested suffix; edits remain saveable',
                 'Main radio choices; indented square paragraph/sentence choices enabled only in checkbox mode',
                 'Word-style color palette, original-color option, typography icons and dependent education/grade choices',
-                'Four inline conversion radios; always-visible source font alongside original-font checkbox',
+                'Single formatting row: four conversion radios, color/keyword density, typography and original/custom font at laptop and desktop widths',
                 'Expanded source workspace: mouse selection, collapse retains ranges, clear-all from both panels, Escape closes',
                 'Rich paper preview: native QML selection maps images and repeated table cells to original source ranges',
                 'Right-aligned conversion action with selected-configuration summary; Save/library appear after translation',

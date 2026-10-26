@@ -239,42 +239,51 @@ Item {
                 Choice { id: grade; objectName: "wordGrade"; model: page.appBridge.educationGrades(education.currentText); currentIndex: 1; Layout.fillWidth: true; enabled: page.available }
             }
             }
-            ColumnLayout { Layout.fillWidth: true; spacing: 4
+            RowLayout {
+            objectName: "wordFormattingToolbar"; Layout.fillWidth: true; spacing: 6
+            ColumnLayout { Layout.minimumWidth: mode.implicitWidth; Layout.preferredWidth: mode.implicitWidth; Layout.alignment: Qt.AlignTop; spacing: 4
                 Hint { text: "Kiểu chuyển đổi" }
                 ButtonGroup { id: conversionModes }
                 RowLayout {
-                    id: mode; objectName: "wordMode"; Layout.fillWidth: true; spacing: 8
+                    id: mode; objectName: "wordMode"; spacing: 4
                     property int currentIndex: 0
                     readonly property var model: ["Anh ngay dưới Việt", "Việt–Anh hai cột", "Từ khóa tiếng Anh", "Tiếng Anh 100% ở vùng chọn"]
+                    readonly property var shortLabels: [page.width < 950 ? "Dưới dòng" : "Anh dưới Việt", "Hai cột", "Từ khóa", "100% Anh"]
                     readonly property string currentText: model[currentIndex] || model[0]
                     Repeater { model: mode.model
                         SelectionRadio {
                             required property int index; required property string modelData
-                            objectName: "wordMode_" + index; text: modelData
-                            Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0
+                            id: conversionRadio
+                            objectName: "wordMode_" + index; text: mode.shortLabels[index]
+                            implicitHeight: 38; rightPadding: 0
+                            Accessible.name: modelData
+                            ToolTip.visible: hovered; ToolTip.text: modelData
+                            contentItem: Text { text: conversionRadio.text; leftPadding: 22; font.pixelSize: 12; font.weight: Font.DemiBold; color: AppTheme.ink; verticalAlignment: Text.AlignVCenter; wrapMode: Text.NoWrap }
                             checked: mode.currentIndex === index; ButtonGroup.group: conversionModes
                             enabled: page.available; onClicked: mode.currentIndex = index
                         }
                     }
                 }
             }
-            GridLayout {
-            Layout.fillWidth: true; columns: page.width >= 760 ? 3 : 2; columnSpacing: 12; rowSpacing: 8
-                ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 1.3; Layout.alignment: Qt.AlignTop; spacing: 4
+                ColumnLayout { Layout.alignment: Qt.AlignTop; spacing: 4
                     Hint { text: mode.currentIndex === 2 ? "Mức từ khóa" : "Màu tiếng Anh" }
-                    WordColorPicker { id: englishColor; objectName: "wordEnglishColor"; visible: mode.currentIndex !== 2; Layout.preferredWidth: 84; enabled: page.available; onChosen: page.rememberFormatting() }
-                    Choice { id: density; objectName: "wordKeywordDensity"; visible: mode.currentIndex === 2; model: ["Ít", "Vừa phải", "Chuyên sâu"]; currentIndex: 1; Layout.fillWidth: true; enabled: page.available }
+                    WordColorPicker { id: englishColor; objectName: "wordEnglishColor"; visible: mode.currentIndex !== 2; Layout.preferredWidth: 60; enabled: page.available; onChosen: page.rememberFormatting() }
+                    Choice { id: density; objectName: "wordKeywordDensity"; visible: mode.currentIndex === 2; model: ["Ít", "Vừa phải", "Chuyên sâu"]; currentIndex: 1; Layout.preferredWidth: 86; enabled: page.available }
                 }
-            ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 1.8; Layout.alignment: Qt.AlignTop; spacing: 4
+            ColumnLayout { Layout.alignment: Qt.AlignTop; spacing: 4
                 Hint { text: "Kiểu chữ tiếng Anh" }
-                WordTextStyle { id: textStyle; objectName: "wordTextStyle"; Layout.minimumWidth: implicitWidth; enabled: page.available; onChosen: page.rememberFormatting() }
+                WordTextStyle { id: textStyle; objectName: "wordTextStyle"; compact: true; Layout.minimumWidth: implicitWidth; enabled: page.available; onChosen: page.rememberFormatting() }
             }
-            ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 3.4; Layout.alignment: Qt.AlignTop; spacing: 4
+            ColumnLayout { Layout.fillWidth: true; Layout.minimumWidth: 190; Layout.alignment: Qt.AlignTop; spacing: 4
                 Hint { text: "Phông chữ tiếng Anh" }
-                RowLayout { Layout.fillWidth: true; spacing: 8
-                CheckBox { id: originalFont; objectName: "wordOriginalFont"; text: "Font gốc"; checked: true; implicitHeight: 38; enabled: page.available; palette.windowText: AppTheme.ink
+                RowLayout { Layout.fillWidth: true; spacing: 4
+                CheckBox { id: originalFont; objectName: "wordOriginalFont"; text: "Font gốc"; checked: true; implicitHeight: 38; enabled: page.available; leftPadding: 0; rightPadding: 0; spacing: 4; opacity: enabled ? 1 : .45
+                    indicator: Rectangle { x: 0; y: (parent.height - height) / 2; width: 18; height: 18; radius: 3; color: originalFont.checked ? AppTheme.blue : AppTheme.field; border.color: originalFont.checked || originalFont.visualFocus ? AppTheme.blue : AppTheme.muted
+                        Text { anchors.centerIn: parent; text: "✓"; font.pixelSize: 14; color: "white"; visible: originalFont.checked }
+                    }
+                    contentItem: Text { text: originalFont.text; leftPadding: 23; font.pixelSize: 12; color: AppTheme.ink; verticalAlignment: Text.AlignVCenter }
                     ToolTip.visible: hovered; ToolTip.text: "Dùng phông chữ tại vùng gốc được chọn. Bỏ tích để chọn phông mới cho phần tiếng Anh."; onToggled: page.rememberFormatting() }
-                Choice { id: englishFont; objectName: "wordEnglishFont"; model: page.fontNames; Layout.fillWidth: true; Layout.minimumWidth: 130
+                Choice { id: englishFont; objectName: "wordEnglishFont"; model: page.fontNames; Layout.fillWidth: true; Layout.minimumWidth: 110
                     displayText: originalFont.checked ? page.sourceFontLabel : currentText
                     enabled: page.available && !originalFont.checked; onActivated: page.rememberFormatting()
                     ToolTip.visible: fontHover.hovered; ToolTip.text: originalFont.checked ? page.sourceFontLabel + (page.word.sourceFonts.length > 1 ? "\nMỗi vùng giữ đúng phông riêng trong bản gốc." : "") : currentText

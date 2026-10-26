@@ -5,7 +5,9 @@ Ngày 26/10/2026. Bản mã nguồn để thử tiếp, trên nhánh
 
 - **Cấp học → Khối lớp** dùng cùng danh sách lớp với PowerPoint: Tiểu học
   1–5, THCS 6–9, THPT 10–12. Tài liệu cũ mở lại được suy cấp từ lớp đã lưu.
-- **Kiểu chuyển đổi** hiện bốn lựa chọn tròn trên cùng một hàng.
+- **Kiểu chuyển đổi**, bảng màu, các nút kiểu chữ và phông nằm trên một hàng
+  cấu hình gọn. Bốn lựa chọn tròn dùng tên ngắn; rê chuột để xem tên đầy đủ.
+  Ô cấu hình đã chọn vẫn ghi đầy đủ kiểu chuyển đổi.
 - **Màu tiếng Anh** là nút A có gạch màu. Bảng chọn gồm màu chủ đề, màu tiêu
   chuẩn, màu khác và ô **Giữ nguyên màu gốc**. Màu gốc là mặc định ban đầu;
   các màu RGB được kiểm tra trước khi ghi vào Word.
