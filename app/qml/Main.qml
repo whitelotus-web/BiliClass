@@ -1404,8 +1404,8 @@ ApplicationWindow {
                             MainAction { objectName: "removeInputDocumentButton"; visible: !root.creationBatchComplete && (!!root.selectedFile || root.creationBatch); text: root.creationBatch ? "Hủy các bài đang chọn" : "Hủy bài đang chọn"; danger: true; symbol: "×"; enabled: !bridge.busy && !bridge.narrationBusy && (!root.creationBatch || root.batchState.phase === "draft"); onClicked: root.creationBatch ? bridge.batchQueue.clear() : root.removeInputDocument() }
                         }
                         RowLayout { Layout.fillWidth: true
-                            WordAction { objectName: "conversionDocumentPowerPoint"; text: "PowerPoint"; primary: true }
-                            WordAction { objectName: "conversionDocumentWord"; text: "Word"; onClicked: root.go("word") }
+                            ConversionDocumentTab { objectName: "conversionDocumentPowerPoint"; selected: true }
+                            ConversionDocumentTab { objectName: "conversionDocumentWord"; word: true; onClicked: root.go("word") }
                             Item { Layout.fillWidth: true }
                         }
                         Copy { visible: !!bridge.googleSettings.state.serviceWarning; text: bridge.googleSettings.state.serviceWarning || ""; color: AppTheme.warning; Layout.fillWidth: true; font.pixelSize: 11 }

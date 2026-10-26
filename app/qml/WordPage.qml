@@ -60,8 +60,8 @@ Item {
             WordAction { objectName: "wordChooseFile"; text: "Chọn bài khác"; visible: !!page.documentState.id; enabled: page.available; onClicked: choose.open() }
         }
         RowLayout { Layout.fillWidth: true
-            WordAction { objectName: "wordTabPowerPoint"; text: "PowerPoint"; onClicked: page.showPowerPoint() }
-            WordAction { objectName: "wordTabWord"; text: "Word"; primary: true }
+            ConversionDocumentTab { objectName: "wordTabPowerPoint"; onClicked: page.showPowerPoint() }
+            ConversionDocumentTab { objectName: "wordTabWord"; word: true; selected: true }
             Item { Layout.fillWidth: true }
         }
         Hint { objectName: "wordWorkflowGuide"; text: "Chọn Word → Chọn vùng cần dịch → Chọn kiểu song ngữ → Xem và lưu Word."; font.pixelSize: 13; Layout.fillWidth: true }

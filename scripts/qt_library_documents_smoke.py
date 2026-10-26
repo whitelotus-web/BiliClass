@@ -58,7 +58,7 @@ def main():
             ready = lesson['id'] == slides[0]['id']
             return dict(ready=ready, status='ready' if ready else 'none', mode='en' if ready else 'none',
                         label='Có giọng tiếng Anh' if ready else 'Chưa có giọng',
-                        variants=[dict(ready=True, mode='en', voice='heart', rate=100)] if ready else [])
+                        variants=[dict(id='fixture-en', ready=True, mode='en', voice='heart', rate=100)] if ready else [])
 
         with patch('app.library_catalog.audio_status', audio):
             bridge = Bridge(library)
