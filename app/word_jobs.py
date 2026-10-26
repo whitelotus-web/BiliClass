@@ -11,7 +11,14 @@ from pathlib import Path
 from uuid import uuid4
 
 from .google_translation import _atomic
-from .word_document import Package, digest, display_translation, keyword_annotations, validate_translation
+from .word_document import (
+    Package,
+    digest,
+    display_translation,
+    font_name,
+    keyword_annotations,
+    validate_translation,
+)
 
 
 def root(directory):
@@ -116,6 +123,7 @@ def catalog(directory, trash=False):
 
 def public(directory, job, *, paragraphs=True):
     result = copy.deepcopy(job)
+    result['source_title'] = Path(job['source_original']).stem
     result['regions'] = [{**region, 'display_en': display_translation(region)} for region in result['regions']]
     if paragraphs:
         result['paragraphs'] = Package(folder_for(directory, job['id']) / 'source.docx').rows
@@ -138,7 +146,7 @@ def create(directory, source, *, preferences=None):
         if signature in {row.get('source_sha256'), row.get('output_sha256'), row.get('export_sha256')}:
             return read(directory, row['id'])
     preferences = preferences or {}
-    options = options_for(preferences.get('options', {}))
+    options = options_for({**formatting_defaults(directory), **preferences.get('options', {})})
     subject = str(preferences.get('subject', 'Toán')).strip()[:120] or 'Toán'
     grade = str(preferences.get('grade', '11')).strip()[:80]
     require_space(directory, source.stat().st_size * 3 + 32 * MIB)
@@ -148,7 +156,7 @@ def create(directory, source, *, preferences=None):
     shutil.copyfile(source, folder / 'source.docx')
     if digest(folder / 'source.docx') != signature:
         raise ValueError('Nguồn Word thay đổi trong lúc tải; chọn lại tệp.')
-    job = dict(id=identity, title=source.stem, source_original=str(source), source_sha256=signature,
+    job = dict(id=identity, title=title_for(preferences.get('title', ''), source.stem), source_original=str(source), source_sha256=signature,
                created_at=datetime.now(timezone.utc).isoformat(),
                regions=[], options=options,
                phase='select', message='Bôi đen và thêm vùng, hoặc tích chọn câu/đoạn cần dịch.', subject=subject, grade=grade)
@@ -170,18 +178,44 @@ def selections(directory, identity, rows):
         return job
 
 
-def options_for(value):
-    from .word_document import MODES
+def title_for(value, fallback):
+    return ' '.join(str(value).split())[:200] or fallback
 
-    result = dict(mode=value.get('mode', 'below'), color=value.get('color', '1667B1'),
-                  italic=value.get('italic', True), density=value.get('density', 'normal'))
-    if (result['mode'] not in MODES or result['color'] not in {'1667B1', '666666', '000000'}
-            or type(result['italic']) is not bool or result['density'] not in {'few', 'normal', 'deep'}):
+
+def options_for(value):
+    from .word_document import COLORS, MODES
+
+    result = dict(mode=value.get('mode', 'below'), color=value.get('color', 'original'),
+                  italic=value.get('italic', True), bold=value.get('bold', False),
+                  font=font_name(value.get('font', '')), density=value.get('density', 'normal'))
+    if (result['mode'] not in MODES or result['color'] not in COLORS
+            or type(result['italic']) is not bool or type(result['bold']) is not bool or result['density'] not in {'few', 'normal', 'deep'}):
         raise ValueError('Cấu hình trình bày Word chưa hợp lệ.')
     return result
 
 
-def translate(directory, identity, options, subject, grade, cancel, progress, *, translator=None):
+def formatting_defaults(directory, value=None):
+    path = root(directory) / 'formatting.json'
+    saving = value is not None
+    if value is None:
+        try:
+            if path.stat().st_size > 8192:
+                raise ValueError('Cấu hình quá lớn.')
+            value = json.loads(path.read_text(encoding='utf-8'))
+            if not isinstance(value, dict):
+                raise ValueError('Cấu hình chưa hợp lệ.')
+            result = options_for(value)
+        except (OSError, ValueError, TypeError):
+            result = options_for({})
+    else:
+        result = options_for(value)
+    result = {key: result[key] for key in ('color', 'italic', 'bold', 'font')}
+    if saving:
+        _atomic(path, json.dumps(result, ensure_ascii=False).encode('utf-8'))
+    return result
+
+
+def translate(directory, identity, options, subject, grade, cancel, progress, *, translator=None, title=None):
     from .google_translation import Translator
     from .library import Library
     from .translation_knowledge import prepare
@@ -206,6 +240,8 @@ def translate(directory, identity, options, subject, grade, cancel, progress, *,
                 region.pop('annotations', None)
             job.pop('translation_config', None)
         job.update(options=selected_options, subject=subject, grade=grade, phase='working', message='Đang chuẩn bị nội dung đã chọn.')
+        if title is not None:
+            job['title'] = title_for(title, Path(job['source_original']).stem)
         if 'translation_config' not in job:
             route = snapshot(directory, include_fallback=True)
             if selected_options['mode'] != 'keywords' and translator is None:
@@ -213,6 +249,7 @@ def translate(directory, identity, options, subject, grade, cancel, progress, *,
             job['translation_config'] = {**route,
                 'subject': subject, 'grade': grade, 'title': job['title'], 'source_sha256': job['source_sha256']}
         config = job['translation_config']
+        config['title'] = job['title']
         write(folder, job)
         try:
             pending = [region for region in job['regions'] if not region.get('en')]
@@ -251,6 +288,25 @@ def translate(directory, identity, options, subject, grade, cancel, progress, *,
         except Exception as exc:
             job.update(phase='paused', message=str(exc), error_code=getattr(exc, 'code', 'word_conversion'))
         write(folder, job)
+        return job
+
+
+def convert(directory, identity, options, subject, grade, cancel, progress, **kwargs):
+    job = translate(directory, identity, options, subject, grade, cancel, progress, **kwargs)
+    if job['phase'] != 'review':
+        return job
+    progress(dict(percent=98, message='Đã dịch xong; đang tự động lưu Word.'))
+    try:
+        return export(directory, identity, cancel)
+    except Exception as exc:
+        job.update(phase='paused' if isinstance(exc, InterruptedError) else 'review',
+                   message='Đã dịch xong nhưng chưa lưu được Word. ' + str(exc) + ' Bấm Lưu Word song ngữ để thử lại.')
+        try:
+            folder = folder_for(directory, identity)
+            with locked(folder):
+                write(folder, job)
+        except (OSError, ValueError):
+            pass  # The completed translation checkpoint already exists for retry.
         return job
 
 
@@ -313,6 +369,20 @@ def add_keyword(directory, identity, region_id, vietnamese, english):
         return job
 
 
+def replace_output(source, target, cancel):
+    for attempt in range(5):
+        if cancel.is_set():
+            raise InterruptedError('Đã dừng trước khi lưu; bản trước được giữ.')
+        try:
+            source.replace(target)
+            return
+        except OSError as exc:
+            if getattr(exc, 'winerror', None) not in {5, 32, 33} or attempt == 4:
+                raise
+            if cancel.wait(.05 * (attempt + 1)):
+                raise InterruptedError('Đã dừng trước khi lưu; bản trước được giữ.') from None
+
+
 def export(directory, identity, cancel):
     from .storage_space import MIB, require_space
 
@@ -337,18 +407,19 @@ def export(directory, identity, cancel):
             shutil.copyfile(target, folder / 'previous.docx')
             if job.get('published'):
                 _atomic(folder / 'previous.json', json.dumps(job['published'], ensure_ascii=False).encode('utf-8'))
-        candidate.replace(target)
+        replace_output(candidate, target, cancel)
         job.update(output_sha256=signature, phase='completed', message='Đã lưu Word song ngữ vào thư viện.')
-        job['published'] = {key: copy.deepcopy(job.get(key)) for key in ('regions', 'options', 'subject', 'grade', 'output_sha256')}
+        job['published'] = {key: copy.deepcopy(job.get(key)) for key in ('title', 'regions', 'options', 'subject', 'grade', 'output_sha256')}
         original = Path(job['source_original'])
         previous_export = Path(job.get('export_path', ''))
         job['export_path'] = str(target)
         if original.is_file() and digest(original) == job['source_sha256']:
-            destination = original.with_name(original.stem + '_BiliClass_song-ngu.docx')
+            export_stem = original.stem + ' (Song ngu VI-EN)'
+            destination = original.with_name(export_stem + '.docx')
             prior = job.get('export_sha256')
             if (previous_export.is_file() and previous_export.parent == original.parent
                     and previous_export.suffix.lower() == '.docx'
-                    and previous_export.stem.startswith(original.stem + '_BiliClass_song-ngu')
+                    and previous_export.stem.startswith(export_stem)
                     and digest(previous_export) in {prior, signature}):
                 destination = previous_export
             if destination.exists() and digest(destination) not in {prior, signature}:

@@ -15,6 +15,7 @@ M = 'http://schemas.openxmlformats.org/officeDocument/2006/math'
 NS = {'w': W, 'm': M}
 XML_SPACE = '{http://www.w3.org/XML/1998/namespace}space'
 MODES = ('below', 'columns', 'keywords', 'english')
+COLORS = {'original', '1667B1', '666666', '000000'}
 TOKEN = re.compile(r'⟦BLC(\d+)⟧')
 UNSAFE = {'ins', 'del', 'moveFrom', 'moveTo', 'bookmarkStart', 'bookmarkEnd', 'commentRangeStart',
           'commentRangeEnd', 'fldChar', 'instrText', 'fldSimple', 'sdt', 'altChunk'}
@@ -29,6 +30,12 @@ def node(name, **attrs):
     for key, item in attrs.items():
         value.set(tag(key), str(item))
     return value
+
+
+def font_name(value):
+    if not isinstance(value, str) or len(value) > 120 or any(not char.isprintable() for char in value):
+        raise ValueError('Chọn tên phông chữ Word hợp lệ.')
+    return value.strip()
 
 
 def parse_xml(raw):
@@ -201,11 +208,21 @@ class Package:
         numbering.append(node('numId', val=0))
         props.append(numbering)
         style = self.run_style(original, region['start'])
-        for name, val in [('color', options.get('color', '1667B1')), ('i', '1' if options.get('italic', True) else '0')]:
+        formatting = [] if options.get('color', 'original') == 'original' else [('color', options['color'])]
+        formatting.extend((name, '1' if options.get('italic', True) else '0') for name in ('i', 'iCs'))
+        if 'bold' in options:
+            formatting.extend((name, '1' if options['bold'] else '0') for name in ('b', 'bCs'))
+        for name, val in formatting:
             existing = style.find('w:' + name, NS)
             if existing is not None:
                 style.remove(existing)
             style.append(node(name, val=val))
+        family = font_name(options.get('font', ''))
+        if family:
+            existing = style.find('w:rFonts', NS)
+            if existing is not None:
+                style.remove(existing)
+            style.append(node('rFonts', ascii=family, hAnsi=family, eastAsia=family, cs=family))
         size = style.find('w:sz', NS)
         if size is not None:
             size.set(tag('val'), str(max(18, min(144, int(size.get(tag('val'), '22')) - 2))))
@@ -277,7 +294,10 @@ class Package:
 
     def render(self, regions, options):
         mode = options.get('mode', 'below')
-        if mode not in MODES or options.get('color', '1667B1') not in {'1667B1', '666666', '000000'}:
+        font_name(options.get('font', ''))
+        if any(key in options and type(options[key]) is not bool for key in ('italic', 'bold')):
+            raise ValueError('Chọn kiểu chữ Word hợp lệ.')
+        if mode not in MODES or options.get('color', 'original') not in COLORS:
             raise ValueError('Chọn kiểu trình bày Word hợp lệ.')
         checked = self.selection(regions)
         incoming = {row['id']: row for row in regions}
@@ -353,7 +373,7 @@ class Package:
                 for region in chosen:
                     append_contents(self.slice(paragraph, cursor, region['start']))
                     if mode == 'english':
-                        append_contents(self.english(paragraph, region, region['en'], {**options, 'italic': False}, objects=True))
+                        append_contents(self.english(paragraph, region, region['en'], options, objects=True))
                     elif mode == 'keywords':
                         # Build annotations by source positions, retaining all original runs.
                         position = region['start']
@@ -367,7 +387,8 @@ class Package:
                                 raise ValueError('Vị trí từ khóa đã thay đổi; tạo lại bản xem trước.')
                             end = region['start'] + annotation['end']
                             append_contents(self.slice(paragraph, position, end))
-                            append_contents(self.english(paragraph, {**region, 'start': end, 'end': end}, ' (' + annotation['en'] + ')', options))
+                            keyword_start = region['start'] + annotation['start']
+                            append_contents(self.english(paragraph, {**region, 'start': keyword_start, 'end': keyword_start}, ' (' + annotation['en'] + ')', options))
                             position = end
                         append_contents(self.slice(paragraph, position, region['end']))
                     else:

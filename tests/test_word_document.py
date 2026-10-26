@@ -264,10 +264,10 @@ def test_upload_preferences_apply_to_new_word_and_do_not_overwrite_existing_work
     preferences = dict(subject='Vật lý', grade='6', options=dict(mode='columns', color='666666', italic=False, density='deep'))
     first = jobs.create(directory, source, preferences=preferences)
     assert first['subject'] == 'Vật lý' and first['grade'] == '6'
-    assert first['options'] == preferences['options']
+    assert first['options'] == jobs.options_for(preferences['options'])
     region = selected(Package(source), 'Vận tốc')
     jobs.selections(directory, first['id'], [region])
     jobs.edit(directory, first['id'], region['id'], 'Velocity 12 m/s.')
     resumed = jobs.create(directory, source, preferences=dict(subject='Toán', grade='11', options=dict(mode='english')))
-    assert resumed['id'] == first['id'] and resumed['options'] == preferences['options']
+    assert resumed['id'] == first['id'] and resumed['options'] == jobs.options_for(preferences['options'])
     assert resumed['subject'] == 'Vật lý' and resumed['regions'][0]['en'] == 'Velocity 12 m/s.'

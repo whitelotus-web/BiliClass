@@ -29,7 +29,7 @@ def presentation_title(lesson):
 def presentation_suffix(lesson, with_voice=False):
     """Describe the actual conversion and audio languages, across all downloads."""
     base = ('Nguyên bản' if lesson.get('voice_only') else
-            'Tiếng Anh' if lesson.get('conversion_format') == 'english_only' else 'Song ngữ VI-EN')
+            'Tiếng Anh' if lesson.get('conversion_format') == 'english_only' else 'Song ngu VI-EN')
     record = lesson.get('narration') or {}
     language = {'en': 'EN', 'vi': 'VI', 'both': 'VI-EN'}.get(record.get('mode'))
     return base + (f' - Voice {language}' if with_voice and language else '')

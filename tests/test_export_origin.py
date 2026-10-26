@@ -74,7 +74,7 @@ def test_single_presentation_downloads_use_origin_and_current_suffix_while_bulk_
                     Bridge.libraryDownloadSuggestion(bridge, [lesson['id']], True),
                     Bridge.exportSuggestion(bridge, 'pptx')):
             path = Path(QUrl(url).toLocalFile())
-            assert path.parent == source_dir and path.name.startswith('Bài Việt gốc (Song ngữ VI-EN')
+            assert path.parent == source_dir and path.name.startswith('Bài Việt gốc (Song ngu VI-EN')
             assert path != source
         bulk = Bridge.libraryDownloadSuggestion(bridge, ['one', 'two'], True)
         assert Path(QUrl(bulk).toLocalFile()).parent == downloads

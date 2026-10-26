@@ -14,8 +14,29 @@ Item {
     signal showPowerPoint()
     signal showLibrary()
     property var modeCodes: ["below", "columns", "keywords", "english"]
-    property var colorCodes: ["1667B1", "666666", "000000"]
+    property var colorCodes: ["original", "1667B1", "666666", "000000"]
     property var densityCodes: ["few", "normal", "deep"]
+    readonly property var fontNames: {
+        const names = page.word.fontFamilies
+        const saved = page.documentState.options.font || ""
+        const recent = page.word.formattingDefaults.font || ""
+        let result = saved && names.indexOf(saved) < 0 ? [saved].concat(names) : names
+        if (recent && result.indexOf(recent) < 0) result = [recent].concat(result)
+        return result
+    }
+    function draftTitle() { return lessonTitle.text.trim() || page.documentState.source_title || page.documentState.title || "" }
+    function draftFont() { return originalFont.checked ? "" : englishFont.currentText }
+    readonly property bool englishItalic: textStyle.currentIndex === 1 || textStyle.currentIndex === 3
+    readonly property bool englishBold: textStyle.currentIndex === 2 || textStyle.currentIndex === 3
+    function restoreFormattingDefaults() {
+        const options = page.word.formattingDefaults
+        englishColor.currentIndex = Math.max(0, colorCodes.indexOf(options.color || "original"))
+        textStyle.currentIndex = (options.bold ? 2 : 0) + (options.italic === undefined || options.italic ? 1 : 0)
+        originalFont.checked = !options.font
+        englishFont.currentIndex = Math.max(0, englishFont.model.indexOf(options.font || "Times New Roman"))
+    }
+    function rememberFormatting() { page.word.rememberFormatting(page.draftOptions()) }
+    Component.onCompleted: restoreFormattingDefaults()
     readonly property bool highlightSelection: selectionMethod.currentIndex === 1
     onVisibleChanged: if (!visible && highlightPopup) highlightPopup.close()
     onWidthChanged: if (highlightPopup) highlightPopup.close()
@@ -34,7 +55,7 @@ Item {
         highlightPopup.open()
     }
     function openDocument(url) {
-        word.openConfiguredFile(url, {options: draftOptions(), subject: subject.currentText, grade: grade.text})
+        word.openConfiguredFile(url, {options: draftOptions(), subject: subject.currentText, grade: grade.text, title: lessonTitle.text.trim()})
     }
     function showDocument() {
         const flick = wordScroll.contentItem
@@ -42,19 +63,25 @@ Item {
         flick.contentY = Math.max(0, Math.min(documentPanels.y - 12, flick.contentHeight - flick.height))
     }
     readonly property bool configurationMatches: modeCodes[mode.currentIndex] === (page.documentState.options.mode || "below")
-        && colorCodes[englishColor.currentIndex] === (page.documentState.options.color || "1667B1")
-        && italic.checked === (page.documentState.options.italic === undefined ? true : page.documentState.options.italic)
+        && colorCodes[englishColor.currentIndex] === (page.documentState.options.color || "original")
+        && page.englishItalic === (page.documentState.options.italic === undefined ? true : page.documentState.options.italic)
+        && page.englishBold === (page.documentState.options.bold || false)
+        && page.draftFont() === (page.documentState.options.font || "")
         && densityCodes[density.currentIndex] === (page.documentState.options.density || "normal")
         && subject.currentText === (page.documentState.subject || "Toán") && grade.text === (page.documentState.grade || "11")
-    function draftOptions() { return {mode: modeCodes[mode.currentIndex], color: colorCodes[englishColor.currentIndex], italic: italic.checked, density: densityCodes[density.currentIndex]} }
+        && page.draftTitle() === (page.documentState.title || "")
+    function draftOptions() { return {mode: modeCodes[mode.currentIndex], color: colorCodes[englishColor.currentIndex], italic: page.englishItalic, bold: page.englishBold, font: page.draftFont(), density: densityCodes[density.currentIndex]} }
     function syncLoaded() {
         if (!page.documentState.id || shownIdentity === page.documentState.id) return
         highlightPopup.close()
         shownIdentity = page.documentState.id
         mode.currentIndex = Math.max(0, modeCodes.indexOf(page.documentState.options.mode || "below"))
-        englishColor.currentIndex = Math.max(0, colorCodes.indexOf(page.documentState.options.color || "1667B1"))
+        englishColor.currentIndex = Math.max(0, colorCodes.indexOf(page.documentState.options.color || "original"))
         density.currentIndex = Math.max(0, densityCodes.indexOf(page.documentState.options.density || "normal"))
-        italic.checked = page.documentState.options.italic === undefined ? true : page.documentState.options.italic
+        textStyle.currentIndex = (page.documentState.options.bold ? 2 : 0) + (page.documentState.options.italic === undefined || page.documentState.options.italic ? 1 : 0)
+        originalFont.checked = !page.documentState.options.font
+        englishFont.currentIndex = Math.max(0, englishFont.model.indexOf(page.documentState.options.font || "Times New Roman"))
+        lessonTitle.text = page.documentState.title || ""
         subject.currentIndex = Math.max(0, appBridge.conversionSubjects.indexOf(page.documentState.subject || "Toán"))
         grade.text = page.documentState.grade || "11"
     }
@@ -132,7 +159,12 @@ Item {
             id: configuration; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: page.compact ? 9 : 13; spacing: page.compact ? 6 : 10
             Label { text: "Cấu hình bài giảng"; color: AppTheme.ink; font.pixelSize: 15; font.weight: Font.DemiBold }
             GridLayout {
-            Layout.fillWidth: true; columns: page.width >= 760 ? 4 : 2; columnSpacing: 12; rowSpacing: 8
+            Layout.fillWidth: true; columns: 3; columnSpacing: 12; rowSpacing: 8
+            ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 3; spacing: 4
+                Hint { text: "Tên bài học" }
+                TextField { id: lessonTitle; objectName: "wordTitle"; placeholderText: "Tên theo file Word"; maximumLength: 200; color: AppTheme.ink; implicitHeight: 38; Layout.fillWidth: true; enabled: page.available
+                    background: Rectangle { color: AppTheme.field; radius: 8; border.color: parent.activeFocus ? AppTheme.blue : AppTheme.line } }
+            }
             ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 2; spacing: 4
                 Hint { text: "Môn học" }
                 Choice { id: subject; objectName: "wordSubject"; model: page.appBridge.conversionSubjects; currentIndex: Math.max(0, page.appBridge.conversionSubjects.indexOf("Toán")); Layout.fillWidth: true; enabled: page.available }
@@ -142,17 +174,28 @@ Item {
                 TextField { id: grade; objectName: "wordGrade"; text: "11"; maximumLength: 20; color: AppTheme.ink; implicitHeight: 38; Layout.fillWidth: true; enabled: page.available
                     background: Rectangle { color: AppTheme.field; radius: 8; border.color: AppTheme.line } }
             }
+            }
+            GridLayout {
+            Layout.fillWidth: true; columns: page.width >= 760 ? 4 : 2; columnSpacing: 12; rowSpacing: 8
             ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 3; spacing: 4
+                Layout.alignment: Qt.AlignTop
                 Hint { text: "Kiểu chuyển đổi" }
                 Choice { id: mode; objectName: "wordMode"; model: ["Anh ngay dưới Việt", "Việt–Anh hai cột", "Từ khóa tiếng Anh", "Tiếng Anh 100% ở vùng chọn"]; Layout.fillWidth: true; enabled: page.available }
             }
-            RowLayout { Layout.fillWidth: true; Layout.preferredWidth: 2; spacing: 8
-                ColumnLayout { Layout.fillWidth: true; spacing: 4
+                ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 1.3; Layout.alignment: Qt.AlignTop; spacing: 4
                     Hint { text: mode.currentIndex === 2 ? "Mức từ khóa" : "Màu tiếng Anh" }
-                    Choice { id: englishColor; objectName: "wordEnglishColor"; visible: mode.currentIndex !== 2; model: ["Xanh", "Xám", "Đen"]; Layout.fillWidth: true; enabled: page.available }
+                    Choice { id: englishColor; objectName: "wordEnglishColor"; visible: mode.currentIndex !== 2; model: ["Giống bản gốc", "Xanh", "Xám", "Đen"]; Layout.fillWidth: true; enabled: page.available; onActivated: page.rememberFormatting() }
                     Choice { id: density; objectName: "wordKeywordDensity"; visible: mode.currentIndex === 2; model: ["Ít", "Vừa phải", "Chuyên sâu"]; currentIndex: 1; Layout.fillWidth: true; enabled: page.available }
                 }
-                CheckBox { id: italic; objectName: "wordItalic"; text: "In nghiêng"; checked: true; enabled: page.available; palette.windowText: AppTheme.ink }
+            ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 1.8; Layout.alignment: Qt.AlignTop; spacing: 4
+                Hint { text: "Kiểu chữ tiếng Anh" }
+                Choice { id: textStyle; objectName: "wordTextStyle"; model: ["Bình thường", "In nghiêng", "In đậm", "Nghiêng – đậm"]; currentIndex: 1; Layout.fillWidth: true; enabled: page.available; onActivated: page.rememberFormatting() }
+            }
+            ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 2.3; Layout.alignment: Qt.AlignTop; spacing: 4
+                Hint { text: "Phông chữ tiếng Anh" }
+                CheckBox { id: originalFont; objectName: "wordOriginalFont"; text: "Giống văn bản gốc"; checked: true; implicitHeight: 38; enabled: page.available; palette.windowText: AppTheme.ink
+                    ToolTip.visible: hovered; ToolTip.text: "Dùng phông chữ tại vùng gốc được chọn. Bỏ tích để chọn phông mới cho phần tiếng Anh."; onToggled: page.rememberFormatting() }
+                Choice { id: englishFont; objectName: "wordEnglishFont"; visible: !originalFont.checked; model: page.fontNames; Layout.fillWidth: true; enabled: page.available; onActivated: page.rememberFormatting() }
             }
             }
             }
@@ -268,7 +311,7 @@ Item {
                                 Label { text: selectedRow.modelData.vi; textFormat: Text.PlainText; color: AppTheme.ink; font.pixelSize: 13; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                                 TextArea {
                                     objectName: "wordEnglishDraft_" + selectedRow.index; visible: !!selectedRow.modelData.en && page.documentState.options.mode !== "keywords"; Layout.fillWidth: true; implicitHeight: contentHeight + 16
-                                    text: selectedRow.modelData.display_en || ""; textFormat: TextEdit.PlainText; wrapMode: TextEdit.Wrap; selectByMouse: true; color: AppTheme.blue; font.pixelSize: 13; font.italic: true; enabled: page.available
+                                    text: selectedRow.modelData.display_en || ""; textFormat: TextEdit.PlainText; wrapMode: TextEdit.Wrap; selectByMouse: true; color: englishColor.currentIndex === 2 ? AppTheme.muted : englishColor.currentIndex === 1 ? AppTheme.blue : AppTheme.ink; font.pixelSize: 13; font.italic: page.englishItalic; font.bold: page.englishBold; font.family: page.draftFont() || "Be Vietnam Pro"; enabled: page.available
                                     onTextChanged: if (activeFocus) page.word.setDraft(selectedRow.modelData.id, text)
                                     background: Rectangle { color: AppTheme.surface; radius: 6; border.color: AppTheme.line }
                                 }
@@ -295,7 +338,7 @@ Item {
         Flow {
             Layout.fillWidth: true; spacing: 8
             WordAction { objectName: "wordPreview"; text: page.documentState.phase === "paused" ? "Tiếp tục chuyển đổi" : page.documentState.phase === "completed" ? "Chuyển đổi lại" : "Chuyển đổi · " + (page.documentState.selected_count || 0) + " vùng"; primary: page.documentState.phase !== "completed"
-                enabled: page.available && page.documentState.selected_count > 0; onClicked: page.word.preview(page.draftOptions(), subject.currentText, grade.text) }
+                enabled: page.available && page.documentState.selected_count > 0; onClicked: page.word.preview(page.draftOptions(), subject.currentText, grade.text, page.draftTitle()) }
             WordAction { objectName: "wordSave"; visible: !!page.documentState.id && (page.documentState.phase !== "completed" || page.word.draftsPending); text: "Lưu Word song ngữ"; primary: page.documentState.phase === "review"; enabled: page.available && page.documentState.can_export && page.configurationMatches; onClicked: page.word.save() }
             WordAction { objectName: "wordStop"; visible: page.documentState.working; text: "■ Dừng"; danger: true; onClicked: page.word.stop() }
             WordAction { objectName: "wordOpenOutput"; visible: !!page.documentState.output_sha256; text: "Mở Word đã lưu"; primary: page.documentState.phase === "completed"; enabled: page.available; onClicked: page.word.openOutput(page.documentState.id) }
@@ -306,6 +349,6 @@ Item {
             WordAction { objectName: "wordGoLibrary"; text: "Về thư viện"; enabled: page.available; onClicked: page.showLibrary() }
         }
         Hint { visible: page.word.draftsPending; text: "Có chỉnh sửa bản dịch/từ khóa. Bấm Lưu Word song ngữ để áp dụng."; Layout.fillWidth: true }
-        Hint { visible: !!page.documentState.id && !page.configurationMatches; text: "Cấu hình đã đổi. Bấm Chuyển đổi để cập nhật trước khi lưu."; Layout.fillWidth: true }
+        Hint { visible: !!page.documentState.id && !page.configurationMatches; text: "Cấu hình đã đổi. Bấm Chuyển đổi để cập nhật và tự lưu."; Layout.fillWidth: true }
     }
 }

@@ -63,6 +63,7 @@ def main():
         until(window.isActive)
         entered, release = Event(), Event()
         calls = []
+        opened_urls = []
         blocked = [False]
 
         def c(name):
@@ -108,7 +109,7 @@ def main():
 
         try:
             until(lambda: bridge.googleSettings.ready)
-            with patch('app.translation_knowledge.lookup', return_value=None), patch('app.google_translation.request', fake_google), patch.dict(TRANSPORTS, languageapp=fake_languageapp):
+            with patch('app.word_ui.QDesktopServices.openUrl', lambda url: opened_urls.append(url.toString()) or True), patch('app.translation_knowledge.lookup', return_value=None), patch('app.google_translation.request', fake_google), patch.dict(TRANSPORTS, languageapp=fake_languageapp):
                 # Constructor's default Google transport is already bound; replace it explicitly.
                 from app.google_translation import Translator
 
@@ -129,7 +130,21 @@ def main():
                     assert c('wordConfiguration').isVisible() and c('wordSourceArea').isVisible()
                     assert c('wordConfiguration').mapToScene(c('wordConfiguration').boundingRect().topLeft()).y() > c('wordSourceArea').mapToScene(c('wordSourceArea').boundingRect().topLeft()).y()
                     assert not c('wordSelectAll').isEnabled() and not c('wordPreview').isEnabled()
+                    assert c('wordTextStyle').property('currentIndex') == 1
+                    assert c('wordOriginalFont').property('checked') and not c('wordEnglishFont').isVisible()
+                    assert c('wordEnglishColor').property('currentIndex') == 0
                     assert window.grabWindow().save(str(report / 'word-empty.png'))
+                    c('wordTitle').setProperty('text', 'Chuyển động đều')
+                    c('wordTextStyle').setProperty('currentIndex', 3)
+                    assert QMetaObject.invokeMethod(c('wordTextStyle'), 'activated', Q_ARG(int, 3))
+                    click(window, c('wordOriginalFont'))
+                    assert c('wordEnglishFont').isVisible()
+                    c('wordEnglishFont').setProperty('currentIndex', bridge.wordDocuments.fontFamilies.index('Arial'))
+                    assert QMetaObject.invokeMethod(c('wordEnglishFont'), 'activated', Q_ARG(int, c('wordEnglishFont').property('currentIndex')))
+                    c('wordEnglishColor').setProperty('currentIndex', 1)
+                    assert QMetaObject.invokeMethod(c('wordEnglishColor'), 'activated', Q_ARG(int, 1))
+                    assert bridge.wordDocuments.formattingDefaults == dict(color='1667B1', font='Arial', italic=True, bold=True)
+                    assert window.grabWindow().save(str(report / 'word-custom-font.png'))
                     c('wordSubject').setProperty('currentIndex', bridge.conversionSubjects.index('Vật lý'))
                     c('wordGrade').setProperty('text', '6')
                     c('wordMode').setProperty('currentIndex', 1)
@@ -137,6 +152,8 @@ def main():
                     until(lambda: not bridge.busy and bridge.wordDocuments.state['id'])
                     assert bridge.wordDocuments.state['options']['mode'] == 'columns'
                     assert bridge.wordDocuments.state['subject'] == 'Vật lý' and bridge.wordDocuments.state['grade'] == '6'
+                    assert bridge.wordDocuments.state['title'] == 'Chuyển động đều'
+                    assert bridge.wordDocuments.state['options']['font'] == 'Arial'
                     c('wordGrade').setProperty('text', '11')
                     c('wordMode').setProperty('currentIndex', 0)
                     pump(120)
@@ -177,15 +194,18 @@ def main():
                     c('wordSubject').setProperty('currentIndex', bridge.conversionSubjects.index('Vật lý'))
                     click(window, c('wordPreview'))
                     until(lambda: not bridge.busy, timeout=30)
-                    assert bridge.wordDocuments.state['phase'] == 'review', bridge.wordDocuments.state['message']
+                    assert bridge.wordDocuments.state['phase'] == 'completed', bridge.wordDocuments.state['message']
+                    assert Path(bridge.wordDocuments.state['export_path']).name == 'Bài chuyển động (Song ngu VI-EN).docx'
                     assert calls == ['google', 'languageapp'], calls
                     assert window.grabWindow().save(str(report / 'word-review.png'))
                     region = bridge.wordDocuments.state['regions'][0]
                     bridge.wordDocuments.setDraft(region['id'], region['display_en'].replace('has a velocity', 'has a velocity of'))
+                    pump(120)  # Save becomes visible after an automatically saved result.
                     click(window, c('wordSave'))
                     until(lambda: not bridge.busy)
                     state = bridge.wordDocuments.state
                     assert state['phase'] == 'completed', state['message']
+                    assert not opened_urls, 'Saving must not accidentally invoke Open Word'
                     assert not bridge.message, 'A completed Word task must not leave the global processing message active'
                     assert source.read_bytes() == original
                     assert Path(state['export_path']).is_file()
@@ -214,14 +234,14 @@ def main():
                         c('wordMode').setProperty('currentIndex', mode_index)
                         click(window, c('wordPreview'))
                         until(lambda: not bridge.busy, timeout=30)
-                        assert bridge.wordDocuments.state['phase'] == 'review', bridge.wordDocuments.state['message']
+                        assert bridge.wordDocuments.state['phase'] == 'completed', bridge.wordDocuments.state['message']
                         if mode_index == 2:
                             first = bridge.wordDocuments.state['regions'][0]
                             assert first['annotations']
                             bridge.wordDocuments.setKeywordDraft(first['id'], 0, 'speed')
-                        pump(120)  # The completed-state footer has just gained the Save action again.
-                        click(window, c('wordSave'))
-                        until(lambda: not bridge.busy)
+                            pump(120)
+                            click(window, c('wordSave'))
+                            until(lambda: not bridge.busy)
                         assert bridge.wordDocuments.state['phase'] == 'completed', bridge.wordDocuments.state['message']
                         assert window.grabWindow().save(str(report / f'word-mode-{mode_index}.png'))
                     assert source.read_bytes() == original
@@ -231,11 +251,13 @@ def main():
                     until(lambda: not bridge.busy)
                     bridge.wordDocuments.preview(dict(mode='keywords'), 'Vật lý', '11')
                     until(lambda: not bridge.busy, timeout=30)
-                    assert bridge.wordDocuments.state['phase'] == 'review', bridge.wordDocuments.state['message']
+                    assert bridge.wordDocuments.state['phase'] == 'completed', bridge.wordDocuments.state['message']
                     bridge.wordDocuments.restorePrevious()
                     until(lambda: not bridge.busy)
                     assert bridge.wordDocuments.state['phase'] == 'completed'
-                    assert c('wordMode').property('currentIndex') == 3, 'Undo must also restore the visible mode control'
+                    assert c('wordMode').property('currentIndex') == 2, 'Undo must also restore the visible mode control'
+                    assert bridge.wordDocuments.state['selected_count'] == 2
+                    assert c('wordTitle').property('text') == 'Chuyển động đều'
                     # New source, pending request: Stop must retain the input and checkpoint.
                     document = Document()
                     document.add_paragraph('Vật có vận tốc 14 m/s.')
@@ -285,15 +307,18 @@ def main():
                     used = len(calls)
                     bridge.wordDocuments.preview(dict(mode='below'), 'Vật lý', '11')
                     until(lambda: not bridge.busy, timeout=30)
-                    assert bridge.wordDocuments.state['phase'] == 'review', bridge.wordDocuments.state['message']
+                    assert bridge.wordDocuments.state['phase'] == 'completed', bridge.wordDocuments.state['message']
                     assert len(calls) == used, 'Resume must reuse the result cached while Stop was requested'
                     click(window, c('wordTabPowerPoint'))
                     assert window.property('page') == 'new'
                     assert c('creationSourceArea').isVisible()
                     assert KeyStore(library.directory).path.read_bytes() == original_key
+                    assert not opened_urls, opened_urls
                     assert not warnings, warnings
             result = dict(status='passed', api='fixture only', checks=[
                 'One Word page keeps upload, configuration and document panels; pre-upload choices are retained',
+                'Original font/color and italic defaults; custom typography is remembered; editable lesson title restores',
+                'Successful conversion automatically saves beside source with the requested suffix; edits remain saveable',
                 'Native Word tab; paragraph checkbox and disjoint text selection after emoji',
                 'Mouse drag/release offers confirmation; disjoint highlights accumulate; duplicates merge; switching modes retains selections',
                 'Primary provider fails; configured fallback succeeds; original key unchanged',

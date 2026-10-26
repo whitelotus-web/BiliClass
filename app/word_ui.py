@@ -16,6 +16,7 @@ class WordDocuments(QObject):
     progressed = Signal(object)
     configurationRestored = Signal()
     sourceTextChanged = Signal()
+    formattingDefaultsChanged = Signal()
 
     def __init__(self, bridge):
         super().__init__(bridge)
@@ -23,6 +24,7 @@ class WordDocuments(QObject):
         self._state = dict(id='', phase='empty', regions=[], paragraphs=[], message='', selected_count=0, can_export=False, options={})
         self._library, self._drafts, self._keywords = [], {}, {}
         self._working, self._trash = False, False
+        self._formatting_defaults = jobs.formatting_defaults(bridge.library.directory)
         from .word_selection import TextSelection
 
         self._text_selection, self._text_identity = TextSelection([]), ''
@@ -43,6 +45,29 @@ class WordDocuments(QObject):
     @Property(str, notify=sourceTextChanged)
     def selectionText(self):
         return self._text_selection.text
+
+    @Property('QStringList', constant=True)
+    def fontFamilies(self):
+        from PySide6.QtGui import QFontDatabase
+
+        families = [name for name in QFontDatabase.families() if not name.startswith('@') and not QFontDatabase.isPrivateFamily(name)]
+        preferred = ['Times New Roman', 'Arial', 'Calibri', 'Aptos', 'Be Vietnam Pro']
+        return [name for name in preferred if name in families] + sorted(set(families) - set(preferred), key=str.casefold)
+
+    @Property('QVariantMap', notify=formattingDefaultsChanged)
+    def formattingDefaults(self):
+        return self._formatting_defaults
+
+    @Slot('QVariantMap')
+    def rememberFormatting(self, options):
+        if not self.available():
+            return
+        try:
+            self._formatting_defaults = jobs.formatting_defaults(self.bridge.library.directory, options)
+            self.formattingDefaultsChanged.emit()
+        except (OSError, ValueError, TypeError) as exc:
+            self._state['message'] = 'Chưa nhớ được định dạng cho bài mới: ' + str(exc)
+            self.changed.emit()
 
     def available(self):
         return not (self.bridge.busy or self.bridge.narrationBusy or self.bridge.batchQueue.running or self._working)
@@ -69,6 +94,10 @@ class WordDocuments(QObject):
 
         def finished(result):
             self._working = False
+            defaults = jobs.formatting_defaults(directory)
+            if defaults != self._formatting_defaults:
+                self._formatting_defaults = defaults
+                self.formattingDefaultsChanged.emit()
             if result.get('job'):
                 self._state = result['job']
                 if self._text_identity != self._state['id']:
@@ -233,13 +262,14 @@ class WordDocuments(QObject):
                 jobs.edit_keyword(directory, identity, region_id, index, value)
 
     @Slot('QVariantMap', str, str)
-    def preview(self, options, subject, grade):
+    @Slot('QVariantMap', str, str, str)
+    def preview(self, options, subject, grade, title=None):
         identity = self._state['id']
         drafts, keywords = copy.deepcopy(self._drafts), copy.deepcopy(self._keywords)
 
         def action(directory):
             self._apply_drafts(directory, identity, drafts, keywords)
-            return jobs.translate(directory, identity, options, subject, grade, self.bridge.cancel_event, self.progressed.emit)
+            return jobs.convert(directory, identity, options, subject, grade, self.bridge.cancel_event, self.progressed.emit, title=title)
 
         self._launch(action, clear_drafts=True)
 

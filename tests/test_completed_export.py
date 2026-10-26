@@ -27,7 +27,7 @@ def test_finished_voice_automatically_creates_standalone_pptx_next_to_source_wit
         result = save_finished(library.directory, lesson, preview)
         target = Path(result['path'])
         assert target.parent == source.parent and target != source
-        assert 'Song ngữ VI-EN' in target.name and 'Voice' not in target.name and not result['fallback']
+        assert 'Song ngu VI-EN' in target.name and 'Voice' not in target.name and not result['fallback']
         with ZipFile(target) as archive:
             assert sum(name.endswith('.wav') for name in archive.namelist()) == 2
         assert source.read_bytes() == source_bytes and library.get(lesson['id']) == lesson

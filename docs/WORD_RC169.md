@@ -17,8 +17,9 @@ Tag/bộ cài RC167 và nhánh RC168 được giữ nguyên.
    chọn không xóa vùng đã chọn, vùng trùng/chồng được gộp. Chỉ bôi đen chưa
    gửi nội dung đi dịch; đoạn bị khóa/hình/công thức được giữ và có thông báo.
 3. Chọn môn, khối lớp và kiểu trình bày. Bấm **Chuyển đổi · N vùng**.
-4. Xem cặp Việt–Anh bên phải, sửa bản Anh nếu cần. Chỉ khi đã xem trước
-   đúng cấu hình mới có thể bấm **Lưu Word song ngữ**.
+4. Khi chuyển đổi thành công, tool **tự lưu** vào thư viện và cạnh file gốc,
+   tên **`Tên gốc (Song ngu VI-EN).docx`**. Màn kết quả vẫn ở đó để xem cặp
+   Việt–Anh. Nếu sửa bản Anh/từ khóa, bấm **Lưu Word song ngữ** để lưu chỉnh sửa.
 5. Màn hoàn tất giữ lại **Mở Word đã lưu**, **Mở thư mục** và
    **Về thư viện**. Vào **Bài giảng → Word** để mở lại hoặc tiếp tục bài.
 
@@ -27,12 +28,25 @@ hai tab **PowerPoint / Word** ở ngay dưới. Tab Word có khung tải/kéo th
 và khung **Cấu hình bài giảng** theo phong cách PowerPoint; luồng xử lý,
 vùng chọn và checkpoint của hai công cụ vẫn độc lập.
 
+Hai tab dùng ảnh biểu tượng P/W do giáo viên cung cấp, cùng kích thước hiển
+thị, nền trong suốt; gạch chân xanh nhận biết tab đang chọn. Giữ tooltip,
+nhãn đọc màn hình và viền focus khi điều khiển bằng bàn phím.
+
 Giao diện Word ngày 26/10 dùng cùng một trang cuộn: **Tải tệp → Cấu hình →
 Nội dung gốc / Bản dịch xem trước**. Cấu hình hiện cả khi chưa chọn tệp;
 các lựa chọn này được giữ khi tải tài liệu mới. Khi mở lại tài liệu đã lưu,
 tool khôi phục cấu hình và vùng chọn của chính bài đó. Khung tải thu gọn
 sau khi nhận file, có nút **Chọn vùng dịch ↓**; các nút xem/lưu/dừng vẫn ở
 thanh dưới. Ảnh minh họa Word dùng tài sản được giáo viên cung cấp.
+
+**Cấu hình bài giảng** có Tên bài học trước Môn học; mặc định lấy tên file.
+Tên sửa được lưu trong thư viện; tên file xuất vẫn dựa trên file gốc và hậu tố.
+Màu tiếng Anh có **Giống bản gốc** (mặc định), Xanh, Xám, Đen. Kiểu chữ có
+Bình thường, In nghiêng (mặc định ban đầu), In đậm, Nghiêng–đậm. Phông mặc
+định giống vùng gốc được chọn; bỏ tích **Giống văn bản gốc** để hiện danh sách
+phông trên máy. Những lựa chọn màu/phông/kiểu chữ mới nhất được nhớ cho bài
+mới và lần mở tool sau; mở lại bài cũ giữ cấu hình riêng của bài đó.
+Chọn phông chỉ ghi tên phông vào Word, không nhúng thêm bộ phông vào bài.
 
 ## Thư viện dùng chung
 
@@ -50,7 +64,7 @@ thanh dưới. Ảnh minh họa Word dùng tài sản được giáo viên cung 
 
 | Kiểu | Kết quả |
 | --- | --- |
-| Anh ngay dưới Việt | Giữ chữ Việt, thêm bản Anh dưới phần được chọn; mặc định xanh và in nghiêng |
+| Anh ngay dưới Việt | Giữ chữ Việt, thêm bản Anh dưới phần được chọn; mặc định màu/phông gốc và in nghiêng |
 | Việt–Anh hai cột | Đoạn gốc bên trái, bản Anh của phần được chọn bên phải, dùng bảng Word |
 | Từ khóa tiếng Anh | Giữ chữ Việt, thêm thuật ngữ trong ngoặc; chọn mức Ít/Vừa phải/Chuyên sâu |
 | Tiếng Anh 100% ở vùng chọn | Chỉ thay phần được chọn bằng tiếng Anh; phần còn lại giữ nguyên |
@@ -92,9 +106,13 @@ Mỗi tài liệu có bản nguồn cố định và checkpoint riêng trong
 Thư viện Word được mang theo khi sao lưu/khôi phục hoặc chuyển nơi lưu dữ liệu;
 không mang key dịch vào bản sao lưu.
 
-Khi lưu, tool giữ bản trong thư viện và cố gắng xuất thêm
-`<tên gốc>_BiliClass_song-ngu.docx` cạnh nguồn. Nếu không ghi được cạnh nguồn,
+Khi chuyển đổi thành công, tool tự giữ bản trong thư viện và xuất thêm
+`<tên gốc> (Song ngu VI-EN).docx` cạnh nguồn. Nếu không ghi được cạnh nguồn,
 tool báo rõ và vẫn giữ kết quả trong thư viện. Không sửa tệp gốc.
+Nếu chưa lưu được cả bản trong thư viện, giữ phần đã dịch để thử lưu lại;
+không báo hoàn tất. Bấm Dừng trước khi lưu không công bố kết quả mới.
+Hậu tố tên file PowerPoint song ngữ cũng dùng **Song ngu VI-EN** không dấu;
+phần tiêu đề gốc và nhãn tiếng Việt trong giao diện vẫn được giữ nguyên.
 
 Xuất lại được dựng từ bản nguồn cố định, không chèn tiếp lên bản song ngữ trước.
 Mở lại chính bản nguồn hoặc bản xuất do tool quản lý sẽ quay về cùng tài liệu.

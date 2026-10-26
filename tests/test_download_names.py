@@ -7,7 +7,7 @@ from app.download_names import presentation_suffix, presentation_title, suggesti
 
 def test_export_names_describe_the_actual_language_and_selected_voice(tmp_path):
     lesson = {'title': 'Bài 1. Hệ điều hành', 'conversion_format': 'parallel_columns'}
-    assert suggestion(tmp_path, lesson['title'], presentation_suffix(lesson), 'pptx').name == 'Bài 1. Hệ điều hành (Song ngữ VI-EN).pptx'
+    assert suggestion(tmp_path, lesson['title'], presentation_suffix(lesson), 'pptx').name == 'Bài 1. Hệ điều hành (Song ngu VI-EN).pptx'
     lesson['conversion_format'] = 'english_only'
     assert presentation_suffix(lesson) == 'Tiếng Anh'
     lesson['narration'] = {'mode': 'both', 'voice': 'vieneu:Mai Anh', 'rate': 0}
@@ -21,7 +21,7 @@ def test_bilingual_names_keep_the_original_title_and_actual_voice_languages(tmp_
     lesson = {'title': 'C3_ÔN TẬP CHƯƠNG 3', 'conversion_format': 'parallel_columns',
               'narration': {'mode': mode, 'voice': 'pair:north-female', 'rate': 0}}
     name = suggestion(tmp_path, presentation_title(lesson), presentation_suffix(lesson, True), 'pptx')
-    assert name.name == f'C3_ÔN TẬP CHƯƠNG 3 (Song ngữ VI-EN - Voice {label}).pptx'
+    assert name.name == f'C3_ÔN TẬP CHƯƠNG 3 (Song ngu VI-EN - Voice {label}).pptx'
     assert 'Voice' not in presentation_suffix(lesson, False)
     name.touch()
     assert suggestion(tmp_path, presentation_title(lesson), presentation_suffix(lesson, True), 'pptx').stem.endswith('(2)')
@@ -47,5 +47,5 @@ def test_library_filename_matches_the_ready_product_instead_of_the_active_incomp
             {'mode': 'both', 'ready': True}, {'mode': 'en', 'ready': True}, {'mode': 'vi', 'ready': False}]}}]),
     )
     result = Bridge.libraryDownloadSuggestion(bridge, ['fixture'], True)
-    assert Path(QUrl(result).toLocalFile()).name == 'Bài mẫu (Song ngữ VI-EN - Voice VI-EN).pptx'
+    assert Path(QUrl(result).toLocalFile()).name == 'Bài mẫu (Song ngu VI-EN - Voice VI-EN).pptx'
     assert 'Voice' not in Bridge.libraryDownloadSuggestion(bridge, ['fixture'], False)
