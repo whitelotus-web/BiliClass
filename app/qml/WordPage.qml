@@ -24,6 +24,7 @@ Item {
         if (recent && result.indexOf(recent) < 0) result = [recent].concat(result)
         return result
     }
+    readonly property string sourceFontLabel: !page.documentState.id ? "Phông trong tài liệu" : !page.word.sourceFonts.length ? "Theo vùng gốc" : page.word.sourceFonts.length === 1 ? page.word.sourceFonts[0] : "Nhiều phông: " + page.word.sourceFonts.join(", ")
     function draftTitle() { return lessonTitle.text.trim() || page.documentState.source_title || page.documentState.title || "" }
     function draftFont() { return originalFont.checked ? "" : englishFont.currentText }
     readonly property bool englishItalic: textStyle.italic
@@ -49,7 +50,7 @@ Item {
     readonly property bool highlightSelection: selectionMode === "highlight"
     readonly property bool resultVisible: !page.documentState.working && page.documentState.can_export && (page.documentState.phase === "completed" || page.documentState.phase === "review")
     onSelectionModeChanged: { if (highlightPopup) highlightPopup.close(); if (continuousText) continuousText.deselect() }
-    onVisibleChanged: if (!visible && highlightPopup) highlightPopup.close()
+    onVisibleChanged: if (!visible) { if (highlightPopup) highlightPopup.close(); if (sourceDialog) sourceDialog.close() }
     onWidthChanged: if (highlightPopup) highlightPopup.close()
     onHeightChanged: if (highlightPopup) highlightPopup.close()
     function offerHighlightedText() {
@@ -59,10 +60,11 @@ Item {
         highlightPopup.rangeEnd = continuousText.selectionEnd
         highlightPopup.excerpt = continuousText.selectedText.replace(/[\u2029\uFDD0\uFDD1]/g, "\n").replace(/\uFFFC/g, "[Hình]")
         const caret = continuousText.cursorRectangle
-        const point = continuousText.mapToItem(page, caret.x, caret.y)
-        highlightPopup.x = Math.max(12, Math.min(point.x + 8, page.width - highlightPopup.width - 12))
+        const container = highlightPopup.parent
+        const point = continuousText.mapToItem(container, caret.x, caret.y)
+        highlightPopup.x = Math.max(12, Math.min(point.x + 8, container.width - highlightPopup.width - 12))
         const below = point.y + caret.height + 8
-        highlightPopup.y = Math.max(12, Math.min(below + highlightPopup.height <= page.height - 12 ? below : point.y - highlightPopup.height - 8, page.height - highlightPopup.height - 12))
+        highlightPopup.y = Math.max(12, Math.min(below + highlightPopup.height <= container.height - 12 ? below : point.y - highlightPopup.height - 8, container.height - highlightPopup.height - 12))
         highlightPopup.open()
     }
     function openDocument(url) {
@@ -73,6 +75,17 @@ Item {
         flick.cancelFlick()
         flick.contentY = Math.max(0, Math.min(documentPanels.y - 12, flick.contentHeight - flick.height))
     }
+    property real sourceScrollFraction: 0
+    function rememberSourceScroll() {
+        const flick = page.highlightSelection ? textScroll.contentItem : sources
+        sourceScrollFraction = flick.contentY / Math.max(1, flick.contentHeight - flick.height)
+    }
+    function restoreSourceScroll() {
+        const flick = page.highlightSelection ? textScroll.contentItem : sources
+        flick.contentY = Math.max(0, page.sourceScrollFraction * Math.max(0, flick.contentHeight - flick.height))
+    }
+    function expandSource() { highlightPopup.close(); rememberSourceScroll(); sourceDialog.open() }
+    function clearSourceSelections() { highlightPopup.close(); page.word.clearSelection() }
     readonly property bool configurationMatches: modeCodes[mode.currentIndex] === (page.documentState.options.mode || "below")
         && englishColor.colorCode === (page.documentState.options.color || "original")
         && page.englishItalic === (page.documentState.options.italic === undefined ? true : page.documentState.options.italic)
@@ -106,6 +119,7 @@ Item {
     FileDialog { id: choose; objectName: "wordFileDialog"; title: "Chọn bài giảng Word"; nameFilters: ["Bài giảng Word (*.docx)"]; onAccepted: page.openDocument(selectedFile.toString()) }
     Pane {
         id: highlightPopup; objectName: "wordHighlightPopup"; z: 100; visible: false
+        parent: sourceDialog.visible ? expandedSourceHost : page
         property string documentIdentity: ""
         property int rangeStart: 0
         property int rangeEnd: 0
@@ -128,6 +142,23 @@ Item {
                 WordAction { objectName: "wordDismissHighlight"; text: "Hủy"; onClicked: highlightPopup.close() }
             }
         }
+    }
+    Dialog {
+        id: sourceDialog; objectName: "wordExpandedDialog"; parent: Overlay.overlay
+        anchors.centerIn: parent; width: Math.min(1440, parent.width - 32); height: parent.height - 32
+        modal: true; dim: true; padding: 12; closePolicy: Popup.CloseOnEscape
+        background: Rectangle { color: AppTheme.surface; radius: 12; border.color: AppTheme.line }
+        header: RowLayout {
+            spacing: 10
+            Label { text: "Chọn phần văn bản cần dịch"; color: AppTheme.ink; font.pixelSize: 17; font.bold: true; leftPadding: 16; Layout.fillWidth: true }
+            Hint { text: "Đã chọn " + (page.documentState.selected_count || 0) + " vùng" }
+            WordAction { objectName: "wordExpandedClearAll"; text: "Bỏ tất cả"; enabled: page.available && page.documentState.selected_count > 0; onClicked: page.clearSourceSelections() }
+            WordAction { objectName: "wordCollapseSource"; text: "Xong / Thu gọn"; primary: true; onClicked: sourceDialog.close(); Layout.rightMargin: 12; Layout.topMargin: 8 }
+        }
+        contentItem: Item { id: expandedSourceHost; objectName: "wordExpandedSourceHost" }
+        onOpened: Qt.callLater(page.restoreSourceScroll)
+        onAboutToHide: { highlightPopup.close(); page.rememberSourceScroll() }
+        onClosed: Qt.callLater(page.restoreSourceScroll)
     }
     Dialog {
         id: keywordDialog; property string regionIdentity: ""; title: "Thêm từ khóa vào vùng chọn"; modal: true
@@ -208,13 +239,27 @@ Item {
                 Choice { id: grade; objectName: "wordGrade"; model: page.appBridge.educationGrades(education.currentText); currentIndex: 1; Layout.fillWidth: true; enabled: page.available }
             }
             }
-            GridLayout {
-            Layout.fillWidth: true; columns: page.width >= 1000 ? 4 : 2; columnSpacing: 12; rowSpacing: 8
-            ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 3; spacing: 4
-                Layout.alignment: Qt.AlignTop
+            ColumnLayout { Layout.fillWidth: true; spacing: 4
                 Hint { text: "Kiểu chuyển đổi" }
-                Choice { id: mode; objectName: "wordMode"; model: ["Anh ngay dưới Việt", "Việt–Anh hai cột", "Từ khóa tiếng Anh", "Tiếng Anh 100% ở vùng chọn"]; Layout.fillWidth: true; enabled: page.available }
+                ButtonGroup { id: conversionModes }
+                RowLayout {
+                    id: mode; objectName: "wordMode"; Layout.fillWidth: true; spacing: 8
+                    property int currentIndex: 0
+                    readonly property var model: ["Anh ngay dưới Việt", "Việt–Anh hai cột", "Từ khóa tiếng Anh", "Tiếng Anh 100% ở vùng chọn"]
+                    readonly property string currentText: model[currentIndex] || model[0]
+                    Repeater { model: mode.model
+                        SelectionRadio {
+                            required property int index; required property string modelData
+                            objectName: "wordMode_" + index; text: modelData
+                            Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0
+                            checked: mode.currentIndex === index; ButtonGroup.group: conversionModes
+                            enabled: page.available; onClicked: mode.currentIndex = index
+                        }
+                    }
+                }
             }
+            GridLayout {
+            Layout.fillWidth: true; columns: page.width >= 760 ? 3 : 2; columnSpacing: 12; rowSpacing: 8
                 ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 1.3; Layout.alignment: Qt.AlignTop; spacing: 4
                     Hint { text: mode.currentIndex === 2 ? "Mức từ khóa" : "Màu tiếng Anh" }
                     WordColorPicker { id: englishColor; objectName: "wordEnglishColor"; visible: mode.currentIndex !== 2; Layout.preferredWidth: 84; enabled: page.available; onChosen: page.rememberFormatting() }
@@ -224,11 +269,18 @@ Item {
                 Hint { text: "Kiểu chữ tiếng Anh" }
                 WordTextStyle { id: textStyle; objectName: "wordTextStyle"; Layout.minimumWidth: implicitWidth; enabled: page.available; onChosen: page.rememberFormatting() }
             }
-            ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 2.3; Layout.alignment: Qt.AlignTop; spacing: 4
+            ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 3.4; Layout.alignment: Qt.AlignTop; spacing: 4
                 Hint { text: "Phông chữ tiếng Anh" }
-                CheckBox { id: originalFont; objectName: "wordOriginalFont"; text: "Giống văn bản gốc"; checked: true; implicitHeight: 38; enabled: page.available; palette.windowText: AppTheme.ink
+                RowLayout { Layout.fillWidth: true; spacing: 8
+                CheckBox { id: originalFont; objectName: "wordOriginalFont"; text: "Font gốc"; checked: true; implicitHeight: 38; enabled: page.available; palette.windowText: AppTheme.ink
                     ToolTip.visible: hovered; ToolTip.text: "Dùng phông chữ tại vùng gốc được chọn. Bỏ tích để chọn phông mới cho phần tiếng Anh."; onToggled: page.rememberFormatting() }
-                Choice { id: englishFont; objectName: "wordEnglishFont"; visible: !originalFont.checked; model: page.fontNames; Layout.fillWidth: true; enabled: page.available; onActivated: page.rememberFormatting() }
+                Choice { id: englishFont; objectName: "wordEnglishFont"; model: page.fontNames; Layout.fillWidth: true; Layout.minimumWidth: 130
+                    displayText: originalFont.checked ? page.sourceFontLabel : currentText
+                    enabled: page.available && !originalFont.checked; onActivated: page.rememberFormatting()
+                    ToolTip.visible: fontHover.hovered; ToolTip.text: originalFont.checked ? page.sourceFontLabel + (page.word.sourceFonts.length > 1 ? "\nMỗi vùng giữ đúng phông riêng trong bản gốc." : "") : currentText
+                    HoverHandler { id: fontHover }
+                }
+                }
             }
             }
             }
@@ -247,9 +299,17 @@ Item {
             Layout.preferredHeight: page.documentState.id ? Math.max(320, Math.min(560, page.height * .58)) : 210
             Layout.minimumHeight: Layout.preferredHeight; Layout.maximumHeight: Layout.preferredHeight
             Rectangle {
+                id: sourcePanel; objectName: "wordSourcePanel"
                 Layout.fillWidth: true; Layout.fillHeight: true; Layout.preferredWidth: 1.3; color: AppTheme.surface; radius: 11; border.color: AppTheme.line
+                states: State {
+                    when: sourceDialog.visible
+                    ParentChange { target: sourcePanel; parent: expandedSourceHost; x: 0; y: 0; width: expandedSourceHost.width; height: expandedSourceHost.height }
+                }
                 ColumnLayout { anchors.fill: parent; anchors.margins: 12; spacing: 8
-                    Label { text: "Nội dung gốc"; font.bold: true; color: AppTheme.ink }
+                    RowLayout { Layout.fillWidth: true
+                        Label { text: "Nội dung gốc"; font.bold: true; color: AppTheme.ink; Layout.fillWidth: true }
+                        WordAction { objectName: "wordExpandSource"; text: "⛶ Phóng to để chọn"; visible: !sourceDialog.visible; enabled: page.available && !!page.documentState.id; implicitHeight: 30; onClicked: page.expandSource() }
+                    }
                     ButtonGroup { id: selectionMethods }
                     ButtonGroup { id: selectionScopes }
                     Flow { Layout.fillWidth: true; spacing: 4
@@ -354,7 +414,10 @@ Item {
             Rectangle {
                 Layout.fillWidth: true; Layout.fillHeight: true; Layout.preferredWidth: 1; color: AppTheme.surface; radius: 11; border.color: AppTheme.line
                 ColumnLayout { anchors.fill: parent; anchors.margins: 12; spacing: 8
-                    Label { objectName: "wordSelectedCount"; text: page.documentState.id ? "Đã chọn " + (page.documentState.selected_count || 0) + " vùng" : "Bản dịch xem trước"; font.bold: true; color: AppTheme.ink }
+                    RowLayout { Layout.fillWidth: true
+                        Label { objectName: "wordSelectedCount"; text: page.documentState.id ? "Đã chọn " + (page.documentState.selected_count || 0) + " vùng" : "Bản dịch xem trước"; font.bold: true; color: AppTheme.ink; Layout.fillWidth: true }
+                        WordAction { objectName: "wordClearAllRanges"; text: "Bỏ tất cả"; enabled: page.available && page.documentState.selected_count > 0; visible: !!page.documentState.id; implicitHeight: 30; onClicked: page.clearSourceSelections() }
+                    }
                     Hint { text: !page.documentState.id ? "Bản dịch sẽ hiện tại đây sau khi chọn vùng và chuyển đổi." : page.documentState.can_export ? "Xem phần Việt và chỉnh bản Anh trước khi lưu." : page.documentState.selected_count ? "Tiếp tục chọn vùng hoặc bấm Chuyển đổi ở thanh dưới để xem bản Anh." : page.highlightSelection ? "Bôi đen bên trái, nhả chuột rồi bấm Chọn đoạn này để dịch." : "Tích chọn đoạn/câu hoặc thêm vùng bôi đen ở bên trái."; Layout.fillWidth: true }
                     ListView {
                         objectName: "wordReviewList"; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 10; model: page.documentState.regions

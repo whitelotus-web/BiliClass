@@ -62,6 +62,18 @@ def test_preview_shows_original_style_embedded_image_and_table(preview):
     assert 'data:image/png;base64,' in view.html and '<table ' in view.html
     assert '\ufffc' in document.toPlainText()
     assert '[Hình minh họa]' not in document.toPlainText()
+    assert view.fonts == ['Arial']
+
+
+def test_source_font_display_reports_multiple_fonts_without_forcing_one_on_export(tmp_path):
+    doc = Document()
+    doc.styles['Normal'].font.name = 'Arial'
+    doc.add_paragraph('Đây là phần nội dung chính sử dụng phông mặc định của tài liệu.')
+    doc.add_paragraph().add_run('Đổi phông riêng.').font.name = 'Times New Roman'
+    source = tmp_path / 'mixed-fonts.docx'
+    doc.save(source)
+    view = Preview(Package(source))
+    assert view.fonts == ['Arial', 'Times New Roman']
 
 
 def test_selection_maps_repeated_table_cells_to_distinct_original_paragraphs(preview):

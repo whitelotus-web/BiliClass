@@ -5,18 +5,27 @@ Ngày 26/10/2026. Bản mã nguồn để thử tiếp, trên nhánh
 
 - **Cấp học → Khối lớp** dùng cùng danh sách lớp với PowerPoint: Tiểu học
   1–5, THCS 6–9, THPT 10–12. Tài liệu cũ mở lại được suy cấp từ lớp đã lưu.
+- **Kiểu chuyển đổi** hiện bốn lựa chọn tròn trên cùng một hàng.
 - **Màu tiếng Anh** là nút A có gạch màu. Bảng chọn gồm màu chủ đề, màu tiêu
   chuẩn, màu khác và ô **Giữ nguyên màu gốc**. Màu gốc là mặc định ban đầu;
   các màu RGB được kiểm tra trước khi ghi vào Word.
 - **Kiểu chữ tiếng Anh** có B, I, U, gạch ngang, x₂, x². Các kiểu kết hợp
   được; chỉ số dưới và trên loại trừ nhau. Phông gốc, màu gốc, in nghiêng là
   các giá trị ban đầu; tài liệu mới lấy lựa chọn định dạng gần nhất.
+- Ô phông luôn hiện bên cạnh **Font gốc**. Khi tích, ô chỉ đọc và hiện
+  phông lấy từ tài liệu (hoặc danh sách nếu có nhiều phông); từng vùng vẫn
+  giữ phông riêng khi xuất. Bỏ tích để chọn phông mới, giữ lựa chọn gần nhất.
 - **Bôi đen văn bản** đứng trước. **Tích chọn đoạn/câu** có hai ô vuông con
   **Theo đoạn / Theo câu**, chỉ bật khi chọn cách tích chọn. Hai ô loại trừ
   nhau để mỗi lần chỉ dùng một cách chia nội dung.
 - Bản xem trên nền giấy trắng có lề, cỡ chữ, phông, đậm/nghiêng, căn đoạn,
   hình nhúng và bảng. Có **− / Vừa khung / +** để đọc và chọn vùng. Ở cách
   tích chọn, từng phần cũng dùng định dạng gốc thay vì chỉ hiện chữ thuần.
+- **Phóng to để chọn** mở rộng vùng gốc trong ứng dụng. **Xong / Thu gọn**
+  đưa cùng vùng đọc về vị trí cũ, giữ các vùng đã xác nhận và vị trí cuộn.
+  Bấm Escape để đóng cửa sổ mở rộng.
+- **Bỏ tất cả** nằm cạnh số vùng đã chọn, và trong cửa sổ mở rộng. Chỉ bỏ
+  vùng chọn, không xóa tệp nguồn hay bản Word đã xuất trước đó.
 - Nút ban đầu là **Chuyển đổi bài giảng**, ở bên phải ô cấu hình đã chọn.
   Kết quả vẫn tự lưu với hậu tố `(Song ngu VI-EN)` như trước.
 

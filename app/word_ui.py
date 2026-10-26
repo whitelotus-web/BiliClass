@@ -61,6 +61,10 @@ class WordDocuments(QObject):
     def previewMargins(self):
         return self._preview.margins if self._preview else [64, 64, 64, 64]
 
+    @Property('QStringList', notify=sourceTextChanged)
+    def sourceFonts(self):
+        return self._preview.fonts if self._preview else []
+
     @Property('QStringList', constant=True)
     def fontFamilies(self):
         from PySide6.QtGui import QFontDatabase

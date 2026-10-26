@@ -9,6 +9,7 @@ import copy
 import io
 import re
 import zipfile
+from collections import Counter
 from html import escape
 from pathlib import PurePosixPath
 
@@ -41,6 +42,7 @@ class Preview:
         self.image_budget = 2 * 1024**2
         self.markup_budget = 8 * 1024**2
         self.theme_fonts = {'major': 'Cambria', 'minor': 'Calibri'}
+        self.font_counts = Counter()
         self.by_element = {entry[0]: identity for identity, entry in package.paragraphs.items()}
         self.width, self.margins = 794, [64, 64, 64, 64]
         section = package.body.find('w:sectPr', NS)
@@ -72,6 +74,7 @@ class Preview:
                             self.relationships[rel.get('Id')] = str(candidate)
             body = ''.join(self.block(child, archive) for child in package.body)
         self.html = '<html><body style="font-family:' + self.theme_fonts['minor'] + ';font-size:12pt;color:#202020">' + body + '</body></html>'
+        self.fonts = [family for family, _ in self.font_counts.most_common()]
         # Keep the XML tree out of the UI object and release decompressed images.
         del self.package, self.by_element, self.relationships, self.images
 
@@ -141,16 +144,17 @@ class Preview:
                         if prior is not None:
                             style.remove(prior)
                         style.append(copy.deepcopy(child))
-                markup = '<span style="' + escape(self.run_css(style, atom['kind']), quote=True) + '">' + escape(shown).replace('\n', '<br/>') + '</span>'
+                markup = '<span style="' + escape(self.run_css(style, atom['kind'], len(shown)), quote=True) + '">' + escape(shown).replace('\n', '<br/>') + '</span>'
             segments.append((len(visible), len(visible) + len(shown), atom['start'], atom['end'], atom['text'], bool(image)))
             visible += shown
             chunks.append(markup)
         self.rows[identity] = dict(source=row, visible=visible, segments=segments, chunks=chunks, css=';'.join(css))
         return '<p style="' + ';'.join(css) + '"><a name="blc_' + identity + '"></a>' + ''.join(chunks) + '</p>'
 
-    def run_css(self, style, kind):
+    def run_css(self, style, kind, weight=0):
         css = []
         fonts = style.find('w:rFonts', NS)
+        family = self.theme_fonts['minor']
         if fonts is not None:
             family = fonts.get(tag('ascii')) or fonts.get(tag('hAnsi'))
             if not family:
@@ -159,7 +163,10 @@ class Preview:
             if family:
                 # Font names cannot introduce CSS declarations or markup.
                 family = re.sub(r"[^\w .\-]", '', family)[:120]
-                css.append("font-family:'" + family + "'")
+        if family:
+            css.append("font-family:'" + family + "'")
+            if kind == 'text' and weight:
+                self.font_counts[family] += weight
         size = style.find('w:sz', NS)
         if size is not None:
             css.append(f'font-size:{max(6, min(72, int(size.get(tag("val"), "24")) / 2))}pt')

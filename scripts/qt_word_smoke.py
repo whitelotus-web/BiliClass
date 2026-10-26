@@ -143,7 +143,17 @@ def main():
                     assert not c('wordSave').isVisible() and not c('wordGoLibrary').isVisible()
                     assert c('wordConfigurationSummary').isVisible()
                     assert c('wordTextStyle').property('italic') and not c('wordTextStyle').property('bold')
-                    assert c('wordOriginalFont').property('checked') and not c('wordEnglishFont').isVisible()
+                    assert c('wordOriginalFont').property('checked') and c('wordEnglishFont').isVisible()
+                    assert not c('wordEnglishFont').isEnabled()
+                    font_rect = c('wordEnglishFont').mapRectToScene(c('wordEnglishFont').boundingRect())
+                    original_rect = c('wordOriginalFont').mapRectToScene(c('wordOriginalFont').boundingRect())
+                    assert font_rect.left() >= original_rect.right() and abs(font_rect.top() - original_rect.top()) < 2
+                    for choice in range(4):
+                        click(window, c('wordMode_' + str(choice)))
+                        assert c('wordMode').property('currentIndex') == choice
+                    radio_rows = [c('wordMode_' + str(index)).mapToScene(QPointF()).y() for index in range(4)]
+                    assert max(radio_rows) - min(radio_rows) < 2
+                    click(window, c('wordMode_0'))
                     assert c('wordEnglishColor').property('colorCode') == 'original'
                     assert c('wordPreview').property('text') == 'Chuyển đổi bài giảng'
                     for level, classes in ((2, ['1', '2', '3', '4', '5']), (1, ['6', '7', '8', '9']), (0, ['10', '11', '12'])):
@@ -186,6 +196,12 @@ def main():
                     assert bridge.wordDocuments.state['subject'] == 'Vật lý' and bridge.wordDocuments.state['grade'] == '6'
                     assert bridge.wordDocuments.state['title'] == 'Chuyển động đều'
                     assert bridge.wordDocuments.state['options']['font'] == 'Arial'
+                    click(window, c('wordOriginalFont'))
+                    assert c('wordEnglishFont').isVisible() and not c('wordEnglishFont').isEnabled()
+                    assert bridge.wordDocuments.sourceFonts
+                    assert all(family in c('wordEnglishFont').property('displayText') for family in bridge.wordDocuments.sourceFonts)
+                    click(window, c('wordOriginalFont'))
+                    assert c('wordEnglishFont').isEnabled() and c('wordEnglishFont').property('currentText') == 'Arial'
                     c('wordEducation').setProperty('currentIndex', 0)
                     c('wordGrade').setProperty('currentIndex', 1)
                     c('wordMode').setProperty('currentIndex', 0)
@@ -387,6 +403,42 @@ def main():
                     assert bridge.wordDocuments.state['selected_count'] == 6, bridge.wordDocuments.state['message']
                     assert {row['paragraph'] for row in bridge.wordDocuments.state['regions']} == {'p0', 'p1', 'p2', 'p3', 'p4', 'p5'}
                     assert window.grabWindow().save(str(report / 'word-rich-paper.png'))
+                    count_before_expanding = len(calls)
+                    click(window, c('wordClearAllRanges'))
+                    until(lambda: not bridge.busy)
+                    assert bridge.wordDocuments.state['selected_count'] == 0
+                    click(window, c('wordExpandSource'))
+                    until(lambda: c('wordExpandedDialog').property('visible'))
+                    pump(100)
+                    assert c('wordSourcePanel').parentItem() == c('wordExpandedSourceHost')
+                    assert c('wordSourcePanel').width() > window.width() * .8
+                    drag_text(0, len('Bài học có hình và bảng'))
+                    click(window, c('wordAcceptHighlight'))
+                    until(lambda: not bridge.busy)
+                    assert bridge.wordDocuments.state['selected_count'] == 1
+                    assert window.grabWindow().save(str(report / 'word-expanded-select.png'))
+                    click(window, c('wordCollapseSource'))
+                    until(lambda: not c('wordExpandedDialog').property('visible'))
+                    assert bridge.wordDocuments.state['selected_count'] == 1
+                    assert c('wordSourcePanel').parentItem() != c('wordExpandedSourceHost')
+                    click(window, c('wordExpandSource'))
+                    until(lambda: c('wordExpandedDialog').property('visible'))
+                    click(window, c('wordExpandedClearAll'))
+                    until(lambda: not bridge.busy)
+                    assert bridge.wordDocuments.state['selected_count'] == 0
+                    QTest.keyClick(window, Qt.Key_Escape)
+                    until(lambda: not c('wordExpandedDialog').property('visible'))
+                    assert len(calls) == count_before_expanding, 'Selection and clearing must not contact translation services'
+                    for width, height in ((1080, 700), (1366, 850)):
+                        window.resize(width, height)
+                        click(window, c('wordShowDocument'))
+                        click(window, c('wordExpandSource'))
+                        until(lambda: c('wordExpandedDialog').property('visible'))
+                        pump(50)
+                        assert c('wordSourcePanel').mapRectToScene(c('wordSourcePanel').boundingRect()).right() <= window.width()
+                        assert window.grabWindow().save(str(report / f'word-expanded-{width}.png'))
+                        click(window, c('wordCollapseSource'))
+                        until(lambda: not c('wordExpandedDialog').property('visible'))
                     click(window, c('wordTabPowerPoint'))
                     assert window.property('page') == 'new'
                     assert c('creationSourceArea').isVisible()
@@ -399,6 +451,8 @@ def main():
                 'Successful conversion automatically saves beside source with the requested suffix; edits remain saveable',
                 'Main radio choices; indented square paragraph/sentence choices enabled only in checkbox mode',
                 'Word-style color palette, original-color option, typography icons and dependent education/grade choices',
+                'Four inline conversion radios; always-visible source font alongside original-font checkbox',
+                'Expanded source workspace: mouse selection, collapse retains ranges, clear-all from both panels, Escape closes',
                 'Rich paper preview: native QML selection maps images and repeated table cells to original source ranges',
                 'Right-aligned conversion action with selected-configuration summary; Save/library appear after translation',
                 'Native Word tab; paragraph checkbox and disjoint text selection after emoji',
