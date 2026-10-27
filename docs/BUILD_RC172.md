@@ -31,3 +31,23 @@ giao diện Word từ runtime đóng gói và dữ liệu thử được giữ k
 
 Tham khảo API Windows: [IShellLinkW](https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nn-shobjidl_core-ishelllinkw),
 [Known Folders](https://learn.microsoft.com/en-us/windows/win32/shell/known-folders).
+
+## Bản đã phát hành
+
+- Tag `v1.0.0rc172`, commit ứng dụng
+  `8fbe56c42e63e9d368058d9d37d22ce8d0aacab9`.
+- Release: https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc172
+- ZIP 1.262.830.209 byte; SHA-256
+  `58effb9b0cd12b726017a682c4b42bc07a469a8d4dc78bacd400dc644065049a`.
+- Setup revision 3, 58.368 byte; SHA-256
+  `c67ee0d1550bd26c22412dc7fdfd4adc17ebe09f513ef6be69306ffec8530b4f`.
+- Các asset GitHub đã đối chiếu kích thước/hash với bộ cục bộ.
+- Bộ cập nhật từ tag RC155/167/169/170/171 nhận đúng release công khai
+  RC172, digest và danh sách ZIP. Installer thử nâng cấp giữ thư viện,
+  thiết lập, giọng và key; không tự kiểm chứng được thao tác trên máy khác.
+- Bộ cài cục bộ: `F:\BiliClass-BoCai-RC172`; runtime dùng lại cho lần dựng
+  sau: `dist/rc172-release`. Source checks GitHub đạt cho commit ứng dụng.
+- Bộ kiểm thử Word nguồn, Qt một/nhiều file và hàng đợi PowerPoint đạt.
+  34 kiểm thử updater/installer/shortcut đạt; bản đóng gói đã cài vào
+  thư mục Unicode thử riêng, kiểm trang Word/PowerPoint/Cài đặt, shortcut,
+  pipeline Việt–Anh và hoàn tất giao diện tạo giọng. Gỡ bản thử giữ dữ liệu.
