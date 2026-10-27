@@ -243,12 +243,28 @@ def main():
                     assert c('wordTextStyle').property('script') == 'normal'
                     click(window, c('wordEnglishColor'))
                     assert c('wordColorPalette').property('visible')
+                    assert c('wordCurrentColorLabel').property('text') == 'Màu gốc'
+                    assert not c('wordCurrentColorSwatch').isVisible()
                     assert window.grabWindow().save(str(report / 'word-color-palette.png'))
                     click(window, c('wordColor_7030A0'))
                     assert c('wordEnglishColor').property('colorCode') == '7030A0'
                     click(window, c('wordEnglishColor'))
+                    assert c('wordColor_7030A0').property('selected')
+                    assert QQmlExpression(engine.rootContext(), c('wordColor_7030A0'), 'contentItem.text').evaluate()[0] == '✓'
+                    assert c('wordColorUnderline').property('color').name() == '#7030a0'
+                    assert window.grabWindow().save(str(report / 'word-color-standard-selected.png'))
+                    click(window, c('wordColor_FFFFFF'))
+                    click(window, c('wordEnglishColor'))
+                    assert c('wordColor_FFFFFF').property('selected') and not c('wordColor_7030A0').property('selected')
+                    assert c('wordColor_FFFFFF').property('markColor').name() == '#17263b'
+                    assert window.grabWindow().save(str(report / 'word-color-theme-selected.png'))
                     click(window, c('wordKeepOriginalColor'))
                     assert c('wordEnglishColor').property('colorCode') == 'original'
+                    click(window, c('wordEnglishColor'))
+                    assert not c('wordColor_FFFFFF').property('selected')
+                    assert c('wordCurrentColorLabel').property('text') == 'Màu gốc'
+                    QTest.keyClick(window, Qt.Key_Escape)
+                    until(lambda: not c('wordColorPalette').property('visible'))
                     assert window.grabWindow().save(str(report / 'word-empty.png'))
                     c('wordTitle').setProperty('text', 'Chuyển động đều')
                     c('wordTextStyle').setProperty('bold', True)
@@ -258,6 +274,16 @@ def main():
                     c('wordEnglishFont').setProperty('currentIndex', c('wordEnglishFont').property('model').index('Arial'))
                     assert QMetaObject.invokeMethod(c('wordEnglishFont'), 'activated', Q_ARG(int, c('wordEnglishFont').property('currentIndex')))
                     assert QMetaObject.invokeMethod(c('wordEnglishColor'), 'choose', Q_ARG('QVariant', '1667B1'))
+                    assert c('wordColorUnderline').property('color').name() == '#1667b1'
+                    click(window, c('wordEnglishColor'))
+                    assert c('wordCurrentColorLabel').property('text') == '#1667B1'
+                    assert c('wordCurrentColorSwatch').isVisible()
+                    for theme in ('dark', 'light'):
+                        bridge.setApplicationTheme(theme)
+                        pump(60)
+                        assert window.grabWindow().save(str(report / f'word-color-custom-{theme}.png'))
+                    QTest.keyClick(window, Qt.Key_Escape)
+                    until(lambda: not c('wordColorPalette').property('visible'))
                     assert bridge.wordDocuments.formattingDefaults == dict(color='1667B1', highlight='none', font='Arial', italic=True, bold=True, underline=False, strike=False, script='normal', font_size=0)
                     assert window.grabWindow().save(str(report / 'word-custom-font.png'))
                     c('wordSubject').setProperty('currentIndex', bridge.conversionSubjects.index('Vật lý'))

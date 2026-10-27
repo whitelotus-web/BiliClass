@@ -5,6 +5,10 @@ Bản nguồn thử tiếp sau tag/bộ cài RC170, nhánh
 
 - Cụm màu/kiểu chữ/font/size/đặt lại được căn giữa nửa bên phải của hàng
   cấu hình, giữ các nút thẳng hàng ở kích thước laptop và desktop.
+- Bảng màu có dòng **Đang chọn** cùng ô màu/mã HEX, kể cả màu tùy chọn
+  ngoài bảng. Ô màu tương ứng có dấu ✓ tương phản và viền; chọn màu gốc
+  xóa dấu ở các ô màu. Vạch dưới A đổi theo màu chữ đang dùng, giữ biểu
+  tượng đỏ khi dùng màu gốc. Không đổi màu đã lưu hoặc nội dung tài liệu.
 - Ô **Xem trước song ngữ** bên phải khung tệp, ngoài ô **Dịch toàn bộ**,
   thẳng mép phải bên dưới nút hủy. Chỉ hiện khi đã tải bài Word thành công;
   khi chưa tải hoặc hủy bài, ô ẩn và khung tải dùng toàn bộ chiều ngang.

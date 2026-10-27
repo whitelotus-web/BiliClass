@@ -29,18 +29,23 @@ Button {
     contentItem: RowLayout { spacing: 8
         Item { implicitWidth: 24; implicitHeight: 26; Layout.alignment: Qt.AlignVCenter
             Text { id: colorLetter; text: "A"; font.family: "Georgia"; font.pixelSize: 22; font.bold: true; color: AppTheme.ink; anchors.horizontalCenter: parent.horizontalCenter }
-            Rectangle { width: 24; height: 3; radius: 1; y: colorLetter.baselineOffset + 1; color: "#e53935" }
+            Rectangle { objectName: "wordColorUnderline"; width: 24; height: 3; radius: 1; y: colorLetter.baselineOffset + 1; color: picker.original ? "#e53935" : picker.inkColor }
         }
         Text { text: "⌄"; color: AppTheme.muted; font.pixelSize: 16 }
     }
     background: Rectangle { radius: 7; color: picker.hovered || colors.visible || !picker.original ? AppTheme.selected : "transparent"; border.width: picker.activeFocus || colors.visible || !picker.original ? 1 : 0; border.color: AppTheme.blue }
     Popup {
-        id: colors; objectName: "wordColorPalette"; parent: Overlay.overlay; width: 296; padding: 12
+        id: colors; objectName: "wordColorPalette"; parent: Overlay.overlay; width: 296; padding: 12; focus: true
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
         background: Rectangle { color: AppTheme.surface; radius: 9; border.color: AppTheme.line }
         contentItem: ColumnLayout { spacing: 10
             CheckBox { objectName: "wordKeepOriginalColor"; text: "Giữ nguyên màu gốc"; checked: picker.original; palette.windowText: AppTheme.ink
                 onClicked: picker.choose(checked ? "original" : picker.recentColor) }
+            RowLayout { Layout.fillWidth: true; spacing: 8
+                Label { text: "Đang chọn"; color: AppTheme.muted; font.pixelSize: 12; Layout.fillWidth: true }
+                Rectangle { objectName: "wordCurrentColorSwatch"; visible: !picker.original; implicitWidth: 22; implicitHeight: 22; radius: 3; color: picker.inkColor; border.color: AppTheme.muted }
+                Label { objectName: "wordCurrentColorLabel"; text: picker.original ? "Màu gốc" : "#" + picker.colorCode.toUpperCase(); color: AppTheme.ink; font.pixelSize: 12; font.bold: true }
+            }
             Rectangle { Layout.fillWidth: true; height: 1; color: AppTheme.line }
             Label { text: "Màu chủ đề"; color: AppTheme.ink; font.bold: true; font.pixelSize: 12 }
             GridLayout { columns: 10; columnSpacing: 3; rowSpacing: 3
@@ -65,13 +70,17 @@ Button {
     }
     component Swatch: Button {
         id: swatch; required property string code
+        readonly property bool selected: !picker.original && picker.colorCode.toUpperCase() === code.toUpperCase()
+        readonly property color fillColor: "#" + code
+        readonly property color markColor: .299 * fillColor.r + .587 * fillColor.g + .114 * fillColor.b > .6 ? "#17263b" : "white"
         objectName: "wordColor_" + code
         implicitWidth: 24; implicitHeight: 24; padding: 0
-        Accessible.name: "Chọn màu #" + code
-        ToolTip.visible: hovered; ToolTip.text: "#" + code
+        Accessible.name: "Chọn màu #" + code + (selected ? " · Đang chọn" : "")
+        Accessible.checkable: true; Accessible.checked: selected
+        ToolTip.visible: hovered; ToolTip.text: "#" + code + (selected ? " · Đang chọn" : "")
         onClicked: picker.choose(code)
-        background: Rectangle { radius: 1; color: "#" + swatch.code; border.width: swatch.hovered || picker.colorCode === swatch.code || swatch.visualFocus ? 2 : 1; border.color: swatch.hovered || picker.colorCode === swatch.code || swatch.visualFocus ? AppTheme.blue : "#b4bcc8" }
-        contentItem: Item { }
+        background: Rectangle { radius: 1; color: swatch.fillColor; border.width: swatch.hovered || swatch.selected || swatch.visualFocus ? 2 : 1; border.color: swatch.hovered || swatch.selected || swatch.visualFocus ? AppTheme.blue : "#b4bcc8" }
+        contentItem: Text { text: swatch.selected ? "✓" : ""; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter; font.pixelSize: 16; font.bold: true; color: swatch.markColor }
     }
     ColorDialog { id: custom; title: "Màu chữ tiếng Anh"; selectedColor: "#1667B1"; onAccepted: picker.choose(selectedColor.toString().replace("#", "").toUpperCase()) }
 }
