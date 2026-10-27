@@ -17,6 +17,7 @@ function Get-FileSha256([string]$Path) {
         finally { $stream.Dispose() }
     } finally { $sha.Dispose() }
 }
+try {
 if ($WaitForProcessId -gt 0) {
     # The old version must finish before switching the shortcut to the new version.
     Wait-Process -Id $WaitForProcessId -Timeout 120 -ErrorAction SilentlyContinue
@@ -97,9 +98,21 @@ foreach ($entry in $fileEntries) {
     }
 }
 $drive = New-Object IO.DriveInfo([IO.Path]::GetPathRoot($installPath))
-if ($drive.AvailableFreeSpace -lt $requiredBytes) { throw ('Ổ cài chưa đủ dung lượng trống. Cần khoảng ' + [Math]::Round($requiredBytes / 1GB, 2) + ' GB trống; hãy chọn ổ khác hoặc giải phóng dung lượng rồi thử lại.') }
 $versionPath = Join-Path $installPath $manifest.version
-if (Test-Path -LiteralPath $versionPath) { throw 'Phiên bản này đã có trong thư mục đã chọn. Hãy mở bản đã cài hoặc chọn một thư mục mới.' }
+$repairExisting = Test-Path -LiteralPath $versionPath
+if ($repairExisting) {
+    foreach ($entry in $fileEntries) {
+        $existingFile = Join-Path $versionPath $entry.Name
+        $checkedPath = $existingFile
+        while ($checkedPath -and $checkedPath.Length -ge $versionPath.Length) {
+            if ((Get-Item -LiteralPath $checkedPath -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Bản cài hiện có chứa liên kết thư mục; chưa sửa dữ liệu. Hãy chọn thư mục mới.' }
+            $checkedPath = Split-Path -Parent $checkedPath
+        }
+        if ((Get-FileSha256 $existingFile) -ne $entry.Value) { throw 'Phiên bản này đã có nhưng tệp không khớp bộ cài. Dữ liệu được giữ nguyên; hãy chọn một thư mục mới.' }
+    }
+    Write-Output 'Existing version verified; refreshing launch shortcuts without replacing files.'
+} else {
+if ($drive.AvailableFreeSpace -lt $requiredBytes) { throw ('Ổ cài chưa đủ dung lượng trống. Cần khoảng ' + [Math]::Round($requiredBytes / 1GB, 2) + ' GB trống; hãy chọn ổ khác hoặc giải phóng dung lượng rồi thử lại.') }
 $staging = Join-Path $installPath ('.staging-' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $staging -Force | Out-Null
 try {
@@ -132,6 +145,7 @@ foreach ($entry in $fileEntries) {
         Remove-Item -LiteralPath $stagingPath -Recurse -Force
     }
 }
+}
 @{product='BiliClass';root=$installPath;version=$manifest.version} | ConvertTo-Json | Set-Content -LiteralPath $markerPath -Encoding UTF8
 Copy-Item -LiteralPath $MyInvocation.MyCommand.Path -Destination (Join-Path $installPath 'Install-BiliClass.ps1') -Force
 @'
@@ -140,20 +154,10 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Install-BiliClass.
 pause
 '@ | Set-Content -LiteralPath (Join-Path $installPath 'Uninstall-BiliClass.cmd') -Encoding ASCII
 if (-not $NoShortcuts) {
-    $shell = New-Object -ComObject WScript.Shell
-    foreach ($ownedShortcutPath in @($shortcutPath, $desktopShortcutPath)) {
-        $shortcut = $shell.CreateShortcut($ownedShortcutPath)
-        $shortcut.TargetPath = Join-Path $versionPath 'BiliClass.exe'
-        $shortcut.Arguments = ''
-        $shortcut.WorkingDirectory = $versionPath
-        $shortcut.Description = 'BiliClass - English Vietnamese teaching workspace'
-        $shortcut.IconLocation = (Join-Path $versionPath 'BiliClass.exe') + ',0'
-        $shortcut.Save()
-        # Match the process/window identity so Explorer resolves the group icon
-        # after versioned executable paths change. This CLI opens no UI/library.
-        $identityProcess = Start-Process -FilePath (Join-Path $versionPath 'BiliClass.exe') -ArgumentList @('--register-shortcut',('"' + $ownedShortcutPath + '"')) -WindowStyle Hidden -Wait -PassThru
-        if ($identityProcess.ExitCode -ne 0) { throw 'Chưa tạo được biểu tượng BiliClass. Hãy đóng ứng dụng rồi thử cài lại vào một thư mục mới.' }
-    }
+    # IShellLinkW keeps Vietnamese paths intact and updates owned taskbar pins.
+    # This helper does not open the app or the teacher's library.
+    $identityProcess = Start-Process -FilePath (Join-Path $versionPath 'BiliClass.exe') -ArgumentList @('--repair-shortcuts',('"' + $installPath + '"')) -WindowStyle Hidden -Wait -PassThru
+    if ($identityProcess.ExitCode -ne 0) { throw 'Bản mới đã được lưu nhưng chưa cập nhật được biểu tượng. Chạy lại bộ cài vào đúng thư mục này để sửa, hoặc mở BiliClass.exe trong thư mục phiên bản mới.' }
     New-Item -Path $uninstallKey -Force | Out-Null
     $uninstallProperties = @{
         DisplayName='BiliClass'; DisplayVersion=$manifest.version; Publisher='Nguyen Dieu Linh';
@@ -173,4 +177,15 @@ if ($LaunchAfterInstall) {
 }
 } finally {
     if ($archive) { $archive.Dispose() }
+}
+} catch {
+    $updateFailure = $_
+    if ($LaunchAfterInstall) {
+        try {
+            Add-Type -AssemblyName System.Windows.Forms
+            $updateLog = Join-Path (Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)) 'install.log'
+            [System.Windows.Forms.MessageBox]::Show(('Chưa hoàn tất cập nhật BiliClass.' + [Environment]::NewLine + [Environment]::NewLine + $updateFailure.Exception.Message + [Environment]::NewLine + [Environment]::NewLine + 'Chi tiết: ' + $updateLog), 'Cập nhật BiliClass', [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning) | Out-Null
+        } catch { }
+    }
+    throw $updateFailure
 }

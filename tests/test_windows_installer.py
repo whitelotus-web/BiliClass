@@ -62,13 +62,16 @@ def test_direct_zip_install_and_uninstall_preserves_separate_library(tmp_path):
     assert 'PROGRESS|100|' in result.stdout
     assert (target/'Uninstall-BiliClass.cmd').is_file()
     assert not list(target.glob('.staging-*'))
-    assert invoke(target, package).returncode != 0, 'Never nest another staging folder in an existing version'
+    assert invoke(target, package).returncode == 0, 'An identical verified version can repair its launch shortcuts'
     assert not list((target/VERSION).glob('.staging-*'))
     assert invoke(target, uninstall=True).returncode == 0
     assert not target.exists() and (data/'library.db').read_bytes() == b'preserve teacher data'
 
 
-def test_rc167_to_rc169_upgrade_keeps_old_program_and_teacher_data_key_settings(tmp_path):
+@pytest.mark.parametrize('old_version,new_version', [
+    ('1.0.0rc167', '1.0.0rc169'), ('1.0.0rc155', '1.0.0rc171'),
+    ('1.0.0rc155', '1.0.0rc172'), ('1.0.0rc171', '1.0.0rc172')])
+def test_upgrade_keeps_old_program_and_teacher_data_key_settings(tmp_path, old_version, new_version):
     from contextlib import closing
 
     from app.google_translation import KeyStore
@@ -84,16 +87,16 @@ def test_rc167_to_rc169_upgrade_keeps_old_program_and_teacher_data_key_settings(
     (data / 'audio/teacher.wav').write_bytes(b'teacher audio fixture')
     before = {path.relative_to(data): path.read_bytes() for path in data.rglob('*') if path.is_file()}
     application = tmp_path / 'BiliClass-App'
-    for version in ('1.0.0rc167', '1.0.0rc169'):
+    for version in (old_version, new_version):
         folder = tmp_path / version
         folder.mkdir()
         package, _ = make_package(folder, version=version)
         result = invoke(application, package, version=version)
         assert result.returncode == 0, result.stderr
-    assert (application / '1.0.0rc167/BiliClass.exe').is_file()
-    assert (application / '1.0.0rc169/BiliClass.exe').is_file()
+    assert (application / old_version / 'BiliClass.exe').is_file()
+    assert (application / new_version / 'BiliClass.exe').is_file()
     marker = json.loads((application / '.biliclass-install.json').read_text(encoding='utf-8-sig'))
-    assert marker['version'] == '1.0.0rc169'
+    assert marker['version'] == new_version
     assert before == {path.relative_to(data): path.read_bytes() for path in data.rglob('*') if path.is_file()}
     with closing(Library(data)) as library:
         assert library.get(lesson['id'])['title'] == 'Bài giảng đã có'
@@ -163,8 +166,10 @@ def test_native_launcher_verifies_installs_and_rejects_changed_payload(tmp_path)
     target = tmp_path/'Bản cài từ EXE'
     assert subprocess.run([str(executable), '--install-test', str(target)], timeout=40).returncode == 0
     assert (target/VERSION/'BiliClass.exe').read_bytes() == files['BiliClass.exe']
+    assert subprocess.run([str(executable), '--install-test', str(target)], timeout=40).returncode == 0
+    (target/VERSION/'BiliClass.exe').write_bytes(b'changed application; preserve')
     error = native_failure(executable, target, tmp_path)
-    assert 'đã có trong thư mục này' in error and 'CLIXML' not in error
+    assert 'tệp không khớp' in error and 'CLIXML' not in error
     assert invoke(target, uninstall=True).returncode == 0
     package.write_bytes(package.read_bytes()+b'changed')
     assert subprocess.run([str(executable), '--verify'], timeout=40).returncode != 0

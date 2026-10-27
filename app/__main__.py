@@ -24,6 +24,8 @@ def main():
     parser.add_argument('--check-narration-ui', metavar='REPORT_JSON', help=argparse.SUPPRESS)
     parser.add_argument('--check-universal-templates', metavar='REPORT_JSON', help=argparse.SUPPRESS)
     parser.add_argument('--register-shortcut', metavar='BILICLASS_LNK', help=argparse.SUPPRESS)
+    parser.add_argument('--repair-shortcuts', metavar='INSTALL_ROOT', help=argparse.SUPPRESS)
+    parser.add_argument('--check-shortcuts', metavar='REPORT_JSON', help=argparse.SUPPRESS)
     parser.add_argument("--screenshot")
     parser.add_argument("--lesson-id", help="Open a saved lesson in the guarded desktop entry point")
     parser.add_argument('--office-task', help=argparse.SUPPRESS)
@@ -50,6 +52,21 @@ def main():
         default="home",
     )
     args = parser.parse_args()
+    if args.check_shortcuts:
+        from .windows_shortcuts import diagnose_shortcuts
+
+        return diagnose_shortcuts(args.check_shortcuts)
+    if args.repair_shortcuts:
+        import json
+
+        from .windows_shortcuts import repair_shortcuts
+
+        try:
+            print(json.dumps(repair_shortcuts(args.repair_shortcuts), ensure_ascii=True))
+            return 0
+        except Exception as exc:
+            print('Chưa cập nhật được biểu tượng BiliClass: ' + str(exc))
+            return 1
     if args.startup_splash:
         from .startup_splash import run
 

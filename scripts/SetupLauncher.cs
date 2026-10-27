@@ -103,8 +103,8 @@ internal static class SetupLauncher
             catch { }
             if (!verified) throw new Exception("Chưa xác nhận được bản BiliClass trong thư mục này. Hãy chọn một thư mục mới để cài; dữ liệu hiện có được giữ nguyên.\n\n" + root);
         }
-        if (Directory.Exists(Path.Combine(root, Value("version"))))
-            throw new Exception("BiliClass " + Value("version") + " đã có trong thư mục này. Hãy mở bản đã cài hoặc chọn một thư mục mới.\n\n" + root);
+        // PowerShell verifies every existing version file against the payload
+        // before repairing shortcuts; a failed shortcut step can be retried.
         return root;
     }
 

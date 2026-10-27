@@ -9,7 +9,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-INSTALLER_REVISION = 2
+INSTALLER_REVISION = 3
 
 
 def verify_source(root, application_commit, *, reuse_application=False):

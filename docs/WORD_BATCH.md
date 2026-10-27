@@ -1,6 +1,6 @@
 # Chuyển đổi nhiều file Word
 
-Tính năng ở nhánh phát triển sau RC171; chưa nằm trong bộ cài RC171 đã phát hành.
+Tính năng mới của RC172; không nằm trong bộ cài RC171 đã phát hành.
 Không thay đổi tag/bộ cài RC167, RC169, RC170 hoặc RC171.
 
 ## Cách dùng

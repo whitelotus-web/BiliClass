@@ -45,7 +45,7 @@ phải giữ nguyên byte, định dạng xuất chỉ áp dụng cho vùng dị
 
 ## Tinh gọn sau bản phát hành RC171
 
-Thay đổi nguồn sau tag RC171, chưa thay bộ cài đã phát hành:
+Thay đổi nguồn sau tag RC171, được đưa vào mốc RC172; giữ nguyên bộ cài RC171:
 
 - Tiêu đề khung bên phải thống nhất **Nội dung chuyển đổi**; số nhóm vẫn
   có trong thanh cấu hình phía dưới. Bỏ dòng hướng dẫn dưới tiêu đề.

@@ -36,25 +36,12 @@ try {
     $taskDetails = [Diagnostics.FileVersionInfo]::GetVersionInfo($executable)
     if ($taskDetails.ProductName -ne 'BiliClass' -or $taskDetails.ProductVersion -ne $manifest.version -or $taskDetails.LegalCopyright -notlike '*Nguyễn Diệu Linh*') { throw 'Installed Windows Details resource failed validation.' }
     Write-Output 'Passed Windows Properties product, version and copyright.'
-    # WScript.Shell uses the system ANSI code page for shortcuts on this machine.
-    # Keep only this throwaway fixture in the local runtime folder; the actual
-    # application, library and remaining verification still use the Unicode path.
-    $taskShortcutDirectory = Join-Path $env:LOCALAPPDATA ('BiliClass\release-shortcut-' + $runId)
-    New-Item -ItemType Directory -Path $taskShortcutDirectory -Force | Out-Null
-    $taskShortcut = Join-Path $taskShortcutDirectory 'BiliClass.lnk'
-    $taskShortcutShell = New-Object -ComObject WScript.Shell
-    $taskShortcutLink = $taskShortcutShell.CreateShortcut($taskShortcut)
-    # WScript.Shell rejects non-ANSI TargetPath values on some Windows locales.
-    # This disposable link tests the installed registration CLI, never its target.
-    $taskShortcutLink.TargetPath = Join-Path $env:SystemRoot 'System32\notepad.exe'
-    $taskShortcutLink.Save()
-    Invoke-InstalledCheck -Arguments @('--register-shortcut',('"' + $taskShortcut + '"'))
-    $taskShellFolder = (New-Object -ComObject Shell.Application).Namespace($taskShortcutDirectory)
-    if ($taskShellFolder.ParseName('BiliClass.lnk').ExtendedProperty('System.AppUserModel.ID') -ne 'BiliClass.Desktop') { throw 'Installed shortcut identity failed validation.' }
-    Remove-Item -LiteralPath $taskShortcut
-    Remove-Item -LiteralPath $taskShortcutDirectory
-    Write-Output 'Passed installed shortcut taskbar identity without modifying user shortcuts.'
-    foreach ($page in @('new','browser-ai','settings','classroom')) {
+    $taskShortcutReport = Join-Path $reportRoot 'shortcuts.json'
+    Invoke-InstalledCheck -Arguments @('--check-shortcuts',('"' + $taskShortcutReport + '"'))
+    $taskShortcutResult = Get-Content -LiteralPath $taskShortcutReport -Raw | ConvertFrom-Json
+    if ($taskShortcutResult.status -ne 'passed') { throw 'Installed Unicode shortcut/pin repair failed validation.' }
+    Write-Output 'Passed installed Unicode Desktop/Start/taskbar shortcut repair without modifying user shortcuts.'
+    foreach ($page in @('new','word','browser-ai','settings','classroom')) {
         $shot = Join-Path $reportRoot ($page + '.png')
         Invoke-InstalledCheck -Arguments @('--smoke','--page',$page,'--size','1366x850','--screenshot',('"' + $shot + '"'))
         if (-not (Test-Path -LiteralPath $shot)) { throw ('Missing screenshot: ' + $page) }
