@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-Rectangle {
+ColumnLayout {
     id: preview
     property string family: "Times New Roman"
     property real pointSize: 12
@@ -26,11 +26,11 @@ Rectangle {
         const fill = highlight === "none" ? "" : ";background-color:#" + highlight
         return '<font face="' + escaped(family) + '" color="' + textColor + '"><span style="font-size:' + pointSize + 'pt' + fill + '">' + content + '</span></font>'
     }
-    implicitWidth: 300; implicitHeight: 108
-    radius: 12; color: AppTheme.surface; border.color: AppTheme.line
-    ColumnLayout { anchors.fill: parent; anchors.margins: 10; spacing: 6
-        Label { objectName: "wordDemoHeading"; text: "Xem trước song ngữ"; horizontalAlignment: Text.AlignHCenter; color: AppTheme.muted; font.pixelSize: 11; Layout.fillWidth: true }
-        Rectangle { Layout.fillWidth: true; Layout.fillHeight: true; color: "white"; radius: 5; clip: true
+    implicitWidth: 300; implicitHeight: 108; spacing: 4
+    Label { objectName: "wordDemoHeading"; text: "Xem trước song ngữ"; horizontalAlignment: Text.AlignHCenter; color: AppTheme.muted; font.pixelSize: 12; Layout.fillWidth: true }
+    Rectangle { objectName: "wordDemoFrame"; Layout.fillWidth: true; Layout.fillHeight: true; Layout.minimumHeight: 72
+        radius: 12; color: AppTheme.surface; border.color: AppTheme.line
+        Rectangle { anchors.fill: parent; anchors.margins: 8; color: "white"; radius: 5; clip: true
             ContentScrollView { id: sampleScroll; anchors.fill: parent; anchors.margins: 6; contentWidth: availableWidth
                 Item { id: example; width: sampleScroll.availableWidth
                     height: preview.mode === "keywords" ? keywords.implicitHeight : preview.columns ? Math.max(vietnamese.implicitHeight, englishLine.height) : preview.mode === "english" ? englishLine.height : vietnamese.implicitHeight + 4 + englishLine.height

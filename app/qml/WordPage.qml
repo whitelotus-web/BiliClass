@@ -200,7 +200,7 @@ Item {
         })
     }
     Connections { target: page.word; function onChanged() { if (!page.available) highlightPopup.close(); page.syncLoaded(); Qt.callLater(function() { page.word.bindPreviewDocument(continuousText.textDocument, page.documentState.id) }) }
-        function onSourceTextChanged() { Qt.callLater(function() { page.word.bindPreviewDocument(continuousText.textDocument, page.documentState.id) }) }
+        function onSourceTextChanged() { continuousText.syncSourceText(); Qt.callLater(function() { page.word.bindPreviewDocument(continuousText.textDocument, page.documentState.id) }) }
         function onConfigurationRestored() { page.shownIdentity = ""; page.syncLoaded() }
         function onWorkspaceReset() { highlightPopup.close(); sourceDialog.close(); page.shownIdentity = ""; lessonTitle.text = ""; page.previewZoom = 0; page.restoreFormattingDefaults() }
     }
@@ -331,8 +331,8 @@ Item {
                 Hint { text: "Cấp học" }
                 Choice { id: education; objectName: "wordEducation"; model: ["THPT", "THCS", "Tiểu học"]; Layout.fillWidth: true; enabled: page.available; onActivated: grade.currentIndex = 0 }
             }
-            ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 1; spacing: 4
-                Hint { text: "Khối lớp" }
+            ColumnLayout { id: gradeField; Layout.fillWidth: true; Layout.preferredWidth: 1; spacing: 4
+                Hint { objectName: "wordGradeLabel"; text: "Khối lớp" }
                 Choice { id: grade; objectName: "wordGrade"; model: page.appBridge.educationGrades(education.currentText); currentIndex: 1; Layout.fillWidth: true; enabled: page.available }
             }
             }
@@ -397,7 +397,7 @@ Item {
             }
             WordFormatPreview { id: formatPreview; objectName: "wordFormatPreview"; visible: !!page.documentState.id
                 Layout.preferredWidth: page.width < 950 ? 224 : 240; Layout.minimumWidth: Layout.preferredWidth; Layout.maximumWidth: Layout.preferredWidth
-                Layout.fillHeight: true; Layout.minimumHeight: 96; Layout.maximumHeight: 160; Layout.alignment: Qt.AlignBottom
+                Layout.fillHeight: true; Layout.minimumHeight: 96; Layout.topMargin: gradeField.y; Layout.alignment: Qt.AlignBottom
                 family: page.draftFont() || (page.word.sourceFonts.length ? page.word.sourceFonts[0] : "Times New Roman")
                 pointSize: englishSize.pointSize || Number(page.word.sourceFontSize) || 12
                 textColor: englishColor.original ? "#17263b" : englishColor.inkColor
@@ -506,10 +506,17 @@ Item {
                         color: page.readingPaper; border.color: "#d5dbe4"; border.width: 1
                         TextArea {
                             id: continuousText; objectName: "wordContinuousText"; width: paper.width
+                            function syncSourceText() {
+                                const html = page.word.previewHtml
+                                // Set the format before the value: switching an empty
+                                // rich document to plain text can expose Qt's HTML.
+                                textFormat = html ? TextEdit.RichText : TextEdit.PlainText
+                                text = html || page.word.selectionText
+                            }
+                            Component.onCompleted: syncSourceText()
                             Connections { target: continuousText.textDocument
                                 function onTextDocumentChanged() { Qt.callLater(function() { page.word.bindPreviewDocument(continuousText.textDocument, page.documentState.id) }) }
                             }
-                            text: page.word.previewHtml || page.word.selectionText; textFormat: page.word.previewHtml ? TextEdit.RichText : TextEdit.PlainText
                             placeholderText: "Tải file Word ở trên để bôi đen phần cần dịch."
                             readOnly: true; selectByMouse: page.canSelect; persistentSelection: true; wrapMode: TextEdit.Wrap
                             Keys.onEscapePressed: function(event) { if (highlightPopup.visible) highlightPopup.close(); else event.accepted = false }

@@ -54,9 +54,14 @@ Thay đổi nguồn sau tag RC171, chưa thay bộ cài đã phát hành:
 - Ô demo ở cột ngoài cùng bên phải, cạnh cả **Khối lớp** ở hàng trên và
   **Đặt lại định dạng** ở hàng dưới. Hai hàng cấu hình cùng kết thúc trước
   demo, cách 12 px; khung tệp dùng trọn chiều ngang. Demo rộng 224–240 px,
-  cao theo hai hàng (tối đa 160 px), chỉ hiện sau khi tải Word. Màn hình
+  cao theo hai hàng, chỉ hiện sau khi tải Word. Tiêu đề nằm ngoài khung,
+  cùng cỡ 12 px và ngang hàng với nhãn **Khối lớp**; đỉnh khung demo thẳng
+  đỉnh ô chọn lớp. Căn chỉnh này vẫn giữ khi các ô thông tin xuống hàng. Màn hình
   hẹp chia thông tin bài học thành hai hàng; định dạng có thể xuống dòng
   nhưng nút đặt lại vẫn nằm sát bên trái demo.
+- Hủy bài đang chọn đặt kiểu văn bản trước rồi mới xóa nội dung hiển thị,
+  tránh Qt đưa mã HTML của tài liệu rỗng ra khung nguồn. Trạng thái tải
+  file trở lại bình thường; bài trong thư viện và tệp gốc được giữ nguyên.
 - Cụm − / 100% / + cao 24 px, cùng hàng lựa chọn Bôi đen/Tích chọn, không
   chiếm thêm hàng riêng phía trên tài liệu. Bấm phần trăm vẫn về 100%.
 - Hai icon trăng khuyết/mặt trời 22 × 24 px nằm trước cụm zoom, chọn nền

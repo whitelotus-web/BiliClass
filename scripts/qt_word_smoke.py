@@ -123,6 +123,12 @@ def main():
                 assert demo_rect.top() <= grade.center().y() <= demo_rect.bottom()
                 assert demo_rect.top() <= rectangles[-1].center().y() <= demo_rect.bottom()
                 assert abs(demo_rect.bottom() - toolbar.bottom()) <= 1 and fields.bottom() < toolbar.top()
+                grade_label, demo_label, demo_frame = [c(name) for name in ('wordGradeLabel', 'wordDemoHeading', 'wordDemoFrame')]
+                grade_label_rect, demo_label_rect, demo_frame_rect = [item.mapRectToScene(item.boundingRect()) for item in (grade_label, demo_label, demo_frame)]
+                assert grade_label.property('font').pixelSize() == demo_label.property('font').pixelSize() == 12
+                assert abs(grade_label_rect.top() - demo_label_rect.top()) <= 1, (grade_label_rect, demo_label_rect)
+                assert abs(grade.top() - demo_frame_rect.top()) <= 1, (grade, demo_frame_rect)
+                assert demo_label_rect.bottom() < demo_frame_rect.top()
                 for name in ('wordTitle', 'wordSubject', 'wordEducation', 'wordGrade'):
                     field = c(name).mapRectToScene(c(name).boundingRect())
                     assert fields.contains(field) and field.width() >= 90, (name, field, fields)
@@ -337,7 +343,7 @@ def main():
                     assert c('wordWholeDocumentIndicator').width() == c('wordWholeDocumentIndicator').height() == 16
                     assert c('wordWholeDocument').height() >= 28
                     assert demo.isVisible() and demo.width() <= 300
-                    assert demo.height() <= 160
+                    assert demo.height() <= c('wordConfigurationPreviewRow').height()
                     assert abs(c('wordSourceArea').width() - c('wordSourcePreviewRow').width()) <= 1
                     for width, height in ((1080, 700), (1366, 850), (1760, 990)):
                         window.resize(width, height)
@@ -738,6 +744,7 @@ def main():
                             cell.text = 'Vận tốc 12 m/s.'
                     rich_source = directory / 'Hình và bảng.docx'
                     rich.save(rich_source)
+                    rich_original = rich_source.read_bytes()
                     bridge.wordDocuments.openFile(rich_source.as_uri())
                     until(lambda: not bridge.busy)
                     window.resize(1366, 850)
@@ -826,10 +833,26 @@ def main():
                     c('wordWorkflowScroll').property('contentItem').setProperty('contentY', 0)
                     pump(60)
                     click(window, c('wordDismissInput'))
+                    pump(60)
                     assert bridge.wordDocuments.state['id'] == '' and not bridge.wordDocuments.selectionText
+                    if preview_text():
+                        window.grabWindow().save(str(report / 'word-dismiss-stale-text.png'))
+                    assert not preview_text(), repr(preview_text()[:160])
+                    assert c('wordContinuousText').property('text') == ''
                     assert c('wordTitle').property('text') == '' and not c('wordChooseFile').isVisible()
                     assert not demo.isVisible()
                     assert any(row['id'] == preserved_id for row in bridge.wordDocuments.library)
+                    for selection_mode, reading_theme in (('checkbox', 'dark'), ('highlight', 'light')):
+                        bridge.wordDocuments.setReadingTheme(reading_theme)
+                        c('wordPage').setProperty('selectionMode', selection_mode)
+                        bridge.wordDocuments.loadRecord(preserved_id)
+                        until(lambda: not bridge.busy)
+                        assert preview_text().strip() and '<!DOCTYPE' not in preview_text()
+                        click(window, c('wordDismissInput'))
+                        pump(60)
+                        assert not preview_text() and c('wordContinuousText').property('text') == ''
+                        assert bridge.wordDocuments.readingTheme == reading_theme
+                    assert rich_source.read_bytes() == rich_original
                     bridge.wordDocuments.loadRecord(preserved_id)
                     until(lambda: not bridge.busy)
                     assert bridge.wordDocuments.state['id'] == preserved_id and bridge.wordDocuments.state['title'] == preserved_title
@@ -915,6 +938,8 @@ def main():
                 'Whole-document checkbox locks manual selectors, waits for Convert, preserves skipped objects and restores the previous manual selection',
                 'Right-aligned conversion action with selected-configuration summary; Save/library appear after translation',
                 'Live bilingual format sample follows color, highlight, typeface, size and style without a translation request',
+                'Demo heading aligns with the grade label; demo frame aligns with the grade input',
+                'Dismiss clears the rendered rich source without exposing HTML; reopen and both selection/reading modes retain source bytes',
                 'Clipped edge words expand visibly before confirmation; compact review navigation and removal retain source data',
                 'Native Word tab; paragraph checkbox and disjoint text selection after emoji',
                 'Mouse drag/release offers confirmation; disjoint highlights accumulate; duplicates merge; switching modes retains selections',
