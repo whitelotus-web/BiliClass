@@ -27,3 +27,24 @@ QML/tài nguyên hiện tại; không đổi dependency/model. Trước công b�
 manifest/hash ZIP, cài vào thư mục thử riêng, pipeline giọng Việt–Anh,
 Qt Word từ runtime đóng gói, gỡ cài giữ dữ liệu và updater từ bản cũ.
 Commit/version/hash được ghi ở BUILD_INFO/SHA256 của thư mục bộ cài.
+
+## Bản phát hành đã kiểm tra
+
+- Tag `v1.0.0rc171`, mã ứng dụng
+  `0eaa040baaf19a02343ae7ee8da8218ce19c586c`.
+- ZIP `BiliClass-RC171-Windows.zip`: 1.262.800.095 byte; SHA-256
+  `6d61baeecd80429bca36195784bbdaea64b9246a1b6a606d359e264e54be0044`.
+- 126 kiểm thử Word và 28 kiểm thử updater/cài đặt/đóng gói đạt; Qt toàn
+  luồng Word đạt ở nhiều kích thước, sáng/tối, không cảnh báo QML.
+- Cài từ manifest trong thư mục riêng đạt; trang Word, PowerPoint, cài đặt
+  và các trang kiểm thử còn lại khởi động được. Pipeline giọng Việt–Mỹ và
+  Qt tạo giọng đạt. Gỡ bản thử giữ nguyên thư viện thử riêng.
+- Tài liệu dài 447 đoạn được mở bằng kho thử riêng để kiểm bôi xuôi/ngược
+  qua dòng trống và định vị nhóm. Hash nguồn giữ nguyên; không gửi nội
+  dung tài liệu này đến dịch vụ dịch hoặc GitHub.
+- Các asset GitHub đã đối chiếu kích thước/SHA-256 với bản cục bộ.
+
+Release: https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc171
+
+Phạm vi nghiệm thu bộ cài: máy Windows hiện tại với dữ liệu thử riêng;
+không thay cho kiểm nghiệm trên mọi phiên bản Office/máy Windows mới.
