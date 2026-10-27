@@ -84,9 +84,15 @@ Item {
         const caret = continuousText.cursorRectangle
         const container = highlightPopup.parent
         const point = continuousText.mapToItem(container, caret.x, caret.y)
-        highlightPopup.x = Math.max(12, Math.min(point.x + 8, container.width - highlightPopup.width - 12))
+        const viewport = textScroll.mapToItem(container, 0, 0)
+        const outer = sourceDialog.visible ? {x: 0, y: 0} : wordScroll.mapToItem(container, 0, 0)
+        const left = Math.max(12, viewport.x + 4)
+        const right = Math.min(container.width - 12, viewport.x + textScroll.availableWidth - 4)
+        const top = Math.max(12, viewport.y + 4, outer.y + 4)
+        const bottom = Math.min(container.height - 12, viewport.y + textScroll.availableHeight - 4, sourceDialog.visible ? container.height - 12 : outer.y + wordScroll.height - 4)
+        highlightPopup.x = Math.max(left, Math.min(point.x + 8, right - highlightPopup.width))
         const below = point.y + caret.height + 8
-        highlightPopup.y = Math.max(12, Math.min(below + highlightPopup.height <= container.height - 12 ? below : point.y - highlightPopup.height - 8, container.height - highlightPopup.height - 12))
+        highlightPopup.y = Math.max(top, Math.min(below + highlightPopup.height <= bottom ? below : point.y - highlightPopup.height - 8, bottom - highlightPopup.height))
         highlightPopup.open()
     }
     function openDocument(url) {
@@ -131,15 +137,25 @@ Item {
     function clearSourceSelections() { highlightPopup.close(); page.word.clearSelection() }
     function jumpToRange(identity) {
         highlightPopup.close()
-        page.selectionMode = "highlight"
         Qt.callLater(function() {
-            page.showDocument()
-            const position = page.word.rangePosition(identity)
-            if (position < 0) return
-            const caret = continuousText.positionToRectangle(position)
+            if (!sourceDialog.visible) page.showDocument()
+            const location = page.word.rangeLocation(identity)
+            if (!location.paragraph) return
+            if (!page.highlightSelection) {
+                const rows = sources.model
+                const index = rows.findIndex(function(row) { return row.paragraph === location.paragraph && row.start < location.source_end && row.end > location.source_start })
+                if (index >= 0) sources.positionViewAtIndex(index, ListView.Center)
+                return
+            }
+            if (location.start < 0) return
+            const first = continuousText.positionToRectangle(location.start)
+            const last = continuousText.positionToRectangle(Math.max(location.start, location.end - 1))
+            const top = continuousText.mapToItem(paper.parent, first.x, first.y).y
+            const bottom = continuousText.mapToItem(paper.parent, last.x, last.y + last.height).y
             const flick = textScroll.contentItem
             flick.cancelFlick()
-            flick.contentY = Math.max(0, Math.min(flick.contentHeight - flick.height, caret.y * paper.scale - 24))
+            const target = bottom - top <= flick.height - 48 ? (top + bottom - flick.height) / 2 : top - 24
+            flick.contentY = Math.max(0, Math.min(flick.contentHeight - flick.height, target))
         })
     }
     readonly property bool configurationMatches: modeCodes[mode.currentIndex] === (page.documentState.options.mode || "below")
@@ -420,13 +436,6 @@ Item {
                         Item { Layout.fillWidth: true }
                     }
                     RowLayout { objectName: "wordSelectionActions"; Layout.fillWidth: true; spacing: 4
-                        WordAction { objectName: "wordSelectAll"; text: "Chọn tất cả"; implicitHeight: 28; leftPadding: 10; rightPadding: 10; enabled: page.canSelect && !!page.documentState.id
-                            onClicked: {
-                                if (page.highlightSelection) { continuousText.forceActiveFocus(); continuousText.selectAll(); Qt.callLater(page.offerHighlightedText) }
-                                else page.word.selectAll(page.selectionScope)
-                            }
-                        }
-                        WordAction { objectName: "wordClearSelection"; text: "Bỏ chọn"; implicitHeight: 28; leftPadding: 10; rightPadding: 10; enabled: page.canSelect && page.documentState.selected_count > 0; onClicked: page.clearSourceSelections() }
                         Item { Layout.fillWidth: true }
                         WordAction { objectName: "wordZoomOut"; visible: page.highlightSelection && !!page.documentState.id; text: "−"; implicitHeight: 28; implicitWidth: 28; leftPadding: 0; rightPadding: 0; onClicked: page.previewZoom = Math.max(.4, (page.previewZoom || 1) - .1) }
                         WordAction { objectName: "wordZoomFit"; visible: page.highlightSelection && !!page.documentState.id; text: Math.round((page.previewZoom || 1) * 100) + "%"; implicitHeight: 28; leftPadding: 8; rightPadding: 8; onClicked: page.previewZoom = 0; ToolTip.visible: hovered; ToolTip.text: "Về 100%" }
@@ -526,13 +535,11 @@ Item {
                         delegate: Rectangle {
                             id: selectedRow; required property var modelData; required property int index
                             width: ListView.view.width - 12; height: selectedContents.implicitHeight + 20; radius: 8; color: AppTheme.field; border.color: AppTheme.line
-                            ColumnLayout { id: selectedContents; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 10; spacing: 5
+                            ColumnLayout { id: selectedContents; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 10; anchors.rightMargin: 44; spacing: 5
                                 RowLayout { Layout.fillWidth: true
-                                    WordAction { objectName: "wordLocateRange_" + selectedRow.index; text: "Vùng " + (selectedRow.index + 1); implicitHeight: 24; leftPadding: 7; rightPadding: 7; font.pixelSize: 11; enabled: page.available; onClicked: page.jumpToRange(selectedRow.modelData.id)
+                                    WordAction { objectName: "wordLocateRange_" + selectedRow.index; text: "#" + (selectedRow.index + 1); Accessible.name: "Xem vùng " + (selectedRow.index + 1) + " trong nội dung gốc"; implicitHeight: 24; leftPadding: 7; rightPadding: 7; font.pixelSize: 11; enabled: page.available; onClicked: page.jumpToRange(selectedRow.modelData.id)
                                         ToolTip.visible: hovered; ToolTip.text: "Xem vùng này trong nội dung gốc" }
                                     Item { Layout.fillWidth: true }
-                                    WordAction { objectName: "wordRemoveRange_" + selectedRow.index; text: "×"; Accessible.name: "Bỏ vùng " + (selectedRow.index + 1); implicitWidth: 26; implicitHeight: 26; leftPadding: 0; rightPadding: 0; font.pixelSize: 18; enabled: page.canSelect; onClicked: page.word.removeGroup(selectedRow.modelData.id)
-                                        ToolTip.visible: hovered; ToolTip.text: "Bỏ vùng chọn" }
                                 }
                                 Label { text: selectedRow.modelData.vi; textFormat: Text.PlainText; color: AppTheme.ink; font.pixelSize: 13; wrapMode: Text.WordWrap; Layout.fillWidth: true
                                     TapHandler { enabled: page.available; onTapped: page.jumpToRange(selectedRow.modelData.id) }
@@ -559,6 +566,8 @@ Item {
                                 }
                                 }
                             }
+                            WordAction { objectName: "wordRemoveRange_" + selectedRow.index; text: "×"; Accessible.name: "Bỏ vùng " + (selectedRow.index + 1); anchors.right: parent.right; anchors.rightMargin: 10; anchors.verticalCenter: parent.verticalCenter; implicitWidth: 26; implicitHeight: 26; leftPadding: 0; rightPadding: 0; font.pixelSize: 18; enabled: page.canSelect; onClicked: page.word.removeGroup(selectedRow.modelData.id)
+                                ToolTip.visible: hovered; ToolTip.text: "Bỏ vùng chọn" }
                         }
                     }
                 }

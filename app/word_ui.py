@@ -81,6 +81,27 @@ class WordDocuments(QObject):
                 return length(self._text_selection.text[:left]) + length(normalized(row['text'][:region['start']]))
         return -1
 
+    @Slot(str, result='QVariantMap')
+    def rangeLocation(self, identity):
+        group = next((row for row in self.reviewGroups if row['id'] == identity), None)
+        if not group:
+            return {}
+        regions = group['members']
+        positions = []
+        if self._preview and self._highlight_document:
+            positions = self._preview.selected_positions(self._highlight_document, regions)
+        elif not self._preview:
+            from .word_preview import length, normalized
+
+            for left, _, row, _ in self._text_selection.spans:
+                base = length(self._text_selection.text[:left])
+                positions.extend((base + length(normalized(row['text'][:region['start']])),
+                                  base + length(normalized(row['text'][:region['end']])))
+                    for region in regions if region['paragraph'] == row['id'])
+        return dict(paragraph=regions[0]['paragraph'], source_start=regions[0]['start'],
+                    source_end=regions[0]['end'], start=min((left for left, _ in positions), default=-1),
+                    end=max((right for _, right in positions), default=-1))
+
     def _show_error(self, message):
         self._state['message'] = self._attention = message
         self.changed.emit()

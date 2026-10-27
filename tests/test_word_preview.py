@@ -150,6 +150,18 @@ def test_changed_or_unmapped_text_is_rejected_instead_of_translating_wrong_range
         view.ranges(document, 0, 5)
 
 
+def test_unanchored_blank_line_between_source_paragraphs_is_only_spacing(preview):
+    package, view, _ = preview
+    document = QTextDocument()
+    document.setHtml(view.html.replace('</p>', '</p><p><br/></p>', 1))
+    selected, skipped = view.ranges(document, 0, document.characterCount() - 1)
+    assert skipped == 0
+    assert [region['paragraph'] for region in selected] == [row['id'] for row in package.rows]
+    blank = next(block for block in blocks(document) if block.text() and not block.text().strip())
+    with pytest.raises(ValueError, match='chưa có phần chữ dịch được'):
+        view.ranges(document, blank.position(), blank.position() + length(blank.text()))
+
+
 def test_sentence_excerpt_keeps_original_offsets_and_style(preview):
     package, view, _ = preview
     excerpt = view.excerpt('p1', 8, len(package.rows[1]['text']))

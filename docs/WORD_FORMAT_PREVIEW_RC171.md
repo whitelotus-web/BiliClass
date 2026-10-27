@@ -27,8 +27,17 @@ Bản nguồn thử tiếp sau tag/bộ cài RC170, nhánh
   Việt tổ hợp và vị trí UTF-16 sau emoji. Không tự thêm cả câu hoặc đoạn;
   muốn lấy trọn câu có thể dùng **Tích chọn → Câu**. Không tự bỏ từ đang
   chọn hụt, tránh mất phần nội dung người dùng định dịch.
-- Nút **Vùng 1…** vừa nội dung; nút bỏ vùng là **×**, có tooltip/nhãn hỗ
-  trợ tiếp cận. Chỉ bỏ vùng chọn, không xóa file.
+- Nút **#1, #2…** vừa nội dung; nút bỏ vùng **×** căn giữa theo chiều
+  cao từng thẻ, có tooltip/nhãn hỗ trợ tiếp cận. Chỉ bỏ vùng chọn, không
+  xóa file. Bỏ hai nút Chọn tất cả/Bỏ chọn ở khung nguồn; vẫn có
+  **Bỏ tất cả** ở khung bên phải.
+- Bấm # định vị cả nhóm vào giữa khung nguồn khi vừa chiều cao;
+  nhóm dài hơn khung bắt đầu ở dòng đầu để đọc tiếp. Giữ nguyên chế độ
+  bôi đen hoặc tích chọn, kể cả sau khi bỏ tất cả/xóa nhóm cuối cùng.
+- Dòng trống Word được Qt nhập thành dấu xuống dòng không có mốc nguồn
+  được bỏ qua khi ánh xạ vùng bôi đen. Chữ có nội dung vẫn phải khớp mốc
+  nguồn; không bỏ kiểm tra và không áp dụng bản dịch nhầm vị trí. Bôi qua
+  khoảng trắng giữa các đoạn vẫn hiện Chọn, không báo nhầm bố cục đã đổi.
 
 Kiểm bằng môi trường dự án: kiểm thử ánh xạ nguồn/vùng chọn, Qt Word với
 dịch vụ giả lập, giao diện sáng/tối và nhiều kích thước. File Word nguồn

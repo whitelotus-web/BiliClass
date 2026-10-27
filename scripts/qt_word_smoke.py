@@ -149,6 +149,11 @@ def main():
                 raise AssertionError(dict(start=start, end=end, first=(first.x(), first.y()), last=(last.x(), last.y()),
                     text=text.property('selectedText'), state=bridge.wordDocuments.state.get('attention_message')))
             assert c('wordHighlightPopup').width() <= 140 and c('wordHighlightPopup').height() <= 44
+            popup_rect = c('wordHighlightPopup').mapRectToScene(c('wordHighlightPopup').boundingRect())
+            viewport_rect = c('wordContinuousScroll').mapRectToScene(c('wordContinuousScroll').boundingRect())
+            if not c('wordExpandedDialog').property('visible'):
+                viewport_rect = viewport_rect.intersected(c('wordWorkflowScroll').mapRectToScene(c('wordWorkflowScroll').boundingRect()))
+            assert viewport_rect.contains(popup_rect), (viewport_rect, popup_rect)
             assert c('wordAcceptHighlight').property('text') in ('Chọn', 'Bỏ chọn')
             # At an end-of-line Qt may include the adjacent paragraph separator
             # when the caret rectangle is rounded to a physical screen pixel.
@@ -190,7 +195,8 @@ def main():
                     assert window.property('page') == 'word'
                     assert c('wordConfiguration').isVisible() and c('wordSourceArea').isVisible()
                     assert c('wordConfiguration').mapToScene(c('wordConfiguration').boundingRect().topLeft()).y() > c('wordSourceArea').mapToScene(c('wordSourceArea').boundingRect().topLeft()).y()
-                    assert not c('wordSelectAll').isEnabled() and not c('wordPreview').isEnabled()
+                    assert window.findChild(QObject, 'wordSelectAll') is None and window.findChild(QObject, 'wordClearSelection') is None
+                    assert not c('wordPreview').isEnabled()
                     assert not c('wordSave').isVisible() and not c('wordGoLibrary').isVisible()
                     assert c('wordConfigurationSummary').isVisible()
                     demo = c('wordFormatPreview')
@@ -423,6 +429,22 @@ def main():
                     click(window, c('wordSelect_1'))
                     until(lambda: not bridge.busy)
                     assert bridge.wordDocuments.state['selected_count'] == 1
+                    click(window, c('wordLocateRange_0'))
+                    pump(80)
+                    assert c('wordPage').property('selectionMode') == 'checkbox'
+                    assert c('wordLocateRange_0').property('text') == '#1'
+                    remove = c('wordRemoveRange_0')
+                    assert abs(remove.mapRectToScene(remove.boundingRect()).center().y() - remove.parentItem().mapRectToScene(remove.parentItem().boundingRect()).center().y()) <= 1
+                    click(window, c('wordClearAllRanges'))
+                    until(lambda: not bridge.busy)
+                    assert bridge.wordDocuments.state['selected_count'] == 0 and c('wordPage').property('selectionMode') == 'checkbox'
+                    click(window, c('wordSelect_1'))
+                    until(lambda: not bridge.busy)
+                    click(window, c('wordRemoveRange_0'))
+                    until(lambda: not bridge.busy)
+                    assert bridge.wordDocuments.state['selected_count'] == 0 and c('wordPage').property('selectionMode') == 'checkbox'
+                    click(window, c('wordSelect_1'))
+                    until(lambda: not bridge.busy)
                     # Select precisely after an emoji; Qt offsets are UTF-16.
                     text = c('wordSourceText_2')
                     click(window, text)
@@ -471,7 +493,7 @@ def main():
                     assert not c('wordDocumentPanels').isEnabled() and c('wordDocumentPanels').opacity() == .5
                     assert c('wordFormatPreview').isEnabled() and c('wordPreview').isEnabled()
                     assert bridge.wordDocuments.state['selected_count'] == 4
-                    assert not c('wordSelectAll').isEnabled() and not c('wordClearAllRanges').isEnabled()
+                    assert not c('wordClearAllRanges').isEnabled()
                     assert not c('wordSelectByCheckbox').isEnabled() and not c('wordContinuousText').property('selectByMouse')
                     assert len(bridge.wordDocuments.reviewGroups) == 1
                     assert bridge.wordDocuments.reviewGroups[0]['vi'].count('\n') == 3
@@ -593,7 +615,7 @@ def main():
                     click(window, c('wordAcceptHighlight'))
                     until(lambda: not bridge.busy)
                     assert bridge.wordDocuments.state['selected_count'] == 2, 'A drag can span multiple Word paragraphs'
-                    click(window, c('wordClearSelection'))
+                    click(window, c('wordClearAllRanges'))
                     until(lambda: not bridge.busy)
                     drag_text(0, first_end)
                     click(window, c('wordAcceptHighlight'))
@@ -623,6 +645,7 @@ def main():
                     # a picture object and repeated table cells (not only plain text).
                     rich = Document()
                     rich.add_heading('Bài học có hình và bảng', 0)
+                    rich.add_paragraph('\n')
                     picture = io.BytesIO()
                     Image.new('RGB', (160, 80), '#39A6D6').save(picture, format='PNG')
                     picture.seek(0)
@@ -658,7 +681,9 @@ def main():
                     parsed_preview.setHtml(bridge.wordDocuments.previewHtml)
                     (report / 'rich-text-map.json').write_text(json.dumps(dict(native=preview_text(),
                         parsed=parsed_preview.toPlainText()), ensure_ascii=False, indent=2), encoding='utf-8')
-                    click(window, c('wordSelectAll'))
+                    source_text.forceActiveFocus()
+                    QTest.keyClick(window, Qt.Key_A, Qt.ControlModifier)
+                    QTest.keyClick(window, Qt.Key_Return)
                     until(lambda: c('wordHighlightPopup').property('visible'))
                     click(window, c('wordAcceptHighlight'))
                     until(lambda: not bridge.busy)
@@ -745,6 +770,46 @@ def main():
                     assert c('wordEnglishFont').property('displayText') == 'Font gốc'
                     assert c('wordFontSize').property('editText') == 'Size gốc'
                     assert window.grabWindow().save(str(report / 'word-reset-formatting.png'))
+                    # A selected group in the middle of a tall cover page is
+                    # centered as a whole, including its blank Word line.
+                    cover = Document()
+                    for label in ('Trang bìa', 'Thông tin chung', 'Tên bài học'):
+                        cover.add_paragraph(label).paragraph_format.space_after = Pt(100)
+                    cover.add_paragraph('Đoạn thứ nhất cần dịch.')
+                    cover.add_paragraph('\n')
+                    cover.add_paragraph('Đoạn thứ hai cần dịch.')
+                    for index in range(30):
+                        cover.add_paragraph(f'Nội dung tiếp theo {index + 1}.')
+                    cover_source = directory / 'Trang bìa có dòng trống.docx'
+                    cover.save(cover_source)
+                    cover_original = cover_source.read_bytes()
+                    bridge.wordDocuments.openFile(cover_source.as_uri())
+                    until(lambda: not bridge.busy)
+                    click(window, c('wordSelectByHighlight'))
+                    show_document()
+                    source_text = c('wordContinuousText')
+                    content = preview_text()
+                    start = len(content[:content.index('Đoạn thứ nhất')].encode('utf-16-le')) // 2
+                    end = len(content[:content.index('Đoạn thứ hai') + len('Đoạn thứ hai cần dịch.')].encode('utf-16-le')) // 2
+                    assert QMetaObject.invokeMethod(source_text, 'select', Q_ARG(int, start), Q_ARG(int, end))
+                    assert QMetaObject.invokeMethod(c('wordPage'), 'offerHighlightedText')
+                    until(lambda: c('wordHighlightPopup').property('visible'))
+                    click(window, c('wordAcceptHighlight'))
+                    until(lambda: not bridge.busy)
+                    assert not bridge.wordDocuments.state['attention_message']
+                    assert len(bridge.wordDocuments.reviewGroups) == 1 and bridge.wordDocuments.state['selected_count'] == 2
+                    c('wordContinuousScroll').property('contentItem').setProperty('contentY', 700)
+                    click(window, c('wordLocateRange_0'))
+                    pump(80)
+                    location = bridge.wordDocuments.rangeLocation(bridge.wordDocuments.reviewGroups[0]['id'])
+                    def mapped_cursor(position):
+                        return source_text.mapRectToScene(QMetaObject.invokeMethod(source_text, 'positionToRectangle', Qt.DirectConnection,
+                            Q_RETURN_ARG(QRectF), Q_ARG(int, position)))
+                    midpoint = (mapped_cursor(location['start']).top() + mapped_cursor(location['end'] - 1).bottom()) / 2
+                    viewport = c('wordContinuousScroll').mapRectToScene(c('wordContinuousScroll').boundingRect())
+                    assert abs(midpoint - viewport.center().y()) <= 2, (midpoint, viewport)
+                    assert cover_source.read_bytes() == cover_original
+                    assert window.grabWindow().save(str(report / 'word-locate-centered-group.png'))
                     click(window, c('wordTabPowerPoint'))
                     assert window.property('page') == 'new'
                     assert c('creationSourceArea').isVisible()
@@ -759,11 +824,12 @@ def main():
                 'Word-style color palette, original-color option, typography icons and dependent education/grade choices',
                 'Single formatting row: layouts, color/keyword density, typography, font and editable point size at laptop and desktop widths',
                 'Source size follows selected runs by default; typed half-point size is remembered and can return to original',
-                'Expanded source workspace: mouse selection, collapse retains ranges, clear-all from both panels, Escape closes',
+                'Expanded source workspace: mouse selection, collapse retains ranges, clear-all in review/expanded source, Escape closes',
                 'Scrolling reveals a full-height reading workspace before moving the source text; reverse returns to setup; conversion footer stays fixed',
                 'Rich paper preview: native QML selection maps images and repeated table cells to original source ranges',
                 'Confirmed highlights remain on the immutable source; reselecting offers Remove; overlapping ranges retain source order without duplicates',
-                'Adjacent selected paragraphs form one review group; clicking a group scrolls the source to its matching text',
+                'Adjacent selections form one # group; locating centers the group; removal stays vertically centered and preserves selection mode',
+                'Blank Word spacer lines do not block mouse confirmation; confirmation remains inside the visible source viewport',
                 'Whole-document checkbox locks manual selectors, waits for Convert, preserves skipped objects and restores the previous manual selection',
                 'Right-aligned conversion action with selected-configuration summary; Save/library appear after translation',
                 'Live bilingual format sample follows color, highlight, typeface, size and style without a translation request',

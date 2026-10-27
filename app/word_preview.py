@@ -286,7 +286,10 @@ class Preview:
         block = document.findBlock(start)
         while block.isValid() and block.position() < end:
             left, right = max(0, start - block.position()), min(length(block.text()), end - block.position())
-            if left < right:
+            begin, finish = utf16_position(block.text(), left), utf16_position(block.text(), right)
+            # Qt Quick imports an empty Word paragraph as an unanchored line
+            # separator. It is spacing, not source text with a missing mapping.
+            if left < right and normalized(block.text())[begin:finish].strip():
                 identity, fragment = '', block.begin()
                 while not fragment.atEnd():
                     for name in fragment.fragment().charFormat().anchorNames():
@@ -298,13 +301,11 @@ class Preview:
                 row = self.rows.get(identity)
                 if not row or normalized(block.text()) != row['visible']:
                     raise ValueError('Bố cục xem trước đã đổi; tải lại tài liệu rồi chọn lại vùng dịch.')
-                begin, finish = utf16_position(block.text(), left), utf16_position(block.text(), right)
-                if normalized(block.text())[begin:finish].strip():
-                    if not row['source']['editable']:
-                        skipped += 1
-                    else:
-                        result.append(dict(paragraph=identity,
-                            start=self.source_position(row, begin, False), end=self.source_position(row, finish, True)))
+                if not row['source']['editable']:
+                    skipped += 1
+                else:
+                    result.append(dict(paragraph=identity,
+                        start=self.source_position(row, begin, False), end=self.source_position(row, finish, True)))
             block = block.next()
         if not result:
             raise ValueError('Vùng bôi đen chưa có phần chữ dịch được. Hình, công thức và đoạn đang khóa được giữ nguyên.')
