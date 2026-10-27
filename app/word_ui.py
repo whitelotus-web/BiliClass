@@ -17,6 +17,7 @@ class WordDocuments(QObject):
     configurationRestored = Signal()
     sourceTextChanged = Signal()
     formattingDefaultsChanged = Signal()
+    readingThemeChanged = Signal()
     workspaceReset = Signal()
 
     def __init__(self, bridge):
@@ -27,6 +28,8 @@ class WordDocuments(QObject):
         self._working, self._trash = False, False
         self._attention = ''
         self._formatting_defaults = jobs.formatting_defaults(bridge.library.directory)
+        self._reading_theme = jobs.reading_theme(bridge.library.directory)
+        self._reading_documents = {}
         from .word_selection import TextSelection
 
         self._text_selection, self._text_identity = TextSelection([]), ''
@@ -158,6 +161,54 @@ class WordDocuments(QObject):
     @Property('QVariantMap', notify=formattingDefaultsChanged)
     def formattingDefaults(self):
         return self._formatting_defaults
+
+    @Property(str, notify=readingThemeChanged)
+    def readingTheme(self):
+        return self._reading_theme
+
+    @Slot(str)
+    def setReadingTheme(self, theme):
+        if theme == self._reading_theme:
+            return
+        try:
+            self._reading_theme = jobs.reading_theme(self.bridge.library.directory, theme)
+        except (OSError, ValueError) as exc:
+            self._show_error('Chưa lưu được nền đọc văn bản: ' + str(exc))
+            return
+        from shiboken6 import isValid
+
+        if self._highlighter and isValid(self._highlighter):
+            self._highlighter.set_dark(theme == 'dark')
+        for _, _, highlighter in tuple(self._reading_documents.values()):
+            if isValid(highlighter):
+                highlighter.set_dark(theme == 'dark')
+        self.readingThemeChanged.emit()
+
+    @Slot(QObject)
+    def bindReadingDocument(self, wrapper):
+        if not wrapper:
+            return
+        from shiboken6 import isValid
+
+        if not isValid(wrapper):
+            return
+        document = wrapper.textDocument()
+        existing = self._reading_documents.get(wrapper)
+        if existing and existing[1] == document:
+            return
+        if existing:
+            if isValid(existing[2]):
+                existing[2].setDocument(None)
+                existing[2].deleteLater()
+        else:
+            wrapper.destroyed.connect(lambda *_: self._reading_documents.pop(wrapper, None))
+        from .word_highlights import SourceHighlights
+
+        highlighter = SourceHighlights(document)
+        # Retain the Quick wrapper as well as the document, just as in the
+        # continuous preview; release them when a virtualized row is destroyed.
+        self._reading_documents[wrapper] = (wrapper, document, highlighter)
+        highlighter.set_dark(self._reading_theme == 'dark')
 
     @Slot('QVariantMap')
     def rememberFormatting(self, options):
@@ -352,6 +403,7 @@ class WordDocuments(QObject):
 
         self._highlight_wrapper, self._highlight_document, self._highlight_identity = wrapper, document, identity
         self._highlighter = SourceHighlights(document)
+        self._highlighter.set_dark(self._reading_theme == 'dark')
         self._refresh_highlights()
 
     def _refresh_highlights(self):

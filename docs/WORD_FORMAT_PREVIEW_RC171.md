@@ -57,6 +57,12 @@ Thay đổi nguồn sau tag RC171, chưa thay bộ cài đã phát hành:
   đưa kiểu chuyển đổi lên hàng trên, định dạng và demo cùng hàng dưới.
 - Cụm − / 100% / + cao 24 px, cùng hàng lựa chọn Bôi đen/Tích chọn, không
   chiếm thêm hàng riêng phía trên tài liệu. Bấm phần trăm vẫn về 100%.
+- Hai icon trăng khuyết/mặt trời 22 × 24 px nằm trước cụm zoom, chọn nền
+  đọc tối/sáng độc lập với giao diện tool. Mặc định sáng, lưu lần gần nhất
+  trong `word_documents/reading.json`, tách khỏi cấu hình xuất Word.
+  Áp dụng cho Nội dung gốc ở cả bôi đen, tích chọn và cửa sổ phóng to.
+  Lớp hiển thị đổi nền/màu chữ cho dễ đọc, không đảo màu ảnh, không dựng
+  lại HTML, không đổi vùng chọn/vị trí cuộn, không đổi định dạng xuất.
 
 Chữ trong ảnh Word chưa được tích hợp OCR trong mốc này. Có thể tái dùng
 worker OCR Việt–Anh cục bộ của PowerPoint trong một luồng tùy chọn riêng:

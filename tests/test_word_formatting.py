@@ -80,6 +80,25 @@ def test_formatting_defaults_survive_reopen_and_apply_only_to_new_documents(prep
     assert jobs.formatting_defaults(directory)['color'] == 'original'
 
 
+def test_reading_theme_is_remembered_separately_from_export_and_source(prepared):
+    directory, source, job, _ = prepared
+    source_before = source.read_bytes()
+    record_before = (jobs.folder_for(directory, job['id']) / 'job.json').read_bytes()
+    formatting_before = jobs.formatting_defaults(directory)
+    assert jobs.reading_theme(directory) == 'light'
+    jobs.reading_theme(directory, 'dark')
+    assert jobs.reading_theme(directory) == 'dark'
+    assert jobs.formatting_defaults(directory) == formatting_before
+    assert source.read_bytes() == source_before
+    assert (jobs.folder_for(directory, job['id']) / 'job.json').read_bytes() == record_before
+    jobs.reading_theme(directory, 'light')
+    assert jobs.reading_theme(directory) == 'light'
+    with pytest.raises(ValueError):
+        jobs.reading_theme(directory, 'invalid')
+    (jobs.root(directory) / 'reading.json').write_text('broken', encoding='utf-8')
+    assert jobs.reading_theme(directory) == 'light'
+
+
 @pytest.mark.parametrize('mode,script', [('below', 'subscript'), ('columns', 'superscript'), ('english', 'normal'), ('keywords', 'superscript')])
 def test_word_toolbar_styles_and_palette_color_reach_export_without_changing_source(tmp_path, mode, script):
     document = Document()

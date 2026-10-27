@@ -121,6 +121,35 @@ def test_confirmed_highlights_preserve_text_styles_and_distinguish_identical_tab
     assert document.toHtml() == before
 
 
+def test_dark_reading_keeps_rich_source_images_and_selection_marks_out_of_saved_markup(preview):
+    from app.word_highlights import SourceHighlights
+
+    package, view, document = preview
+    before = document.toHtml()
+    image_formats = [fragment.fragment().charFormat() for block in blocks(document)
+                     for fragment in fragments(block) if fragment.fragment().charFormat().isImageFormat()]
+    highlighter = SourceHighlights(document)
+    region = dict(paragraph='p0', start=0, end=len(package.rows[0]['text']))
+    highlighter.set_ranges(view.selected_positions(document, [region]))
+    highlighter.set_dark(True)
+    formats = document.firstBlock().layout().formats()
+    assert formats[0].format.background().color().name() == '#264b70'
+    assert formats[0].format.foreground().color().lightnessF() >= .7
+    assert document.toHtml() == before
+    assert image_formats == [fragment.fragment().charFormat() for block in blocks(document)
+                             for fragment in fragments(block) if fragment.fragment().charFormat().isImageFormat()]
+    highlighter.set_dark(False)
+    assert document.firstBlock().layout().formats()[0].format.background().color().name() == '#dbeafe'
+    assert document.toHtml() == before
+
+
+def fragments(block):
+    fragment = block.begin()
+    while not fragment.atEnd():
+        yield fragment
+        fragment += 1
+
+
 def test_selection_after_emoji_and_across_linebreaks_is_not_offset_by_rich_formatting(preview):
     package, view, document = preview
     first = document.firstBlock()

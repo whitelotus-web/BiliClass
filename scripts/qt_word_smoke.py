@@ -127,7 +127,10 @@ def main():
                 scope = c('wordScopeSentences').mapRectToScene(c('wordScopeSentences').boundingRect())
                 panel = c('wordSourcePanel').mapRectToScene(c('wordSourcePanel').boundingRect())
                 assert abs(zoom.center().y() - method.center().y()) <= 1
-                assert zoom.left() >= scope.right() and zoom.right() <= panel.right() - 9, (scope, zoom, panel)
+                themes = c('wordReadingThemeControls').mapRectToScene(c('wordReadingThemeControls').boundingRect())
+                assert themes.left() >= scope.right() and zoom.left() >= themes.right() and zoom.right() <= panel.right() - 9, (scope, themes, zoom, panel)
+                assert abs(themes.center().y() - zoom.center().y()) <= 1
+                assert c('wordReadingDark').width() == c('wordReadingLight').width() == 22
             for name in ('wordStyleBold', 'wordStyleItalic', 'wordStyleUnderline', 'wordStyleStrike'):
                 button = c(name)
                 assert button.height() == 28 and button.width() <= 27
@@ -513,6 +516,41 @@ def main():
                     until(lambda: not bridge.busy)
                     assert bridge.wordDocuments.state['selected_count'] == 2
                     assert bridge.wordDocuments._highlighter.ranges
+                    content_before_theme = preview_text()
+                    ranges_before_theme = bridge.wordDocuments._ranges()
+                    formatting_before_theme = bridge.wordDocuments.formattingDefaults
+                    inner_before_theme = c('wordContinuousScroll').property('contentItem').property('contentY')
+                    html_before_theme = c('wordContinuousText').property('textDocument').textDocument().toHtml()
+                    for application_theme in ('light', 'dark'):
+                        bridge.setApplicationTheme(application_theme)
+                        for reading_theme in ('dark', 'light'):
+                            click(window, c('wordReadingDark' if reading_theme == 'dark' else 'wordReadingLight'))
+                            pump(60)
+                            assert bridge.applicationTheme == application_theme
+                            assert bridge.wordDocuments.readingTheme == reading_theme
+                            assert c('wordPreviewPaper').property('color').name() == ('#17212e' if reading_theme == 'dark' else '#ffffff')
+                            assert bridge.wordDocuments._ranges() == ranges_before_theme
+                            assert bridge.wordDocuments.formattingDefaults == formatting_before_theme
+                            assert preview_text() == content_before_theme
+                            assert c('wordContinuousText').property('textDocument').textDocument().toHtml() == html_before_theme
+                            assert c('wordContinuousScroll').property('contentItem').property('contentY') == inner_before_theme
+                            assert window.grabWindow().save(str(report / f'word-reading-{reading_theme}-app-{application_theme}.png'))
+                    bridge.setApplicationTheme('light')
+                    click(window, c('wordReadingDark'))
+                    from app.word_ui import WordDocuments
+                    assert WordDocuments(bridge).readingTheme == 'dark'
+                    drag_text(begin, finish)
+                    assert c('wordAcceptHighlight').property('text') == 'Bỏ chọn'
+                    click(window, c('wordDismissHighlight'))
+                    click(window, c('wordSelectByCheckbox'))
+                    pump(80)
+                    assert c('wordSourceText_1').parentItem().parentItem().property('color').name() == '#17212e'
+                    assert bridge.wordDocuments._reading_documents
+                    assert all(row[2].dark for row in bridge.wordDocuments._reading_documents.values())
+                    assert window.grabWindow().save(str(report / 'word-reading-dark-checkbox.png'))
+                    click(window, c('wordSelectByHighlight'))
+                    until(lambda: not bridge.wordDocuments._reading_documents)
+                    click(window, c('wordReadingLight'))
                     assert len(bridge.wordDocuments.reviewGroups) == 2
                     click(window, c('wordLocateRange_1'))
                     pump(80)

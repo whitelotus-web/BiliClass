@@ -231,6 +231,23 @@ def formatting_defaults(directory, value=None):
     return result
 
 
+def reading_theme(directory, value=None):
+    """Local reading preference; deliberately separate from export formatting."""
+    path = root(directory) / 'reading.json'
+    if value is None:
+        try:
+            if path.stat().st_size > 1024:
+                return 'light'
+            value = json.loads(path.read_text(encoding='utf-8'))['theme']
+        except (OSError, ValueError, TypeError, KeyError):
+            return 'light'
+        return value if value in ('light', 'dark') else 'light'
+    if value not in ('light', 'dark'):
+        raise ValueError('Chọn nền văn bản sáng hoặc tối.')
+    _atomic(path, json.dumps(dict(theme=value)).encode('utf-8'))
+    return value
+
+
 def translate(directory, identity, options, subject, grade, cancel, progress, *, translator=None, title=None):
     from .google_translation import Translator
     from .library import Library

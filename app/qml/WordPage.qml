@@ -65,6 +65,8 @@ Item {
     property string selectionScope: "paragraphs"
     readonly property bool highlightSelection: selectionMode === "highlight"
     readonly property bool wholeDocument: !!documentState.whole_document
+    readonly property bool readingDark: page.word.readingTheme === "dark"
+    readonly property color readingPaper: readingDark ? "#17212e" : "white"
     readonly property bool canSelect: page.available && !page.wholeDocument
     onWholeDocumentChanged: if (wholeDocument) { highlightPopup.close(); sourceDialog.close() }
     readonly property bool resultVisible: !page.documentState.working && page.documentState.can_export && (page.documentState.phase === "completed" || page.documentState.phase === "review")
@@ -430,7 +432,7 @@ Item {
                     }
                     ButtonGroup { id: selectionMethods }
                     ButtonGroup { id: selectionScopes }
-                    RowLayout { objectName: "wordSelectionControls"; Layout.fillWidth: true; spacing: 4
+                    RowLayout { objectName: "wordSelectionControls"; Layout.fillWidth: true; spacing: 3
                         SourceRadio { objectName: "wordSelectByHighlight"; text: sourcePanel.width < 620 ? "Bôi đen" : "Bôi đen văn bản"; Accessible.name: "Bôi đen văn bản"; checked: page.highlightSelection; ButtonGroup.group: selectionMethods; enabled: page.canSelect; onClicked: page.selectionMode = "highlight"
                             ToolTip.visible: hovered; ToolTip.text: "Bôi đen rồi nhả chuột; bấm Chọn để thêm vùng cần dịch." }
                         SourceRadio { objectName: "wordSelectByCheckbox"; text: sourcePanel.width < 620 ? "Tích chọn" : "Tích chọn đoạn/câu"; Accessible.name: "Tích chọn đoạn/câu"; checked: !page.highlightSelection; ButtonGroup.group: selectionMethods; enabled: page.canSelect; onClicked: page.selectionMode = "checkbox" }
@@ -438,6 +440,10 @@ Item {
                         SelectionScope { objectName: "wordScopeParagraphs"; text: "Đoạn"; Accessible.name: "Theo đoạn"; checked: page.selectionScope === "paragraphs"; ButtonGroup.group: selectionScopes; enabled: page.canSelect && !page.highlightSelection; onClicked: page.selectionScope = "paragraphs" }
                         SelectionScope { objectName: "wordScopeSentences"; text: "Câu"; Accessible.name: "Theo câu"; checked: page.selectionScope === "sentences"; ButtonGroup.group: selectionScopes; enabled: page.canSelect && !page.highlightSelection; onClicked: page.selectionScope = "sentences" }
                         Item { Layout.fillWidth: true }
+                        RowLayout { objectName: "wordReadingThemeControls"; visible: !!page.documentState.id; spacing: 2
+                            WordReadingThemeButton { objectName: "wordReadingDark"; moon: true; checked: page.readingDark; enabled: page.available; onClicked: page.word.setReadingTheme("dark") }
+                            WordReadingThemeButton { objectName: "wordReadingLight"; checked: !page.readingDark; enabled: page.available; onClicked: page.word.setReadingTheme("light") }
+                        }
                         RowLayout { objectName: "wordZoomControls"; visible: page.highlightSelection && !!page.documentState.id; spacing: 3
                             WordAction { objectName: "wordZoomOut"; text: "−"; implicitHeight: 24; implicitWidth: 22; font.pixelSize: 11; leftPadding: 0; rightPadding: 0; onClicked: page.previewZoom = Math.max(.4, (page.previewZoom || 1) - .1) }
                             WordAction { objectName: "wordZoomFit"; text: Math.round((page.previewZoom || 1) * 100) + "%"; implicitHeight: 24; implicitWidth: 42; font.pixelSize: 11; leftPadding: 5; rightPadding: 5; onClicked: page.previewZoom = 0; ToolTip.visible: hovered; ToolTip.text: "Về 100%" }
@@ -453,15 +459,19 @@ Item {
                         delegate: Rectangle {
                             id: sourceRow; required property var modelData; required property int index
                             width: ListView.view.width - 24; height: sourceContents.implicitHeight + 16; radius: 8
-                            color: "white"; border.color: modelData.selected ? AppTheme.blue : "#d5dbe4"; border.width: modelData.selected ? 2 : 1
+                            color: page.readingPaper; border.color: modelData.selected ? AppTheme.blue : "#d5dbe4"; border.width: modelData.selected ? 2 : 1
                             ColumnLayout { id: sourceContents; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 8; spacing: 3
                                 RowLayout { Layout.fillWidth: true
                                     CheckBox { objectName: "wordSelect_" + sourceRow.index; checked: sourceRow.modelData.selected; enabled: page.canSelect && sourceRow.modelData.editable
                                         onClicked: page.word.toggle(sourceRow.modelData.paragraph, sourceRow.modelData.start, sourceRow.modelData.end, checked) }
-                                    Hint { text: sourceRow.modelData.location; color: "#53647c"; font.pixelSize: 10; Layout.fillWidth: true }
+                                    Hint { text: sourceRow.modelData.location; color: page.readingDark ? "#afbed2" : "#53647c"; font.pixelSize: 10; Layout.fillWidth: true }
                                 }
                                 TextArea {
                                     id: sourceText; objectName: "wordSourceText_" + sourceRow.index; Layout.fillWidth: true; implicitHeight: contentHeight + 12
+                                    Component.onCompleted: page.word.bindReadingDocument(sourceText.textDocument)
+                                    Connections { target: sourceText.textDocument
+                                        function onTextDocumentChanged() { page.word.bindReadingDocument(sourceText.textDocument) }
+                                    }
                                     text: sourceRow.modelData.html || sourceRow.modelData.text; textFormat: sourceRow.modelData.html ? TextEdit.RichText : TextEdit.PlainText; readOnly: true; selectByMouse: page.canSelect; persistentSelection: true; wrapMode: TextEdit.Wrap
                                     color: "#202020"; selectedTextColor: "white"; selectionColor: "#1769d5"; font.pixelSize: 13
                                     background: Rectangle { color: "transparent" }
@@ -489,7 +499,7 @@ Item {
                         height: Math.max(continuousText.implicitHeight, page.documentState.id ? width * 1.414 : 90)
                         scale: page.documentState.id ? Math.max(.1, textScroll.availableWidth / width) * (page.previewZoom || 1) : 1
                         transformOrigin: Item.TopLeft; x: (parent.width - width * scale) / 2; y: 8
-                        color: "white"; border.color: "#d5dbe4"; border.width: 1
+                        color: page.readingPaper; border.color: "#d5dbe4"; border.width: 1
                         TextArea {
                             id: continuousText; objectName: "wordContinuousText"; width: paper.width
                             Connections { target: continuousText.textDocument
