@@ -311,11 +311,11 @@ Item {
             color: AppTheme.surface; radius: 14; border.color: AppTheme.line
             ColumnLayout {
             id: configuration; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: page.compact ? 9 : 13; spacing: page.compact ? 6 : 10
+            Label { text: "Cấu hình bài giảng"; color: AppTheme.ink; font.pixelSize: 15; font.weight: Font.DemiBold }
             RowLayout {
-            objectName: "wordMetadataPreviewRow"; Layout.fillWidth: true; spacing: 12
+            objectName: "wordConfigurationPreviewRow"; Layout.fillWidth: true; spacing: 12
             ColumnLayout {
             Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.alignment: Qt.AlignTop; spacing: page.compact ? 6 : 10
-            Label { text: "Cấu hình bài giảng"; color: AppTheme.ink; font.pixelSize: 15; font.weight: Font.DemiBold }
             GridLayout {
             id: metadataFields; objectName: "wordMetadataFields"; Layout.fillWidth: true; columns: width >= 660 ? 4 : 2; columnSpacing: 12; rowSpacing: 8
             ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 3; spacing: 4
@@ -334,18 +334,6 @@ Item {
             ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 1; spacing: 4
                 Hint { text: "Khối lớp" }
                 Choice { id: grade; objectName: "wordGrade"; model: page.appBridge.educationGrades(education.currentText); currentIndex: 1; Layout.fillWidth: true; enabled: page.available }
-            }
-            }
-            }
-            WordFormatPreview { id: formatPreview; objectName: "wordFormatPreview"; visible: !!page.documentState.id
-                Layout.preferredWidth: page.width < 950 ? 224 : 240; Layout.minimumWidth: Layout.preferredWidth; Layout.maximumWidth: Layout.preferredWidth
-                Layout.preferredHeight: 96; Layout.minimumHeight: 96; Layout.maximumHeight: 96; Layout.alignment: Qt.AlignBottom
-                family: page.draftFont() || (page.word.sourceFonts.length ? page.word.sourceFonts[0] : "Times New Roman")
-                pointSize: englishSize.pointSize || Number(page.word.sourceFontSize) || 12
-                textColor: englishColor.original ? "#17263b" : englishColor.inkColor
-                highlight: englishHighlight.colorCode
-                mode: page.selectedModeCode
-                bold: textStyle.bold; italic: textStyle.italic; underline: textStyle.underline; strike: textStyle.strike
             }
             }
             Item {
@@ -379,7 +367,7 @@ Item {
                     }
                 }
             }
-            RowLayout { id: formattingOptions; objectName: "wordFormattingOptions"; x: formattingToolbar.inlineControls ? conversionOptions.width + 12 : 0; y: formattingToolbar.controlsY; width: formattingToolbar.minimumControlsWidth; height: 38; spacing: 4
+            RowLayout { id: formattingOptions; objectName: "wordFormattingOptions"; x: formattingToolbar.width - width; y: formattingToolbar.controlsY; width: formattingToolbar.minimumControlsWidth; height: 38; spacing: 4
                 ColumnLayout { Layout.alignment: Qt.AlignBottom; Layout.minimumWidth: 60; Layout.maximumWidth: 60; spacing: 4
                     WordColorPicker { id: englishColor; objectName: "wordEnglishColor"; visible: mode.currentIndex !== 2; Layout.preferredWidth: 60; enabled: page.available; onChosen: page.rememberFormatting() }
                     Choice { id: density; objectName: "wordKeywordDensity"; visible: mode.currentIndex === 2; model: ["Ít", "Vừa", "Sâu"]; currentIndex: 1; Layout.preferredWidth: 60; enabled: page.available
@@ -404,6 +392,18 @@ Item {
                 }
             }
             WordResetFormatting { id: resetFormat; objectName: "wordResetFormatting"; Layout.preferredWidth: 30; Layout.preferredHeight: 28; Layout.maximumHeight: 28; Layout.alignment: Qt.AlignVCenter; enabled: page.available; onClicked: page.resetFormatting() }
+            }
+            }
+            }
+            WordFormatPreview { id: formatPreview; objectName: "wordFormatPreview"; visible: !!page.documentState.id
+                Layout.preferredWidth: page.width < 950 ? 224 : 240; Layout.minimumWidth: Layout.preferredWidth; Layout.maximumWidth: Layout.preferredWidth
+                Layout.fillHeight: true; Layout.minimumHeight: 96; Layout.maximumHeight: 160; Layout.alignment: Qt.AlignBottom
+                family: page.draftFont() || (page.word.sourceFonts.length ? page.word.sourceFonts[0] : "Times New Roman")
+                pointSize: englishSize.pointSize || Number(page.word.sourceFontSize) || 12
+                textColor: englishColor.original ? "#17263b" : englishColor.inkColor
+                highlight: englishHighlight.colorCode
+                mode: page.selectedModeCode
+                bold: textStyle.bold; italic: textStyle.italic; underline: textStyle.underline; strike: textStyle.strike
             }
             }
             }

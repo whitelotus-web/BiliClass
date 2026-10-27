@@ -106,7 +106,7 @@ def main():
                     window.grabWindow().save(str(report / 'toolbar-alignment-failure.png'))
                     raise AssertionError((mode_rect, left, right, c('wordFormattingToolbar').property('controlsY'), c('wordConversionOptions').property('implicitHeight')))
             else:
-                assert left.bottom() < right.top() and left.left() == right.left()
+                assert left.bottom() < right.top() and abs(right.right() - toolbar.right()) <= 1
             assert left.left() == toolbar.left()
             for index in range(4):
                 radio = c('wordMode_' + str(index))
@@ -119,9 +119,10 @@ def main():
                 fields = c('wordMetadataFields').mapRectToScene(c('wordMetadataFields').boundingRect())
                 grade = c('wordGrade').mapRectToScene(c('wordGrade').boundingRect())
                 assert abs(demo_rect.left() - grade.right() - 12) <= 1, (grade, demo_rect)
-                assert abs(demo_rect.right() - toolbar.right()) <= 1
+                assert abs(demo_rect.left() - rectangles[-1].right() - 12) <= 1, (rectangles[-1], demo_rect)
                 assert demo_rect.top() <= grade.center().y() <= demo_rect.bottom()
-                assert demo_rect.bottom() < toolbar.top() and fields.bottom() < toolbar.top()
+                assert demo_rect.top() <= rectangles[-1].center().y() <= demo_rect.bottom()
+                assert abs(demo_rect.bottom() - toolbar.bottom()) <= 1 and fields.bottom() < toolbar.top()
                 for name in ('wordTitle', 'wordSubject', 'wordEducation', 'wordGrade'):
                     field = c(name).mapRectToScene(c(name).boundingRect())
                     assert fields.contains(field) and field.width() >= 90, (name, field, fields)
@@ -336,7 +337,7 @@ def main():
                     assert c('wordWholeDocumentIndicator').width() == c('wordWholeDocumentIndicator').height() == 16
                     assert c('wordWholeDocument').height() >= 28
                     assert demo.isVisible() and demo.width() <= 300
-                    assert demo.height() <= 110
+                    assert demo.height() <= 160
                     assert abs(c('wordSourceArea').width() - c('wordSourcePreviewRow').width()) <= 1
                     for width, height in ((1080, 700), (1366, 850), (1760, 990)):
                         window.resize(width, height)
