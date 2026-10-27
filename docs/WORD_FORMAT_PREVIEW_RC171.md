@@ -42,3 +42,18 @@ Bản nguồn thử tiếp sau tag/bộ cài RC170, nhánh
 Kiểm bằng môi trường dự án: kiểm thử ánh xạ nguồn/vùng chọn, Qt Word với
 dịch vụ giả lập, giao diện sáng/tối và nhiều kích thước. File Word nguồn
 phải giữ nguyên byte, định dạng xuất chỉ áp dụng cho vùng dịch đã xác nhận.
+
+## Tinh gọn sau bản phát hành RC171
+
+Thay đổi nguồn sau tag RC171, chưa thay bộ cài đã phát hành:
+
+- Tiêu đề khung bên phải thống nhất **Nội dung chuyển đổi**; số nhóm vẫn
+  có trong thanh cấu hình phía dưới. Bỏ dòng hướng dẫn dưới tiêu đề.
+- Ô tích **Dịch toàn bộ** là hình vuông 16 px; vùng bấm vẫn cao 32 px,
+  có dấu chọn tương phản, viền khi dùng bàn phím và trạng thái vô hiệu.
+
+Chữ trong ảnh Word chưa được tích hợp OCR trong mốc này. Có thể tái dùng
+worker OCR Việt–Anh cục bộ của PowerPoint trong một luồng tùy chọn riêng:
+chọn ảnh → nhận diện có giới hạn/hủy/cache → xem sửa chữ → dùng dịch vụ
+dịch hiện tại → thêm bản dịch dạng chữ dưới ảnh ở bản xuất mới. Giữ nguyên
+ảnh/tệp nguồn; không tự OCR mọi ảnh và không tự xóa chữ hoặc vẽ đè lên ảnh.

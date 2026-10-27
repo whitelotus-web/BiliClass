@@ -36,7 +36,15 @@ Rectangle {
             WordAction { objectName: "wordUploadChoose"; visible: !upload.loaded; text: upload.busy ? "Chờ hoàn tất tác vụ…" : "Chọn file Word"; primary: true; implicitHeight: 44; font.pixelSize: 14; Layout.alignment: Qt.AlignHCenter; Layout.preferredWidth: 258; enabled: !upload.busy; onClicked: upload.chooseFile() }
             Label { visible: !upload.loaded; text: "Chỉ hỗ trợ tệp .docx tối đa 50 MB · Giữ nguyên file gốc"; color: AppTheme.muted; font.pixelSize: 12; wrapMode: Text.WordWrap; horizontalAlignment: Text.AlignHCenter; Layout.fillWidth: true }
         }
-        CheckBox { objectName: "wordWholeDocument"; visible: upload.loaded; text: "Dịch toàn bộ"; checked: upload.wholeDocument; enabled: !upload.busy
+        CheckBox { id: wholeDocumentChoice; objectName: "wordWholeDocument"; visible: upload.loaded; text: "Dịch toàn bộ"; checked: upload.wholeDocument; enabled: !upload.busy
+            implicitHeight: 32; leftPadding: 0; rightPadding: 0; spacing: 6
+            indicator: Rectangle { objectName: "wordWholeDocumentIndicator"; x: 0; y: (wholeDocumentChoice.height - height) / 2; width: 16; height: 16; radius: 3; opacity: wholeDocumentChoice.enabled ? 1 : .45
+                color: wholeDocumentChoice.checked ? AppTheme.blue : AppTheme.field
+                border.width: wholeDocumentChoice.visualFocus ? 2 : 1
+                border.color: wholeDocumentChoice.checked || wholeDocumentChoice.visualFocus ? AppTheme.blue : AppTheme.muted
+                Text { anchors.centerIn: parent; visible: wholeDocumentChoice.checked; text: "✓"; color: AppTheme.dark ? "#112650" : "white"; font.pixelSize: 12 }
+            }
+            contentItem: Text { text: wholeDocumentChoice.text; leftPadding: wholeDocumentChoice.indicator.width + wholeDocumentChoice.spacing; color: wholeDocumentChoice.enabled ? AppTheme.ink : AppTheme.disabled; font.pixelSize: 12; verticalAlignment: Text.AlignVCenter }
             palette.windowText: AppTheme.ink
             ToolTip.visible: hovered; ToolTip.text: "Dịch toàn bộ phần chữ có thể chỉnh sửa. Hình, công thức và phần đang khóa được giữ nguyên."
             onClicked: upload.wholeDocumentToggled(checked)

@@ -199,6 +199,7 @@ def main():
                     assert not c('wordPreview').isEnabled()
                     assert not c('wordSave').isVisible() and not c('wordGoLibrary').isVisible()
                     assert c('wordConfigurationSummary').isVisible()
+                    assert c('wordSelectedCount').property('text') == 'Nội dung chuyển đổi'
                     demo = c('wordFormatPreview')
                     assert not demo.isVisible()
                     assert abs(c('wordSourceArea').width() - c('wordSourcePreviewRow').width()) <= 1
@@ -304,6 +305,8 @@ def main():
                     assert bridge.wordDocuments.state['options']['font'] == 'Arial'
                     pump(80)
                     assert not c('wordAttentionBanner').isVisible()
+                    assert c('wordWholeDocumentIndicator').width() == c('wordWholeDocumentIndicator').height() == 16
+                    assert c('wordWholeDocument').height() >= 28
                     assert demo.isVisible() and demo.width() <= 300
                     assert demo.height() <= 110
                     assert c('wordDemoHeading').property('text') == 'Xem trước song ngữ'
@@ -490,6 +493,7 @@ def main():
                     click(window, c('wordWholeDocument'))
                     until(lambda: not bridge.busy)
                     assert bridge.wordDocuments.state['whole_document']
+                    assert c('wordSelectedCount').property('text') == 'Nội dung chuyển đổi'
                     assert not c('wordDocumentPanels').isEnabled() and c('wordDocumentPanels').opacity() == .5
                     assert c('wordFormatPreview').isEnabled() and c('wordPreview').isEnabled()
                     assert bridge.wordDocuments.state['selected_count'] == 4

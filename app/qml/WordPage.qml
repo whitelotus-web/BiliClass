@@ -524,10 +524,9 @@ Item {
                 Layout.fillWidth: true; Layout.fillHeight: true; Layout.preferredWidth: 1; color: AppTheme.surface; radius: 11; border.color: AppTheme.line
                 ColumnLayout { anchors.fill: parent; anchors.margins: 12; spacing: 8
                     RowLayout { Layout.fillWidth: true
-                        Label { objectName: "wordSelectedCount"; text: page.wholeDocument ? "Dịch toàn bộ" : page.documentState.id ? "Đã chọn " + (page.documentState.group_count || 0) + " vùng" : "Bản dịch xem trước"; font.bold: true; color: AppTheme.ink; Layout.fillWidth: true }
+                        Label { objectName: "wordSelectedCount"; text: "Nội dung chuyển đổi"; font.bold: true; color: AppTheme.ink; Layout.fillWidth: true }
                         WordAction { objectName: "wordClearAllRanges"; text: "Bỏ tất cả"; enabled: page.canSelect && page.documentState.selected_count > 0; visible: !!page.documentState.id; implicitHeight: 30; onClicked: page.clearSourceSelections() }
                     }
-                    Hint { text: !page.documentState.id ? "Bản dịch sẽ hiện tại đây sau khi chọn vùng và chuyển đổi." : page.documentState.can_export ? "Xem phần Việt và chỉnh bản Anh trước khi lưu." : page.wholeDocument ? "Bấm Chuyển đổi bài giảng để dịch toàn bộ phần chữ theo cấu hình đã chọn." : page.documentState.selected_count ? "Tiếp tục chọn vùng hoặc bấm Chuyển đổi ở thanh dưới để xem bản Anh." : page.highlightSelection ? "Bôi đen bên trái, nhả chuột rồi bấm Chọn." : "Tích chọn đoạn/câu hoặc thêm vùng bôi đen ở bên trái."; Layout.fillWidth: true }
                     ListView {
                         id: reviewList; objectName: "wordReviewList"; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 10; model: page.word.reviewGroups
                         WheelHandler { target: null; onWheel: function(event) { page.scrollWorkspace(event, reviewList) } }
