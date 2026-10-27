@@ -51,10 +51,11 @@ Thay đổi nguồn sau tag RC171, chưa thay bộ cài đã phát hành:
   có trong thanh cấu hình phía dưới. Bỏ dòng hướng dẫn dưới tiêu đề.
 - Ô tích **Dịch toàn bộ** là hình vuông 16 px; vùng bấm vẫn cao 32 px,
   có dấu chọn tương phản, viền khi dùng bàn phím và trạng thái vô hiệu.
-- Ô demo được đưa vào hàng cấu hình, ngay bên phải nút đặt lại định dạng;
-  cụm định dạng dồn sang trái, khung tệp dùng trọn chiều ngang. Demo cao
-  96 px, rộng 224–240 px và vẫn chỉ hiện sau khi tải Word. Màn hình hẹp
-  đưa kiểu chuyển đổi lên hàng trên, định dạng và demo cùng hàng dưới.
+- Ô demo đặt bên phải **Khối lớp**, cùng khối thông tin bài học; cụm kiểu
+  chuyển đổi và định dạng nằm bên dưới, khung tệp dùng trọn chiều ngang.
+  Demo cao 96 px, rộng 224–240 px và chỉ hiện sau khi tải Word. Màn hình
+  hẹp chia thông tin bài học thành hai hàng, giữ demo cạnh ô Khối lớp;
+  hàng định dạng tự xuống dòng khi không đủ chỗ.
 - Cụm − / 100% / + cao 24 px, cùng hàng lựa chọn Bôi đen/Tích chọn, không
   chiếm thêm hàng riêng phía trên tài liệu. Bấm phần trăm vẫn về 100%.
 - Hai icon trăng khuyết/mặt trời 22 × 24 px nằm trước cụm zoom, chọn nền

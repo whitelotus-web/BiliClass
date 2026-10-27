@@ -311,9 +311,13 @@ Item {
             color: AppTheme.surface; radius: 14; border.color: AppTheme.line
             ColumnLayout {
             id: configuration; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: page.compact ? 9 : 13; spacing: page.compact ? 6 : 10
+            RowLayout {
+            objectName: "wordMetadataPreviewRow"; Layout.fillWidth: true; spacing: 12
+            ColumnLayout {
+            Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.alignment: Qt.AlignTop; spacing: page.compact ? 6 : 10
             Label { text: "Cấu hình bài giảng"; color: AppTheme.ink; font.pixelSize: 15; font.weight: Font.DemiBold }
             GridLayout {
-            Layout.fillWidth: true; columns: page.width >= 680 ? 4 : 2; columnSpacing: 12; rowSpacing: 8
+            id: metadataFields; objectName: "wordMetadataFields"; Layout.fillWidth: true; columns: width >= 660 ? 4 : 2; columnSpacing: 12; rowSpacing: 8
             ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 3; spacing: 4
                 Hint { text: "Tên bài học" }
                 TextField { id: lessonTitle; objectName: "wordTitle"; placeholderText: "Tên theo file Word"; maximumLength: 200; color: AppTheme.ink; implicitHeight: 38; Layout.fillWidth: true; enabled: page.available
@@ -332,15 +336,25 @@ Item {
                 Choice { id: grade; objectName: "wordGrade"; model: page.appBridge.educationGrades(education.currentText); currentIndex: 1; Layout.fillWidth: true; enabled: page.available }
             }
             }
+            }
+            WordFormatPreview { id: formatPreview; objectName: "wordFormatPreview"; visible: !!page.documentState.id
+                Layout.preferredWidth: page.width < 950 ? 224 : 240; Layout.minimumWidth: Layout.preferredWidth; Layout.maximumWidth: Layout.preferredWidth
+                Layout.preferredHeight: 96; Layout.minimumHeight: 96; Layout.maximumHeight: 96; Layout.alignment: Qt.AlignBottom
+                family: page.draftFont() || (page.word.sourceFonts.length ? page.word.sourceFonts[0] : "Times New Roman")
+                pointSize: englishSize.pointSize || Number(page.word.sourceFontSize) || 12
+                textColor: englishColor.original ? "#17263b" : englishColor.inkColor
+                highlight: englishHighlight.colorCode
+                mode: page.selectedModeCode
+                bold: textStyle.bold; italic: textStyle.italic; underline: textStyle.underline; strike: textStyle.strike
+            }
+            }
             Item {
             id: formattingToolbar; objectName: "wordFormattingToolbar"; Layout.fillWidth: true
             readonly property real minimumControlsWidth: 60 + 40 + textStyle.implicitWidth + englishFont.Layout.preferredWidth + 82 + 30 + 20
-            readonly property real sampleWidth: formatPreview.visible ? (page.width < 950 ? 224 : 240) : 0
-            readonly property bool inlineControls: width >= (page.width < 1200 ? 280 : 440) + minimumControlsWidth + sampleWidth + (sampleWidth ? 24 : 12)
-            readonly property real controlsRowHeight: formatPreview.visible ? formatPreview.height : 38
-            readonly property real controlsY: inlineControls ? Math.max(conversionOptions.implicitHeight - 38, (implicitHeight - 38) / 2) : conversionOptions.implicitHeight + 8 + (controlsRowHeight - 38) / 2
-            implicitHeight: inlineControls ? Math.max(conversionOptions.implicitHeight, controlsRowHeight) : conversionOptions.implicitHeight + 8 + controlsRowHeight
-            ColumnLayout { id: conversionOptions; objectName: "wordConversionOptions"; width: formattingToolbar.inlineControls ? formattingToolbar.width - formattingToolbar.minimumControlsWidth - formattingToolbar.sampleWidth - (formattingToolbar.sampleWidth ? 24 : 12) : formattingToolbar.width; height: implicitHeight; y: formattingToolbar.inlineControls ? Math.max(0, formattingToolbar.controlsY + 38 - implicitHeight) : 0; spacing: 4
+            readonly property bool inlineControls: width >= (page.width < 1200 ? 280 : 440) + minimumControlsWidth + 12
+            readonly property real controlsY: inlineControls ? Math.max(0, conversionOptions.implicitHeight - 38) : conversionOptions.implicitHeight + 8
+            implicitHeight: inlineControls ? Math.max(conversionOptions.implicitHeight, 38) : conversionOptions.implicitHeight + 8 + 38
+            ColumnLayout { id: conversionOptions; objectName: "wordConversionOptions"; width: formattingToolbar.inlineControls ? formattingToolbar.width - formattingToolbar.minimumControlsWidth - 12 : formattingToolbar.width; height: implicitHeight; y: 0; spacing: 4
                 Hint { text: "Kiểu chuyển đổi" }
                 ButtonGroup { id: conversionModes }
                 RowLayout {
@@ -390,16 +404,6 @@ Item {
                 }
             }
             WordResetFormatting { id: resetFormat; objectName: "wordResetFormatting"; Layout.preferredWidth: 30; Layout.preferredHeight: 28; Layout.maximumHeight: 28; Layout.alignment: Qt.AlignVCenter; enabled: page.available; onClicked: page.resetFormatting() }
-            }
-            WordFormatPreview { id: formatPreview; objectName: "wordFormatPreview"; visible: !!page.documentState.id
-                x: formattingOptions.x + formattingOptions.width + 12; y: formattingToolbar.inlineControls ? 0 : conversionOptions.implicitHeight + 8
-                width: formattingToolbar.sampleWidth; height: 96
-                family: page.draftFont() || (page.word.sourceFonts.length ? page.word.sourceFonts[0] : "Times New Roman")
-                pointSize: englishSize.pointSize || Number(page.word.sourceFontSize) || 12
-                textColor: englishColor.original ? "#17263b" : englishColor.inkColor
-                highlight: englishHighlight.colorCode
-                mode: page.selectedModeCode
-                bold: textStyle.bold; italic: textStyle.italic; underline: textStyle.underline; strike: textStyle.strike
             }
             }
             }

@@ -116,9 +116,15 @@ def main():
             assert abs(rectangles[-1].right() - right.right()) <= 1
             if c('wordFormatPreview').isVisible():
                 demo_rect = c('wordFormatPreview').mapRectToScene(c('wordFormatPreview').boundingRect())
-                assert abs(demo_rect.left() - rectangles[-1].right() - 12) <= 1
-                assert demo_rect.right() <= toolbar.right() + 1
-                assert demo_rect.top() <= right.top() and demo_rect.bottom() >= right.bottom()
+                fields = c('wordMetadataFields').mapRectToScene(c('wordMetadataFields').boundingRect())
+                grade = c('wordGrade').mapRectToScene(c('wordGrade').boundingRect())
+                assert abs(demo_rect.left() - grade.right() - 12) <= 1, (grade, demo_rect)
+                assert abs(demo_rect.right() - toolbar.right()) <= 1
+                assert demo_rect.top() <= grade.center().y() <= demo_rect.bottom()
+                assert demo_rect.bottom() < toolbar.top() and fields.bottom() < toolbar.top()
+                for name in ('wordTitle', 'wordSubject', 'wordEducation', 'wordGrade'):
+                    field = c(name).mapRectToScene(c(name).boundingRect())
+                    assert fields.contains(field) and field.width() >= 90, (name, field, fields)
                 config_rect = c('wordConfiguration').mapRectToScene(c('wordConfiguration').boundingRect())
                 assert config_rect.contains(demo_rect)
             if c('wordZoomControls').isVisible():
