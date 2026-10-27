@@ -91,7 +91,7 @@ def main():
 
         def check_formatting_row():
             picker = 'wordKeywordDensity' if c('wordMode').property('currentIndex') == 2 else 'wordEnglishColor'
-            parts = [c(name) for name in ('wordMode', picker, 'wordEnglishHighlight', 'wordTextStyle', 'wordEnglishFont', 'wordFontSize', 'wordResetFormatting')]
+            parts = [c(name) for name in (picker, 'wordEnglishHighlight', 'wordTextStyle', 'wordEnglishFont', 'wordFontSize', 'wordResetFormatting')]
             rectangles = [item.mapRectToScene(item.boundingRect()) for item in parts]
             assert max(rect.center().y() for rect in rectangles) - min(rect.center().y() for rect in rectangles) < 2, rectangles
             assert all(left.right() <= right.left() + 1 for left, right in zip(rectangles, rectangles[1:])), rectangles
@@ -99,16 +99,35 @@ def main():
             assert rectangles[-1].right() <= toolbar.right() + 1 <= window.width(), rectangles[-1]
             layout_group, style_group = [c(name) for name in ('wordConversionOptions', 'wordFormattingOptions')]
             left, right = [item.mapRectToScene(item.boundingRect()) for item in (layout_group, style_group)]
-            assert left.right() < right.left() and left.left() == toolbar.left()
-            assert abs(right.right() - toolbar.right()) <= 1
-            if toolbar.width() >= 2 * c('wordFormattingToolbar').property('minimumControlsWidth') + 25:
-                assert abs(left.width() - right.width()) <= 1, (left, right)
+            if c('wordFormattingToolbar').property('inlineControls'):
+                assert left.right() < right.left()
+                mode_rect = c('wordMode').mapRectToScene(c('wordMode').boundingRect())
+                if abs(mode_rect.center().y() - right.center().y()) > 2:
+                    window.grabWindow().save(str(report / 'toolbar-alignment-failure.png'))
+                    raise AssertionError((mode_rect, left, right, c('wordFormattingToolbar').property('controlsY'), c('wordConversionOptions').property('implicitHeight')))
+            else:
+                assert left.bottom() < right.top() and left.left() == right.left()
+            assert left.left() == toolbar.left()
             for index in range(4):
                 radio = c('wordMode_' + str(index))
                 rect = radio.mapRectToScene(radio.boundingRect())
                 assert left.left() <= rect.left() < rect.right() <= left.right() + 1, (index, rect, left)
-            assert all(rect.left() >= right.left() for rect in rectangles[1:])
-            assert abs(rectangles[1].left() - right.left() - (right.right() - rectangles[-1].right())) <= 2, (right, rectangles)
+            assert abs(rectangles[0].left() - right.left()) <= 1
+            assert abs(rectangles[-1].right() - right.right()) <= 1
+            if c('wordFormatPreview').isVisible():
+                demo_rect = c('wordFormatPreview').mapRectToScene(c('wordFormatPreview').boundingRect())
+                assert abs(demo_rect.left() - rectangles[-1].right() - 12) <= 1
+                assert demo_rect.right() <= toolbar.right() + 1
+                assert demo_rect.top() <= right.top() and demo_rect.bottom() >= right.bottom()
+                config_rect = c('wordConfiguration').mapRectToScene(c('wordConfiguration').boundingRect())
+                assert config_rect.contains(demo_rect)
+            if c('wordZoomControls').isVisible():
+                zoom = c('wordZoomControls').mapRectToScene(c('wordZoomControls').boundingRect())
+                method = c('wordSelectByHighlight').mapRectToScene(c('wordSelectByHighlight').boundingRect())
+                scope = c('wordScopeSentences').mapRectToScene(c('wordScopeSentences').boundingRect())
+                panel = c('wordSourcePanel').mapRectToScene(c('wordSourcePanel').boundingRect())
+                assert abs(zoom.center().y() - method.center().y()) <= 1
+                assert zoom.left() >= scope.right() and zoom.right() <= panel.right() - 9, (scope, zoom, panel)
             for name in ('wordStyleBold', 'wordStyleItalic', 'wordStyleUnderline', 'wordStyleStrike'):
                 button = c(name)
                 assert button.height() == 28 and button.width() <= 27
@@ -309,6 +328,14 @@ def main():
                     assert c('wordWholeDocument').height() >= 28
                     assert demo.isVisible() and demo.width() <= 300
                     assert demo.height() <= 110
+                    assert abs(c('wordSourceArea').width() - c('wordSourcePreviewRow').width()) <= 1
+                    for width, height in ((1080, 700), (1366, 850), (1760, 990)):
+                        window.resize(width, height)
+                        pump(80)
+                        check_formatting_row()
+                        assert window.grabWindow().save(str(report / f'word-demo-toolbar-{width}.png'))
+                    window.resize(1366, 850)
+                    pump(80)
                     assert c('wordDemoHeading').property('text') == 'Xem trước song ngữ'
                     saved_mode = c('wordMode').property('currentIndex')
                     for demo_mode in range(4):
@@ -415,6 +442,12 @@ def main():
                     assert text_rect.top() - panel_rect.top() <= 120
                     assert c('wordSelectByHighlight').property('checked')
                     assert c('wordZoomFit').property('text') == '100%'
+                    zoom_rect = c('wordZoomControls').mapRectToScene(c('wordZoomControls').boundingRect())
+                    method_rect = c('wordSelectByHighlight').mapRectToScene(c('wordSelectByHighlight').boundingRect())
+                    scope_rect = c('wordScopeSentences').mapRectToScene(c('wordScopeSentences').boundingRect())
+                    assert abs(zoom_rect.center().y() - method_rect.center().y()) <= 1
+                    assert zoom_rect.left() >= scope_rect.right() and zoom_rect.right() <= panel_rect.right() - 9
+                    assert c('wordZoomFit').height() == 24 and c('wordZoomOut').width() <= 24
                     click(window, c('wordZoomIn'))
                     assert c('wordZoomFit').property('text') == '110%'
                     click(window, c('wordZoomOut'))

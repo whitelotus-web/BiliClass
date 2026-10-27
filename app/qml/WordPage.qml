@@ -302,14 +302,6 @@ Item {
             onChooseFile: choose.open()
             onFileDropped: function(url) { page.openDocument(url) }
         }
-        WordFormatPreview { objectName: "wordFormatPreview"; visible: !!page.documentState.id; Layout.preferredWidth: page.width < 950 ? 264 : 300; Layout.minimumWidth: Layout.preferredWidth; Layout.maximumWidth: Layout.preferredWidth; Layout.fillHeight: true
-            family: page.draftFont() || (page.word.sourceFonts.length ? page.word.sourceFonts[0] : "Times New Roman")
-            pointSize: englishSize.pointSize || Number(page.word.sourceFontSize) || 12
-            textColor: englishColor.original ? "#17263b" : englishColor.inkColor
-            highlight: englishHighlight.colorCode
-            mode: page.selectedModeCode
-            bold: textStyle.bold; italic: textStyle.italic; underline: textStyle.underline; strike: textStyle.strike
-        }
         }
         Rectangle {
             objectName: "wordConfiguration"; Layout.fillWidth: true
@@ -339,9 +331,14 @@ Item {
             }
             }
             Item {
-            id: formattingToolbar; objectName: "wordFormattingToolbar"; Layout.fillWidth: true; implicitHeight: conversionOptions.implicitHeight
-            readonly property real minimumControlsWidth: 60 + englishHighlight.implicitWidth + textStyle.implicitWidth + englishFont.Layout.preferredWidth + englishSize.implicitWidth + resetFormat.implicitWidth + 28
-            ColumnLayout { id: conversionOptions; objectName: "wordConversionOptions"; width: Math.max(0, Math.min((formattingToolbar.width - 25) / 2, formattingToolbar.width - formattingToolbar.minimumControlsWidth - 25)); height: implicitHeight; spacing: 4
+            id: formattingToolbar; objectName: "wordFormattingToolbar"; Layout.fillWidth: true
+            readonly property real minimumControlsWidth: 60 + 40 + textStyle.implicitWidth + englishFont.Layout.preferredWidth + 82 + 30 + 20
+            readonly property real sampleWidth: formatPreview.visible ? (page.width < 950 ? 224 : 240) : 0
+            readonly property bool inlineControls: width >= (page.width < 1200 ? 280 : 440) + minimumControlsWidth + sampleWidth + (sampleWidth ? 24 : 12)
+            readonly property real controlsRowHeight: formatPreview.visible ? formatPreview.height : 38
+            readonly property real controlsY: inlineControls ? Math.max(conversionOptions.implicitHeight - 38, (implicitHeight - 38) / 2) : conversionOptions.implicitHeight + 8 + (controlsRowHeight - 38) / 2
+            implicitHeight: inlineControls ? Math.max(conversionOptions.implicitHeight, controlsRowHeight) : conversionOptions.implicitHeight + 8 + controlsRowHeight
+            ColumnLayout { id: conversionOptions; objectName: "wordConversionOptions"; width: formattingToolbar.inlineControls ? formattingToolbar.width - formattingToolbar.minimumControlsWidth - formattingToolbar.sampleWidth - (formattingToolbar.sampleWidth ? 24 : 12) : formattingToolbar.width; height: implicitHeight; y: formattingToolbar.inlineControls ? Math.max(0, formattingToolbar.controlsY + 38 - implicitHeight) : 0; spacing: 4
                 Hint { text: "Kiểu chuyển đổi" }
                 ButtonGroup { id: conversionModes }
                 RowLayout {
@@ -366,9 +363,7 @@ Item {
                     }
                 }
             }
-            Rectangle { x: conversionOptions.width + 12; anchors.bottom: parent.bottom; width: 1; height: 38; color: AppTheme.line }
-            RowLayout { objectName: "wordFormattingOptions"; anchors.right: parent.right; anchors.bottom: parent.bottom; width: formattingToolbar.width - conversionOptions.width - 25; height: 38; spacing: 4
-                Item { Layout.fillWidth: true }
+            RowLayout { id: formattingOptions; objectName: "wordFormattingOptions"; x: formattingToolbar.inlineControls ? conversionOptions.width + 12 : 0; y: formattingToolbar.controlsY; width: formattingToolbar.minimumControlsWidth; height: 38; spacing: 4
                 ColumnLayout { Layout.alignment: Qt.AlignBottom; Layout.minimumWidth: 60; Layout.maximumWidth: 60; spacing: 4
                     WordColorPicker { id: englishColor; objectName: "wordEnglishColor"; visible: mode.currentIndex !== 2; Layout.preferredWidth: 60; enabled: page.available; onChosen: page.rememberFormatting() }
                     Choice { id: density; objectName: "wordKeywordDensity"; visible: mode.currentIndex === 2; model: ["Ít", "Vừa", "Sâu"]; currentIndex: 1; Layout.preferredWidth: 60; enabled: page.available
@@ -393,7 +388,16 @@ Item {
                 }
             }
             WordResetFormatting { id: resetFormat; objectName: "wordResetFormatting"; Layout.preferredWidth: 30; Layout.preferredHeight: 28; Layout.maximumHeight: 28; Layout.alignment: Qt.AlignVCenter; enabled: page.available; onClicked: page.resetFormatting() }
-                Item { Layout.fillWidth: true }
+            }
+            WordFormatPreview { id: formatPreview; objectName: "wordFormatPreview"; visible: !!page.documentState.id
+                x: formattingOptions.x + formattingOptions.width + 12; y: formattingToolbar.inlineControls ? 0 : conversionOptions.implicitHeight + 8
+                width: formattingToolbar.sampleWidth; height: 96
+                family: page.draftFont() || (page.word.sourceFonts.length ? page.word.sourceFonts[0] : "Times New Roman")
+                pointSize: englishSize.pointSize || Number(page.word.sourceFontSize) || 12
+                textColor: englishColor.original ? "#17263b" : englishColor.inkColor
+                highlight: englishHighlight.colorCode
+                mode: page.selectedModeCode
+                bold: textStyle.bold; italic: textStyle.italic; underline: textStyle.underline; strike: textStyle.strike
             }
             }
             }
@@ -426,7 +430,7 @@ Item {
                     }
                     ButtonGroup { id: selectionMethods }
                     ButtonGroup { id: selectionScopes }
-                    RowLayout { objectName: "wordSelectionControls"; Layout.fillWidth: true; spacing: 6
+                    RowLayout { objectName: "wordSelectionControls"; Layout.fillWidth: true; spacing: 4
                         SourceRadio { objectName: "wordSelectByHighlight"; text: sourcePanel.width < 620 ? "Bôi đen" : "Bôi đen văn bản"; Accessible.name: "Bôi đen văn bản"; checked: page.highlightSelection; ButtonGroup.group: selectionMethods; enabled: page.canSelect; onClicked: page.selectionMode = "highlight"
                             ToolTip.visible: hovered; ToolTip.text: "Bôi đen rồi nhả chuột; bấm Chọn để thêm vùng cần dịch." }
                         SourceRadio { objectName: "wordSelectByCheckbox"; text: sourcePanel.width < 620 ? "Tích chọn" : "Tích chọn đoạn/câu"; Accessible.name: "Tích chọn đoạn/câu"; checked: !page.highlightSelection; ButtonGroup.group: selectionMethods; enabled: page.canSelect; onClicked: page.selectionMode = "checkbox" }
@@ -434,12 +438,11 @@ Item {
                         SelectionScope { objectName: "wordScopeParagraphs"; text: "Đoạn"; Accessible.name: "Theo đoạn"; checked: page.selectionScope === "paragraphs"; ButtonGroup.group: selectionScopes; enabled: page.canSelect && !page.highlightSelection; onClicked: page.selectionScope = "paragraphs" }
                         SelectionScope { objectName: "wordScopeSentences"; text: "Câu"; Accessible.name: "Theo câu"; checked: page.selectionScope === "sentences"; ButtonGroup.group: selectionScopes; enabled: page.canSelect && !page.highlightSelection; onClicked: page.selectionScope = "sentences" }
                         Item { Layout.fillWidth: true }
-                    }
-                    RowLayout { objectName: "wordSelectionActions"; Layout.fillWidth: true; spacing: 4
-                        Item { Layout.fillWidth: true }
-                        WordAction { objectName: "wordZoomOut"; visible: page.highlightSelection && !!page.documentState.id; text: "−"; implicitHeight: 28; implicitWidth: 28; leftPadding: 0; rightPadding: 0; onClicked: page.previewZoom = Math.max(.4, (page.previewZoom || 1) - .1) }
-                        WordAction { objectName: "wordZoomFit"; visible: page.highlightSelection && !!page.documentState.id; text: Math.round((page.previewZoom || 1) * 100) + "%"; implicitHeight: 28; leftPadding: 8; rightPadding: 8; onClicked: page.previewZoom = 0; ToolTip.visible: hovered; ToolTip.text: "Về 100%" }
-                        WordAction { objectName: "wordZoomIn"; visible: page.highlightSelection && !!page.documentState.id; text: "+"; implicitHeight: 28; implicitWidth: 28; leftPadding: 0; rightPadding: 0; onClicked: page.previewZoom = Math.min(3, (page.previewZoom || 1) + .1) }
+                        RowLayout { objectName: "wordZoomControls"; visible: page.highlightSelection && !!page.documentState.id; spacing: 3
+                            WordAction { objectName: "wordZoomOut"; text: "−"; implicitHeight: 24; implicitWidth: 22; font.pixelSize: 11; leftPadding: 0; rightPadding: 0; onClicked: page.previewZoom = Math.max(.4, (page.previewZoom || 1) - .1) }
+                            WordAction { objectName: "wordZoomFit"; text: Math.round((page.previewZoom || 1) * 100) + "%"; implicitHeight: 24; implicitWidth: 42; font.pixelSize: 11; leftPadding: 5; rightPadding: 5; onClicked: page.previewZoom = 0; ToolTip.visible: hovered; ToolTip.text: "Về 100%" }
+                            WordAction { objectName: "wordZoomIn"; text: "+"; implicitHeight: 24; implicitWidth: 22; font.pixelSize: 11; leftPadding: 0; rightPadding: 0; onClicked: page.previewZoom = Math.min(3, (page.previewZoom || 1) + .1) }
+                        }
                     }
                     ListView {
                         id: sources; objectName: "wordSourceList"; visible: !page.highlightSelection; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 9
