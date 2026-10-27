@@ -68,3 +68,28 @@ Chữ trong ảnh Word chưa có luồng OCR mới. Tự cập nhật vẫn cầ
 lượng/Windows cho phép cài; nghiệm thu trên máy hiện tại không thay cho
 test mọi cấu hình máy/Office. Không có tác vụ nền tiếp tục phát triển sau
 khi kết thúc đợt này.
+
+## Dọn ổ khi chốt dự án
+
+Đã dọn 141 thư mục build/cache/dữ liệu nghiệm thu dùng một lần và 31 file
+bộ cài cũ đã đối chiếu hash với asset công khai trên GitHub. Giữ RC172 ở
+thư mục bộ cài riêng và runtime `dist/rc172-release`. Các thư mục cũ có
+junction được giữ thay vì truy đuổi/xóa đích liên kết; một runtime RC170
+và bản cài đang chạy cũng được giữ nguyên. Không dọn toàn ổ một cách chung chung.
+
+Dung lượng trống trước/sau lượt dọn trên máy này (số đo thời điểm thực hiện,
+có thể đổi khi Windows/các ứng dụng khác ghi dữ liệu):
+
+| Ổ | Trước | Sau | Thu hồi xấp xỉ |
+| --- | ---: | ---: | ---: |
+| C | 37,66 GB | 51,69 GB | 14,04 GB |
+| F | 40,31 GB | 93,45 GB | 53,13 GB |
+
+Dùng GB thập phân; Windows có thể hiển thị GiB nhỏ hơn. Khoảng 67 GB tổng.
+Các ghi chú/key riêng còn trong thư mục bộ cài RC167 cũ được giữ, không tải
+lên GitHub. File nguồn, dữ liệu thầy cô, bản xuất và video/hồ sơ vẫn tại vị trí cũ.
+
+Sau dọn đã chạy lại nguồn bằng `scripts/dev-env.ps1`: trang Word mở thành
+công, ảnh kiểm tra lưu được, không cảnh báo QML; cả bộ model giọng Việt và
+Anh đều báo sẵn sàng. Log chi tiết của lượt dọn/khởi động nằm ở
+`reports/rc172-release/` trên máy, ngoài Git.
