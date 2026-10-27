@@ -136,7 +136,7 @@ def public(directory, job, *, paragraphs=True):
     return result
 
 
-def create(directory, source, *, preferences=None):
+def create(directory, source, *, preferences=None, reuse=True):
     from .storage_space import MIB, require_space
 
     source = Path(source).resolve()
@@ -144,9 +144,10 @@ def create(directory, source, *, preferences=None):
     if not package.rows:
         raise ValueError('Tệp chưa có văn bản chỉnh sửa được. Chữ trong ảnh không phải vùng chọn Word.')
     signature = digest(source)
-    for row in catalog(directory):
-        if signature in {row.get('source_sha256'), row.get('output_sha256'), row.get('export_sha256')}:
-            return read(directory, row['id'])
+    if reuse:
+        for row in catalog(directory):
+            if signature in {row.get('source_sha256'), row.get('output_sha256'), row.get('export_sha256')}:
+                return read(directory, row['id'])
     preferences = preferences or {}
     options = options_for({**formatting_defaults(directory), **preferences.get('options', {})})
     subject = str(preferences.get('subject', 'Toán')).strip()[:120] or 'Toán'
@@ -333,6 +334,7 @@ def convert(directory, identity, options, subject, grade, cancel, progress, **kw
         return export(directory, identity, cancel)
     except Exception as exc:
         job.update(phase='paused' if isinstance(exc, InterruptedError) else 'review',
+                   error_code=getattr(exc, 'code', 'word_export'),
                    message='Đã dịch xong nhưng chưa lưu được Word. ' + str(exc) + ' Bấm Lưu Word song ngữ để thử lại.')
         try:
             folder = folder_for(directory, identity)

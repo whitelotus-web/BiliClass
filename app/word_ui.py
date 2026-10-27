@@ -41,6 +41,13 @@ class WordDocuments(QObject):
         self._highlight_identity = ''
         self._groups_cache = (None, None, [])
         self.progressed.connect(self._progress)
+        from .word_batch_ui import WordBatch
+
+        self._batch = WordBatch(self)
+
+    @Property(QObject, constant=True)
+    def batch(self):
+        return self._batch
 
     @Property('QVariantMap', notify=changed)
     def state(self):
@@ -314,11 +321,15 @@ class WordDocuments(QObject):
         if not parsed.isLocalFile():
             self._show_error('Chọn tệp Word trên máy tính.')
             return
+        if not self._batch.clear():
+            return
         self._launch(lambda directory: jobs.create(directory, parsed.toLocalFile(), preferences=preferences), clear_drafts=True, restore_configuration=True)
 
     @Slot(str)
     def loadRecord(self, identity):
         if not self._can_change_input():
+            return
+        if not self._batch.clear():
             return
         self._launch(lambda directory: jobs.read(directory, identity), clear_drafts=True, navigate=True, restore_configuration=True)
 
@@ -335,6 +346,10 @@ class WordDocuments(QObject):
     def dismissInput(self):
         if not self._can_change_input():
             return
+        if self._batch.clear():
+            self._dismiss_source()
+
+    def _dismiss_source(self):
         from .word_selection import TextSelection
 
         self._state = dict(id='', phase='empty', regions=[], paragraphs=[], message='', selected_count=0, can_export=False, options={})

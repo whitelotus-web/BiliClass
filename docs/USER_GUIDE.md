@@ -251,6 +251,13 @@ chứa mở thư mục, mở thư viện khác và xuất thông tin hỗ trợ 
 
 ## Thông tin thầy cô và trợ giúp
 
+**Chuyển đổi nhiều file Word:** vào Chuyển đổi bài giảng → Word, chọn hoặc
+kéo thả nhiều `.docx`. Dịch toàn bộ được tích và khóa; dùng chung môn/lớp,
+kiểu song ngữ và định dạng, tên bài theo từng file. Bấm Chuyển đổi bài giảng
+để xử lý lần lượt; kết quả tự lưu cạnh từng nguồn với hậu tố
+`(Song ngu VI-EN)`, nguồn được giữ nguyên. Có thể Dừng/Tiếp tục, thử lại bài
+lỗi và xem bảng kết quả khi xong. Muốn chọn riêng nội dung, tải một file.
+
 **Cài đặt → Chung** lưu tên thầy cô, trường, môn và logo; có thể bật/tắt
 hiển thị hồ sơ trên bài giảng. **Cài đặt → Thông tin BiliClass** có phiên
 bản, bản quyền và kiểm tra cập nhật. Nhấn **F1** để xem hướng dẫn trong app.

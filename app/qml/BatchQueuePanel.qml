@@ -7,6 +7,7 @@ Rectangle {
     required property var controller
     required property string kind
     property bool working: false
+    property bool footerActions: true
     signal newBatchRequested()
     readonly property var queueState: controller.state
     readonly property bool applies: queueState.kind === kind && (queueState.total || 0) > 0 && (!queueState.complete || queueState.shown)
@@ -149,8 +150,8 @@ Rectangle {
                         }
                     }
                     ActionButton {
-                        objectName: "batchResult_" + modelData.id; text: "Xem bài"; implicitHeight: 32
-                        visible: !!modelData.lesson_id; enabled: !panel.working
+                        objectName: "batchResult_" + modelData.id; text: panel.kind === "word" ? "Mở Word" : "Xem bài"; implicitHeight: 32
+                        visible: !!modelData.lesson_id || panel.kind === "word" && modelData.status === "done" && !!modelData.word_id; enabled: !panel.working
                         onClicked: panel.controller.openResult(modelData.id)
                     }
                     ActionButton {
@@ -169,7 +170,7 @@ Rectangle {
             }
         }
         Flow {
-            visible: !!panel.queueState.shown && !panel.queueState.running; Layout.fillWidth: true; spacing: 8
+            visible: panel.footerActions && !!panel.queueState.shown && !panel.queueState.running; Layout.fillWidth: true; spacing: 8
             ActionButton {
                 objectName: "batchResume_" + panel.kind; text: "Tiếp tục"; visible: !!panel.queueState.canResume && panel.queueState.phase !== "draft"
                 enabled: !panel.working; onClicked: panel.controller.resume()

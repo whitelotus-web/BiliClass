@@ -5,6 +5,7 @@
 ## Phiên bản và tải xuống
 
 Nhánh thử **RC169** thêm [Word song ngữ theo vùng chọn và dịch vụ dự phòng](docs/WORD_RC169.md).
+Nhánh phát triển sau RC171 thêm [chuyển đổi nhiều file Word bằng Dịch toàn bộ](docs/WORD_BATCH.md).
 Word có bốn kiểu trình bày, xem/sửa trước khi lưu và xuất hiện cùng PowerPoint
 trong thư viện, có icon W/P và tab lọc Word. Dịch vụ chính
 tạm lỗi sẽ thử dịch vụ đã cấu hình tiếp theo, giữ phần đã đạt. Đây là bản nguồn

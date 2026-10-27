@@ -8,8 +8,11 @@ Item {
     required property var appBridge
     readonly property var word: appBridge.wordDocuments
     readonly property var documentState: word.state
+    readonly property var batchState: word.batch.state
+    readonly property bool batchMode: (batchState.total || 0) > 0
     property string shownIdentity: ""
     readonly property bool available: !appBridge.busy && !appBridge.narrationBusy
+    readonly property bool canConfigure: available && (!batchMode || batchState.phase === "draft")
     readonly property bool compact: height < 700
     signal showPowerPoint()
     signal showLibrary()
@@ -64,12 +67,12 @@ Item {
     property string selectionMode: "highlight"
     property string selectionScope: "paragraphs"
     readonly property bool highlightSelection: selectionMode === "highlight"
-    readonly property bool wholeDocument: !!documentState.whole_document
+    readonly property bool wholeDocument: batchMode || !!documentState.whole_document
     readonly property bool readingDark: page.word.readingTheme === "dark"
     readonly property color readingPaper: readingDark ? "#17212e" : "white"
     readonly property bool canSelect: page.available && !page.wholeDocument
     onWholeDocumentChanged: if (wholeDocument) { highlightPopup.close(); sourceDialog.close() }
-    readonly property bool resultVisible: !page.documentState.working && page.documentState.can_export && (page.documentState.phase === "completed" || page.documentState.phase === "review")
+    readonly property bool resultVisible: !batchMode && !page.documentState.working && page.documentState.can_export && (page.documentState.phase === "completed" || page.documentState.phase === "review")
     onSelectionModeChanged: { if (highlightPopup) highlightPopup.close(); if (continuousText) continuousText.deselect(); if (highlightSelection) previewZoom = 0 }
     onVisibleChanged: if (!visible) { if (highlightPopup) highlightPopup.close(); if (sourceDialog) sourceDialog.close() }
     onWidthChanged: if (highlightPopup) highlightPopup.close()
@@ -99,6 +102,12 @@ Item {
     }
     function openDocument(url) {
         word.openConfiguredFile(url, {options: draftOptions(), subject: subject.currentText, grade: grade.currentText, title: lessonTitle.text.trim()})
+    }
+    function openDocuments(urls) {
+        const files = []
+        for (let index = 0; index < urls.length; ++index) files.push(urls[index].toString())
+        if (files.length === 1) page.openDocument(files[0])
+        else if (files.length > 1) page.word.batch.selectFiles(files)
     }
     function showDocument() {
         const flick = wordScroll.contentItem
@@ -204,7 +213,7 @@ Item {
         function onConfigurationRestored() { page.shownIdentity = ""; page.syncLoaded() }
         function onWorkspaceReset() { highlightPopup.close(); sourceDialog.close(); page.shownIdentity = ""; lessonTitle.text = ""; page.previewZoom = 0; page.restoreFormattingDefaults() }
     }
-    FileDialog { id: choose; objectName: "wordFileDialog"; title: "Chọn bài giảng Word"; nameFilters: ["Bài giảng Word (*.docx)"]; onAccepted: page.openDocument(selectedFile.toString()) }
+    FileDialog { id: choose; objectName: "wordFileDialog"; title: "Chọn bài giảng Word"; fileMode: FileDialog.OpenFiles; nameFilters: ["Bài giảng Word (*.docx)"]; onAccepted: page.openDocuments(selectedFiles) }
     Pane {
         id: highlightPopup; objectName: "wordHighlightPopup"; z: 100; visible: false
         parent: sourceDialog.visible ? expandedSourceHost : page
@@ -291,18 +300,21 @@ Item {
         }
         RowLayout { objectName: "wordWorkflowActions"; Layout.fillWidth: true; spacing: 6
             Hint { objectName: "wordWorkflowGuide"; text: "Chọn Word → Chọn cấu hình song ngữ → Chọn vùng cần dịch → Xem và lưu Word."; font.pixelSize: 13; Layout.fillWidth: true; Layout.minimumWidth: 0 }
-            WordAction { objectName: "wordChooseFile"; visible: !!page.documentState.id; text: "Chọn bài khác"; enabled: page.available; onClicked: choose.open() }
-            WordAction { objectName: "wordDismissInput"; visible: !!page.documentState.id; text: "× Hủy bài đang chọn"; Accessible.name: "Hủy bài đang chọn"; danger: true; enabled: page.available; onClicked: page.word.dismissInput() }
+            WordAction { objectName: "wordChooseFile"; visible: !!page.documentState.id || page.batchMode; text: "Chọn bài khác"; enabled: page.available; onClicked: choose.open() }
+            WordAction { objectName: "wordDismissInput"; visible: !!page.documentState.id || page.batchMode; text: page.batchMode ? "× Hủy các bài đang chọn" : "× Hủy bài đang chọn"; Accessible.name: page.batchMode ? "Hủy các bài đang chọn" : "Hủy bài đang chọn"; danger: true; enabled: page.available; onClicked: page.word.dismissInput() }
         }
         RowLayout { objectName: "wordSourcePreviewRow"; Layout.fillWidth: true; spacing: 12
         WordUpload {
             objectName: "wordSourceArea"; Layout.fillWidth: true; Layout.fillHeight: true; Layout.minimumWidth: 0; busy: !page.available; reading: !!page.documentState.working
             fileName: page.documentState.id ? page.documentState.title + ".docx" : ""
             paragraphCount: (page.documentState.paragraphs || []).length
+            fileCount: page.batchState.total || 0
             wholeDocument: page.wholeDocument
+            wholeDocumentLocked: page.batchMode
             onWholeDocumentToggled: function(checked) { highlightPopup.close(); page.word.setWholeDocument(checked) }
             onChooseFile: choose.open()
             onFileDropped: function(url) { page.openDocument(url) }
+            onFilesDropped: function(urls) { page.openDocuments(urls) }
         }
         }
         Rectangle {
@@ -315,12 +327,12 @@ Item {
             RowLayout {
             objectName: "wordConfigurationPreviewRow"; Layout.fillWidth: true; spacing: 12
             ColumnLayout {
-            Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.alignment: Qt.AlignTop; spacing: page.compact ? 6 : 10
+            Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.alignment: Qt.AlignTop; spacing: page.compact ? 6 : 10; enabled: page.canConfigure
             GridLayout {
             id: metadataFields; objectName: "wordMetadataFields"; Layout.fillWidth: true; columns: width >= 660 ? 4 : 2; columnSpacing: 12; rowSpacing: 8
             ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 3; spacing: 4
                 Hint { text: "Tên bài học" }
-                TextField { id: lessonTitle; objectName: "wordTitle"; placeholderText: "Tên theo file Word"; maximumLength: 200; color: AppTheme.ink; implicitHeight: 38; Layout.fillWidth: true; enabled: page.available
+                TextField { id: lessonTitle; objectName: "wordTitle"; placeholderText: page.batchMode ? "Tên theo từng file Word" : "Tên theo file Word"; maximumLength: 200; color: AppTheme.ink; implicitHeight: 38; Layout.fillWidth: true; enabled: page.available && !page.batchMode
                     background: Rectangle { color: AppTheme.field; radius: 8; border.color: parent.activeFocus ? AppTheme.blue : AppTheme.line } }
             }
             ColumnLayout { Layout.fillWidth: true; Layout.preferredWidth: 2; spacing: 4
@@ -395,7 +407,7 @@ Item {
             }
             }
             }
-            WordFormatPreview { id: formatPreview; objectName: "wordFormatPreview"; visible: !!page.documentState.id
+            WordFormatPreview { id: formatPreview; objectName: "wordFormatPreview"; visible: !!page.documentState.id || page.batchMode
                 Layout.preferredWidth: page.width < 950 ? 224 : 240; Layout.minimumWidth: Layout.preferredWidth; Layout.maximumWidth: Layout.preferredWidth
                 Layout.fillHeight: true; Layout.minimumHeight: 96; Layout.topMargin: gradeField.y; Layout.alignment: Qt.AlignBottom
                 family: page.draftFont() || (page.word.sourceFonts.length ? page.word.sourceFonts[0] : "Times New Roman")
@@ -415,8 +427,13 @@ Item {
             Hint { id: message; anchors.fill: parent; anchors.margins: 10; text: page.documentState.attention_message || ""; color: AppTheme.warningInk }
         }
         Hint { visible: (page.documentState.notices || []).length > 0; text: (page.documentState.notices || []).slice(-1).join(""); color: AppTheme.warning; font.pixelSize: 11; Layout.fillWidth: true }
+        BatchQueuePanel {
+            objectName: "wordBatchPanel"; Layout.fillWidth: true
+            controller: page.word.batch; kind: "word"; working: !page.available; footerActions: false
+            onNewBatchRequested: choose.open()
+        }
         RowLayout {
-            id: documentPanels; objectName: "wordDocumentPanels"; Layout.fillWidth: true; spacing: 12
+            id: documentPanels; objectName: "wordDocumentPanels"; visible: !page.batchMode; Layout.fillWidth: true; spacing: 12
             enabled: !page.wholeDocument; opacity: page.wholeDocument ? .5 : 1
             // The page scrolls the configuration away; the document then fills
             // the available height without resizing or jumping while reading.
@@ -618,11 +635,20 @@ Item {
                 entries: [{key: "mode", text: mode.currentText, emphasis: true},
                     {key: "subject", text: subject.currentText + " · " + education.currentText + " " + grade.currentText},
                     {key: "format", text: textStyle.description + " · " + (englishColor.original ? "Màu gốc" : "#" + englishColor.colorCode) + " · " + (page.draftFont() || "Phông gốc") + " · " + (englishSize.pointSize ? englishSize.pointSize + " pt" : "Cỡ gốc")},
-                    {key: "selection", text: page.wholeDocument ? "Toàn bộ văn bản" : (page.documentState.group_count || 0) + " vùng đã chọn"}]
+                    {key: "selection", text: page.batchMode ? page.batchState.total + " file · Dịch toàn bộ" : page.wholeDocument ? "Toàn bộ văn bản" : (page.documentState.group_count || 0) + " vùng đã chọn"}]
             }
-            WordAction { objectName: "wordStop"; visible: page.documentState.working; text: "■ Dừng"; danger: true; onClicked: page.word.stop() }
-            WordAction { objectName: "wordPreview"; text: page.documentState.working ? "Đang xử lý…" : page.documentState.phase === "paused" ? "Tiếp tục chuyển đổi" : page.documentState.phase === "completed" ? "Chuyển đổi lại" : "Chuyển đổi bài giảng"; primary: true; implicitHeight: 44
-                enabled: page.available && page.documentState.selected_count > 0; onClicked: page.word.preview(page.draftOptions(), subject.currentText, grade.currentText, page.draftTitle()) }
+            WordAction { objectName: "wordStop"; visible: page.batchMode ? !!page.batchState.running : page.documentState.working; text: page.batchState.stopping ? "Đang dừng…" : "■ Dừng"; danger: true; enabled: !page.batchState.stopping; onClicked: page.batchMode ? page.word.batch.stop() : page.word.stop() }
+            WordAction { objectName: "wordPreview"; primary: true; implicitHeight: 44
+                text: page.batchMode
+                    ? page.batchState.running ? "Đang xử lý…" : page.batchState.complete ? "Về bài giảng" : page.batchState.phase === "draft" ? "Chuyển đổi bài giảng" : page.batchState.canResume ? "Tiếp tục chuyển đổi" : "Thử lại bài lỗi"
+                    : page.documentState.working ? "Đang xử lý…" : page.documentState.phase === "paused" ? "Tiếp tục chuyển đổi" : page.documentState.phase === "completed" ? "Chuyển đổi lại" : "Chuyển đổi bài giảng"
+                enabled: page.available && (page.batchMode || page.documentState.selected_count > 0)
+                onClicked: {
+                    if (page.batchMode && page.batchState.complete) page.showLibrary()
+                    else if (page.batchMode) page.word.batch.start(page.draftOptions(), subject.currentText, grade.currentText)
+                    else page.word.preview(page.draftOptions(), subject.currentText, grade.currentText, page.draftTitle())
+                }
+            }
         }
     }
 }
