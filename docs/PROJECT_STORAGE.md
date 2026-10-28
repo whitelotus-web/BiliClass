@@ -87,4 +87,31 @@ Tổng khoảng 106 GB, không cộng lẫn với các lượt dọn trước. S
 Bộ cài RC172 cũ được giữ ẩn làm dự phòng vì hệ thống duyệt tự động từ chối
 lệnh xóa bộ đó với lý do chung `blocked by policy`; không thử lệnh khác để
 xóa vòng. `04-BoCai` ở chế độ xem bình thường chỉ hiện bộ RC173 mới nhất.
-Các snapshot/runtime phát triển cũ chưa được xóa không thuộc bản đang chạy.
+Các runtime đóng gói cũ còn giữ không thuộc bản đang chạy.
+
+## Dọn tiếp dữ liệu thử còn sót
+
+Lượt kiểm kê sau đó ghi nhận ứng dụng/mã chính `app/` khoảng 63 MB và môi
+trường phát triển `.venv` khoảng 1,97 GB. Dung lượng thư mục làm việc lớn
+chủ yếu do dữ liệu thử, bản dựng, model, video và sao lưu, không phải riêng code.
+Liên kết thư mục và hardlink cũng cần được phân biệt khi cộng dung lượng.
+
+Đã bỏ thêm 29 thư mục, thu hồi khoảng **29,37 GB** theo các số đo dung lượng
+trống của lượt dọn này, không cộng với 106 GB ở lượt trước:
+
+- Sáu kho dữ liệu kiểm thử cũ, gồm ChatGPT smoke khoảng 9,67 GB dữ liệu
+  logic (nhiều file PowerPoint giả hơn 200 MB để thử giới hạn tải), knowledge
+  test, benchmark và tệp tạm. Không có bản ghi thư viện hiện tại tham chiếu
+  tới sáu đường dẫn đã dọn.
+- 21 snapshot dựng thử RC35–RC51; tháo riêng các junction cũ trước khi xóa
+  thư mục thử, không xóa hoặc đi theo đích model/runtime của liên kết.
+- Hai bản giải nén khôi phục thử RC73, khoảng 10,65 GB. Gói
+  `RC73-full.bcbackup` khoảng 8,04 GB đã kiểm toàn bộ CRC và vẫn giữ nguyên.
+  Tên/kích thước/thời điểm sửa của các bản thử được đối chiếu; metadata DB
+  và hai kết quả OCR khác biệt được giữ riêng trong
+  `DuLieu-CucBo/03-SaoLuu/RC73-Metadata-KhoiPhucThu` trước khi xóa bản thử.
+
+Giữ mã nguồn/Git, `.venv`, model, runtime RC173, bộ cài, thư viện đang dùng,
+gói sao lưu, hồ sơ và video. Sau dọn: thư viện vẫn 19 bài, quick_check `ok`,
+giọng Việt/Anh sẵn sàng. Bản RC173 hiện tại không thay mã hoặc thay bộ cài.
+Nhật ký và kết quả kiểm tra cục bộ nằm trong `reports/rc173-release/`, ngoài Git.
