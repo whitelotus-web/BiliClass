@@ -1,6 +1,7 @@
 # Mở lại dự án BiliClass sau khi tạm gác
 
-Mốc chốt ngày 27/10/2026: **1.0.0rc172**. Thư mục nguồn chuẩn trên máy:
+Mốc ứng dụng ngày 27/10/2026: **1.0.0rc172**; đã gom dữ liệu ngày 28/10/2026.
+Xem [sơ đồ lưu trữ hiện tại](PROJECT_STORAGE.md). Thư mục nguồn chuẩn trên máy:
 `F:\Dự Án\BiliClass-Tro Ly song ngu`.
 
 ## Mã nguồn và bộ cài
@@ -12,7 +13,8 @@ Mốc chốt ngày 27/10/2026: **1.0.0rc172**. Thư mục nguồn chuẩn trên 
   `8fbe56c42e63e9d368058d9d37d22ce8d0aacab9`.
 - Các commit sau tag chỉ ghi nhận nghiệm thu/dọn dẹp/hướng dẫn, không
   âm thầm đổi bộ cài. Giữ các tag cũ, nhất là RC167 để đối chiếu.
-- Bộ gửi người khác: `F:\BiliClass-BoCai-RC172`, gửi cả EXE và ZIP cạnh nhau.
+- Bộ gửi người khác: `DuLieu-CucBo/04-BoCai/BiliClass-BoCai-RC172` trong dự án;
+  đường dẫn cũ `F:\BiliClass-BoCai-RC172` là liên kết tương thích. Gửi cả EXE và ZIP cạnh nhau.
   Release công khai: https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc172
 - Runtime/model đã kiểm cho lần đóng gói sau: `dist/rc172-release`.
   Không cần giữ mọi runtime/bản dựng cũ để mở mã nguồn làm tiếp.
@@ -44,8 +46,10 @@ tạo nhánh mới từ `v1.0.0rc172`. Không reset/force-push lên thay đổi 
 
 ## Dữ liệu được giữ riêng
 
-- `F:\BiliClassData`: thư viện, bài giảng, cấu hình cá nhân.
-- `F:\BiliClassBackups`, `F:\BiliClassExports`: sao lưu và kết quả đã xuất.
+- `DuLieu-CucBo/02-ThuVien`: thư viện, bài giảng, cấu hình cá nhân.
+- `DuLieu-CucBo/03-SaoLuu`: sao lưu; bản xuất rời nằm trong
+  `DuLieu-CucBo/01-BaiGiang-TuKiemTra/Ban-Xuat` để chủ dự án tự kiểm tra.
+- Đường dẫn F cũ tiếp tục hoạt động qua liên kết thư mục tương thích.
 - Hồ sơ nộp, video, slide và tài liệu gốc ở Downloads/các thư mục video vẫn
   giữ trên máy; không xem các sản phẩm này là rác build.
 - Key, phiên đăng nhập, thư viện/model và EXE không đưa vào commit source.
@@ -87,7 +91,8 @@ có thể đổi khi Windows/các ứng dụng khác ghi dữ liệu):
 
 Dùng GB thập phân; Windows có thể hiển thị GiB nhỏ hơn. Khoảng 67 GB tổng.
 Các ghi chú/key riêng còn trong thư mục bộ cài RC167 cũ được giữ, không tải
-lên GitHub. File nguồn, dữ liệu thầy cô, bản xuất và video/hồ sơ vẫn tại vị trí cũ.
+lên GitHub. Dữ liệu riêng đã được gom hoặc tham chiếu dưới `DuLieu-CucBo/`;
+file nguồn chuẩn vẫn ở thư mục dự án ban đầu.
 
 Sau dọn đã chạy lại nguồn bằng `scripts/dev-env.ps1`: trang Word mở thành
 công, ảnh kiểm tra lưu được, không cảnh báo QML; cả bộ model giọng Việt và

@@ -51,3 +51,6 @@ translation_deepl/
 translation_knowledge/
 word_documents/
 translation-service-health.json
+
+# Consolidated machine-local library, teacher files, videos, keys and installers.
+DuLieu-CucBo/

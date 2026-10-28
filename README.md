@@ -4,6 +4,14 @@
 
 ## Phiên bản và tải xuống
 
+Đã phát hành **[RC172 cho Windows](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc172)**.
+Mốc mã ứng dụng: tag `v1.0.0rc172`; bộ cài và kiểm chứng ở
+[BUILD_RC172.md](docs/BUILD_RC172.md). Dự án đang tạm gác sau mốc này;
+[hướng dẫn mở lại](docs/PROJECT_HANDOFF_RC172.md) và
+[sơ đồ thư mục đã gom trên máy](docs/PROJECT_STORAGE.md).
+
+### Ghi chú các mốc trước
+
 Nhánh thử **RC169** thêm [Word song ngữ theo vùng chọn và dịch vụ dự phòng](docs/WORD_RC169.md).
 RC172 thêm [chuyển đổi nhiều file Word bằng Dịch toàn bộ](docs/WORD_BATCH.md).
 Word có bốn kiểu trình bày, xem/sửa trước khi lưu và xuất hiện cùng PowerPoint
