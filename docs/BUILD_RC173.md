@@ -23,3 +23,20 @@ Kiểm Word một/nhiều file, định dạng/chọn vùng, giao diện Home/ca
 Windows với tiến trình cũ còn sống và handoff sau khi đóng cơ sở dữ liệu.
 Model/dependency giữ từ RC172 đã xác minh; tất cả mã ứng dụng được dựng lại.
 Bộ cài RC173 là release mới, không sửa tag hoặc asset RC172/RC167.
+
+## Bản đã phát hành
+
+- Tag `v1.0.0rc173`, commit ứng dụng `78c9b114d22ab4a0cdb0d056d3de5269eb960223`.
+- Release công khai: https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc173
+- ZIP 1.262.830.707 byte, SHA-256
+  `ba7c7decfbe32fed5da10e3e9c407492e56673289df0ae86c75c23408ce135a8`.
+- Setup revision 4, 59.392 byte, SHA-256
+  `b02f4dffcfb7f120de3f10e96ed9cf40056067ca7749064127f6c46f2ae4cfbf`.
+- Mọi asset đã đối chiếu digest GitHub. Bộ cập nhật từ RC155/167/171/172
+  chọn đúng RC173 và chấp nhận cấu trúc ZIP mới.
+- 177 kiểm thử Word/updater/installer đạt; sau tối ưu style chạy lại 62 kiểm
+  liên quan đạt. Qt Word một/nhiều file, Home, caption và handoff đều đạt.
+- Cài vào đúng gốc cài RC155 trên máy này; bản đóng gói và bản đã cài đều
+  mở trang Word không cảnh báo. Desktop/Start đã kiểm trỏ đúng EXE RC173.
+- Bộ gửi người khác ở `DuLieu-CucBo/04-BoCai/BiliClass-BoCai-RC173` trong
+  dự án; runtime dựng lại ở `dist/rc173-release`. Key/thư viện vẫn riêng.

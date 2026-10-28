@@ -4,7 +4,7 @@
 
 ## Phiên bản và tải xuống
 
-Mốc mới **RC173** sửa tải Word và bàn giao cập nhật từ RC155:
+Đã phát hành **[RC173 cho Windows](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc173)**, sửa tải Word và bàn giao cập nhật từ RC155:
 [phạm vi và kiểm tra](docs/BUILD_RC173.md).
 Mốc đã phát hành trước đó **[RC172 cho Windows](https://github.com/whitelotus-web/BiliClass/releases/tag/v1.0.0rc172)**.
 Mốc mã ứng dụng: tag `v1.0.0rc172`; bộ cài và kiểm chứng ở

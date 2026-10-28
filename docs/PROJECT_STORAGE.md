@@ -12,11 +12,11 @@ Các tài liệu và dữ liệu riêng trên máy được gom dưới **`DuLie
 | `01-BaiGiang-TuKiemTra` | Bản xuất bài giảng và tài liệu tham khảo để chủ dự án tự xem, tự quyết định giữ/xóa |
 | `02-ThuVien` | Thư viện hoạt động của tool, gồm bài giảng, âm thanh, cấu hình và kết quả Word |
 | `03-SaoLuu` | Các bản sao lưu hiện có |
-| `04-BoCai` | Bộ cài RC172 mới nhất; gửi EXE và ZIP cạnh nhau |
+| `04-BoCai` | Bộ cài RC173 mới nhất; gửi EXE và ZIP cạnh nhau |
 | `05-Video` | Các dự án video, giọng đọc và sản phẩm hoàn chỉnh |
 | `06-HoSo` | Hồ sơ, slide và tài liệu nộp bài |
 | `07-ThongTinRieng` | Ghi chú cũ và thông tin truy cập riêng, không đưa lên GitHub |
-| `08-UngDungDaCai` | Bản ứng dụng đã cài trên máy |
+| `08-UngDungDaCai` | Liên kết tới bản RC173 đang cài trong thư mục ứng dụng Windows |
 | `09-HeThong-Windows` | Liên kết tới phần cấu hình/cache bắt buộc của Windows |
 
 Các đường dẫn cũ còn dùng trong cơ sở dữ liệu, shortcut hoặc script video có
@@ -28,6 +28,8 @@ tham chiếu trong `reports/rc172-release/consolidation-result.json`.
 `DuLieu-CucBo/`, `reports/`, `refs/`, model và bộ cài nằm ngoài commit Git.
 GitHub tiếp tục lưu mã nguồn/hướng dẫn; bộ cài công khai là release RC172 riêng.
 Không thay đổi nội dung hoặc ghi đè bộ cài RC172 trong đợt sắp xếp này.
+
+Release hiện tại là RC173; RC172 vẫn là mốc lịch sử, không ghi đè asset/tag cũ.
 
 ## Bài giảng chờ tự kiểm tra
 
@@ -63,3 +65,26 @@ Năm video hoàn chỉnh được chuyển thành file thật trong
 `DuLieu-CucBo/05-Video/00-Video-DeChon/`; chủ dự án tự xem rồi xóa các bản
 không muốn giữ. CSV ghi vị trí trước/sau khi gom. Giữ voice, cảnh quay và
 nguồn dựng trong các thư mục dự án video bên cạnh để vẫn có thể làm tiếp.
+
+## Lượt dọn sau khi cài RC173
+
+Đã xóa 52 thư mục ứng dụng/cache cũ: các phiên bản cài ở F, RC155/56/57 cũ
+ở gốc ứng dụng Windows và hai gói cập nhật RC172 tải dở/đã thất bại. Giữ
+RC173 đang cài và runtime RC173 độc lập, giữ `.venv`, source/model, thư viện,
+sao lưu, key, bài giảng và năm video hoàn chỉnh chờ chủ dự án tự chọn.
+
+Dung lượng trống trước/sau riêng lượt này, theo GB thập phân:
+
+| Ổ | Trước | Sau | Thu hồi xấp xỉ |
+| --- | ---: | ---: | ---: |
+| C | 40,82 GB | 46,27 GB | 5,45 GB |
+| F | 87,01 GB | 187,82 GB | 100,81 GB |
+
+Tổng khoảng 106 GB, không cộng lẫn với các lượt dọn trước. Số đo còn thay
+đổi khi Windows/tool ghi dữ liệu. Thư viện sau dọn vẫn 19 bài, quick_check
+`ok`, model Việt/Anh sẵn sàng và cửa sổ RC173 mở đúng phiên bản.
+
+Bộ cài RC172 cũ được giữ ẩn làm dự phòng vì hệ thống duyệt tự động từ chối
+lệnh xóa bộ đó với lý do chung `blocked by policy`; không thử lệnh khác để
+xóa vòng. `04-BoCai` ở chế độ xem bình thường chỉ hiện bộ RC173 mới nhất.
+Các snapshot/runtime phát triển cũ chưa được xóa không thuộc bản đang chạy.

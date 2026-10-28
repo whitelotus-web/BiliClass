@@ -9,6 +9,10 @@ Xem [sơ đồ lưu trữ hiện tại](PROJECT_STORAGE.md). Thư mục nguồn 
 Cập nhật tiếp ngày 28/10/2026: **RC173** sửa tải Word, bàn giao bộ cập nhật
 sau khi đóng thư viện và bỏ hai nhãn thừa ở thanh tiêu đề. Xem
 [BUILD_RC173.md](BUILD_RC173.md); RC172 và RC167 vẫn là tag lịch sử nguyên vẹn.
+RC173 đã phát hành, cài tại gốc ứng dụng Windows hiện có và sửa biểu tượng
+Desktop/Start. Bộ cài mới nhất nằm trong
+`DuLieu-CucBo/04-BoCai/BiliClass-BoCai-RC173`; runtime tiếp tục dùng là
+`dist/rc173-release`. Nguồn chuẩn trên F không đổi.
 
 - GitHub: https://github.com/whitelotus-web/BiliClass
 - Nhánh đang làm: `codex/word-format-preview-rc171`. Tên nhánh giữ từ đợt
