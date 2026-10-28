@@ -115,3 +115,16 @@ Giữ mã nguồn/Git, `.venv`, model, runtime RC173, bộ cài, thư viện đa
 gói sao lưu, hồ sơ và video. Sau dọn: thư viện vẫn 19 bài, quick_check `ok`,
 giọng Việt/Anh sẵn sàng. Bản RC173 hiện tại không thay mã hoặc thay bộ cài.
 Nhật ký và kết quả kiểm tra cục bộ nằm trong `reports/rc173-release/`, ngoài Git.
+
+Lượt chốt tiếp theo dọn 10.690 ảnh chụp QA thuộc báo cáo RC trước 160 và bốn
+thư mục cache (`dist/rc173-release/.build-work`, `.installer-work`, cache
+pytest/ruff). Không xóa tệp Office hoặc ảnh nằm trong thư mục input/source.
+Tổng dung lượng tệp được dọn khoảng 2,72 GB logic; dung lượng trống tăng
+khoảng 2,22 GB tại thời điểm đo. Các báo cáo kết quả JSON/text và kiểm chứng
+RC173 được giữ. Tổng hai lượt dọn thêm này thu hồi khoảng **31,6 GB**, tách
+riêng với lượt 106 GB trước đó.
+
+Sau khi dọn dữ liệu thử, trang Word đã mở bằng bản nguồn với renderer phần
+mềm, lưu ảnh thành công, không cảnh báo QML. Kiểm dữ liệu và giọng vẫn đạt.
+Giữ runtime dựng đầy đủ ở `dist/rc173-release/BiliClass` và bộ cài phát hành;
+chỉ bỏ tệp trung gian có thể dựng lại, không đổi phiên bản ứng dụng.
