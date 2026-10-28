@@ -216,6 +216,21 @@ def run(args):
     QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
     bridge.library.close()
     del engine
+    if bridge._update_applying:
+        from .updater import launch_install
+
+        try:
+            launch_install(bridge._update_package, os.getpid())
+        except Exception as exc:
+            (library.directory / 'update-launch-error.txt').write_text(str(exc), encoding='utf-8')
+            if os.name == 'nt':
+                import ctypes
+
+                ctypes.windll.user32.MessageBoxW(None,
+                    'Chưa mở được bộ cập nhật. Dữ liệu đã lưu. Mở bộ cài mới để tiếp tục.\n' + str(exc),
+                    'Cập nhật BiliClass', 0x10)
+            return 1
+        return result
     if bridge.storage.next_directory:
         from PySide6.QtCore import QProcess, QProcessEnvironment
 

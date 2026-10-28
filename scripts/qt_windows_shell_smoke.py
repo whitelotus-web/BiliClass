@@ -11,7 +11,7 @@ import win32con
 import win32gui
 import win32ui
 from PIL import Image
-from PySide6.QtCore import QCoreApplication, QEvent, QPointF, Qt, QUrl
+from PySide6.QtCore import QCoreApplication, QEvent, QObject, QPointF, Qt, QUrl
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
@@ -84,12 +84,9 @@ def main():
                 root.resize(width, height)
                 pump(200)
                 bar = control(root, 'applicationTitleBar')
-                badges = control(root, 'applicationTitleBadges')
                 assert 24 <= bar.height()*root.devicePixelRatio() <= 60
-                assert bar.height() >= badges.height()
-                assert badges.mapToScene(QPointF()).y() >= 0
-                assert 250 < badges.x() < 450 and badges.x() + badges.width() <= width - 155
-                assert badges.height() == 20 and badges.property('spacing') == 8
+                assert root.findChild(QObject, 'applicationTitleBadges') is None
+                assert caption.x() + caption.width() <= width - 155
                 assert control(root, 'mainPageArea').mapToScene(QPointF()).y() == bar.height()
                 assert root.grabWindow().save(str(report / f'client-{width}.png'))
                 caption_capture(hwnd, report / f'caption-{width}.png')
@@ -106,7 +103,7 @@ def main():
             assert 'Trợ lý dạy học song ngữ' in win32gui.GetWindowText(hwnd)
             assert not warnings, warnings
             result = dict(status='passed', system_window_controls=True, single_qml_caption=True,
-                          theme=bridge.applicationTheme, colored_badges_sizes=3,
+                          theme=bridge.applicationTheme, caption_sizes=3,
                           minimize_maximize_restore=True, taskbar_window_properties=True,
                           valid_small_large_icons=True, qml_warnings=warnings)
             (report / 'result.json').write_text(json.dumps(result, indent=2), encoding='utf-8')

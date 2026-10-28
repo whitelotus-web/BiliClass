@@ -53,7 +53,13 @@ ZIP RC172 vẫn khớp hồ sơ phát hành. Không có thay đổi mã ứng d�
 
 Đã dọn 8 thư mục kiểm thử tự động RC35/36/37 cũ, thu hồi khoảng 1,27 GB;
 không xóa 6 bản PowerPoint đã xuất (khoảng 2,09 GB) để chủ dự án tự xem.
-Ba thư mục F vẫn giữ tại chỗ do Windows từ chối chuyển nguyên thư mục:
-thư viện `BiliClassData`, video hồ sơ `BiliClass-Video-HoSo-20261024` và
-hồ sơ `2026/Biliclass-Bai giang song ngu`. Cả ba đều truy cập được từ các
-nhóm tương ứng trong `DuLieu-CucBo/` qua liên kết thư mục.
+Lượt hoàn tất đã chuyển được video hồ sơ vào nhóm `05-Video`. Hai thư mục
+thư viện `BiliClassData` và hồ sơ `2026/Biliclass-Bai giang song ngu` còn
+được tham chiếu tại chỗ vì thư mục model/tài liệu con bị Windows khóa.
+Đường dẫn tương thích BiliClass ở gốc F đã được đặt ẩn, không tạo thêm bản
+sao dữ liệu; mở qua `DuLieu-CucBo/` để tránh nhầm là nhiều dự án độc lập.
+
+Năm video hoàn chỉnh được chuyển thành file thật trong
+`DuLieu-CucBo/05-Video/00-Video-DeChon/`; chủ dự án tự xem rồi xóa các bản
+không muốn giữ. CSV ghi vị trí trước/sau khi gom. Giữ voice, cảnh quay và
+nguồn dựng trong các thư mục dự án video bên cạnh để vẫn có thể làm tiếp.

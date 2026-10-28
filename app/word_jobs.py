@@ -121,14 +121,14 @@ def catalog(directory, trash=False):
     return sorted(result, key=lambda row: row['updated_at'], reverse=True)
 
 
-def public(directory, job, *, paragraphs=True):
+def public(directory, job, *, paragraphs=True, package=None):
     result = copy.deepcopy(job)
     result['source_title'] = Path(job['source_original']).stem
     grade = str(job.get('grade', ''))
     result['education_level'] = 'Tiểu học' if grade in {'1', '2', '3', '4', '5'} else 'THCS' if grade in {'6', '7', '8', '9'} else 'THPT'
     result['regions'] = [{**region, 'display_en': display_translation(region)} for region in result['regions']]
     if paragraphs:
-        result['paragraphs'] = Package(folder_for(directory, job['id']) / 'source.docx').rows
+        result['paragraphs'] = (package or Package(folder_for(directory, job['id']) / 'source.docx')).rows
     result['selected_count'] = len(result['regions'])
     result['can_export'] = bool(result['regions']) and all(region.get('en', '').strip() for region in result['regions'])
     result['has_previous'] = (folder_for(directory, job['id']) / 'previous.docx').is_file()

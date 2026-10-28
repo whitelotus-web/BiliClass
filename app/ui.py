@@ -35,7 +35,7 @@ from .readiness import assess
 from .storage import configure_logging, restore_backup
 from .teaching import TeachingBridge
 from .text_quality import review_warnings
-from .updater import check_for_update, download_and_stage, launch_install
+from .updater import check_for_update, download_and_stage
 from .voice_rates import rate_choices, rate_for, valid_rate
 
 RESOURCES = RESOURCE_ROOT  # Retained for source smoke scripts; no M0 runtime dependency.
@@ -2578,13 +2578,10 @@ class Bridge(QObject):
         if not self._update_package or self._busy or self.classroom.running:
             self._set_update_state(message="Đóng lớp và hoàn tất tác vụ rồi bấm Cập nhật lần nữa.")
             return
-        try:
-            launch_install(self._update_package, os.getpid())
-        except Exception as exc:
-            self._set_update_state(message="Chưa cài được bản mới: " + str(exc))
-            self.inform(str(exc), True)
-            return
+        # Hand off after desktop cleanup closes the library and workers.
+        # Launching here raced a still-running GUI process.
         self._update_applying = True
+        self._set_update_state(message="Đang lưu dữ liệu và đóng ứng dụng để cài bản mới…")
         self.updateChanged.emit()
         QTimer.singleShot(0, QGuiApplication.quit)
 

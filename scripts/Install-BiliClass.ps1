@@ -5,7 +5,8 @@
     [int]$WaitForProcessId = 0,
     [switch]$LaunchAfterInstall,
     [string]$PackageZip = '',
-    [string]$ExpectedVersion = ''
+    [string]$ExpectedVersion = '',
+    [int]$WaitForExitSeconds = 120
 )
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
@@ -18,11 +19,8 @@ function Get-FileSha256([string]$Path) {
     } finally { $sha.Dispose() }
 }
 try {
-if ($WaitForProcessId -gt 0) {
-    # The old version must finish before switching the shortcut to the new version.
-    Wait-Process -Id $WaitForProcessId -Timeout 120 -ErrorAction SilentlyContinue
-    if (Get-Process -Id $WaitForProcessId -ErrorAction SilentlyContinue) { throw 'Hãy đóng BiliClass trước khi cài bản cập nhật.' }
-}
+# Publish the verified new version beside the old one first. RC155 may keep a
+# worker alive after closing; this must not leave a complete download unapplied.
 $packageRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $installPath = [IO.Path]::GetFullPath($InstallRoot).TrimEnd('\')
 $markerPath = Join-Path $installPath '.biliclass-install.json'
@@ -173,7 +171,16 @@ if (-not $NoShortcuts) {
 Write-Output ('Installed BiliClass ' + $manifest.version + ' at ' + $versionPath)
 Write-Output 'Lesson data is preserved across installs. Start BiliClass from the Start menu.'
 if ($LaunchAfterInstall) {
-    Start-Process -FilePath (Join-Path $versionPath 'BiliClass.exe') -WorkingDirectory $versionPath
+    if ($WaitForProcessId -gt 0 -and (Get-Process -Id $WaitForProcessId -ErrorAction SilentlyContinue)) {
+        Wait-Process -Id $WaitForProcessId -Timeout ([Math]::Max(1, [Math]::Min(120, $WaitForExitSeconds))) -ErrorAction SilentlyContinue
+    }
+    if ($WaitForProcessId -gt 0 -and (Get-Process -Id $WaitForProcessId -ErrorAction SilentlyContinue)) {
+        Write-Output ('Installed successfully; previous process has not exited: ' + $WaitForProcessId)
+        Add-Type -AssemblyName System.Windows.Forms
+        [System.Windows.Forms.MessageBox]::Show(('Đã cài BiliClass ' + $manifest.version + '.' + [Environment]::NewLine + 'Bản cũ chưa thoát hết. Đóng BiliClass cũ rồi mở từ biểu tượng Desktop/Start đã cập nhật.' + [Environment]::NewLine + 'Bản mới: ' + (Join-Path $versionPath 'BiliClass.exe')), 'Đã cập nhật BiliClass', [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information) | Out-Null
+    } else {
+        Start-Process -FilePath (Join-Path $versionPath 'BiliClass.exe') -WorkingDirectory $versionPath
+    }
 }
 } finally {
     if ($archive) { $archive.Dispose() }

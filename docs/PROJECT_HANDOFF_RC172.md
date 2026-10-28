@@ -6,6 +6,10 @@ Xem [sơ đồ lưu trữ hiện tại](PROJECT_STORAGE.md). Thư mục nguồn 
 
 ## Mã nguồn và bộ cài
 
+Cập nhật tiếp ngày 28/10/2026: **RC173** sửa tải Word, bàn giao bộ cập nhật
+sau khi đóng thư viện và bỏ hai nhãn thừa ở thanh tiêu đề. Xem
+[BUILD_RC173.md](BUILD_RC173.md); RC172 và RC167 vẫn là tag lịch sử nguyên vẹn.
+
 - GitHub: https://github.com/whitelotus-web/BiliClass
 - Nhánh đang làm: `codex/word-format-preview-rc171`. Tên nhánh giữ từ đợt
   bắt đầu UI Word; mã ứng dụng đã là RC172.

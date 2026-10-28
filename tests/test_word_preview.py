@@ -55,6 +55,16 @@ def blocks(document):
         block = block.next()
 
 
+def test_empty_selection_does_not_walk_a_large_preview(preview):
+    _, view, _ = preview
+
+    class DocumentMustNotBeRead:
+        def begin(self):
+            raise AssertionError('No selection should scan document blocks')
+
+    assert view.selected_positions(DocumentMustNotBeRead(), []) == []
+
+
 def test_preview_shows_original_style_embedded_image_and_table(preview):
     _, view, document = preview
     assert 'font-size:20.0pt' in view.html and 'text-align:center' in view.html

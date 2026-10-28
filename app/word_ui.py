@@ -55,7 +55,10 @@ class WordDocuments(QObject):
         if not attention and self._state.get('phase') == 'paused':
             attention = self._state.get('message', '')
         groups = self.reviewGroups
-        return {**self._state, 'working': self._working, 'attention_message': attention, 'group_count': len(groups)}
+        # Keep paragraph/sentence data in the selection model rather than
+        # copying the whole document into QML on every status change.
+        return {**{key: value for key, value in self._state.items() if key != 'paragraphs'},
+                'working': self._working, 'attention_message': attention, 'group_count': len(groups)}
 
     @Property('QVariantList', notify=changed)
     def reviewGroups(self):
@@ -247,16 +250,17 @@ class WordDocuments(QObject):
         def work():
             try:
                 job = action(directory)
-                preview, preview_notice = None, ''
+                preview, preview_notice, package = None, '', None
                 if job and job['id'] != prior_text_identity:
                     try:
                         from .word_document import Package
                         from .word_preview import Preview
 
-                        preview = Preview(Package(jobs.folder_for(directory, job['id']) / 'source.docx'))
+                        package = Package(jobs.folder_for(directory, job['id']) / 'source.docx')
+                        preview = Preview(package)
                     except Exception:
                         preview_notice = 'Chưa hiện được định dạng gốc; vẫn có thể chọn và dịch ở chế độ văn bản.'
-                public = jobs.public(directory, job, paragraphs=not (selection_only and job['id'] == prior_text_identity)) if job else None
+                public = jobs.public(directory, job, paragraphs=not (selection_only and job['id'] == prior_text_identity), package=package) if job else None
                 return dict(job=public, preview=preview,
                             preview_notice=preview_notice, library=jobs.catalog(directory, self._trash), error='')
             except Exception as exc:

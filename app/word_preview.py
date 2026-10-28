@@ -92,11 +92,11 @@ class Preview:
             lineage = []
             while identity and identity not in seen:
                 seen.add(identity)
-                found = self.package.styles.xpath('./w:style[@w:styleId=$identity]', namespaces=NS, identity=identity)
-                if not found:
+                definition = self.package.style_definitions.get(identity)
+                if definition is None:
                     break
-                lineage.append(found[0].find('w:pPr', NS))
-                parent = found[0].find('w:basedOn', NS)
+                lineage.append(definition.find('w:pPr', NS))
+                parent = definition.find('w:basedOn', NS)
                 identity = parent.get(tag('val')) if parent is not None else None
             definitions.extend(reversed(lineage))
         definitions.append(paragraph.find('w:pPr', NS))
@@ -219,7 +219,9 @@ class Preview:
             info = archive.getinfo(target)
             if info.file_size > 12 * 1024**2 or len(self.images) >= 64 or self.image_budget <= 0:
                 return ''
-            with Image.open(io.BytesIO(archive.read(target))) as picture:
+            # Avoid importing every Pillow plugin on the first image. Only
+            # these bounded raster formats belong in the reading preview.
+            with Image.open(io.BytesIO(archive.read(target)), formats=('PNG', 'JPEG', 'GIF', 'BMP', 'TIFF', 'WEBP')) as picture:
                 if picture.width * picture.height > 25_000_000 or picture.format not in {'PNG', 'JPEG', 'GIF', 'BMP', 'TIFF', 'WEBP'}:
                     return ''
                 picture.thumbnail((1000, 1000))
@@ -312,6 +314,8 @@ class Preview:
         return result, skipped
 
     def selected_positions(self, document, regions):
+        if not regions:
+            return []
         groups = {}
         for region in regions:
             groups.setdefault(region['paragraph'], []).append(region)

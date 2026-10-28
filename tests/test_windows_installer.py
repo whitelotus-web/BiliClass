@@ -68,6 +68,20 @@ def test_direct_zip_install_and_uninstall_preserves_separate_library(tmp_path):
     assert not target.exists() and (data/'library.db').read_bytes() == b'preserve teacher data'
 
 
+def test_legacy_live_process_does_not_cancel_side_by_side_install(tmp_path):
+    """RC155 may still be shutting down; publish without killing that process."""
+    package, files = make_package(tmp_path)
+    target = tmp_path / 'managed application'
+    shell = Path(os.environ['WINDIR'])/'System32/WindowsPowerShell/v1.0/powershell.exe'
+    result = subprocess.run([str(shell), '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+        '-File', str(SCRIPT), '-InstallRoot', str(target), '-NoShortcuts',
+        '-PackageZip', str(package), '-WaitForProcessId', str(os.getpid())],
+        capture_output=True, encoding='utf-8', errors='replace', timeout=30)
+    assert result.returncode == 0, result.stderr
+    assert (target / VERSION / 'BiliClass.exe').read_bytes() == files['BiliClass.exe']
+    assert json.loads((target / '.biliclass-install.json').read_text(encoding='utf-8-sig'))['version'] == VERSION
+
+
 @pytest.mark.parametrize('old_version,new_version', [
     ('1.0.0rc167', '1.0.0rc169'), ('1.0.0rc155', '1.0.0rc171'),
     ('1.0.0rc155', '1.0.0rc172'), ('1.0.0rc171', '1.0.0rc172')])

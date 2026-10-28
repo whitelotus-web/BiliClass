@@ -32,25 +32,11 @@ ApplicationWindow {
             Text {
                 id: captionText; objectName: "applicationCaptionText"
                 x: 40; y: Math.round((parent.height - height) / 2)
-                width: Math.min(implicitWidth, Math.max(0, parent.width - x - titleBadges.width - 175))
+                width: Math.min(implicitWidth, Math.max(0, parent.width - x - 175))
                 text: root.title; color: AppTheme.ink; elide: Text.ElideRight
                 font.family: bridge.windowCaptionFont.family
                 font.pointSize: bridge.windowCaptionFont.pointSize
                 font.weight: Font.Normal; renderType: Text.NativeRendering
-            }
-            Row {
-                id: titleBadges
-                objectName: "applicationTitleBadges"
-                x: captionText.x + captionText.width + 16
-                anchors.verticalCenter: parent.verticalCenter; spacing: 8
-                Rectangle {
-                    width: 82; height: 20; radius: 10; color: AppTheme.adapt("#eaf2ff")
-                    Label { objectName: "applicationLanguageBadge"; anchors.centerIn: parent; text: "ANH ↔ VIỆT"; color: AppTheme.adapt("#0869f9"); font.pixelSize: 10; font.weight: Font.DemiBold }
-                }
-                Rectangle {
-                    width: 84; height: 20; radius: 10; color: AppTheme.adapt("#eaf7f4")
-                    Label { objectName: "applicationStorageBadge"; anchors.centerIn: parent; text: "Lưu trên máy"; color: AppTheme.adapt("#008f89"); font.pixelSize: 10; font.weight: Font.DemiBold }
-                }
             }
         }
     }

@@ -96,6 +96,7 @@ class Package:
         if self.body is None:
             raise ValueError('Tệp Word chưa có phần thân văn bản.')
         self.rows, self.paragraphs = [], {}
+        self.style_definitions = {row.get(tag('styleId')): row for row in self.styles.findall('w:style', NS)} if self.styles is not None else {}
         characters = 0
         for paragraph in self.body.iter(tag('p')):
             if any(parent.tag == tag('txbxContent') for parent in paragraph.iterancestors()):
@@ -310,10 +311,9 @@ class Package:
             lineage, seen = [], set()
             while identity and identity not in seen:
                 seen.add(identity)
-                candidates = self.styles.xpath('./w:style[@w:styleId=$identity]', namespaces=NS, identity=identity)
-                if not candidates:
+                definition = self.style_definitions.get(identity)
+                if definition is None:
                     break
-                definition = candidates[0]
                 lineage.append(definition.find('w:rPr', NS))
                 parent = definition.find('w:basedOn', NS)
                 identity = parent.get(tag('val')) if parent is not None else None

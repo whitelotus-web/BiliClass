@@ -44,10 +44,8 @@ def main():
             pump(300)
             assert window.property('page') == 'home'
             assert 'Trợ lý dạy học song ngữ' in window.title()
-            assert c('applicationLanguageBadge').property('text') == 'ANH ↔ VIỆT'
-            assert c('applicationStorageBadge').property('text') == 'Lưu trên máy'
-            assert c('applicationLanguageBadge').property('color').name() == '#0869f9'
-            assert c('applicationStorageBadge').property('color').name() == '#008f89'
+            assert window.findChild(QObject, 'applicationLanguageBadge') is None
+            assert window.findChild(QObject, 'applicationStorageBadge') is None
             for page in ('home', 'new', 'voice', 'library', 'classroom', 'settings'):
                 window.setProperty('page', page)
                 pump(30)
