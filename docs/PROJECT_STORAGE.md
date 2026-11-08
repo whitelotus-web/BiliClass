@@ -128,3 +128,25 @@ Sau khi dọn dữ liệu thử, trang Word đã mở bằng bản nguồn với
 mềm, lưu ảnh thành công, không cảnh báo QML. Kiểm dữ liệu và giọng vẫn đạt.
 Giữ runtime dựng đầy đủ ở `dist/rc173-release/BiliClass` và bộ cài phát hành;
 chỉ bỏ tệp trung gian có thể dựng lại, không đổi phiên bản ứng dụng.
+
+## Dọn tiếp ngày 09/11/2026
+
+Đã thu hồi thêm khoảng **2,00 GB** tại thời điểm đo (1,99 GB dung lượng tệp
+logic), tách riêng với các lượt trên:
+
+- Xóa 49 bản tài liệu kiểm thử trùng hoàn toàn, thuộc 17 nhóm. Mỗi bản đã
+  đối chiếu SHA-256 với một bản được giữ lại; không xóa tài liệu có nội dung
+  khác. Không có bản ghi trong thư viện đang dùng tham chiếu tới các bản
+  trùng bị xóa. Danh sách bản giữ/bản bỏ được lưu cục bộ tại
+  `DuLieu-CucBo/01-BaiGiang-TuKiemTra/BAN_TRUNG_KIEM_THU_DA_DON.csv`.
+- Xóa ba thư mục pytest cũ trong `.runtime`: `rc32-source-final`,
+  `rc32-last-focused`, `pytest-640-archive`. Đã kiểm tra toàn bộ cây thư mục,
+  chỉ chứa dữ liệu test, không có reparse point hoặc tham chiếu từ thư viện
+  hiện tại. Trong đó có tệp PowerPoint giả hơn 200 MB để thử giới hạn tải.
+
+Sau dọn, thư viện vẫn 19 bài và `PRAGMA quick_check` trả `ok`; bộ giọng Việt
+và Anh sẵn sàng. Đã kiểm lại SHA-256 của EXE và ZIP RC173, giữ nguyên runtime
+RC173 và ứng dụng đang cài. Không thay mã ứng dụng hoặc phát hành phiên bản
+mới. Hồ sơ kiểm chứng nằm ở `reports/rc173-release/last-cleanup-verification.json`
+và các nhật ký kèm theo, ngoài Git. Ổ F trống khoảng 309 GB tại lúc chốt;
+dung lượng trống có thể thay đổi khi máy tiếp tục hoạt động.
